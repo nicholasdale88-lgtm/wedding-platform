@@ -164,6 +164,84 @@ export function Insights() {
         </section>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section aria-label="Catering" className={card}>
+          <H2>Catering</H2>
+          <div className="text-[14px]">
+            <strong className="font-semibold">{data.catering.people}</strong> coming to {first?.name ?? 'the wedding'} so far · {data.catering.withNeeds} with dietary needs
+          </div>
+          {data.catering.diets.length ? <Bars rows={data.catering.diets.map(([k, v]) => ({ label: k, value: v, colour: '#b39563' }))} /> : <p className="m-0 text-[13px] text-[#7a7466]">No dietary needs yet.</p>}
+          {data.catering.mains.length > 0 && (
+            <>
+              <div className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">Their mains</div>
+              <Bars rows={data.catering.mains.map(([k, v]) => ({ label: k, value: v, colour: k === 'Not set yet' ? '#a5533c' : '#8a9670' }))} />
+            </>
+          )}
+        </section>
+        <section aria-label="Seating" className={card}>
+          <H2>Seating</H2>
+          <div className="flex items-center gap-4">
+            <Ring done={data.seating.seated} total={Math.max(data.catering.people, 1)} size={70} label={`${data.seating.seated} of ${data.catering.people} seated`} />
+            <div className="text-[14px] flex flex-col gap-1">
+              <span>
+                <strong className="font-semibold">{data.seating.seated}</strong> of {data.catering.people} seated
+              </span>
+              <span>
+                {data.seating.tables} tables · {data.seating.seats} seats
+              </span>
+              <span className={data.seating.seats < forecast ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}>
+                {data.seating.seats >= forecast ? `${data.seating.seats - forecast} spare for the ${forecast} expected` : `${forecast - data.seating.seats} more seats needed for the ${forecast} expected`}
+              </span>
+            </div>
+          </div>
+        </section>
+        <section aria-label="Key dates" className={card}>
+          <H2>Key dates</H2>
+          <ul className="list-none m-0 p-0 flex flex-col gap-2 text-[14px]">
+            {[
+              data.rsvpClose ? { what: 'Replies close', when: data.rsvpClose } : null,
+              ...plan.tasks.filter((t) => t.legal && !t.done && !Number.isNaN(day)).map((t) => ({ what: t.text, when: dateIn(tz, new Date(day - t.before * DAY)) })),
+              ...months.slice(0, 2).map(([m, a]) => ({ what: `Payments ${aud(a)}`, when: `${m}-28` })),
+              first ? { what: first.name, when: dateIn(tz, new Date(first.startsAt)) } : null,
+            ]
+              .filter((x): x is { what: string; when: string } => !!x)
+              .sort((a, b) => a.when.localeCompare(b.when))
+              .slice(0, 6)
+              .map((x) => {
+                const d = Math.round((Date.parse(x.when) - Date.parse(today)) / DAY);
+                return (
+                  <li key={`${x.what}${x.when}`} className="flex justify-between gap-3">
+                    <span className="truncate">{x.what}</span>
+                    <span className={`whitespace-nowrap tabular-nums ${d < 0 ? 'text-[#7a4a37] font-semibold' : d < 30 ? 'text-[#8a6d2f] font-semibold' : 'text-[#5b6a52]'}`}>
+                      {d < 0 ? `${-d} days ago` : d === 0 ? 'today' : `in ${d} days`}
+                    </span>
+                  </li>
+                );
+              })}
+          </ul>
+          {data.shuttles.runs > 0 && (
+            <div className="text-[13px] text-[#5b6a52] pt-2 border-t border-[#e2d7bc]">
+              Shuttles: {data.shuttles.booked} of {data.shuttles.capacity} seats booked on {data.shuttles.runs} {data.shuttles.runs === 1 ? 'run' : 'runs'}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {budget.lines.some((l) => l.quote && l.estimate) && (
+        <section aria-label="Quotes against estimates" className={card}>
+          <H2>Quotes against estimates</H2>
+          <Bars
+            rows={budget.lines
+              .filter((l) => l.quote && l.estimate)
+              .map((l) => ({ l, d: l.quote - l.estimate }))
+              .sort((a, b) => Math.abs(b.d) - Math.abs(a.d))
+              .slice(0, 8)
+              .map(({ l, d }) => ({ label: l.item || l.category, value: Math.abs(d), note: `${d > 0 ? '+' : '−'}${aud(Math.abs(d))}`, colour: d > 0 ? '#a5533c' : '#5d6b47' }))}
+          />
+          <p className="m-0 text-[12px] text-[#7a7466]">Red is over your estimate, green under.</p>
+        </section>
+      )}
+
       {data.groups.length > 1 && (
         <section aria-label="By guest group" className={card}>
           <H2>By guest group</H2>
