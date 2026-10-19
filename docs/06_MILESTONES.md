@@ -12,8 +12,8 @@ Each task is about 1 focused session. "Check" means what the owner should look a
 ## M1: Foundations
 - [ ] M1.1 pnpm monorepo (apps/api, apps/web, packages/shared). TypeScript strict, ESLint, Prettier, Vitest. `pnpm dev` runs the Worker (wrangler dev) and Vite together with an `/api` proxy.
 - [x] M1.2 D1 database + migrations from `docs/03_SCHEMA.sql`, plus a Drizzle schema. R2 bucket `media`. `wrangler.toml` bindings and cron.
-- [ ] M1.3 Seed script: create wedding `sophie-and-nicholas`, its 2 events, guide, campaigns + slots, and the sample guests from `seed/sophie-nicholas.json`. Owner user from the `SEED_OWNER_EMAIL` env var.
-- [ ] M1.4 Auth: email + passcode login, sessions, membership checks, a `/me` route, and a login screen styled like `design/RSVP Admin.dc.html` (passcode screen).
+- [x] M1.3 Seed script: create wedding `sophie-and-nicholas`, its 2 events, guide, campaigns + slots, and the sample guests from `seed/sophie-nicholas.json`. Owner user from the `SEED_OWNER_EMAIL` env var.
+- [ ] M1.4 Auth: email + passcode login, sessions, membership checks, a `/me` route, and a login screen styled like `design/RSVP Admin.dc.html` (passcode screen). _API done and green; the login screen comes with the web app scaffold._
 - [ ] M1.5 Shared libs: phone normalise (AU), tokens, time zones (Temporal polyfill or date-fns-tz), audit log. Unit tests.
 - [ ] M1.6 Deploy to Cloudflare (Pages + Worker on `/api/*`). Check: login works on your phone.
 

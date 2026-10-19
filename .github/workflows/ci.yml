@@ -58,3 +58,9 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: Seed script produces SQL (dummy owner; nothing is deployed)
+        run: |
+          cd apps/api
+          SEED_OWNER_EMAIL=ci@example.com SEED_OWNER_PASSCODE=ci-only-passcode pnpm seed:sql ../../seed/sophie-nicholas.json "$RUNNER_TEMP/seed.sql"
+          test "$(wc -l < "$RUNNER_TEMP/seed.sql")" -gt 100
