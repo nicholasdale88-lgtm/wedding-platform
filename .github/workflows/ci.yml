@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
+          # Caching needs pnpm-lock.yaml; switch it on once CI has committed the lockfile.
+          package-manager-cache: false
 
       # There's no Node on the dev machine, so the lockfile is created here once and committed back.
       - name: Install
