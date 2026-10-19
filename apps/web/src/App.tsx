@@ -11,6 +11,7 @@ const BoardPage = lazy(() => import('./guest/board/BoardPage').then((m) => ({ de
 const PartyPage = lazy(() => import('./guest/party/PartyPage').then((m) => ({ default: m.PartyPage })));
 const LivePage = lazy(() => import('./guest/live/LivePage').then((m) => ({ default: m.LivePage })));
 const ShuttlePage = lazy(() => import('./guest/shuttle/ShuttlePage').then((m) => ({ default: m.ShuttlePage })));
+const AlbumPage = lazy(() => import('./guest/album/AlbumPage').then((m) => ({ default: m.AlbumPage })));
 
 function Pages() {
   return (
@@ -26,6 +27,7 @@ function Pages() {
         <Route path="/w/:slug/party" element={<PartyPage />} />
         <Route path="/w/:slug/live" element={<LivePage />} />
         <Route path="/w/:slug/shuttle" element={<ShuttlePage />} />
+        <Route path="/w/:slug/album" element={<AlbumPage />} />
         <Route path="/" element={<Navigate to="/admin" replace />} />
         {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
         <Route path="*" element={<GuestNotFound />} />

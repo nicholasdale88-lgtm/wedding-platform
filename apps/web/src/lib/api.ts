@@ -413,6 +413,12 @@ export const plannerApi = {
     request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
 };
 
+/** The shared album (guests see everyone's photos from their events, once switched on). */
+export const albumApi = {
+  get: (wid: string) => request<{ on: boolean }>(`${w(wid)}/album`),
+  set: (wid: string, on: boolean) => send<{ on: boolean }>('PUT', `${w(wid)}/album`, { on }),
+};
+
 /** The live photo wall (a secret link to a full-screen slideshow). */
 export const liveApi = {
   get: (wid: string) => request<{ on: boolean; code: string | null; slug: string }>(`${w(wid)}/live`),

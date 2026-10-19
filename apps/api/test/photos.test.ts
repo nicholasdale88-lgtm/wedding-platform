@@ -100,6 +100,18 @@ describe('photos (admin)', () => {
     expect((await app.request(wall.photos[0]!.url, {}, env, ctx)).status).toBe(404);
   });
 
+  it('the shared album: closed until the couple opens it; then guests see and open photos of their events', async () => {
+    const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ivy Scott'`).first<{ token: string }>())!.token;
+    const album = () => app.request(`/api/p/sophie-and-nicholas/album?g=${tok}`, {}, env, ctx);
+    expect((await album()).status).toBe(404);
+    expect(((await (await call(`/a/w/${wid}/album`, { method: 'PUT', body: JSON.stringify({ on: true }) })).json()) as { on: boolean }).on).toBe(true);
+    const a = (await (await album()).json()) as { photos: { url: string; by: string }[] };
+    expect(a.photos).toHaveLength(1);
+    expect((await app.request(a.photos[0]!.url, {}, env, ctx)).status).toBe(200);
+    await call(`/a/w/${wid}/album`, { method: 'PUT', body: JSON.stringify({ on: false }) });
+    expect((await app.request(a.photos[0]!.url, {}, env, ctx)).status).toBe(404);
+  });
+
   it('says when storage is not switched on', async () => {
     delete env.MEDIA;
     expect(((await (await call(`/a/w/${wid}/photos`)).json()) as List).enabled).toBe(false);

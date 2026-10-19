@@ -13,6 +13,7 @@ import { liveAdminRoutes, liveScreenRoutes } from './routes/live';
 import { songAdminRoutes, songGuestRoutes } from './routes/songs';
 import { calendarRoutes } from './routes/calendar';
 import { shuttleAdminRoutes, shuttleGuestRoutes } from './routes/shuttles';
+import { albumAdminRoutes, albumGuestRoutes } from './routes/album';
 import { runCopies } from './photos/store';
 import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
@@ -43,6 +44,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/live', liveAdminRoutes());
   app.route('/a/w/:wid/songs', songAdminRoutes());
   app.route('/a/w/:wid/shuttles', shuttleAdminRoutes());
+  app.route('/a/w/:wid/album', albumAdminRoutes());
   app.route('/oauth', oauthRoutes());
   app.route('/a/w/:wid/events', eventRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
@@ -52,6 +54,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/p/:slug/songs', songGuestRoutes());
   app.route('/p/:slug/calendar', calendarRoutes());
   app.route('/p/:slug/shuttles', shuttleGuestRoutes());
+  app.route('/p/:slug/album', albumGuestRoutes());
   app.route('/p/:slug', guestRoutes(deps));
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {
