@@ -14,7 +14,7 @@ import { H2, inputCls, Pill, useToast } from '../ui';
 
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 const cost = (l: BudgetLine) => l.quote || l.estimate; // what it will cost: the quote once there is one
-const BLANK: BudgetLine = { category: 'Other', item: '', estimate: 0, quote: 0, paid: 0, due: '', vendor: '', note: '', payer: '' };
+const BLANK: BudgetLine = { category: 'Other', item: '', estimate: 0, quote: 0, paid: 0, due: '', vendor: '', note: '', payer: '', perHead: 0 };
 const PALETTE = ['#5d6b47', '#b39563', '#8a9670', '#7a4a37', '#3d5f92', '#c8a46a', '#46543a', '#9aa9c8', '#a06a52', '#6d7a47', '#d3c6a4', '#2f3d5c'];
 
 function Money({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
@@ -58,7 +58,7 @@ export function Budget() {
       .filter((v) => v.status === 'booked' && !named.has(v.name.trim().toLowerCase()))
       .map((v) => {
         const c = commitmentOf(v);
-        return { vendor: v, line: { category: v.category || 'Other', item: v.name, estimate: 0, quote: c.amount, paid: v.depositPaid ? c.deposit : 0, due: v.balanceDue, vendor: v.name, note: '' } as BudgetLine };
+        return { vendor: v, line: { category: v.category || 'Other', item: v.name, estimate: 0, quote: c.amount, paid: v.depositPaid ? c.deposit : 0, due: v.balanceDue, vendor: v.name, note: '', payer: '', perHead: 0 } as BudgetLine };
       });
   }, [b, vendors]);
   const sums = useMemo(() => {
@@ -83,7 +83,11 @@ export function Budget() {
     setDoc({ ...doc, data: next });
     setDirty(true);
   };
-  const setLine = (i: number, patch: Partial<BudgetLine>) => edit({ ...b, lines: b.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) });
+  // Per-guest lines: the estimate is the price times the guests (kept in step, so every total agrees).
+  const headcount = b.guests || overview?.perEvent?.[0]?.coming || 0;
+  const priced = (l: BudgetLine, n = headcount): BudgetLine => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * n * 100) / 100 } : l);
+  const setLine = (i: number, patch: Partial<BudgetLine>) => edit({ ...b, lines: b.lines.map((l, j) => (j === i ? priced({ ...l, ...patch }) : l)) });
+  const setGuests = (n: number) => edit({ ...b, guests: n, lines: b.lines.map((l) => priced(l, n || overview?.perEvent?.[0]?.coming || 0)) });
   const save = async () => {
     setSaving(true);
     try {
@@ -137,6 +141,8 @@ export function Budget() {
           </div>
         ))}
       </section>
+
+      <WhatIf guests={headcount} lines={b.lines} committed={sums.committed} total={b.total} setGuests={setGuests} saved={b.guests} />
 
       {b.total > 0 && (
         <section aria-label="Where the money goes" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
@@ -255,7 +261,7 @@ export function Budget() {
           ))}
         </datalist>
         {b.lines.map((l, i) => (
-          <div key={i} className="grid gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] grid-cols-2 md:grid-cols-[1.1fr_1.3fr_.8fr_.8fr_.8fr_1fr_.9fr_auto] items-end">
+          <div key={i} className="grid gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] grid-cols-2 md:grid-cols-[1.1fr_1.3fr_.8fr_.7fr_.8fr_.8fr_1fr_.9fr_auto] items-end">
             <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
               Category
               <input list="budget-cats" value={l.category} onChange={(e) => setLine(i, { category: e.target.value })} className={inputCls} />
@@ -265,8 +271,16 @@ export function Budget() {
               <input value={l.item} onChange={(e) => setLine(i, { item: e.target.value })} className={inputCls} />
             </label>
             <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-              Estimate
-              <Money label="Estimate" value={l.estimate} onChange={(estimate) => setLine(i, { estimate })} />
+              {l.perHead > 0 ? `Estimate (${aud(l.perHead)} × ${headcount})` : 'Estimate'}
+              {l.perHead > 0 ? (
+                <span className={`${inputCls} text-right tabular-nums bg-[#f3ecd6]`}>{aud(l.estimate)}</span>
+              ) : (
+                <Money label="Estimate" value={l.estimate} onChange={(estimate) => setLine(i, { estimate })} />
+              )}
+            </label>
+            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              Per guest
+              <Money label="Per guest" value={l.perHead} onChange={(perHead) => setLine(i, { perHead })} />
             </label>
             <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
               Quote
@@ -294,5 +308,45 @@ export function Budget() {
         </Pill>
       </section>
     </div>
+  );
+}
+
+/**
+ * The guest count your per-guest lines are priced for, and "what if": slide the number and see what the
+ * per-guest lines (catering, drinks) would add or save.
+ */
+function WhatIf({ guests, lines, committed, total, setGuests, saved }: { guests: number; lines: BudgetLine[]; committed: number; total: number; setGuests: (n: number) => void; saved: number }) {
+  const perHead = lines.reduce((a, l) => a + (l.perHead > 0 && !l.quote ? l.perHead : 0), 0);
+  const [delta, setDelta] = useState(0);
+  if (!perHead && !saved) {
+    return (
+      <p className="m-0 text-[13px] text-[#5b6a52]">
+        Tip: give catering or drinks a price per guest (on its line) and the budget follows your guest count, with a “what if” for more or fewer guests.
+      </p>
+    );
+  }
+  const change = perHead * delta;
+  return (
+    <section aria-label="Guests and what if" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <div className="flex justify-between items-end gap-3 flex-wrap">
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          Guests the per-guest lines are priced for
+          <input type="number" min={0} max={5000} value={saved || guests} onChange={(e) => setGuests(Math.max(0, Math.min(5000, Number(e.target.value) || 0)))} className={`${inputCls} w-[120px]`} />
+        </label>
+        <span className="text-[13px] text-[#5b6a52]">{aud(perHead)} a guest across your per-guest lines</span>
+      </div>
+      <label className="flex flex-col gap-1 text-[13px]">
+        <span>
+          What if {delta >= 0 ? `${delta} more` : `${-delta} fewer`} {Math.abs(delta) === 1 ? 'guest' : 'guests'}?
+        </span>
+        <input type="range" min={-50} max={50} value={delta} onChange={(e) => setDelta(Number(e.target.value))} className="accent-[#5d6b47]" />
+      </label>
+      {delta !== 0 && (
+        <div className="text-[15px]">
+          {guests + delta} guests: <strong className="font-semibold">{change > 0 ? '+' : '−'}{aud(Math.abs(change))}</strong>, about {aud(committed + change)} in all
+          {total > 0 && <span className={committed + change > total ? ' text-[#7a4a37] font-semibold' : ' text-[#5b6a52]'}>{committed + change > total ? ` · ${aud(committed + change - total)} over budget` : ` · ${aud(total - committed - change)} under budget`}</span>}
+        </div>
+      )}
+    </section>
   );
 }

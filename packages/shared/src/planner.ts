@@ -445,9 +445,16 @@ export const BudgetLine = z.object({
   note: s(500),
   /** Who's paying for it ('' is the two of you; e.g. "Her parents"). */
   payer: s(80),
+  /** Priced per guest (catering, drinks): the estimate follows the guest count. */
+  perHead: money,
 });
 export type BudgetLine = z.infer<typeof BudgetLine>;
-export const Budget = z.object({ total: money, lines: z.array(BudgetLine).max(300).default([]) });
+export const Budget = z.object({
+  total: money,
+  /** The guest count per-guest lines are priced for (0: the number coming so far). */
+  guests: z.number().int().min(0).max(5000).default(0),
+  lines: z.array(BudgetLine).max(300).default([]),
+});
 export type Budget = z.infer<typeof Budget>;
 
 /** How Australian couples usually split the budget (a starting point, by share of the total). */
