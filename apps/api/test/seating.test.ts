@@ -69,7 +69,7 @@ describe('seating API', () => {
     expect((await put(s2, { seats: { 'not-a-person': null } })).status).toBe(400);
     expect((await put(s2, { seats: { [s2.people[0]!.id]: crypto.randomUUID() } })).status).toBe(400);
     const other = await t.db.prepare(`SELECT id FROM seat_table LIMIT 1`).first<{ id: string }>();
-    await t.db.prepare(`UPDATE seat_table SET event_id = 'elsewhere' WHERE id = ?`).bind(other!.id).run();
+    await t.db.prepare(`UPDATE seat_table SET event_id = (SELECT id FROM event WHERE key = '30th') WHERE id = ?`).bind(other!.id).run(); // now belongs to another event
     const s3 = await get();
     expect((await put(s3, { tables: [...s3.tables, { id: other!.id, name: 'Mine now', shape: 'round', dir: 'h', len: 40, x: 1, y: 1, seats: 8 }] })).status).toBe(400);
   });
