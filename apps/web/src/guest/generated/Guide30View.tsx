@@ -31,7 +31,7 @@ export function Guide30View({ v, t }: ViewProps) {
                 <div style={sx("position:relative;margin-top:6px;display:flex;justify-content:center;width:100%")}>
                   {" "}
                   <div style={sx("opacity:0;animation:rise 1.3s ease .35s forwards;font-weight:300;font-size:clamp(200px,60vw,300px);line-height:1.12;margin-top:-18px;font-variant-numeric:lining-nums;font-feature-settings:'lnum' 1;letter-spacing:-.06em;color:rgba(231,238,248,.07);-webkit-text-stroke:1.5px #c9d8ee")}>
-                    {"30"}
+                    {t("g30.34173cb3")}
                   </div>
                   {" "}
                   <div style={sx("position:absolute;left:0;right:0;top:50%;transform:translateY(-10%);opacity:0;animation:rise 1.2s ease .7s forwards;font-family:'Pinyon Script',cursive;font-size:clamp(54px,16vw,80px);line-height:1;color:#fbf8f0;text-shadow:0 2px 12px rgba(20,30,55,.4)")}>

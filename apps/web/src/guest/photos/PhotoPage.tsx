@@ -4,6 +4,7 @@ import { fillTags } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { PhotoUploadView } from '../generated/PhotoUploadView';
+import { GuestMessage } from '../GuestMessage';
 import { guestApi, type PhotoPagePayload } from '../invitation/api';
 import { assetOf, setPageClass } from '../guide/common';
 
@@ -100,7 +101,7 @@ export function PhotoPage() {
     if (items.some((x) => x.st === 'wait')) void run();
   }, [items, run]);
 
-  if (!page) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
+  if (!page) return err ? <GuestMessage message={err} /> : <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
 
   const ok = items.filter((x) => x.st === 'ok').length;
   const left = items.filter((x) => x.st === 'wait' || x.st === 'up').length;

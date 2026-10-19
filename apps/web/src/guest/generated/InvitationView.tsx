@@ -645,7 +645,7 @@ export function InvitationView({ v, t }: ViewProps) {
                 <div style={sx("padding:4px 18px 20px;display:flex;flex-direction:column;gap:18px")}>
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {"1"}
+                      {t("inv.c4ca4238")}
                     </div>
                     <div style={sx("display:flex;flex-direction:column;gap:3px")}>
                       <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
@@ -658,7 +658,7 @@ export function InvitationView({ v, t }: ViewProps) {
                   </div>
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {"2"}
+                      {t("inv.c81e728d")}
                     </div>
                     <div style={sx("display:flex;flex-direction:column;gap:3px")}>
                       <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
@@ -671,7 +671,7 @@ export function InvitationView({ v, t }: ViewProps) {
                   </div>
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {"3"}
+                      {t("inv.eccbc87e")}
                     </div>
                     <div style={sx("display:flex;flex-direction:column;gap:3px")}>
                       <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
@@ -722,7 +722,7 @@ export function InvitationView({ v, t }: ViewProps) {
                 <div style={sx("padding:4px 18px 20px;display:flex;flex-direction:column;gap:18px")}>
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {"1"}
+                      {t("inv.c4ca4238")}
                     </div>
                     <div style={sx("display:flex;flex-direction:column;gap:3px")}>
                       <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
@@ -735,7 +735,7 @@ export function InvitationView({ v, t }: ViewProps) {
                   </div>
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {"2"}
+                      {t("inv.c81e728d")}
                     </div>
                     <div style={sx("display:flex;flex-direction:column;gap:3px")}>
                       <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
@@ -748,7 +748,7 @@ export function InvitationView({ v, t }: ViewProps) {
                   </div>
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {"3"}
+                      {t("inv.eccbc87e")}
                     </div>
                     <div style={sx("display:flex;flex-direction:column;gap:3px")}>
                       <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
@@ -777,7 +777,7 @@ export function InvitationView({ v, t }: ViewProps) {
               <div style={sx("font-size:18px;font-style:italic;color:#6d6680;text-align:left")}>
                 {t("inv.ac4fe845")}
                 <a href={url(t("inv.b697787a"))} style={sx("color:var(--mg,#3e4a6b)")}>
-                  {"(02) 4375 1222"}
+                  {t("inv.b5e35de5")}
                 </a>
                 {"."}
               </div>
@@ -894,7 +894,7 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
             <div style={sx("font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(120px,36vw,180px);line-height:.85;color:var(--bdtx,var(--btx,#f3ecd6));letter-spacing:-.03em")}>
-              {"30"}
+              {t("inv.34173cb3")}
             </div>
             {" "}
             <div style={sx("display:flex;align-items:center;gap:10px")}>
@@ -978,7 +978,7 @@ export function InvitationView({ v, t }: ViewProps) {
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch;flex:none")}>
                       <div style={sx("width:34px;height:34px;border-radius:50%;background:var(--bdtx,#2f3d5c);color:#f7fafd;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                        {"1"}
+                        {t("inv.c4ca4238")}
                       </div>
                       <div style={sx("flex:1;width:0;border-left:1.5px dotted var(--bdac,#4a6290);margin-top:4px")} />
                     </div>
@@ -994,7 +994,7 @@ export function InvitationView({ v, t }: ViewProps) {
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch;flex:none")}>
                       <div style={sx("width:34px;height:34px;border-radius:50%;background:var(--bdtx,#2f3d5c);color:#f7fafd;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                        {"2"}
+                        {t("inv.c81e728d")}
                       </div>
                       <div style={sx("flex:1;width:0;border-left:1.5px dotted var(--bdac,#4a6290);margin-top:4px")} />
                     </div>
@@ -1009,7 +1009,7 @@ export function InvitationView({ v, t }: ViewProps) {
                         </b>
                         {t("inv.6a850f59")}
                         <a href={url(t("inv.b697787a"))} style={sx("color:var(--bdtx,#2f3d5c)")}>
-                          {"(02) 4375 1222"}
+                          {t("inv.b5e35de5")}
                         </a>
                         {"."}
                       </div>
@@ -1018,7 +1018,7 @@ export function InvitationView({ v, t }: ViewProps) {
                   <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
                     <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch;flex:none")}>
                       <div style={sx("width:34px;height:34px;border-radius:50%;background:var(--bdtx,#2f3d5c);color:#f7fafd;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                        {"3"}
+                        {t("inv.eccbc87e")}
                       </div>
                     </div>
                     <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:0px")}>
@@ -1480,7 +1480,7 @@ export function InvitationView({ v, t }: ViewProps) {
                     <li>
                       {t("inv.a962e43c")}
                       <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
-                        {"0411 039 612"}
+                        {t("inv.7c099bd6")}
                       </a>
                       {"."}
                     </li>
@@ -1616,11 +1616,11 @@ export function InvitationView({ v, t }: ViewProps) {
                       </b>
                       {", "}
                       <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {"02 4337 3999"}
+                        {t("inv.1e63886d")}
                       </a>
                       {t("inv.81b7b428")}
                       <a href={url(t("inv.1ca41f6c"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {"13 10 08"}
+                        {t("inv.6e1eefa6")}
                       </a>
                       {t("inv.698be8f5")}
                     </li>
@@ -1710,7 +1710,7 @@ export function InvitationView({ v, t }: ViewProps) {
                       </b>
                       {t("inv.0601b9dd")}
                       <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {"02 4337 3999"}
+                        {t("inv.1e63886d")}
                       </a>
                       {"."}
                     </li>
@@ -1754,7 +1754,7 @@ export function InvitationView({ v, t }: ViewProps) {
                     <li>
                       {t("inv.4dcee571")}
                       <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {"02 4337 3999"}
+                        {t("inv.1e63886d")}
                       </a>
                       {t("inv.94b222e4")}
                     </li>
@@ -1874,7 +1874,7 @@ export function InvitationView({ v, t }: ViewProps) {
                     <li>
                       {t("inv.ce43781d")}
                       <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
-                        {"0411 039 612"}
+                        {t("inv.7c099bd6")}
                       </a>
                       {t("inv.c845ab64")}
                     </li>
@@ -1895,7 +1895,7 @@ export function InvitationView({ v, t }: ViewProps) {
                     <li>
                       {t("inv.e9f353bc")}
                       <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
-                        {"0411 039 612"}
+                        {t("inv.7c099bd6")}
                       </a>
                       {"."}
                     </li>

@@ -1,8 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AdminRoot } from './admin/AdminRoot';
+import { GuestNotFound } from './guest/GuestMessage';
 
-// Guest pages load on their own, so a guest opening their invitation never downloads the admin.
+// Guests and the couple download separate code: a guest opening their invitation never loads the admin.
+const AdminRoot = lazy(() => import('./admin/AdminRoot').then((m) => ({ default: m.AdminRoot })));
 const InvitationPage = lazy(() => import('./guest/invitation/InvitationPage').then((m) => ({ default: m.InvitationPage })));
 const GuidePage = lazy(() => import('./guest/guide/GuidePage').then((m) => ({ default: m.GuidePage })));
 const PhotoPage = lazy(() => import('./guest/photos/PhotoPage').then((m) => ({ default: m.PhotoPage })));
@@ -17,7 +18,9 @@ export function App() {
           <Route path="/w/:slug/tomorrow" element={<GuidePage />} />
           <Route path="/w/:slug/tomorrow/:event" element={<GuidePage />} />
           <Route path="/w/:slug/photos" element={<PhotoPage />} />
-          <Route path="*" element={<Navigate to="/admin" replace />} />
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+          {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
+          <Route path="*" element={<GuestNotFound />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

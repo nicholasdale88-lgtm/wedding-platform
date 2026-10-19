@@ -13,6 +13,9 @@ type State = { kind: 'loading' } | { kind: 'signed-out' } | { kind: 'signed-in';
 /** /admin: checks the session, shows sign-in when needed, then the wedding's tabs. */
 export function AdminRoot() {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  useEffect(() => {
+    document.title = 'Admin';
+  }, []);
 
   useEffect(() => {
     api

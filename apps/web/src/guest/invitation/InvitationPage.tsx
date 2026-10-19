@@ -2,6 +2,7 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { GuestMessage } from '../GuestMessage';
 import { InvitationView } from '../generated/InvitationView';
 import { guestApi, type InvitePayload } from './api';
 import { useInvitation } from './useInvitation';
@@ -25,13 +26,7 @@ export function InvitationPage() {
       .catch((e: Error) => setError(e.message));
   }, [slug, token, preview]);
 
-  if (error) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6 text-center font-display text-[22px] italic text-[#3e4a6b] bg-[#f6f0e2]">
-        <p role="alert">{error}</p>
-      </main>
-    );
-  }
+  if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
   return <Loaded slug={slug} data={data} preview={preview} />;
 }

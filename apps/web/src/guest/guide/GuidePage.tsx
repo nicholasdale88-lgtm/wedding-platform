@@ -2,6 +2,7 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { GuestMessage } from '../GuestMessage';
 import { Guide30View } from '../generated/Guide30View';
 import { GuideView } from '../generated/GuideView';
 import { guestApi, type GuidePayload } from '../invitation/api';
@@ -28,13 +29,7 @@ export function GuidePage() {
       .catch((e: Error) => setError(e.message));
   }, [slug, token, event]);
 
-  if (error) {
-    return (
-      <main className="min-h-screen flex items-center justify-center p-6 text-center font-display text-[22px] italic text-[#33402f] bg-[#f6f0e2]">
-        <p role="alert">{error}</p>
-      </main>
-    );
-  }
+  if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
   return data.guide.style === 'dayout' ? <Dayout data={data} /> : <Reception data={data} />;
 }

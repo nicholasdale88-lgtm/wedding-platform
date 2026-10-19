@@ -226,7 +226,7 @@ sub emit {
       my $text = norm_text(decode_entities($part));
       next if $text eq '';
       if ($text !~ /\S/) { $out .= $pad . "{\" \"}\n"; next; }
-      if ($text =~ /^[\s\d.,:;!?()\-\x{2013}\x{2014}\x{b7}\x{2022}\/&+*#%]*$/ ) {   # pure punctuation/numbers: no words to translate
+      if ($text =~ /^[\s\d.,:;!?()\-\x{2013}\x{2014}\x{b7}\x{2022}\/&+*#%]*$/ && $text !~ /\d/) {   # pure punctuation: nothing to edit (numbers like "30" are content)
         $out .= $pad . '{' . js_str($text) . "}\n"; next;
       }
       $out .= $pad . '{t(' . js_str(key_for($text)) . ")}\n";
