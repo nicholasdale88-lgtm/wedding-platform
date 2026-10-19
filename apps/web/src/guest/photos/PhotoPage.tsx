@@ -153,5 +153,9 @@ export function PhotoPage() {
       retry: () => it.st === 'err' && mark(it.id, 'wait'),
     })),
   };
-  return <PhotoUploadView v={v} t={t} />;
+  return (
+    <div className="dz">
+      <PhotoUploadView v={v} t={t} />
+    </div>
+  );
 }

@@ -36,5 +36,9 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
   useEffect(() => {
     document.title = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
   }, [data.wedding]);
-  return <InvitationView v={v} t={t} />;
+  return (
+    <div className="dz">
+      <InvitationView v={v} t={t} />
+    </div>
+  );
 }

@@ -116,7 +116,8 @@ export function GuestPages() {
 
   const samples = useMemo(() => (data?.samples ?? []).filter((s) => !eventKey || s.invited.includes(eventKey)), [data, eventKey]);
   const pv = params.get('as') ?? '';
-  const sample = samples.find((s) => s.token === pv) ?? (page === 'invitation' ? null : samples[0]) ?? null;
+  // No guest picked: the invitation as a stranger sees it, the guides and photo page with a stand-in guest.
+  const sample = samples.find((s) => s.token === pv) ?? null;
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!data || !doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your pages…</div>;
@@ -193,7 +194,7 @@ export function GuestPages() {
         ))}
         <Label text="Preview as" className="!flex-row items-center gap-2 ml-auto">
           <select value={sample?.token ?? ''} onChange={(e) => setParam('as', e.target.value)} className={`${inputCls} !py-2`}>
-            {page === 'invitation' && <option value="">Someone without their link</option>}
+            <option value="">{page === 'invitation' ? 'Someone without their link' : 'A sample guest'}</option>
             {samples.map((s) => (
               <option key={s.token} value={s.token}>
                 {s.label}

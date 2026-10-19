@@ -1,7 +1,9 @@
 import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, splitDiet, textsFor, type TableShape } from '@wp/shared';
 import { Hono, type Context } from 'hono';
+import { getCookie } from 'hono/cookie';
 import { z } from 'zod';
 import type { Env } from '../env';
+import { SESSION_COOKIE, sessionId } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { clearDietIfDeclinedAll, unseatIfNotComing } from '../lib/seatingRules';
 import type { Snapshot as SeatSnapshot } from './seating';
@@ -30,6 +32,18 @@ const imagesOf = (content: Record<string, unknown>) => {
   return (inv.success && inv.data.images) || {};
 };
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+/** Whether the request carries a live admin session for this wedding (the couple previewing their pages). */
+async function isAdminOf(c: C, weddingId: string): Promise<boolean> {
+  const token = getCookie(c, SESSION_COOKIE);
+  if (!token || !c.env.SESSION_SECRET) return false;
+  const row = await c.env.DB.prepare(
+    `SELECT 1 AS ok FROM session s JOIN membership m ON m.user_id = s.user_id WHERE s.id = ? AND s.expires_at > ? AND m.wedding_id = ?`,
+  )
+    .bind(await sessionId(token, c.env.SESSION_SECRET), new Date().toISOString(), weddingId)
+    .first<{ ok: number }>();
+  return !!row;
+}
 
 interface WeddingRow {
   id: string; slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string; content: string; guide: string; music_key: string | null;
@@ -142,12 +156,18 @@ export function guestRoutes() {
   app.get('/guide', async (c) => {
     const w = await wedding(c);
     const token = c.req.query('g') ?? '';
-    if (!w || !isToken(token)) return err(c, 404, 'no_link', 'Please open your guide from the link in your text.');
+    // The couple previewing from Guest pages with no guest picked: a stand-in guest, signed-in admins only.
+    const couple = !token && c.req.query('preview') === '1' && !!w && (await isAdminOf(c, w.id));
+    if (!w || (!couple && !isToken(token))) return err(c, 404, 'no_link', 'Please open your guide from the link in your text.');
     const db = c.env.DB;
-    const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
+    const inv = couple
+      ? { id: '' }
+      : await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
     if (!inv) return err(c, 404, 'no_link', 'Please open your guide from the link in your text.');
     const events = await eventsOf(db, w.id);
-    const { results: inviteRows } = await db.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(inv.id).all<{ event_id: string }>();
+    const { results: inviteRows } = couple
+      ? { results: events.map((e) => ({ event_id: e.id })) }
+      : await db.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(inv.id).all<{ event_id: string }>();
     const invited = new Set(inviteRows.map((r) => r.event_id));
     const wanted = c.req.query('event');
     const ev = events.find((e) => invited.has(e.id) && (!wanted || e.key === wanted));
@@ -161,14 +181,17 @@ export function guestRoutes() {
       db.prepare(`SELECT snapshot FROM seat_publish WHERE event_id = ?`).bind(ev.id),
     ]);
     type Person = { id: string; idx: number; name: string; diet: string; meal_entree: string; meal_main: string; meal_dessert: string };
-    const ppl = people!.results as Person[];
-    const r = rsvp!.results[0] as { attending: number | null; answers: string } | undefined;
+    const ppl = couple
+      ? [{ id: '', idx: 0, name: 'Your guest', diet: '', meal_entree: '', meal_main: '', meal_dessert: '' }]
+      : (people!.results as Person[]);
+    const r = couple ? { attending: 1, answers: '{}' } : (rsvp!.results[0] as { attending: number | null; answers: string } | undefined);
     const coming = r?.attending === 1;
 
     // Guests only ever see the *published* seating (Admin → Seating → Publish), and only once they've said yes.
     const pubRow = pub!.results[0] as { snapshot: string } | undefined;
     const snap = pubRow ? (JSON.parse(pubRow.snapshot) as SeatSnapshot) : null;
-    const tableOf = (personId: string) => (coming && snap?.seats[personId]) || null;
+    // The stand-in guest sits at the first published table, so the couple sees how the table card looks.
+    const tableOf = (personId: string) => (couple ? snap?.tables[0]?.id : coming && snap?.seats[personId]) || null;
     const mine = [...new Set(ppl.map((p) => tableOf(p.id)).filter((id): id is string => !!id))];
 
     // Table mates: names only, only at their own tables, only people still coming.
@@ -216,7 +239,7 @@ export function guestRoutes() {
         : null,
       mates,
       weather,
-      photoUrl: (guide.style === 'reception' && guide.photoUrl) || `${base}/w/${w.slug}/photos?g=${token}`,
+      photoUrl: (guide.style === 'reception' && guide.photoUrl) || `${base}/w/${w.slug}/photos${couple ? '' : `?g=${token}`}`,
     });
   });
 

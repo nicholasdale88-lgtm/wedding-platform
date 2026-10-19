@@ -18,16 +18,17 @@ export function GuidePage() {
   const { slug = '', event } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
+  const preview = params.get('preview') === '1';
   const [data, setData] = useState<GuidePayload | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setData(null);
     guestApi
-      .guide(slug, token, event)
+      .guide(slug, token, event, preview)
       .then(setData)
       .catch((e: Error) => setError(e.message));
-  }, [slug, token, event]);
+  }, [slug, token, event, preview]);
 
   // Live: the forecast, tables and meals refresh while the guide is open (every 15 minutes, and on
   // coming back to it). A failed refresh keeps what is on screen.
@@ -37,7 +38,7 @@ export function GuidePage() {
       if (document.visibilityState !== 'visible' || Date.now() - last < 60_000) return;
       last = Date.now();
       guestApi
-        .guide(slug, token, event)
+        .guide(slug, token, event, preview)
         .then(setData)
         .catch(() => {});
     };
@@ -50,7 +51,7 @@ export function GuidePage() {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [slug, token, event]);
+  }, [slug, token, event, preview]);
 
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
@@ -67,11 +68,19 @@ function usePage(page: string, data: GuidePayload) {
 function Reception({ data }: { data: GuidePayload }) {
   usePage('gd', data);
   const v = useGuide(data);
-  return <GuideView v={v} t={(k) => data.texts[k] ?? ''} />;
+  return (
+    <div className="dz">
+      <GuideView v={v} t={(k) => data.texts[k] ?? ''} />
+    </div>
+  );
 }
 
 function Dayout({ data }: { data: GuidePayload }) {
   usePage('g30', data);
   const v = useGuide30(data);
-  return <Guide30View v={v} t={(k) => data.texts[k] ?? ''} />;
+  return (
+    <div className="dz">
+      <Guide30View v={v} t={(k) => data.texts[k] ?? ''} />
+    </div>
+  );
 }

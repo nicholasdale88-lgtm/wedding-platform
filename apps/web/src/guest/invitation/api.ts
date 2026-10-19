@@ -83,8 +83,10 @@ export const guestApi = {
     call<InvitePayload>(`/p/${encodeURIComponent(slug)}/invite${token ? `?g=${encodeURIComponent(token)}${preview ? '&preview=1' : ''}` : ''}`),
   find: (slug: string, name: string) => call<InvitePayload>(`/p/${encodeURIComponent(slug)}/find`, { method: 'POST', body: JSON.stringify({ name }) }),
   rsvp: (slug: string, body: RsvpBody) => call<{ ok: true; invitation: GuestInvitation }>(`/p/${encodeURIComponent(slug)}/rsvp`, { method: 'POST', body: JSON.stringify(body) }),
-  guide: (slug: string, token: string, event?: string) =>
-    call<GuidePayload>(`/p/${encodeURIComponent(slug)}/guide?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`),
+  guide: (slug: string, token: string, event?: string, preview = false) =>
+    call<GuidePayload>(
+      `/p/${encodeURIComponent(slug)}/guide?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${preview ? '&preview=1' : ''}`,
+    ),
   photos: (slug: string, token: string) => call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}`),
   /** One photo; the server checks it really is one. */
   uploadPhoto: async (slug: string, token: string, by: string, photo: Blob) => {

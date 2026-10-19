@@ -5,6 +5,7 @@ import texts from '../../../seed/texts.json';
 import dynamicTexts from '../../../seed/texts.dynamic.json';
 import type { Env } from '../src/env';
 import { createApp } from '../src/index';
+import { sessionId } from '../src/lib/auth';
 import { buildSeed } from '../src/seed/build';
 import { publishSeating, testD1 } from './support/d1';
 
@@ -174,6 +175,26 @@ describe('guest API', () => {
     expect(Object.keys(p.texts).every((k) => k.startsWith('gd.'))).toBe(true);
     expect(p.photoUrl).toBe(`https://example.com/w/sophie-and-nicholas/photos?g=${ella}`);
     expect(p.weather).toBeNull(); // more than two weeks out: no forecast, never a made-up one
+  });
+
+  it('night-before guide preview: the signed-in couple sees every guide with a stand-in guest; nobody else does', async () => {
+    const secret = 'test-secret-for-sessions-000000';
+    env.SESSION_SECRET = secret;
+    const owner = (await t.db.prepare(`SELECT user_id FROM membership LIMIT 1`).first<{ user_id: string }>())!.user_id;
+    await t.db
+      .prepare(`INSERT INTO session (id, user_id, expires_at) VALUES (?, ?, ?)`)
+      .bind(await sessionId('couple-session', secret), owner, '2099-01-01T00:00:00.000Z')
+      .run();
+    const as = (path: string, cookie: string) => app.request(`/api/p/sophie-and-nicholas${path}`, { headers: { cookie } }, env, ctx);
+    expect((await get('/guide?preview=1&event=wedding')).status).toBe(404); // signed out
+    expect((await as('/guide?preview=1&event=wedding', 'wp_session=someone-else')).status).toBe(404);
+    expect((await as('/guide?event=wedding', 'wp_session=couple-session')).status).toBe(404); // only when previewing
+    for (const [event, style] of [['wedding', 'reception'], ['30th', 'dayout']] as const) {
+      const p = (await (await as(`/guide?preview=1&event=${event}`, 'wp_session=couple-session')).json()) as Guide & { guest: { people: { name: string }[] } };
+      expect(p.event.key).toBe(event);
+      expect(p.guide.style).toBe(style);
+      expect(p.guest.people.map((x) => x.name)).toEqual(['Your guest']);
+    }
   });
 
   it('guide seating: their tables, and names of only their own table mates', async () => {

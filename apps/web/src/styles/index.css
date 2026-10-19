@@ -44,3 +44,18 @@
     outline-offset: 2px;
   }
 }
+
+/*
+ * Guest pages are drawn on plain browser defaults (design/*.html has no reset: 16px text,
+ * normal line spacing, content-box sizing, default button fonts). Everything inside .dz goes
+ * back to those defaults so the live pages measure the same as the approved designs; the
+ * views' own inline styles and hover classes still apply on top.
+ */
+.dz,
+.dz * {
+  all: revert;
+}
+.dz {
+  font: 16px/normal serif;
+  color: #000;
+}
