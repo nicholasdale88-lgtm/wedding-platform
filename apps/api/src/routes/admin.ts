@@ -256,6 +256,25 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     return c.json(await guestJson(c, invId));
   });
 
+  /** Dietary → meals: what the kitchen serves this person, course by course (blank = set menu). */
+  app.put('/people/:pid/meal', writer, async (c) => {
+    const body = z
+      .object({ entree: z.string().trim().max(200), main: z.string().trim().max(200), dessert: z.string().trim().max(200) })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Keep each course under 200 characters.');
+    const pid = c.req.param('pid');
+    const r = await c.env.DB.prepare(
+      `UPDATE person SET meal_entree = ?, meal_main = ?, meal_dessert = ?, version = version + 1
+        WHERE id = ? AND deleted_at IS NULL AND invitation_id IN (SELECT id FROM invitation WHERE wedding_id = ?)`,
+    )
+      .bind(body.data.entree, body.data.main, body.data.dessert, pid, wid(c))
+      .run();
+    if (!r.meta.changes) return err(c, 404, 'not_found', 'Guest not found.');
+    await audit(c, 'meal.set', pid, body.data).run();
+    return c.json({ ok: true });
+  });
+
   /** "Send now" from the guest drawer: one text to this guest. Shows count and cost first via ?dry=1. */
   app.post('/guests/:id/send', writer, async (c) => {
     const body = z.object({ campaignId: z.string() }).safeParse(await readJson(c.req.raw));
