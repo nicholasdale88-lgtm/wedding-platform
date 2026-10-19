@@ -1,6 +1,6 @@
-import type { ReceptionGuide } from '@wp/shared';
+import type { ReceptionGuide, Vendors as VendorsDoc } from '@wp/shared';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { pagesApi, seatingApi, type PagesData, type SeatingData } from '../../lib/api';
+import { pagesApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { H2, Pill } from '../ui';
 
@@ -10,13 +10,14 @@ import { H2, Pill } from '../ui';
  * chart come from the seating plan; menu cards from the night-before page's menu.
  */
 
-type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu';
+type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu' | 'runsheet';
 const KINDS: [Kind, string, string][] = [
   ['welcome', 'Welcome sign', 'One A3 page (prints well up to A1).'],
   ['tables', 'Table numbers', 'An A5 card for each table.'],
   ['places', 'Place cards', 'Name and table, eight to an A4 page: cut on the lines and fold.'],
   ['chart', 'Seating chart', 'Everyone A to Z with their table, on A3 posters (one per 135 guests).'],
   ['menu', 'Menu cards', 'The menu from your night-before page, two to an A4 page.'],
+  ['runsheet', 'Run sheet for the day', 'For the venue, coordinator, photographer and MC: the whole day, who’s in the party, and every supplier with their arrival time and phone.'],
 ];
 
 export function Print() {
@@ -24,6 +25,8 @@ export function Print() {
   const [pages, setPages] = useState<PagesData | null>(null);
   const [seating, setSeating] = useState<SeatingData | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
+  const [party, setParty] = useState<PartyData | null>(null);
+  const [vendors, setVendors] = useState<VendorsDoc['list']>([]);
   const first = overview?.events[0];
   useEffect(() => {
     pagesApi
@@ -34,6 +37,14 @@ export function Print() {
       .get(wid, first?.key)
       .then(setSeating)
       .catch(() => setSeating(null));
+    plannerApi
+      .party(wid, first?.key)
+      .then(setParty)
+      .catch(() => setParty(null));
+    plannerApi
+      .doc<VendorsDoc>(wid, 'vendors')
+      .then((r) => setVendors(r.data.list))
+      .catch(() => setVendors([]));
   }, [wid, first?.key]);
 
   const names = pages?.names ?? { name1: overview?.wedding.name1 ?? '', name2: overview?.wedding.name2 ?? '', monogram: '' };
@@ -51,7 +62,11 @@ export function Print() {
   );
   const guide = first && pages ? (pages.guides[first.key] as ReceptionGuide | undefined) : undefined;
   const menu = guide?.style === 'reception' ? (guide.menu ?? []) : [];
-  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length };
+  const items = party?.runsheet?.data.items ?? [];
+  const booked = vendors.filter((v) => v.status === 'booked').sort((a, b) => (a.arrival || '~').localeCompare(b.arrival || '~', undefined, { numeric: true }) || a.name.localeCompare(b.name));
+  const sideName = { p1: party?.setup?.data.p1 || 'Bride', p2: party?.setup?.data.p2 || 'Groom' };
+  const whoLabel = (w: string) => (w === 'party' ? 'Everyone' : w === 'p1' ? `${sideName.p1}’s side` : w === 'p2' ? `${sideName.p2}’s side` : w);
+  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length };
 
   return (
     <div className="flex flex-col gap-4">
@@ -67,8 +82,23 @@ export function Print() {
               <strong className="font-display text-[22px] font-medium">{label}</strong>
               <span className="text-[13px] text-[#5b6a52] flex-1">{hint}</span>
               <span className="text-[12px] text-[#7a7466]">
-                {k === 'tables' ? `${tables.length} tables` : k === 'places' || k === 'chart' ? `${seated.length} guests seated` : k === 'menu' ? `${menu.length} courses` : couple}
-                {!ready && (k === 'menu' ? ' (add the menu in Setup → Night-before page)' : k !== 'welcome' ? ' (seat guests in Guest planning → Seating)' : '')}
+                {k === 'tables'
+                  ? `${tables.length} tables`
+                  : k === 'places' || k === 'chart'
+                    ? `${seated.length} guests seated`
+                    : k === 'menu'
+                      ? `${menu.length} courses`
+                      : k === 'runsheet'
+                        ? `${items.length} moments · ${booked.length} suppliers`
+                        : couple}
+                {!ready &&
+                  (k === 'menu'
+                    ? ' (add the menu in Setup → Night-before page)'
+                    : k === 'runsheet'
+                      ? ' (build the day in Wedding party, or book suppliers in Vendors)'
+                      : k !== 'welcome'
+                        ? ' (seat guests in Guest planning → Seating)'
+                        : '')}
               </span>
               <Pill kind="outline" className="self-start" disabled={!ready} onClick={() => setKind(k)}>
                 Preview and print
@@ -129,6 +159,89 @@ export function Print() {
               </div>
             </section>
             ))}
+          {kind === 'runsheet' && (
+            <section className="pp pp-flow pp-serif text-[4mm] leading-snug">
+              <div className="flex justify-between items-end gap-[6mm] border-b-[0.5mm] border-[#c8a46a] pb-[3mm]">
+                <div>
+                  <div className="pp-small">Run sheet</div>
+                  <div className="pp-script text-[14mm] leading-none mt-[2mm]">{couple}</div>
+                </div>
+                <div className="text-right text-[4.2mm]">
+                  <div className="font-semibold">{first?.name}</div>
+                  <div className="italic">{date}</div>
+                </div>
+              </div>
+              {party?.runsheet?.data.note?.trim() && <p className="my-[4mm] italic whitespace-pre-line">{party.runsheet.data.note}</p>}
+              {items.length > 0 && (
+                <table className="pp-table">
+                  <thead>
+                    <tr>
+                      <th className="w-[26mm]">When</th>
+                      <th>What</th>
+                      <th className="w-[38mm]">Who</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it, n) => (
+                      <tr key={n}>
+                        <td className="whitespace-nowrap font-semibold">
+                          {it.time}
+                          {it.until ? `–${it.until}` : ''}
+                        </td>
+                        <td>
+                          <div className="font-semibold">{it.title}</div>
+                          {it.place && <div className="italic">{it.place}</div>}
+                          {it.detail && <div className="whitespace-pre-line">{it.detail}</div>}
+                        </td>
+                        <td>{it.who.map(whoLabel).join(', ')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {(party?.members.length ?? 0) > 0 && (
+                <>
+                  <h3 className="pp-small mt-[7mm] mb-[2mm]">The wedding party</h3>
+                  <div className="grid grid-cols-2 gap-x-[8mm]">
+                    {party!.members.map((m) => (
+                      <div key={m.personId} className="flex justify-between gap-[3mm] border-b border-[#e2d7bc] py-[0.8mm]">
+                        <span>{m.name}</span>
+                        <span className="italic">{m.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {booked.length > 0 && (
+                <>
+                  <h3 className="pp-small mt-[7mm] mb-[2mm]">Suppliers</h3>
+                  <table className="pp-table">
+                    <thead>
+                      <tr>
+                        <th className="w-[22mm]">Arrives</th>
+                        <th>Who</th>
+                        <th className="w-[52mm]">Contact</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {booked.map((v) => (
+                        <tr key={v.id}>
+                          <td className="whitespace-nowrap font-semibold">{v.arrival}</td>
+                          <td>
+                            <span className="font-semibold">{v.name}</span>
+                            {v.category && <span className="italic"> · {v.category}</span>}
+                          </td>
+                          <td>
+                            {[v.contact, v.phone].filter(Boolean).join(' · ')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </section>
+          )}
           {kind === 'menu' && (
               <section className="pp pp-a4 grid grid-cols-2">
                 {[0, 1].map((n) => (
@@ -206,6 +319,12 @@ const PRINT_CSS = `
 .pp-rule { width: 30mm; height: 0.5mm; background: #c8a46a; }
 .pp-place { border: 0.2mm dashed #d8cfb8; }
 .pp-chart { column-count: 3; column-gap: 10mm; }
+.pp-flow { width: 210mm; min-height: 297mm; height: auto; padding: 14mm 16mm; page: a4; overflow: visible; }
+.pp-flow::before { display: none; }
+.pp-table { width: 100%; border-collapse: collapse; margin-top: 4mm; }
+.pp-table th { font-family: 'DM Sans', system-ui, sans-serif; font-size: 2.8mm; letter-spacing: .2em; text-transform: uppercase; text-align: left; color: #6b6558; padding: 1.5mm 2mm; border-bottom: 0.4mm solid #c8a46a; }
+.pp-table td { vertical-align: top; padding: 2mm; border-bottom: 0.2mm solid #e2d7bc; }
+.pp-table tr { break-inside: avoid; }
 @media print {
   /* Each sheet asks for its own paper size (A3 signs, A4 cards, A5 table numbers); a printer without A3 scales to fit. */
   @page { margin: 0; }
