@@ -2,7 +2,7 @@ import type { DayoutGuide, GuideContent, InvitationContent, ReceptionGuide } fro
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { THEMES } from '../../guest/generated/themes';
-import { ApiError, pagesApi, type PagesData, type PagesPut } from '../../lib/api';
+import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
@@ -16,7 +16,7 @@ import { ORIGINAL, Wording } from './Wording';
  * Saves by itself a moment after you stop typing; a clash with another editor reloads.
  */
 
-type Doc = Pick<PagesData, 'theme' | 'invitation' | 'guides' | 'texts'>;
+type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts'>;
 type PageKey = 'invitation' | 'photos' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
@@ -24,7 +24,7 @@ const shortName = (name: string) => name.replace(/^the\s+/i, '').replace(/^\w/, 
 const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s));
 
 export function GuestPages() {
-  const { wid, event: chosen } = useAdmin();
+  const { wid, event: chosen, reload: reloadOverview } = useAdmin();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const wide = useMedia('(min-width: 1100px)');
@@ -48,7 +48,7 @@ export function GuestPages() {
       const d = await pagesApi.get(wid);
       setData(d);
       versionRef.current = d.version;
-      setDoc({ theme: d.theme, invitation: d.invitation, guides: d.guides, texts: d.texts });
+      setDoc({ names: d.names, theme: d.theme, invitation: d.invitation, guides: d.guides, texts: d.texts });
       dirty.current.clear();
       setError('');
     } catch (e) {
@@ -66,6 +66,7 @@ export function GuestPages() {
     const body: PagesPut = {};
     for (const k of sent.keys()) {
       if (k === 'theme') body.theme = d.theme;
+      else if (k === 'names' && d.names && d.names.name1.trim() && d.names.name2.trim()) body.names = d.names; // never blank names
       else if (k === 'invitation') body.invitation = d.invitation;
       else if (k.startsWith('guide:')) (body.guides ??= {})[k.slice(6)] = d.guides[k.slice(6)]!;
       else if (k.startsWith('text:')) (body.texts ??= {})[k.slice(5)] = d.texts[k.slice(5)] ?? '';
@@ -77,6 +78,7 @@ export function GuestPages() {
       for (const [k, g] of sent) if (dirty.current.get(k) === g) dirty.current.delete(k);
       setStatus(dirty.current.size ? 'waiting' : 'saved');
       setPreviewKey((n) => n + 1);
+      if (sent.has('names') || sent.has('theme')) void reloadOverview(); // the admin's title and colours follow
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         toast('Updated elsewhere, reloaded.');
@@ -90,7 +92,7 @@ export function GuestPages() {
       saving.current = false;
       if (dirty.current.size) timer.current = setTimeout(() => void flush(), SAVE_AFTER_MS);
     }
-  }, [wid, load, toast]);
+  }, [wid, load, toast, reloadOverview]);
 
   const mark = useCallback(
     (section: string, next: (d: Doc) => Doc) => {
@@ -148,7 +150,7 @@ export function GuestPages() {
   let n = 0;
   const editor = (
     <div className="flex flex-col gap-6 min-w-0">
-      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
+      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
       {guide?.style === 'reception' && <ReceptionEditor g={guide} n={() => ++n} set={setGuide} />}
       {guide?.style === 'dayout' && <DayoutEditor g={guide} n={() => ++n} set={setGuide} />}
       <Wording n={++n} prefix={page === 'invitation' ? 'inv' : page === 'photos' ? 'ph' : guide?.style === 'dayout' ? 'g30' : 'gd'} texts={doc.texts} onChange={setText} />
@@ -236,7 +238,19 @@ const INV_FIELDS: { key: keyof InvitationContent & string; label: string; ph?: s
   { key: 'rideTime', label: 'Activity time (if your second event has one)', ph: '10:00am' },
 ];
 
-function InvitationEditor({ doc, n, setInv, setTheme }: { doc: Doc; n: () => number; setInv: (p: Partial<InvitationContent>) => void; setTheme: (t: string) => void }) {
+function InvitationEditor({
+  doc,
+  n,
+  setInv,
+  setNames,
+  setTheme,
+}: {
+  doc: Doc;
+  n: () => number;
+  setInv: (p: Partial<InvitationContent>) => void;
+  setNames: (names: PageNames) => void;
+  setTheme: (t: string) => void;
+}) {
   const inv = doc.invitation;
   return (
     <>
@@ -260,6 +274,13 @@ function InvitationEditor({ doc, n, setInv, setTheme }: { doc: Doc; n: () => num
         </Grid>
       </Section>
       <Section n={n()} title="Names, date and links" hint="Fill in what you have; anything left empty keeps the design's default. Event names, dates and times come from your events.">
+        {doc.names && (
+          <Grid>
+            <TextField label="Your name" value={doc.names.name1} onChange={(v) => setNames({ ...doc.names!, name1: v })} hint="As on the invitation. The admin and texts use these too." />
+            <TextField label="Your partner's name" value={doc.names.name2} onChange={(v) => setNames({ ...doc.names!, name2: v })} />
+            <TextField label="Monogram" value={doc.names.monogram} placeholder="A&B" onChange={(v) => setNames({ ...doc.names!, monogram: v.slice(0, 12) })} />
+          </Grid>
+        )}
         <Grid>
           {INV_FIELDS.map((f) => (
             <TextField key={f.key} label={f.label} value={String(inv[f.key] ?? '')} placeholder={f.ph} hint={f.hint} onChange={(v) => setInv({ [f.key]: v })} />

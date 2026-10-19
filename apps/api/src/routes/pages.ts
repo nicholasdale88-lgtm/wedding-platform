@@ -29,6 +29,8 @@ const PagesPut = z
     invitation: InvitationContent,
     guides: z.record(z.string().max(40), GuideContent),
     texts: z.record(z.string().regex(TEXT_KEY), z.string().max(4000)),
+    /** The couple's names and monogram, as on the invitation (and the admin's title). */
+    names: z.object({ name1: z.string().trim().min(1).max(80), name2: z.string().trim().min(1).max(80), monogram: z.string().trim().max(12) }),
   })
   .partial()
   .strict()
@@ -38,6 +40,9 @@ interface WRow {
   id: string;
   slug: string;
   theme: string;
+  name1: string;
+  name2: string;
+  monogram: string;
   content: string;
   guide: string;
   version: number;
@@ -48,7 +53,7 @@ export function pagesRoutes() {
   app.use('*', jsonWritesOnly, requireUser, requireMember());
 
   const load = (c: C) =>
-    c.env.DB.prepare(`SELECT id, slug, theme, content, guide, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(c.req.param('wid')).first<WRow>();
+    c.env.DB.prepare(`SELECT id, slug, theme, name1, name2, monogram, content, guide, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(c.req.param('wid')).first<WRow>();
 
   async function payload(c: C, w: WRow) {
     const db = c.env.DB;
@@ -70,6 +75,7 @@ export function pagesRoutes() {
       version: w.version,
       slug: w.slug,
       theme: w.theme,
+      names: { name1: w.name1, name2: w.name2, monogram: w.monogram },
       events: evs,
       invitation: inv.success ? inv.data : {},
       guides: guidesOf(parse(w.guide, {}), evs.map((e) => e.key)),
@@ -114,15 +120,15 @@ export function pagesRoutes() {
 
     const now = new Date().toISOString();
     const res = await c.env.DB.prepare(
-      `UPDATE wedding SET content = ?, guide = ?, theme = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?`,
+      `UPDATE wedding SET content = ?, guide = ?, theme = ?, name1 = ?, name2 = ?, monogram = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?`,
     )
-      .bind(JSON.stringify(content), JSON.stringify(guides), b.theme ?? w.theme, now, w.id, v)
+      .bind(JSON.stringify(content), JSON.stringify(guides), b.theme ?? w.theme, b.names?.name1 ?? w.name1, b.names?.name2 ?? w.name2, b.names?.monogram ?? w.monogram, now, w.id, v)
       .run();
     if (!res.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
     await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'pages.save', ?, ?, ?)`)
       .bind(crypto.randomUUID(), w.id, c.get('user').id, Object.keys(b).join(','), JSON.stringify({ texts: Object.keys(b.texts ?? {}).length }), now)
       .run();
-    return c.json(await payload(c, { ...w, content: JSON.stringify(content), guide: JSON.stringify(guides), theme: b.theme ?? w.theme, version: v + 1 }));
+    return c.json(await payload(c, { ...w, content: JSON.stringify(content), guide: JSON.stringify(guides), theme: b.theme ?? w.theme, name1: b.names?.name1 ?? w.name1, name2: b.names?.name2 ?? w.name2, monogram: b.names?.monogram ?? w.monogram, version: v + 1 }));
   });
 
   return app;

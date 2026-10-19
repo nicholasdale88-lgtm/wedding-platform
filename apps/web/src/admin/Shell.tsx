@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { NavLink, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
+import { THEMES } from '../guest/generated/themes';
 import { fmtEvent } from '../lib/format';
 import { coupleName } from '../lib/remember';
 import { useAutoRefresh, useMedia } from './ui';
@@ -78,7 +79,7 @@ function EventSwitch({ mob }: { mob: boolean }) {
             aria-checked={on}
             onClick={() => setEvent(e.key)}
             className={`flex-none text-left rounded-[8px] border cursor-pointer ${mob ? 'py-[6px] px-3 text-[13px]' : 'py-2 px-3 text-[14px]'} ${
-              on ? 'bg-[#cfd8bb] text-[#33402f] border-[#cfd8bb]' : 'bg-transparent text-[#f3ecd6] border-[rgba(243,236,214,.35)] hover:border-[#f3ecd6]'
+              on ? 'bg-[var(--adm-soft,#cfd8bb)] text-[var(--adm-ink,#33402f)] border-[var(--adm-soft,#cfd8bb)]' : 'bg-transparent text-[#f3ecd6] border-[rgba(243,236,214,.35)] hover:border-[#f3ecd6]'
             }`}
           >
             {e.name}
@@ -123,9 +124,9 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   const name = o ? o.wedding.adminName.trim() || coupleName(o.wedding) : '';
 
   return (
-    <div className={`grid min-h-screen bg-[#f6f0e2] text-[14px] text-[#33402f] ${mob ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'}`}>
+    <div style={themeVars(o?.wedding.theme)} className={`grid min-h-screen bg-[#f6f0e2] text-[14px] text-[#33402f] ${mob ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'}`}>
       <aside
-        className={`bg-[#33402f] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 ${mob ? 'gap-[10px] pt-3 px-[14px] pb-[10px] h-auto' : 'gap-[30px] pt-[30px] px-4 pb-[22px] h-screen'}`}
+        className={`bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 ${mob ? 'gap-[10px] pt-3 px-[14px] pb-[10px] h-auto' : 'gap-[30px] pt-[30px] px-4 pb-[22px] h-screen'}`}
       >
         <div className="px-[10px]">
           <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
@@ -139,7 +140,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
               to={`/admin/${wid}/${t.key}`}
               className={({ isActive }) =>
                 `flex-none whitespace-nowrap flex items-center justify-between gap-[10px] rounded-[8px] text-left text-[15px] no-underline ${mob ? 'py-2 px-3' : 'py-[11px] px-3'} ${
-                  isActive || (tab === t.key) ? 'bg-[#f3ecd6] !text-[#33402f]' : 'bg-transparent !text-[#f3ecd6] hover:!text-[#f3ecd6]'
+                  isActive || (tab === t.key) ? 'bg-[#f3ecd6] !text-[var(--adm-ink,#33402f)]' : 'bg-transparent !text-[#f3ecd6] hover:!text-[#f3ecd6]'
                 }`
               }
             >
@@ -170,4 +171,11 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
       </main>
     </div>
   );
+}
+
+/** The admin wears the invitation's colour theme (Guest pages → Look and feel): its dark ink for the sidebar. */
+function themeVars(theme: string | undefined): CSSProperties | undefined {
+  const t = theme ? THEMES[theme] : undefined;
+  if (!t?.dg) return undefined;
+  return { '--adm-ink': t.dg, '--adm-soft': t.b2 ?? '#cfd8bb' } as CSSProperties;
 }

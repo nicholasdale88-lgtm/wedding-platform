@@ -93,7 +93,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (!data) return err(c, 404, 'not_found', 'Wedding not found.');
     const w = data.wedding;
     return c.json({
-      wedding: { id: w.id, slug: w.slug, name1: w.name1, name2: w.name2, timezone: w.timezone, adminName: (w.content.adminName as string | undefined) ?? '' },
+      wedding: { id: w.id, slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone, adminName: (w.content.adminName as string | undefined) ?? '' },
       ...buildOverview(data, new Date(), c.req.query('event') || undefined),
     });
   });

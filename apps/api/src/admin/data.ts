@@ -58,6 +58,8 @@ export interface WeddingData {
     name1: string;
     name2: string;
     timezone: string;
+    monogram: string;
+    theme: string;
     sender: string | null;
     content: Record<string, unknown>;
     guide: Record<string, unknown>;
@@ -81,7 +83,7 @@ const json = <T>(s: string | null | undefined, fallback: T): T => {
 export async function loadWedding(db: D1Database, weddingId: string): Promise<WeddingData | null> {
   const q = (sql: string) => db.prepare(sql).bind(weddingId);
   const [w, ev, inv, ppl, ie, rs, cp, sl, last, inbox, tb] = await db.batch([
-    q(`SELECT id, slug, name1, name2, timezone, sms_sender, content, guide FROM wedding WHERE id = ? AND deleted_at IS NULL`),
+    q(`SELECT id, slug, name1, name2, monogram, theme, timezone, sms_sender, content, guide FROM wedding WHERE id = ? AND deleted_at IS NULL`),
     q(`SELECT id, key, name, pending_label, starts_at, sort, has_seating, catered, questions FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
     q(`SELECT id, phone, seats_held, party, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
     q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.meal_entree, p.meal_main, p.meal_dessert, t.name AS table_name
@@ -130,7 +132,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
 
   return {
     wedding: {
-      id: String(wr.id), slug: String(wr.slug), name1: String(wr.name1), name2: String(wr.name2), timezone: String(wr.timezone),
+      id: String(wr.id), slug: String(wr.slug), name1: String(wr.name1), name2: String(wr.name2), monogram: String(wr.monogram ?? ''), theme: String(wr.theme ?? ''), timezone: String(wr.timezone),
       sender: wr.sms_sender ?? null, content: json(wr.content, {}), guide: json(wr.guide, {}),
     },
     events: (ev!.results as Record<string, string | number>[]).map((e) => ({

@@ -98,7 +98,7 @@ export interface GuestDetail {
 }
 
 export interface Overview {
-  wedding: { id: string; slug: string; name1: string; name2: string; timezone: string; adminName: string };
+  wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string };
   total: number;
   replied: number;
   awaiting: number;
@@ -160,13 +160,20 @@ export interface PagesData {
   version: number;
   slug: string;
   theme: string;
+  /** The couple's names and monogram (the invitation, texts and the admin's title all use them). */
+  names?: PageNames;
   events: { key: string; name: string }[];
   invitation: InvitationContent;
   guides: Record<string, GuideContent>;
   texts: Record<string, string>;
   samples: { token: string; label: string; invited: string[] }[];
 }
-export type PagesPut = Partial<{ theme: string; invitation: InvitationContent; guides: Record<string, GuideContent>; texts: Record<string, string> }>;
+export interface PageNames {
+  name1: string;
+  name2: string;
+  monogram: string;
+}
+export type PagesPut = Partial<{ names: PageNames; theme: string; invitation: InvitationContent; guides: Record<string, GuideContent>; texts: Record<string, string> }>;
 
 export const pagesApi = {
   get: (wid: string) => request<PagesData>(`${w(wid)}/pages`),
