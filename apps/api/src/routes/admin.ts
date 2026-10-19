@@ -142,6 +142,16 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     return c.json({ ok: true, look: body.data });
   });
 
+  /** Account → Admin look → Name: what the admin's header calls this wedding ('' shows the couple's names). */
+  app.put('/admin-name', writer, async (c) => {
+    const body = z.object({ name: z.string().trim().max(80) }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Use up to 80 characters.');
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.adminName', ?), updated_at = ? WHERE id = ? AND json_valid(content)`)
+      .bind(body.data.name, new Date().toISOString(), wid(c))
+      .run();
+    return c.json({ ok: true, name: body.data.name });
+  });
+
   app.get('/guests', async (c) => {
     const data = await loadWedding(c.env.DB, wid(c));
     if (!data) return err(c, 404, 'not_found', 'Wedding not found.');

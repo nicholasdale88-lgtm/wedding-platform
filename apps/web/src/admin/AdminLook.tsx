@@ -1,8 +1,9 @@
 import type { CSSProperties } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { coupleName } from '../lib/remember';
 import { useAdmin } from './Shell';
-import { Eyebrow, H2, useToast } from './ui';
+import { Eyebrow, H2, inputCls, Label, useToast } from './ui';
 
 /** The admin's colours: a palette (or the invitation's own), whether each event keeps its own colour, text size. */
 export interface AdminLookSettings {
@@ -35,6 +36,22 @@ export function AdminLook() {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const look: AdminLookSettings = { ...DEFAULT_LOOK, ...overview?.wedding.adminLook };
+  // The name at the top of the admin: saved when you leave the box (empty: the couple's names).
+  const savedName = overview?.wedding.adminName ?? '';
+  const [name, setName] = useState(savedName);
+  useEffect(() => setName(savedName), [savedName]);
+  const saveName = async () => {
+    const next = name.trim();
+    if (next === savedName.trim()) return;
+    try {
+      await api.setAdminName(wid, next);
+      await reload();
+      toast(next ? 'Name saved' : 'Showing your names again');
+    } catch (e) {
+      toast((e as Error).message);
+      setName(savedName);
+    }
+  };
   const save = async (patch: Partial<AdminLookSettings>) => {
     setSaving(true);
     try {
@@ -76,6 +93,21 @@ export function AdminLook() {
         <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Admin look</h1>
         <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">How this admin looks for both of you. Guests never see it.</p>
       </header>
+      <section aria-label="Name" className="flex flex-col gap-3">
+        <H2>Name</H2>
+        <Label text="Shown at the top of the admin, on every screen">
+          <input
+            value={name}
+            maxLength={80}
+            placeholder={overview ? coupleName(overview.wedding) : ''}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => void saveName()}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+            className={`${inputCls} max-w-[420px]`}
+          />
+        </Label>
+        <span className="text-[13px] text-[#5b6a52]">Leave it empty to show your names as on the invitation. Guests never see this.</span>
+      </section>
       <section aria-label="Colours" className="flex flex-col gap-3">
         <H2>Colours</H2>
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">

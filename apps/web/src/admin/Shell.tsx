@@ -331,13 +331,19 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
       <aside
         className={`bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 ${mob ? 'gap-2 pt-[max(10px,env(safe-area-inset-top))] px-[14px] pb-2 h-auto shadow-[0_2px_10px_rgba(0,0,0,.12)]' : 'gap-[24px] pt-[30px] px-4 pb-[22px] h-screen'}`}
       >
-        {mob ? null : (
+        {mob ? (
+          // Phones: your names (or the name you chose in Admin look) and Sign out on one short row.
+          <div className="flex items-center justify-between gap-3 min-h-[30px]">
+            <div className="font-script text-[26px] leading-[1.1] min-w-0 truncate">{name}</div>
+            {signOutBtn}
+          </div>
+        ) : (
           <div className="px-[10px]">
             <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
             <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#cfd8bb]">RSVP admin</div>
           </div>
         )}
-        <SideNav mob={mob} aside={mob ? signOutBtn : undefined} />
+        <SideNav mob={mob} />
         {!mob && (
           <div className="mt-auto flex flex-col gap-[14px] py-4 px-3 border-t border-[rgba(243,236,214,.18)]">
             {o?.daysToGo !== null && o?.daysToGo !== undefined && (

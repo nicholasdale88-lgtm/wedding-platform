@@ -85,6 +85,25 @@ describe('addresses', () => {
   });
 });
 
+describe('admin name', () => {
+  it('Admin look: the name at the top of the admin saves when you leave the box', async () => {
+    let body: unknown;
+    mockApi({
+      '/api/a/w/w1/admin-name': (init) => {
+        body = JSON.parse(String(init!.body));
+        return json(200, { ok: true, name: 'Our big day' });
+      },
+    });
+    renderAt('/admin/w1/account/look');
+    const box = await screen.findByLabelText('Shown at the top of the admin, on every screen');
+    expect(box).toHaveAttribute('placeholder', 'Alex & Blair');
+    await userEvent.type(box, 'Our big day');
+    expect(body).toBeUndefined();
+    await userEvent.tab();
+    await waitFor(() => expect(body).toEqual({ name: 'Our big day' }));
+  });
+});
+
 describe('Overview', () => {
   it('Account overview is the hub: tasks, who has them, payments and budget, each with its chart', async () => {
     const doc = (data: unknown) => () => json(200, { data, version: 1 });
