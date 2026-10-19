@@ -34,6 +34,7 @@ export function GuestPages() {
   const [error, setError] = useState('');
   const [status, setStatus] = useState<'saved' | 'saving' | 'waiting' | 'error'>('saved');
   const [previewKey, setPreviewKey] = useState(0);
+  const [sharing, setSharing] = useState(false);
 
   // Pending edits: section -> generation, so an edit made while saving is saved next time.
   const dirty = useRef(new Map<string, number>());
@@ -213,10 +214,22 @@ export function GuestPages() {
           <Eyebrow>Setup · {ev ? ev.name : 'Account'}</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">{ev ? `Set up ${ev.name}` : 'Your invitation'}</h1>
         </div>
-        <span role="status" aria-live="polite" className="text-[13px] text-[#5b6a52]">
-          {status === 'saving' ? 'Saving…' : status === 'waiting' ? 'Unsaved changes' : status === 'error' ? 'Not saved. Check your connection.' : 'All changes saved'}
-        </span>
+        <div className="flex items-center gap-3 flex-wrap">
+          <span role="status" aria-live="polite" className="text-[13px] text-[#5b6a52]">
+            {status === 'saving' ? 'Saving…' : status === 'waiting' ? 'Unsaved changes' : status === 'error' ? 'Not saved. Check your connection.' : 'All changes saved'}
+          </span>
+          <Pill onClick={() => setSharing((x) => !x)}>Share a preview</Pill>
+        </div>
       </header>
+      {sharing && (
+        <SharePreview
+          data={data}
+          onChange={(res) => {
+            versionRef.current = res.version;
+            setData(res);
+          }}
+        />
+      )}
 
       <div className="flex gap-2 flex-wrap items-center">
         {pages.map((p) => (
@@ -491,5 +504,75 @@ function DayoutEditor({ g, n, set }: { g: DayoutGuide; n: () => number; set: (g:
         <Rows rows={(g.contacts ?? []).map((c) => ({ name: c.name, role: c.role ?? '', phone: c.phone }))} cols={[...CONTACT.cols]} blank={{ ...CONTACT.blank }} addLabel="+ Add contact" onChange={(contacts) => set({ ...g, contacts })} />
       </Section>
     </>
+  );
+}
+
+// ---------------------------------------------------------------- share a preview
+
+/**
+ * Links to send people for their opinion before anything goes out: the invitation (as someone without
+ * their link sees it) and each event's night-before page with a stand-in guest. Nothing is sent to
+ * guests and no reply is recorded. The night-before links carry a secret code; turning sharing off
+ * makes every link sent so far stop working.
+ */
+function SharePreview({ data, onChange }: { data: PagesData; onChange: (d: PagesData) => void }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const origin = window.location.origin;
+  const base = `${origin}/w/${data.slug}`;
+  const links = [
+    { label: 'The invitation', url: `${base}/?preview=1` },
+    ...(data.share ? data.events.filter((e) => data.guides[e.key]).map((e) => ({ label: `${e.name}: the night-before page`, url: `${base}/tomorrow/${encodeURIComponent(e.key)}?preview=1&share=${encodeURIComponent(data.share!)}` })) : []),
+  ];
+  const set = async (on: boolean) => {
+    setBusy(true);
+    try {
+      onChange(await pagesApi.share(wid, on));
+      toast(on ? 'Preview links ready' : 'Sharing turned off: the links sent so far no longer work');
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copy = (url: string) => void navigator.clipboard?.writeText(url).then(() => toast('Link copied'));
+  return (
+    <section aria-label="Share a preview" className="flex flex-col gap-3 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <div>
+        <h2 className="m-0 font-display font-medium text-[24px]">Share a preview</h2>
+        <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[640px]">
+          Send these to family or friends for their opinion. They see the pages exactly as guests will, with a stand-in guest. No texts are sent and nothing they tap is saved.
+        </p>
+      </div>
+      {links.map((l) => (
+        <div key={l.url} className="flex gap-2 items-center flex-wrap py-2 border-t border-[#ece3cc]">
+          <span className="font-medium min-w-[220px]">{l.label}</span>
+          <a href={l.url} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+            Open
+          </a>
+          <Pill kind="dashed" onClick={() => copy(l.url)}>
+            Copy link
+          </Pill>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(`What do you think? ${l.url}`)}`}
+            target="_blank"
+            rel="noopener"
+            className="py-[7px] px-[14px] rounded-full border border-[#c6b794] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]"
+          >
+            WhatsApp
+          </a>
+        </div>
+      ))}
+      {data.share ? (
+        <button type="button" disabled={busy} onClick={() => void set(false)} className="self-start p-0 border-0 bg-transparent text-[13px] underline cursor-pointer text-[#7a4a37]">
+          Turn off the night-before preview links
+        </button>
+      ) : (
+        <Pill kind="primary" className="self-start" disabled={busy} onClick={() => void set(true)}>
+          Make night-before preview links
+        </Pill>
+      )}
+    </section>
   );
 }

@@ -157,7 +157,13 @@ export function guestRoutes() {
     const w = await wedding(c);
     const token = c.req.query('g') ?? '';
     // The couple previewing from Guest pages with no guest picked: a stand-in guest, signed-in admins only.
-    const couple = !token && c.req.query('preview') === '1' && !!w && (await isAdminOf(c, w.id));
+    // Or someone the couple sent a preview link to (Setup → Share a preview): same stand-in guest, nothing saved.
+    const shared = (() => {
+      const want = (w && json<Record<string, unknown>>(w.content, {}).previewShare) as string | undefined;
+      const got = c.req.query('share') ?? '';
+      return !!want && want.length >= 20 && got === want;
+    })();
+    const couple = !token && c.req.query('preview') === '1' && !!w && (shared || (await isAdminOf(c, w.id)));
     if (!w || (!couple && !isToken(token))) return err(c, 404, 'no_link', 'Please open your guide from the link in your text.');
     const db = c.env.DB;
     const inv = couple

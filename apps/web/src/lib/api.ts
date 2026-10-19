@@ -163,6 +163,8 @@ export interface PagesData {
   theme: string;
   /** The couple's names and monogram (the invitation, texts and the admin's title all use them). */
   names?: PageNames;
+  /** The secret preview code for sharing (null: sharing is off). */
+  share?: string | null;
   events: { key: string; name: string }[];
   invitation: InvitationContent;
   guides: Record<string, GuideContent>;
@@ -179,6 +181,8 @@ export type PagesPut = Partial<{ names: PageNames; theme: string; invitation: In
 export const pagesApi = {
   get: (wid: string) => request<PagesData>(`${w(wid)}/pages`),
   save: (wid: string, version: number, body: PagesPut) => send<PagesData>('PUT', `${w(wid)}/pages`, body, version),
+  /** Turn the preview link on (a new secret code) or off (every shared link stops working). */
+  share: (wid: string, on: boolean) => send<PagesData>('POST', `${w(wid)}/pages/share`, { on }),
 };
 
 // ---------------------------------------------------------------- SMS messages

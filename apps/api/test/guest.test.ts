@@ -177,6 +177,17 @@ describe('guest API', () => {
     expect(p.weather).toBeNull(); // more than two weeks out: no forecast, never a made-up one
   });
 
+  it('a shared preview link opens the night-before page with a stand-in guest, only while sharing is on', async () => {
+    const code = 'Zx8_secret-preview-code-1';
+    expect((await get(`/guide?preview=1&event=wedding&share=${code}`)).status).toBe(404); // sharing off
+    await t.db.prepare(`UPDATE wedding SET content = json_set(content, '$.previewShare', ?)`).bind(code).run();
+    const ok = await get(`/guide?preview=1&event=30th&share=${code}`);
+    expect(ok.status).toBe(200);
+    expect(((await ok.json()) as { guest: { people: { name: string }[] } }).guest.people[0]!.name).toBe('Your guest');
+    expect((await get(`/guide?preview=1&event=wedding&share=wrong-code-wrong-code-1`)).status).toBe(404);
+    expect((await get(`/guide?event=wedding&share=${code}`)).status).toBe(404); // only as a preview
+  });
+
   it('night-before guide preview: the signed-in couple sees every guide with a stand-in guest; nobody else does', async () => {
     const secret = 'test-secret-for-sessions-000000';
     env.SESSION_SECRET = secret;

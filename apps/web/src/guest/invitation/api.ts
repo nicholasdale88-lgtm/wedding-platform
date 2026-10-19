@@ -94,9 +94,9 @@ export const guestApi = {
     call<InvitePayload>(`/p/${encodeURIComponent(slug)}/invite${token ? `?g=${encodeURIComponent(token)}${preview ? '&preview=1' : ''}` : ''}`),
   find: (slug: string, name: string) => call<InvitePayload>(`/p/${encodeURIComponent(slug)}/find`, { method: 'POST', body: JSON.stringify({ name }) }),
   rsvp: (slug: string, body: RsvpBody) => call<{ ok: true; invitation: GuestInvitation }>(`/p/${encodeURIComponent(slug)}/rsvp`, { method: 'POST', body: JSON.stringify(body) }),
-  guide: (slug: string, token: string, event?: string, preview = false) =>
+  guide: (slug: string, token: string, event?: string, preview = false, share = '') =>
     call<GuidePayload>(
-      `/p/${encodeURIComponent(slug)}/guide?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${preview ? '&preview=1' : ''}`,
+      `/p/${encodeURIComponent(slug)}/guide?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${preview ? '&preview=1' : ''}${share ? `&share=${encodeURIComponent(share)}` : ''}`,
     ),
   photos: (slug: string, token: string, event = '') =>
     call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`),

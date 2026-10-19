@@ -79,6 +79,8 @@ export function pagesRoutes() {
       events: evs,
       invitation: inv.success ? inv.data : {},
       guides: guidesOf(parse(w.guide, {}), evs.map((e) => e.key)),
+      // The secret preview code (Setup → Share a preview), admins only.
+      share: typeof content.previewShare === 'string' ? content.previewShare : null,
       texts: (content.texts as Record<string, string> | undefined) ?? {},
       samples: (people!.results as { token: string; names: string; invited: string | null }[]).map((r) => ({
         token: r.token,
@@ -92,6 +94,30 @@ export function pagesRoutes() {
     const w = await load(c);
     if (!w) return err(c, 404, 'not_found', 'Wedding not found.');
     return c.json(await payload(c, w));
+  });
+
+  /**
+   * Share a preview (for people's opinion): a secret code that lets anyone with the link see the
+   * night-before pages with a stand-in guest. Nothing is sent and no reply is recorded. Off removes the
+   * code, so every link shared so far stops working; on again makes a new one.
+   */
+  app.post('/share', requireMember('owner', 'editor'), async (c) => {
+    const body = z.object({ on: z.boolean() }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Check the details and try again.');
+    const w = await load(c);
+    if (!w) return err(c, 404, 'not_found', 'Wedding not found.');
+    const content = parse<Record<string, unknown>>(w.content, {});
+    if (body.data.on) {
+      if (typeof content.previewShare !== 'string') {
+        const bytes = crypto.getRandomValues(new Uint8Array(18));
+        content.previewShare = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+    } else delete content.previewShare;
+    await c.env.DB.prepare(`UPDATE wedding SET content = ?, version = version + 1, updated_at = ? WHERE id = ?`).bind(JSON.stringify(content), new Date().toISOString(), w.id).run();
+    await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'pages.share', ?, ?, ?)`)
+      .bind(crypto.randomUUID(), w.id, c.get('user').id, w.id, JSON.stringify({ on: body.data.on }), new Date().toISOString())
+      .run();
+    return c.json(await payload(c, { ...w, content: JSON.stringify(content), version: w.version + 1 }));
   });
 
   app.put('/', requireMember('owner', 'editor'), async (c) => {

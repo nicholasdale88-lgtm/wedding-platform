@@ -19,16 +19,17 @@ export function GuidePage() {
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
   const preview = params.get('preview') === '1';
+  const share = params.get('share') ?? ''; // a preview link the couple shared for opinions
   const [data, setData] = useState<GuidePayload | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setData(null);
     guestApi
-      .guide(slug, token, event, preview)
+      .guide(slug, token, event, preview, share)
       .then(setData)
       .catch((e: Error) => setError(e.message));
-  }, [slug, token, event, preview]);
+  }, [slug, token, event, preview, share]);
 
   // Live: the forecast, tables and meals refresh while the guide is open (every 15 minutes, and on
   // coming back to it). A failed refresh keeps what is on screen.
@@ -38,7 +39,7 @@ export function GuidePage() {
       if (document.visibilityState !== 'visible' || Date.now() - last < 60_000) return;
       last = Date.now();
       guestApi
-        .guide(slug, token, event, preview)
+        .guide(slug, token, event, preview, share)
         .then(setData)
         .catch(() => {});
     };
@@ -51,7 +52,7 @@ export function GuidePage() {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [slug, token, event, preview]);
+  }, [slug, token, event, preview, share]);
 
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
