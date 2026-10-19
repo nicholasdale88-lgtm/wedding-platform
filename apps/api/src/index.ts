@@ -37,7 +37,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/events', eventRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
   app.route('/p/:slug/board', boardGuestRoutes());
-  app.route('/p/:slug', guestRoutes());
+  app.route('/p/:slug', guestRoutes(deps));
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {
     console.error(err);

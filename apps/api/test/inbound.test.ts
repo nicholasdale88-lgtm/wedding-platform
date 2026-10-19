@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { runAutopilot } from '../src/sms/engine';
-import { handleInbound, handleReceipt, type InboundSms } from '../src/sms/inbound';
+import { classify, handleInbound, handleReceipt, type InboundSms } from '../src/sms/inbound';
 import { parseInbound, safeEqual, verifySignature } from '../src/sms/webhook';
 import { deps } from './support/fakes';
 import { ADMIN, phoneOf, SENDER, seedWedding } from './support/fixture';
@@ -120,5 +120,14 @@ describe('webhook security and parsing', () => {
     expect(safeEqual('abc', 'abc')).toBe(true);
     expect(safeEqual('abc', 'abd')).toBe(false);
     expect(safeEqual('abc', 'abcd')).toBe(false);
+  });
+});
+
+describe('reading a texted answer', () => {
+  it('acts only on a clear yes or no; anything mixed goes to the couple', () => {
+    for (const yes of ['Yes', 'y', 'YES!', 'Yes please, 2 of us', "No worries, we'll be there!", "Sorry for the slow reply, yes we're coming", 'Count us in']) expect(classify(yes), yes).toBe('yes');
+    for (const no of ['No', 'n', "Sorry we can't make it", "No, sorry, we're away", 'Regretfully decline']) expect(classify(no), no).toBe('no');
+    for (const unclear of ["Sorry, yes we're coming", "Yes but can't do the brunch", "Can't wait to see you!", 'What time does it start?', 'Maybe'])
+      expect(classify(unclear), unclear).toBe('unclear');
   });
 });

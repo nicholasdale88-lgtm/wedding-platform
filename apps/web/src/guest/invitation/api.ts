@@ -92,7 +92,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 export const guestApi = {
   invite: (slug: string, token: string | null, preview: boolean) =>
     call<InvitePayload>(`/p/${encodeURIComponent(slug)}/invite${token ? `?g=${encodeURIComponent(token)}${preview ? '&preview=1' : ''}` : ''}`),
-  find: (slug: string, name: string) => call<InvitePayload>(`/p/${encodeURIComponent(slug)}/find`, { method: 'POST', body: JSON.stringify({ name }) }),
+  /** Finds a guest by name; their link is texted to their own mobile (never shown here). */
+  find: (slug: string, name: string) => call<{ found: true; texted: boolean; ending?: string }>(`/p/${encodeURIComponent(slug)}/find`, { method: 'POST', body: JSON.stringify({ name }) }),
   rsvp: (slug: string, body: RsvpBody) => call<{ ok: true; invitation: GuestInvitation }>(`/p/${encodeURIComponent(slug)}/rsvp`, { method: 'POST', body: JSON.stringify(body) }),
   guide: (slug: string, token: string, event?: string, preview = false, share = '') =>
     call<GuidePayload>(

@@ -84,10 +84,13 @@ describe('guest API', () => {
     expect(p.events).toHaveLength(2);
   });
 
-  it('finds an invitation by any name on it, ignoring case and spaces', async () => {
+  it('finds an invitation by any name on it, ignoring case and spaces, without revealing its link', async () => {
     const res = await post('/find', { name: '  olivia   CHEN ' });
     expect(res.status).toBe(200);
-    expect(((await res.json()) as Payload).invitation!.people[0]!.name).toBe('James Dale');
+    const body = await res.text();
+    // A name is not a secret: finding one never returns the guest's link (it is texted to their mobile).
+    expect(body).not.toMatch(/token|invitation|people/);
+    expect(JSON.parse(body)).toMatchObject({ found: true });
     expect((await post('/find', { name: 'Nobody Here' })).status).toBe(404);
   });
 

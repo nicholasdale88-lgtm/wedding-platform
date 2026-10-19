@@ -17,6 +17,8 @@
   "inv.dyn.errLookupEmpty": "Please enter your name.",
   "inv.dyn.lookupBusy": "Looking for your invitation…",
   "inv.dyn.lookupMiss": "We could not find that name. Please enter it as it appears on your invitation.",
+  "inv.dyn.lookupTexted": "Found you! We have texted your personal invitation link to your mobile ending in {ending}. Open it to RSVP.",
+  "inv.dyn.lookupNoPhone": "Found you! To keep invitations private, please open the personal link we sent you, or ask us for it.",
   "inv.dyn.hintClick": "Click to open",
   "inv.dyn.hintTap": "Tap to open",
   "inv.dyn.musicOn": "Music on",

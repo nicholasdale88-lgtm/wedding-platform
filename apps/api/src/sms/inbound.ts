@@ -21,8 +21,25 @@ export const DEFAULT_REPLIES = {
 };
 
 const STOP = /^(stop|stopall|unsubscribe|opt ?out)\b/i;
-const YES = /^(yes|y|yep|yeah|yes please|coming|attending|accept|definitely|absolutely|of course)\b/i;
+const YES = /^(yes|y|yep|yeah|yes please|coming|attending|accept|definitely|absolutely|of course|we'?ll be there|i'?ll be there|will be there|count (us|me) in)\b/i;
 const NO = /^(no|n|nope|sorry|can'?t|cannot|unable|decline|regretfully)\b/i;
+const YES_ANY = /\b(yes|yep|yeah|coming|attending|accept|be there|see you|count (us|me) in)\b/i;
+const NO_ANY = /\b(no|nope|can'?t|cannot|unable|decline|regret\w*|won'?t|not (be )?(able|coming|attending|make it))\b/i;
+/** Polite openers that aren't an answer ("No worries…", "Sorry for the slow reply…"). */
+const FILLER = /\b(no (worries|problem|probs?|stress|rush)|sorry (for|about) (the|my) (late|slow|delayed?)( reply| response)?)\b/gi;
+
+/**
+ * A text's answer: yes, no, or unclear. Only a clear answer is acted on; anything mixed ("Sorry, yes
+ * we're coming", "Yes but can't do the brunch") goes to the couple instead of guessing.
+ */
+export function classify(text: string): 'yes' | 'no' | 'unclear' {
+  const t = text.replace(FILLER, ' ').replace(/^[\s,.!-]+/, '').trim();
+  const yes = YES.test(t);
+  const no = !yes && NO.test(t);
+  if (yes && !NO_ANY.test(t.replace(YES, ''))) return 'yes';
+  if (no && !YES_ANY.test(t)) return 'no';
+  return 'unclear';
+}
 
 export type InboundAction =
   | 'Duplicate'
@@ -96,8 +113,9 @@ export async function processInbound(d: EngineDeps, row: InboundRow): Promise<In
   }
 
   const { recipient: r, events, wedding: w } = match;
-  const yes = YES.test(text);
-  const no = !yes && NO.test(text);
+  const answer = classify(text);
+  const yes = answer === 'yes';
+  const no = answer === 'no';
   const replies = { yes: w.replies?.yes || DEFAULT_REPLIES.yes, no: w.replies?.no || DEFAULT_REPLIES.no, multi: w.replies?.multi || DEFAULT_REPLIES.multi };
   let action: InboundAction = 'Needs you';
   let reply: NewOutbox | null = null;

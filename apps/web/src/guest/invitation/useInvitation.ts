@@ -82,7 +82,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   const [fanSel, setFanSel] = useState<number | null>(null);
   const [cue, setCue] = useState({ sc: false, end: false, dark: false });
   const [now, setNow] = useState(() => Date.now());
-  const [texts, setTexts] = useState(data.texts);
+  const [texts] = useState(data.texts);
   const fanTouched = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const audio = useRef<{ play: () => void; setMuted: (m: boolean) => void; stop: () => void } | null>(null);
@@ -225,15 +225,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     setLookErr(t('inv.dyn.lookupBusy'));
     try {
       const res = await guestApi.find(slug, q);
-      setGuest(res.invitation);
-      setTexts(res.texts);
-      setForm(formFrom(res.invitation, res));
-      setLookErr('');
-      if (res.invitation && !preview) {
-        const u = new URL(window.location.href);
-        u.searchParams.set('g', res.invitation.token);
-        window.history.replaceState(null, '', u);
-      }
+      setLookErr(res.texted ? tx('inv.dyn.lookupTexted', { ending: res.ending ?? '' }) : t('inv.dyn.lookupNoPhone'));
     } catch (e) {
       setLookErr(e instanceof GuestApiError && e.status === 404 ? t('inv.dyn.lookupMiss') : (e as Error).message);
     }

@@ -2,7 +2,8 @@ import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFo
 import { Hono, type Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { z } from 'zod';
-import type { Env } from '../env';
+import { engineDeps, type Env } from '../env';
+import { sendReply, type EngineDeps } from '../sms/engine';
 import { SESSION_COOKIE, sessionId } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { clearDietIfDeclinedAll, unseatIfNotComing } from '../lib/seatingRules';
@@ -126,7 +127,7 @@ const Rsvp = z
   })
   .strict();
 
-export function guestRoutes() {
+export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
   const app = new Hono<GEnv>();
 
   app.use('*', async (c, next) => {
@@ -363,7 +364,7 @@ export function guestRoutes() {
     const w = await wedding(c);
     if (!w) return err(c, 404, 'not_found', 'We could not find this invitation.');
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
-    if (!(await allow(c.env.DB, `find:${ip}`, 10, 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Please wait a minute.');
+    if (!(await allow(c.env.DB, `find:${ip}`, 10, 60_000)) || !(await allow(c.env.DB, `find-w:${w.id}`, 120, 3_600_000))) return err(c, 429, 'slow_down', 'Too many tries. Please wait a minute.');
     const body = z.object({ name: z.string().max(120) }).safeParse(await readJson(c.req.raw));
     const q = body.success ? norm(body.data.name) : '';
     if (!q) return err(c, 400, 'invalid', 'Please enter your name.');
@@ -375,7 +376,25 @@ export function guestRoutes() {
       .all<{ invitation_id: string; name: string }>();
     const hit = results.find((p) => norm(p.name) === q);
     if (!hit) return err(c, 404, 'no_match', 'We could not find that name. Please enter it as it appears on your invitation.');
-    return c.json(await invitePayload(c, w, hit.invitation_id));
+    // A name is not a secret (names show on the message board), so finding one never hands over the
+    // guest's link. The link is texted to the mobile on that invitation instead (at most 3 a day).
+    const inv = await c.env.DB.prepare(
+      `SELECT i.id, i.token, i.phone, i.sms_optout, EXISTS (SELECT 1 FROM opt_out o WHERE o.phone = i.phone) AS opted_out FROM invitation i WHERE i.id = ?`,
+    )
+      .bind(hit.invitation_id)
+      .first<{ id: string; token: string; phone: string | null; sms_optout: number; opted_out: number }>();
+    const ending = (inv?.phone ?? '').replace(/\D/g, '').slice(-3);
+    const ws = await c.env.DB.prepare(`SELECT sms_sender, sms_paused FROM wedding WHERE id = ?`).bind(w.id).first<{ sms_sender: string | null; sms_paused: number }>();
+    if (!inv?.phone || inv.sms_optout || inv.opted_out || !ws?.sms_sender || ws.sms_paused) return c.json({ found: true, texted: false });
+    if (!(await allow(c.env.DB, `findtext:${inv.id}`, 3, 86_400_000))) return c.json({ found: true, texted: true, ending, again: true });
+    const link = `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/w/${w.slug}?g=${inv.token}`;
+    try {
+      const r = await sendReply(deps(c.env), w.id, inv.id, inv.phone, `Here is your invitation from ${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}: ${link}`, `find:${inv.id}:${Date.now()}`);
+      if (r.stopped) return c.json({ found: true, texted: false });
+    } catch {
+      return c.json({ found: true, texted: false });
+    }
+    return c.json({ found: true, texted: true, ending });
   });
 
   app.post('/rsvp', async (c) => {

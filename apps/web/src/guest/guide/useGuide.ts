@@ -94,7 +94,7 @@ export function useGuide(data: GuidePayload): ViewValues {
   const plan = data.seating;
   // The wet-weather plan is always a quick answer (unless the couple already wrote one about rain).
   const faqs = [...(G.faq ?? [])];
-  if (G.wetPlan?.trim() && !faqs.some((f) => /(rain|wet)/i.test(f.q))) faqs.push({ q: 'What if it rains?', a: G.wetPlan.trim() });
+  if (G.wetPlan?.trim() && !faqs.some((f) => /\b(rain|wet)/i.test(f.q))) faqs.push({ q: 'What if it rains?', a: G.wetPlan.trim() });
 
   return {
     asset: assetOf(data.images),
