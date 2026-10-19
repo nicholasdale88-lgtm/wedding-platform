@@ -12,7 +12,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
  */
 
 export interface SheetHead {
-  /** "Sophie & Nicholas · Guest list" */
+  /** "Alex & Sam · Guest list" */
   title: string;
   /** One line each: the events it covers, when it was exported. */
   lines: string[];

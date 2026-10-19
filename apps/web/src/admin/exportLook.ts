@@ -5,7 +5,7 @@ import { downloadXlsx, type Sheet, type XlsxLook } from '../lib/xlsx';
 
 /**
  * Every Excel export is dressed the same way: the wedding's colours and monogram seal, a title
- * ("Sophie & Nicholas · Dietary list"), and a line for each event it covers (what, when, where) so
+ * ("Alex & Sam · Dietary list"), and a line for each event it covers (what, when, where) so
  * a caterer or venue knows exactly what it's for.
  */
 
@@ -54,7 +54,7 @@ export async function lookOf(o: Overview | null): Promise<XlsxLook> {
   };
 }
 
-/** "The wedding · Thu 18 Nov 2027, 2:00pm · The Lookout, Glenworth Valley, 69 Cooks Road…" */
+/** "The wedding · Sat 6 Mar 2027, 4:00pm · The Garden, 1 Example Road…" */
 export const eventLine = (e: Pick<EventFull, 'name' | 'startsAt' | 'venue' | 'address'>, tz: string) =>
   [e.name, fmtEvent(e.startsAt, tz), [e.venue, e.address].filter((x) => x?.trim()).join(', ')].filter(Boolean).join(' · ');
 
