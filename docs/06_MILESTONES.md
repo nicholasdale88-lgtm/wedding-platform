@@ -11,7 +11,7 @@ Each task is about 1 focused session. "Check" means what the owner should look a
 
 ## M1: Foundations
 - [ ] M1.1 pnpm monorepo (apps/api, apps/web, packages/shared). TypeScript strict, ESLint, Prettier, Vitest. `pnpm dev` runs the Worker (wrangler dev) and Vite together with an `/api` proxy.
-- [ ] M1.2 D1 database + migrations from `docs/03_SCHEMA.sql`, plus a Drizzle schema. R2 bucket `media`. `wrangler.toml` bindings and cron.
+- [x] M1.2 D1 database + migrations from `docs/03_SCHEMA.sql`, plus a Drizzle schema. R2 bucket `media`. `wrangler.toml` bindings and cron.
 - [ ] M1.3 Seed script: create wedding `sophie-and-nicholas`, its 2 events, guide, campaigns + slots, and the sample guests from `seed/sophie-nicholas.json`. Owner user from the `SEED_OWNER_EMAIL` env var.
 - [ ] M1.4 Auth: email + passcode login, sessions, membership checks, a `/me` route, and a login screen styled like `design/RSVP Admin.dc.html` (passcode screen).
 - [ ] M1.5 Shared libs: phone normalise (AU), tokens, time zones (Temporal polyfill or date-fns-tz), audit log. Unit tests.
@@ -65,8 +65,8 @@ Each task is about 1 focused session. "Check" means what the owner should look a
 
 ## M4: SMS
 - [ ] M4.1 Sign up to Mobile Message (50 free credits). Claim the dedicated number. Create API keys. `wrangler secret put` them.
-- [ ] M4.2 Mobile Message client + segments counter + template renderer + audience evaluator. Unit tests.
-- [ ] M4.3 Autopilot cron exactly as docs/05, with fake-clock tests 1–9.
+- [x] M4.2 Mobile Message client + segments counter + template renderer + audience evaluator. Unit tests. (Done early: SMS first.)
+- [ ] M4.3 Autopilot cron exactly as docs/05, with fake-clock tests 1–9. _Engine, cron and tests 1, 2, 4–8 done and green; 3 and 9 wait for the admin API (M3)._
 - [ ] M4.4 Texts screen, matching `design/RSVP Admin.dc.html` → Texts:
   - list by next send with switches; inline editor
   - presets, placeholder chips, cost + parts, send dates
