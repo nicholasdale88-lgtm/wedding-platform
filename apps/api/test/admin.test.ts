@@ -164,7 +164,7 @@ describe('admin API', () => {
         s.push(t.db.prepare(`INSERT INTO sms_out (id, wedding_id, invitation_id, dedupe_key, to_phone, body, parts, status, created_at, sent_at) VALUES (?, ?, ?, ?, '+61400000000', 'x', 1, 'sent', ?, ?)`).bind(`xs${i}-${k}`, wid, `x${i}`, `load:${i}:${k}`, now, now));
       }
     }
-    for (let i = 0; i < s.length; i += 500) await t.db.batch(s.slice(i, i + 500));
+    for (let i = 0; i < s.length; i += 100) await t.db.batch(s.slice(i, i + 100));
     const started = performance.now();
     expect((await call('/overview')).status).toBe(200);
     expect((await call('/guests')).status).toBe(200);
