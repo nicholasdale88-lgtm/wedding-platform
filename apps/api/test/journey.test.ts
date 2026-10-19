@@ -169,7 +169,7 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     // Nobody was ever sent the same message twice, and nobody without a mobile was texted.
     const keys = (await t.db.prepare(`SELECT dedupe_key FROM sms_out`).all<{ dedupe_key: string }>()).results.map((r) => r.dedupe_key);
     expect(new Set(keys).size).toBe(keys.length);
-    expect(provider.delivered.every((m) => /^\+?61/.test(m.to))).toBe(true);
+    expect(provider.delivered.every((m) => /^(\+?61|0)4\d{8}$/.test(m.to))).toBe(true); // Australian mobiles only
   });
 });
 
