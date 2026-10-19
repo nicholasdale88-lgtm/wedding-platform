@@ -7,7 +7,7 @@
 
 import { applyLook, type LookKey } from './looks';
 
-export type FilterKey = 'none' | 'names' | 'seal' | 'frame' | 'number';
+export type FilterKey = 'none' | 'names' | 'seal' | 'frame' | 'number' | 'polaroid' | 'stamp' | 'sprig' | 'hashtag';
 
 export interface FilterInfo {
   /** "The wedding", "Alex's 30th" */
@@ -25,12 +25,12 @@ export interface FilterInfo {
   slot: number;
 }
 
-export const FILTER_LABEL: Record<FilterKey, string> = { none: 'No filter', names: 'Names', seal: 'Wax seal', frame: 'Frame', number: 'Birthday' };
+export const FILTER_LABEL: Record<FilterKey, string> = { none: 'No frame', names: 'Names', seal: 'Wax seal', frame: 'Frame', number: 'Birthday', polaroid: 'Polaroid', stamp: 'Date stamp', sprig: 'Botanical', hashtag: 'Hashtag' };
 
 /** The filters an event offers, best first. */
 export function filtersFor(info: Pick<FilterInfo, 'slot' | 'title'>): FilterKey[] {
   const hasNumber = info.slot === 1 && /\d/.test(info.title);
-  return hasNumber ? ['none', 'number', 'names', 'frame'] : ['none', 'names', 'seal', 'frame'];
+  return hasNumber ? ['none', 'number', 'names', 'polaroid', 'stamp', 'frame', 'hashtag'] : ['none', 'names', 'polaroid', 'seal', 'sprig', 'frame', 'stamp', 'hashtag'];
 }
 
 const SCRIPT = '"Pinyon Script", "Snell Roundhand", cursive';
@@ -121,6 +121,68 @@ export function drawFilter(g: CanvasRenderingContext2D, w: number, h: number, ke
     g.fillText(spaced(info.date.toUpperCase()), w / 2, ly + lh * 0.82);
   }
 
+  if (key === 'polaroid') {
+    // A white instant-photo border, wide at the foot, with the names written on it.
+    const m = u * 0.045;
+    const foot = u * 0.2;
+    g.fillStyle = '#fbfaf6';
+    g.fillRect(0, 0, w, m);
+    g.fillRect(0, 0, m, h);
+    g.fillRect(w - m, 0, m, h);
+    g.fillRect(0, h - foot, w, foot);
+    g.fillStyle = info.ink;
+    fitText(g, info.couple, (px) => `${px}px ${SCRIPT}`, w * 0.8, Math.round(foot * 0.5));
+    g.fillText(info.couple, w / 2, h - foot * 0.42);
+    g.fillStyle = 'rgba(0,0,0,.55)';
+    fitText(g, info.date, (px) => `italic ${px}px ${SERIF}`, w * 0.8, Math.round(foot * 0.17));
+    g.fillText(info.date, w / 2, h - foot * 0.14);
+  }
+
+  if (key === 'stamp') {
+    // The orange date in the corner of a disposable camera's photo.
+    const d = /(\d{1,2}) (\w+) (\d{4})/.exec(info.date);
+    const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const mm = d ? String(months.indexOf(d[2]!.toLowerCase()) + 1).padStart(2, '0') : '';
+    const text = d ? `'${d[3]!.slice(2)}  ${mm}  ${d[1]!.padStart(2, '0')}` : info.date;
+    g.textAlign = 'right';
+    g.font = `600 ${Math.round(u * 0.05)}px "Courier New", ui-monospace, monospace`;
+    g.fillStyle = '#ff8a2a';
+    g.shadowColor = 'rgba(255,120,30,.9)';
+    g.shadowBlur = u * 0.012;
+    g.fillText(text, w - u * 0.05, h - u * 0.05);
+    g.shadowBlur = 0;
+  }
+
+  if (key === 'sprig') {
+    // Greenery in two corners, and the names small at the foot.
+    sprig(g, u * 0.02, u * 0.02, Math.PI * 0.2, u * 0.32, info);
+    sprig(g, w - u * 0.02, h - u * 0.02, Math.PI * 1.2, u * 0.32, info);
+    const band = g.createLinearGradient(0, h * 0.8, 0, h);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(1, 'rgba(0,0,0,.4)');
+    g.fillStyle = band;
+    g.fillRect(0, h * 0.8, w, h * 0.2);
+    g.fillStyle = '#ffffff';
+    fitText(g, info.couple, (px) => `${px}px ${SCRIPT}`, w * 0.6, Math.round(u * 0.08));
+    g.fillText(info.couple, w / 2, h - u * 0.06);
+  }
+
+  if (key === 'hashtag') {
+    const tag = `#${info.couple.replace(/&/g, 'And').replace(/[^A-Za-z0-9]/g, '')}${(/\d{4}/.exec(info.date)?.[0] ?? '')}`;
+    g.font = `600 ${Math.round(u * 0.045)}px ${SERIF}`;
+    const tw = g.measureText(tag).width;
+    const ph = u * 0.075;
+    const x = u * 0.05;
+    const y = h - u * 0.05 - ph;
+    g.fillStyle = 'rgba(251,248,242,.92)';
+    g.beginPath();
+    g.roundRect(x, y, tw + ph, ph, ph / 2);
+    g.fill();
+    g.fillStyle = info.ink;
+    g.textAlign = 'left';
+    g.fillText(tag, x + ph / 2, y + ph * 0.68);
+  }
+
   if (key === 'number') {
     const n = /\d+/.exec(info.title)?.[0] ?? '';
     const band = g.createLinearGradient(0, h * 0.55, 0, h);
@@ -143,6 +205,37 @@ export function drawFilter(g: CanvasRenderingContext2D, w: number, h: number, ke
 }
 
 const spaced = (s: string) => s.split('').join(' ');
+
+/** A sprig of leaves from a corner: a curved stem, leaves either side, in the theme's greens and gold. */
+function sprig(g: CanvasRenderingContext2D, x: number, y: number, angle: number, size: number, info: FilterInfo) {
+  g.save();
+  g.translate(x, y);
+  g.rotate(angle);
+  g.strokeStyle = info.gold;
+  g.lineWidth = Math.max(1, size * 0.012);
+  g.beginPath();
+  g.moveTo(0, 0);
+  g.quadraticCurveTo(size * 0.5, size * 0.12, size, 0);
+  g.stroke();
+  const greens = ['#6f7b58', '#8a9670', '#a9b48d'];
+  for (let i = 1; i <= 7; i++) {
+    const t = i / 8;
+    const px = size * t;
+    const py = size * 0.12 * 4 * t * (1 - t) * 0.5;
+    for (const side of [-1, 1]) {
+      g.save();
+      g.translate(px, py);
+      g.rotate(side * 0.7 - 0.2);
+      g.fillStyle = greens[(i + (side > 0 ? 1 : 0)) % greens.length]!;
+      g.globalAlpha = 0.92;
+      g.beginPath();
+      g.ellipse(0, side * size * 0.045, size * 0.075 * (1 - t * 0.4), size * 0.028, 0, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    }
+  }
+  g.restore();
+}
 
 function small(g: CanvasRenderingContext2D, text: string, x: number, y: number, u: number, w: number) {
   fitText(g, spaced(text), (px) => `600 ${px}px ${SERIF}`, w * 0.9, Math.round(u * 0.034));
