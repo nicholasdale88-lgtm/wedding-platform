@@ -115,6 +115,33 @@ async function folderFor(env: Env, link: LinkRow, token: string, eventKey: strin
   return id;
 }
 
+/**
+ * Planning files (quotes, contracts, menus) go to the linked Drive, Dropbox or OneDrive the couple chose
+ * for them (Photos → Linked storage), in one "<couple> wedding planning" folder. Returns where it went,
+ * or null to keep it on the site (none chosen, or the upload failed: a file is never lost).
+ */
+export async function keepDocument(env: Env, weddingId: string, f: { bytes: Uint8Array; name: string; type: string }): Promise<string | null> {
+  const w = await env.DB.prepare(`SELECT json_extract(content, '$.docsLink') AS l, name1, name2 FROM wedding WHERE id = ?`).bind(weddingId).first<{ l: string | null; name1: string; name2: string }>();
+  if (!w?.l) return null;
+  const link = await env.DB.prepare(`SELECT id, wedding_id, provider, account, refresh_enc, folders FROM photo_link WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL AND status = 'ok'`)
+    .bind(w.l, weddingId)
+    .first<LinkRow>();
+  if (!link || link.provider === 'gphotos') return null; // Google Photos takes photos only
+  try {
+    const token = await accessFor(env, link);
+    const folders = JSON.parse(link.folders || '{}') as Record<string, string>;
+    let folder = folders.docs;
+    if (!folder) {
+      folder = await PROVIDER[link.provider].folder(token, safeName(`${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]} wedding planning`), '');
+      await env.DB.prepare(`UPDATE photo_link SET folders = json_set(COALESCE(NULLIF(folders, ''), '{}'), '$.docs', ?) WHERE id = ?`).bind(folder, link.id).run();
+    }
+    const remote = await PROVIDER[link.provider].upload(token, { bytes: f.bytes, name: safeName(f.name.replace(/\.[^.]+$/, '')) + (/\.[a-z0-9]{2,5}$/i.exec(f.name)?.[0] ?? ''), type: f.type, folder });
+    return `link:${link.id}:${remote}`;
+  } catch {
+    return null;
+  }
+}
+
 const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic', 'image/avif': 'avif' };
 /** "2027-11-18 21-04 Alex.jpg": sorts by time, says who took it. */
 const fileName = (m: MediaRow) => safeName(`${m.created_at.slice(0, 16).replace('T', ' ').replace(':', '-')} ${m.uploaded_by || 'Guest'}`) + `.${EXT[m.content_type] ?? 'jpg'}`;

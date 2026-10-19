@@ -401,6 +401,7 @@ export const plannerFile = sqliteTable('planner_file', {
   data: blob('data').notNull(),
   createdAt: text('created_at').notNull(),
   deletedAt: text('deleted_at'),
+  remote: text('remote'),
 });
 
 export const audit = sqliteTable('audit', {

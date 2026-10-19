@@ -41,6 +41,7 @@ export function photoLinkRoutes() {
     )
       .bind(wid(c))
       .all<{ id: string; provider: ProviderKey; account: string; status: string; last_error: string | null; created_at: string; copied: number | null; waiting: number | null; failed: number | null; copy_error: string | null }>();
+    const docs = await c.env.DB.prepare(`SELECT json_extract(content, '$.docsLink') AS l FROM wedding WHERE id = ?`).bind(wid(c)).first<{ l: string | null }>();
     return c.json({
       siteStorage: !!c.env.MEDIA,
       redirectUri: redirectUri(c.env),
@@ -56,6 +57,7 @@ export function photoLinkRoutes() {
         waiting: r.waiting ?? 0,
         failed: r.failed ?? 0,
         since: r.created_at,
+        docs: docs?.l === r.id,
       })),
     });
   });
@@ -81,6 +83,23 @@ export function photoLinkRoutes() {
     const res = await c.env.DB.prepare(`UPDATE photo_link SET deleted_at = ? WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(new Date().toISOString(), id, wid(c)).run();
     if (!res.meta.changes) return err(c, 404, 'not_found', 'That link is already gone.');
     await c.env.DB.batch([c.env.DB.prepare(`DELETE FROM photo_copy WHERE link_id = ? AND status != 'done'`).bind(id), audit(c, 'photos.unlink', id)]);
+    return c.json({ ok: true });
+  });
+
+  /** Keep planning files (quotes, contracts, menus) in this link's storage, or stop (they're kept on the site then). */
+  app.put('/:id/docs', writer, async (c) => {
+    const id = c.req.param('id');
+    const on = ((await readJson(c.req.raw)) as { on?: unknown } | null)?.on === true;
+    const link = await c.env.DB.prepare(`SELECT provider FROM photo_link WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(id, wid(c)).first<{ provider: string }>();
+    if (!link) return err(c, 404, 'not_found', 'That link is gone.');
+    if (on && link.provider === 'gphotos') return err(c, 400, 'invalid', 'Google Photos only takes photos. Choose Google Drive, Dropbox or OneDrive for planning files.');
+    await c.env.DB.prepare(
+      on
+        ? `UPDATE wedding SET content = json_set(content, '$.docsLink', ?) WHERE id = ? AND json_valid(content)`
+        : `UPDATE wedding SET content = json_remove(content, '$.docsLink') WHERE id = ? AND json_valid(content) AND json_extract(content, '$.docsLink') = ?`,
+    )
+      .bind(...(on ? [id, wid(c)] : [wid(c), id]))
+      .run();
     return c.json({ ok: true });
   });
 

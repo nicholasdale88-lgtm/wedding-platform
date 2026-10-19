@@ -139,6 +139,22 @@ describe('photo links', () => {
     expect((await t.db.prepare(`SELECT status FROM photo_copy`).first<{ status: string }>())!.status).toBe('done');
   });
 
+  it('planning files go to the linked Dropbox when chosen (and still open from the planner)', async () => {
+    await link();
+    const { links } = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { id: string; docs: boolean }[] };
+    expect(links[0]!.docs).toBe(false);
+    expect((await call(`/a/w/${wid}/photo-links/${links[0]!.id}/docs`, { method: 'PUT', body: JSON.stringify({ on: true }) })).status).toBe(200);
+    const up = await call(`/a/w/${wid}/planner/files`, { method: 'POST', body: JSON.stringify({ name: 'Florist quote.pdf', type: 'application/pdf', data: btoa('%PDF-1.4 quote') }) });
+    expect(up.status).toBe(200);
+    const { id } = (await up.json()) as { id: string };
+    const row = await t.db.prepare(`SELECT remote, length(data) AS n FROM planner_file WHERE id = ?`).bind(id).first<{ remote: string | null; n: number }>();
+    expect(row!.remote).toMatch(/^link:/);
+    expect(row!.n).toBe(0); // nothing kept on the site
+    const arg = JSON.parse(sent.filter((s) => s.url.includes('/files/upload')).pop()!.arg!) as { path: string };
+    expect(arg.path).toMatch(/wedding planning\/Florist quote\.pdf$/);
+    expect((await call(`/a/w/${wid}/planner/files/${id}`)).status).toBe(200);
+  });
+
   it('a token sealed under another secret is useless', async () => {
     const sealed = await seal('one-secret-000000000000000000', 'photo-link', 'x');
     expect(await unseal('another-secret-0000000000000000', 'photo-link', sealed)).toBeNull();

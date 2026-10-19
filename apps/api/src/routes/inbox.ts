@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { MAX_PLANNER_FILE, readJson, safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { keepDocument } from '../photos/store';
 import { changeDoc, readDoc } from './planner';
 
 /**
@@ -75,7 +76,11 @@ export async function receiveEmail(message: { from: string; to: string; raw: Rea
     if (!FILE_TYPES.includes(type) || !bytes.byteLength || bytes.byteLength > MAX_PLANNER_FILE) continue;
     const id = crypto.randomUUID();
     const name = (a.filename ?? 'attachment').slice(0, 160);
-    await db.prepare(`INSERT INTO planner_file (id, wedding_id, name, type, bytes, data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, w.id, name, type, bytes.byteLength, bytes, now).run();
+    const remote = await keepDocument(env, w.id, { bytes, name, type }); // the couple's Drive, Dropbox or OneDrive when chosen
+    await db
+      .prepare(`INSERT INTO planner_file (id, wedding_id, name, type, bytes, data, created_at, remote) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, w.id, name, type, bytes.byteLength, remote ? new Uint8Array(0) : bytes, now, remote)
+      .run();
     files.push({ id, name, type });
   }
   const id = crypto.randomUUID();

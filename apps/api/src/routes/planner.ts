@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { MAX_PLANNER_FILE, readJson } from '../lib/security';
+import { keepDocument, openPhoto } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -367,32 +368,42 @@ export function plannerRoutes() {
               : head.slice(4, 8) === 'ftyp';
     if (!real) return err(c, 400, 'invalid', "That file isn't the PDF or photo it says it is.");
     const id = crypto.randomUUID();
+    // In the couple's linked Drive, Dropbox or OneDrive when they chose one for planning files; else here.
+    const remote = await keepDocument(c.env, wid(c), { bytes, name: body.data.name, type: t });
     await c.env.DB.batch([
-      c.env.DB.prepare(`INSERT INTO planner_file (id, wedding_id, name, type, bytes, data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(
+      c.env.DB.prepare(`INSERT INTO planner_file (id, wedding_id, name, type, bytes, data, created_at, remote) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         id,
         wid(c),
         body.data.name,
         t,
         bytes.byteLength,
-        bytes,
+        remote ? new Uint8Array(0) : bytes,
         new Date().toISOString(),
+        remote,
       ),
       audit(c, 'planner.file', id),
     ]);
     return c.json({ id, name: body.data.name });
   });
 
-  const fileOf = (c: C, id: string) =>
-    c.env.DB.prepare(`SELECT name, type, data FROM planner_file WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`)
+  /** A planning file and its bytes (from the linked storage it lives in, or the database). */
+  const fileOf = async (c: C, id: string) => {
+    const f = await c.env.DB.prepare(`SELECT name, type, data, remote FROM planner_file WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`)
       .bind(id, wid(c))
-      .first<{ name: string; type: string; data: ArrayBuffer | number[] }>();
+      .first<{ name: string; type: string; data: ArrayBuffer | number[]; remote: string | null }>();
+    if (!f) return null;
+    if (!f.remote) return { ...f, data: asBytes(f.data) };
+    const res = await openPhoto(c.env, wid(c), f.remote);
+    if (!res?.ok) return null;
+    return { ...f, data: new Uint8Array(await res.arrayBuffer()) };
+  };
   const asBytes = (d: ArrayBuffer | number[]) => (d instanceof ArrayBuffer ? new Uint8Array(d) : Uint8Array.from(d));
 
   /** The file itself, for members only; shown in the browser, never run. */
   app.get('/files/:id', async (c) => {
     const f = await fileOf(c, c.req.param('id'));
     if (!f) return err(c, 404, 'not_found', 'File not found.');
-    return new Response(asBytes(f.data), {
+    return new Response(f.data, {
       headers: {
         'content-type': f.type,
         'content-disposition': `inline; filename="${f.name.replace(/[^\w. -]/g, '_')}"`,
@@ -420,7 +431,7 @@ export function plannerRoutes() {
     if (!f) return err(c, 404, 'not_found', 'File not found.');
     let text = '';
     try {
-      const md = await c.env.AI.toMarkdown([{ name: f.name, blob: new Blob([asBytes(f.data)], { type: f.type }) }]);
+      const md = await c.env.AI.toMarkdown([{ name: f.name, blob: new Blob([f.data], { type: f.type }) }]);
       text = (md[0]?.data ?? '').replace(/[ \t]+\n/g, '\n').slice(0, 12000);
     } catch {
       /* falls through to "couldn't read it" */

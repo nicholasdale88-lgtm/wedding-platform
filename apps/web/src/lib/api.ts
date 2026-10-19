@@ -347,6 +347,8 @@ export interface PhotoLink {
   waiting: number;
   failed: number;
   since: string;
+  /** Planning files (quotes, contracts, menus) are kept here too. */
+  docs?: boolean;
 }
 export interface PhotoLinks {
   siteStorage: boolean;
@@ -360,6 +362,7 @@ export const photoLinksApi = {
   connect: (wid: string, provider: PhotoLink['provider']) => send<{ url: string }>('POST', `${w(wid)}/photo-links/connect`, { provider }),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photo-links/${id}`),
   copyAll: (wid: string, id: string) => send<{ ok: true; queued: number }>('POST', `${w(wid)}/photo-links/${id}/copy-all`),
+  setDocs: (wid: string, id: string, on: boolean) => send<{ ok: true }>('PUT', `${w(wid)}/photo-links/${id}/docs`, { on }),
 };
 
 export interface VendorHit {

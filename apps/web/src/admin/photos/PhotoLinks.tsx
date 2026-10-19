@@ -157,6 +157,17 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
             {l.failed ? ` · ${l.failed} couldn’t be saved` : ''} · {WHERE[l.provider]}
           </span>
           {l.problem && <span className="text-[12px] text-[#7a4a37]">{l.problem}</span>}
+          {l.provider !== 'gphotos' && (
+            <label className="flex items-center gap-2 text-[13px] cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={!!l.docs}
+                onChange={(e) => void act(() => photoLinksApi.setDocs(wid, l.id, e.target.checked), e.target.checked ? `Quotes, contracts and menus now go to ${l.name}` : 'Planning files are kept on the site again')}
+                className="w-[16px] h-[16px] accent-[#5d6b47]"
+              />
+              Keep planning files here too (quotes, invoices, contracts, menus), in a “wedding planning” folder
+            </label>
+          )}
         </div>
       ))}
 
