@@ -85,6 +85,21 @@ describe('photos (admin)', () => {
     expect((await up(PNG, { 'X-Photo-Upload': '' })).status).toBe(415); // without the header it must be JSON
   });
 
+  it('the live photo wall: off by default, on with a secret code (photos and posts), off again stops the code', async () => {
+    const screen = (k: string) => app.request(`/api/p/sophie-and-nicholas/live?k=${k}`, {}, env, ctx);
+    expect((await screen('x'.repeat(20))).status).toBe(404);
+    const on = (await (await call(`/a/w/${wid}/live`, { method: 'PUT', body: JSON.stringify({ on: true }) })).json()) as { on: boolean; code: string };
+    expect(on.on).toBe(true);
+    const wall = (await (await screen(on.code)).json()) as { photos: { url: string; by: string }[] };
+    expect(wall.photos).toHaveLength(1);
+    expect(wall.photos[0]!.by).toBe('Ivy');
+    const img = await app.request(wall.photos[0]!.url, {}, env, ctx);
+    expect(img.status).toBe(200);
+    await call(`/a/w/${wid}/live`, { method: 'PUT', body: JSON.stringify({ on: false }) });
+    expect((await screen(on.code)).status).toBe(404);
+    expect((await app.request(wall.photos[0]!.url, {}, env, ctx)).status).toBe(404);
+  });
+
   it('says when storage is not switched on', async () => {
     delete env.MEDIA;
     expect(((await (await call(`/a/w/${wid}/photos`)).json()) as List).enabled).toBe(false);

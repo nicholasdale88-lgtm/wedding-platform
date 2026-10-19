@@ -6,6 +6,7 @@ import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, Pill, useToast } from '../ui';
 import { ChatImport } from './ChatImport';
 import { PhotoLinksPanel } from './PhotoLinks';
+import { LiveWallPanel } from './LiveWall';
 
 /**
  * Admin → Photos (design: isPhotos): the album guests built. Filter by who took them, select and
@@ -112,6 +113,8 @@ export function Photos() {
       </header>
 
       <PhotoLinksPanel onChanged={() => void load()} />
+
+      <LiveWallPanel />
 
       {data.enabled && (
         <ChatImport key={chosen} wid={wid} events={(overview?.events ?? []).map((e) => ({ key: e.key, name: e.name }))} event={one ? chosen : undefined} onDone={() => void load()} />

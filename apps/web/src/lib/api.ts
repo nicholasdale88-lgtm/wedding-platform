@@ -411,6 +411,12 @@ export const plannerApi = {
     request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
 };
 
+/** The live photo wall (a secret link to a full-screen slideshow). */
+export const liveApi = {
+  get: (wid: string) => request<{ on: boolean; code: string | null; slug: string }>(`${w(wid)}/live`),
+  set: (wid: string, on: boolean) => send<{ on: boolean; code: string | null; slug: string }>('PUT', `${w(wid)}/live`, { on }),
+};
+
 export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),
