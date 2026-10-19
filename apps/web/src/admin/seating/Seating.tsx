@@ -198,7 +198,7 @@ export function Seating() {
 
   /**
    * Seat everyone who said yes and has no seat yet: each invitation stays together, and each group
-   * (e.g. "Sophie's side") goes to tables that group already uses before starting new ones.
+   * (e.g. "Alex's side") goes to tables that group already uses before starting new ones.
    */
   const autoSeat = () => {
     const free = new Map(tables.map((t) => [t.id, t.seats - (byTable.get(t.id)?.length ?? 0)]));

@@ -37,7 +37,7 @@ export interface AdminGuest {
   phone: string | null;
   phoneDisplay: string;
   seatsHeld: number;
-  /** Group, e.g. "Sophie's side" (seating colours and filters). */
+  /** Group, e.g. "Alex's side" (seating colours and filters). */
   party: string;
   optOut: boolean;
   version: number;
