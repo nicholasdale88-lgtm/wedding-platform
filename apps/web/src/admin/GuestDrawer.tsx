@@ -2,6 +2,8 @@ import { joinDiet } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
+import { groupSuggestions } from './groups';
+import { useAdmin } from './Shell';
 import { Drawer, Eyebrow, inputCls, Label, Pill, useToast } from './ui';
 
 const SEG: [boolean | null, string, string, string][] = [
@@ -14,6 +16,7 @@ const VIA: Record<string, string> = { invitation: 'Invitation', sms: 'Text reply
 /** design/RSVP Admin.dc.html → guest drawer. Text fields save when you leave them; buttons save straight away. */
 export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; id: string; tz: string; onClose: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast();
+  const { overview } = useAdmin();
   const [d, setD] = useState<GuestDetail | null>(null);
   const [error, setError] = useState('');
   const [names, setNames] = useState<string[]>([]);
@@ -182,9 +185,26 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
             <input type="number" min={1} max={60} defaultValue={g.seatsHeld} key={g.version} onBlur={(e) => Number(e.target.value) !== g.seatsHeld && Number(e.target.value) >= 1 && void patch({ seatsHeld: Number(e.target.value) })} className={inputCls} />
           </Label>
         </div>
-        <Label text="Reception table">
-          <input value={table} placeholder="e.g. 4" onChange={(e) => setTable(e.target.value)} onBlur={() => table !== (g.people.find((p) => p.table)?.table ?? '') && void patch({ table: table.trim() || null })} className={`${inputCls} max-w-[140px]`} />
-        </Label>
+        <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-3">
+          <Label text="Group (for seating)">
+            <input
+              list="guest-groups"
+              defaultValue={g.party}
+              key={`party-${g.version}`}
+              placeholder="e.g. Wedding party"
+              onBlur={(e) => e.target.value.trim() !== g.party && void patch({ party: e.target.value.trim() })}
+              className={inputCls}
+            />
+            <datalist id="guest-groups">
+              {groupSuggestions(overview?.wedding).map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </Label>
+          <Label text="Reception table">
+            <input value={table} placeholder="e.g. 4" onChange={(e) => setTable(e.target.value)} onBlur={() => table !== (g.people.find((p) => p.table)?.table ?? '') && void patch({ table: table.trim() || null })} className={inputCls} />
+          </Label>
+        </div>
         {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any SMS.</div>}
         {g.optOut && <div className="text-[13px] text-[#8a5a45]">Opted out of texts (replied STOP).</div>}
         <div className="flex gap-2 items-center flex-wrap">

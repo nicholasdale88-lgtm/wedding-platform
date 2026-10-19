@@ -5,6 +5,7 @@ import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData }
 import { downloadCsv, fileName } from '../../lib/csv';
 import { fmtWhen, shortLabel } from '../../lib/format';
 import { useAdmin } from '../Shell';
+import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
 
@@ -32,6 +33,7 @@ export function Seating() {
   const [shape, setShape] = useState<TableShape>('round');
   const [snap, setSnap] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [groupFilter, setGroupFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const plan = useRef<HTMLDivElement>(null);
@@ -194,16 +196,32 @@ export function Seating() {
   };
   const unpublished = !s.published || s.published.changes > 0;
 
-  /** Seat everyone who said yes and has no seat yet, keeping each invitation together where it fits. */
+  /**
+   * Seat everyone who said yes and has no seat yet: each invitation stays together, and each group
+   * (e.g. "Sophie's side") goes to tables that group already uses before starting new ones.
+   */
   const autoSeat = () => {
     const free = new Map(tables.map((t) => [t.id, t.seats - (byTable.get(t.id)?.length ?? 0)]));
-    const groups = new Map<string, string[]>();
-    for (const p of s.people) if (p.coming && !seats[p.id]) groups.set(p.invitationId, [...(groups.get(p.invitationId) ?? []), p.id]);
+    const tableParties = new Map(tables.map((t) => [t.id, new Set((byTable.get(t.id) ?? []).map((p) => p.party).filter(Boolean))]));
+    const invites = new Map<string, { party: string; ids: string[] }>();
+    for (const p of s.people) {
+      if (!p.coming || seats[p.id]) continue;
+      const g = invites.get(p.invitationId) ?? { party: p.party, ids: [] };
+      g.ids.push(p.id);
+      invites.set(p.invitationId, g);
+    }
+    const ordered = [...invites.values()].sort((a, b) => a.party.localeCompare(b.party));
     const next = { ...seats };
     let n = 0;
     let left = 0;
-    for (const ids of groups.values()) {
-      const whole = tables.find((t) => (free.get(t.id) ?? 0) >= ids.length);
+    for (const { party, ids } of ordered) {
+      const fits = (t: SeatTable) => (free.get(t.id) ?? 0) >= ids.length;
+      // Prefer a table where this group already sits, then an empty one, then anywhere it fits.
+      const whole =
+        (party && tables.find((t) => fits(t) && tableParties.get(t.id)!.has(party))) ||
+        tables.find((t) => fits(t) && tableParties.get(t.id)!.size === 0 && (free.get(t.id) ?? 0) === t.seats) ||
+        tables.find(fits);
+      if (whole && party) tableParties.get(whole.id)!.add(party);
       for (const id of ids) {
         const t = whole ?? tables.find((x) => (free.get(x.id) ?? 0) > 0);
         if (!t) {
@@ -248,7 +266,8 @@ export function Seating() {
   const comingUnseated = s.people.filter((p) => p.coming && !seats[p.id]).length;
   const seatedAwaiting = s.people.filter((p) => !p.coming && seats[p.id]).length;
   const over = tables.filter((t) => (byTable.get(t.id)?.length ?? 0) > t.seats);
-  const unseated = [...s.people.filter((p) => p.coming && !seats[p.id]).reduce((m, p) => m.set(p.invitationId, [...(m.get(p.invitationId) ?? []), p]), new Map<string, Person[]>()).values()];
+  const groupNames = [...new Set(s.people.map((p) => p.party).filter(Boolean))].sort();
+  const unseated = [...s.people.filter((p) => p.coming && !seats[p.id] && (!groupFilter || p.party === groupFilter)).reduce((m, p) => m.set(p.invitationId, [...(m.get(p.invitationId) ?? []), p]), new Map<string, Person[]>()).values()];
   const waiting = s.people.filter((p) => !p.coming);
   const target = selTable?.id ?? null;
   const seatCount = tables.reduce((n, t) => n + t.seats, 0);
@@ -498,6 +517,16 @@ export function Seating() {
               <h2 className="m-0 font-display font-medium text-[24px]">Not seated</h2>
               <span className="text-[13px] text-[#5b6a52]">{comingUnseated}</span>
             </div>
+            {groupNames.length > 0 && (
+              <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} aria-label="Show group" className={`${inputCls} !py-[6px] !text-[13px]`}>
+                <option value="">All groups</option>
+                {groupNames.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className="text-[13px] text-[#5b6a52]">{target ? `Tap a name to seat them at table ${selTable!.name}, or drag names onto any table.` : 'Drag names onto a table, or tap a table first and then tap names.'}</div>
             {unseated.map((group) => (
               <div key={group[0]!.invitationId} className="flex flex-col gap-1 py-2 border-t border-[#ece3cc]">
@@ -524,6 +553,8 @@ export function Seating() {
                       draggable
                       onDragStart={dragGuests([p.id])}
                       onClick={() => (target ? seat([p.id], target) : toast('Tap a table first, or drag the name onto one'))}
+                      title={p.party || undefined}
+                      style={{ boxShadow: p.party ? `inset 4px 0 0 ${groupColour(p.party)}` : undefined }}
                       className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[13px] cursor-grab hover:bg-[#efe7d3] text-[#33402f]"
                     >
                       {p.name}
@@ -626,7 +657,7 @@ function TableShapeView({
             width: 9,
             height: 9,
             transform: 'translate(-50%,-50%)',
-            background: i < n ? (selected ? '#b39563' : '#5d6b47') : '#fbf8f2',
+            background: i < n ? (people[i]!.party ? groupColour(people[i]!.party) : selected ? '#b39563' : '#5d6b47') : '#fbf8f2',
             border: `1px solid ${i < n ? 'transparent' : '#c6b794'}`,
           }}
         />

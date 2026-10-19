@@ -77,6 +77,7 @@ export interface Guest {
   phone: string | null;
   phoneDisplay: string;
   seatsHeld: number;
+  party: string;
   optOut: boolean;
   version: number;
   createdAt: string;
@@ -117,6 +118,7 @@ export interface GuestPatch {
   people?: string[];
   phone?: string | null;
   seatsHeld?: number;
+  party?: string;
   invited?: string[];
   table?: string | null;
 }
@@ -135,7 +137,7 @@ export const api = {
   logout: () => send<{ ok: true }>('POST', '/a/auth/logout'),
 
   overview: (wid: string) => request<Overview>(`${w(wid)}/overview`),
-  guests: (wid: string) => request<{ events: EventInfo[]; guests: Guest[] }>(`${w(wid)}/guests`),
+  guests: (wid: string) => request<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> }>(`${w(wid)}/guests`),
   guest: (wid: string, id: string) => request<GuestDetail>(`${w(wid)}/guests/${id}`),
   addGuest: (wid: string) => send<GuestDetail>('POST', `${w(wid)}/guests`),
   patchGuest: (wid: string, g: Pick<Guest, 'id' | 'version'>, patch: GuestPatch) => send<GuestDetail>('PATCH', `${w(wid)}/guests/${g.id}`, patch, g.version),
@@ -286,7 +288,7 @@ export interface SeatingData {
   planImg: string;
   tables: SeatTable[];
   areas: SeatArea[];
-  people: { id: string; invitationId: string; name: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
+  people: { id: string; invitationId: string; name: string; party: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
 }
 export interface SeatingSave {
   event: string;

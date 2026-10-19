@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { exportRows, toImportRows } from '../src/admin/guestImport';
+import { exportRows, exportSheets, toImportRows } from '../src/admin/guestImport';
 import { parseTable } from '../src/lib/csv';
+import { readTableFile, readXlsx, writeXlsx } from '../src/lib/xlsx';
 import { events, guests } from './fixtures';
 
 describe('reading a guest spreadsheet', () => {
@@ -27,5 +28,33 @@ describe('reading a guest spreadsheet', () => {
     const out = exportRows(guests, events);
     expect(out[0]).toEqual(expect.arrayContaining(['Main contact', 'Mobile', 'Dietary']));
     expect(out).toHaveLength(guests.length + 1);
+  });
+});
+
+describe('Excel files (.xlsx)', () => {
+  it('a workbook we write reads back exactly: text stays text, numbers stay numbers', () => {
+    const rows = [['Name', 'Mobile', 'Seats', 'Note'], ['Alex & Sam', '0412 345 678', 2, '=1+1 <b>&"quotes"'], ['Jo', '', 1, 'Line one\nline two']];
+    const back = readXlsx(writeXlsx([{ name: 'Guests', rows }]));
+    expect(back).toEqual([['Name', 'Mobile', 'Seats', 'Note'], ['Alex & Sam', '0412 345 678', '2', '=1+1 <b>&"quotes"'], ['Jo', '', '1', 'Line one\nline two']]);
+  });
+
+  it('the full export has invitations, people and a summary; it imports straight back', () => {
+    const sheets = exportSheets(guests, events, { [guests[0]!.id]: 'https://example.com/w/x/?g=abc' });
+    expect(sheets.map((s) => s.name)).toEqual(['Invitations', 'People', 'Summary']);
+    expect(sheets[0]!.rows[0]).toEqual(expect.arrayContaining(['Group', 'Personal link', 'Texts allowed']));
+    expect(sheets[1]!.rows.length).toBe(guests.flatMap((g) => g.people).length + 1);
+    const { rows } = toImportRows(readXlsx(writeXlsx([sheets[0]!])), events);
+    expect(rows.length).toBe(guests.length);
+    expect(rows[0]!.party).toBe('Family');
+  });
+
+  it('mobiles Excel turned into numbers get their 0 back; groups are read', () => {
+    const { rows } = toImportRows([['Name', 'Mobile', 'Side'], ['Pat Solo', '412345678', "Sophie's side"]], events);
+    expect(rows[0]).toEqual({ people: ['Pat Solo'], phone: '0412345678', party: "Sophie's side" });
+  });
+
+  it('refuses things that are not workbooks, in plain English', async () => {
+    expect(() => readXlsx(new TextEncoder().encode('not a zip'))).toThrow(/isn't an Excel workbook/);
+    await expect(readTableFile(new File(['x'], 'old.xls'), parseTable)).rejects.toThrow(/Save As/);
   });
 });

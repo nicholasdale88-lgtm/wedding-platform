@@ -364,9 +364,9 @@ describe('seating tab', () => {
     tables: [{ id: T1, name: '1', shape: 'round', dir: 'h', len: 40, x: 30, y: 30, seats: 4 }],
     areas: [{ label: 'Dance floor', x: 50, y: 50, w: 20, h: 15 }],
     people: [
-      { id: 'p1', invitationId: 'g1', name: 'Robin Hart', diet: 'Nut allergy', meal: { e: '', m: '', d: '' }, tableId: T1, coming: true },
-      { id: 'p2', invitationId: 'g1', name: 'Sam Hart', diet: '', meal: { e: '', m: '', d: '' }, tableId: null, coming: true },
-      { id: 'p3', invitationId: 'g2', name: 'Jo Banks', diet: '', meal: { e: '', m: '', d: '' }, tableId: null, coming: false },
+      { id: 'p1', invitationId: 'g1', name: 'Robin Hart', party: '', diet: 'Nut allergy', meal: { e: '', m: '', d: '' }, tableId: T1, coming: true },
+      { id: 'p2', invitationId: 'g1', name: 'Sam Hart', party: '', diet: '', meal: { e: '', m: '', d: '' }, tableId: null, coming: true },
+      { id: 'p3', invitationId: 'g2', name: 'Jo Banks', party: '', diet: '', meal: { e: '', m: '', d: '' }, tableId: null, coming: false },
     ],
   };
 
@@ -456,7 +456,7 @@ describe('seating publish', () => {
   const base = {
     version: 4, event: { key: 'wedding', name: 'The wedding' }, events: [{ key: 'wedding', name: 'The wedding' }], aspect: '4 / 3', planImg: '',
     tables: [{ id: T1, name: '1', shape: 'round', dir: 'h', len: 40, x: 30, y: 30, seats: 4 }], areas: [],
-    people: [{ id: 'p1', invitationId: 'g1', name: 'Robin Hart', diet: '', meal: { e: '', m: '', d: '' }, tableId: T1, coming: true }],
+    people: [{ id: 'p1', invitationId: 'g1', name: 'Robin Hart', party: '', diet: '', meal: { e: '', m: '', d: '' }, tableId: T1, coming: true }],
   };
 
   it('not published: says so, and Publish sends the version; afterwards it reads Published', async () => {

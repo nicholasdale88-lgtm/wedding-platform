@@ -26,7 +26,7 @@ export function downloadCsv(filename: string, rows: unknown[][]) {
 }
 
 /** "sophie-and-nicholas-dietary-2026-10-19.csv" */
-export const fileName = (slug: string, what: string) => `${slug}-${what}-${new Date().toISOString().slice(0, 10)}.csv`;
+export const fileName = (slug: string, what: string, ext: 'csv' | 'xlsx' = 'csv') => `${slug}-${what}-${new Date().toISOString().slice(0, 10)}.${ext}`;
 
 /**
  * Read a CSV file or cells pasted from Excel / Google Sheets (tab-separated) into rows.

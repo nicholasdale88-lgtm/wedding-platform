@@ -88,6 +88,7 @@ export const invitation = sqliteTable('invitation', {
   token: text('token').notNull().unique(),
   phone: text('phone'),
   seatsHeld: integer('seats_held').notNull().default(1),
+  party: text('party').notNull().default(''), // migration 0005: guest group
   notes: text('notes'),
   smsOptout: integer('sms_optout', { mode: 'boolean' }).notNull().default(false),
   consent: integer('consent', { mode: 'boolean' }).notNull().default(true),

@@ -37,6 +37,8 @@ export interface AdminGuest {
   phone: string | null;
   phoneDisplay: string;
   seatsHeld: number;
+  /** Group, e.g. "Sophie's side" (seating colours and filters). */
+  party: string;
   optOut: boolean;
   version: number;
   createdAt: string;
@@ -81,7 +83,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
   const [w, ev, inv, ppl, ie, rs, cp, sl, last, inbox, tb] = await db.batch([
     q(`SELECT id, slug, name1, name2, timezone, sms_sender, content, guide FROM wedding WHERE id = ? AND deleted_at IS NULL`),
     q(`SELECT id, key, name, pending_label, starts_at, sort, has_seating, catered, questions FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
-    q(`SELECT id, phone, seats_held, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
+    q(`SELECT id, phone, seats_held, party, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
     q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.meal_entree, p.meal_main, p.meal_dessert, t.name AS table_name
          FROM person p JOIN invitation i ON i.id = p.invitation_id LEFT JOIN seat_table t ON t.id = p.table_id AND t.deleted_at IS NULL
         WHERE i.wedding_id = ? AND p.deleted_at IS NULL ORDER BY p.invitation_id, p.idx`),
@@ -100,9 +102,9 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
   if (!wr) return null;
 
   const guests = new Map<string, AdminGuest>();
-  for (const r of inv!.results as { id: string; phone: string | null; seats_held: number; sms_optout: number; version: number; created_at: string; opened_at: string | null }[]) {
+  for (const r of inv!.results as { id: string; phone: string | null; seats_held: number; party: string; sms_optout: number; version: number; created_at: string; opened_at: string | null }[]) {
     guests.set(r.id, {
-      id: r.id, phone: r.phone, phoneDisplay: r.phone ? displayPhone(r.phone) : '', seatsHeld: r.seats_held, optOut: !!r.sms_optout,
+      id: r.id, phone: r.phone, phoneDisplay: r.phone ? displayPhone(r.phone) : '', seatsHeld: r.seats_held, party: r.party, optOut: !!r.sms_optout,
       version: r.version, createdAt: r.created_at, openedAt: r.opened_at, people: [], invited: [], rsvp: {}, repliedAt: null, lastSms: null,
     });
   }

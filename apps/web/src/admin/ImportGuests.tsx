@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { api, type EventInfo, type ImportResult } from '../lib/api';
 import { parseTable } from '../lib/csv';
-import { toImportRows, type ImportRow } from './guestImport';
+import { downloadXlsx, readTableFile } from '../lib/xlsx';
+import { templateSheet, toImportRows, type ImportRow } from './guestImport';
 import { useAdmin } from './Shell';
 import { inputCls, Pill, useToast } from './ui';
 
@@ -14,17 +15,30 @@ export function ImportGuests({ events, onClose, onDone }: { events: EventInfo[];
   const toast = useToast();
   const [text, setText] = useState('');
   const [rows, setRows] = useState<ImportRow[] | null>(null);
-  const [check, setCheck] = useState<ImportResult | null>(null);
+  const [result, setCheckResult] = useState<ImportResult | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const read = async (t: string) => {
-    setText(t);
-    const { rows: parsed } = toImportRows(parseTable(t), events);
+  /** Read rows (from a file or pasted text), then ask the server what would happen. */
+  const check = async (table: string[][]) => {
+    const { rows: parsed } = toImportRows(table, events);
     setRows(parsed);
-    setCheck(null);
+    setCheckResult(null);
     if (!parsed.length) return;
     try {
-      setCheck(await api.importGuests(wid, parsed, true));
+      setCheckResult(await api.importGuests(wid, parsed, true));
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+  const read = async (t: string) => {
+    setText(t);
+    await check(parseTable(t));
+  };
+  const readFile = async (file: File) => {
+    if (file.size > 5 * 1024 * 1024) return toast('That file is over 5 MB. Keep just the guest list sheet and try again.');
+    try {
+      setText('');
+      await check(await readTableFile(file, parseTable));
     } catch (e) {
       toast((e as Error).message);
     }
@@ -54,32 +68,35 @@ export function ImportGuests({ events, onClose, onDone }: { events: EventInfo[];
         </button>
       </div>
       <p className="m-0 text-[14px] text-[#5b6a52]">
-        One row per invitation. Columns we understand: <strong>Name</strong> (put partners in the same cell with &amp;, or in their own columns), <strong>Mobile</strong>, <strong>Seats</strong>, and a yes/no column for each event (
+        One row per invitation. Columns we understand: <strong>Name</strong> (put partners in the same cell with &amp;, or in their own columns), <strong>Mobile</strong>, <strong>Seats</strong>, <strong>Group</strong> (e.g. a side or the wedding party), and a yes/no column for each event (
         {events.map((e) => e.name).join(', ')}). Leave the event columns out to invite everyone to everything.
       </p>
       <div className="flex gap-3 flex-wrap items-center">
         <label className="py-[10px] px-[18px] rounded-full border border-[#c6b794] text-[14px] font-medium cursor-pointer hover:bg-[#efe7d3]">
-          Choose a CSV file
-          <input type="file" accept=".csv,.tsv,.txt,text/csv" className="hidden" onChange={async (e) => e.target.files?.[0] && read(await e.target.files[0].text())} />
+          Choose an Excel or CSV file
+          <input type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void readFile(f); }} />
         </label>
-        <span className="text-[13px] text-[#7a7466]">or paste from your spreadsheet below</span>
+        <Pill kind="dashed" onClick={() => downloadXlsx('guest-list-template.xlsx', [templateSheet(events)])}>
+          Download a template
+        </Pill>
+        <span className="text-[13px] text-[#7a7466]">or copy rows from your spreadsheet and paste below</span>
       </div>
       <textarea rows={5} value={text} onChange={(e) => void read(e.target.value)} placeholder={'Name\tMobile\tSeats\nAlex & Sam Lee\t0412 345 678\t2'} aria-label="Paste guests" className={`${inputCls} font-mono !text-[13px] resize-y`} />
 
       {rows && (
         <div className="flex flex-col gap-2">
           <div className="text-[14px]">
-            {check ? (
+            {result ? (
               <>
-                <strong className="font-semibold">{check.wouldAdd}</strong> new {check.wouldAdd === 1 ? 'invitation' : 'invitations'} to add
-                {check.skipped.length ? `, ${check.skipped.length} already on your list (skipped)` : ''}
-                {check.problems.length ? <span className="text-[#7a4a37]"> · {check.problems.length} to fix first</span> : ''}
+                <strong className="font-semibold">{result.wouldAdd}</strong> new {result.wouldAdd === 1 ? 'invitation' : 'invitations'} to add
+                {result.skipped.length ? `, ${result.skipped.length} already on your list (skipped)` : ''}
+                {result.problems.length ? <span className="text-[#7a4a37]"> · {result.problems.length} to fix first</span> : ''}
               </>
             ) : (
               `${rows.length} rows read`
             )}
           </div>
-          {check?.problems.slice(0, 8).map((p) => (
+          {result?.problems.slice(0, 8).map((p) => (
             <div key={p.row} className="text-[13px] text-[#7a4a37]">
               Row {p.row + 1}
               {p.name ? ` (${p.name})` : ''}: {p.reason}
@@ -94,8 +111,8 @@ export function ImportGuests({ events, onClose, onDone }: { events: EventInfo[];
               </div>
             ))}
           </div>
-          <Pill kind="primary" className="self-start" disabled={busy || !check || !!check.problems.length || !check.wouldAdd} onClick={() => void add()}>
-            {busy ? 'Adding…' : `Add ${check?.wouldAdd ?? 0} ${check?.wouldAdd === 1 ? 'invitation' : 'invitations'}`}
+          <Pill kind="primary" className="self-start" disabled={busy || !result || !!result.problems.length || !result.wouldAdd} onClick={() => void add()}>
+            {busy ? 'Adding…' : `Add ${result?.wouldAdd ?? 0} ${result?.wouldAdd === 1 ? 'invitation' : 'invitations'}`}
           </Pill>
         </div>
       )}

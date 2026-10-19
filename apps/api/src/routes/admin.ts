@@ -26,6 +26,7 @@ const GuestPatch = z
     people: z.array(z.string().trim().max(120)).min(1).max(30),
     phone: z.string().max(40).nullable(),
     seatsHeld: z.number().int().min(1).max(60),
+    party: z.string().trim().max(60),
     invited: z.array(z.string()).max(20),
     table: z.string().trim().max(40).nullable(),
   })
@@ -100,7 +101,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
   app.get('/guests', async (c) => {
     const data = await loadWedding(c.env.DB, wid(c));
     if (!data) return err(c, 404, 'not_found', 'Wedding not found.');
-    return c.json({ events: data.events, guests: data.guests });
+    // Each guest's personal invitation link (for exports and sending by WhatsApp or Messenger).
+    const base = (c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '');
+    const { results } = await c.env.DB.prepare(`SELECT id, token FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`).bind(wid(c)).all<{ id: string; token: string }>();
+    const links = Object.fromEntries(results.map((r) => [r.id, `${base}/w/${data.wedding.slug}/?g=${r.token}`]));
+    return c.json({ events: data.events, guests: data.guests, links });
   });
 
   app.get('/guests/:id', async (c) => {
@@ -131,6 +136,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       people: z.array(z.string().trim().max(120)).max(12),
       phone: z.string().max(40).optional(),
       seats: z.number().int().min(1).max(60).optional(),
+      party: z.string().trim().max(60).optional(),
       invited: z.array(z.string().max(40)).max(20).optional(),
     });
     const body = z.object({ rows: z.array(Row).min(1).max(1000) }).strict().safeParse(await readJson(c.req.raw, MAX_IMPORT));
@@ -152,7 +158,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const names = new Set(existing.map((e) => norm(e.name ?? '')).filter(Boolean));
     const byKey = new Map(events.map((e) => [e.key, e.id]));
 
-    const ok: { people: string[]; phone: string | null; seats: number; eventIds: string[] }[] = [];
+    const ok: { people: string[]; phone: string | null; seats: number; party: string; eventIds: string[] }[] = [];
     const skipped: { row: number; name: string; reason: string }[] = [];
     const problems: { row: number; name: string; reason: string }[] = [];
     body.data.rows.forEach((r, i) => {
@@ -167,7 +173,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       if ((phone && phones.has(phone)) || names.has(norm(name))) return skipped.push({ row, name, reason: 'Already on your list' });
       if (phone) phones.add(phone);
       names.add(norm(name));
-      ok.push({ people, phone, seats: r.seats ?? people.length, eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
+      ok.push({ people, phone, seats: r.seats ?? people.length, party: r.party ?? '', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
     });
 
     if (c.req.query('dry') || problems.length) return c.json({ added: 0, wouldAdd: ok.length, skipped, problems, dry: true }, problems.length && !c.req.query('dry') ? 400 : 200);
@@ -178,7 +184,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     for (const g of ok) {
       const invId = id();
       const one = [
-        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, seats_held, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, Math.max(g.seats, g.people.length), t, t),
+        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, seats_held, party, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, Math.max(g.seats, g.people.length), g.party, t, t),
         ...g.people.map((p, idx) => db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, ?, ?)`).bind(id(), invId, idx, p)),
         ...g.eventIds.map((e) => db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, e)),
       ];
@@ -228,6 +234,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const stmts: D1PreparedStatement[] = [];
     if (phone !== undefined) stmts.push(db.prepare(`UPDATE invitation SET phone = ? WHERE id = ?`).bind(phone, invId));
     if (p.seatsHeld !== undefined) stmts.push(db.prepare(`UPDATE invitation SET seats_held = ? WHERE id = ?`).bind(p.seatsHeld, invId));
+    if (p.party !== undefined) stmts.push(db.prepare(`UPDATE invitation SET party = ? WHERE id = ?`).bind(p.party, invId));
     if (p.people) {
       const names = p.people.map((n, i) => n || (i === 0 ? '' : 'Guest'));
       names.forEach((name, idx) =>
