@@ -1,7 +1,8 @@
 import { dropControls } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { imageType } from '../lib/images';
-import { MAX_PHOTO, readBytes } from '../lib/security';
+import { z } from 'zod';
+import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
 import { canStore, linkKey, openPhoto, storePhoto } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -19,6 +20,19 @@ export function photoRoutes() {
   const app = new Hono<AdminEnv>();
   // (jsonWritesOnly lets the photo upload below through: it sends the photo itself, see auth.ts.)
   app.use('*', jsonWritesOnly, requireUser, requireMember());
+
+  /** Photos → Frames and looks: which ones guests are offered, and the look they start on. */
+  app.get('/looks', async (c) => {
+    const r = await c.env.DB.prepare(`SELECT json_extract(content, '$.photoLooks') AS l FROM wedding WHERE id = ?`).bind(c.req.param('wid')).first<{ l: string | null }>();
+    return c.json(r?.l ? JSON.parse(r.l) : {});
+  });
+  app.put('/looks', requireMember('owner', 'editor'), async (c) => {
+    const key = z.string().regex(/^[a-z]{3,12}$/);
+    const body = z.object({ frames: z.array(key).max(20), looks: z.array(key).max(20), def: key }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return c.json({ error: { code: 'invalid', message: 'Choose at least the frames and looks to offer.' } }, 400);
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.photoLooks', json(?)) WHERE id = ? AND json_valid(content)`).bind(JSON.stringify(body.data), c.req.param('wid')).run();
+    return c.json(body.data);
+  });
 
   /**
    * The couple adds a photo to an event's album (e.g. the photos from a group chat export). Named after

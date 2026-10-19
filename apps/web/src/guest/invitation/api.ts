@@ -80,6 +80,8 @@ export interface PhotoPagePayload {
   open: boolean;
   /** The couple has shared the album (everyone's photos). */
   album?: boolean;
+  /** The frames and looks the couple offers, and the look to start on (all of them when not set). */
+  looks?: { frames?: string[]; looks?: string[]; def?: string } | null;
   texts: Record<string, string>;
 }
 

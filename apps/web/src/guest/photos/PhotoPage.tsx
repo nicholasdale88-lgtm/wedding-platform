@@ -143,9 +143,16 @@ export function PhotoPage() {
       slot: ev.slot,
     };
   }, [page, ev]);
-  const filters = info ? filtersFor(info) : (['none'] as FilterKey[]);
+  // The couple's choice of frames (no frame is always there) and looks.
+  const offered = page?.looks;
+  const filters = (info ? filtersFor(info) : (['none'] as FilterKey[])).filter((f) => f === 'none' || !offered?.frames || offered.frames.includes(f));
+  const lookKeys = LOOK_KEYS.filter((k) => k === 'original' || !offered?.looks || offered.looks.includes(k));
   const [filter, setFilter] = useState<FilterKey>('none');
   const [look, setLook] = useState<LookKey>('original');
+  useEffect(() => {
+    const d = page?.looks?.def;
+    if (d && d in LOOKS) setLook(d as LookKey);
+  }, [page?.looks?.def]);
   // Videos too, from the camera roll (the design's picker asks for photos only).
   useEffect(() => {
     if (fileRef.current) fileRef.current.accept = 'image/*,video/*';
@@ -307,7 +314,7 @@ export function PhotoPage() {
             ))}
           </div>
           <div role="radiogroup" aria-label="Look" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none]">
-            {LOOK_KEYS.map((k) => (
+            {lookKeys.length > 1 && lookKeys.map((k) => (
               <button
                 key={k}
                 type="button"

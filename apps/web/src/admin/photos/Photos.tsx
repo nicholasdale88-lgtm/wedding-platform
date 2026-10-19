@@ -8,6 +8,7 @@ import { Eyebrow, Pill, useToast } from '../ui';
 import { ChatImport } from './ChatImport';
 import { PhotoLinksPanel } from './PhotoLinks';
 import { AlbumSharePanel, LiveWallPanel } from './LiveWall';
+import { LooksPanel } from './LooksPanel';
 
 /**
  * Admin → Photos (design: isPhotos): the album guests built. Filter by who took them, select and
@@ -114,6 +115,8 @@ export function Photos() {
       </header>
 
       <PhotoLinksPanel onChanged={() => void load()} />
+
+      <LooksPanel />
 
       <LiveWallPanel />
 

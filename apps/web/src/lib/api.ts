@@ -458,8 +458,15 @@ export const shuttlesApi = {
   bookings: (wid: string) => request<{ bookings: Record<string, { names: string; seats: number }[]> }>(`${w(wid)}/shuttles`),
 };
 
+export interface PhotoLooksCfg {
+  frames?: string[];
+  looks?: string[];
+  def?: string;
+}
 export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
+  looks: (wid: string) => request<PhotoLooksCfg>(`${w(wid)}/photos/looks`),
+  setLooks: (wid: string, cfg: Required<PhotoLooksCfg>) => send<PhotoLooksCfg>('PUT', `${w(wid)}/photos/looks`, cfg),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),
   /** Add one photo to an event's album as the couple (sends the image itself; the header marks it as an upload). */
   upload: (wid: string, photo: Blob, by: string, event: string) =>

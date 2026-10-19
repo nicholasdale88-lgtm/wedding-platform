@@ -309,6 +309,8 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       open: !!who && (await canStore(c.env, w.id)),
       // The couple has shared the album: guests can see everyone's photos (/w/:slug/album).
       album: !!who && content.albumShared === true,
+      // The frames and looks the couple offers (all of them until they choose), and the look to start on.
+      looks: (content.photoLooks as { frames?: string[]; looks?: string[]; def?: string } | undefined) ?? null,
       texts: textsFor('ph', (content.texts as Record<string, string> | undefined) ?? {}, null),
     });
   });
