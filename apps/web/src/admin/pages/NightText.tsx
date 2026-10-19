@@ -86,11 +86,18 @@ function NightCard({ c, tz, startsAt, onChanged }: { c: Campaign; tz: string; st
 
   // The preview follows the words as they're typed (a real guest's details, never sent).
   useEffect(() => {
+    let live = true; // an answer for older words never lands over a newer one
     clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      textsApi.estimate(wid, c.id, { body }).then(setEst, () => setEst(null));
+      textsApi.estimate(wid, c.id, { body }).then(
+        (e) => live && setEst(e),
+        () => live && setEst(null),
+      );
     }, 400);
-    return () => clearTimeout(timer.current);
+    return () => {
+      live = false;
+      clearTimeout(timer.current);
+    };
   }, [wid, c.id, body]);
 
   const save = async (patch: Parameters<typeof textsApi.patch>[2], msg: string) => {

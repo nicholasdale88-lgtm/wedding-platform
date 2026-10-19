@@ -298,15 +298,21 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
   useUnsavedChanges(dirty);
 
   // Live count, cost and phone preview for exactly what is on screen (nothing is saved or sent).
+  // `live`: an answer for words since changed never lands over the newer one.
+  const audJson = JSON.stringify(audience);
   useEffect(() => {
+    let live = true;
     const t = setTimeout(() => {
       textsApi
-        .estimate(wid, c.id, { body, audience, excluded })
-        .then(setEst)
-        .catch(() => setEst(null));
+        .estimate(wid, c.id, { body, audience: JSON.parse(audJson) as typeof audience, excluded })
+        .then((e) => live && setEst(e))
+        .catch(() => live && setEst(null));
     }, 400);
-    return () => clearTimeout(t);
-  }, [wid, c.id, body, audKey, excluded]);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [wid, c.id, body, audJson, excluded]);
 
   const insert = (tag: string) => {
     const el = ta.current;
