@@ -17,9 +17,8 @@ const wid = (c: C) => c.req.param('wid')!;
 
 export function photoRoutes() {
   const app = new Hono<AdminEnv>();
-  // Uploads send the photo itself, not JSON. The custom X-Photo-Upload header still forces a CORS
-  // preflight, so another site cannot post photos here with the couple's cookie.
-  app.use('*', (c, next) => (c.req.method === 'PUT' && c.req.header('X-Photo-Upload') === '1' ? next() : jsonWritesOnly(c, next)), requireUser, requireMember());
+  // (jsonWritesOnly lets the photo upload below through: it sends the photo itself, see auth.ts.)
+  app.use('*', jsonWritesOnly, requireUser, requireMember());
 
   /**
    * The couple adds a photo to an event's album (e.g. the photos from a group chat export). Named after

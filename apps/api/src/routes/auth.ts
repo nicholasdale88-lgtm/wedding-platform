@@ -23,7 +23,10 @@ const superAdmins = (env: Env) => new Set((env.SUPER_ADMINS ?? '').split(',').ma
 
 /** Forms can't send JSON cross-site without a CORS preflight, so requiring it blocks CSRF on writes. */
 export const jsonWritesOnly: MiddlewareHandler<AdminEnv> = async (c, next) => {
-  if (c.req.method !== 'GET' && c.req.method !== 'HEAD' && !(c.req.header('content-type') ?? '').startsWith('application/json')) {
+  // The one exception: the couple's photo upload sends the photo itself. Its custom X-Photo-Upload header
+  // still forces a CORS preflight, so another site can't post here with the couple's cookie.
+  const photoUpload = c.req.method === 'PUT' && c.req.header('X-Photo-Upload') === '1' && /\/a\/w\/[^/]+\/photos\/upload$/.test(new URL(c.req.url).pathname);
+  if (!photoUpload && c.req.method !== 'GET' && c.req.method !== 'HEAD' && !(c.req.header('content-type') ?? '').startsWith('application/json')) {
     return err(c, 415, 'json_required', 'Send JSON.');
   }
   await next();
