@@ -4,7 +4,7 @@ const KEY = 'wp-admin-last';
 
 interface Last {
   email: string;
-  /** "Sophie & Nicholas": the name shown on the sign-in screen next time. */
+  /** The couple ("Alex & Blair"), shown on the sign-in screen next time. */
   name: string;
 }
 
