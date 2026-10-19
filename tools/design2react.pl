@@ -140,7 +140,11 @@ sub attr_value {
 
 sub style_value {
   my ($v) = @_;
+  # The design's own photos (url('assets/x.jpg')) become editable images: v.asset('x.jpg').
+  my %asset;
+  $v =~ s{assets/([\w.-]+)}{ my $id = $1; (my $k = $id) =~ s/\W/_/g; $asset{$k} = $id; "{{ __asset_$k }}" }ge;
   my $a = attr_value($v);
+  $a =~ s/\bv\.__asset_(\w+)/'v.asset(' . js_str($asset{$1}) . ')'/ge;
   return '{sx(' . substr($a, 1, -1) . ')}';
 }
 

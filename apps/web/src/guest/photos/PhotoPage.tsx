@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'reac
 import { useParams, useSearchParams } from 'react-router-dom';
 import { PhotoUploadView } from '../generated/PhotoUploadView';
 import { guestApi, type PhotoPagePayload } from '../invitation/api';
-import { setPageClass } from '../guide/common';
+import { assetOf, setPageClass } from '../guide/common';
 
 /**
  * /w/:slug/photos?g=<token>: guests add their photos (design/Photo Upload.dc.html). Each photo is
@@ -107,6 +107,7 @@ export function PhotoPage() {
   const bad = items.filter((x) => x.st === 'err').length;
   const firstName = by.trim().split(/\s+/)[0] ?? '';
   const v = {
+    asset: assetOf(page.images),
     greeting: firstName ? fillTags(t('ph.dyn.greeting'), { first: firstName }) : t('ph.dyn.greetingAnon'),
     by,
     setBy: (e: ChangeEvent<HTMLInputElement>) => {

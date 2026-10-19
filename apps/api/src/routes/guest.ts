@@ -22,6 +22,11 @@ const json = <T>(s: string | null | undefined, fallback: T): T => {
     return fallback;
   }
 };
+/** The wedding's pictures by slot ("lookout"), shared by every guest page. */
+const imagesOf = (content: Record<string, unknown>) => {
+  const inv = InvitationContent.safeParse(content.invitation ?? {});
+  return (inv.success && inv.data.images) || {};
+};
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
 interface WeddingRow {
@@ -186,6 +191,7 @@ export function guestRoutes() {
     const content = json<Record<string, unknown>>(w.content, {});
     return c.json({
       wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
+      images: imagesOf(content),
       event: { key: ev.key, name: ev.name, startsAt: ev.starts_at, slot: events.indexOf(ev) },
       guide,
       texts: textsFor(GUIDE_PAGE[guide.style], (content.texts as Record<string, string> | undefined) ?? {}, null),
@@ -225,6 +231,7 @@ export function guestRoutes() {
     const content = json<Record<string, unknown>>(w.content, {});
     return c.json({
       wedding: { slug: w.slug, name1: w.name1, name2: w.name2, theme: w.theme },
+      images: imagesOf(content),
       name: who?.name ?? '',
       linked: !!who,
       open: !!c.env.MEDIA && !!who,

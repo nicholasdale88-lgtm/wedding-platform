@@ -73,3 +73,10 @@ export function setPageClass(page: string) {
 
 /** An editable image link going inside CSS url('…'): safe scheme, and nothing that could close the quote. */
 export const cssUrl = (u: string | undefined) => (url(u) ?? '').replace(/['"()\\\s]/g, (c) => `%${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
+
+/**
+ * The design's own photos (v.asset('lookout.jpg')): the wedding's uploaded picture for that slot
+ * ("lookout"), else the design's default.
+ */
+export const assetOf = (images: Record<string, string> | undefined) => (name: string) =>
+  cssUrl(images?.[name.replace(/\.\w+$/, '')] || `/seed-media/${name}`);

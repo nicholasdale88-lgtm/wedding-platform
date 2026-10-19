@@ -3,7 +3,7 @@ import qrcode from 'qrcode-generator';
 import { useMemo, useState } from 'react';
 import type { GuidePayload } from '../invitation/api';
 import type { ViewValues } from '../types';
-import { contactHref, first, joinNames, say, updatedAt, useReveal, videoOf } from './common';
+import { assetOf, contactHref, first, joinNames, say, updatedAt, useReveal, videoOf } from './common';
 
 /**
  * The wedding night-before guide's behaviour, ported from design/Night Before Guide.dc.html
@@ -94,6 +94,7 @@ export function useGuide(data: GuidePayload): ViewValues {
   const plan = data.seating;
 
   return {
+    asset: assetOf(data.images),
     rv: R,
     date: G.date ?? '',
     arrive: G.arrive ?? '',

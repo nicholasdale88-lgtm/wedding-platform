@@ -11,6 +11,7 @@ const all: Record<string, string> = { ...texts, ...dynamicTexts };
 const only = (p: string) => Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith(`${p}.`)));
 
 const base = {
+  images: {},
   wedding: { slug: 'alex-and-blair', name1: 'Alex Smith', name2: 'Blair Jones', monogram: 'A&B', theme: 'Cream & Sage', timezone: 'Australia/Sydney' },
   weather: null,
   photoUrl: `https://example.com/w/alex-and-blair/photos?g=${TOKEN}`,
@@ -78,6 +79,7 @@ describe('night-before guide (reception design)', () => {
     expect(screen.getByText('Main: Fish')).toBeInTheDocument();
     expect(screen.getByText('The kitchen has your note: Vegetarian')).toBeInTheDocument();
     expect(screen.getAllByText(/Robin & Sam/).length).toBeGreaterThan(0);
+    expect(document.body.innerHTML).toContain('/seed-media/lookout.jpg'); // the design's photo, until the couple uploads their own
   });
 
   it('lists only their table mates, with them marked "You"', async () => {

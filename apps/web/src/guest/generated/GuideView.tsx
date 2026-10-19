@@ -19,7 +19,7 @@ export function GuideView({ v, t }: ViewProps) {
           {" "}
           <section style={sx("position:relative;height:min(100vh,860px);min-height:620px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;color:#fbf8f2")}>
             {" "}
-            <div style={sx("position:absolute;inset:0;background:url('assets/lookout.jpg') center 40%/cover no-repeat;animation:kenburns 9s ease-out forwards")} />
+            <div style={sx(`position:absolute;inset:0;background:url('${v.asset("lookout.jpg")}') center 40%/cover no-repeat;animation:kenburns 9s ease-out forwards`)} />
             {" "}
             <div style={sx("position:absolute;inset:0;background:linear-gradient(180deg,rgba(40,48,32,.15) 0%,rgba(40,48,32,.05) 35%,rgba(40,48,32,.78) 78%,#2f3a26 100%)")} />
             {" "}

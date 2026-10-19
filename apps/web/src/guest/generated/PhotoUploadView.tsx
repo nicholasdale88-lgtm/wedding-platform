@@ -19,7 +19,7 @@ export function PhotoUploadView({ v, t }: ViewProps) {
           {" "}
           <section style={sx("position:relative;height:46vh;min-height:330px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;color:#fbf8f2")}>
             {" "}
-            <div style={sx("position:absolute;inset:0;background:url('assets/lookout.jpg') center 45%/cover no-repeat;animation:kenburns 9s ease-out forwards")} />
+            <div style={sx(`position:absolute;inset:0;background:url('${v.asset("lookout.jpg")}') center 45%/cover no-repeat;animation:kenburns 9s ease-out forwards`)} />
             {" "}
             <div style={sx("position:absolute;inset:0;background:linear-gradient(180deg,rgba(40,48,32,.1) 0%,rgba(40,48,32,.25) 45%,rgba(47,58,38,.9) 100%)")} />
             {" "}

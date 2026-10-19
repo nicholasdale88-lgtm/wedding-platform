@@ -33,6 +33,7 @@ export interface RsvpBody {
 
 export interface GuidePayload {
   wedding: { slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string };
+  images: Record<string, string>;
   event: { key: string; name: string; startsAt: string; slot: number };
   guide: ReceptionGuide | DayoutGuide;
   texts: Record<string, string>;
@@ -55,6 +56,7 @@ export interface GuidePayload {
 
 export interface PhotoPagePayload {
   wedding: { slug: string; name1: string; name2: string; theme: string };
+  images: Record<string, string>;
   name: string;
   linked: boolean;
   open: boolean;
