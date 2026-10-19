@@ -1,4 +1,4 @@
-import { commitmentOf, dateIn, moneyOf, VENDOR_SEARCH, VENDOR_STATUS, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, dateIn, moneyOf, QUOTE_STAGES, quoteStatus, VENDOR_SEARCH, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type VendorHit } from '../../lib/api';
 import { MoneyInput } from './MoneyInput';
@@ -12,8 +12,8 @@ import { H2, inputCls, Pill, useToast } from '../ui';
  * assistant's view. "Find vendors near the venue" searches OpenStreetMap within a radius you choose.
  */
 
-const STATUS_LABEL: Record<Vendor['status'], string> = { idea: 'Idea', contacted: 'Contacted', quoted: 'Quoted', booked: 'Booked' };
-const STATUS_COLOUR: Record<Vendor['status'], string> = { idea: '#e9e2cc', contacted: '#f1e7c9', quoted: '#dde7f3', booked: '#dfe5cc' };
+const STATUS_LABEL: Record<Vendor['status'], string> = { idea: 'Idea', contacted: 'Contacted', requested: 'Pricing', quoted: 'Quote in', booked: 'Booked', declined: 'Not going ahead' };
+const STATUS_COLOUR: Record<Vendor['status'], string> = { idea: '#e9e2cc', contacted: '#f1e7c9', requested: '#f4dfae', quoted: '#dde7f3', booked: '#dfe5cc', declined: '#eadbd5' };
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 const shortDate = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const newId = () => crypto.randomUUID().slice(0, 12);
@@ -43,6 +43,10 @@ const newVendor = (over: Partial<Vendor>): Vendor => ({
   contractFileName: '',
   meals: 0,
   payments: [],
+  askedOn: '',
+  quoteBy: '',
+  chasedOn: '',
+  declinedWhy: '',
   ...over,
 });
 const BLANK_QUOTE: Quote = { id: '', amount: 0, deposit: 0, date: '', validUntil: '', includes: '', excludes: '', notes: '', fileId: '', fileName: '', extract: '' };
@@ -105,6 +109,15 @@ export function Vendors() {
           </div>
         ))}
       </section>
+
+      <QuoteTracker
+        list={list}
+        onPatch={(id, p, msg) => patch(id, p, msg)}
+        onOpen={(id) => {
+          setOpen(id);
+          setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }}
+      />
 
       <Compare list={list} />
 
@@ -171,7 +184,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
   const accept = (q: Quote) =>
     onChange({ accepted: q.id, quote: q.amount, deposit: q.deposit, status: 'booked' }, `${v.name} booked at ${aud(q.amount)}`);
   return (
-    <article className="rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <article id={`vendor-${v.id}`} className="rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] scroll-mt-4">
       <button type="button" onClick={onToggle} aria-expanded={open} className="w-full flex justify-between items-center gap-3 py-3 px-4 border-0 bg-transparent text-left cursor-pointer">
         <span className="min-w-0">
           <span className="block font-medium truncate">{v.name}</span>
@@ -261,7 +274,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
                 onCancel={() => setAdding(false)}
                 onSave={(q) => {
                   setAdding(false);
-                  onChange({ quotes: [...v.quotes, q], ...(v.status === 'idea' || v.status === 'contacted' ? { status: 'quoted' as const } : {}) }, 'Quote filed');
+                  onChange({ quotes: [...v.quotes, q], ...(v.status === 'idea' || v.status === 'contacted' || v.status === 'requested' ? { status: 'quoted' as const } : {}) }, 'Quote filed');
                 }}
               />
             )}
@@ -673,5 +686,156 @@ function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) =
         </span>
       </div>
     </details>
+  );
+}
+
+const REASONS = ['Too expensive', 'Not available on the day', 'Went with someone else', 'Didn’t reply', 'Not the right fit'];
+const STAGE_COLOUR: Record<QuoteStage, string> = { ask: '#e9e2cc', pricing: '#f4dfae', in: '#dde7f3', booked: '#dfe5cc', out: '#eadbd5' };
+
+/**
+ * The quote tracker: every vendor by where their quote is at (to ask, pricing, quote in, booked, not
+ * going ahead), how long they've been pricing, who to chase, and a tap to move them along.
+ */
+function QuoteTracker({ list, onPatch, onOpen }: { list: Vendor[]; onPatch: (id: string, p: Partial<Vendor>, msg?: string) => void; onOpen: (id: string) => void }) {
+  const { overview } = useAdmin();
+  const today = dateIn(overview?.wedding.timezone);
+  const [cat, setCat] = useState('');
+  const [declining, setDeclining] = useState<string | null>(null);
+  const cats = [...new Set(list.map((v) => v.category.trim() || 'Other'))].sort();
+  const shown = list.filter((v) => !cat || (v.category.trim() || 'Other') === cat).map((v) => ({ v, q: quoteStatus(v, today) }));
+  const pricing = shown.filter((x) => x.q.stage === 'pricing');
+  const chase = pricing.filter((x) => x.q.chase);
+  const toDecide = shown.filter((x) => x.q.stage === 'in');
+  const took = shown.map((x) => x.q.took).filter((n): n is number => n !== null);
+  if (!list.length) return null;
+  const btn = 'py-[3px] px-[10px] rounded-full border border-[#c6b794] bg-white text-[12px] cursor-pointer text-[#33402f] hover:bg-[#efe7d3]';
+  return (
+    <section aria-label="Quote tracker" className="flex flex-col gap-3 p-4 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <div className="flex justify-between items-baseline gap-3 flex-wrap">
+        <H2>Quote tracker</H2>
+        <span className="text-[13px] text-[#5b6a52]">
+          {pricing.length} pricing
+          {chase.length ? <strong className="text-[#7a4a37] font-semibold"> · {chase.length} to chase</strong> : null} · {toDecide.length} quotes in to decide
+          {took.length ? ` · quotes take ${Math.round(took.reduce((a, n) => a + n, 0) / took.length)} days on average` : ''}
+        </span>
+      </div>
+      {cats.length > 1 && (
+        <div className="flex gap-[6px] flex-wrap" role="group" aria-label="What they do">
+          {['', ...cats].map((c) => (
+            <button key={c || 'all'} type="button" aria-pressed={cat === c} onClick={() => setCat(c)} className={`py-[4px] px-3 rounded-full border text-[12px] cursor-pointer ${cat === c ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#d3c6a4] text-[#33402f]'}`}>
+              {c || 'Everyone'}
+              {c && <span className="opacity-70"> · {list.filter((v) => (v.category.trim() || 'Other') === c).length}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:thin]">
+        {QUOTE_STAGES.map(([stage, label]) => {
+          const col = shown.filter((x) => x.q.stage === stage).sort((a, b) => Number(b.q.chase) - Number(a.q.chase) || (b.q.waiting ?? 0) - (a.q.waiting ?? 0));
+          return (
+            <div key={stage} className="flex-1 min-w-[210px] flex flex-col gap-2">
+              <div className="flex justify-between items-center py-1 px-2 rounded-[8px] text-[12px] font-semibold tracking-[.08em] uppercase text-[#33402f]" style={{ background: STAGE_COLOUR[stage] }}>
+                <span>{label}</span>
+                <span>{col.length}</span>
+              </div>
+              {col.map(({ v, q }) => (
+                <div key={v.id} className={`flex flex-col gap-[6px] p-3 rounded-[12px] bg-white border text-[13px] ${q.chase ? 'border-[#c98f78]' : 'border-[#ece3cd]'}`}>
+                  <button type="button" onClick={() => onOpen(v.id)} className="p-0 border-0 bg-transparent text-left cursor-pointer text-[14px] font-medium text-[#33402f]">
+                    {v.name}
+                    {v.category && <span className="font-normal text-[#7a7466]"> · {v.category}</span>}
+                  </button>
+                  {stage === 'pricing' && (
+                    <>
+                      <span className={q.chase ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}>
+                        {q.waiting !== null ? `Asked ${q.waiting === 0 ? 'today' : `${q.waiting} ${q.waiting === 1 ? 'day' : 'days'} ago`}` : 'Asked'}
+                        {q.chase ? ' · time to chase' : q.chaseOn ? ` · chase ${shortDate(q.chaseOn)}` : ''}
+                        {v.chasedOn ? ` · last chased ${shortDate(v.chasedOn)}` : ''}
+                      </span>
+                      <label className="flex items-center gap-2 text-[12px] text-[#5b6a52]">
+                        Quote by
+                        <input type="date" value={v.quoteBy} onChange={(e) => onPatch(v.id, { quoteBy: e.target.value })} className="py-[2px] px-2 border border-[#d3c6a4] rounded-[8px] bg-[#fbf8f2] text-[12px]" />
+                      </label>
+                    </>
+                  )}
+                  {(stage === 'in' || stage === 'booked') && (
+                    <span className="text-[#5b6a52]">
+                      {q.amount ? <strong className="font-semibold text-[#33402f]">{aud(stage === 'booked' ? commitmentOf(v).amount || q.amount : q.amount)}</strong> : 'No amount yet'}
+                      {stage === 'in' && v.quotes.length > 1 ? ` · lowest of ${v.quotes.length}` : ''}
+                      {q.took !== null ? ` · came in ${q.took} ${q.took === 1 ? 'day' : 'days'} after asking` : ''}
+                      {q.expires ? <span className={q.expires < today ? ' text-[#7a4a37] font-semibold' : ''}>{` · ${q.expires < today ? 'ran out' : 'good to'} ${shortDate(q.expires)}`}</span> : ''}
+                    </span>
+                  )}
+                  {stage === 'out' && v.declinedWhy && <span className="text-[#7a7466] italic">{v.declinedWhy}</span>}
+                  {declining === v.id ? (
+                    <div className="flex flex-wrap gap-[6px]">
+                      {REASONS.map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          className={btn}
+                          onClick={() => {
+                            onPatch(v.id, { status: 'declined', declinedWhy: r }, `${v.name}: not going ahead`);
+                            setDeclining(null);
+                          }}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                      <button type="button" className={btn} onClick={() => setDeclining(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-[6px]">
+                      {stage === 'ask' && (
+                        <button type="button" className={btn} onClick={() => onPatch(v.id, { status: 'requested', askedOn: today, chasedOn: '' }, `Asked ${v.name} for a quote`)}>
+                          Asked for a quote
+                        </button>
+                      )}
+                      {stage === 'pricing' && (
+                        <>
+                          <button type="button" className={btn} onClick={() => onOpen(v.id)}>
+                            Quote in
+                          </button>
+                          <button type="button" className={btn} onClick={() => onPatch(v.id, { chasedOn: today }, `Chased ${v.name}`)}>
+                            Chased today
+                          </button>
+                          {v.phone && (
+                            <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} className={`${btn} no-underline`}>
+                              Call
+                            </a>
+                          )}
+                          {v.email && (
+                            <a href={`mailto:${v.email}?subject=${encodeURIComponent('Our wedding quote')}`} className={`${btn} no-underline`}>
+                              Email
+                            </a>
+                          )}
+                        </>
+                      )}
+                      {stage === 'in' && (
+                        <button type="button" className={btn} onClick={() => onPatch(v.id, { status: 'booked' }, `${v.name} booked`)}>
+                          Book them
+                        </button>
+                      )}
+                      {(stage === 'ask' || stage === 'pricing' || stage === 'in') && (
+                        <button type="button" className={btn} onClick={() => setDeclining(v.id)}>
+                          Not going ahead
+                        </button>
+                      )}
+                      {stage === 'out' && (
+                        <button type="button" className={btn} onClick={() => onPatch(v.id, { status: v.quotes.length || v.quote ? 'quoted' : 'idea', declinedWhy: '' }, `${v.name} back on the list`)}>
+                          Bring back
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {!col.length && <span className="text-[12px] text-[#a39d8e] px-2">None</span>}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

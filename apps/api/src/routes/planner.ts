@@ -1,4 +1,4 @@
-import { allPayments, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
+import { allPayments, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -101,6 +101,17 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
       detail: legal ? `Including a legal one: ${legal.text}` : overdue.slice(0, 2).map((t) => t.text).join('; '),
       cta: 'Checklist',
       link: 'planner?view=checklist',
+      event: first.key,
+    });
+  }
+  const chase = vendors.data.list.filter((v) => quoteStatus(v, today).chase);
+  if (chase.length) {
+    out.push({
+      kind: 'quotes-chase',
+      title: chase.length === 1 ? `Chase ${chase[0]!.name} for their quote` : `${chase.length} quotes to chase`,
+      detail: chase.slice(0, 3).map((v) => v.name).join(', '),
+      cta: 'Quote tracker',
+      link: 'planner?view=vendors',
       event: first.key,
     });
   }

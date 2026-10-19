@@ -47,7 +47,7 @@ async function fileQuote(db: D1Database, weddingId: string, vendorId: string, fi
     const v = d.list.find((x: Vendor) => x.id === vendorId);
     if (!v || v.quotes.some((q) => q.fileId === file.id) || v.quotes.length >= 12) return;
     v.quotes.push(Quote.parse({ id: crypto.randomUUID().slice(0, 12), date: receivedAt.slice(0, 10), fileId: file.id, fileName: file.name, notes: `From email: ${subject}`.slice(0, 1500) }));
-    if (v.status !== 'booked') v.status = 'quoted';
+    if (v.status !== 'booked' && v.status !== 'declined') v.status = 'quoted';
   });
 }
 

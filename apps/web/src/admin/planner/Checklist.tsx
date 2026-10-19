@@ -98,6 +98,9 @@ export function Checklist() {
       if (a.payment.vendorId) vendorsDoc.update(() => ({ list: r.vendors }), true);
       else budgetDoc.update((d) => ({ ...d, lines: r.lines }), true);
       toast(a.done ? 'Marked not paid' : 'Paid ✓ (in Payments too)');
+    } else if (a.kind === 'chase') {
+      vendorsDoc.update((d) => ({ list: d.list.map((v) => (v.id === a.vendorId ? { ...v, chasedOn: today } : v)) }), true);
+      toast('Chased ✓ (it comes back in five days if no quote)');
     } else if (a.kind === 'contract') {
       vendorsDoc.update((d) => ({ list: d.list.map((v) => (v.id === a.vendorId ? { ...v, contractSigned: a.done ? '' : today } : v)) }), true);
       toast(a.done ? 'Contract not signed yet' : 'Contract signed ✓');
@@ -269,7 +272,7 @@ export function Checklist() {
                   <input type="checkbox" checked={a.done} aria-label={a.text} onChange={() => tickVendor(a)} className="mt-[3px] w-[18px] h-[18px] flex-none accent-[#5d6b47]" />
                 )}
                 <div className={`flex-1 min-w-0 text-[15px] ${a.done ? 'line-through text-[#7a7466]' : ''}`}>
-                  <span className="mr-2 py-[1px] px-2 rounded-full bg-[#e6ecdc] text-[#3d4a2f] text-[11px] font-semibold align-middle">{a.kind === 'payment' ? 'Payment' : 'Vendor'}</span>
+                  <span className="mr-2 py-[1px] px-2 rounded-full bg-[#e6ecdc] text-[#3d4a2f] text-[11px] font-semibold align-middle">{a.kind === 'payment' ? 'Payment' : a.kind === 'chase' ? 'Quote' : 'Vendor'}</span>
                   {a.text}
                 </div>
                 <span className={`text-[12px] whitespace-nowrap ${late ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>

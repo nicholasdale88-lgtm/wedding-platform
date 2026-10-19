@@ -516,7 +516,8 @@ export const BUDGET_SPLIT: { category: string; share: number }[] = [
   { category: 'Accommodation and extras', share: 0.07 },
 ];
 
-export const VENDOR_STATUS = ['idea', 'contacted', 'quoted', 'booked'] as const;
+/** Where a vendor is at: an idea, contacted, asked for a quote (pricing), quote in, booked, or not going ahead. */
+export const VENDOR_STATUS = ['idea', 'contacted', 'requested', 'quoted', 'booked', 'declined'] as const;
 
 /** A quote from a vendor: the numbers, what's in and out, and the file it came in (if filed). */
 export const Quote = z.object({
@@ -562,6 +563,12 @@ export const Vendor = z.object({
   contractFileName: s(160),
   /** Meals for this vendor's team on the day (tell the caterer). */
   meals: z.number().int().min(0).max(50).default(0),
+  /** The quote: when you asked for it, when they said it would come (or when to chase), when you last chased. */
+  askedOn: s(10),
+  quoteBy: s(10),
+  chasedOn: s(10),
+  /** Not going ahead: why (too dear, booked out, went with someone else). */
+  declinedWhy: s(200),
   /** The payment schedule (deposit, instalments, balance), once you've set one; until then it comes from the quote. */
   payments: z.array(Payment).max(12).default([]),
 });
@@ -685,7 +692,7 @@ export function allPayments(lines: BudgetLine[], vendors: Vendor[]): DuePayment[
 }
 
 /** Something a vendor needs from you, for the checklist: a payment, a contract to sign, a quote running out. */
-export type VendorAction = { key: string; kind: 'payment' | 'contract' | 'quote'; text: string; due: string; done: boolean; vendorId: string; payment?: DuePayment };
+export type VendorAction = { key: string; kind: 'payment' | 'contract' | 'quote' | 'chase'; text: string; due: string; done: boolean; vendorId: string; payment?: DuePayment };
 
 /**
  * The checklist's vendor items, worked out from the vendors and the budget (nothing to keep in step):
@@ -698,9 +705,48 @@ export function vendorActions(lines: BudgetLine[], vendors: Vendor[]): VendorAct
     .map((p) => ({ key: `pay:${p.key}`, kind: 'payment' as const, text: `Pay ${p.who}${p.label === 'Payment' ? '' : ` · ${p.label.toLowerCase()}`} (${aud0(p.amount)})`, due: p.due, done: p.paid, vendorId: p.vendorId, payment: p }));
   for (const v of vendors) {
     if (v.status === 'booked') out.push({ key: `contract:${v.id}`, kind: 'contract', text: `Sign ${v.name}’s contract`, due: '', done: !!v.contractSigned, vendorId: v.id });
-    else for (const q of v.quotes.filter((x) => x.validUntil)) out.push({ key: `quote:${q.id}`, kind: 'quote', text: `Decide on ${v.name}’s quote (it runs out)`, due: q.validUntil, done: false, vendorId: v.id });
+    else if (v.status !== 'declined') for (const q of v.quotes.filter((x) => x.validUntil)) out.push({ key: `quote:${q.id}`, kind: 'quote', text: `Decide on ${v.name}’s quote (it runs out)`, due: q.validUntil, done: false, vendorId: v.id });
+    // A quote you're waiting on: chase it when it's due (or a week after asking, or after the last chase).
+    if (v.status === 'requested') out.push({ key: `chase:${v.id}:${v.chasedOn}`, kind: 'chase', text: `Chase ${v.name} for their quote`, due: chaseDue(v), done: false, vendorId: v.id });
   }
   return out;
+}
+
+const plusDays = (d: string, n: number) => (d ? new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10) : '');
+/** When to chase a quote you've asked for: the day it was due; else a week after asking or after the last chase. */
+export const chaseDue = (v: Pick<Vendor, 'askedOn' | 'quoteBy' | 'chasedOn'>) => {
+  if (v.chasedOn) return plusDays(v.chasedOn, 5);
+  return v.quoteBy || plusDays(v.askedOn, 7);
+};
+/** The quote tracker's columns, in order. */
+export const QUOTE_STAGES = [
+  ['ask', 'To ask'],
+  ['pricing', 'Pricing'],
+  ['in', 'Quote in'],
+  ['booked', 'Booked'],
+  ['out', 'Not going ahead'],
+] as const;
+export type QuoteStage = (typeof QUOTE_STAGES)[number][0];
+/** Where a vendor's quote is at, how long it's taken, and whether it's time to chase. `today` is yyyy-mm-dd. */
+export function quoteStatus(v: Vendor, today: string) {
+  const stage: QuoteStage = v.status === 'booked' ? 'booked' : v.status === 'declined' ? 'out' : v.status === 'quoted' || v.quotes.length || v.quote > 0 ? 'in' : v.status === 'requested' ? 'pricing' : 'ask';
+  const days = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+  const waiting = stage === 'pricing' && v.askedOn ? Math.max(0, days(v.askedOn, today)) : null;
+  const due = stage === 'pricing' ? chaseDue(v) : '';
+  const best = v.quotes.length ? v.quotes.reduce((a, q) => (q.amount && (!a.amount || q.amount < a.amount) ? q : a), v.quotes[0]!) : null;
+  const firstQuote = v.quotes.map((q) => q.date).filter(Boolean).sort()[0] ?? '';
+  return {
+    stage,
+    /** Days since you asked (pricing only). */
+    waiting,
+    /** Time to chase: the quote was due, or it's been a week (pricing only). */
+    chase: stage === 'pricing' && !!due && due <= today,
+    chaseOn: due,
+    /** The lowest quote in, and how many days it took to come (from asking). */
+    amount: best?.amount || v.quote || 0,
+    took: v.askedOn && firstQuote ? Math.max(0, days(v.askedOn, firstQuote)) : null,
+    expires: v.status !== 'booked' ? (best?.validUntil ?? '') : '',
+  };
 }
 const aud0 = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
 

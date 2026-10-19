@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPayments, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -208,5 +208,20 @@ describe('tasks: who, status, totals', () => {
     const d = withStatus(list.tasks[2]!, 'done', '2027-03-09');
     expect(d).toMatchObject({ done: true, status: 'done', doneOn: '2027-03-09' });
     expect(withStatus(d, 'todo', '2027-03-10')).toMatchObject({ done: false, doneOn: '' });
+  });
+});
+
+describe('quote tracker', () => {
+  const v = (o: object) => Vendor.parse({ id: 'v', name: 'Snap', ...o });
+  it('to ask, pricing (with how long and when to chase), quote in, booked, not going ahead', () => {
+    expect(quoteStatus(v({}), '2027-03-10').stage).toBe('ask');
+    const asked = quoteStatus(v({ status: 'requested', askedOn: '2027-03-01' }), '2027-03-10');
+    expect(asked).toMatchObject({ stage: 'pricing', waiting: 9, chase: true, chaseOn: '2027-03-08' });
+    expect(quoteStatus(v({ status: 'requested', askedOn: '2027-03-01', quoteBy: '2027-03-15' }), '2027-03-10').chase).toBe(false);
+    expect(quoteStatus(v({ status: 'requested', askedOn: '2027-03-01', chasedOn: '2027-03-09' }), '2027-03-10')).toMatchObject({ chase: false, chaseOn: '2027-03-14' });
+    const quoted = quoteStatus(v({ status: 'quoted', askedOn: '2027-03-01', quotes: [{ id: 'a', amount: 3000, date: '2027-03-05' }, { id: 'b', amount: 2600, date: '2027-03-07', validUntil: '2027-04-01' }] }), '2027-03-10');
+    expect(quoted).toMatchObject({ stage: 'in', amount: 2600, took: 4, expires: '2027-04-01' });
+    expect(quoteStatus(v({ status: 'declined', quotes: [{ id: 'a', amount: 1 }] }), '2027-03-10').stage).toBe('out');
+    expect(quoteStatus(v({ status: 'booked' }), '2027-03-10').stage).toBe('booked');
   });
 });
