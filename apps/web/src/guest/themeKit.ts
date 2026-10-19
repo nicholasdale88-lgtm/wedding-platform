@@ -18,6 +18,8 @@ export interface ThemeCustom {
   paper?: string;
   ink?: string;
   accent?: string;
+  soft?: string;
+  envelope?: string;
   /** How the names are set: a script, classic spaced capitals, or an elegant serif. */
   names?: NamesStyle;
 }
@@ -128,11 +130,12 @@ export const THEME_NAMES = [...Object.keys(THEMES), ...Object.keys(PRESETS)];
 /** A theme's full settings, with the couple's own colours and names style on top. */
 export function themeOf(name: string | undefined, custom?: ThemeCustom): Record<string, string> {
   const n = name ?? '';
-  const own = custom && (isHex(custom.paper) || isHex(custom.ink) || isHex(custom.accent));
+  const own = custom && (isHex(custom.paper) || isHex(custom.ink) || isHex(custom.accent) || isHex(custom.soft) || isHex(custom.envelope));
   let t: Record<string, string>;
   if (own) {
     const p = paletteOf(n);
-    t = fromPalette({ ...p, paper: isHex(custom!.paper) ? custom!.paper : p.paper, ink: isHex(custom!.ink) ? custom!.ink : p.ink, accent: isHex(custom!.accent) ? custom!.accent : p.accent });
+    const pick = (k: keyof Palette) => (isHex(custom![k]) ? custom![k]! : p[k]);
+    t = fromPalette({ paper: pick('paper'), ink: pick('ink'), accent: pick('accent'), soft: pick('soft'), envelope: pick('envelope') });
     // A hand-made theme keeps its own images and shapes; only its colours change.
     if (THEMES[n]) t = { ...THEMES[n], ...t };
   } else {

@@ -331,7 +331,7 @@ function InvitationEditor({
           <div className="sm:col-span-2">
             <ThemeGallery theme={doc.theme} custom={inv.custom ?? {}} onTheme={(t) => {
               setTheme(t);
-              if (inv.custom && (inv.custom.paper || inv.custom.ink || inv.custom.accent)) setInv({ custom: { names: inv.custom.names } }); // a new theme starts from its own colours
+              if (inv.custom && (inv.custom.paper || inv.custom.ink || inv.custom.accent || inv.custom.soft || inv.custom.envelope)) setInv({ custom: { names: inv.custom.names } }); // a new theme starts from its own colours
             }} onCustom={(custom) => setInv({ custom })} />
           </div>
           <Label text="Wax seal">

@@ -41,6 +41,8 @@ export const InvitationContent = z
         paper: z.string().regex(/^#[0-9a-f]{6}$/i),
         ink: z.string().regex(/^#[0-9a-f]{6}$/i),
         accent: z.string().regex(/^#[0-9a-f]{6}$/i),
+        soft: z.string().regex(/^#[0-9a-f]{6}$/i),
+        envelope: z.string().regex(/^#[0-9a-f]{6}$/i),
         names: z.enum(['script', 'caps', 'vibes', 'parisienne', 'playfair']),
       })
       .partial(),

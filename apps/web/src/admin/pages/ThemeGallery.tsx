@@ -7,9 +7,9 @@ import { isHex, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type Nam
  * are set. Simple first; the details are a tap away.
  */
 export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: string; custom: ThemeCustom; onTheme: (t: string) => void; onCustom: (c: ThemeCustom) => void }) {
-  const [own, setOwn] = useState(!!(custom.paper || custom.ink || custom.accent || custom.names));
+  const [own, setOwn] = useState(!!(custom.paper || custom.ink || custom.accent || custom.soft || custom.envelope || custom.names));
   const p = paletteOf(theme);
-  const colour = (k: 'paper' | 'ink' | 'accent', label: string) => (
+  const colour = (k: 'paper' | 'ink' | 'accent' | 'soft' | 'envelope', label: string) => (
     <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
       <input
         type="color"
@@ -64,6 +64,8 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
             {colour('paper', 'Paper')}
             {colour('ink', 'Ink')}
             {colour('accent', 'Gold or metallic')}
+            {colour('soft', 'Soft tint')}
+            {colour('envelope', 'Envelope')}
           </div>
           <div role="radiogroup" aria-label="Names" className="flex gap-2 flex-wrap text-[13px]">
             {(Object.keys(NAMES_STYLES) as NamesStyle[]).map((k) => (
@@ -83,7 +85,7 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
           <button type="button" onClick={() => onCustom({})} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">
             Back to the theme’s own colours
           </button>
-          <span className="text-[12px] text-[#7a7466]">Everything on the invitation follows: backgrounds, the envelope, flowers and buttons are worked out from your three colours.</span>
+          <span className="text-[12px] text-[#7a7466]">Everything on the invitation follows: backgrounds, the envelope, flowers and buttons are worked out from your colours.</span>
         </div>
       )}
     </div>
