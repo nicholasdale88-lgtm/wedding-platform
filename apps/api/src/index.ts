@@ -26,6 +26,7 @@ import { insightsRoutes } from './routes/insights';
 import { coordinatorAdminRoutes, coordinatorPageRoutes } from './routes/coordinator';
 import { quizAdminRoutes, quizGuestRoutes } from './routes/quiz';
 import { plannerCalendarAdminRoutes, plannerCalendarFeed } from './routes/plannerCalendar';
+import { paymentReminderRoutes, runPaymentReminders } from './routes/paymentReminders';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
 import { runAutopilot, type EngineDeps } from './sms/engine';
 import { sweepInbound } from './sms/inbound';
@@ -45,6 +46,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/coordinator', coordinatorAdminRoutes());
   app.route('/a/w/:wid/quiz', quizAdminRoutes());
   app.route('/a/w/:wid/planner-calendar', plannerCalendarAdminRoutes());
+  app.route('/a/w/:wid/pay-reminders', paymentReminderRoutes());
   app.route('/cal', plannerCalendarFeed());
   app.route('/a/w/:wid/board', boardAdminRoutes());
   app.route('/a/w/:wid/settings', settingsRoutes(deps));
@@ -84,8 +86,10 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   const report = await runAutopilot(d);
   // Photo copies to the couple's linked storage that are still owed (a failure here never stops the texts).
   const photos = await runCopies(env, { limit: 30 }).catch((e) => ({ error: String(e) }));
+  // Payment reminders to the couple (only where switched on; never in quiet hours).
+  const payReminders = await runPaymentReminders(env, d).catch((e) => ({ error: String(e) }));
   await purgeExpired(env.DB, d.now()).catch(() => undefined);
-  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos }));
+  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders }));
   return { swept, ...report };
 }
 

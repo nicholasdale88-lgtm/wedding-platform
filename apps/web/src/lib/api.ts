@@ -605,6 +605,17 @@ export const plannerCalendarApi = {
   get: (wid: string) => request<{ url: string }>(`${w(wid)}/planner-calendar`),
   set: (wid: string, on: boolean) => send<{ url: string }>('PUT', `${w(wid)}/planner-calendar`, { on }),
 };
+/** Payment reminders by text to the couple's own mobile (off until switched on). */
+export interface PayReminders {
+  on: boolean;
+  days: number;
+  hasMobile: boolean;
+  costCents: number;
+}
+export const payRemindersApi = {
+  get: (wid: string) => request<PayReminders>(`${w(wid)}/pay-reminders`),
+  set: (wid: string, body: { on: boolean; days: number }) => send<PayReminders>('PUT', `${w(wid)}/pay-reminders`, body),
+};
 export const insightsApi = { get: (wid: string) => request<InsightsData>(`${w(wid)}/insights`) };
 
 export interface InboxEmail {

@@ -76,13 +76,13 @@ export function plannerCalendarFeed() {
       readDoc(db, wid, 'party-p1', ''),
       readDoc(db, wid, 'party-p2', ''),
     ]);
-    const items: { id: string; date: string; title: string; note?: string }[] = [];
+    const items: { id: string; date: string; title: string; note?: string; alarm?: boolean }[] = [];
     for (const e of events) items.push({ id: `event-${e.key}`, date: dateIn(tz, new Date(e.starts_at)), title: e.name });
     if (!Number.isNaN(day)) {
       for (const t of plan.data.tasks.filter((x) => !x.done)) items.push({ id: `task-${t.id}`, date: dateIn(tz, new Date(day - t.before * DAY)), title: `${t.legal ? 'Legal: ' : ''}${t.text}`, note: t.note });
     }
     for (const p of allPayments(budget.data.lines, vendors.data.list)) {
-      if (!p.paid && p.due && p.amount > 0) items.push({ id: `pay-${p.key}-${p.due}`, date: p.due, title: `Pay ${p.who}${p.label === 'Payment' ? '' : ` (${p.label.toLowerCase()})`} ($${Math.round(p.amount)})` });
+      if (!p.paid && p.due && p.amount > 0) items.push({ id: `pay-${p.key}-${p.due}`, alarm: true, date: p.due, title: `Pay ${p.who}${p.label === 'Payment' ? '' : ` (${p.label.toLowerCase()})`} ($${Math.round(p.amount)})` });
     }
     for (const v of vendors.data.list) {
       if (v.status !== 'booked') for (const q of v.quotes.filter((x) => x.validUntil)) items.push({ id: `quote-${q.id}`, date: q.validUntil, title: `${v.name}'s quote runs out` });
@@ -122,6 +122,8 @@ export function plannerCalendarFeed() {
             `SUMMARY:${esc(i.title)}`,
             ...(i.note ? [`DESCRIPTION:${esc(i.note)}`] : []),
             'TRANSP:TRANSPARENT',
+            // A payment's alert: 9am, three days before it's due.
+            ...(i.alarm ? ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc(i.title)}`, 'TRIGGER:-P2DT15H', 'END:VALARM'] : []),
             'END:VEVENT',
           ];
         }),

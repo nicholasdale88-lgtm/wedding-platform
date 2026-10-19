@@ -1,7 +1,9 @@
 import { allPayments, dateIn, lineFor, moneyOf, type Budget as BudgetDoc, type DuePayment, type Payment, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { payRemindersApi, type PayReminders } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
+import { CalendarCard } from './CalendarCard';
 import { MoneyInput } from './MoneyInput';
 import { markPaid as paying, ownSchedule } from './paying';
 import { useLiveDoc } from './useDocSave';
@@ -74,6 +76,8 @@ export function Payments() {
           </div>
         ))}
       </section>
+
+      <Reminders wid={wid} />
 
       <section aria-label="Coming up" className={card}>
         <H2>Coming up</H2>
@@ -223,5 +227,56 @@ function VendorSchedule({ v, lines, today, open, onToggle, edit }: { v: Vendor; 
         </div>
       )}
     </div>
+  );
+}
+
+/** Reminders before each payment is due: a text to your own mobile (off until you switch it on), and your phone's calendar. */
+function Reminders({ wid }: { wid: string }) {
+  const toast = useToast();
+  const [r, setR] = useState<PayReminders | null>(null);
+  const [cal, setCal] = useState(false);
+  useEffect(() => {
+    payRemindersApi.get(wid).then(setR, () => setR(null));
+  }, [wid]);
+  const set = async (next: { on: boolean; days: number }) => {
+    try {
+      setR(await payRemindersApi.set(wid, next));
+      toast(next.on ? `Reminder texts on: ${next.days} ${next.days === 1 ? 'day' : 'days'} before` : 'Reminder texts off');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+  if (!r) return null;
+  return (
+    <section aria-label="Reminders" className={card}>
+      <H2>Reminders</H2>
+      <div className="flex gap-3 flex-wrap items-center text-[14px]">
+        <label className={`flex items-center gap-2 ${r.hasMobile ? 'cursor-pointer' : 'opacity-60'}`}>
+          <input type="checkbox" checked={r.on} disabled={!r.hasMobile} onChange={() => void set({ on: !r.on, days: r.days })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+          Text me
+        </label>
+        <select aria-label="How long before" value={r.days} disabled={!r.hasMobile} onChange={(e) => void set({ on: r.on, days: Number(e.target.value) })} className={`${inputCls} py-[6px]`}>
+          {[1, 3, 7, 14].map((n) => (
+            <option key={n} value={n}>
+              {n} {n === 1 ? 'day' : 'days'} before
+            </option>
+          ))}
+        </select>
+        <span>a payment is due</span>
+      </div>
+      <p className="m-0 text-[12px] text-[#7a7466]">
+        {r.hasMobile
+          ? `One text to your mobile listing what's due (never in quiet hours; each payment once). Each text uses SMS credit, about ${r.costCents < 1 ? 'a few cents' : `${Math.round(r.costCents)}c`}.`
+          : 'Add your mobile in SMS setup to get reminder texts.'}{' '}
+        Payments due in the next fortnight also show in Overview → Needs you.
+      </p>
+      {!cal ? (
+        <button type="button" onClick={() => setCal(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          Or put every payment in your phone’s calendar, with an alert three days before
+        </button>
+      ) : (
+        <CalendarCard />
+      )}
+    </section>
   );
 }
