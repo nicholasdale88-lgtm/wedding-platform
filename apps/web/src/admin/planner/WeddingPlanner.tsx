@@ -13,6 +13,7 @@ import { Music } from './Music';
 import { IdeasBoard } from './IdeasBoard';
 import { Insights } from './Insights';
 import { Print } from './Print';
+import { QuizEditor } from './QuizEditor';
 import { ShotList } from './ShotList';
 import { Transport } from './Transport';
 import { CheckIn } from './CheckIn';
@@ -24,7 +25,7 @@ import { Vendors } from './Vendors';
  * comparisons, the finder near the venue) and the planning assistant. ?view= picks the page.
  */
 
-type View = 'glance' | 'insights' | 'ideas' | 'checklist' | 'budget' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'checkin' | 'gifts' | 'assistant';
+type View = 'glance' | 'insights' | 'ideas' | 'quiz' | 'checklist' | 'budget' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'checkin' | 'gifts' | 'assistant';
 const VIEWS: [View, string][] = [
   ['glance', 'At a glance'],
   ['insights', 'Insights'],
@@ -38,6 +39,7 @@ const VIEWS: [View, string][] = [
   ['print', 'Print'],
   ['checkin', 'Check-in'],
   ['gifts', 'Gifts'],
+  ['quiz', 'Quiz'],
   ['assistant', 'Assistant'],
 ];
 /** What most Australian weddings book (a checklist of vendor kinds; matched loosely against yours). */
@@ -86,7 +88,7 @@ export function WeddingPlanner() {
           </button>
         ))}
       </nav>
-      {view === 'glance' ? <Glance go={go} /> : view === 'insights' ? <Insights /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'checkin' ? <CheckIn /> : view === 'gifts' ? <Gifts /> : <Assistant />}
+      {view === 'glance' ? <Glance go={go} /> : view === 'insights' ? <Insights /> : view === 'ideas' ? <IdeasBoard /> : view === 'quiz' ? <QuizEditor /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'checkin' ? <CheckIn /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );
 }

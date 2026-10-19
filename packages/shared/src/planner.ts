@@ -701,6 +701,22 @@ export function shotTemplate(o: { p1: string; p2: string; side1: string; side2: 
   ];
 }
 
+// ---------------------------------------------------------------- the couple quiz
+
+/** One question about the two of you, with its choices and the right one. */
+export const QuizQuestion = z.object({ id: z.string().max(40), q: z.string().max(200), options: z.array(z.string().max(120)).min(2).max(5), answer: z.number().int().min(0).max(4) });
+export type QuizQuestion = z.infer<typeof QuizQuestion>;
+/** "How well do you know the couple?": guests play once from their own link. */
+export const Quiz = z.object({ on: z.boolean().default(false), title: s(80), questions: z.array(QuizQuestion).max(20).default([]) });
+export type Quiz = z.infer<typeof Quiz>;
+export const QUIZ_TEMPLATE: Omit<QuizQuestion, 'id'>[] = [
+  { q: 'Where did they meet?', options: ['At work', 'Through friends', 'Online', 'At uni'], answer: 1 },
+  { q: 'Who said “I love you” first?', options: ['Partner 1', 'Partner 2'], answer: 0 },
+  { q: 'Who is the better cook?', options: ['Partner 1', 'Partner 2', 'Neither!'], answer: 1 },
+  { q: 'Where was their first holiday together?', options: ['Bali', 'Byron Bay', 'New Zealand', 'Fiji'], answer: 0 },
+  { q: 'Who takes longer to get ready?', options: ['Partner 1', 'Partner 2'], answer: 0 },
+];
+
 // ---------------------------------------------------------------- the coordinator's log
 
 /** Something the day-of coordinator noted (a late supplier, a missing chair), ticked off when sorted. */
@@ -776,5 +792,6 @@ export const PLANNER_DOCS = {
   shots: ShotList,
   ideas: Ideas,
   'coord-log': CoordLog,
+  quiz: Quiz,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

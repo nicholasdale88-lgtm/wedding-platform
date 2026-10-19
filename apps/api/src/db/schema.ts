@@ -432,3 +432,17 @@ export const seatPublish = sqliteTable('seat_publish', {
   publishedAt: text('published_at').notNull(),
   publishedBy: text('published_by'),
 });
+
+// migration 0020: the couple quiz's answers
+export const quizAnswer = sqliteTable(
+  'quiz_answer',
+  {
+    weddingId: text('wedding_id').notNull(),
+    invitationId: text('invitation_id').notNull(),
+    name: text('name').notNull(),
+    answers: text('answers').notNull(),
+    score: integer('score').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.invitationId] }) }),
+);
