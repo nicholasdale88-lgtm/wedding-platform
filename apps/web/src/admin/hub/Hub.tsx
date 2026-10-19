@@ -9,7 +9,6 @@ import { insightsApi, plannerApi, type InsightsData, type Overview } from '../..
 import { useAutoRefresh } from '../ui';
 import { C, Climb, Columns, Donut, Meter, Rows } from './charts';
 
-const DAY = 86_400_000;
 const aud = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
 const audShort = (n: number) => (n >= 10_000 ? `$${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}k` : aud(n));
 const monthKey = (iso: string) => iso.slice(0, 7);
