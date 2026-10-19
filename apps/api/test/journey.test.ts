@@ -188,7 +188,7 @@ describe('invitation send date', () => {
     const run = () => scheduled({ DB: t.db, PUBLIC_BASE_URL: 'https://example.com' }, () => ({ store: new D1SmsStore(t.db, 'https://example.com'), provider, now: clock.now, uuid: () => crypto.randomUUID() }));
     await run();
     expect(provider.delivered).toHaveLength(0);
-    at('2027-03-18T15:00'); // 8 months to the hour before the 2pm ceremony
+    clock.set('2027-03-18T15:00'); // 8 months to the hour before the 2pm ceremony
     await run();
     expect(provider.delivered).toHaveLength(1);
     // A couple's own (earlier) date is honoured for guests added later.
