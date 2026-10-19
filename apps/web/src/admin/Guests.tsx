@@ -53,7 +53,8 @@ export function Guests() {
 
   // The guest list is joint by default; "just this event" narrows it to the sidebar's event.
   const focusEv = data?.events.find((e) => e.key === chosen);
-  const one = params.get('show') === 'event' && !!focusEv;
+  // Account: everyone. An event's section: that event's guests, with everyone one tap away.
+  const one = params.get('show') !== 'all' && !!focusEv;
   const events = one ? [focusEv!] : (data?.events ?? []);
   const guests = (data?.guests ?? []).filter((g) => !one || g.invited.includes(focusEv!.key));
   const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]);
@@ -116,11 +117,11 @@ export function Guests() {
         <div role="radiogroup" aria-label="Guest list" className="flex gap-2 flex-wrap">
           {(
             [
-              ['', 'Everyone (all events)'],
-              ['event', `Just ${focusEv.name}`],
+              ['all', 'Everyone (all events)'],
+              ['', `Just ${focusEv.name}`],
             ] as const
           ).map(([v, label]) => {
-            const on = (v === 'event') === one;
+            const on = (v === '') === one;
             return (
               <button
                 key={v}

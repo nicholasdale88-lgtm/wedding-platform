@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtEvent, fmtWhen, shortLabel } from '../lib/format';
+import { Events } from './events/Events';
 import { useAdmin } from './Shell';
 import { Eyebrow, H2 } from './ui';
 
@@ -54,7 +55,7 @@ export function Overview() {
         ))}
       </div>
 
-      {!o.focus && (o.perEvent?.length ?? 0) > 1 && (
+      {!o.focus && (o.perEvent?.length ?? 0) > 0 && (
         <section aria-label="Events side by side" className="flex flex-col gap-3">
           <H2>Side by side</H2>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
@@ -100,6 +101,8 @@ export function Overview() {
           </div>
         </section>
       )}
+
+      {!o.focus && <Events addOnly />}
 
       <section className="flex flex-col gap-1" aria-label="Needs you">
         <div className="flex justify-between items-baseline gap-3 mb-[6px]">

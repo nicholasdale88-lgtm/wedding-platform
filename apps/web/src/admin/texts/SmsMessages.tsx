@@ -56,13 +56,16 @@ export function SmsMessages() {
   const quickAdd = async (kind: 'reminder' | 'everyone') => {
     const aud = data.audiences.find((a) => a.label === (kind === 'reminder' ? 'Still to reply' : 'Everyone with a mobile'));
     if (!aud) return;
+    // In an event's section, new messages go to that event's guests only.
+    const ev = data.events.find((e) => e.key === chosen);
+    const audience = ev ? (kind === 'reminder' ? { ...aud.audience, invitedTo: ev.key } : { invitedTo: ev.key }) : aud.audience;
     const n = data.campaigns.filter((c) => c.custom && /^Reminder/.test(c.name)).length + 1;
     const preset = data.presets.find((p) => /remind/i.test(`${p.k} ${p.label}`))?.text;
     try {
       const { id } = await textsApi.add(
         wid,
-        kind === 'reminder' ? `Reminder ${n}` : 'Message to everyone',
-        aud.audience,
+        kind === 'reminder' ? `Reminder ${n}${ev ? ` · ${ev.name}` : ''}` : ev ? `Message to ${ev.name} guests` : 'Message to everyone',
+        audience,
         kind === 'reminder' ? (preset ?? 'Hi {first}, a gentle reminder to RSVP for {pending} here: {link}') : undefined,
       );
       await load();
@@ -534,7 +537,6 @@ export const eventOf = (c: Pick<Campaign, 'audience'>): string | null => {
   const e = a.invitedTo ?? a.attending ?? a.answer?.event;
   return typeof e === 'string' ? e : null;
 };
-const forEvent = (c: Pick<Campaign, 'audience'>, chosen: string, events: { key: string }[]) => {
-  const e = eventOf(c);
-  return !e || !events.some((x) => x.key === chosen) || e === chosen;
-};
+/** Split by event: an event's section shows its own messages; Account shows the ones that go to every event. */
+const forEvent = (c: Pick<Campaign, 'audience'>, chosen: string, events: { key: string }[]) =>
+  events.some((x) => x.key === chosen) ? eventOf(c) === chosen : !eventOf(c);

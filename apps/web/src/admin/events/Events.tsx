@@ -32,8 +32,12 @@ const keyOf = (label: string, taken: string[]) => {
   return k;
 };
 
-export function Events() {
-  const { wid, reload: reloadNav } = useAdmin();
+/**
+ * `only`: just that event's card (its Setup page). `addOnly`: just "Add an event" (the Account overview).
+ * Neither: the full list (the Events page).
+ */
+export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } = {}) {
+  const { wid, reload: reloadNav, setEvent } = useAdmin();
   const toast = useToast();
   const [data, setData] = useState<EventsData | null>(null);
   const [error, setError] = useState('');
@@ -61,9 +65,11 @@ export function Events() {
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading your events…</div>;
   const tz = data.timezone;
+  const shown = addOnly ? [] : only ? data.events.filter((e) => e.key === only) : data.events;
 
   return (
     <div className="flex flex-col gap-6">
+      {!only && !addOnly && (
       <header>
         <Eyebrow>Events</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">What you're celebrating</h1>
@@ -72,7 +78,8 @@ export function Events() {
           sections, filled by your first two events in date order; every event gets its own RSVP, texts, seating and night-before guide.
         </p>
       </header>
-      {data.events.map((e) => (
+      )}
+      {shown.map((e) => (
         <EventCard
           key={`${e.id}:${e.version}`}
           e={e}
@@ -109,12 +116,14 @@ export function Events() {
           }
         />
       ))}
+      {!only && (
       <AddEvent
         tz={tz}
         onAdd={async (name, local, inviteEveryone) => {
           try {
             const r = await eventsApi.add(wid, { name, startsAt: zonedToUtc(local, tz).toISOString(), inviteEveryone });
             await done(r.events, `${name} added`);
+            setEvent(r.added); // straight into the new event's own section
             return true;
           } catch (err) {
             await fail(err);
@@ -122,6 +131,7 @@ export function Events() {
           }
         }}
       />
+      )}
     </div>
   );
 }
