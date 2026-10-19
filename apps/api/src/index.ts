@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { engineDeps, type Env } from './env';
+import { hardening } from './lib/security';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { guestRoutes } from './routes/guest';
@@ -10,6 +11,7 @@ import { sweepInbound } from './sms/inbound';
 /** The app, with dependencies injectable for tests. */
 export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   const app = new Hono<{ Bindings: Env }>().basePath('/api');
+  app.use('*', hardening());
   app.get('/health', (c) => c.json({ ok: true }));
   app.route('/hooks', hookRoutes(deps));
   app.route('/a', authRoutes());

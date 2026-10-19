@@ -1,4 +1,5 @@
 import { attachDiet, InvitationContent, isToken, textsFor } from '@wp/shared';
+import { readJson } from '../lib/security';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -129,7 +130,7 @@ export function guestRoutes() {
     if (!w) return err(c, 404, 'not_found', 'We could not find this invitation.');
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
     if (!(await allow(c.env.DB, `find:${ip}`, 10, 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Please wait a minute.');
-    const body = z.object({ name: z.string().max(120) }).safeParse(await c.req.json().catch(() => null));
+    const body = z.object({ name: z.string().max(120) }).safeParse(await readJson(c.req.raw));
     const q = body.success ? norm(body.data.name) : '';
     if (!q) return err(c, 400, 'invalid', 'Please enter your name.');
     const { results } = await c.env.DB.prepare(
@@ -148,7 +149,7 @@ export function guestRoutes() {
     if (!w) return err(c, 404, 'not_found', 'We could not find this invitation.');
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
     if (!(await allow(c.env.DB, `rsvp:${ip}`, 30, 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Please wait a minute.');
-    const body = Rsvp.safeParse(await c.req.json().catch(() => null));
+    const body = Rsvp.safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Please check your answers and try again.');
     const r = body.data;
     const db = c.env.DB;

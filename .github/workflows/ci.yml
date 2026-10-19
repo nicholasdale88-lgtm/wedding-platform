@@ -56,6 +56,16 @@ jobs:
             exit 1
           fi
 
+      - name: No secrets committed
+        run: |
+          if git grep -nIE '(-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{40,}|sk_live_[A-Za-z0-9]{16,}|xox[bap]-[A-Za-z0-9-]{10,})' -- . ':!pnpm-lock.yaml'; then
+            echo "::error::Something that looks like a secret is committed. Remove it and roll the key."
+            exit 1
+          fi
+
+      - name: No known-vulnerable runtime dependencies
+        run: pnpm audit --prod --audit-level high
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -66,7 +76,9 @@ jobs:
         run: pnpm test
 
       - name: Build the website
-        run: pnpm --filter web build
+        run: |
+          pnpm --filter web build
+          grep -q "Content-Security-Policy" apps/web/dist/_headers || { echo "::error::Security headers missing from the build"; exit 1; }
 
       - name: Seed script produces SQL (dummy owner; nothing is deployed)
         run: |

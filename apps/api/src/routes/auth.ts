@@ -1,4 +1,5 @@
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
+import { readJson } from '../lib/security';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -73,7 +74,7 @@ export function authRoutes() {
 
   app.post('/auth/login', async (c) => {
     if (!c.env.SESSION_SECRET) return err(c, 500, 'not_configured', 'Sign-in is not set up yet (SESSION_SECRET).');
-    const body = Login.safeParse(await c.req.json().catch(() => null));
+    const body = Login.safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Enter your email and passcode.');
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
     const fifteenMin = 15 * 60_000;

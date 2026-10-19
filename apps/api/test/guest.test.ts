@@ -33,7 +33,8 @@ describe('guest API', () => {
     const p = (await (await get('/invite')).json()) as Payload;
     expect(p.events.map((e) => e.key)).toEqual(['wedding', '30th']);
     expect(p.invitation).toBeNull();
-    expect(Object.keys(p.texts).length).toBe(Object.keys(texts).length + Object.keys(dynamicTexts).length);
+    expect(Object.keys(p.texts).length).toBe(Object.keys(texts).filter((k) => k.startsWith('inv.')).length + Object.keys(dynamicTexts).length);
+    expect(Object.keys(p.texts).some((k) => k.startsWith('gd.'))).toBe(false); // only this page's words
     expect(p.content).toMatchObject({ rsvpBy: 'Kindly reply by 18 August 2027', seal: 'Sandstone' });
   });
 

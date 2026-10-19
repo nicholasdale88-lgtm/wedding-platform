@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { readText } from '../lib/security';
 import type { EngineDeps } from '../sms/engine';
 import { handleReceipt, processInbound, recordInbound } from '../sms/inbound';
 import { parseInbound, ReceiptPayload, safeEqual, verifySignature } from '../sms/webhook';
@@ -21,7 +22,8 @@ export function hookRoutes(deps: (env: Env) => EngineDeps) {
   });
 
   app.post('/mm/inbound', async (c) => {
-    const raw = await c.req.text();
+    const raw = await readText(c.req.raw);
+    if (raw === null) return c.json({ ok: true, ignored: true }); // oversized: a retry won't fix it
     if (!(await signatureOk(c.env, raw, c.req.header('X-MM-Timestamp'), c.req.header('X-MM-Signature')))) {
       return c.json({ error: { code: 'unauthorised', message: 'Bad signature' } }, 401);
     }
@@ -34,7 +36,8 @@ export function hookRoutes(deps: (env: Env) => EngineDeps) {
   });
 
   app.post('/mm/status', async (c) => {
-    const raw = await c.req.text();
+    const raw = await readText(c.req.raw);
+    if (raw === null) return c.json({ ok: true, ignored: true }); // oversized: a retry won't fix it
     if (!(await signatureOk(c.env, raw, c.req.header('X-MM-Timestamp'), c.req.header('X-MM-Signature')))) {
       return c.json({ error: { code: 'unauthorised', message: 'Bad signature' } }, 401);
     }

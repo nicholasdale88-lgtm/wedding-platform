@@ -1,4 +1,5 @@
 import { attachDiet, randomToken, toE164 } from '@wp/shared';
+import { readJson } from '../lib/security';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { loadWedding } from '../admin/data';
@@ -121,7 +122,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
   });
 
   app.patch('/guests/:id', writer, async (c) => {
-    const body = GuestPatch.safeParse(await c.req.json().catch(() => null));
+    const body = GuestPatch.safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Check the details and try again.');
     const p = body.data;
     const invId = c.req.param('id');
@@ -188,7 +189,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
 
   /** The couple records or corrects a reply (by phone, in person, on paper). */
   app.put('/guests/:id/rsvp', writer, async (c) => {
-    const body = RsvpPut.safeParse(await c.req.json().catch(() => null));
+    const body = RsvpPut.safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Check the reply and try again.');
     const r = body.data;
     const invId = c.req.param('id');
@@ -257,7 +258,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
 
   /** "Send now" from the guest drawer: one text to this guest. Shows count and cost first via ?dry=1. */
   app.post('/guests/:id/send', writer, async (c) => {
-    const body = z.object({ campaignId: z.string() }).safeParse(await c.req.json().catch(() => null));
+    const body = z.object({ campaignId: z.string() }).safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose a message.');
     const d = deps(c.env);
     const invId = c.req.param('id');
