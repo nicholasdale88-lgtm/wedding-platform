@@ -91,7 +91,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
   });
   add(d.inboxNeedsYou, {
     kind: 'inbox', title: d.inboxNeedsYou === 1 ? '1 message needs you' : `${d.inboxNeedsYou} messages need you`,
-    detail: 'Guests wrote to you or texted a question.', cta: 'Read', link: 'messages', event: 'all',
+    detail: 'Guests wrote to you, texted a question or posted on the message board.', cta: 'Read', link: 'messages', event: 'all',
   });
 
   // Upcoming reminder dates: dated, enabled campaigns aimed at guests still to reply.

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { messagesApi, type Conversation, type MessageThread, type ThreadMessage } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
 import { useAdmin } from '../Shell';
+import { BoardAdmin } from './Board';
 import { Eyebrow, inputCls, Pill, useAutoRefresh, useMedia, useToast } from '../ui';
 
 /**
@@ -52,6 +53,48 @@ export function Messages() {
     setParams(n, { replace: true });
   };
 
+  const board = params.get('view') === 'board';
+  const setView = (v: 'chats' | 'board') => {
+    const n = new URLSearchParams();
+    if (v === 'board') n.set('view', 'board');
+    setParams(n, { replace: true });
+  };
+  const tabs = (
+    <div role="tablist" aria-label="Messages" className="flex gap-6 border-b border-[#e2d7bc]">
+      {(
+        [
+          ['chats', 'Conversations'],
+          ['board', 'Message board'],
+        ] as const
+      ).map(([k, label]) => {
+        const sel = (k === 'board') === board;
+        return (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={sel}
+            onClick={() => setView(k)}
+            className={`py-2 px-0 border-0 border-b-2 bg-transparent text-[15px] cursor-pointer -mb-px ${sel ? 'border-[#33402f] font-semibold text-[#33402f]' : 'border-transparent text-[#5b6a52]'}`}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+  if (board) {
+    return (
+      <div className="flex flex-col gap-5">
+        <header>
+          <Eyebrow>Account · Messages</Eyebrow>
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Message board</h1>
+        </header>
+        {tabs}
+        <BoardAdmin />
+      </div>
+    );
+  }
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!threads) return <div aria-busy="true" className="text-[#5b6a52]">Loading messages…</div>;
   const unread = threads.reduce((n, t) => n + t.unread, 0);
@@ -110,6 +153,7 @@ export function Messages() {
         <Eyebrow>Account · Messages{unread ? ` · ${unread} unread` : ''}</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Messages from guests</h1>
       </header>
+      {tabs}
       {wide ? (
         <div className="grid grid-cols-[minmax(260px,360px)_minmax(0,1fr)] gap-6 items-start">
           {list}

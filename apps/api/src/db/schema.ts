@@ -267,6 +267,25 @@ export const message = sqliteTable('message', {
   readAt: text('read_at'),
 });
 
+// migration 0009: the message board (a public wall on guests' pages)
+export const boardPost = sqliteTable('board_post', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  invitationId: text('invitation_id'),
+  author: text('author').notNull(),
+  body: text('body').notNull(),
+  parentId: text('parent_id'),
+  status: text('status', { enum: ['shown', 'pending', 'hidden'] }).notNull().default('shown'),
+  pinned: integer('pinned').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+});
+
+export const boardLike = sqliteTable(
+  'board_like',
+  { postId: text('post_id').notNull(), invitationId: text('invitation_id').notNull(), createdAt: text('created_at').notNull() },
+  (t) => ({ pk: primaryKey({ columns: [t.postId, t.invitationId] }) }),
+);
+
 export const audit = sqliteTable('audit', {
   id: id(),
   weddingId: text('wedding_id'),

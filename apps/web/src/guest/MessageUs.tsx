@@ -77,7 +77,12 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center py-3 px-5 border-b border-[#e2d7bc]">
-          <div className="text-[22px]">{couple || 'Message us'}</div>
+          <div className="flex flex-col">
+            <div className="text-[22px]">{couple || 'Message us'}</div>
+            <a href={`/w/${encodeURIComponent(slug)}/board?g=${encodeURIComponent(token)}`} className="text-[15px] underline" style={{ color: ink }}>
+              Or write on the message board for everyone →
+            </a>
+          </div>
           <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="w-9 h-9 rounded-full border-0 bg-transparent text-[24px] cursor-pointer" style={{ color: ink }}>
             ×
           </button>

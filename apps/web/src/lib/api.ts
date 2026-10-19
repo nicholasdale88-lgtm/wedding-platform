@@ -409,6 +409,33 @@ export interface Conversation {
   messages: ThreadMessage[];
 }
 
+export interface AdminBoardPost {
+  id: string;
+  parentId: string | null;
+  invitationId: string | null;
+  author: string;
+  body: string;
+  at: string;
+  pinned: boolean;
+  couple: boolean;
+  status: 'shown' | 'pending' | 'hidden';
+  likes: number;
+  replies: AdminBoardPost[];
+}
+export interface AdminBoard {
+  settings: { on: boolean; approve: boolean };
+  pending: number;
+  posts: AdminBoardPost[];
+}
+/** The message board on guests' pages: settings and moderation. */
+export const boardApi = {
+  get: (wid: string) => request<AdminBoard>(`${w(wid)}/board`),
+  settings: (wid: string, on: boolean, approve: boolean) => send<AdminBoard>('PUT', `${w(wid)}/board/settings`, { on, approve }),
+  post: (wid: string, body: string, parent?: string) => send<AdminBoard>('POST', `${w(wid)}/board`, { body, ...(parent ? { parent } : {}) }),
+  update: (wid: string, id: string, change: { status?: 'shown' | 'hidden'; pinned?: boolean }) => send<AdminBoard>('PATCH', `${w(wid)}/board/${id}`, change),
+  remove: (wid: string, id: string) => send<AdminBoard>('DELETE', `${w(wid)}/board/${id}`),
+};
+
 export const messagesApi = {
   list: (wid: string) => request<{ threads: MessageThread[] }>(`${w(wid)}/messages`),
   open: (wid: string, inv: string) => request<Conversation>(`${w(wid)}/messages/${inv}`),

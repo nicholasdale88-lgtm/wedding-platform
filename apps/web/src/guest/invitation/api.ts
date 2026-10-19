@@ -103,6 +103,14 @@ export const guestApi = {
   /** Their conversation with the couple (needs their own link). */
   messages: (slug: string, token: string) =>
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
+  /** The message board (a public wall; needs their own link). */
+  board: (slug: string, token: string) => call<BoardPayload>(`/p/${encodeURIComponent(slug)}/board?g=${encodeURIComponent(token)}`),
+  boardPost: (slug: string, token: string, body: string, parent?: string) =>
+    call<{ ok: true; pending: boolean }>(`/p/${encodeURIComponent(slug)}/board`, { method: 'POST', body: JSON.stringify({ token, body, ...(parent ? { parent } : {}) }) }),
+  boardLike: (slug: string, token: string, id: string) =>
+    call<{ liked: boolean; likes: number }>(`/p/${encodeURIComponent(slug)}/board/${encodeURIComponent(id)}/like`, { method: 'POST', body: JSON.stringify({ token }) }),
+  boardRemove: (slug: string, token: string, id: string) =>
+    call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/board/${encodeURIComponent(id)}`, { method: 'DELETE', body: JSON.stringify({ token }) }),
   sendMessage: (slug: string, token: string, body: string, kind: 'message' | 'support' | 'question') =>
     call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/messages`, { method: 'POST', body: JSON.stringify({ token, body, kind }) }),
   /** One photo, into an event's album; the server checks it really is one. */
@@ -115,3 +123,25 @@ export const guestApi = {
     if (!res.ok) throw new GuestApiError(res.status, ((await res.json().catch(() => null)) as { error?: { message: string } } | null)?.error?.message ?? 'Upload failed');
   },
 };
+
+export interface BoardPost {
+  id: string;
+  parentId: string | null;
+  author: string;
+  body: string;
+  at: string;
+  pinned: boolean;
+  couple: boolean;
+  mine: boolean;
+  pending: boolean;
+  likes: number;
+  liked: boolean;
+  replies: BoardPost[];
+}
+export interface BoardPayload {
+  on: boolean;
+  approve: boolean;
+  couple: string;
+  me: string;
+  posts: BoardPost[];
+}
