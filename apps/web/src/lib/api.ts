@@ -417,6 +417,23 @@ export const liveApi = {
   set: (wid: string, on: boolean) => send<{ on: boolean; code: string | null; slug: string }>('PUT', `${w(wid)}/live`, { on }),
 };
 
+export interface SongRow {
+  id: string;
+  title: string;
+  artist: string;
+  note: string;
+  status: 'new' | 'must' | 'maybe' | 'no';
+  at: string;
+  by: string;
+}
+/** Song requests and the couple's own picks, for the DJ. */
+export const songsApi = {
+  list: (wid: string) => request<{ songs: SongRow[] }>(`${w(wid)}/songs`),
+  add: (wid: string, title: string, artist: string, status: 'must' | 'maybe' | 'no') => send<{ songs: SongRow[] }>('POST', `${w(wid)}/songs`, { title, artist, status }),
+  mark: (wid: string, id: string, status: SongRow['status']) => send<{ songs: SongRow[] }>('PATCH', `${w(wid)}/songs/${id}`, { status }),
+  remove: (wid: string, id: string) => send<{ songs: SongRow[] }>('DELETE', `${w(wid)}/songs/${id}`),
+};
+
 export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),

@@ -108,6 +108,9 @@ export const guestApi = {
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
   /** A wedding party member's own run sheet (needs their own link). */
   party: (slug: string, token: string) => call<PartyPayload>(`/p/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`),
+  /** Ask for a song (the couple passes requests to the DJ). */
+  requestSong: (slug: string, token: string, title: string, artist: string) =>
+    call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/songs`, { method: 'POST', body: JSON.stringify({ token, title, artist }) }),
   /** The message board (a public wall; needs their own link). */
   board: (slug: string, token: string) => call<BoardPayload>(`/p/${encodeURIComponent(slug)}/board?g=${encodeURIComponent(token)}`),
   boardPost: (slug: string, token: string, body: string, parent?: string) =>

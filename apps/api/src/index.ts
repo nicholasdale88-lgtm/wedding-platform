@@ -10,6 +10,7 @@ import { photoRoutes } from './routes/photos';
 import { oauthRoutes, photoLinkRoutes } from './routes/photoLinks';
 import { partyGuestRoutes, plannerRoutes } from './routes/planner';
 import { liveAdminRoutes, liveScreenRoutes } from './routes/live';
+import { songAdminRoutes, songGuestRoutes } from './routes/songs';
 import { runCopies } from './photos/store';
 import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
@@ -38,12 +39,14 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/photo-links', photoLinkRoutes());
   app.route('/a/w/:wid/planner', plannerRoutes());
   app.route('/a/w/:wid/live', liveAdminRoutes());
+  app.route('/a/w/:wid/songs', songAdminRoutes());
   app.route('/oauth', oauthRoutes());
   app.route('/a/w/:wid/events', eventRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
   app.route('/p/:slug/board', boardGuestRoutes());
   app.route('/p/:slug/party', partyGuestRoutes());
   app.route('/p/:slug/live', liveScreenRoutes());
+  app.route('/p/:slug/songs', songGuestRoutes());
   app.route('/p/:slug', guestRoutes(deps));
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {

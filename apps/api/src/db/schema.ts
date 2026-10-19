@@ -345,6 +345,19 @@ export const plannerDoc = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.kind, t.scope] }) }),
 );
 
+// migration 0014: song requests for the DJ
+export const songRequest = sqliteTable('song_request', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  invitationId: text('invitation_id'),
+  title: text('title').notNull(),
+  artist: text('artist').notNull().default(''),
+  note: text('note').notNull().default(''),
+  status: text('status', { enum: ['new', 'must', 'maybe', 'no'] }).notNull().default('new'),
+  createdAt: text('created_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
 // migration 0013: files kept with the planning (quotes, contracts)
 export const plannerFile = sqliteTable('planner_file', {
   id: id(),

@@ -6,7 +6,7 @@ import { guestApi } from './invitation/api';
  * or a question, and see their replies (Messenger-style). Only with the guest's own link. Checks for
  * new replies every 30 seconds while open.
  */
-type Kind = 'support' | 'question';
+type Kind = 'support' | 'question' | 'song';
 interface Msg {
   id: string;
   from: 'guest' | 'couple';
@@ -58,11 +58,21 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
     };
   }, [open]);
 
+  const [artist, setArtist] = useState('');
+  const [songNote, setSongNote] = useState('');
   const send = async () => {
     if (!text.trim()) return;
     setBusy(true);
     setErr('');
+    setSongNote('');
     try {
+      if (kind === 'song') {
+        await guestApi.requestSong(slug, token, text.trim(), artist.trim());
+        setSongNote(`Added “${text.trim()}” to the list for the DJ. Thank you!`);
+        setText('');
+        setArtist('');
+        return;
+      }
       await guestApi.sendMessage(slug, token, text.trim(), kind);
       setText('');
       await load();
@@ -116,11 +126,12 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
           <div ref={end} />
         </div>
         <div className="flex flex-col gap-2 p-3 border-t border-[#e2d7bc] pb-[max(12px,env(safe-area-inset-bottom))]">
-          <div role="radiogroup" aria-label="Kind of message" className="flex gap-2">
+          <div role="radiogroup" aria-label="Kind of message" className="flex gap-2 flex-wrap">
             {(
               [
                 ['support', 'Message of support'],
                 ['question', 'A question'],
+                ['song', 'Request a song'],
               ] as const
             ).map(([k, label]) => (
               <button
@@ -137,20 +148,36 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
             ))}
           </div>
           {err && <div role="alert" className="text-[15px] text-[#8a5a45]">{err}</div>}
+          {songNote && (
+            <div role="status" className="text-[15px] italic">
+              {songNote}
+            </div>
+          )}
+          {kind === 'song' && (
+            <input
+              aria-label="Who sings it"
+              value={artist}
+              maxLength={120}
+              placeholder="Who sings it (if you know)"
+              onChange={(e) => setArtist(e.target.value)}
+              className="py-2 px-3 rounded-[14px] border border-[#d3c6a4] bg-white text-[17px]"
+              style={{ ...font, color: ink }}
+            />
+          )}
           <div className="flex gap-2 items-end">
             <textarea
               ref={box}
-              aria-label="Your message"
-              rows={2}
-              maxLength={1000}
+              aria-label={kind === 'song' ? 'The song' : 'Your message'}
+              rows={kind === 'song' ? 1 : 2}
+              maxLength={kind === 'song' ? 120 : 1000}
               value={text}
-              placeholder={kind === 'question' ? 'Ask us anything…' : 'Write your message…'}
+              placeholder={kind === 'song' ? 'The song you’d love to dance to' : kind === 'question' ? 'Ask us anything…' : 'Write your message…'}
               onChange={(e) => setText(e.target.value)}
               className="flex-1 min-w-0 py-2 px-3 rounded-[14px] border border-[#d3c6a4] bg-white text-[17px] resize-none"
               style={{ ...font, color: ink }}
             />
             <button type="button" disabled={busy || !text.trim()} onClick={() => void send()} className="py-[10px] px-4 rounded-full border-0 text-[16px] cursor-pointer disabled:opacity-40" style={{ background: ink, color: '#fbf8f2' }}>
-              {busy ? '…' : 'Send'}
+              {busy ? '…' : kind === 'song' ? 'Request' : 'Send'}
             </button>
           </div>
         </div>
