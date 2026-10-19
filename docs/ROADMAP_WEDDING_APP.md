@@ -123,3 +123,45 @@ Everything below fits the free tiers unless flagged. Building order is the ★ p
 - Apple Wallet: US$99/yr
 - Real-time sockets on Durable Objects: US$5/mo. Polling avoids this.
 - AI beyond the free Workers AI allowance
+
+## Built (19–20 Oct 2026)
+
+**Wedding planner** (in the first event's section):
+- At a glance: days to go, money, still to book, payments coming up, quotes to decide on, next up
+- Checklist: the usual AU plan counted back from the date, with the NOI deadlines marked Legal
+- Budget, including commitments from booked vendors
+- Vendors: quotes filed as PDF or photo; the assistant reads them and compares vendors; finder within X km of the venue
+- Transport: shuttle runs; guests book seats from their invitation
+- Music: guests' song requests and your own picks; download for the DJ
+- Print: welcome sign, table numbers, place cards, seating chart, menu cards
+- Gifts and thank-yous, with drafted notes
+- Assistant
+- Its reminders show in Overview → Needs you
+
+**Wedding party:**
+- Bride's and Groom's sides (names editable)
+- Roles taken from the guest list
+- Their own run sheet and packing lists on their own link
+- Each partner's on-the-day checklist
+
+**Guests:**
+- Message board
+- Song requests in "Message us"
+- Add to calendar
+- Shuttle seats
+- Live photo wall for the reception screen
+- Linked photo storage (Drive, Google Photos, Dropbox, OneDrive)
+- WhatsApp import
+
+**Seating:** a checks panel for capacity, split parties, and keep-apart / keep-together rules.
+
+**Still open from the research:**
+- Who's who (guest profiles)
+- Accommodation board
+- Multilingual invitation
+- QR table cards to a table page
+- Door check-in
+- MC now/next screen
+- Guest games
+- After-the-wedding gallery and anniversary text
+- Name-change checklist (part of the checklist already)
