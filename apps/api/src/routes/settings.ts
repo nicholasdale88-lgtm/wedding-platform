@@ -71,6 +71,7 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     const replies = { ...DEFAULT_REPLIES, ...(JSON.parse(w.sms_replies || '{}') as Record<string, string>) };
     return {
       version: w.version,
+      provider: c.env.SMS_PROVIDER === 'texto' ? 'Texto' : 'Mobile Message',
       live: !!w.sms_sender,
       sender: w.sms_sender ? displayPhone(w.sms_sender) : '',
       adminMobile: w.admin_mobile ? displayPhone(w.admin_mobile) : '',

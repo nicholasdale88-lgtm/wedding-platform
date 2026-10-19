@@ -1,6 +1,7 @@
 import { D1SmsStore } from './db/smsStore';
 import type { EngineDeps } from './sms/engine';
 import { mobileMessage } from './sms/provider';
+import { texto } from './sms/texto';
 
 /** Bindings and secrets (wrangler.toml + `wrangler secret put`). See docs/SETUP_ACCOUNTS.md. */
 export interface Env {
@@ -17,6 +18,12 @@ export interface Env {
   SESSION_SECRET?: string;
   /** Comma-separated emails of platform super-admins. */
   SUPER_ADMINS?: string;
+  /** Which SMS provider sends: 'mobilemessage' (default) or 'texto'. */
+  SMS_PROVIDER?: string;
+  /** Texto API key (txt_…), from app.texto.com.au → settings. */
+  TEXTO_API_KEY?: string;
+  /** Texto webhook secret; when set, X-Texto-Signature is required on its webhooks. */
+  TEXTO_WEBHOOK_SECRET?: string;
 }
 
 /** Real dependencies for the SMS engine. Tests build their own. */
@@ -24,7 +31,7 @@ export function engineDeps(env: Env): EngineDeps {
   return {
     store: new D1SmsStore(env.DB, env.PUBLIC_BASE_URL),
     // Without credentials every send fails as 'auth': nothing goes out, and the admin is told why.
-    provider: mobileMessage({ user: env.MM_USER ?? '', pass: env.MM_PASS ?? '' }),
+    provider: env.SMS_PROVIDER === 'texto' ? texto({ apiKey: env.TEXTO_API_KEY ?? '' }) : mobileMessage({ user: env.MM_USER ?? '', pass: env.MM_PASS ?? '' }),
     now: () => new Date(),
     uuid: () => crypto.randomUUID(),
   };

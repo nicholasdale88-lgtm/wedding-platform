@@ -224,8 +224,14 @@ export async function flush(d: EngineDeps, w: WeddingCtx): Promise<FlushResult> 
     const sentAt = now.toISOString();
     const partsById = new Map(batch.map((r) => [r.id, r.parts]));
     let used = 0;
+    // Not attempted this run (a provider that sends one at a time stopped part-way): back to the queue.
+    const unsent = out.results.filter((m) => m.status === 'unsent').map((m) => m.customRef);
+    if (unsent.length) {
+      await d.store.assignBatch(unsent, null, nowIso);
+      await d.store.release(unsent);
+    }
     await d.store.markResults(
-      out.results.map((m): OutboxResult => {
+      out.results.filter((m) => m.status !== 'unsent').map((m): OutboxResult => {
         if (m.status === 'success') {
           result.sent++;
           used += partsById.get(m.customRef) ?? 1;
@@ -239,6 +245,7 @@ export async function flush(d: EngineDeps, w: WeddingCtx): Promise<FlushResult> 
       credits -= used;
       await d.store.debitWallet(w.id, used);
     }
+    if (out.stopped) return stop(i + 1, out.stopped.reason, out.stopped.error);
   }
   return result;
 }

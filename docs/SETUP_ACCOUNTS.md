@@ -117,3 +117,22 @@ Add these under **repo → Settings → Secrets and variables → Actions**:
 | `SENTRY_DSN_WEB`, `SENTRY_DSN_API` | Sentry → project settings | 7 |
 
 The deploy workflow copies these into Cloudflare automatically on every deploy, so you only enter them in GitHub.
+
+## Optional: send texts with Texto instead of Mobile Message
+
+The platform can send through **Texto** (texto.com.au, Australian, AWS Sydney). It costs about 3¢ per text part, pay as you go, and credits last 12 months. A dedicated number, which guests need to text back, is about **$15 a month**. Mobile Message is cheaper (1.76¢, no monthly fee), so choose Texto only if you prefer it.
+
+1. Sign up at https://app.texto.com.au/signup (it includes 5 trial credits) and buy a dedicated number.
+2. In Texto's account settings, create an **API key** (it starts `txt_`) and a **webhook secret**.
+3. In GitHub, go to the repo → Settings → Secrets and variables → Actions → **New repository secret**, and add:
+   - `SMS_PROVIDER` = `texto`
+   - `TEXTO_API_KEY` = your key
+   - `TEXTO_WEBHOOK_SECRET` = your webhook secret
+4. In Texto's webhook settings, set:
+   - **Inbound** (guest replies): `https://<your site>/api/hooks/texto/inbound?k=<MM_HOOK_SECRET>`
+   - **Delivery** (receipts): `https://<your site>/api/hooks/texto/status?k=<MM_HOOK_SECRET>`
+5. Re-run the deploy. **SMS setup** in the admin now names Texto. Add your dedicated number there and send yourself a test.
+
+Two behaviours differ from Mobile Message:
+- **No double texts:** Texto has no idempotency key. If a send gets no answer, it's marked "check Texto before resending" and is never resent automatically.
+- **Rounds of 40:** each Texto send is one request, so large sends (like 300 invitations) go out about 40 per run. Runs happen every 15 minutes.

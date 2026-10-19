@@ -61,7 +61,7 @@ export function SmsSetup() {
         <Eyebrow>SMS setup</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Automatic texts for a few cents each</h1>
         <p className="m-0 mt-2 max-w-[640px] text-[15px] text-[#5b6a52]">
-          Texts go out through Mobile Message, an Australian provider with no monthly fee. You only pay for the texts you send, and guests can text YES or NO straight back.
+          Texts go out through {s.provider}, an Australian SMS provider: you only pay for the texts you send, and guests can text YES or NO straight back to your number.
         </p>
       </header>
 
@@ -82,7 +82,7 @@ export function SmsSetup() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
         <section className="flex flex-col gap-[14px]">
           <h2 className="m-0 font-display font-medium text-[26px]">Connection</h2>
-          <Label text="Your Mobile Message number (guests see this and reply to it)">
+          <Label text={`Your ${s.provider} number (guests see this and reply to it)`}>
             <input value={val('sender')} onChange={(e) => edit({ sender: e.target.value })} placeholder="04xx xxx xxx" className={inputCls} />
           </Label>
           <Label text="Your mobile (replies that need you are forwarded here; tests go here)">
@@ -123,7 +123,9 @@ export function SmsSetup() {
             <input type="number" step="0.01" min="0" value={val('rateX100') / 100} onChange={(e) => edit({ rateX100: Math.round(Number(e.target.value) * 100) })} className={inputCls} />
           </Label>
           <p className="m-0 text-[13px] text-[#5b6a52]">
-            Mobile Message charges 1.6¢ + GST (1.76¢) per text if you buy credits within 30 days of signing up; credits never expire. After that the standard rate is 4¢ + GST. New accounts get 50 free texts for testing.
+            {s.provider === 'Texto'
+              ? 'Texto charges about 3¢ per text part (less in bigger packs; credits last 12 months). Guests can only text back to a dedicated number, about $15 a month.'
+              : 'Mobile Message charges 1.6¢ + GST (1.76¢) per text if you buy credits within 30 days of signing up; credits never expire. After that the standard rate is 4¢ + GST. New accounts get 50 free texts for testing.'}
           </p>
           <div className="flex flex-col">
             {s.plan.map((p) => (

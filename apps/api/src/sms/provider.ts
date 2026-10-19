@@ -14,13 +14,15 @@ export interface OutMessage {
 
 export interface MessageResult {
   customRef: string;
-  status: 'success' | 'error' | 'blocked';
+  /** unsent: not attempted this run (it goes back to the queue). */
+  status: 'success' | 'error' | 'blocked' | 'unsent';
   messageId: string | null;
   error: string | null;
 }
 
 export type SendOutcome =
-  | { ok: true; results: MessageResult[] }
+  /** stopped: some were handled, then sending had to stop (the rest come back as 'unsent'). */
+  | { ok: true; results: MessageResult[]; stopped?: { reason: 'auth' | 'credits' | 'transient'; error: string } }
   /** fatal: stop sending this run (auth = check credentials, credits = top up). transient: retry next run. */
   | { ok: false; reason: 'auth' | 'credits' | 'transient' | 'rejected'; error: string };
 

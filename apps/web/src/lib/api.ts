@@ -236,6 +236,8 @@ export const textsApi = {
 
 export interface SettingsData {
   version: number;
+  /** Which SMS service sends (set by the platform: SMS_PROVIDER). */
+  provider: string;
   live: boolean;
   sender: string;
   adminMobile: string;

@@ -3,6 +3,8 @@ import { readText } from '../lib/security';
 import type { EngineDeps } from '../sms/engine';
 import { handleReceipt, processInbound, recordInbound } from '../sms/inbound';
 import { parseInbound, ReceiptPayload, safeEqual, verifySignature } from '../sms/webhook';
+import { verifyTextoSignature } from '../sms/texto';
+import { z } from 'zod';
 import type { Env } from '../env';
 
 type HookEnv = { Bindings: Env };
@@ -48,8 +50,64 @@ export function hookRoutes(deps: (env: Env) => EngineDeps) {
     return c.json({ ok: true });
   });
 
+  // ---------------------------------------------------------------- Texto (texto.com.au/webhooks)
+  // Same ?k= key as above, plus the X-Texto-Signature HMAC when TEXTO_WEBHOOK_SECRET is set.
+
+  const textoSigned = async (env: Env, raw: string, signature: string | undefined) =>
+    !env.TEXTO_WEBHOOK_SECRET || verifyTextoSignature(env.TEXTO_WEBHOOK_SECRET, raw, signature ?? null);
+
+  app.post('/texto/inbound', async (c) => {
+    const raw = await readText(c.req.raw);
+    if (raw === null) return c.json({ ok: true, ignored: true });
+    if (!(await textoSigned(c.env, raw, c.req.header('X-Texto-Signature')))) return c.json({ error: { code: 'unauthorised', message: 'Bad signature' } }, 401);
+    const p = TextoInbound.safeParse(parseJson(raw));
+    if (!p.success) return c.json({ ok: true, ignored: true });
+    const sms = {
+      from: p.data.from,
+      to: p.data.to || null,
+      body: p.data.body,
+      receivedAt: p.data.received_at,
+      type: p.data.is_optout ? ('unsubscribe' as const) : ('inbound' as const),
+      providerId: p.data.message_id,
+    };
+    const d = deps(c.env);
+    const rec = await recordInbound(d, sms);
+    if (rec?.fresh) c.executionCtx.waitUntil(processInbound(d, rec.row).catch((e) => console.error('inbound', rec.row.id, e)));
+    return c.json({ ok: true });
+  });
+
+  app.post('/texto/status', async (c) => {
+    const raw = await readText(c.req.raw);
+    if (raw === null) return c.json({ ok: true, ignored: true });
+    if (!(await textoSigned(c.env, raw, c.req.header('X-Texto-Signature')))) return c.json({ error: { code: 'unauthorised', message: 'Bad signature' } }, 401);
+    const p = TextoReceipt.safeParse(parseJson(raw));
+    if (p.success) await handleReceipt(deps(c.env), p.data.message.id, p.data.delivery_receipt?.status ?? p.data.message.status ?? '');
+    return c.json({ ok: true });
+  });
+
   return app;
 }
+
+const parseJson = (raw: string): unknown => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const TextoInbound = z.object({
+  message_id: z.string().min(1).max(100),
+  from: z.string().max(40),
+  to: z.string().max(40).nullable().optional(),
+  body: z.string().max(5000).default(''),
+  received_at: z.string().max(60).default(''),
+  is_optout: z.boolean().optional(),
+});
+const TextoReceipt = z.object({
+  message: z.object({ id: z.string().max(100), status: z.string().max(40).optional() }),
+  delivery_receipt: z.object({ status: z.string().max(40) }).optional(),
+});
 
 async function signatureOk(env: Env, raw: string, ts: string | undefined, sig: string | undefined) {
   if (!env.MM_SIGNING_SECRET) return true;

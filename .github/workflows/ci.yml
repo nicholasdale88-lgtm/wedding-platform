@@ -123,3 +123,6 @@ jobs:
           MM_PASS: ${{ secrets.MM_PASS }}
           MM_HOOK_SECRET: ${{ secrets.MM_HOOK_SECRET }}
           MM_SIGNING_SECRET: ${{ secrets.MM_SIGNING_SECRET }}
+          SMS_PROVIDER: ${{ secrets.SMS_PROVIDER }}
+          TEXTO_API_KEY: ${{ secrets.TEXTO_API_KEY }}
+          TEXTO_WEBHOOK_SECRET: ${{ secrets.TEXTO_WEBHOOK_SECRET }}
