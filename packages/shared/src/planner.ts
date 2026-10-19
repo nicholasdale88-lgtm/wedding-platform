@@ -43,10 +43,96 @@ export type PackItem = z.infer<typeof PackItem>;
 export const PartyRunsheet = z.object({ items: z.array(PartyItem).max(100).default([]), note: s(1500), packing: z.array(PackItem).max(120).default([]) });
 export type PartyRunsheet = z.infer<typeof PartyRunsheet>;
 
-export const CheckItem = z.object({ text: z.string().max(200), time: s(20), done: z.boolean().default(false) });
+/** When a checklist item happens: from a month out to the days after. */
+export const PHASES = ['month', 'week', 'eve', 'morning', 'ceremony', 'reception', 'after'] as const;
+export type Phase = (typeof PHASES)[number];
+export const WEDDING_PHASES: Record<Phase, string> = {
+  month: 'The month before',
+  week: 'The week before',
+  eve: 'The day before',
+  morning: 'The morning',
+  ceremony: 'The ceremony',
+  reception: 'The reception',
+  after: 'After the wedding',
+};
+/** The same moments for a party (a birthday): setting up, guests arriving, the party itself. */
+export const PARTY_PHASES: Record<Phase, string> = {
+  month: 'The month before',
+  week: 'The week before',
+  eve: 'The day before',
+  morning: 'On the day: setting up',
+  ceremony: 'As guests arrive',
+  reception: 'The party',
+  after: 'After',
+};
+
+export const CheckItem = z.object({
+  text: z.string().max(200),
+  time: s(20),
+  done: z.boolean().default(false),
+  phase: z.enum(PHASES).default('morning'),
+  note: s(300),
+});
 export type CheckItem = z.infer<typeof CheckItem>;
-export const DayChecklist = z.object({ p1: z.array(CheckItem).max(80).default([]), p2: z.array(CheckItem).max(80).default([]) });
+/** Each partner's own list, and the things you do together. */
+export const DayChecklist = z.object({
+  p1: z.array(CheckItem).max(120).default([]),
+  p2: z.array(CheckItem).max(120).default([]),
+  both: z.array(CheckItem).max(120).default([]),
+});
 export type DayChecklist = z.infer<typeof DayChecklist>;
+/** A checklist for an event that isn't the wedding (a birthday): the host's things to do. */
+export const EventChecklist = z.object({ items: z.array(CheckItem).max(150).default([]) });
+export type EventChecklist = z.infer<typeof EventChecklist>;
+
+/** Progress over a list: how many are done, of how many. */
+export const progressOf = (items: { done: boolean }[]) => ({ done: items.filter((x) => x.done).length, total: items.length });
+
+// ---------------------------------------------------------------- one side of the wedding party
+
+/** Something the side does before the day (order dresses, plan the hens), for one person or the whole side. */
+export const SideTask = z.object({
+  id: z.string().max(40),
+  text: z.string().max(200),
+  person: s(40), // a person id, or '' for the whole side
+  due: s(10), // yyyy-mm-dd
+  done: z.boolean().default(false),
+});
+export type SideTask = z.infer<typeof SideTask>;
+/** One member's details: what they wear, their size, fittings, what they've paid, their thank-you gift. */
+export const SidePerson = z.object({
+  outfit: s(120),
+  size: s(40),
+  fitting: s(10), // yyyy-mm-dd
+  collected: z.boolean().default(false),
+  paid: z.boolean().default(false),
+  gift: s(120),
+  given: z.boolean().default(false),
+  notes: s(500),
+});
+export type SidePerson = z.infer<typeof SidePerson>;
+/** The side's own celebration before the day (the hens or the bucks). */
+export const SideParty = z.object({
+  title: s(60),
+  date: s(10),
+  place: s(200),
+  organiser: s(80),
+  budget: money0(),
+  notes: s(1000),
+});
+/** What the side wears: one look, where it's from, roughly what it costs each. */
+export const SideAttire = z.object({ what: s(120), colour: s(60), where: s(160), each: money0(), orderBy: s(10), notes: s(600) });
+export const PartySide = z.object({
+  tasks: z.array(SideTask).max(80).default([]),
+  people: z.record(z.string().max(40), SidePerson).default({}),
+  party: SideParty.default({}),
+  attire: SideAttire.default({}),
+});
+export type PartySide = z.infer<typeof PartySide>;
+
+function money0() {
+  return z.number().min(0).max(1_000_000).default(0);
+}
 
 /** What the two sides are called (the couple can change them, e.g. "Bride" and "Bride"). */
 export const PartySetup = z.object({
@@ -99,22 +185,154 @@ export const PARTY_TEMPLATE: PartyItem[] = [
   { time: '7:30pm', until: '', title: 'Speeches', detail: 'Keep it to 3–4 minutes each. MC introduces each speaker.', place: '', who: ['MC', 'Best man', 'Maid of honour'] },
 ];
 
+/** A checklist item: `ck('eve', 'Lay out the dress')`, optionally with a time and a tip. */
+const ck = (phase: Phase, text: string, time = '', note = ''): CheckItem => ({ text, time, done: false, phase, note });
+
+/**
+ * Each partner's own list from a month out to after the day, and the things you do together. Written for
+ * an Australian wedding (the celebrant lodges the paperwork; the official certificate comes from the state
+ * registry). Everything can be changed, removed or added to.
+ */
 export const CHECK_TEMPLATE: DayChecklist = {
   p1: [
-    { text: 'Breakfast and water', time: '8:00am', done: false },
-    { text: 'Dress, shoes, jewellery and veil laid out', time: '', done: false },
-    { text: 'Something old, new, borrowed, blue', time: '', done: false },
-    { text: 'Vows or reading cards', time: '', done: false },
-    { text: 'Emergency kit: safety pins, tissues, blotting paper, painkillers', time: '', done: false },
-    { text: 'Phone charged and handed to the maid of honour', time: '', done: false },
+    ck('month', 'Final dress fitting', '', 'Bring the shoes and underwear you will wear on the day.'),
+    ck('month', 'Wear the wedding shoes in at home'),
+    ck('month', 'Hair and makeup trial done; photos of the look saved'),
+    ck('month', 'Write your vows (or choose the words with the celebrant)'),
+    ck('month', 'Bridesmaids’ gifts bought'),
+    ck('month', 'Honeymoon: passport valid 6+ months, bookings in the name on the passport'),
+    ck('week', 'Collect the dress; steam it and hang it high'),
+    ck('week', 'Nails and any beauty appointments'),
+    ck('week', 'Confirm hair and makeup: start time, address, how many people'),
+    ck('week', 'Practise the vows out loud'),
+    ck('week', 'Emergency kit to the maid of honour', '', 'Safety pins, bobby pins, tissues, blotting paper, painkillers, needle and thread.'),
+    ck('week', 'Pack the honeymoon bag'),
+    ck('eve', 'Rehearsal: the walk, where everyone stands, who holds what'),
+    ck('eve', 'Lay out the dress, shoes, jewellery and veil'),
+    ck('eve', 'Pack the day bag: wrap, flat shoes, touch-up kit, phone charger'),
+    ck('eve', 'Write a note for your partner (the best man can deliver it)'),
+    ck('eve', 'A proper dinner, lots of water, early night'),
+    ck('morning', 'Breakfast and water', '8:00am', 'Eat something even if you are nervous: it is a long day.'),
+    ck('morning', 'Button-up shirt for hair and makeup'),
+    ck('morning', 'Something old, new, borrowed, blue'),
+    ck('morning', 'Vows card to the maid of honour'),
+    ck('morning', 'Phone charged and handed to the maid of honour'),
+    ck('morning', 'Details out for the photographer: rings, invitation, perfume, shoes'),
+    ck('morning', 'Getting-ready photos: tidy the room first'),
+    ck('ceremony', 'Slow down the walk; look at your partner'),
+    ck('ceremony', 'Sign the marriage register (two witnesses over 18)'),
+    ck('ceremony', 'A minute alone together after the ceremony'),
+    ck('reception', 'Actually eat your meal'),
+    ck('reception', 'Say hello to every table'),
+    ck('reception', 'Bouquet to the coordinator for the toss'),
+    ck('after', 'Dress cleaned and stored'),
+    ck('after', 'Name change, once the official certificate arrives', '', 'Only if you’re changing it. Driver licence first, then passport, Medicare, ATO, bank and super, employer, electoral roll, insurance. Taking your spouse’s surname needs no registry application.'),
   ],
   p2: [
-    { text: 'Breakfast and water', time: '8:00am', done: false },
-    { text: 'Suit pressed, shoes polished, buttonhole', time: '', done: false },
-    { text: 'Rings to the best man', time: '', done: false },
-    { text: 'Vendor envelopes (final payments and tips) to the best man', time: '', done: false },
-    { text: 'Speech notes', time: '', done: false },
-    { text: 'Marriage paperwork for the celebrant (ID, signed documents)', time: '', done: false },
+    ck('month', 'Final suit fitting'),
+    ck('month', 'Wedding rings collected; engraving checked'),
+    ck('month', 'Write your vows and your speech'),
+    ck('month', 'Haircut booked for 2–3 days before'),
+    ck('month', 'Groomsmen’s gifts bought'),
+    ck('month', 'Honeymoon booked; travel insurance'),
+    ck('week', 'Collect the suit; check every piece is there'),
+    ck('week', 'Vendor envelopes: final payments and tips, labelled', '', 'The best man hands them over on the night.'),
+    ck('week', 'Confirm cars or transport and their times'),
+    ck('week', 'Practise the speech out loud (3–5 minutes)'),
+    ck('week', 'Shoes polished'),
+    ck('week', 'Pack the honeymoon bag'),
+    ck('eve', 'Rehearsal: where you stand, when you turn'),
+    ck('eve', 'Rings to the best man'),
+    ck('eve', 'Lay out suit, shirt, tie, cufflinks, belt, socks'),
+    ck('eve', 'Write a note for your partner (the maid of honour can deliver it)'),
+    ck('eve', 'Go easy on the drinks; early night'),
+    ck('morning', 'Breakfast and water', '8:00am'),
+    ck('morning', 'Shave (not with a new razor)'),
+    ck('morning', 'Dressed; buttonhole pinned'),
+    ck('morning', 'ID for the celebrant'),
+    ck('morning', 'Speech notes in your pocket; groomsmen briefed'),
+    ck('morning', 'Phone to the best man'),
+    ck('morning', 'At the ceremony 30 minutes early to greet guests'),
+    ck('ceremony', 'Look up the aisle'),
+    ck('ceremony', 'Sign the marriage register'),
+    ck('reception', 'Speech: thank the parents, the party and the vendors; toast your partner'),
+    ck('reception', 'Check with the best man that every vendor was paid'),
+    ck('after', 'Return the hire suit on time'),
+  ],
+  both: [
+    ck('month', 'Final guest numbers and dietary list to the venue'),
+    ck('month', 'Seating plan finished'),
+    ck('month', 'Paperwork: the Notice of Intended Marriage was lodged at least a month ago', '', 'If not, talk to your celebrant today: it is the law.'),
+    ck('month', 'Decide who holds the rings and who has the vendor envelopes'),
+    ck('week', 'Run sheet to the venue, the MC, the photographer and the coordinator'),
+    ck('week', 'Balances paid (check the budget’s payments due)'),
+    ck('week', 'Check the long-range forecast; agree the time for the wet-weather call'),
+    ck('eve', 'Signs, decorations and the guest book to the venue'),
+    ck('eve', 'Make the wet-weather call and tell the venue'),
+    ck('morning', 'From now on, questions go to the coordinator, not you'),
+    ck('ceremony', 'Sign the register and the two certificates (celebrant lodges them within 14 days)'),
+    ck('after', 'Order the official marriage certificate from the state registry', '', 'The one you sign on the day is commemorative: it isn’t accepted as legal proof.'),
+    ck('after', 'Thank-you cards within three months (Gifts has the list)'),
+    ck('after', 'Share the album with guests and back up the photos'),
+    ck('after', 'Return anything hired; venue bond back; leave reviews for your vendors'),
+  ],
+};
+
+/** A 30th (or any party) from the host's side: what to do the month, week, day before, and on the day. */
+export const PARTY_CHECK_TEMPLATE: EventChecklist = {
+  items: [
+    ck('month', 'Venue and catering confirmed'),
+    ck('month', 'Ask someone to say a few words'),
+    ck('month', 'Order the cake'),
+    ck('week', 'Final numbers and dietary needs to the venue or caterer'),
+    ck('week', 'Playlist done (and a speaker that works there)'),
+    ck('week', 'Photo slideshow or a board of old photos'),
+    ck('week', 'Decorations, candles, matches and a lighter'),
+    ck('week', 'Plan how everyone gets home (taxis, a designated driver)'),
+    ck('eve', 'Drinks and ice bought (or ordered for delivery)'),
+    ck('eve', 'Outfit ready; phone and speaker charged'),
+    ck('eve', 'Run sheet to whoever is helping'),
+    ck('morning', 'Set up decorations and the photo board'),
+    ck('morning', 'Collect the cake; confirm deliveries (balloons, hire)'),
+    ck('morning', 'Check the weather; plan B if it’s outside'),
+    ck('morning', 'Ice in the eskies; glasses out'),
+    ck('ceremony', 'Music on; welcome everyone at the door'),
+    ck('ceremony', 'Point people to food, drinks and the bathrooms'),
+    ck('reception', 'Speeches'),
+    ck('reception', 'Cake and candles; someone filming'),
+    ck('reception', 'Group photo while everyone is still there'),
+    ck('reception', 'Taxis and rideshares sorted as people leave'),
+    ck('after', 'Pack down and return anything hired'),
+    ck('after', 'Thank everyone who helped'),
+    ck('after', 'Share the photos'),
+  ],
+};
+
+const tk = (text: string): SideTask => ({ id: '', text, person: '', due: '', done: false });
+/** What each side usually does before the day. */
+export const SIDE_TEMPLATE: Record<'p1' | 'p2', SideTask[]> = {
+  p1: [
+    tk('Choose the bridesmaids’ dresses (order 4–6 months before)'),
+    tk('Everyone’s measurements in; fittings booked'),
+    tk('Shoes and accessories chosen'),
+    tk('Plan the hens: date, place, who organises'),
+    tk('Bridal shower or kitchen tea (if you’re having one)'),
+    tk('Hair and makeup booked for everyone, with start times'),
+    tk('Maid of honour: speech written'),
+    tk('Maid of honour: emergency kit packed'),
+    tk('At the ceremony: hold the bouquet, fix the dress and veil'),
+    tk('Bridesmaids’ gifts (from the couple)'),
+  ],
+  p2: [
+    tk('Choose the suits: hire or buy, colour and fit'),
+    tk('Everyone’s measurements sent to the suit hire'),
+    tk('Shoes, ties, socks and cufflinks matched'),
+    tk('Plan the bucks: date, place, who organises'),
+    tk('Best man: speech written'),
+    tk('Best man: holds the rings and the vendor envelopes on the day'),
+    tk('Ushers: who seats which family'),
+    tk('Collect the hire suits, and return them after'),
+    tk('Groomsmen’s gifts (from the couple)'),
   ],
 };
 
@@ -309,5 +527,19 @@ export const CheckIn = z.object({ arrived: z.record(z.string().max(40), z.number
 export type CheckIn = z.infer<typeof CheckIn>;
 
 /** The planner documents and their shapes (the API validates every save against these). */
-export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist, gifts: Gifts, shuttles: Shuttles, 'seat-rules': SeatRules, checkin: CheckIn } as const;
+export const PLANNER_DOCS = {
+  'party-runsheet': PartyRunsheet,
+  'day-checklist': DayChecklist,
+  budget: Budget,
+  vendors: Vendors,
+  'party-setup': PartySetup,
+  checklist: PlanChecklist,
+  gifts: Gifts,
+  shuttles: Shuttles,
+  'seat-rules': SeatRules,
+  checkin: CheckIn,
+  'party-p1': PartySide,
+  'party-p2': PartySide,
+  'event-checklist': EventChecklist,
+} as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

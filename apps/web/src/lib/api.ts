@@ -1,4 +1,4 @@
-import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, PartySetup, Side, TableShape } from '@wp/shared';
+import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, PartySetup, PlannerKind, Side, TableShape } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -112,6 +112,8 @@ export interface Overview {
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
   nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean; messages?: number };
+  /** What the wedding party's sides are called ("Bride", "Groom" unless changed). */
+  partySides?: { p1: string; p2: string };
   /** The event these figures are about (the admin's event switcher), or null for all. */
   focus?: string | null;
   perEvent?: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
@@ -392,7 +394,7 @@ export interface PartyData {
 export const plannerApi = {
   party: (wid: string, event?: string) => request<PartyData>(`${w(wid)}/planner/party${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   setRole: (wid: string, personId: string, role: string) => send<{ ok: true; members: PartyMember[] }>('PUT', `${w(wid)}/planner/people/${personId}/role`, { role }),
-  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist' | 'budget' | 'vendors' | 'party-setup' | 'checklist' | 'gifts' | 'shuttles' | 'seat-rules' | 'checkin', scope: string, data: T, version: number) =>
+  saveDoc: <T>(wid: string, kind: PlannerKind, scope: string, data: T, version: number) =>
     send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}${scope ? `/${encodeURIComponent(scope)}` : ''}`, data, version),
   aiStatus: (wid: string) => request<{ on: boolean; readsFiles: boolean }>(`${w(wid)}/planner/ask`),
   ask: (wid: string, question: string, history: { role: 'user' | 'assistant'; text: string }[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/ask`, { question, history }),
@@ -408,8 +410,8 @@ export const plannerApi = {
     send<{ amount: number; deposit: number; validUntil: string; date: string; includes: string; excludes: string; extract: string }>('POST', `${w(wid)}/planner/files/${encodeURIComponent(id)}/read`, {}),
   compare: (wid: string, vendorIds: string[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/compare`, { vendorIds }),
   /** A per-event planning document (e.g. that event's shuttles). */
-  docFor: <T>(wid: string, kind: 'shuttles' | 'seat-rules' | 'checkin' | 'day-checklist', scope: string) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`),
-  doc: <T>(wid: string, kind: 'budget' | 'vendors' | 'checklist' | 'gifts') => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
+  docFor: <T>(wid: string, kind: PlannerKind, scope: string) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`),
+  doc: <T>(wid: string, kind: PlannerKind) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
   searchVendors: (wid: string, category: string, km: number) =>
     request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
 };

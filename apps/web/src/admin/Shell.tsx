@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
 import { THEMES } from '../guest/generated/themes';
 import { coupleName } from '../lib/remember';
@@ -89,7 +89,8 @@ export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'planner', label: 'Wedding planner' }, // the first event's section only (budget, vendors, assistant…)
   { key: 'guests', label: 'Guest planning' }, // guest list, dietary and seating together (GuestPlanningBar)
-  { key: 'party', label: 'Wedding party' },
+  { key: 'party', label: 'Wedding party' }, // the first event's section only (its views open under it)
+  { key: 'day', label: 'Day checklist' }, // every other event (a birthday has no wedding party)
   { key: 'texts', label: 'Texts' },
   { key: 'photos', label: 'Photos' },
   { key: 'pages', label: 'Setup' },
@@ -129,8 +130,19 @@ function SideNav({ mob }: { mob: boolean }) {
   const groups: { key: string; name: string; tabs: readonly { key: TabKey; label: string }[] }[] = [
     { key: ALL_EVENTS, name: 'Account', tabs: ACCOUNT_TABS },
     // Dietary and Seating live inside Guest planning (shown there only where the event uses them).
-    ...(o?.events ?? []).map((e, i) => ({ key: e.key, name: e.name, tabs: i === 0 ? EVENT_TABS : EVENT_TABS.filter((t) => t.key !== 'planner') })),
+    ...(o?.events ?? []).map((e, i) => ({ key: e.key, name: e.name, tabs: EVENT_TABS.filter((t) => (i === 0 ? t.key !== 'day' : t.key !== 'planner' && t.key !== 'party')) })),
   ];
+  const { search } = useLocation();
+  const partyView = tab === 'party' ? (new URLSearchParams(search).get('view') ?? 'overview') : '';
+  const sides = { p1: o?.partySides?.p1 || 'Bride', p2: o?.partySides?.p2 || 'Groom' };
+  /** Wedding party opens into its views: Overview, each side, the run sheet, your checklists. */
+  const partyLinks = [
+    ['overview', 'Overview'],
+    ['p1', `${sides.p1}’s side`],
+    ['p2', `${sides.p2}’s side`],
+    ['runsheet', 'Run sheet'],
+    ['couple', 'Your checklists'],
+  ] as const;
   const current = groups.find((g) => g.key === event) ?? groups[0]!;
   // Sections you've expanded stay expanded (remembered on this device); the one you're in is always open.
   const [openSet, setOpenSet] = useState<Set<string>>(() => {
@@ -158,7 +170,27 @@ function SideNav({ mob }: { mob: boolean }) {
   // Stay on the same kind of page if the section has it (SMS → SMS), else its overview.
   const open = (g: (typeof groups)[number]) => go(path(g.tabs.some((t) => t.key === navKey(tab)) ? tab : 'overview', g.key));
   const ring = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3ecd6]';
-  const tabLink = (t: { key: TabKey; label: string }) => (
+  const tabLink = (t: { key: TabKey; label: string }) =>
+    t.key === 'party' && partyView && !mob ? (
+      <div key={t.key} className="flex flex-col gap-[2px]">
+        {navLink(t)}
+        <div role="group" aria-label="Wedding party" className="flex flex-col gap-[2px] ml-3 pl-2 border-l border-[rgba(243,236,214,.3)]">
+          {partyLinks.map(([v, label]) => (
+            <Link
+              key={v}
+              to={`${path('party')}${v === 'overview' ? '' : `?view=${v}`}`}
+              aria-current={partyView === v ? 'page' : undefined}
+              className={`rounded-[8px] py-[6px] px-3 text-[14px] no-underline ${ring} ${partyView === v ? 'bg-[rgba(243,236,214,.16)] !text-[#f3ecd6] font-semibold' : '!text-[#f3ecd6] opacity-75 hover:opacity-100'}`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    ) : (
+      navLink(t)
+    );
+  const navLink = (t: { key: TabKey; label: string }) => (
     <NavLink
       key={t.key}
       to={path(t.key)}
@@ -181,7 +213,7 @@ function SideNav({ mob }: { mob: boolean }) {
         aria-current={on ? 'true' : undefined}
         onClick={() => open(g)}
         className={`flex-none text-left rounded-[8px] border cursor-pointer font-semibold ${ring} ${mob ? 'py-[6px] px-3 text-[13px]' : 'py-2 px-3 text-[13px] tracking-[.08em] uppercase'} ${
-          on ? 'bg-[var(--adm-soft,#cfd8bb)] text-[var(--adm-ink,#33402f)] border-[var(--adm-soft,#cfd8bb)]' : 'bg-transparent text-[#f3ecd6] border-[rgba(243,236,214,.3)] hover:border-[#f3ecd6]'
+          on ? 'bg-[rgba(243,236,214,.1)] text-[#f3ecd6] border-[var(--adm-soft,#cfd8bb)] shadow-[inset_3px_0_0_var(--adm-soft,#cfd8bb)]' : 'bg-transparent text-[#f3ecd6] border-[rgba(243,236,214,.3)] hover:border-[#f3ecd6]'
         }`}
       >
         {g.name}

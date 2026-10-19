@@ -1,4 +1,4 @@
-import { randomToken, splitDiet, toE164 } from '@wp/shared';
+import { PartySetup, randomToken, splitDiet, toE164 } from '@wp/shared';
 import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { Hono, type Context } from 'hono';
@@ -102,9 +102,18 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (first && (!ov.focus || ov.focus === first.key)) {
       ov.needsYou.push(...(await plannerNeedsYou(c.env.DB, wid(c), { key: first.key, starts_at: first.startsAt }, now, w.timezone).catch(() => [])));
     }
+    // What the wedding party's two sides are called (the menu shows them under Wedding party).
+    const setupRow = await c.env.DB.prepare(`SELECT data FROM planner_doc WHERE wedding_id = ? AND kind = 'party-setup' AND scope = ''`).bind(wid(c)).first<{ data: string }>();
+    let setup = PartySetup.parse({});
+    try {
+      setup = PartySetup.parse(setupRow ? JSON.parse(setupRow.data) : {});
+    } catch {
+      /* the defaults */
+    }
     return c.json({
       wedding: { id: w.id, slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone, adminName: (w.content.adminName as string | undefined) ?? '' },
       ...ov,
+      partySides: { p1: setup.p1, p2: setup.p2 },
     });
   });
 

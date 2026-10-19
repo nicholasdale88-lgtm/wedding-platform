@@ -1,16 +1,29 @@
-import { CHECK_TEMPLATE, PACK_TEMPLATE, PARTY_TEMPLATE, type CheckItem, type DayChecklist, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup } from '@wp/shared';
+import { PACK_TEMPLATE, PARTY_TEMPLATE, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
-import { useDocSave } from '../planner/useDocSave';
-import { useUnsavedChanges } from '../leave';
+import { confirmLeave, useUnsavedChanges } from '../leave';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Pill, useToast } from '../ui';
+import { CoupleChecklists } from './CoupleChecklists';
+import { PartyOverview } from './PartyOverview';
+import { SidePage } from './SidePage';
 
 /**
- * Event → Wedding party: who's in it (roles on guests), the party's own run sheet (more detail than the
- * guests', each item for everyone, one side, or one role), and both partners' on-the-day checklists.
- * Each member opens their run sheet from their own link: /w/<slug>/party?g=…
+ * Wedding → Wedding party, in five views (the menu shows them under Wedding party):
+ * - Overview: both sides at a glance, helpers, the run sheet and your checklists.
+ * - Each side (the bride's, the groom's): its people, what they wear, the hens or bucks, its to-dos.
+ * - Run sheet: the party's own day, more detailed than the guests', each line for everyone, a side or a role.
+ * - Your checklists: each partner's own list from a month out to after the day, and the shared one.
+ * Each member opens their part from their own link: /w/<slug>/party?g=…
  */
+
+export type PartyView = 'overview' | 'p1' | 'p2' | 'runsheet' | 'couple';
+export const PARTY_VIEWS: PartyView[] = ['overview', 'p1', 'p2', 'runsheet', 'couple'];
+/** The menu's name for each view ("Bride's side" uses what the sides are called). */
+export const partyViewLabel = (v: PartyView, sides: { p1: string; p2: string }) =>
+  v === 'overview' ? 'Overview' : v === 'p1' ? `${sides.p1 || 'Bride'}’s side` : v === 'p2' ? `${sides.p2 || 'Groom'}’s side` : v === 'runsheet' ? 'Run sheet' : 'Your checklists';
+export type SideName = (s: 'p1' | 'p2') => string;
 
 const chip = (on: boolean) =>
   `py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${on ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`;
@@ -25,23 +38,26 @@ const minutes = (t: string) => {
   return h * 60 + Number(m[2] ?? 0);
 };
 
+const INTRO: Record<PartyView, string> = {
+  overview: 'Both sides at a glance: who’s in it, what’s done, what’s next.',
+  p1: 'Their people, what they wear, the celebration before the day, and their to-dos.',
+  p2: 'Their people, what they wear, the celebration before the day, and their to-dos.',
+  runsheet: 'The party’s own day, in more detail than the guests’. Each member sees just their lines on their own link.',
+  couple: 'Each of yours from a month out to after the day, and the things you do together. Tick them off on your phone.',
+};
+
 export function Party() {
   const { wid, event } = useAdmin();
   const section = useSectionName();
-  const toast = useToast();
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('view') as PartyView | null;
+  const view: PartyView = asked && PARTY_VIEWS.includes(asked) ? asked : 'overview';
   const [d, setD] = useState<PartyData | null>(null);
   const [error, setError] = useState('');
-  const [sheet, setSheet] = useState<PartyRunsheet | null>(null);
-  const [dirty, setDirty] = useState(false);
-  useUnsavedChanges(dirty);
-  const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const p = await plannerApi.party(wid, event);
-      setD(p);
-      setSheet(p.runsheet?.data ?? null);
-      setDirty(false);
+      setD(await plannerApi.party(wid, event));
       setError('');
     } catch (e) {
       setError((e as Error).message);
@@ -50,8 +66,65 @@ export function Party() {
   useEffect(() => void load(), [load]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!d || !sheet) return <div aria-busy="true" className="text-[#5b6a52]">Loading the wedding party…</div>;
-  const ev = d.events.find((e) => e.key === d.event);
+  if (!d) return <div aria-busy="true" className="text-[#5b6a52]">Loading the wedding party…</div>;
+  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false };
+  const sideName: SideName = (k) => sides[k] || (k === 'p1' ? 'Bride' : 'Groom');
+  const go = (v: PartyView) => {
+    if (v === view || !confirmLeave()) return;
+    const n = new URLSearchParams(params);
+    if (v === 'overview') n.delete('view');
+    else n.set('view', v);
+    setParams(n);
+    window.scrollTo?.({ top: 0 });
+  };
+  const title = view === 'overview' ? 'Wedding party' : partyViewLabel(view, sides);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <header>
+        <Eyebrow>{section} · Wedding party</Eyebrow>
+        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">{title}</h1>
+        <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">
+          {view === 'p1' || view === 'p2' ? `${d.names[view]}’s side. ` : ''}
+          {INTRO[view]}
+        </p>
+      </header>
+      <PartyBar view={view} go={go} sides={sides} />
+      {view === 'overview' && <PartyOverview d={d} setD={setD} sideName={sideName} go={go} />}
+      {(view === 'p1' || view === 'p2') && <SidePage key={view} side={view} d={d} setD={setD} sideName={sideName} go={go} />}
+      {view === 'runsheet' && <RunSheet key={d.runsheet?.version ?? 0} d={d} setD={setD} reload={load} sideName={sideName} />}
+      {view === 'couple' && <CoupleChecklists d={d} sideName={sideName} />}
+    </div>
+  );
+}
+
+/** The five views as a switcher at the top (on a phone it scrolls sideways). */
+function PartyBar({ view, go, sides }: { view: PartyView; go: (v: PartyView) => void; sides: { p1: string; p2: string } }) {
+  return (
+    <nav aria-label="Wedding party" className="flex gap-1 overflow-x-auto [scrollbar-width:none] p-1 rounded-full bg-[#efe7d3] self-start max-w-full">
+      {PARTY_VIEWS.map((v) => (
+        <button
+          key={v}
+          type="button"
+          aria-current={v === view ? 'page' : undefined}
+          onClick={() => go(v)}
+          className={`flex-none whitespace-nowrap py-[7px] px-4 rounded-full border-0 text-[14px] cursor-pointer ${v === view ? 'bg-[#33402f] text-[#f3ecd6] font-medium' : 'bg-transparent text-[#33402f] hover:bg-[#e2d7bc]'}`}
+        >
+          {partyViewLabel(v, sides)}
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+/** The party's run sheet and packing lists: edited here, saved together. */
+function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: PartyData) => void; reload: () => Promise<void>; sideName: SideName }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const [sheet, setSheet] = useState<PartyRunsheet>(d.runsheet?.data ?? { items: [], note: '', packing: [] });
+  const [dirty, setDirty] = useState(false);
+  useUnsavedChanges(dirty);
+  const [saving, setSaving] = useState(false);
 
   const edit = (next: PartyRunsheet) => {
     setSheet(next);
@@ -70,13 +143,11 @@ export function Party() {
       toast('Run sheet saved: the wedding party sees it now');
     } catch (e) {
       toast(e instanceof ApiError && e.status === 409 ? 'Changed elsewhere: reloaded. Make your change again.' : (e as Error).message);
-      if (e instanceof ApiError && e.status === 409) await load();
+      if (e instanceof ApiError && e.status === 409) await reload();
     } finally {
       setSaving(false);
     }
   };
-  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false };
-  const sideName = (k: 'p1' | 'p2') => sides[k] || (k === 'p1' ? 'Bride' : 'Groom');
   // Who an item can be for: everyone, a side, or any role in use (or usual for the day).
   const audiences: [string, string][] = [
     ['party', 'Everyone'],
@@ -104,18 +175,6 @@ export function Party() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <Eyebrow>{section} · Wedding party</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Wedding party</h1>
-        <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">
-          Give guests a role, build the party's own run sheet for {ev?.name ?? 'this event'}, and keep your on-the-day checklists. Each member sees just their parts on their own link.
-        </p>
-      </header>
-
-      <SideNames d={d} onSaved={(setup) => setD({ ...d, setup })} />
-
-      <Members d={d} sideName={sideName} onChange={(members) => setD({ ...d, members })} />
-
       <section aria-label="Run sheet for the wedding party" className="flex flex-col gap-3">
         <div className="flex justify-between items-end gap-3 flex-wrap">
           <div>
@@ -222,13 +281,12 @@ export function Party() {
         </Pill>
       </section>
 
-      {d.event && d.checklist && <Checklists key={d.event} wid={wid} scope={d.event} names={{ p1: `${sideName('p1')} · ${d.names.p1}`, p2: `${sideName('p2')} · ${d.names.p2}` }} initial={d.checklist} />}
     </div>
   );
 }
 
 /** Who's in the wedding party: the two sides side by side, each with its own roles and "add", then helpers. */
-function Members({ d, onChange, sideName }: { d: PartyData; onChange: (m: PartyMember[]) => void; sideName: (s: 'p1' | 'p2') => string }) {
+export function Members({ d, onChange, sideName, only }: { d: PartyData; onChange: (m: PartyMember[]) => void; sideName: SideName; only?: 'p1' | 'p2' | '' }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const [guests, setGuests] = useState<Guest[] | null>(null);
@@ -252,11 +310,11 @@ function Members({ d, onChange, sideName }: { d: PartyData; onChange: (m: PartyM
     { key: 'p1', title: `${sideName('p1')}'s side`, sub: d.names.p1 },
     { key: 'p2', title: `${sideName('p2')}'s side`, sub: d.names.p2 },
     { key: '', title: 'Also helping', sub: 'MC, ushers, readers' },
-  ];
+  ].filter((c) => only === undefined || c.key === only);
   return (
     <section aria-label="Who's in the wedding party" className="flex flex-col gap-3">
-      <H2>Who's in it</H2>
-      <div className="grid gap-4 lg:grid-cols-3">
+      <H2>{only === '' ? 'Also helping' : "Who's in it"}</H2>
+      <div className={`grid gap-4 ${only === undefined ? 'lg:grid-cols-3' : ''}`}>
         {columns.map((col) => {
           const ms = d.members.filter((m) => m.side === col.key);
           const roles = d.roles.filter((r) => r.side === col.key).map((r) => r.role);
@@ -320,7 +378,7 @@ function Members({ d, onChange, sideName }: { d: PartyData; onChange: (m: PartyM
 }
 
 /** What the two sides are called (Bride and Groom unless you change them). */
-function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: PartySetup; version: number }) => void }) {
+export function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: PartySetup; version: number }) => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false };
@@ -391,89 +449,5 @@ function AddToSide({ roles, people, loading, label, onAdd }: { roles: string[]; 
       ))}
       {needle && !loading && !found.length && <span className="text-[12px] text-[#7a7466]">No guest by that name. Add them to your guest list first.</span>}
     </div>
-  );
-}
-
-/** Each partner's own list for the day, ticked off as they go (saved with every tick). */
-function Checklists({ wid, scope, names, initial }: { wid: string; scope: string; names: { p1: string; p2: string }; initial: { data: DayChecklist; version: number } }) {
-  const toast = useToast();
-  const [doc, setDoc] = useState(initial);
-  const saveDoc = useDocSave<DayChecklist>(wid, 'day-checklist', scope, doc.version);
-  const [adding, setAdding] = useState<Record<'p1' | 'p2', string>>({ p1: '', p2: '' });
-  const save = async (data: DayChecklist) => {
-    setDoc((d) => ({ ...d, data })); // show it straight away
-    try {
-      const r = await saveDoc(data);
-      setDoc((d) => ({ ...d, version: r.version })); // keep what's on screen: a later tick may be on its way
-    } catch (e) {
-      const conflict = e instanceof ApiError && e.status === 409;
-      toast(conflict ? 'Changed on another device: here it is now.' : (e as Error).message);
-      // Put back what's really saved (the other device's ticks too).
-      plannerApi.docFor<DayChecklist>(wid, 'day-checklist', scope).then(setDoc, () => undefined);
-    }
-  };
-  const empty = !doc.data.p1.length && !doc.data.p2.length;
-  return (
-    <section aria-label="On-the-day checklists" className="flex flex-col gap-3">
-      <div className="flex justify-between items-end gap-3 flex-wrap">
-        <div>
-          <H2>On the day: your checklists</H2>
-          <div className="text-[13px] text-[#5b6a52]">One each. Tick things off on your phone as you go.</div>
-        </div>
-        {empty && (
-          <Pill kind="dashed" onClick={() => void save(structuredClone(CHECK_TEMPLATE))}>
-            Start with the usual list
-          </Pill>
-        )}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(['p1', 'p2'] as const).map((side) => {
-          const list = doc.data[side];
-          const set = (items: CheckItem[]) => void save({ ...doc.data, [side]: items });
-          const left = list.filter((x) => !x.done).length;
-          return (
-            <div key={side} className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-              <div className="flex justify-between items-baseline">
-                <strong className="font-display text-[22px] font-medium">{names[side]}</strong>
-                <span className="text-[12px] text-[#5b6a52]">{list.length ? (left ? `${left} to go` : 'All done ✓') : ''}</span>
-              </div>
-              {list.map((it, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    checked={it.done}
-                    onChange={() => set(list.map((x, j) => (j === i ? { ...x, done: !x.done } : x)))}
-                    aria-label={it.text}
-                    className="mt-[3px] w-[18px] h-[18px] accent-[#5d6b47] flex-none"
-                  />
-                  <span className={`flex-1 text-[15px] ${it.done ? 'line-through text-[#7a7466]' : ''}`}>
-                    {it.time && <span className="text-[13px] text-[#5b6a52] mr-1">{it.time}</span>}
-                    {it.text}
-                  </span>
-                  <button type="button" aria-label={`Remove ${it.text}`} onClick={() => set(list.filter((_, j) => j !== i))} className="p-0 border-0 bg-transparent cursor-pointer text-[#7a7466] text-[16px]">
-                    ×
-                  </button>
-                </div>
-              ))}
-              <form
-                className="flex gap-2 mt-1"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const text = adding[side].trim();
-                  if (!text) return;
-                  set([...list, { text, time: '', done: false }]);
-                  setAdding({ ...adding, [side]: '' });
-                }}
-              >
-                <input aria-label={`Add to ${names[side]}'s list`} placeholder="Add a thing to do" value={adding[side]} onChange={(e) => setAdding({ ...adding, [side]: e.target.value })} className={`${inputCls} flex-1 min-w-0 !py-2`} />
-                <Pill type="submit" kind="outline">
-                  Add
-                </Pill>
-              </form>
-            </div>
-          );
-        })}
-      </div>
-    </section>
   );
 }

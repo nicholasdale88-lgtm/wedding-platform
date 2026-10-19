@@ -1,5 +1,5 @@
-import { useCallback, useRef } from 'react';
-import { plannerApi } from '../../lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError, plannerApi } from '../../lib/api';
 
 type Kind = Parameters<typeof plannerApi.saveDoc>[1];
 
@@ -28,4 +28,63 @@ export function useDocSave<T>(wid: string, kind: Kind, scope: string, version: n
     },
     [wid, kind, scope, key],
   );
+}
+
+/**
+ * A planner document on screen: loads it, shows each change straight away, and saves a moment after the
+ * last change (typing doesn't send a save per key). A change from another device reloads it with a note.
+ */
+export function useLiveDoc<T>(wid: string, kind: Kind, scope: string, onConflict: (message: string) => void) {
+  const [doc, setDoc] = useState<{ data: T; version: number } | null>(null);
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  const save = useDocSave<T>(wid, kind, scope, doc?.version);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latest = useRef<T | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const d = scope ? await plannerApi.docFor<T>(wid, kind, scope) : await plannerApi.doc<T>(wid, kind);
+      setDoc(d);
+      setError('');
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, [wid, kind, scope]);
+  useEffect(() => {
+    setDoc(null);
+    void load();
+  }, [load]);
+
+  const flush = useCallback(async () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const data = latest.current;
+    if (data === null) return;
+    latest.current = null;
+    try {
+      const r = await save(data);
+      setDoc((d) => (d ? { ...d, version: r.version } : r));
+    } catch (e) {
+      onConflict(e instanceof ApiError && e.status === 409 ? 'Changed on another device: here it is now.' : (e as Error).message);
+      await load();
+    } finally {
+      if (latest.current === null) setPending(false);
+    }
+  }, [save, load]); // eslint-disable-line
+  // Leaving the page saves what's waiting.
+  useEffect(() => () => void flush(), [flush]);
+
+  const set = useCallback(
+    (data: T, now = false) => {
+      setDoc((d) => (d ? { ...d, data } : d));
+      latest.current = data;
+      setPending(true);
+      if (timer.current) clearTimeout(timer.current);
+      if (now) void flush();
+      else timer.current = setTimeout(() => void flush(), 600);
+    },
+    [flush],
+  );
+  return { doc, error, pending, set, reload: load };
 }

@@ -9,6 +9,7 @@ import { Overview } from './Overview';
 import { GuestPages } from './pages/GuestPages';
 import { Dietary } from './diet/Dietary';
 import { Photos } from './photos/Photos';
+import { EventDayChecklist } from './checklists/EventDayChecklist';
 import { Party } from './party/Party';
 import { WeddingPlanner } from './planner/WeddingPlanner';
 import { Seating } from './seating/Seating';
@@ -79,7 +80,7 @@ function OldAddress() {
 
 /** Pages that belong to Account only, or to an event only; the rest (Overview, SMS) exist in both. */
 const ACCOUNT_ONLY = new Set<string>(['messages', 'settings', 'events']);
-const EVENT_ONLY = new Set<string>(['guests', 'dietary', 'seating', 'party', 'photos', 'pages', 'planner']);
+const EVENT_ONLY = new Set<string>(['guests', 'dietary', 'seating', 'party', 'day', 'photos', 'pages', 'planner']);
 /** Budget, Vendors and the assistant were Account pages; they're views of the Wedding planner now. */
 const PLANNER_VIEWS = new Set<string>(['budget', 'vendors', 'assistant']);
 
@@ -111,6 +112,12 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
     return <Navigate to={first ? path(PLANNER_VIEWS.has(tab) ? `planner?view=${tab}` : `planner${search}`, first) : path('overview', ALL_EVENTS)} replace />;
   }
   if (!TABS.some((t) => t.key === tab)) return <Navigate to={path('overview')} replace />;
+  // The wedding has a wedding party (with the couple's checklists); every other event has a day checklist.
+  if (o && o.events[0] && section !== ACCOUNT) {
+    const isWedding = section === o.events[0].key;
+    if (tab === 'party' && !isWedding) return <Navigate to={path('day')} replace />;
+    if (tab === 'day' && isWedding) return <Navigate to={`${path('party')}?view=couple`} replace />;
+  }
   if (section !== ACCOUNT && ACCOUNT_ONLY.has(tab)) return <Navigate to={path(tab, ALL_EVENTS) + search} replace />;
   if (o && section !== ACCOUNT && !o.events.some((e) => e.key === section)) return <Navigate to={path('overview', ALL_EVENTS)} replace />;
   if (section === ACCOUNT && EVENT_ONLY.has(tab)) {
@@ -137,6 +144,8 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
       return <Photos />;
     case 'party':
       return <Party />;
+    case 'day':
+      return <EventDayChecklist />;
     default:
       return <WeddingPlanner />;
   }
