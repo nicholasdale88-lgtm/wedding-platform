@@ -377,6 +377,8 @@ export interface PartyMember {
   role: string;
   side: Side;
   token: string | null;
+  /** Their invitation's mobile ('' when there isn't one), for "Text it". */
+  phone?: string;
 }
 export interface PartyData {
   slug: string;

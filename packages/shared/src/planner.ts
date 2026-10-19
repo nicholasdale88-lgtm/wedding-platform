@@ -85,6 +85,9 @@ export type DayChecklist = z.infer<typeof DayChecklist>;
 export const EventChecklist = z.object({ items: z.array(CheckItem).max(150).default([]) });
 export type EventChecklist = z.infer<typeof EventChecklist>;
 
+/** The document that holds a side's people and to-dos (helpers on neither side have their own). */
+export const sideDoc = (side: Side) => (side === 'p1' ? 'party-p1' : side === 'p2' ? 'party-p2' : 'party-help') as 'party-p1' | 'party-p2' | 'party-help';
+
 /** Progress over a list: how many are done, of how many. */
 export const progressOf = (items: { done: boolean }[]) => ({ done: items.filter((x) => x.done).length, total: items.length });
 
@@ -109,6 +112,10 @@ export const SidePerson = z.object({
   gift: s(120),
   given: z.boolean().default(false),
   notes: s(500),
+  /** What they've packed from the shared lists (by wording), ticked on their own page. */
+  packed: z.array(z.string().max(160)).max(150).default([]),
+  /** Things they added to their own packing list. */
+  pack: z.array(z.object({ text: z.string().max(160), done: z.boolean().default(false) })).max(40).default([]),
 });
 export type SidePerson = z.infer<typeof SidePerson>;
 /** The side's own celebration before the day (the hens or the bucks). */
@@ -140,6 +147,8 @@ export const PartySetup = z.object({
   p2: z.string().max(30).default('Groom'),
   /** "Who's who" on the invitation: the party's names and roles, under the first event. Off until switched on. */
   showOnInvite: z.boolean().default(false),
+  /** Wedding party sign-in, per person id: false pauses that member's page (everyone else can sign in). */
+  access: z.record(z.string().max(40), z.boolean()).default({}),
 });
 export type PartySetup = z.infer<typeof PartySetup>;
 
@@ -540,6 +549,7 @@ export const PLANNER_DOCS = {
   checkin: CheckIn,
   'party-p1': PartySide,
   'party-p2': PartySide,
+  'party-help': PartySide, // helpers (MC, ushers): their own to-dos and packing
   'event-checklist': EventChecklist,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

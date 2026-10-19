@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { THEMES } from '../generated/themes';
 import { GuestMessage } from '../GuestMessage';
-import { guestApi, type PartyPayload } from '../invitation/api';
+import { guestApi, type PartyAct, type PartyMine, type PartyPayload } from '../invitation/api';
 
 /**
  * /w/:slug/party?g=<token>: a wedding party member's own run sheet. Only the lines meant for them (the
@@ -30,40 +30,113 @@ const at = (day: string, t: string) => {
   return d.getTime();
 };
 
-/** Their own packing list, ticked off on this phone (remembered here, nowhere else). */
-function Packing({ slug, event, items, gold }: { slug: string; event: string; items: { text: string }[]; gold: string }) {
-  const key = `wp.pack.${slug}.${event}`;
-  const [done, setDone] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, boolean>;
-    } catch {
-      return {};
-    }
-  });
-  const toggle = (t: string) =>
-    setDone((cur) => {
-      const next = { ...cur, [t]: !cur[t] };
-      try {
-        localStorage.setItem(key, JSON.stringify(next));
-      } catch {
-        /* this visit only */
-      }
-      return next;
-    });
-  const left = items.filter((i) => !done[i.text]).length;
+type Act = (body: Omit<PartyAct, 'token'>, apply: (m: PartyMine) => PartyMine) => void;
+
+/** Their packing list: the couple's list for them plus anything they add, ticked off and saved for them. */
+function Packing({ items, me, act, gold }: { items: { text: string }[]; me: PartyMine; act: Act; gold: string }) {
+  const [adding, setAdding] = useState('');
+  const shared = items.map((i) => ({ text: i.text, done: me.packed.includes(i.text), own: false }));
+  const all = [...shared, ...me.pack.map((p) => ({ ...p, own: true }))];
+  const left = all.filter((i) => !i.done).length;
   return (
     <div className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
       <div className="flex justify-between items-baseline">
         <h3 className="m-0 font-normal text-[26px]">What to pack</h3>
-        <span className="text-[15px] italic opacity-75">{left ? `${left} to go` : 'All packed ✓'}</span>
+        <span className="text-[15px] italic opacity-75">{all.length ? (left ? `${left} to go` : 'All packed ✓') : ''}</span>
       </div>
-      {items.map((i) => (
-        <label key={i.text} className="flex items-start gap-3 text-[19px] leading-[1.3] cursor-pointer">
-          <input type="checkbox" checked={!!done[i.text]} onChange={() => toggle(i.text)} className="mt-[5px] w-[20px] h-[20px] flex-none" style={{ accentColor: gold }} />
-          <span style={done[i.text] ? { textDecoration: 'line-through', opacity: 0.55 } : undefined}>{i.text}</span>
-        </label>
+      {all.map((i) => (
+        <div key={`${i.own ? 'o' : 's'}-${i.text}`} className="flex items-start gap-3 text-[19px] leading-[1.3]">
+          <input
+            type="checkbox"
+            aria-label={i.text}
+            checked={i.done}
+            onChange={() =>
+              i.own
+                ? act({ personId: me.personId, action: 'own-pack', text: i.text, done: !i.done }, (m) => ({ ...m, pack: m.pack.map((x) => (x.text === i.text ? { ...x, done: !i.done } : x)) }))
+                : act({ personId: me.personId, action: 'packed', text: i.text, done: !i.done }, (m) => ({ ...m, packed: i.done ? m.packed.filter((x) => x !== i.text) : [...m.packed, i.text] }))
+            }
+            className="mt-[5px] w-[20px] h-[20px] flex-none cursor-pointer"
+            style={{ accentColor: gold }}
+          />
+          <span className="flex-1" style={i.done ? { textDecoration: 'line-through', opacity: 0.55 } : undefined}>
+            {i.text}
+          </span>
+          {i.own && (
+            <button type="button" aria-label={`Remove ${i.text}`} onClick={() => act({ personId: me.personId, action: 'remove-pack', text: i.text }, (m) => ({ ...m, pack: m.pack.filter((x) => x.text !== i.text) }))} className="p-0 border-0 bg-transparent cursor-pointer opacity-60 text-[20px]">
+              ×
+            </button>
+          )}
+        </div>
       ))}
+      <form
+        className="flex gap-2 mt-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const text = adding.trim();
+          if (!text || all.some((x) => x.text === text)) return;
+          act({ personId: me.personId, action: 'add-pack', text }, (m) => ({ ...m, pack: [...m.pack, { text, done: false }] }));
+          setAdding('');
+        }}
+      >
+        <input aria-label="Add something to pack" placeholder="Add something to pack" value={adding} maxLength={160} onChange={(e) => setAdding(e.target.value)} className="flex-1 min-w-0 py-2 px-3 rounded-[10px] border bg-white text-[17px]" style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+        <button type="submit" className="py-2 px-4 rounded-full border-0 text-[16px] cursor-pointer text-white" style={{ background: '#33402f' }}>
+          Add
+        </button>
+      </form>
     </div>
+  );
+}
+
+/** Their to-dos before the day: their own and their side's, ticked off here (the couple sees it). They can add their own. */
+function Todos({ me, act, gold, many }: { me: PartyMine; act: Act; gold: string; many: boolean }) {
+  const [adding, setAdding] = useState('');
+  const left = me.tasks.filter((t) => !t.done).length;
+  const fmt = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '');
+  return (
+    <section aria-label={`${first(me.name)}’s to-dos`} className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
+      <div className="flex justify-between items-baseline">
+        <h2 className="m-0 font-normal text-[28px]">{many ? `${first(me.name)}’s to-dos` : 'Your to-dos'}</h2>
+        <span className="text-[15px] italic opacity-75">{me.tasks.length ? (left ? `${left} to go` : 'All done ✓') : ''}</span>
+      </div>
+      {me.tasks.map((t) => (
+        <div key={t.id} className="flex items-start gap-3 text-[19px] leading-[1.3]">
+          <input
+            type="checkbox"
+            aria-label={t.text}
+            checked={t.done}
+            onChange={() => act({ personId: me.personId, action: 'task', id: t.id, done: !t.done }, (m) => ({ ...m, tasks: m.tasks.map((x) => (x.id === t.id ? { ...x, done: !t.done } : x)) }))}
+            className="mt-[5px] w-[20px] h-[20px] flex-none cursor-pointer"
+            style={{ accentColor: gold }}
+          />
+          <span className="flex-1" style={t.done ? { textDecoration: 'line-through', opacity: 0.55 } : undefined}>
+            {t.text}
+            {t.due && <span className="ml-2 text-[15px] italic opacity-75">by {fmt(t.due)}</span>}
+          </span>
+          {t.mine && (
+            <button type="button" aria-label={`Remove ${t.text}`} onClick={() => act({ personId: me.personId, action: 'remove-task', id: t.id }, (m) => ({ ...m, tasks: m.tasks.filter((x) => x.id !== t.id) }))} className="p-0 border-0 bg-transparent cursor-pointer opacity-60 text-[20px]">
+              ×
+            </button>
+          )}
+        </div>
+      ))}
+      {!me.tasks.length && <p className="m-0 italic opacity-75">Nothing yet. Add your own below.</p>}
+      <form
+        className="flex gap-2 mt-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const text = adding.trim();
+          if (!text) return;
+          // Added for real once saved (it needs its id from the couple's plan): the page reloads its lists.
+          act({ personId: me.personId, action: 'add-task', text }, (m) => ({ ...m, tasks: [...m.tasks, { id: `new-${Date.now()}`, text, due: '', done: false, mine: true }] }));
+          setAdding('');
+        }}
+      >
+        <input aria-label="Add a to-do" placeholder="Add a to-do" value={adding} maxLength={160} onChange={(e) => setAdding(e.target.value)} className="flex-1 min-w-0 py-2 px-3 rounded-[10px] border bg-white text-[17px]" style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+        <button type="submit" className="py-2 px-4 rounded-full border-0 text-[16px] cursor-pointer text-white" style={{ background: '#33402f' }}>
+          Add
+        </button>
+      </form>
+    </section>
   );
 }
 
@@ -143,12 +216,19 @@ export function PartyPage() {
   const [data, setData] = useState<PartyPayload | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(() => Date.now());
+  const [mine, setMine] = useState<PartyMine[]>([]);
+  const [note, setNote] = useState('');
 
-  useEffect(() => {
+  const load = () =>
     guestApi
       .party(slug, token)
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        setMine(d.mine ?? []);
+      })
       .catch((e: Error) => setErr(e.message));
+  useEffect(() => {
+    void load();
     const t = setInterval(() => setNow(Date.now()), 60_000);
     return () => clearInterval(t);
   }, [slug, token]);
@@ -158,6 +238,21 @@ export function PartyPage() {
 
   if (err) return <GuestMessage message={err} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
+  /** Shows the change straight away, saves it, and puts it back (with a note) if it didn't save. */
+  const act: Act = (body, apply) => {
+    const before = mine;
+    setMine((ms) => ms.map((m) => (m.personId === body.personId ? apply(m) : m)));
+    setNote('');
+    guestApi
+      .partyAct(slug, { ...body, token })
+      .then(() => {
+        if (body.action === 'add-task') void load(); // its real id
+      })
+      .catch((e: Error) => {
+        setMine(before);
+        setNote(e.message);
+      });
+  };
   const theme = THEMES[data.theme] ?? {};
   const ink = '#33402f';
   const gold = theme.acc ?? '#b39563';
@@ -189,6 +284,15 @@ export function PartyPage() {
         </header>
 
         <NowNext data={data} now={now} gold={gold} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
+
+        {note && (
+          <p role="alert" className="m-0 p-3 rounded-[12px] text-[17px]" style={{ background: '#f4dcd2', color: '#7a4a37' }}>
+            {note}
+          </p>
+        )}
+        {mine.map((m) => (
+          <Todos key={m.personId} me={m} act={act} gold={gold} many={mine.length > 1} />
+        ))}
 
         {data.events.map((e) => {
           const times = e.items.map((it) => at(e.startsAt, it.time));
@@ -222,7 +326,7 @@ export function PartyPage() {
                 ))}
               </ol>
               {!e.items.length && <p className="m-0 text-center italic opacity-75">The run sheet for this one is coming.</p>}
-              {!!e.packing?.length && <Packing slug={slug} event={e.key} items={e.packing} gold={gold} />}
+              {mine[0] && (!!e.packing?.length || mine[0].pack.length > 0) && <Packing items={e.packing ?? []} me={mine[0]} act={act} gold={gold} />}
             </section>
           );
         })}

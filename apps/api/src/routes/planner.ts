@@ -1,4 +1,4 @@
-import { commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PLANNER_DOCS, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
+import { commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -36,12 +36,31 @@ async function readDoc<K extends PlannerKind>(db: D1Database, weddingId: string,
 async function members(db: D1Database, weddingId: string) {
   const { results } = await db
     .prepare(
-      `SELECT p.id, p.invitation_id, p.name, p.party_role FROM person p JOIN invitation i ON i.id = p.invitation_id
+      `SELECT p.id, p.invitation_id, p.name, p.party_role, i.phone FROM person p JOIN invitation i ON i.id = p.invitation_id
         WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND p.party_role != '' ORDER BY p.party_role, p.name`,
     )
     .bind(weddingId)
-    .all<{ id: string; invitation_id: string; name: string; party_role: string }>();
-  return results.map((r) => ({ personId: r.id, invitationId: r.invitation_id, name: r.name, role: r.party_role, side: sideOf(r.party_role) }));
+    .all<{ id: string; invitation_id: string; name: string; party_role: string; phone: string | null }>();
+  return results.map((r) => ({ personId: r.id, invitationId: r.invitation_id, name: r.name, role: r.party_role, side: sideOf(r.party_role), phone: r.phone ?? '' }));
+}
+
+/** Change one side's document on behalf of a member (read, change, save only if no one saved in between; retried). */
+async function changeSide(db: D1Database, weddingId: string, kind: 'party-p1' | 'party-p2' | 'party-help', fn: (d: PartySide) => void): Promise<boolean> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const cur = await readDoc(db, weddingId, kind, '');
+    const next = structuredClone(cur.data);
+    fn(next);
+    const parsed = PartySide.safeParse(next);
+    if (!parsed.success) return false;
+    const data = JSON.stringify(parsed.data);
+    const now = new Date().toISOString();
+    const res =
+      cur.version === 0
+        ? await db.prepare(`INSERT INTO planner_doc (wedding_id, kind, scope, data, version, updated_at) VALUES (?, ?, '', ?, 1, ?) ON CONFLICT DO NOTHING`).bind(weddingId, kind, data, now).run()
+        : await db.prepare(`UPDATE planner_doc SET data = ?, version = version + 1, updated_at = ? WHERE wedding_id = ? AND kind = ? AND scope = '' AND version = ?`).bind(data, now, weddingId, kind, cur.version).run();
+    if (res.meta.changes) return true;
+  }
+  return false;
 }
 
 /**
@@ -510,8 +529,12 @@ export function partyGuestRoutes() {
     const w = await db.prepare(`SELECT id, name1, name2, theme FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string; name1: string; name2: string; theme: string }>();
     const inv = w && isToken(token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>() : null;
     if (!w || !inv) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
-    const { results: mine } = await db.prepare(`SELECT name, party_role FROM person WHERE invitation_id = ? AND deleted_at IS NULL AND party_role != '' ORDER BY idx`).bind(inv.id).all<{ name: string; party_role: string }>();
-    if (!mine.length) return c.json({ error: { code: 'not_party', message: 'This page is for the wedding party.' } }, 404);
+    const setupDoc = (await readDoc(db, w.id, 'party-setup', '')).data;
+    const { results: everyone } = await db.prepare(`SELECT id, name, party_role FROM person WHERE invitation_id = ? AND deleted_at IS NULL AND party_role != '' ORDER BY idx`).bind(inv.id).all<{ id: string; name: string; party_role: string }>();
+    if (!everyone.length) return c.json({ error: { code: 'not_party', message: 'This page is for the wedding party.' } }, 404);
+    // The couple can pause a member's page (Setup → Wedding party access).
+    const mine = everyone.filter((m) => setupDoc.access[m.id] !== false);
+    if (!mine.length) return c.json({ error: { code: 'paused', message: 'This page is paused for now. The couple will let you know when it’s back.' } }, 403);
     const { results: events } = await db
       .prepare(`SELECT e.key, e.name, e.starts_at FROM event e JOIN invite_event ie ON ie.event_id = e.id AND ie.invitation_id = ? WHERE e.deleted_at IS NULL ORDER BY e.sort`)
       .bind(inv.id)
@@ -528,8 +551,24 @@ export function partyGuestRoutes() {
       if (items.length || doc.data.note || packing.length) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: doc.data.note, items, packing });
     }
     const crew = await members(db, w.id);
-    const setup = (await readDoc(db, w.id, 'party-setup', '')).data;
+    const setup = setupDoc;
+    // Each member's own to-dos (theirs and their whole side's) and packing ticks, kept with their side.
+    const own = [];
+    for (const m of mine) {
+      const side = sideOf(m.party_role);
+      const doc = (await readDoc(db, w.id, sideDoc(side), '')).data;
+      const p = doc.people[m.id];
+      own.push({
+        personId: m.id,
+        name: m.name,
+        role: m.party_role,
+        tasks: doc.tasks.filter((t) => t.person === m.id || (!t.person && side)).map((t) => ({ id: t.id, text: t.text, due: t.due, done: t.done, mine: t.person === m.id })),
+        packed: p?.packed ?? [],
+        pack: p?.pack ?? [],
+      });
+    }
     return c.json({
+      mine: own,
       couple: `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}`,
       sides: setup,
       names: { p1: w.name1.split(' ')[0] ?? '', p2: w.name2.split(' ')[0] ?? '' },
@@ -539,6 +578,83 @@ export function partyGuestRoutes() {
       party: crew.map((m) => ({ name: m.name, role: m.role, side: m.side })),
       events: out,
     });
+  });
+
+  /** A member ticks or adds their own things: a to-do, a packing item, or one of the shared packing list. */
+  const Act = z
+    .object({
+      token: z.string(),
+      personId: z.string().max(40),
+      action: z.enum(['task', 'add-task', 'remove-task', 'packed', 'add-pack', 'own-pack', 'remove-pack']),
+      id: z.string().max(40).optional(),
+      text: z.string().trim().min(1).max(160).optional(),
+      done: z.boolean().optional(),
+    })
+    .strict();
+  app.post('/', async (c) => {
+    const body = Act.safeParse(await readJson(c.req.raw));
+    if (!body.success) return c.json({ error: { code: 'invalid', message: 'That didn’t save. Please try again.' } }, 400);
+    const a = body.data;
+    const db = c.env.DB;
+    const w = await db.prepare(`SELECT id FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string }>();
+    const inv = w && isToken(a.token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(a.token, w.id).first<{ id: string }>() : null;
+    if (!w || !inv) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
+    if (!(await allow(db, `party-act:${inv.id}`, 240, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a minute.' } }, 429);
+    const me = await db.prepare(`SELECT id, party_role FROM person WHERE id = ? AND invitation_id = ? AND deleted_at IS NULL AND party_role != ''`).bind(a.personId, inv.id).first<{ id: string; party_role: string }>();
+    const setup = (await readDoc(db, w.id, 'party-setup', '')).data;
+    if (!me || setup.access[me.id] === false) return c.json({ error: { code: 'not_party', message: 'This page is for the wedding party.' } }, 403);
+    const side = sideOf(me.party_role);
+    const person = (d: PartySide) => (d.people[me.id] ??= { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '', packed: [], pack: [] });
+    let ok = true;
+    const saved = await changeSide(db, w.id, sideDoc(side), (d) => {
+      switch (a.action) {
+        case 'task': {
+          // Their own to-dos, or their whole side's.
+          const t = d.tasks.find((x) => x.id === a.id && (x.person === me.id || (!x.person && side)));
+          if (t) t.done = !!a.done;
+          else ok = false;
+          break;
+        }
+        case 'add-task':
+          if (!a.text || d.tasks.length >= 80) ok = false;
+          else d.tasks.push({ id: crypto.randomUUID().slice(0, 10), text: a.text, person: me.id, due: '', done: false });
+          break;
+        case 'remove-task': {
+          const n = d.tasks.length;
+          d.tasks = d.tasks.filter((x) => !(x.id === a.id && x.person === me.id)); // only ones they added for themselves
+          ok = d.tasks.length < n;
+          break;
+        }
+        case 'packed': {
+          if (!a.text) ok = false;
+          else {
+            const p = person(d);
+            p.packed = a.done ? [...new Set([...p.packed, a.text])] : p.packed.filter((x) => x !== a.text);
+          }
+          break;
+        }
+        case 'add-pack': {
+          const p = person(d);
+          if (!a.text || p.pack.length >= 40) ok = false;
+          else p.pack.push({ text: a.text, done: false });
+          break;
+        }
+        case 'own-pack': {
+          const it = person(d).pack.find((x) => x.text === a.text);
+          if (it) it.done = !!a.done;
+          else ok = false;
+          break;
+        }
+        case 'remove-pack': {
+          const p = person(d);
+          p.pack = p.pack.filter((x) => x.text !== a.text);
+          break;
+        }
+      }
+    });
+    if (!ok) return c.json({ error: { code: 'not_found', message: 'That one’s not on your list any more. Refresh the page.' } }, 404);
+    if (!saved) return c.json({ error: { code: 'busy', message: 'Busy right now. Please try again.' } }, 409);
+    return c.json({ ok: true });
   });
   return app;
 }

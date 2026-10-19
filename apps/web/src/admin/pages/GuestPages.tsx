@@ -8,6 +8,7 @@ import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
 import { Events } from '../events/Events';
+import { PartyAccess } from '../party/PartyAccess';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
 import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
@@ -19,7 +20,7 @@ import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
  */
 
 type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts'>;
-type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | `guide:${string}`;
+type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | 'party' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
 const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s));
@@ -147,6 +148,7 @@ export function GuestPages() {
     list.push({ key: 'details', label: 'Details' }, { key: 'timeline', label: 'Timeline' });
     if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
     list.push({ key: 'photos', label: 'Photo page' });
+    if (data.events.indexOf(ev) === 0) list.push({ key: 'party', label: 'Wedding party access' });
     return list;
   }, [data, doc, chosen]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
@@ -275,7 +277,9 @@ export function GuestPages() {
         </Label>
       </div>
 
-      {wide ? (
+      {page === 'party' ? (
+        <PartyAccess />
+      ) : wide ? (
         <div className={`grid ${device === 'phone' ? 'grid-cols-[minmax(0,1fr)_420px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]'} gap-8 items-start`}>
           {editor}
           {preview}

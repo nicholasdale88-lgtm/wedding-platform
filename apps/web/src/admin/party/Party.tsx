@@ -67,7 +67,7 @@ export function Party() {
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!d) return <div aria-busy="true" className="text-[#5b6a52]">Loading the wedding party…</div>;
-  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false };
+  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {} };
   const sideName: SideName = (k) => sides[k] || (k === 'p1' ? 'Bride' : 'Groom');
   const go = (v: PartyView) => {
     if (v === view || !confirmLeave()) return;
@@ -306,11 +306,12 @@ export function Members({ d, onChange, sideName, only }: { d: PartyData; onChang
   };
   const inParty = new Set(d.members.map((m) => m.personId));
   const people = useMemo(() => (guests ?? []).flatMap((g) => g.people.map((p) => ({ id: p.id, name: p.name }))), [guests]);
-  const columns: { key: 'p1' | 'p2' | ''; title: string; sub: string }[] = [
+  const all: { key: 'p1' | 'p2' | ''; title: string; sub: string }[] = [
     { key: 'p1', title: `${sideName('p1')}'s side`, sub: d.names.p1 },
     { key: 'p2', title: `${sideName('p2')}'s side`, sub: d.names.p2 },
     { key: '', title: 'Also helping', sub: 'MC, ushers, readers' },
-  ].filter((c) => only === undefined || c.key === only);
+  ];
+  const columns = all.filter((c) => only === undefined || c.key === only);
   return (
     <section aria-label="Who's in the wedding party" className="flex flex-col gap-3">
       <H2>{only === '' ? 'Also helping' : "Who's in it"}</H2>
@@ -381,7 +382,7 @@ export function Members({ d, onChange, sideName, only }: { d: PartyData; onChang
 export function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: PartySetup; version: number }) => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
-  const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false };
+  const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {} };
   const save = async (next: PartySetup) => {
     if (next.p1 === cur.p1 && next.p2 === cur.p2 && next.showOnInvite === cur.showOnInvite) return;
     try {

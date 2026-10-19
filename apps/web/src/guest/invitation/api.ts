@@ -112,6 +112,8 @@ export const guestApi = {
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
   /** A wedding party member's own run sheet (needs their own link). */
   party: (slug: string, token: string) => call<PartyPayload>(`/p/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`),
+  /** A party member ticks or adds their own things (saved with the couple's plan). */
+  partyAct: (slug: string, body: PartyAct) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/party`, { method: 'POST', body: JSON.stringify(body) }),
   /** Shuttle runs for their events, seats left, and theirs. */
   shuttles: (slug: string, token: string) => call<ShuttlePayload>(`/p/${encodeURIComponent(slug)}/shuttles?g=${encodeURIComponent(token)}`),
   bookShuttle: (slug: string, token: string, shuttleId: string, seats: number) =>
@@ -158,7 +160,26 @@ export interface ShuttlePayload {
   party: number;
   events: { key: string; name: string; startsAt: string; runs: { id: string; time: string; from: string; to: string; note: string; left: number; mine: number }[] }[];
 }
+export interface PartyAct {
+  token: string;
+  personId: string;
+  action: 'task' | 'add-task' | 'remove-task' | 'packed' | 'add-pack' | 'own-pack' | 'remove-pack';
+  id?: string;
+  text?: string;
+  done?: boolean;
+}
+export interface PartyMine {
+  personId: string;
+  name: string;
+  role: string;
+  tasks: { id: string; text: string; due: string; done: boolean; mine: boolean }[];
+  packed: string[];
+  pack: { text: string; done: boolean }[];
+}
+
 export interface PartyPayload {
+  /** Each member on this link: their to-dos and what they've packed. */
+  mine?: PartyMine[];
   couple: string;
   names: { p1: string; p2: string };
   theme: string;

@@ -10,7 +10,7 @@ import { H2, inputCls, Pill, useToast } from '../ui';
 import { Members, type PartyView, type SideName } from './Party';
 
 const newId = () => crypto.randomUUID().slice(0, 10);
-const BLANK_PERSON: SidePerson = { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '' };
+const BLANK_PERSON: SidePerson = { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '', packed: [], pack: [] };
 const card = 'flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]';
 const shortDate = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '');
 

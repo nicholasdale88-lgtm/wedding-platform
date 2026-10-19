@@ -58,6 +58,33 @@ describe('planner: wedding party', () => {
     expect(JSON.stringify(mc)).not.toMatch(/token|phone/); // names and roles only
   });
 
+  it('party members tick and add their own to-dos and packing (saved with their side); a paused member is turned away', async () => {
+    const ella = await personOf('Ella Thompson');
+    await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });
+    await call('/doc/party-p1', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ tasks: [{ id: 't1', text: 'Order dresses', person: '', due: '', done: false }, { id: 't2', text: 'Not hers', person: 'someone-else', due: '', done: false }] }) });
+    const act = (body: object) => app.request('/api/p/sophie-and-nicholas/party', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: ella.token, personId: ella.id, ...body }) }, env, ctx);
+    type Mine = { mine: { tasks: { id: string; text: string; done: boolean; mine: boolean }[]; packed: string[]; pack: { text: string }[] }[] };
+    const first = (await (await page(ella.token)).json()) as Mine;
+    expect(first.mine[0]!.tasks.map((t) => t.id)).toEqual(['t1']); // the side's, not someone else's
+    expect((await act({ action: 'task', id: 't1', done: true })).status).toBe(200);
+    expect((await act({ action: 'task', id: 't2', done: true })).status).toBe(404);
+    expect((await act({ action: 'add-task', text: 'Book my spray tan' })).status).toBe(200);
+    expect((await act({ action: 'packed', text: 'Charger', done: true })).status).toBe(200);
+    expect((await act({ action: 'add-pack', text: 'Hair ties' })).status).toBe(200);
+    const after = ((await (await page(ella.token)).json()) as Mine).mine[0]!;
+    expect(after.tasks.find((t) => t.id === 't1')!.done).toBe(true);
+    expect(after.tasks.find((t) => t.text === 'Book my spray tan')!.mine).toBe(true);
+    expect(after.packed).toEqual(['Charger']);
+    expect(after.pack.map((p) => p.text)).toEqual(['Hair ties']);
+    // The couple sees it on the side's page.
+    const side = (await (await call('/doc/party-p1')).json()) as { data: { tasks: { text: string; person: string }[] } };
+    expect(side.data.tasks.find((t) => t.text === 'Book my spray tan')!.person).toBe(ella.id);
+    // Paused in Setup → Wedding party access.
+    await call('/doc/party-setup', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ access: { [ella.id]: false } }) });
+    expect((await page(ella.token)).status).toBe(403);
+    expect((await act({ action: 'task', id: 't1', done: false })).status).toBe(403);
+  });
+
   it("who's who shows on guests' invitations only once switched on, by role, names and roles only", async () => {
     const ella = await personOf('Ella Thompson');
     const ann = await personOf('Margaret Bloor');
