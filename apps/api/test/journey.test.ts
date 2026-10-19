@@ -155,7 +155,7 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     await api(`/a/w/${wid}/texts/${night.id}`, { method: 'PATCH', headers: { 'If-Match': String(night.version) }, body: JSON.stringify({ body: 'Hi {first}, see you tomorrow at table {table}!' }) });
     at('2027-11-17T17:05');
     await tick();
-    expect(to(A).at(-1)!.message).toMatch(/^Hi Ann & Andy, see you tomorrow at table 1!/);
+    expect(to(A).at(-1)!.message).toMatch(/^Hi Ann and Andy, see you tomorrow at table 1!/);
     expect(to(B).some((m) => /tomorrow/.test(m.message))).toBe(false);
 
     // 9. A removed guest is never texted again.
