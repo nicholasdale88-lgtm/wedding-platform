@@ -10,6 +10,10 @@ import type { Snapshot as SeatSnapshot } from './seating';
 import { imageType } from '../lib/images';
 import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
 import { forecastFor } from '../lib/weather';
+import { canStore, storePhoto } from '../photos/store';
+
+/** The site's own photo storage per wedding: inside R2's free 10 GB. */
+const ALBUM_BYTES = 9 * 1024 ** 3;
 
 /**
  * Guest-facing API (/api/p/:slug/...). No sign-in: the private link token identifies the invitation.
@@ -18,7 +22,7 @@ import { forecastFor } from '../lib/weather';
 
 type GEnv = { Bindings: Env };
 type C = Context<GEnv>;
-const err = (c: C, status: 400 | 404 | 413 | 415 | 429 | 503, code: string, message: string) => c.json({ error: { code, message } }, status);
+const err = (c: C, status: 400 | 404 | 413 | 415 | 429 | 502 | 503, code: string, message: string) => c.json({ error: { code, message } }, status);
 const json = <T>(s: string | null | undefined, fallback: T): T => {
   try {
     return s ? (JSON.parse(s) as T) : fallback;
@@ -273,7 +277,7 @@ export function guestRoutes() {
       images: imagesOf(content),
       name: who?.name ?? '',
       linked: !!who,
-      open: !!c.env.MEDIA && !!who,
+      open: !!who && (await canStore(c.env, w.id)),
       texts: textsFor('ph', (content.texts as Record<string, string> | undefined) ?? {}, null),
     });
   });
@@ -289,8 +293,15 @@ export function guestRoutes() {
     const db = c.env.DB;
     const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
     if (!inv) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
-    if (!c.env.MEDIA) return err(c, 503, 'closed', 'Photo uploads are not open yet.');
-    if (!(await allow(db, `photo:${inv.id}`, 300, 3_600_000))) return err(c, 429, 'slow_down', 'That is a lot of photos at once. Please wait a little and try again.');
+    if (!(await canStore(c.env, w.id))) return err(c, 503, 'closed', 'Photo uploads are not open yet.');
+    if (!(await allow(db, `photo:${inv.id}`, 150, 3_600_000)) || !(await allow(db, `photo-day:${inv.id}`, 600, 86_400_000))) {
+      return err(c, 429, 'slow_down', 'That is a lot of photos at once. Please wait a little and try again.');
+    }
+    // The site's own storage stays inside its free 10 GB (photos kept in the couple's linked storage don't count).
+    if (c.env.MEDIA) {
+      const used = await db.prepare(`SELECT COALESCE(SUM(bytes), 0) AS n FROM media WHERE wedding_id = ? AND deleted_at IS NULL AND key NOT LIKE 'link:%'`).bind(w.id).first<{ n: number }>();
+      if ((used?.n ?? 0) > ALBUM_BYTES) return err(c, 503, 'full', 'The album is full for now. The couple has been told.');
+    }
     const bytes = await readBytes(c.req.raw, MAX_PHOTO);
     if (!bytes) return err(c, 413, 'too_large', 'That photo is too large.');
     const kind = imageType(bytes);
@@ -303,14 +314,9 @@ export function guestRoutes() {
     }
     const evKey = c.req.query('event') ?? '';
     const ev = evKey ? (await eventsOf(db, w.id)).find((e) => e.key === evKey) : undefined;
-    const id = crypto.randomUUID();
-    const key = `w/${w.id}/photos/${id}.${kind.ext}`;
-    await c.env.MEDIA.put(key, bytes, { httpMetadata: { contentType: kind.type } });
-    await db
-      .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key) VALUES (?, ?, 'photo', ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, w.id, key, kind.type, bytes.byteLength, by || null, inv.id, new Date().toISOString(), ev?.key ?? null)
-      .run();
-    return c.json({ ok: true, id });
+    const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv.id, eventKey: ev?.key ?? null });
+    if (!r.ok) return err(c, r.status, 'not_saved', r.message);
+    return c.json({ ok: true, id: r.id });
   });
 
   /**

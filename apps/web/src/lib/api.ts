@@ -331,6 +331,32 @@ export interface PhotosData {
   enabled: boolean;
   items: { id: string; by: string; at: string; bytes: number; type: string; url: string; event?: string | null }[];
 }
+export interface PhotoLink {
+  id: string;
+  provider: 'gdrive' | 'gphotos' | 'dropbox' | 'onedrive';
+  name: string;
+  account: string;
+  ok: boolean;
+  problem: string | null;
+  copied: number;
+  waiting: number;
+  failed: number;
+  since: string;
+}
+export interface PhotoLinks {
+  siteStorage: boolean;
+  redirectUri: string;
+  providers: { key: PhotoLink['provider']; name: string; ready: boolean }[];
+  links: PhotoLink[];
+}
+/** Linked photo storage: the couple's own Google Drive, Google Photos, Dropbox or OneDrive. */
+export const photoLinksApi = {
+  get: (wid: string) => request<PhotoLinks>(`${w(wid)}/photo-links`),
+  connect: (wid: string, provider: PhotoLink['provider']) => send<{ url: string }>('POST', `${w(wid)}/photo-links/connect`, { provider }),
+  remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photo-links/${id}`),
+  copyAll: (wid: string, id: string) => send<{ ok: true; queued: number }>('POST', `${w(wid)}/photo-links/${id}/copy-all`),
+};
+
 export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),

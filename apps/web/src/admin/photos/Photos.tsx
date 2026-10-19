@@ -5,6 +5,7 @@ import { fmtWhen } from '../../lib/format';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, Pill, useToast } from '../ui';
 import { ChatImport } from './ChatImport';
+import { PhotoLinksPanel } from './PhotoLinks';
 
 /**
  * Admin → Photos (design: isPhotos): the album guests built. Filter by who took them, select and
@@ -109,13 +110,15 @@ export function Photos() {
         </div>
       </header>
 
+      <PhotoLinksPanel onChanged={() => void load()} />
+
       {data.enabled && (
-        <ChatImport wid={wid} events={(overview?.events ?? []).map((e) => ({ key: e.key, name: e.name }))} event={one ? chosen : undefined} onDone={() => void load()} />
+        <ChatImport key={chosen} wid={wid} events={(overview?.events ?? []).map((e) => ({ key: e.key, name: e.name }))} event={one ? chosen : undefined} onDone={() => void load()} />
       )}
 
       {!data.enabled && (
         <div className="p-5 rounded-[14px] bg-[#f1e7c9] text-[15px]">
-          <strong className="font-semibold">Photo storage isn't switched on yet.</strong> In your Cloudflare dashboard, open <em>R2 Object Storage</em> and choose <em>Enable</em> (free up to 10 GB; Cloudflare asks for a card on file). The next deploy connects it, and guests can start adding photos.
+          <strong className="font-semibold">Guests can't add photos yet.</strong> Link your Google Drive, Google Photos, Dropbox or OneDrive above (free), or switch on this site's own photo storage (Cloudflare R2, free up to 10 GB, needs a card on your Cloudflare account).
         </div>
       )}
 

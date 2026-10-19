@@ -7,6 +7,8 @@ import { guestRoutes } from './routes/guest';
 import { hookRoutes } from './routes/hooks';
 import { pagesRoutes } from './routes/pages';
 import { photoRoutes } from './routes/photos';
+import { oauthRoutes, photoLinkRoutes } from './routes/photoLinks';
+import { runCopies } from './photos/store';
 import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
 import { settingsRoutes } from './routes/settings';
@@ -30,6 +32,8 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/settings', settingsRoutes(deps));
   app.route('/a/w/:wid/seating', seatingRoutes());
   app.route('/a/w/:wid/photos', photoRoutes());
+  app.route('/a/w/:wid/photo-links', photoLinkRoutes());
+  app.route('/oauth', oauthRoutes());
   app.route('/a/w/:wid/events', eventRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
   app.route('/p/:slug/board', boardGuestRoutes());
@@ -47,7 +51,9 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   const d = deps(env);
   const swept = await sweepInbound(d);
   const report = await runAutopilot(d);
-  console.log(JSON.stringify({ cron: 'sms', swept, ...report }));
+  // Photo copies to the couple's linked storage that are still owed (a failure here never stops the texts).
+  const photos = await runCopies(env, { limit: 30 }).catch((e) => ({ error: String(e) }));
+  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos }));
   return { swept, ...report };
 }
 

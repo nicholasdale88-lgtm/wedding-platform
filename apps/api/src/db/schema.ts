@@ -252,6 +252,43 @@ export const media = sqliteTable('media', {
   createdAt: text('created_at').notNull(),
   deletedAt: text('deleted_at'),
   eventKey: text('event_key'), // migration 0007: which event's album
+  sha: text('sha'), // migration 0010: content hash (the same photo is kept once)
+});
+
+// migration 0010: linked photo storage (the couple's own Google Drive, Google Photos, Dropbox, OneDrive)
+export const photoLink = sqliteTable('photo_link', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  provider: text('provider', { enum: ['gdrive', 'gphotos', 'dropbox', 'onedrive'] }).notNull(),
+  account: text('account').notNull().default(''),
+  refreshEnc: text('refresh_enc').notNull(),
+  folders: text('folders').notNull().default('{}'),
+  status: text('status', { enum: ['ok', 'error'] }).notNull().default('ok'),
+  lastError: text('last_error'),
+  createdAt: text('created_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const photoCopy = sqliteTable(
+  'photo_copy',
+  {
+    mediaId: text('media_id').notNull(),
+    linkId: text('link_id').notNull(),
+    status: text('status', { enum: ['pending', 'done', 'failed'] }).notNull().default('pending'),
+    remoteId: text('remote_id'),
+    attempts: integer('attempts').notNull().default(0),
+    error: text('error'),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.mediaId, t.linkId] }) }),
+);
+
+export const oauthState = sqliteTable('oauth_state', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  userId: text('user_id').notNull(),
+  provider: text('provider').notNull(),
+  createdAt: text('created_at').notNull(),
 });
 
 // migration 0008: messages between guests and the couple (one conversation per invitation)

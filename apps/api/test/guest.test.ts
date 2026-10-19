@@ -255,7 +255,7 @@ describe('guest API', () => {
       const res = await put(tok, JPEG, encodeURIComponent('Ivy S ✨'));
       expect(res.status).toBe(200);
       const [key, obj] = [...saved.entries()][0]!;
-      expect(key).toMatch(/^w\/[^/]+\/photos\/[0-9a-f-]{36}\.jpg$/);
+      expect(key).toMatch(/^w\/[^/]+\/photos\/[0-9a-f]{40}\.jpg$/); // named by its content: the same photo twice is kept once
       expect(obj).toEqual({ bytes: JPEG.byteLength, type: 'image/jpeg' });
       const row = await t.db.prepare(`SELECT kind, uploaded_by, bytes FROM media`).first();
       expect(row).toEqual({ kind: 'photo', uploaded_by: 'Ivy S ✨', bytes: JPEG.byteLength });

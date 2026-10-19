@@ -9,9 +9,9 @@ import type { Env } from '../env';
 /** Largest request body we accept. Webhooks and RSVPs are a few KB; imports get their own limit. */
 export const MAX_BODY = 100 * 1024;
 
-/** Guest photo uploads: one photo per request, already shrunk on the phone. */
+/** Photo uploads (a guest's, or the couple's own): one photo per request. */
 export const MAX_PHOTO = 15 * 1024 * 1024;
-const PHOTO_PATH = /^\/api\/p\/[a-z0-9-]+\/photos$/;
+const PHOTO_PATH = /^\/api\/(?:p\/[a-z0-9-]+\/photos|a\/w\/[^/]+\/photos\/upload)$/;
 
 /** Guest list imports: up to 1,000 rows. */
 export const MAX_IMPORT = 1024 * 1024;

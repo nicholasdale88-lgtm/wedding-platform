@@ -24,6 +24,13 @@ export interface Env {
   TEXTO_API_KEY?: string;
   /** Texto webhook secret; when set, X-Texto-Signature is required on its webhooks. */
   TEXTO_WEBHOOK_SECRET?: string;
+  /** Linked photo storage (docs/SETUP_ACCOUNTS.md → "Photo storage links"): each provider's app keys. */
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  DROPBOX_APP_KEY?: string;
+  DROPBOX_APP_SECRET?: string;
+  MS_CLIENT_ID?: string;
+  MS_CLIENT_SECRET?: string;
 }
 
 /** Real dependencies for the SMS engine. Tests build their own. */

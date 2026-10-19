@@ -127,3 +127,9 @@ jobs:
           SMS_PROVIDER: ${{ secrets.SMS_PROVIDER }}
           TEXTO_API_KEY: ${{ secrets.TEXTO_API_KEY }}
           TEXTO_WEBHOOK_SECRET: ${{ secrets.TEXTO_WEBHOOK_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}

@@ -136,3 +136,19 @@ The platform can send through **Texto** (texto.com.au, Australian, AWS Sydney). 
 Two behaviours differ from Mobile Message:
 - **No double texts:** Texto has no idempotency key. If a send gets no answer, it's marked "check Texto before resending" and is never resent automatically.
 - **Rounds of 40:** each Texto send is one request, so large sends (like 300 invitations) go out about 40 per run. Runs happen every 15 minutes.
+
+## Photo storage links (optional, free)
+
+Guests' photos can also be saved to the couple's own Google Drive, Google Photos, Dropbox or OneDrive. This also works with Cloudflare R2 switched off: the linked storage becomes the only copy.
+
+Each provider needs a one-time app setup. The step-by-step instructions, including the exact redirect URI, are in the admin under **Photos → Where photos are saved → "set up first"**. The redirect URI is `<site>/api/oauth/callback`. Update it in each provider's console if the domain changes.
+
+Add each provider's keys as GitHub repository secrets. The next deploy switches it on.
+
+| Provider | Secrets |
+|---|---|
+| Google Drive and Google Photos | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| Dropbox (App folder app) | `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET` |
+| OneDrive (Azure app registration) | `MS_CLIENT_ID`, `MS_CLIENT_SECRET` |
+
+Refresh tokens are stored sealed (AES-GCM, with a key derived from `SESSION_SECRET`), so rotating `SESSION_SECRET` means linking again. Each link reaches only the folder the site creates (Drive `drive.file`; the Dropbox and OneDrive app folders; Google Photos append-only).

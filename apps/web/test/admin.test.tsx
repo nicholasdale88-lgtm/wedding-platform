@@ -476,7 +476,7 @@ describe('photos tab', () => {
   it('says how to switch storage on when it is off', async () => {
     mockApi({ '/api/a/w/w1/photos': () => json(200, { enabled: false, items: [] }) });
     renderAt('/admin/w1/photos');
-    expect(await screen.findByText("Photo storage isn't switched on yet.")).toBeInTheDocument();
+    expect(await screen.findByText("Guests can't add photos yet.")).toBeInTheDocument();
   });
 });
 
