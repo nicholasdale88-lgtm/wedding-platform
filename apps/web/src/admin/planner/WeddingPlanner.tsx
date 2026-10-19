@@ -1,4 +1,4 @@
-import { commitmentOf, dateIn, daysUntil, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
+import { bookingTimeline, commitmentOf, dateIn, daysUntil, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { plannerApi } from '../../lib/api';
@@ -43,20 +43,6 @@ const VIEWS: [View, string][] = [
   ['assistant', 'Assistant'],
 ];
 /** What most Australian weddings book (a checklist of vendor kinds; matched loosely against yours). */
-const USUAL: [string, RegExp][] = [
-  ['Venue', /venue|reception|function/i],
-  ['Celebrant', /celebrant|minister|officiant/i],
-  ['Catering', /cater|food|chef/i],
-  ['Photographer', /photo/i],
-  ['Videographer', /video|film/i],
-  ['Florist', /flor|flower/i],
-  ['Music or DJ', /music|dj|band|singer/i],
-  ['Hair and makeup', /hair|makeup|beauty/i],
-  ['Cake', /cake|bak|pastr/i],
-  ['Cars or transport', /car|transport|bus|limo|taxi/i],
-  ['Stationery', /station|print|invit/i],
-  ['Rings', /ring|jewel/i],
-];
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 
 export function WeddingPlanner() {
@@ -122,7 +108,8 @@ function Glance({ go }: { go: (v: View) => void }) {
   const vendorCommit = booked.filter((v) => !named.has(v.name.trim().toLowerCase())).reduce((a, v) => a + commitmentOf(v).amount, 0);
   const committed = budget.lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + vendorCommit;
   const paid = budget.lines.reduce((a, l) => a + l.paid, 0) + booked.filter((v) => !named.has(v.name.trim().toLowerCase()) && v.depositPaid).reduce((a, v) => a + commitmentOf(v).deposit, 0);
-  const missing = USUAL.filter(([, re]) => !booked.some((v) => re.test(`${v.category} ${v.name}`)));
+  // Still to book: the usual suppliers not booked yet, soonest "book by" first (the time most couples have booked by).
+  const missing = bookingTimeline(vendors, first ? Date.parse(first.startsAt) : Date.now() + 400 * 86_400_000, Date.now()).filter((r) => r.state !== 'booked').sort((a, b) => a.bookBy.localeCompare(b.bookBy));
   const today = dateIn(tz);
   const payments = [
     ...budget.lines.filter((l) => l.due && (l.quote || l.estimate) > l.paid).map((l) => ({ what: l.item || l.category, due: l.due, amount: (l.quote || l.estimate) - l.paid })),
@@ -199,9 +186,18 @@ function Glance({ go }: { go: (v: View) => void }) {
           <H2>Still to book</H2>
           {missing.length ? (
             <div className="flex gap-2 flex-wrap">
-              {missing.map(([label]) => (
-                <span key={label} className="py-[5px] px-3 rounded-full border border-[#c6b794] text-[13px]">
-                  {label}
+              {missing.map((r) => (
+                <span
+                  key={r.what}
+                  title={r.late ? 'Most couples have booked this by now' : `Most couples book by ${new Date(`${r.bookBy}T00:00`).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}`}
+                  className={`py-[5px] px-3 rounded-full border text-[13px] ${r.late ? 'border-[#a5533c] text-[#7a4a37]' : 'border-[#c6b794]'}`}
+                >
+                  {r.what}
+                  <span className="opacity-70">
+                    {' · '}
+                    {r.late ? 'now' : new Date(`${r.bookBy}T00:00`).toLocaleDateString('en-AU', { month: 'short', year: '2-digit' })}
+                    {r.state === 'looking' ? ' · looking' : ''}
+                  </span>
                 </span>
               ))}
             </div>
