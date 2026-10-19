@@ -14,7 +14,28 @@ interface Msg {
   at: string;
 }
 
-export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slug: string; token: string; ink?: string; side?: 'left' | 'right' }) {
+/**
+ * Cream text needs a dark enough ink behind it (4.5:1): a light theme colour is darkened until it is.
+ */
+function readableInk(hex: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  let [r, g, b] = [0, 2, 4].map((i) => parseInt(m[1]!.slice(i, i + 2), 16));
+  const lum = (x: number) => {
+    const c = x / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const cream = 0.94; // #fbf8f2
+  for (let i = 0; i < 10; i++) {
+    const L = 0.2126 * lum(r!) + 0.7152 * lum(g!) + 0.0722 * lum(b!);
+    if ((cream + 0.05) / (L + 0.05) >= 4.5) break;
+    [r, g, b] = [r!, g!, b!].map((x) => Math.round(x * 0.85));
+  }
+  return `#${[r!, g!, b!].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+}
+
+export function MessageUs({ slug, token, ink: themeInk = '#33402f', side = 'left' }: { slug: string; token: string; ink?: string; side?: 'left' | 'right' }) {
+  const ink = readableInk(themeInk);
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[] | null>(null);
   const [couple, setCouple] = useState('');
