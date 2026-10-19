@@ -47,8 +47,17 @@ export async function canStore(env: Env, weddingId: string) {
 const linkError = (env: Env, id: string, message: string) =>
   env.DB.prepare(`UPDATE photo_link SET status = 'error', last_error = ? WHERE id = ?`).bind(message.slice(0, 300), id).run();
 
+/**
+ * Access tokens per link, kept until five minutes before they run out: an album of 500 photos is one
+ * refresh an hour, not 500 (providers limit refreshes, and OneDrive rotates its refresh token each time).
+ */
+const accessCache = new Map<string, { access: string; until: number; sealed: string }>();
+const forget = (link: LinkRow) => accessCache.delete(link.id);
+
 /** A fresh access token (refresh tokens that rotate are saved again). A revoked link is marked broken. */
 async function accessFor(env: Env, link: LinkRow): Promise<string> {
+  const hit = accessCache.get(link.id);
+  if (hit && hit.sealed === link.refresh_enc && hit.until > Date.now()) return hit.access;
   const secret = env.SESSION_SECRET ?? '';
   const refresh = await unseal(secret, SEAL_LABEL, link.refresh_enc);
   if (!refresh) {
@@ -62,6 +71,8 @@ async function accessFor(env: Env, link: LinkRow): Promise<string> {
       await env.DB.prepare(`UPDATE photo_link SET refresh_enc = ? WHERE id = ?`).bind(sealed, link.id).run();
       link.refresh_enc = sealed;
     }
+    if (accessCache.size > 500) accessCache.clear();
+    accessCache.set(link.id, { access: t.access, until: Date.now() + Math.max(60, (t.expires ?? 3600) - 300) * 1000, sealed: link.refresh_enc });
     return t.access;
   } catch (e) {
     if (e instanceof ProviderError && (e.relink || e.status === 400)) await linkError(env, link.id, 'Access was removed or has expired. Connect it again.');
@@ -87,8 +98,20 @@ async function folderFor(env: Env, link: LinkRow, token: string, eventKey: strin
     id = await p.folder(token, name, top);
   }
   folders[k] = id;
-  link.folders = JSON.stringify(folders);
-  await env.DB.prepare(`UPDATE photo_link SET folders = ? WHERE id = ?`).bind(link.folders, link.id).run();
+  // Saved only if no one else saved first (two guests' first photos at once): otherwise theirs wins, so
+  // every photo for the event lands in one folder or album.
+  const before = link.folders;
+  const next = JSON.stringify(folders);
+  const res = await env.DB.prepare(`UPDATE photo_link SET folders = ? WHERE id = ? AND folders IS ?`).bind(next, link.id, before).run();
+  if (res.meta.changes) {
+    link.folders = next;
+    return id;
+  }
+  const now = await env.DB.prepare(`SELECT folders FROM photo_link WHERE id = ?`).bind(link.id).first<{ folders: string }>();
+  link.folders = now?.folders ?? next;
+  const theirs = (JSON.parse(link.folders || '{}') as Record<string, string>)[k];
+  if (theirs) return theirs;
+  await env.DB.prepare(`UPDATE photo_link SET folders = json_patch(COALESCE(NULLIF(folders, ''), '{}'), ?) WHERE id = ?`).bind(JSON.stringify(folders), link.id).run();
   return id;
 }
 
@@ -111,6 +134,7 @@ export async function copyTo(env: Env, link: LinkRow, m: MediaRow, bytes: Uint8A
       .run();
     return remote;
   } catch (e) {
+    if (e instanceof ProviderError && e.status === 401) forget(link);
     const msg = (e as Error).message.slice(0, 300);
     await env.DB.prepare(
       `INSERT INTO photo_copy (media_id, link_id, status, attempts, error, updated_at) VALUES (?, ?, 'failed', 1, ?, ?)
@@ -143,7 +167,8 @@ export async function openPhoto(env: Env, weddingId: string, key: string): Promi
   if (!link) return null;
   try {
     return await PROVIDER[link.provider].download(await accessFor(env, link), lk.remoteId);
-  } catch {
+  } catch (e) {
+    if (e instanceof ProviderError && e.status === 401) forget(link);
     return null;
   }
 }
@@ -173,34 +198,41 @@ export async function storePhoto(env: Env, later: (p: Promise<unknown>) => void,
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const row: MediaRow = { id, wedding_id: p.weddingId, key: '', content_type: p.kind.type, uploaded_by: p.by || null, event_key: p.eventKey, created_at: now };
-  const insert = () =>
-    db
-      .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key, sha) VALUES (?, ?, 'photo', ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, p.weddingId, row.key, p.kind.type, p.bytes.byteLength, row.uploaded_by, p.invitationId, now, p.eventKey, sha)
-      .run();
+  // The photo's row, and a "pending" copy for each other linked storage in the same batch: a copy cut
+  // off after the response (time limits) is still owed, so the cron finishes it.
+  const save = (others: LinkRow[]) =>
+    db.batch([
+      db
+        .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key, sha) VALUES (?, ?, 'photo', ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(id, p.weddingId, row.key, p.kind.type, p.bytes.byteLength, row.uploaded_by, p.invitationId, now, p.eventKey, sha),
+      ...others.map((l) =>
+        db.prepare(`INSERT INTO photo_copy (media_id, link_id, status, attempts, updated_at) VALUES (?, ?, 'pending', 0, ?) ON CONFLICT (media_id, link_id) DO NOTHING`).bind(id, l.id, now),
+      ),
+    ]);
 
   let others = links;
   if (env.MEDIA) {
     row.key = `w/${p.weddingId}/photos/${sha}.${p.kind.ext}`;
     await env.MEDIA.put(row.key, p.bytes, { httpMetadata: { contentType: p.kind.type } });
-    await insert();
+    await save(others);
   } else {
-    // No site storage: the first linked storage that takes it is its home.
+    // No site storage: the first linked storage that takes it is its home. The photo is listed only once
+    // it's there (never a half-saved photo in the album or on the wall, and a retry isn't "already there").
     let home: { link: LinkRow; remote: string } | null = null;
     for (const link of links) {
-      row.key = `link:${link.id}:pending`; // copyTo records the copy against the media id
-      await insert().catch(() => undefined);
-      const remote = await copyTo(env, link, row, p.bytes);
+      const remote = await copyTo(env, link, row, p.bytes); // records the copy against the media id
       if (remote) {
         home = { link, remote };
         break;
       }
-      await db.batch([db.prepare(`DELETE FROM media WHERE id = ?`).bind(id), db.prepare(`DELETE FROM photo_copy WHERE media_id = ?`).bind(id)]);
     }
-    if (!home) return { ok: false, status: 502, message: 'Your photo could not be saved just now. Please try again in a minute.' };
+    if (!home) {
+      await db.prepare(`DELETE FROM photo_copy WHERE media_id = ?`).bind(id).run();
+      return { ok: false, status: 502, message: 'Your photo could not be saved just now. Please try again in a minute.' };
+    }
     row.key = `link:${home.link.id}:${home.remote}`;
-    await db.prepare(`UPDATE media SET key = ? WHERE id = ?`).bind(row.key, id).run();
     others = links.filter((l) => l.id !== home!.link.id);
+    await save(others);
   }
   if (others.length) {
     const bytes = p.bytes;

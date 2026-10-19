@@ -73,8 +73,8 @@ export function albumGuestRoutes() {
   app.get('/:id', async (c) => {
     const g = await guestOf(c);
     if (!g || !g.w.shared) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    const ip = c.req.header('CF-Connecting-IP') ?? 'local';
-    if (!(await allow(c.env.DB, `album:${ip}`, 2000, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a little.' } }, 429);
+    // Per guest, not per address: a family on one Wi-Fi (or everyone at the venue) shares an IP.
+    if (!(await allow(c.env.DB, `album:${g.inv.id}`, 4000, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a little.' } }, 429);
     const row = await c.env.DB.prepare(`SELECT key, content_type, event_key FROM media WHERE id = ? AND wedding_id = ? AND kind = 'photo' AND deleted_at IS NULL`)
       .bind(c.req.param('id'), g.w.id)
       .first<{ key: string; content_type: string; event_key: string | null }>();

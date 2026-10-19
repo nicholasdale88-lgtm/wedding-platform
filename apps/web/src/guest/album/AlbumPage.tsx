@@ -12,6 +12,9 @@ interface Album {
   photos: { id: string; at: string; event: string | null; by: string; url: string }[];
 }
 
+/** Photos shown at a time (each is a full photo, so a phone isn't asked for 3,000 at once). */
+const PAGE = 90;
+
 export function AlbumPage() {
   const { slug = '' } = useParams();
   const [params] = useSearchParams();
@@ -20,6 +23,7 @@ export function AlbumPage() {
   const [err, setErr] = useState('');
   const [ev, setEv] = useState('');
   const [open, setOpen] = useState<number | null>(null);
+  const [upTo, setUpTo] = useState(PAGE);
 
   useEffect(() => {
     fetch(`/api/p/${encodeURIComponent(slug)}/album?g=${encodeURIComponent(token)}`)
@@ -31,6 +35,7 @@ export function AlbumPage() {
       .catch((e: Error) => setErr(e.message));
   }, [slug, token]);
   const shown = useMemo(() => (data?.photos ?? []).filter((p) => !ev || p.event === ev), [data, ev]);
+  useEffect(() => setUpTo(PAGE), [ev]);
   useEffect(() => {
     if (open === null) return;
     const onKey = (e: KeyboardEvent) => {
@@ -80,13 +85,18 @@ export function AlbumPage() {
           </div>
         )}
         <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-6">
-          {shown.map((p, i) => (
+          {shown.slice(0, upTo).map((p, i) => (
             <button key={p.id} type="button" onClick={() => setOpen(i)} className="aspect-square p-0 border-0 rounded-[8px] overflow-hidden bg-[#e9e2cc] cursor-pointer" aria-label={p.by ? `Photo by ${p.by}` : 'Photo'}>
               <img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" />
             </button>
           ))}
         </div>
         {!shown.length && <p className="m-0 text-center text-[19px] italic">No photos here yet.</p>}
+        {shown.length > upTo && (
+          <button type="button" onClick={() => setUpTo((n) => n + PAGE)} className="self-center py-2 px-6 rounded-full border text-[18px] cursor-pointer bg-transparent" style={{ color: ink, borderColor: 'rgba(0,0,0,.25)' }}>
+            Show more ({shown.length - upTo} to go)
+          </button>
+        )}
       </div>
       {cur && (
         <div role="dialog" aria-modal="true" aria-label="Photo" className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={() => setOpen(null)}>

@@ -18,6 +18,8 @@ export const PROVIDER_NAME: Record<ProviderKey, string> = { gdrive: 'Google Driv
 export interface Tokens {
   access: string;
   refresh?: string;
+  /** Seconds the access token lasts (about an hour for all four). */
+  expires?: number;
 }
 export interface Upload {
   bytes: Uint8Array;
@@ -105,7 +107,7 @@ const google = (scopes: string): Pick<Provider, 'authUrl' | 'exchange' | 'refres
     return { access: r.access_token, refresh: r.refresh_token, account: jwtEmail(r.id_token) };
   },
   refresh: async (env, refresh) => {
-    const r = await json<{ access_token: string; refresh_token?: string }>(
+    const r = await json<{ access_token: string; refresh_token?: string; expires_in?: number }>(
       await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: FORM,
@@ -113,7 +115,7 @@ const google = (scopes: string): Pick<Provider, 'authUrl' | 'exchange' | 'refres
       }),
       'Google access',
     );
-    return { access: r.access_token, refresh: r.refresh_token };
+    return { access: r.access_token, refresh: r.refresh_token, expires: r.expires_in };
   },
 });
 
@@ -220,7 +222,7 @@ const dropbox: Provider = {
     return { access: r.access_token, refresh: r.refresh_token, account: me.email ?? '' };
   },
   async refresh(env, refresh) {
-    const r = await json<{ access_token: string }>(
+    const r = await json<{ access_token: string; expires_in?: number }>(
       await fetch('https://api.dropboxapi.com/oauth2/token', {
         method: 'POST',
         headers: FORM,
@@ -228,7 +230,7 @@ const dropbox: Provider = {
       }),
       'Dropbox access',
     );
-    return { access: r.access_token };
+    return { access: r.access_token, expires: r.expires_in };
   },
   // The app folder is the top; each event is a folder in it (made by the first upload).
   folder: async (_token, name) => `/${safeName(name)}`,
@@ -264,11 +266,11 @@ const onedrive: Provider = {
     return { access: r.access_token, refresh: r.refresh_token, account: me.mail || me.userPrincipalName || '' };
   },
   async refresh(env, refresh) {
-    const r = await json<{ access_token: string; refresh_token?: string }>(
+    const r = await json<{ access_token: string; refresh_token?: string; expires_in?: number }>(
       await fetch(MS_TOKEN, { method: 'POST', headers: FORM, body: form({ refresh_token: refresh, client_id: env.MS_CLIENT_ID ?? '', client_secret: env.MS_CLIENT_SECRET ?? '', grant_type: 'refresh_token', scope: MS_SCOPE }) }),
       'Microsoft access',
     );
-    return { access: r.access_token, refresh: r.refresh_token };
+    return { access: r.access_token, refresh: r.refresh_token, expires: r.expires_in };
   },
   folder: async (_token, name) => safeName(name),
   async upload(token, u) {

@@ -45,6 +45,9 @@ export function ChatImport({ wid, events, event: fixed, onDone }: { wid: string;
   const busy = !!progress && progress.done < progress.total;
 
   const run = async (file: File) => {
+    // The whole zip is read into memory: a phone can run out with a very big export.
+    const phone = window.matchMedia?.('(pointer: coarse)').matches;
+    if (file.size > (phone ? 700 : 2500) * 1024 * 1024 && !window.confirm(`That export is ${(file.size / 1024 ** 3).toFixed(1)} GB. ${phone ? 'A phone may run out of memory: a computer is safer.' : 'This may take a while.'} Carry on?`)) return;
     try {
       setProgress({ done: 0, total: 1, added: 0, repeat: 0, failed: 0 });
       const files = await unzipAsync(new Uint8Array(await file.arrayBuffer()));
