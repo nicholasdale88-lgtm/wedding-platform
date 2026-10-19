@@ -236,6 +236,9 @@ export function plannerRoutes() {
    * The planning assistant: answers from this wedding's own details (dates, numbers, budget, vendors,
    * the party), on Workers AI's free allowance; at most 40 questions a day per wedding.
    */
+  /** Whether the assistant (and reading quotes) is switched on for this site. */
+  app.get('/ask', async (c) => c.json({ on: !!c.env.AI, readsFiles: !!c.env.AI?.toMarkdown }));
+
   app.post('/ask', writer, async (c) => {
     const body = z
       .object({ question: z.string().trim().min(1).max(800), history: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().max(4000) })).max(8).default([]) })

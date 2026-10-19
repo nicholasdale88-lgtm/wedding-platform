@@ -26,6 +26,13 @@ export function Assistant() {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const end = useRef<HTMLDivElement>(null);
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    plannerApi
+      .aiStatus(wid)
+      .then((s) => setOn(s.on))
+      .catch(() => setOn(null));
+  }, [wid]);
   useEffect(() => end.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }), [turns.length, busy]);
 
   const ask = async (question: string) => {
@@ -52,6 +59,18 @@ export function Assistant() {
         <H2>Planning assistant</H2>
         <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">Ask about anything wedding. It knows your dates, replies, budget, vendors and wedding party, and drafts wording for you. Check anything important before you rely on it.</p>
       </header>
+
+      {on === false && (
+        <section aria-label="Switch the assistant on" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#c8a46a] bg-[#fdf6e6] text-[14px]">
+          <strong className="font-semibold text-[15px]">The assistant isn’t switched on yet</strong>
+          <span>It runs on Cloudflare’s free daily AI allowance (no card needed). One step, once:</span>
+          <ol className="m-0 pl-5 flex flex-col gap-1">
+            <li>In Cloudflare, open My Profile → API Tokens, and edit the token this site deploys with.</li>
+            <li>Add the permission “Account · Workers AI · Read”, and save.</li>
+            <li>The next deploy switches it on (it also reads vendors’ quotes for you).</li>
+          </ol>
+        </section>
+      )}
 
       <section aria-label="Conversation" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-h-[320px]">
         {!turns.length && (
