@@ -537,14 +537,14 @@ export const BOOKING_TIMELINE: { what: string; months: number; match: RegExp }[]
   { what: 'Videographer', months: 10, match: /video|film/i },
   { what: 'Celebrant', months: 10, match: /celebrant|officiant|minister|priest/i },
   { what: 'Catering', months: 10, match: /cater/i },
-  { what: 'Hair and makeup', months: 6, match: /hair|make-?up|beauty/i },
-  { what: 'Attire', months: 9, match: /dress|gown|bridal|suit|tailor|attire/i },
+  { what: 'Hair and makeup', months: 6, match: /\bhair|make-?up|beauty/i },
+  { what: 'Attire', months: 9, match: /dress|gown|bridal(?! suite)|\bsuits?\b|tailor|attire/i },
   { what: 'Florist', months: 8, match: /flor|flower/i },
-  { what: 'Accommodation', months: 8, match: /accommodation|hotel|motel|lodg/i },
+  { what: 'Accommodation', months: 8, match: /accommodation|hotel|motel|lodg|suite/i },
+  { what: 'Transport', months: 5, match: /transport|\bcars?\b|\bbus(es)?\b|coach|limo|shuttle/i },
   { what: 'Styling and hire', months: 7, match: /styl|hire|decor|marquee/i },
   { what: 'Stationery', months: 6, match: /station|invit|print/i },
   { what: 'Cake', months: 5, match: /cake|dessert|patisserie/i },
-  { what: 'Transport', months: 5, match: /transport|\bcars?\b|\bbus\b|coach|limo|shuttle/i },
   { what: 'Rings', months: 3, match: /\brings?\b|jewel/i },
 ];
 export type BookingRow = { what: string; months: number; bookBy: string; state: 'booked' | 'looking' | 'none'; vendor: string; late: boolean };
@@ -552,7 +552,8 @@ export type BookingRow = { what: string; months: number; bookBy: string; state: 
 /**
  * Each supplier type against when couples usually book it: booked (and who), looking (on your list, not
  * booked), or not started; `late` once the usual time has passed without a booking. Earliest first.
- * `venueSet`: the wedding already has a venue (counts as booked without a supplier for it).
+ * `day`: the wedding's date (midnight UTC of its local date). `venueSet`: the wedding already has a venue
+ * (counts as booked without a supplier for it).
  */
 export function bookingTimeline(list: Vendor[], day: number, now: number, venueSet = false): BookingRow[] {
   const found = new Map<string, Vendor[]>();
@@ -563,8 +564,10 @@ export function bookingTimeline(list: Vendor[], day: number, now: number, venueS
   return BOOKING_TIMELINE.map((b) => {
     const vs = found.get(b.what) ?? [];
     const booked = vs.find((v) => v.status === 'booked');
-    const by = new Date(day);
-    by.setUTCMonth(by.getUTCMonth() - b.months);
+    // The same day so many months before (the month's last day when it's shorter: 31 Oct less 8 months is 28 Feb).
+    const d = new Date(day);
+    const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - b.months + 1, 0)).getUTCDate();
+    const by = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - b.months, Math.min(d.getUTCDate(), last)));
     const state: BookingRow['state'] = booked || (b.what === 'Venue' && venueSet) ? 'booked' : vs.length ? 'looking' : 'none';
     return { what: b.what, months: b.months, bookBy: by.toISOString().slice(0, 10), state, vendor: booked?.name ?? '', late: state !== 'booked' && by.getTime() <= now };
   }).sort((a, b) => b.months - a.months);

@@ -338,7 +338,7 @@ export function Insights() {
         </section>
       </div>
 
-      {!Number.isNaN(day) && <WhenToBook rows={bookingTimeline(vendors.list, day, Date.now(), !!first?.venue)} />}
+      {!Number.isNaN(day) && <WhenToBook rows={bookingTimeline(vendors.list, Date.parse(dateIn(tz, new Date(day))), Date.now(), !!first?.venue)} />}
 
       {data.chase.length > 0 && <Chase rows={data.chase} tz={tz} />}
 

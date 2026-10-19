@@ -50,7 +50,12 @@ export function Budget() {
   }, [wid]);
   useEffect(() => void load(), [load]);
 
-  const b = doc?.data;
+  // Per-guest lines: the estimate is the price times the guests, worked out afresh (replies keep coming in).
+  const headcount = doc?.data.guests || overview?.perEvent?.[0]?.coming || 0;
+  const b = useMemo(() => {
+    const d = doc?.data;
+    return d && { ...d, lines: d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)) };
+  }, [doc, headcount]);
   // Booked vendors not already on a budget line, as lines of their own (read-only here; edit in Vendors).
   const commitments = useMemo(() => {
     const named = new Set((b?.lines ?? []).map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
@@ -83,8 +88,6 @@ export function Budget() {
     setDoc({ ...doc, data: next });
     setDirty(true);
   };
-  // Per-guest lines: the estimate is the price times the guests (kept in step, so every total agrees).
-  const headcount = b.guests || overview?.perEvent?.[0]?.coming || 0;
   const priced = (l: BudgetLine, n = headcount): BudgetLine => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * n * 100) / 100 } : l);
   const setLine = (i: number, patch: Partial<BudgetLine>) => edit({ ...b, lines: b.lines.map((l, j) => (j === i ? priced({ ...l, ...patch }) : l)) });
   const setGuests = (n: number) => edit({ ...b, guests: n, lines: b.lines.map((l) => priced(l, n || overview?.perEvent?.[0]?.coming || 0)) });
@@ -339,9 +342,9 @@ function WhatIf({ guests, lines, committed, total, setGuests, saved }: { guests:
         <span>
           What if {delta >= 0 ? `${delta} more` : `${-delta} fewer`} {Math.abs(delta) === 1 ? 'guest' : 'guests'}?
         </span>
-        <input type="range" min={-50} max={50} value={delta} onChange={(e) => setDelta(Number(e.target.value))} className="accent-[#5d6b47]" />
+        <input type="range" min={-Math.min(50, guests)} max={50} value={delta} onChange={(e) => setDelta(Number(e.target.value))} className="accent-[#5d6b47]" />
       </label>
-      {delta !== 0 && (
+      {delta !== 0 && perHead > 0 && (
         <div className="text-[15px]">
           {guests + delta} guests: <strong className="font-semibold">{change > 0 ? '+' : '−'}{aud(Math.abs(change))}</strong>, about {aud(committed + change)} in all
           {total > 0 && <span className={committed + change > total ? ' text-[#7a4a37] font-semibold' : ' text-[#5b6a52]'}>{committed + change > total ? ` · ${aud(committed + change - total)} over budget` : ` · ${aud(total - committed - change)} under budget`}</span>}

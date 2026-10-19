@@ -37,8 +37,8 @@ export const overviewFixture: Overview = {
   wedding: { id: 'w1', slug: 'alex-and-blair', name1: 'Alex Smith', name2: 'Blair Jones', timezone: 'Australia/Sydney', adminName: '' },
   total: 3, replied: 2, awaiting: 1, yesInv: 1, noInv: 1, seatsHeld: 4,
   events: [
-    { key: 'wedding', name: 'The wedding', startsAt: events[0]!.startsAt, coming: 2 },
-    { key: 'brunch', name: 'Recovery brunch', startsAt: events[1]!.startsAt, coming: 2 },
+    { key: 'wedding', name: 'The wedding', startsAt: events[0]!.startsAt, venue: '', coming: 2 },
+    { key: 'brunch', name: 'Recovery brunch', startsAt: events[1]!.startsAt, venue: '', coming: 2 },
   ],
   diet: { people: 1, serious: 1, mealsSet: 0 },
   daysToGo: 138,

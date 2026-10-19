@@ -109,7 +109,7 @@ function Glance({ go }: { go: (v: View) => void }) {
   const committed = budget.lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + vendorCommit;
   const paid = budget.lines.reduce((a, l) => a + l.paid, 0) + booked.filter((v) => !named.has(v.name.trim().toLowerCase()) && v.depositPaid).reduce((a, v) => a + commitmentOf(v).deposit, 0);
   // Still to book: the usual suppliers not booked yet, soonest "book by" first (the time most couples have booked by).
-  const missing = bookingTimeline(vendors, first ? Date.parse(first.startsAt) : Date.now() + 400 * 86_400_000, Date.now()).filter((r) => r.state !== 'booked').sort((a, b) => a.bookBy.localeCompare(b.bookBy));
+  const missing = bookingTimeline(vendors, first ? Date.parse(dateIn(tz, new Date(first.startsAt))) : Date.now() + 400 * 86_400_000, Date.now(), !!first?.venue).filter((r) => r.state !== 'booked').sort((a, b) => a.bookBy.localeCompare(b.bookBy));
   const today = dateIn(tz);
   const payments = [
     ...budget.lines.filter((l) => l.due && (l.quote || l.estimate) > l.paid).map((l) => ({ what: l.item || l.category, due: l.due, amount: (l.quote || l.estimate) - l.paid })),

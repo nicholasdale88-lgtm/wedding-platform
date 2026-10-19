@@ -24,7 +24,7 @@ export interface Overview {
   yesInv: number;
   noInv: number;
   seatsHeld: number;
-  events: { key: string; name: string; startsAt: string; coming: number }[];
+  events: { key: string; name: string; startsAt: string; venue: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
   daysToGo: number | null;
   needsYou: NeedsYou[];
@@ -188,7 +188,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     noInv: replied - yesInv,
     seatsHeld: G.reduce((n, g) => n + g.seatsHeld, 0),
     events: d.events.map((e) => ({
-      key: e.key, name: e.name, startsAt: e.startsAt,
+      key: e.key, name: e.name, startsAt: e.startsAt, venue: e.venue,
       coming: G.reduce((n, g) => n + (attends(g, e.key) ? Math.max(1, g.rsvp[e.key]?.count ?? 1) : 0), 0),
     })),
     diet: { people: dietPeople.length, serious: dietPeople.filter((p) => isSerious(p.diet)).length, mealsSet },

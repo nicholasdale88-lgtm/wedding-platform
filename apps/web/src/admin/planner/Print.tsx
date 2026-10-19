@@ -1,4 +1,4 @@
-import { commitmentOf, type ReceptionGuide, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, type Budget as BudgetDoc, type ReceptionGuide, type Vendors as VendorsDoc } from '@wp/shared';
 import qrcode from 'qrcode-generator';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pagesApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
@@ -30,6 +30,7 @@ export function Print() {
   const [kind, setKind] = useState<Kind | null>(null);
   const [party, setParty] = useState<PartyData | null>(null);
   const [vendors, setVendors] = useState<VendorsDoc['list']>([]);
+  const [budgetLines, setBudgetLines] = useState<BudgetDoc['lines']>([]);
   const first = overview?.events[0];
   useEffect(() => {
     pagesApi
@@ -48,6 +49,10 @@ export function Print() {
       .doc<VendorsDoc>(wid, 'vendors')
       .then((r) => setVendors(r.data.list))
       .catch(() => setVendors([]));
+    plannerApi
+      .doc<BudgetDoc>(wid, 'budget')
+      .then((r) => setBudgetLines(r.data.lines))
+      .catch(() => setBudgetLines([]));
   }, [wid, first?.key]);
 
   const names = pages?.names ?? { name1: overview?.wedding.name1 ?? '', name2: overview?.wedding.name2 ?? '', monogram: '' };
@@ -69,8 +74,12 @@ export function Print() {
   const booked = vendors.filter((v) => v.status === 'booked').sort((a, b) => (a.arrival || '~').localeCompare(b.arrival || '~', undefined, { numeric: true }) || a.name.localeCompare(b.name));
   const sideName = { p1: party?.setup?.data.p1 || 'Bride', p2: party?.setup?.data.p2 || 'Groom' };
   const whoLabel = (w: string) => (w === 'party' ? 'Everyone' : w === 'p1' ? `${sideName.p1}’s side` : w === 'p2' ? `${sideName.p2}’s side` : w);
+  // What's owing: from the vendor's budget line when it has one (payments recorded there), else its accepted quote less the deposit.
   const owing = booked
-    .map((v) => ({ v, amount: commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0) }))
+    .map((v) => {
+      const line = budgetLines.find((l) => l.vendor.trim().toLowerCase() === v.name.trim().toLowerCase());
+      return { v, amount: line ? (line.quote || line.estimate) - line.paid : commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0) };
+    })
     .filter((o) => o.amount > 0);
   const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length, savedate: first ? 1 : 0, envelopes: owing.length };
   // The online save the date (no guest link: anyone with the card can open it).

@@ -105,7 +105,7 @@ export interface Overview {
   yesInv: number;
   noInv: number;
   seatsHeld: number;
-  events: { key: string; name: string; startsAt: string; coming: number }[];
+  events: { key: string; name: string; startsAt: string; venue: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
   daysToGo: number | null;
   needsYou: { kind: string; title: string; detail: string; cta: string; link: string; event?: string }[];

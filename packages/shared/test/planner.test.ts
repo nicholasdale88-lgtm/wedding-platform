@@ -109,6 +109,15 @@ describe('when to book', () => {
     expect(by.Florist).toMatchObject({ state: 'looking', late: true, bookBy: '2027-03-18' });
     expect(by.Venue!.late).toBe(true);
   });
+  it('hire and transport land where they belong; month ends do not spill over', () => {
+    const rows = bookingTimeline([v('Seats', 'Chair hire', 'booked'), v('Wheels', 'Car hire', 'booked'), v('Stay', 'Bridal suite', 'booked')], Date.parse('2027-10-31'), 0);
+    const by = Object.fromEntries(rows.map((r) => [r.what, r]));
+    expect(by['Styling and hire']!.vendor).toBe('Seats');
+    expect(by.Transport!.vendor).toBe('Wheels');
+    expect(by.Accommodation!.vendor).toBe('Stay');
+    expect(by['Hair and makeup']!.state).toBe('none');
+    expect(by.Florist!.bookBy).toBe('2027-02-28');
+  });
   it('a wedding with a venue set counts the venue as booked', () => {
     expect(bookingTimeline([], day, day, true).find((r) => r.what === 'Venue')).toMatchObject({ state: 'booked', late: false });
   });
