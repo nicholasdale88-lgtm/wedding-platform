@@ -578,7 +578,7 @@ export const boardApi = {
 };
 
 export interface InsightsData {
-  events: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; people: number; seats: number }[];
+  events: { key: string; name: string; startsAt: string; venue: string; invited: number; yes: number; no: number; awaiting: number; people: number; seats: number }[];
   opened: { invitations: number; opened: number };
   repliesByDay: { day: string; n: number }[];
   groups: { group: string; invited: number; yes: number; no: number }[];

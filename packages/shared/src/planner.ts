@@ -526,6 +526,50 @@ export function commitmentOf(v: Vendor): { amount: number; deposit: number } {
   const q = v.quotes.find((x) => x.id === v.accepted);
   return { amount: q?.amount ?? v.quote, deposit: q?.deposit ?? v.deposit };
 }
+/**
+ * When couples usually book each supplier (months before the day). Listed in matching order: a supplier
+ * goes to the first whose words match its "what they do" (then its name), so "hair stylist" is hair, not styling.
+ */
+export const BOOKING_TIMELINE: { what: string; months: number; match: RegExp }[] = [
+  { what: 'Venue', months: 15, match: /venue|reception|estate|winery/i },
+  { what: 'Band or DJ', months: 9, match: /\bband\b|\bdj\b|music|singer|string|entertain|photo ?booth/i },
+  { what: 'Photographer', months: 12, match: /photog|\bphotos?\b/i },
+  { what: 'Videographer', months: 10, match: /video|film/i },
+  { what: 'Celebrant', months: 10, match: /celebrant|officiant|minister|priest/i },
+  { what: 'Catering', months: 10, match: /cater/i },
+  { what: 'Hair and makeup', months: 6, match: /hair|make-?up|beauty/i },
+  { what: 'Attire', months: 9, match: /dress|gown|bridal|suit|tailor|attire/i },
+  { what: 'Florist', months: 8, match: /flor|flower/i },
+  { what: 'Accommodation', months: 8, match: /accommodation|hotel|motel|lodg/i },
+  { what: 'Styling and hire', months: 7, match: /styl|hire|decor|marquee/i },
+  { what: 'Stationery', months: 6, match: /station|invit|print/i },
+  { what: 'Cake', months: 5, match: /cake|dessert|patisserie/i },
+  { what: 'Transport', months: 5, match: /transport|\bcars?\b|\bbus\b|coach|limo|shuttle/i },
+  { what: 'Rings', months: 3, match: /\brings?\b|jewel/i },
+];
+export type BookingRow = { what: string; months: number; bookBy: string; state: 'booked' | 'looking' | 'none'; vendor: string; late: boolean };
+
+/**
+ * Each supplier type against when couples usually book it: booked (and who), looking (on your list, not
+ * booked), or not started; `late` once the usual time has passed without a booking. Earliest first.
+ * `venueSet`: the wedding already has a venue (counts as booked without a supplier for it).
+ */
+export function bookingTimeline(list: Vendor[], day: number, now: number, venueSet = false): BookingRow[] {
+  const found = new Map<string, Vendor[]>();
+  for (const v of list) {
+    const hit = BOOKING_TIMELINE.find((b) => b.match.test(v.category)) ?? BOOKING_TIMELINE.find((b) => b.match.test(v.name));
+    if (hit) found.set(hit.what, [...(found.get(hit.what) ?? []), v]);
+  }
+  return BOOKING_TIMELINE.map((b) => {
+    const vs = found.get(b.what) ?? [];
+    const booked = vs.find((v) => v.status === 'booked');
+    const by = new Date(day);
+    by.setUTCMonth(by.getUTCMonth() - b.months);
+    const state: BookingRow['state'] = booked || (b.what === 'Venue' && venueSet) ? 'booked' : vs.length ? 'looking' : 'none';
+    return { what: b.what, months: b.months, bookBy: by.toISOString().slice(0, 10), state, vendor: booked?.name ?? '', late: state !== 'booked' && by.getTime() <= now };
+  }).sort((a, b) => b.months - a.months);
+}
+
 export const Vendors = z.object({ list: z.array(Vendor).max(200).default([]) });
 export type Vendors = z.infer<typeof Vendors>;
 

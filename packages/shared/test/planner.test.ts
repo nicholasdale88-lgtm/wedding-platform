@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHECK_TEMPLATE, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { bookingTimeline, CHECK_TEMPLATE, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -93,5 +93,23 @@ describe('hair and makeup', () => {
     // Two people sharing the hair artist never overlap.
     const hairs = s.rows.map((r) => r.hair!).sort((a, b) => a[0] - b[0]);
     for (let i = 1; i < hairs.length; i++) expect(hairs[i]![0]).toBeGreaterThanOrEqual(hairs[i - 1]![1]);
+  });
+});
+
+describe('when to book', () => {
+  const v = (name: string, category: string, status: 'idea' | 'booked') => Vendor.parse({ id: name, name, category, status });
+  const day = Date.parse('2027-11-18T05:00:00Z');
+  it('sorts suppliers by what they do, earliest first, and flags what most couples have booked by now', () => {
+    const rows = bookingTimeline([v('Snaps Co', 'Photographer', 'booked'), v('Glam', 'Hair stylist', 'idea'), v('Petals', 'Florist', 'idea')], day, Date.parse('2027-04-01T00:00:00Z'));
+    const by = Object.fromEntries(rows.map((r) => [r.what, r]));
+    expect(rows[0]!.what).toBe('Venue');
+    expect(by.Photographer).toMatchObject({ state: 'booked', vendor: 'Snaps Co', late: false });
+    expect(by['Hair and makeup']).toMatchObject({ state: 'looking', late: false });
+    expect(by['Styling and hire']!.state).toBe('none');
+    expect(by.Florist).toMatchObject({ state: 'looking', late: true, bookBy: '2027-03-18' });
+    expect(by.Venue!.late).toBe(true);
+  });
+  it('a wedding with a venue set counts the venue as booked', () => {
+    expect(bookingTimeline([], day, day, true).find((r) => r.what === 'Venue')).toMatchObject({ state: 'booked', late: false });
   });
 });

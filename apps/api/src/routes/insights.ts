@@ -20,7 +20,7 @@ export function insightsRoutes() {
     const db = c.env.DB;
     const w = wid(c);
     const [events, perEvent, opened, byDay, groups, sms, photos, board, songs, emails, party, byCampaign] = await db.batch([
-      db.prepare(`SELECT id, key, name, starts_at FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w),
+      db.prepare(`SELECT id, key, name, starts_at, venue FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w),
       db.prepare(
         `SELECT ie.event_id,
                 COUNT(*) AS invited,
@@ -94,12 +94,12 @@ export function insightsRoutes() {
     const n = (x: number | null | undefined) => Number(x ?? 0);
     const stats = new Map((perEvent!.results as (Row & { event_id: string })[]).map((r) => [r.event_id, r]));
     return c.json({
-      events: (events!.results as { id: string; key: string; name: string; starts_at: string }[]).map((e) => {
+      events: (events!.results as { id: string; key: string; name: string; starts_at: string; venue: string | null }[]).map((e) => {
         const s = stats.get(e.id);
         const invited = n(s?.invited);
         const yes = n(s?.yes);
         const no = n(s?.no);
-        return { key: e.key, name: e.name, startsAt: e.starts_at, invited, yes, no, awaiting: Math.max(0, invited - yes - no), people: n(s?.people), seats: n(s?.seats) };
+        return { key: e.key, name: e.name, startsAt: e.starts_at, venue: e.venue ?? '', invited, yes, no, awaiting: Math.max(0, invited - yes - no), people: n(s?.people), seats: n(s?.seats) };
       }),
       opened: { invitations: n(one(opened).n), opened: n(one(opened).opened) },
       repliesByDay: (byDay!.results as { day: string; n: number }[]).map((r) => ({ day: r.day, n: n(r.n) })),
