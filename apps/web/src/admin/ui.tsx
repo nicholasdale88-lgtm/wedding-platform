@@ -140,7 +140,8 @@ export function StatusPill({ invited, attending }: { invited: boolean; attending
   );
 }
 
-export const inputCls = 'py-[10px] px-3 border border-[#d3c6a4] rounded-[10px] bg-[#fbf8f2] text-[15px] text-[#33402f]';
+// 16px on phones: iPhones zoom the page into any smaller box you tap.
+export const inputCls = 'py-[10px] px-3 border border-[#d3c6a4] rounded-[10px] bg-[#fbf8f2] text-[16px] sm:text-[15px] text-[#33402f]';
 export const Label = ({ text, children, className = '' }: { text: ReactNode; children: ReactNode; className?: string }) => (
   <label className={`flex flex-col gap-[5px] text-[13px] text-[#5b6a52] ${className}`}>
     {text}
@@ -171,7 +172,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx.Provider value={show}>
       {children}
       {toast && (
-        <div role="status" className="fixed left-1/2 bottom-[26px] -translate-x-1/2 z-40 py-3 px-5 rounded-full bg-[#33402f] text-[#f3ecd6] text-[14px] shadow-[0_8px_24px_rgba(51,64,47,.25)] flex items-center gap-4">
+        <div role="status" className="fixed left-1/2 bottom-[calc(20px+env(safe-area-inset-bottom))] -translate-x-1/2 z-40 w-max max-w-[calc(100vw-32px)] py-3 px-5 rounded-[22px] bg-[#33402f] text-[#f3ecd6] text-[14px] shadow-[0_8px_24px_rgba(51,64,47,.25)] flex items-center gap-4">
           {toast.text}
           {toast.action && (
             <button
@@ -216,7 +217,7 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className="relative w-[min(480px,100%)] h-full overflow-y-auto bg-[#f6f0e2] shadow-[-12px_0_40px_rgba(51,64,47,.18)] pt-[26px] px-[26px] pb-10 flex flex-col gap-6"
+        className="relative w-[min(480px,100%)] h-full overflow-y-auto bg-[#f6f0e2] shadow-[-12px_0_40px_rgba(51,64,47,.18)] pt-[max(20px,env(safe-area-inset-top))] sm:pt-[26px] px-[18px] sm:px-[26px] pb-[calc(40px+env(safe-area-inset-bottom))] flex flex-col gap-6"
       >
         {children}
       </aside>

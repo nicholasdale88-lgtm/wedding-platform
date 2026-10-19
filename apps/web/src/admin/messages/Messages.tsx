@@ -91,7 +91,7 @@ export function Messages() {
       <div className="flex flex-col gap-5">
         <header>
           <Eyebrow>Account · Messages</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Email</h1>
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Email</h1>
         </header>
         {tabs}
         <EmailInbox />
@@ -103,7 +103,7 @@ export function Messages() {
       <div className="flex flex-col gap-5">
         <header>
           <Eyebrow>Account · Messages</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Message board</h1>
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Message board</h1>
         </header>
         {tabs}
         <BoardAdmin />
@@ -166,7 +166,7 @@ export function Messages() {
     <div className="flex flex-col gap-5">
       <header>
         <Eyebrow>Account · Messages{unread ? ` · ${unread} unread` : ''}</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Messages from guests</h1>
+        <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Messages from guests</h1>
       </header>
       {tabs}
       {wide ? (

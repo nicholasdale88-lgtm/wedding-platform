@@ -100,7 +100,7 @@ export function Guests() {
       <header className="flex items-end justify-between gap-5 flex-wrap">
         <div>
           <Eyebrow>{section} · Guests</Eyebrow>
-          <h1 className="mt-[6px] mb-0 font-display font-medium text-[40px] leading-[1.08] min-h-[43px]">
+          <h1 className="mt-[6px] mb-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] min-h-[43px]">
             {data ? `${seatsHeld} guests on ${guests.length} invitations` : ''}
           </h1>
         </div>

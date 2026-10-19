@@ -84,7 +84,7 @@ export function Party() {
     <div className="flex flex-col gap-6">
       <header>
         <Eyebrow>{section} · Wedding party</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">{title}</h1>
+        <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">{title}</h1>
         <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">
           {view === 'p1' || view === 'p2' ? `${d.names[view]}’s side. ` : ''}
           {INTRO[view]}

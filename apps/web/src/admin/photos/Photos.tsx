@@ -100,7 +100,7 @@ export function Photos() {
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
           <Eyebrow>{section} · Photos</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">
             {data.items.length} {data.items.length === 1 ? 'photo' : 'photos'}
             {people.length ? ` from ${people.length} ${people.length === 1 ? 'guest' : 'guests'}` : ''}
           </h1>

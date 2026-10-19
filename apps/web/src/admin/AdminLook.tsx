@@ -73,7 +73,7 @@ export function AdminLook() {
     <div className="flex flex-col gap-6 max-w-[860px]">
       <header>
         <Eyebrow>Account · Admin look</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Admin look</h1>
+        <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Admin look</h1>
         <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">How this admin looks for both of you. Guests never see it.</p>
       </header>
       <section aria-label="Colours" className="flex flex-col gap-3">

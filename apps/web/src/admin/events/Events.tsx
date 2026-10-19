@@ -75,7 +75,7 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
       {!only && !addOnly && (
       <header>
         <Eyebrow>Events</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">What you're celebrating</h1>
+        <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">What you're celebrating</h1>
         <p className="m-0 mt-2 text-[15px] text-[#5b6a52] max-w-[680px]">
           Each event has its own date, place and RSVP. Guests only see the events they're invited to; choose who's invited in Guests. The invitation's design has two event
           sections, filled by your first two events in date order; every event gets its own RSVP, texts, seating and night-before guide.

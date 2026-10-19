@@ -168,7 +168,7 @@ function WeddingPicker({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
   return (
     <main className="min-h-screen p-6 max-w-[1180px] mx-auto">
       <Eyebrow>Signed in as {me.user.email}</Eyebrow>
-      <h1 className="mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Your weddings</h1>
+      <h1 className="mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Your weddings</h1>
       <ul className="list-none p-0 mt-4 flex flex-col">
         {me.weddings.map((w) => (
           <li key={w.id} className="py-3 border-t border-[#e2d7bc]">

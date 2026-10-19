@@ -125,7 +125,7 @@ function badge(key: TabKey, o: Overview | null, group: string): string {
   }
 }
 
-function SideNav({ mob }: { mob: boolean }) {
+function SideNav({ mob, aside }: { mob: boolean; aside?: ReactNode }) {
   const { tab = 'overview' } = useParams();
   const go = useNavigate();
   const { wid, overview: o, event, path } = useAdmin();
@@ -196,6 +196,7 @@ function SideNav({ mob }: { mob: boolean }) {
     <NavLink
       key={t.key}
       to={path(t.key)}
+      data-on={navKey(tab) === t.key ? '' : undefined}
       className={({ isActive }) =>
         `flex-none whitespace-nowrap flex items-center justify-between gap-[10px] rounded-[8px] text-left no-underline ${ring} ${mob ? 'py-2 px-3 text-[14px]' : 'py-[9px] px-3 text-[15px]'} ${
           isActive || navKey(tab) === t.key ? 'bg-[#f3ecd6] !text-[var(--adm-ink,#33402f)]' : 'bg-transparent !text-[#f3ecd6] hover:!text-[#f3ecd6]'
@@ -224,14 +225,34 @@ function SideNav({ mob }: { mob: boolean }) {
   };
 
   if (mob) {
+    // Phones: one row to pick the section (a menu, however many events) beside Sign out, then the
+    // section's pages as a strip that scrolls sideways, with the page you're on scrolled into view.
     return (
       <>
-        <div aria-label="Sections" className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
-          {groups.map(groupBtn)}
+        <div className="flex items-center gap-3">
+          <label className="relative flex-1 min-w-0">
+            <span className="sr-only">Section</span>
+            <select
+              value={current.key}
+              onChange={(e) => {
+                const g = groups.find((x) => x.key === e.target.value);
+                if (g) open(g);
+              }}
+              className={`w-full appearance-none py-[7px] pl-3 pr-8 rounded-[8px] border border-[rgba(243,236,214,.35)] bg-[rgba(243,236,214,.1)] text-[#f3ecd6] text-[15px] font-semibold truncate ${ring}`}
+            >
+              {groups.map((g) => (
+                <option key={g.key} value={g.key} className="text-[#33402f]">
+                  {g.name}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px]">▾</span>
+          </label>
+          {aside}
         </div>
-        <nav aria-label="Admin" className="flex gap-1 flex-none flex-row overflow-x-auto [scrollbar-width:none]">
+        <MobileTabs tab={tab} section={current.key}>
           {current.tabs.map(tabLink)}
-        </nav>
+        </MobileTabs>
       </>
     );
   }
@@ -277,6 +298,19 @@ function SideNav({ mob }: { mob: boolean }) {
   );
 }
 
+/** The phone's strip of page links: keeps the page you're on in view when it changes. */
+function MobileTabs({ tab, section, children }: { tab: string; section: string; children: ReactNode }) {
+  const strip = useRef<HTMLElement>(null);
+  useEffect(() => {
+    strip.current?.querySelector('[data-on]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [tab, section]);
+  return (
+    <nav ref={strip} aria-label="Admin" className="flex gap-1 flex-none flex-row overflow-x-auto [scrollbar-width:none] -mx-[14px] px-[14px] snap-x">
+      {children}
+    </nav>
+  );
+}
+
 /** design/RSVP Admin.dc.html shell: 236px sidebar #33402f; under 760px a sticky top bar with scrolling nav pills. */
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
   const { overview: o, event } = useAdmin();
@@ -295,21 +329,15 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
     <div style={looks(o, event)} className={`grid min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300 ${mob ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'}`}>
       <LeaveGuard />
       <aside
-        className={`bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 ${mob ? 'gap-[10px] pt-3 px-[14px] pb-[10px] h-auto' : 'gap-[24px] pt-[30px] px-4 pb-[22px] h-screen'}`}
+        className={`bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 ${mob ? 'gap-2 pt-[max(10px,env(safe-area-inset-top))] px-[14px] pb-2 h-auto shadow-[0_2px_10px_rgba(0,0,0,.12)]' : 'gap-[24px] pt-[30px] px-4 pb-[22px] h-screen'}`}
       >
-        {mob ? (
-          // Phones: the name and Sign out share one short row above the section pills.
-          <div className="px-[10px] flex items-center justify-between gap-3">
-            <div className="font-script text-[24px] leading-[1.15] min-h-[28px] min-w-0 truncate">{name}</div>
-            {signOutBtn}
-          </div>
-        ) : (
+        {mob ? null : (
           <div className="px-[10px]">
             <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
             <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#cfd8bb]">RSVP admin</div>
           </div>
         )}
-        <SideNav mob={mob} />
+        <SideNav mob={mob} aside={mob ? signOutBtn : undefined} />
         {!mob && (
           <div className="mt-auto flex flex-col gap-[14px] py-4 px-3 border-t border-[rgba(243,236,214,.18)]">
             {o?.daysToGo !== null && o?.daysToGo !== undefined && (
@@ -319,7 +347,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           </div>
         )}
       </aside>
-      <main className={`min-w-0 ${mob ? 'pt-[22px] px-4 pb-20' : 'pt-9 px-[clamp(20px,4vw,48px)] pb-[60px]'}`}>
+      <main className={`min-w-0 ${mob ? 'pt-5 px-4 pb-[calc(80px+env(safe-area-inset-bottom))]' : 'pt-9 px-[clamp(20px,4vw,48px)] pb-[60px]'}`}>
         <div className="max-w-[1180px] mx-auto">{children}</div>
       </main>
     </div>

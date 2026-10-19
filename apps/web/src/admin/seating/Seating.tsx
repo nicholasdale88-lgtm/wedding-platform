@@ -278,7 +278,7 @@ export function Seating() {
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
           <Eyebrow>{s.event.name} · Seating</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">
             {seated} of {s.people.length} seated
           </h1>
           <div className="mt-1 text-[14px] text-[#5b6a52]">
@@ -381,6 +381,7 @@ export function Seating() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
         <div className="overflow-auto rounded-[14px] border border-[#d3c6a4] print:overflow-visible print:border-0">
+          {/* Phones: swipe the empty floor to scroll the plan; drag a table or area to move it. */}
           <div
             ref={plan}
             onClick={planClick}
@@ -389,7 +390,7 @@ export function Seating() {
             onPointerLeave={up}
             role="application"
             aria-label="Floor plan"
-            className={`relative select-none touch-none ${adding ? 'cursor-crosshair' : ''}`}
+            className={`relative select-none touch-pan-x touch-pan-y ${adding ? 'cursor-crosshair' : ''}`}
             style={{ width: `${zoom * 100}%`, aspectRatio: aspect.replace(/\s/g, ''), background: '#fbf8f2', backgroundImage: 'radial-gradient(#e2d7bc 1px, transparent 1.2px)', backgroundSize: '18px 18px' }}
           >
             {areas.map((a, i) => (
@@ -397,7 +398,7 @@ export function Seating() {
                 key={i}
                 onPointerDown={down('area', i, a.x, a.y)}
                 onClick={(e) => e.stopPropagation()}
-                className="absolute flex items-center justify-center rounded-[6px] border border-dashed text-[11px] uppercase tracking-[.14em] text-[#7a7466] cursor-move text-center"
+                className="absolute flex items-center justify-center rounded-[6px] border border-dashed text-[11px] uppercase tracking-[.14em] text-[#7a7466] cursor-move text-center touch-none"
                 style={{ left: `${a.x}%`, top: `${a.y}%`, width: `${a.w}%`, height: `${a.h}%`, transform: 'translate(-50%,-50%)', borderColor: sel?.kind === 'area' && sel.i === i ? '#33402f' : '#c6b794', background: '#f3ecd6' }}
               >
                 {/entr/i.test(a.label) ? `↓ ${a.label}` : a.label}
@@ -651,7 +652,7 @@ function TableShapeView({
       }}
       role="button"
       aria-label={`Table ${t.name}, ${n} of ${t.seats}`}
-      className="absolute cursor-move"
+      className="absolute cursor-move touch-none"
       style={{ left: `${t.x}%`, top: `${t.y}%`, width: `${box.w}%`, height: `${box.h}%`, transform: 'translate(-50%,-50%)' }}
     >
       {spots.map((p, i) => (

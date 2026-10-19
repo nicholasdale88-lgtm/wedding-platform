@@ -20,7 +20,7 @@ export function EventDayChecklist() {
   const header = (
     <header>
       <Eyebrow>{section} · Day checklist</Eyebrow>
-      <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Day checklist</h1>
+      <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Day checklist</h1>
       <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">Everything to do for {ev?.name ?? 'the day'}, from a month out to the clean-up. Tick things off on your phone.</p>
     </header>
   );
