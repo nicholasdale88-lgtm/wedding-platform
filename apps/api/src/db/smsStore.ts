@@ -44,7 +44,8 @@ export class D1SmsStore implements SmsStore {
       q(`SELECT p.invitation_id, p.name,
                 (SELECT json_extract(tb.value, '$.name')
                    FROM seat_publish sp JOIN event e ON e.id = sp.event_id, json_each(sp.snapshot, '$.tables') tb
-                  WHERE e.wedding_id = i.wedding_id
+                  WHERE e.wedding_id = i.wedding_id AND e.deleted_at IS NULL
+                    AND EXISTS (SELECT 1 FROM rsvp r WHERE r.invitation_id = i.id AND r.event_id = e.id AND r.attending = 1)
                     AND json_extract(tb.value, '$.id') = json_extract(sp.snapshot, '$.seats."' || p.id || '"')
                   ORDER BY e.sort LIMIT 1) AS table_name
            FROM person p JOIN invitation i ON i.id = p.invitation_id

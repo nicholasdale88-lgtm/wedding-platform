@@ -107,12 +107,11 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
   const content = json<Record<string, unknown>>(w.content, {});
   const slots = invitation ? (events.map((e, i) => (invitation.invited.includes(e.key) ? i : -1)).filter((i) => i === 0 || i === 1) as (0 | 1)[]) : null;
   const visibleEvents = invitation ? events.filter((e) => invitation.invited.includes(e.key)) : events;
-  const base = (c.env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '');
-  const music = w.music_key ? `${base}/api/p/${w.slug}/media/${encodeURIComponent(w.music_key)}` : undefined;
   const inv = InvitationContent.safeParse(content.invitation ?? {});
   return {
     wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
-    content: { ...(inv.success ? inv.data : {}), ...(music ? { audioUrl: music } : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
+    // Music is the link set in Setup (MP3 or YouTube): there are no uploaded music files to point at.
+    content: { ...(inv.success ? inv.data : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
     texts: textsFor('inv', (content.texts as Record<string, string> | undefined) ?? {}, slots),
     events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []) })),
     invitation,
@@ -202,7 +201,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
 
     // Guests only ever see the *published* seating (Admin → Seating → Publish), and only once they've said yes.
     const pubRow = pub!.results[0] as { snapshot: string } | undefined;
-    const snap = pubRow ? (JSON.parse(pubRow.snapshot) as SeatSnapshot) : null;
+    const snap = pubRow ? json<SeatSnapshot | null>(pubRow.snapshot, null) : null;
     // The stand-in guest sits at the first published table, so the couple sees how the table card looks.
     const tableOf = (personId: string) => (couple ? snap?.tables[0]?.id : coming && snap?.seats[personId]) || null;
     const mine = [...new Set(ppl.map((p) => tableOf(p.id)).filter((id): id is string => !!id))];

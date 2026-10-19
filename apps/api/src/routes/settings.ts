@@ -2,7 +2,7 @@ import { displayPhone, toE164 } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
-import { readJson } from '../lib/security';
+import { readJson, safeJson } from '../lib/security';
 import { estimate, type EngineDeps } from '../sms/engine';
 import { DEFAULT_REPLIES } from '../sms/inbound';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -78,7 +78,7 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
       const months = Math.max(1, Math.ceil(((last?.at ? Date.parse(last.at) : Date.now()) - Date.now()) / (30.44 * 86_400_000)) + 1);
       plan.push({ name: 'Reply number (Texto)', detail: `About $15 a month × ${months} ${months === 1 ? 'month' : 'months'}, until after your last event`, costCents: TEXTO_NUMBER_MONTHLY_CENTS * months, auto: true, fixed: true });
     }
-    const replies = { ...DEFAULT_REPLIES, ...(JSON.parse(w.sms_replies || '{}') as Record<string, string>) };
+    const replies = { ...DEFAULT_REPLIES, ...safeJson<Record<string, string>>(w.sms_replies, {}) };
     return {
       version: w.version,
       provider: texto ? 'Texto' : 'Mobile Message',
@@ -128,7 +128,7 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     if (b.quietStart !== undefined) set('quiet_start', b.quietStart);
     if (b.quietEnd !== undefined) set('quiet_end', b.quietEnd);
     if (b.optOutFooter !== undefined) set('sms_optout_footer', b.optOutFooter.trim());
-    if (b.replies !== undefined) set('sms_replies', JSON.stringify({ ...(JSON.parse(w.sms_replies || '{}') as object), ...b.replies }));
+    if (b.replies !== undefined) set('sms_replies', JSON.stringify({ ...safeJson<object>(w.sms_replies, {}), ...b.replies }));
     if (b.rateX100 !== undefined) set('sms_rate_cents_x100', b.rateX100);
     const now = new Date().toISOString();
     const r = await c.env.DB.prepare(`UPDATE wedding SET ${[...sets, 'version = version + 1', 'updated_at = ?'].join(', ')} WHERE id = ? AND version = ?`)

@@ -379,6 +379,8 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       .bind(now(), invId, wid(c))
       .run();
     if (!r.meta.changes) return err(c, 404, 'not_found', 'That guest no longer exists.');
+    // Texts waiting to go to them don't (ones already handed to the provider can't be recalled).
+    await c.env.DB.prepare(`UPDATE sms_out SET status = 'cancelled', error = 'Guest removed' WHERE invitation_id = ? AND status = 'queued' AND batch_key IS NULL`).bind(invId).run();
     await audit(c, 'guest.remove', invId).run();
     return c.json({ ok: true });
   });

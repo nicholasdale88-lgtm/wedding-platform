@@ -66,6 +66,15 @@ export const hardening = (): MiddlewareHandler<{ Bindings: Env }> => async (c, n
 };
 
 /** Read a JSON body with a hard size cap, whatever Content-Length claimed. Null if too large or not JSON. */
+/** Stored JSON (settings, snapshots): damaged or empty gives the fallback, never a crash. */
+export function safeJson<T>(s: string | null | undefined, fallback: T): T {
+  try {
+    return s ? (JSON.parse(s) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function readJson(req: Request, max = MAX_BODY): Promise<unknown> {
   const text = await readText(req, max);
   if (text === null) return null;

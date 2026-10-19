@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
-import { readJson } from '../lib/security';
+import { readJson, safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -20,7 +20,7 @@ export interface BoardSettings {
 }
 const settingsOf = (content: string | null): BoardSettings => {
   try {
-    const b = (JSON.parse(content || '{}') as { board?: Partial<BoardSettings> }).board ?? {};
+    const b = safeJson<{ board?: Partial<BoardSettings> }>(content, {}).board ?? {};
     return { on: b.on !== false, approve: !!b.approve };
   } catch {
     return { on: true, approve: false };

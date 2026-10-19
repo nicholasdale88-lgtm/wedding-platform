@@ -186,8 +186,14 @@ export async function flush(d: EngineDeps, w: WeddingCtx): Promise<FlushResult> 
 
   // Dated texts held over (cap, credits) are re-checked: a guest who has replied since is not reminded.
   const stale = await noLongerQualifies(d, w, rows.filter((r) => r.batchKey === null && r.dedupeKey.startsWith('slot:')));
-  await d.store.markResults([...stale].map((id) => ({ id, status: 'cancelled' as const, error: 'No longer in the audience' })));
-  rows = rows.filter((r) => !stale.has(r.id));
+  // Other held texts (a "Send now" in quiet hours, an autopilot text, a message to one guest): still sent
+  // only if the guest is still on the list (not removed, not excluded) and the message still exists.
+  const gone = await noLongerThere(d, w, rows.filter((r) => r.batchKey === null && r.kind === 'campaign' && !r.dedupeKey.startsWith('slot:')));
+  await d.store.markResults([
+    ...[...stale].map((id) => ({ id, status: 'cancelled' as const, error: 'No longer in the audience' })),
+    ...[...gone].map((id) => ({ id, status: 'cancelled' as const, error: 'The guest or the message was removed' })),
+  ]);
+  rows = rows.filter((r) => !stale.has(r.id) && !gone.has(r.id));
 
   const { now: sendable, later } = await applyDailyCap(d, w, rows, now);
   await d.store.release(later.map((r) => r.id));
@@ -264,6 +270,26 @@ async function noLongerQualifies(d: EngineDeps, w: WeddingCtx, rows: OutboxRow[]
         const c = row.campaignId ? campaigns.get(row.campaignId) : undefined;
         const r = row.invitationId ? byId.get(row.invitationId) : undefined;
         return !c || !c.enabled || !r || !textable(r, c) || !matches(c.audience, r, invitedBefore);
+      })
+      .map((row) => row.id),
+  );
+}
+
+async function noLongerThere(d: EngineDeps, w: WeddingCtx, rows: OutboxRow[]): Promise<Set<string>> {
+  if (!rows.length) return new Set();
+  const campaigns = new Map((await d.store.campaigns(w.id)).map((c) => [c.id, c]));
+  const { recipients } = await d.store.audience(w.id);
+  const byId = new Map(recipients.map((r) => [r.id, r]));
+  return new Set(
+    rows
+      .filter((row) => {
+        const r = row.invitationId ? byId.get(row.invitationId) : undefined;
+        if (row.invitationId && !r) return true; // the guest was removed
+        if (!row.campaignId) return false; // a message to one guest: they're still here
+        const c = campaigns.get(row.campaignId);
+        if (!c) return true; // the message was deleted
+        if (row.dedupeKey.startsWith('auto:') && !c.enabled) return true; // autopilot switched off since
+        return !!r && !textable(r, c);
       })
       .map((row) => row.id),
   );

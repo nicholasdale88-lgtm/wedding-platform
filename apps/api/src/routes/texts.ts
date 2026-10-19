@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
-import { readJson } from '../lib/security';
+import { readJson, safeJson } from '../lib/security';
 import { estimate, sendNow, sendTest, type EngineDeps } from '../sms/engine';
 import { recipientsFor } from '../sms/audience';
 import { Audience } from '../sms/types';
@@ -82,7 +82,7 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     const evs = events.map((e) => ({ key: e.key, name: e.name }));
     const groups = audiences(evs);
     const label = (a: Audience) => groups.find((g) => audienceKey(g.audience) === audienceKey(a))?.label ?? 'A custom group';
-    const presets = (JSON.parse((content!.results[0] as { content: string }).content || '{}') as { smsPresets?: unknown[] }).smsPresets ?? [];
+    const presets = safeJson<{ smsPresets?: unknown[] }>((content!.results[0] as { content: string } | undefined)?.content, {}).smsPresets ?? [];
     return c.json({
       live: !!w.sender,
       sender: w.sender,
@@ -159,9 +159,11 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     if (p.audience !== undefined) set('audience', JSON.stringify(p.audience));
     if (p.excluded !== undefined) set('excluded', JSON.stringify(p.excluded));
     if (p.dates !== undefined && cur.key.startsWith('custom-')) set('mode', p.dates.length ? 'dates' : 'manual');
-    const stmts = [
-      c.env.DB.prepare(`UPDATE campaign SET ${[...sets, 'version = version + 1'].join(', ')} WHERE id = ? AND version = ?`).bind(...vals, cid, v),
-    ];
+    // Claim the version first, on its own: a batch doesn't stop when an UPDATE matches nothing, so a
+    // losing save must never reach the send dates below.
+    const claimed = await c.env.DB.prepare(`UPDATE campaign SET ${[...sets, 'version = version + 1'].join(', ')} WHERE id = ? AND version = ?`).bind(...vals, cid, v).run();
+    if (!claimed.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
+    const stmts: D1PreparedStatement[] = [];
     if (p.dates !== undefined) {
       // Pending dates are replaced; ones already sent (or failed) stay as history.
       stmts.push(c.env.DB.prepare(`DELETE FROM campaign_slot WHERE campaign_id = ? AND status = 'pending'`).bind(cid));
@@ -170,8 +172,7 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
         stmts.push(c.env.DB.prepare(`INSERT INTO campaign_slot (id, campaign_id, send_at) VALUES (?, ?, ?)`).bind(crypto.randomUUID(), cid, at));
       }
     }
-    const [res] = await c.env.DB.batch(stmts);
-    if (!res!.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
+    if (stmts.length) await c.env.DB.batch(stmts);
     await audit(c, 'sms.campaign.edit', cid, Object.keys(p));
     return c.json({ ok: true, version: v + 1 });
   });
@@ -180,7 +181,11 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     const cid = c.req.param('cid');
     const r = await c.env.DB.prepare(`UPDATE campaign SET deleted_at = ?, enabled = 0 WHERE id = ? AND wedding_id = ? AND key LIKE 'custom-%' AND deleted_at IS NULL`).bind(nowIso(), cid, wid(c)).run();
     if (!r.meta.changes) return err(c, 400, 'invalid', 'Built-in messages can be switched off, not deleted.');
-    await c.env.DB.prepare(`UPDATE campaign_slot SET status = 'cancelled' WHERE campaign_id = ? AND status = 'pending'`).bind(cid).run();
+    await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE campaign_slot SET status = 'cancelled' WHERE campaign_id = ? AND status = 'pending'`).bind(cid),
+      // Texts already queued for it (e.g. held for the morning) don't go either. (Ones already handed to the provider can't be recalled.)
+      c.env.DB.prepare(`UPDATE sms_out SET status = 'cancelled', error = 'Message deleted' WHERE campaign_id = ? AND status = 'queued' AND batch_key IS NULL`).bind(cid),
+    ]);
     await audit(c, 'sms.campaign.delete', cid);
     return c.json({ ok: true });
   });

@@ -54,6 +54,14 @@ const shortName = (e: AdminEvent) => e.name.replace(/^the\s+/i, '').replace(/^\w
  * With an event key, everything is about that one event (the admin's event switcher): only guests
  * invited to it, their replies to it, its dietary list and seating, and the days until it.
  */
+/** Calendar days from today to the day, in the wedding's own timezone (9am today, 10am tomorrow = 1). */
+function daysBetween(now: Date, day: Date, tz: string): number {
+  if (Number.isNaN(day.getTime())) return 0;
+  const a = localParts(now, tz);
+  const b = localParts(day, tz);
+  return Math.max(0, Math.round((Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day)) / 86_400_000));
+}
+
 export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Overview {
   const focus = d.events.find((e) => e.key === focusKey) ?? null;
   const G = focus ? d.guests.filter((g) => g.invited.includes(focus.key)) : d.guests;
@@ -184,7 +192,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
       coming: G.reduce((n, g) => n + (attends(g, e.key) ? Math.max(1, g.rsvp[e.key]?.count ?? 1) : 0), 0),
     })),
     diet: { people: dietPeople.length, serious: dietPeople.filter((p) => isSerious(p.diet)).length, mealsSet },
-    daysToGo: first ? Math.max(0, Math.ceil((Date.parse(first.startsAt) - now.getTime()) / 86_400_000)) : null,
+    daysToGo: first ? daysBetween(now, new Date(first.startsAt), d.wedding.timezone) : null,
     needsYou,
     nextUp,
     latest,

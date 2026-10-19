@@ -1,6 +1,6 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { readJson } from '../lib/security';
+import { readJson, safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -58,7 +58,7 @@ const out = (r: Row) => ({
   mapUrl: r.map_url ?? '',
   catered: !!r.catered,
   hasSeating: !!r.has_seating,
-  questions: JSON.parse(r.questions || '[]') as z.infer<typeof Question>[],
+  questions: safeJson<z.infer<typeof Question>[]>(r.questions, []),
   sort: r.sort,
   version: r.version,
   invited: r.invited,
@@ -168,18 +168,17 @@ export function eventRoutes() {
     const eventId = c.req.param('id');
     const live = await db.prepare(`SELECT COUNT(*) AS n FROM event WHERE wedding_id = ? AND deleted_at IS NULL`).bind(wid(c)).first<{ n: number }>();
     if ((live?.n ?? 0) <= 1) return err(c, 400, 'last_event', 'Keep at least one event. Rename this one instead.');
-    const res = await db
-      .prepare(`UPDATE event SET deleted_at = ?, version = version + 1 WHERE id = ? AND wedding_id = ? AND version = ? AND deleted_at IS NULL`)
-      .bind(now(), eventId, wid(c), v)
-      .run();
-    if (!res.meta.changes) return err(c, 409, 'conflict', 'This event changed elsewhere. Reloaded: check it and try again.');
-    // Gone from every invitation (so no RSVP, text, guide or list includes it) and nobody keeps a seat there.
-    // RSVPs stay in the database, so the event can be put back by support if it was removed by mistake.
-    await db.batch([
-      db.prepare(`DELETE FROM invite_event WHERE event_id = ?`).bind(eventId),
-      db.prepare(`DELETE FROM seat WHERE event_id = ?`).bind(eventId),
-      audit(c, 'event.remove', eventId),
+    // One batch: removed, gone from every invitation (so no RSVP, text, guide or list includes it), and
+    // nobody keeps a seat there. The clean-up only happens if this removal is the one that happened (the
+    // exact time stamp), so a losing click changes nothing. RSVPs stay, so support can put it back.
+    const at = now();
+    const [res] = await db.batch([
+      db.prepare(`UPDATE event SET deleted_at = ?, version = version + 1 WHERE id = ? AND wedding_id = ? AND version = ? AND deleted_at IS NULL`).bind(at, eventId, wid(c), v),
+      db.prepare(`DELETE FROM invite_event WHERE event_id = ?1 AND EXISTS (SELECT 1 FROM event WHERE id = ?1 AND deleted_at = ?2)`).bind(eventId, at),
+      db.prepare(`DELETE FROM seat WHERE event_id = ?1 AND EXISTS (SELECT 1 FROM event WHERE id = ?1 AND deleted_at = ?2)`).bind(eventId, at),
     ]);
+    if (!res!.meta.changes) return err(c, 409, 'conflict', 'This event changed elsewhere. Reloaded: check it and try again.');
+    await audit(c, 'event.remove', eventId).run();
     return c.json({ events: await list(c) });
   });
 

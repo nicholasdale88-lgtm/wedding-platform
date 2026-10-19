@@ -1,7 +1,7 @@
 import { TABLE_SHAPES } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { readJson } from '../lib/security';
+import { readJson, safeJson } from '../lib/security';
 import { unseatEveryoneNotComing } from '../lib/seatingRules';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -82,7 +82,7 @@ export function seatingRoutes() {
       ),
     };
     const pubRow = pub!.results[0] as { snapshot: string; published_at: string } | undefined;
-    const published = pubRow ? { at: pubRow.published_at, changes: changesBetween(JSON.parse(pubRow.snapshot) as Snapshot, draft) } : null;
+    const published = pubRow ? { at: pubRow.published_at, changes: changesBetween(safeJson<Snapshot>(pubRow.snapshot, { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot), draft) } : null;
     return {
       eventId: ev.id,
       draft,
