@@ -1,4 +1,4 @@
-import { andList, fillTags } from '@wp/shared';
+import { andList, fillTags, joinDiet } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { THEMES } from '../generated/themes';
 import type { ViewValues } from '../types';
@@ -58,7 +58,7 @@ function formFrom(g: GuestInvitation | null, data: InvitePayload): Form {
     b: g && e1 && g.invited.includes(e1.key) ? (r1?.attending ?? null) : false,
     count: String(Math.max(r0?.count ?? 0, r1?.count ?? 0) || (g ? g.people.length : 1)),
     ride: (rideQ && r1?.answers[rideQ.key]) || rideQ?.options?.find((o) => /not sure/i.test(o)) || 'Not sure yet',
-    diet: g ? g.people.map((p) => p.diet.trim()).filter(Boolean).join('; ') : '',
+    diet: g ? joinDiet(g.people) : '',
     msg: g?.message ?? '',
   };
 }

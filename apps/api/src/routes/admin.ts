@@ -1,4 +1,4 @@
-import { attachDiet, randomToken, toE164 } from '@wp/shared';
+import { randomToken, splitDiet, toE164 } from '@wp/shared';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -299,8 +299,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     });
     if (r.diet !== undefined) {
       const { results: people } = await db.prepare(`SELECT idx, name FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(invId).all<{ idx: number; name: string }>();
-      const who = attachDiet(r.diet, people.map((p) => p.name));
-      stmts.push(db.prepare(`UPDATE person SET diet = CASE WHEN idx = ? THEN ? ELSE '' END WHERE invitation_id = ? AND deleted_at IS NULL`).bind(who, r.diet.trim(), invId));
+      // One note for the invitation, split so each person gets their own part (splitDiet).
+      const parts = splitDiet(r.diet, people.map((p) => p.name));
+      people.forEach((p, i) => stmts.push(db.prepare(`UPDATE person SET diet = ? WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(parts[i] ?? '', invId, p.idx)));
     }
     stmts.push(audit(c, 'guest.rsvp', invId, r));
     await db.batch(stmts);

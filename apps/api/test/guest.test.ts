@@ -96,6 +96,21 @@ describe('guest API', () => {
     expect(via!.via).toBe('invitation');
   });
 
+  it("a dietary note for two people reaches each person's own place card", async () => {
+    const tok = await tokenOf('Margaret Bloor'); // Margaret and Peter
+    await post('/rsvp', { token: tok, events: { wedding: { attending: true } }, diet: 'Margaret vegetarian, Peter coeliac' });
+    const rows = await t.db.prepare(`SELECT p.name, p.diet FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.token = ? ORDER BY p.idx`).bind(tok).all();
+    expect(rows.results).toEqual([
+      { name: 'Margaret Bloor', diet: 'Vegetarian' },
+      { name: 'Peter Bloor', diet: 'Coeliac' },
+    ]);
+    const guide = (await (await get(`/guide?g=${tok}&event=wedding`)).json()) as { guest: { people: { name: string; diet: string }[] } };
+    expect(guide.guest.people.map((p) => p.diet)).toEqual(['Vegetarian', 'Coeliac']);
+    // Editing the reply later shows the same split and keeps it.
+    const again = (await (await get(`/invite?g=${tok}&preview=1`)).json()) as Payload;
+    expect(again.invitation!.people.map((p) => (p as { diet?: string }).diet)).toEqual(['Vegetarian', 'Coeliac']);
+  });
+
   it('changing a reply moves the reply time (thank-you); repeating the same answer does not', async () => {
     const tok = await tokenOf('Ivy Scott');
     const at = () => t.db.prepare(`SELECT r.updated_at FROM rsvp r JOIN invitation i ON i.id = r.invitation_id JOIN event e ON e.id = r.event_id WHERE i.token = ? AND e.key = 'wedding'`).bind(tok).first<{ updated_at: string }>();

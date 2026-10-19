@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  displayPhone, inQuietHours, isToken, joinFirstNames, localParts, nonGsmChars, randomToken, render, segments,
-  toE164, toGsm, toProviderFormat, unknownPlaceholders, zonedToUtc,
+  displayPhone, inQuietHours, isToken, joinDiet, joinFirstNames, localParts, nonGsmChars, randomToken, render, segments,
+  splitDiet, toE164, toGsm, toProviderFormat, unknownPlaceholders, zonedToUtc,
 } from '../src';
 
 const TZ = 'Australia/Sydney';
@@ -78,4 +78,30 @@ describe('templates', () => {
     expect(unknownPlaceholders('Hi {first} {link} {guide30} {frist}')).toEqual(['frist']);
   });
   it('renders', () => expect(render('Hi {first}: {link}', { first: 'Ella', link: 'x/y' })).toBe('Hi Ella: x/y'));
+});
+
+describe('splitDiet / joinDiet (one note per invitation, one per person)', () => {
+  const two = ['Margaret Bloor', 'Peter Bloor'];
+  it('gives each person their own part', () => {
+    expect(splitDiet('Margaret vegetarian, Peter coeliac', two)).toEqual(['Vegetarian', 'Coeliac']);
+    expect(splitDiet('Peter: nut allergy (severe); Margaret: no pork', two)).toEqual(['No pork', 'Nut allergy (severe)']);
+    expect(splitDiet("Peter is gluten free. Margaret's vegan", two)).toEqual(['Vegan', 'Gluten free']);
+  });
+  it('a note naming nobody belongs to the main contact; a single guest gets it all', () => {
+    expect(splitDiet('Vegetarian', two)).toEqual(['Vegetarian', '']);
+    expect(splitDiet('Vegetarian, no nuts', ['Ella Thompson'])).toEqual(['Vegetarian, no nuts']);
+    expect(splitDiet('  ', two)).toEqual(['', '']);
+  });
+  it('text after a name stays with that person until the next name', () => {
+    expect(splitDiet('Peter coeliac; also no dairy', two)).toEqual(['', 'Coeliac; Also no dairy']);
+  });
+  it('round-trips: what the form shows is read back the same way', () => {
+    const people = [
+      { name: 'Margaret Bloor', diet: 'Vegetarian' },
+      { name: 'Peter Bloor', diet: 'Coeliac' },
+    ];
+    expect(joinDiet(people)).toBe('Margaret: Vegetarian; Peter: Coeliac');
+    expect(splitDiet(joinDiet(people), two)).toEqual(['Vegetarian', 'Coeliac']);
+    expect(joinDiet([{ name: 'Ella T', diet: 'Vegan' }])).toBe('Vegan');
+  });
 });

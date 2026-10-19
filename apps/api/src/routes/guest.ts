@@ -1,4 +1,4 @@
-import { attachDiet, dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, textsFor } from '@wp/shared';
+import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, splitDiet, textsFor } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -325,8 +325,9 @@ export function guestRoutes() {
     });
     if (r.diet !== undefined) {
       const { results: people } = await db.prepare(`SELECT idx, name FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(inv.id).all<{ idx: number; name: string }>();
-      const who = attachDiet(r.diet, people.map((p) => p.name));
-      stmts.push(db.prepare(`UPDATE person SET diet = CASE WHEN idx = ? THEN ? ELSE '' END WHERE invitation_id = ? AND deleted_at IS NULL`).bind(who, r.diet.trim(), inv.id));
+      // One note for the invitation, split so each person gets their own part (splitDiet).
+      const parts = splitDiet(r.diet, people.map((p) => p.name));
+      people.forEach((p, i) => stmts.push(db.prepare(`UPDATE person SET diet = ? WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(parts[i] ?? '', inv.id, p.idx)));
     }
     // Bump the version so an admin with this guest open sees "updated elsewhere" instead of overwriting the reply.
     stmts.push(db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(now, inv.id));

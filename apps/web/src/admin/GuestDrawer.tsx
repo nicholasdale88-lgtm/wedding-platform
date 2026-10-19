@@ -1,3 +1,4 @@
+import { joinDiet } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
@@ -28,7 +29,7 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
     setNames(x.guest.people.map((p) => p.name));
     setPhone(x.guest.phoneDisplay);
     setTable(x.guest.people.find((p) => p.table)?.table ?? '');
-    setDiet(x.guest.people.map((p) => p.diet.trim()).filter(Boolean).join('; '));
+    setDiet(joinDiet(x.guest.people));
     setMessage(Object.values(x.guest.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '');
     setPick((p) => p || x.campaigns[0]?.id || '');
   }, []);
@@ -236,7 +237,7 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
           )}
         </div>
         <Label text="Dietary requirements">
-          <textarea rows={2} value={diet} onChange={(e) => setDiet(e.target.value)} onBlur={() => diet !== g.people.map((p) => p.diet.trim()).filter(Boolean).join('; ') && void rsvp({ events: {}, diet })} className={`${inputCls} resize-y`} />
+          <textarea rows={2} value={diet} onChange={(e) => setDiet(e.target.value)} onBlur={() => diet !== joinDiet(g.people) && void rsvp({ events: {}, diet })} className={`${inputCls} resize-y`} />
         </Label>
         <Label text="Message for the couple">
           <textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} onBlur={() => message !== (Object.values(g.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '') && void rsvp({ events: {}, message })} className={`${inputCls} resize-y`} />
