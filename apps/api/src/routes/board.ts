@@ -70,7 +70,7 @@ async function guestOf(c: GC, token: string) {
   const w = await db
     .prepare(`SELECT id, name1, name2, content, theme FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
     .bind(c.req.param('slug'))
-    .first<{ id: string; name1: string; name2: string; content: string }>();
+    .first<{ id: string; name1: string; name2: string; content: string; theme: string }>();
   if (!w || !isToken(token)) return null;
   const inv = await db
     .prepare(
