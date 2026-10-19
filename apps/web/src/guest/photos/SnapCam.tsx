@@ -31,6 +31,8 @@ export function SnapCam({
   const [ready, setReady] = useState(false);
   const [flash, setFlash] = useState(false);
   const [shots, setShots] = useState(0);
+  // Camera refused or missing: say so, with a button for the phone's own camera (it must come from a tap).
+  const [blocked, setBlocked] = useState(false);
 
   // The camera stream, restarted when flipping; always stopped on close.
   useEffect(() => {
@@ -38,8 +40,7 @@ export function SnapCam({
     let cancelled = false;
     setReady(false);
     if (!navigator.mediaDevices?.getUserMedia) {
-      fallback();
-      onClose();
+      setBlocked(true);
       return;
     }
     navigator.mediaDevices
@@ -49,14 +50,13 @@ export function SnapCam({
         stream = s;
         if (video.current) {
           video.current.srcObject = s;
-          void video.current.play().then(() => setReady(true));
+          void video.current
+            .play()
+            .then(() => setReady(true))
+            .catch(() => setBlocked(true));
         }
       })
-      .catch(() => {
-        // Camera refused or unavailable: the phone's own camera still works.
-        fallback();
-        onClose();
-      });
+      .catch(() => setBlocked(true));
     return () => {
       cancelled = true;
       stream?.getTracks().forEach((t) => t.stop());
@@ -128,7 +128,22 @@ export function SnapCam({
         <video ref={video} playsInline muted className={`absolute inset-0 w-full h-full object-cover ${facing === 'user' ? '-scale-x-100' : ''}`} />
         <canvas ref={overlay} aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" />
         {flash && <div className="absolute inset-0 bg-white/80" />}
-        {!ready && <div className="absolute inset-0 flex items-center justify-center text-[15px] opacity-80">Opening the camera…</div>}
+        {!ready && !blocked && <div className="absolute inset-0 flex items-center justify-center text-[15px] opacity-80">Opening the camera…</div>}
+        {blocked && (
+          <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center">
+            <p className="m-0 text-[17px] leading-[1.4]">This page can't use your camera (it may need permission in your browser settings). Your phone's own camera works instead.</p>
+            <button
+              type="button"
+              onClick={() => {
+                fallback();
+                onClose();
+              }}
+              className="py-3 px-6 rounded-full border-0 bg-white text-black text-[16px] cursor-pointer"
+            >
+              Use my phone's camera
+            </button>
+          </div>
+        )}
         <button type="button" onClick={onClose} aria-label="Close the camera" className="absolute top-[max(14px,env(safe-area-inset-top))] left-4 w-11 h-11 rounded-full border-0 bg-black/45 text-white text-[24px] cursor-pointer">
           ×
         </button>

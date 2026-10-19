@@ -29,6 +29,7 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
       const r = await guestApi.messages(slug, token);
       setMsgs(r.messages);
       setCouple(r.couple);
+      setErr('');
     } catch (e) {
       setErr((e as Error).message);
     }
@@ -40,6 +41,22 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
     return () => clearInterval(t);
   }, [open, load]);
   useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [msgs?.length, open]);
+  // A proper dialog: Escape closes it, the page behind doesn't scroll, focus goes back to the button.
+  const opener = useRef<HTMLButtonElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    box.current?.focus();
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = before;
+      window.removeEventListener('keydown', onKey);
+      setTimeout(() => opener.current?.focus(), 0); // the button is back on the page after this render
+    };
+  }, [open]);
 
   const send = async () => {
     if (!text.trim()) return;
@@ -60,6 +77,7 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
   if (!open) {
     return (
       <button
+        ref={opener}
         type="button"
         onClick={() => setOpen(true)}
         className={`fixed z-40 bottom-[max(16px,env(safe-area-inset-bottom))] ${side === 'left' ? 'left-4' : 'right-4'} py-[10px] px-4 rounded-full border-0 text-[16px] cursor-pointer shadow-[0_6px_18px_rgba(30,30,30,.2)]`}
@@ -70,7 +88,7 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
     );
   }
   return (
-    <div role="dialog" aria-label="Messages" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/35" onClick={() => setOpen(false)}>
+    <div role="dialog" aria-modal="true" aria-label="Messages" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/35" onClick={() => setOpen(false)}>
       <div
         className="w-full sm:w-[420px] max-h-[86vh] flex flex-col rounded-t-[22px] sm:rounded-[22px] bg-[#fbf8f2] shadow-[0_-10px_30px_rgba(0,0,0,.2)]"
         style={{ ...font, color: ink }}
@@ -121,6 +139,7 @@ export function MessageUs({ slug, token, ink = '#33402f', side = 'left' }: { slu
           {err && <div role="alert" className="text-[15px] text-[#8a5a45]">{err}</div>}
           <div className="flex gap-2 items-end">
             <textarea
+              ref={box}
               aria-label="Your message"
               rows={2}
               maxLength={1000}

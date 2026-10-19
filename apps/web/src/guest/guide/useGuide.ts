@@ -119,7 +119,7 @@ export function useGuide(data: GuidePayload): ViewValues {
     wxHours: (W?.hours ?? []).map((h) => ({ ...h, rain: s('gd.dyn.wxRain', { n: h.rain }) })),
     wxUpdated: W ? s('gd.dyn.wxUpdated', { time: updatedAt(W, data.wedding.timezone) }) : '',
     wxBom: G.bomUrl ?? '',
-    wxTip: wet && G.wetPlan?.trim() ? `${t('gd.dyn.wxTipWet')} ${G.wetPlan.trim()}`.trim() : t(wet ? 'gd.dyn.wxTipWet' : cold ? 'gd.dyn.wxTipCold' : 'gd.dyn.wxTipMild'),
+    wxTip: t(wet ? 'gd.dyn.wxTipWet' : cold ? 'gd.dyn.wxTipCold' : 'gd.dyn.wxTipMild'), // the wet plan itself: the notice and the quick answers
     ...videoOf(G.parkVideo),
     runsheet: G.runsheet ?? [],
     people,

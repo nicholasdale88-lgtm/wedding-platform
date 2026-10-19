@@ -84,6 +84,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   const [now, setNow] = useState(() => Date.now());
   const [texts] = useState(data.texts);
   const fanTouched = useRef(false);
+  const sending = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const audio = useRef<{ play: () => void; setMuted: (m: boolean) => void; stop: () => void } | null>(null);
   const scEl = useRef<HTMLElement | null>(null);
@@ -242,6 +243,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     }
     const body: RsvpBody = { token: guest.token, events, count: Number(form.count) || 1, diet: form.diet, message: form.msg };
     if (preview) return setSent(true); // the admin preview never records a reply
+    if (sending.current) return; // a double tap on a slow phone sends once
+    sending.current = true;
     try {
       const res = await guestApi.rsvp(slug, body);
       setGuest(res.invitation);
@@ -253,6 +256,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       store.set(QUEUE, JSON.stringify({ slug, body }));
       setErr(t('inv.dyn.queued'));
       setSent(true);
+    } finally {
+      sending.current = false;
     }
   }
 
@@ -281,7 +286,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   const names = guest ? guest.people.map((x) => x.name).filter(Boolean) : [];
   const firsts = andList(names.map(first));
   const seal = data.content.seal ?? 'Sandstone';
-  const target = e0 ? Date.parse(e0.startsAt) : now;
+  const target = Date.parse((e0 ?? e1 ?? data.events[0])?.startsAt ?? '') || now; // birthday-only guests count down to theirs
   const ms = Math.max(0, target - now);
   const p2 = (n: number) => String(n).padStart(2, '0');
   const fanAngles = [-56, -42, -28, -14, 0, 14, 28, 42, 56];
@@ -468,7 +473,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     cardScale: p >= 2 ? 'scale(1)' : 'scale(1.06)',
     textOp: p >= 2 ? 1 : 0,
     textRise: p >= 2 ? 'translateY(0)' : 'translateY(14px)',
-    image: (id: string) => data.content.images?.[id] ?? '',
+    // The couple's photo, or the design's own until they add one (never a broken image).
+    image: (id: string) => data.content.images?.[id] || `/seed-media/${id}.jpg`,
     // Admin → Guest pages: sections switched off, and the couple's own accordion lists.
     hide: (label: string) => !!data.content.hidden?.[label],
     list: (key: string) => {
@@ -480,7 +486,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     // The end of an event's own section (the birthday's): that event's timeline, in the section's colours.
     after: (label: string) => {
       const slot = eventSlotOfPart(SECTION_PARTS[label]);
-      const ev = slot ? data.events[slot] : undefined;
+      // By slot, not position: a guest invited only to the second event is sent just that one event.
+      const ev = slot ? data.events.find((e) => e.slot === slot) : undefined; // the first event's timeline is the main one
       const items = ev ? data.content.timelines?.[ev.key] : undefined;
       if (!items || !shownRows(items).length) return undefined;
       return createElement('div', { style: { width: '100%', marginTop: 8 } }, createElement(TimelineRows, { items, onSection: true }));

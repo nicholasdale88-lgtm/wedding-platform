@@ -60,16 +60,18 @@ export function BoardPage() {
   const bg = theme.iv ?? '#f6f0e2';
   const gold = theme.acc ?? '#b39563';
 
-  const post = async (body: string, parent?: string) => {
+  /** Posts (or replies); returns the problem, if any, so it shows next to the box it came from. */
+  const post = async (body: string, parent?: string): Promise<string | null> => {
+    if (busy) return ''; // already posting: nothing cleared, nothing sent twice
     setBusy(true);
     try {
       const r = await guestApi.boardPost(slug, token, body, parent);
-      setNote(r.pending ? 'Thank you! Your message will appear once the couple has seen it.' : '');
+      if (!parent) setNote(r.pending ? 'Thank you! Your message will appear once the couple has seen it.' : '');
       await load();
-      return true;
+      return null;
     } catch (e) {
-      setNote((e as Error).message);
-      return false;
+      if (!parent) setNote((e as Error).message);
+      return (e as Error).message;
     } finally {
       setBusy(false);
     }
@@ -114,7 +116,7 @@ export function BoardPage() {
                   type="button"
                   disabled={busy || !text.trim()}
                   onClick={async () => {
-                    if (await post(text.trim())) setText('');
+                    if ((await post(text.trim())) === null) setText('');
                   }}
                   className="py-[10px] px-6 rounded-full border-0 text-[18px] cursor-pointer disabled:opacity-40"
                   style={{ background: ink, color: '#fbf8f2' }}
@@ -130,7 +132,7 @@ export function BoardPage() {
             </section>
 
             {data.posts.map((p) => (
-              <Post key={p.id} p={p} ink={ink} gold={gold} onReply={(body) => post(body, p.id)} slug={slug} token={token} onChanged={load} />
+              <Post key={p.id} p={p} ink={ink} gold={gold} busy={busy} onReply={(body) => post(body, p.id)} slug={slug} token={token} onChanged={load} />
             ))}
             {!data.posts.length && <p className="text-center text-[19px] italic opacity-75">Be the first to leave a message.</p>}
           </>
@@ -144,6 +146,7 @@ function Post({
   p,
   ink,
   gold,
+  busy,
   onReply,
   slug,
   token,
@@ -152,14 +155,18 @@ function Post({
   p: BoardPost;
   ink: string;
   gold: string;
-  onReply: (body: string) => Promise<boolean>;
+  busy: boolean;
+  onReply: (body: string) => Promise<string | null>;
   slug: string;
   token: string;
   onChanged: () => Promise<void>;
 }) {
+  // The board's count, until a tap of yours changes it (then yours, until the board refreshes).
   const [likes, setLikes] = useState({ n: p.likes, mine: p.liked });
+  useEffect(() => setLikes({ n: p.likes, mine: p.liked }), [p.likes, p.liked]);
   const [replying, setReplying] = useState(false);
   const [text, setText] = useState('');
+  const [replyErr, setReplyErr] = useState('');
   const like = async () => {
     try {
       const r = await guestApi.boardLike(slug, token, p.id);
@@ -232,9 +239,11 @@ function Post({
           />
           <button
             type="button"
-            disabled={!text.trim()}
+            disabled={busy || !text.trim()}
             onClick={async () => {
-              if (await onReply(text.trim())) {
+              const problem = await onReply(text.trim());
+              setReplyErr(problem ?? '');
+              if (problem === null) {
                 setText('');
                 setReplying(false);
               }
@@ -244,6 +253,11 @@ function Post({
           >
             Reply
           </button>
+        </div>
+      )}
+      {replying && replyErr && (
+        <div role="alert" className="text-[15px] italic">
+          {replyErr}
         </div>
       )}
     </article>

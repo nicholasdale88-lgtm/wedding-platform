@@ -2,6 +2,8 @@
 
 export interface Player {
   play: () => void;
+  /** Pause, ready to play again (stop() also removes it). */
+  pause: () => void;
   setMuted: (m: boolean) => void;
   stop: () => void;
 }
@@ -19,6 +21,7 @@ export function playerFor(src: string, loop = false): Player | null {
       a.volume = 0.7;
       void a.play().catch(() => undefined);
     },
+    pause: () => a.pause(),
     setMuted: (m) => {
       a.muted = m;
     },
@@ -74,6 +77,14 @@ function youTubeAudio(id: string, loop: boolean): Player {
     play: () => {
       want = true;
       start();
+    },
+    pause: () => {
+      want = false;
+      try {
+        player?.pauseVideo();
+      } catch {
+        /* ignore */
+      }
     },
     setMuted: (m: boolean) => {
       try {

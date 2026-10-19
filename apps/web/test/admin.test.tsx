@@ -190,6 +190,8 @@ describe('guest filters (pure)', () => {
 });
 
 describe('guest pages tab', () => {
+  // Setup belongs to an event (opened from its section of the menu).
+  beforeEach(() => localStorage.setItem('wp.admin.event.w1', 'wedding'));
   const pages = {
     version: 5,
     slug: 'alex-and-blair',
