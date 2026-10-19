@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
 import { coupleName } from '../lib/remember';
+import { GuestPlanningBar } from './GuestPlanning';
 import { Guests } from './Guests';
 import { Login } from './Login';
 import { Overview } from './Overview';
@@ -67,9 +68,19 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
   return (
     <AdminDataProvider wid={wid} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
-        {tab === 'overview' ? <Overview /> : tab === 'messages' ? <Messages /> : tab === 'events' ? <Navigate to={`/admin/${wid}/overview`} replace /> : tab === 'guests' ? <Guests /> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsTab /> : tab === 'settings' ? <Navigate to={`/admin/${wid}/texts`} replace /> : tab === 'dietary' ? <Dietary /> : tab === 'seating' ? <Seating /> : tab === 'photos' ? <Photos /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
+        {tab === 'overview' ? <Overview /> : tab === 'messages' ? <Messages /> : tab === 'events' ? <Navigate to={`/admin/${wid}/overview`} replace /> : tab === 'guests' ? <Planning><Guests /></Planning> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsTab /> : tab === 'settings' ? <Navigate to={`/admin/${wid}/texts`} replace /> : tab === 'dietary' ? <Planning><Dietary /></Planning> : tab === 'seating' ? <Planning><Seating /></Planning> : tab === 'photos' ? <Photos /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
       </Shell>
     </AdminDataProvider>
+  );
+}
+
+/** Guest list, Dietary and Seating share the Guest planning switcher. */
+function Planning({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-5">
+      <GuestPlanningBar />
+      {children}
+    </div>
   );
 }
 

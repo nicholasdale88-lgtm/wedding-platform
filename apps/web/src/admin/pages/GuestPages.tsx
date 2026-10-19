@@ -417,6 +417,18 @@ function PlaceFields<G extends ReceptionGuide | DayoutGuide>({ g, set }: { g: G;
         <TextField label="Latitude" value={g.lat === undefined ? '' : String(g.lat)} placeholder="-33.37" onChange={(v) => set({ ...g, lat: num(v) })} hint="For the live forecast." />
         <TextField label="Longitude" value={g.lon === undefined ? '' : String(g.lon)} placeholder="151.19" onChange={(v) => set({ ...g, lon: num(v) })} hint="Right-click the venue in Google Maps." />
       </div>
+      <TextField
+        label="Wet-weather plan"
+        long
+        value={g.wetPlan ?? ''}
+        placeholder="If it rains, the ceremony moves undercover to… Same times; follow the signs from the car park."
+        onChange={(wetPlan) => set({ ...g, wetPlan })}
+        hint="Pops up on the page when the forecast says rain, and is always in the quick answers."
+      />
+      <div className="grid grid-cols-2 gap-[14px]">
+        <TextField label="Music (MP3 or YouTube link)" value={g.music ?? ''} placeholder="https://youtu.be/…" onChange={(music) => set({ ...g, music })} hint="Guests tap to play it; it loops until they pause." />
+        <TextField label="Music button wording" value={g.musicTitle ?? ''} placeholder="Play our music" onChange={(musicTitle) => set({ ...g, musicTitle })} />
+      </div>
     </>
   );
 }

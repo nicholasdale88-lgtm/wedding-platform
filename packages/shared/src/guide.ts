@@ -23,6 +23,11 @@ const Common = {
   lon: z.number().min(-180).max(180),
   runsheet: z.array(Row).max(30),
   contacts: z.array(Contact).max(12),
+  /** Music guests can play on the page (an MP3, or a YouTube link), and what it is. */
+  music: s(1000),
+  musicTitle: s(120),
+  /** The wet-weather plan: shown when the forecast says rain, and as a quick answer. */
+  wetPlan: s(),
 };
 
 export const ReceptionGuide = z

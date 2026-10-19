@@ -68,6 +68,20 @@ describe('photos (admin)', () => {
     expect(((await (await call(`/a/w/${wid}/photos`)).json()) as List).items).toHaveLength(0);
   });
 
+  it('the couple adds photos to an event album (e.g. from a chat export); the same photo twice is added once', async () => {
+    const up = (body: Uint8Array, headers: Record<string, string> = {}, ck = cookie) =>
+      app.request(`/api/a/w/${wid}/photos/upload?event=wedding`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-Upload': '1', 'X-Photo-By': encodeURIComponent('Alex (group chat)'), cookie: ck, ...headers }, body }, env, ctx);
+    const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 9, 9]);
+    const first = (await (await up(PNG)).json()) as { duplicate: boolean };
+    expect(first.duplicate).toBe(false);
+    expect(((await (await up(PNG)).json()) as { duplicate: boolean }).duplicate).toBe(true);
+    const list = (await (await call(`/a/w/${wid}/photos`)).json()) as { items: { by: string; event: string | null }[] };
+    expect(list.items.filter((i) => i.by === 'Alex (group chat)')).toEqual([expect.objectContaining({ event: 'wedding' })]);
+    expect((await up(new Uint8Array([1, 2, 3, 4]))).status).toBe(415); // not a photo
+    expect((await up(PNG, {}, '')).status).toBe(401); // signed out
+    expect((await up(PNG, { 'X-Photo-Upload': '' })).status).toBe(415); // without the header it must be JSON
+  });
+
   it('says when storage is not switched on', async () => {
     delete env.MEDIA;
     expect(((await (await call(`/a/w/${wid}/photos`)).json()) as List).enabled).toBe(false);

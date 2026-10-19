@@ -4,6 +4,7 @@ import { photosApi, type PhotosData } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, Pill, useToast } from '../ui';
+import { ChatImport } from './ChatImport';
 
 /**
  * Admin → Photos (design: isPhotos): the album guests built. Filter by who took them, select and
@@ -107,6 +108,10 @@ export function Photos() {
           </Pill>
         </div>
       </header>
+
+      {data.enabled && (
+        <ChatImport wid={wid} events={(overview?.events ?? []).map((e) => ({ key: e.key, name: e.name }))} event={one ? chosen : undefined} onDone={() => void load()} />
+      )}
 
       {!data.enabled && (
         <div className="p-5 rounded-[14px] bg-[#f1e7c9] text-[15px]">

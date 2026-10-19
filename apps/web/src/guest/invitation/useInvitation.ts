@@ -1,4 +1,5 @@
 import { andList, eventSlotOfPart, fillTags, joinDiet } from '@wp/shared';
+import { playerFor } from '../audio';
 import { createElement, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { SECTION_PARTS } from '../generated/InvitationView.meta';
 import { THEMES } from '../generated/themes';
@@ -112,25 +113,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
 
   // ---------------------------------------------------------------- music (plays once, from the tap)
   useEffect(() => {
-    const src = data.content.audioUrl ?? '';
-    const yt = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/.exec(src);
-    if (yt) {
-      audio.current = youTubeAudio(yt[1]!);
-    } else if (src && typeof Audio !== 'undefined') {
-      const a = new Audio(src);
-      a.loop = false;
-      a.preload = 'auto';
-      audio.current = {
-        play: () => {
-          a.volume = 0.7;
-          void a.play().catch(() => undefined);
-        },
-        setMuted: (m) => {
-          a.muted = m;
-        },
-        stop: () => a.pause(),
-      };
-    }
+    audio.current = playerFor(data.content.audioUrl ?? '');
     return () => audio.current?.stop();
   }, [data.content.audioUrl]);
 
@@ -518,74 +501,6 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     replay: () => {
       phase.current = 0;
       setP(0);
-    },
-  };
-}
-
-/** YouTube fallback (MP3 is preferred; YouTube is unreliable on iOS). */
-function youTubeAudio(id: string) {
-  type YTPlayer = { playVideo: () => void; pauseVideo: () => void; mute: () => void; unMute: () => void; setVolume: (n: number) => void };
-  const w = window as unknown as { YT?: { Player: new (el: HTMLElement, o: unknown) => unknown }; onYouTubeIframeAPIReady?: () => void };
-  let player: YTPlayer | null = null;
-  let want = false;
-  const host = document.createElement('div');
-  host.style.cssText = 'position:fixed;left:0;bottom:0;width:200px;height:200px;opacity:0;pointer-events:none;z-index:-1;overflow:hidden';
-  const inner = document.createElement('div');
-  host.appendChild(inner);
-  document.body.appendChild(host);
-  const make = () =>
-    new w.YT!.Player(inner, {
-      videoId: id, width: 200, height: 200, playerVars: { autoplay: 0, loop: 0, controls: 0, playsinline: 1 },
-      events: {
-        onReady: (e: { target: YTPlayer }) => {
-          player = e.target;
-          if (want) start();
-        },
-      },
-    });
-  const start = () => {
-    try {
-      player?.unMute();
-      player?.setVolume(70);
-      player?.playVideo();
-    } catch {
-      /* ignore */
-    }
-  };
-  if (w.YT?.Player) make();
-  else {
-    const prev = w.onYouTubeIframeAPIReady;
-    w.onYouTubeIframeAPIReady = () => {
-      prev?.();
-      make();
-    };
-    if (!document.getElementById('yt-api')) {
-      const s = document.createElement('script');
-      s.id = 'yt-api';
-      s.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(s);
-    }
-  }
-  return {
-    play: () => {
-      want = true;
-      start();
-    },
-    setMuted: (m: boolean) => {
-      try {
-        if (m) player?.mute();
-        else player?.unMute();
-      } catch {
-        /* ignore */
-      }
-    },
-    stop: () => {
-      try {
-        player?.pauseVideo();
-      } catch {
-        /* ignore */
-      }
-      host.remove();
     },
   };
 }

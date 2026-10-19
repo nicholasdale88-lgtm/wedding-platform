@@ -113,7 +113,7 @@ export function TimelineEditor({
   // An empty list means "the design's rows" (settings are merged on save, so off is saved as []).
   const main = slot === 0 || !eventKey;
   const list = main ? inv.timeline : inv.timelines?.[eventKey!];
-  const own = list?.length ? list : undefined;
+  const saved = list?.length ? list : undefined;
   const clock: Clock = inv.timelineClock ?? '12h';
   const [preset, setPreset] = useState('');
   const word = (k: string) => (k ? (texts[k] ?? ORIGINAL[k] ?? '').trim() : '');
@@ -121,6 +121,9 @@ export function TimelineEditor({
     !main
       ? [{ ...BLANK }]
       : DESIGN_ROWS.map(([t, u, ti, n, icon]) => ({ time: reclock(word(t), clock), until: reclock(untilOf(word(u)), clock), title: word(ti), note: word(n), where: '', icon }));
+  // The main timeline is always editable: until the couple changes a moment it shows the design's, and the
+  // first change saves them all as their own. Another event's timeline is switched on first.
+  const own = saved ?? (main ? fromDesign() : undefined);
   const set = (rows: TimelineItem[]) => setInv(main ? { timeline: rows } : { timelines: { ...inv.timelines, [eventKey!]: rows } });
   const edit = (i: number, patch: Partial<TimelineItem>) => own && set(own.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const move = (i: number, by: -1 | 1) => {
@@ -142,7 +145,7 @@ export function TimelineEditor({
   };
   const setClock = (c: Clock) => {
     setInv({ timelineClock: c });
-    if (own) set(own.map((r) => ({ ...r, time: reclock(r.time, c), until: reclock(r.until, c) })));
+    if (saved) set(saved.map((r) => ({ ...r, time: reclock(r.time, c), until: reclock(r.until, c) }))); // the design's follow the clock by themselves
   };
 
   return (
@@ -157,10 +160,14 @@ export function TimelineEditor({
       </div>
       )}
       <div className="flex gap-4 flex-wrap items-center">
-        <label className="flex items-center gap-2 text-[14px] cursor-pointer">
-          <input type="checkbox" role="switch" checked={!!own} onChange={() => set(own ? [] : fromDesign())} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-          {main ? 'Use my own timeline' : 'Show a timeline in this event\'s section'}
-        </label>
+        {main ? (
+          <span className="text-[13px] text-[#5b6a52]">{saved ? 'Your own timeline.' : "The design's moments: change any of them and they become your own."}</span>
+        ) : (
+          <label className="flex items-center gap-2 text-[14px] cursor-pointer">
+            <input type="checkbox" role="switch" checked={!!own} onChange={() => set(own ? [] : fromDesign())} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+            Show a timeline in this event's section
+          </label>
+        )}
         <div role="radiogroup" aria-label="Clock" className="flex gap-1 text-[13px]">
           {(['12h', '24h'] as const).map((c) => (
             <button
@@ -178,11 +185,7 @@ export function TimelineEditor({
       </div>
 
       {!own ? (
-        <span className="text-[13px] text-[#7a7466]">
-          {main
-            ? `Showing the design's ${DESIGN_ROWS.length} moments. Switch on to add, remove, reorder, retime or reword them.`
-            : "Switch on to add this event's moments; they appear at the end of its section of the invitation, in its colours."}
-        </span>
+        <span className="text-[13px] text-[#7a7466]">Switch on to add this event's moments; they appear at the end of its section of the invitation, in its colours.</span>
       ) : (
         <>
           {own.map((r, i) => (
@@ -232,7 +235,7 @@ export function TimelineEditor({
             )}
             <button
               type="button"
-              onClick={() => window.confirm('Put back the design’s timeline? Your moments will be replaced.') && set(fromDesign())}
+              onClick={() => window.confirm('Put back the design’s timeline? Your moments will be replaced.') && set(main ? [] : fromDesign())}
               className="py-[7px] px-[14px] rounded-full border-0 bg-transparent text-[13px] underline cursor-pointer text-[#5b6a52]"
             >
               Start again from the design

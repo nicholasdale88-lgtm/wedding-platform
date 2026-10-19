@@ -10,6 +10,7 @@ import { setPageClass } from './common';
 import { useGuide } from './useGuide';
 import { useGuide30 } from './useGuide30';
 import { MessageUs } from '../MessageUs';
+import { GuideExtras } from './GuideExtras';
 import { THEMES } from '../generated/themes';
 
 /**
@@ -76,6 +77,7 @@ function Reception({ data }: { data: GuidePayload }) {
     <div className="dz">
       <GuideView v={v} t={(k) => data.texts[k] ?? ''} />
     </div>
+    <GuideExtras data={data} ink={THEMES[data.wedding.theme]?.dg ?? '#33402f'} />
     {data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink={THEMES[data.wedding.theme]?.dg} side="right" />}
     </>
   );
@@ -89,6 +91,7 @@ function Dayout({ data }: { data: GuidePayload }) {
     <div className="dz">
       <Guide30View v={v} t={(k) => data.texts[k] ?? ''} />
     </div>
+    <GuideExtras data={data} ink={THEMES[data.wedding.theme]?.bdtx ?? '#2f3d5c'} />
     {data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink={THEMES[data.wedding.theme]?.bdtx ?? '#2f3d5c'} side="right" />}
     </>
   );

@@ -334,6 +334,13 @@ export interface PhotosData {
 export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),
+  /** Add one photo to an event's album as the couple (sends the image itself; the header marks it as an upload). */
+  upload: (wid: string, photo: Blob, by: string, event: string) =>
+    request<{ ok: true; id: string; duplicate: boolean }>(`${w(wid)}/photos/upload${event ? `?event=${encodeURIComponent(event)}` : ''}`, {
+      method: 'PUT',
+      body: photo,
+      headers: { 'content-type': photo.type || 'application/octet-stream', 'X-Photo-Upload': '1', 'X-Photo-By': encodeURIComponent(by) },
+    }),
 };
 
 export interface ImportResult {

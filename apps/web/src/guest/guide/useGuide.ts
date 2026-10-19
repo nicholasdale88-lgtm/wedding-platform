@@ -92,6 +92,9 @@ export function useGuide(data: GuidePayload): ViewValues {
   const cold = W?.hours.some((h) => parseInt(h.temp, 10) < 17);
   const wet = W?.hours.some((h) => Number(h.rain) >= 40);
   const plan = data.seating;
+  // The wet-weather plan is always a quick answer (unless the couple already wrote one about rain).
+  const faqs = [...(G.faq ?? [])];
+  if (G.wetPlan?.trim() && !faqs.some((f) => /(rain|wet)/i.test(f.q))) faqs.push({ q: 'What if it rains?', a: G.wetPlan.trim() });
 
   return {
     asset: assetOf(data.images),
@@ -116,7 +119,7 @@ export function useGuide(data: GuidePayload): ViewValues {
     wxHours: (W?.hours ?? []).map((h) => ({ ...h, rain: s('gd.dyn.wxRain', { n: h.rain }) })),
     wxUpdated: W ? s('gd.dyn.wxUpdated', { time: updatedAt(W, data.wedding.timezone) }) : '',
     wxBom: G.bomUrl ?? '',
-    wxTip: t(wet ? 'gd.dyn.wxTipWet' : cold ? 'gd.dyn.wxTipCold' : 'gd.dyn.wxTipMild'),
+    wxTip: wet && G.wetPlan?.trim() ? `${t('gd.dyn.wxTipWet')} ${G.wetPlan.trim()}`.trim() : t(wet ? 'gd.dyn.wxTipWet' : cold ? 'gd.dyn.wxTipCold' : 'gd.dyn.wxTipMild'),
     ...videoOf(G.parkVideo),
     runsheet: G.runsheet ?? [],
     people,
@@ -147,7 +150,7 @@ export function useGuide(data: GuidePayload): ViewValues {
       };
     }),
     menu: (G.menu ?? []).map((m) => ({ course: m.course, a: m.a, b: m.b, hasB: !!m.b?.trim() })),
-    faq: (G.faq ?? []).map((f, i) => ({
+    faq: faqs.map((f, i) => ({
       q: f.q,
       a: f.a,
       rows: openFaq === i ? '1fr' : '0fr',

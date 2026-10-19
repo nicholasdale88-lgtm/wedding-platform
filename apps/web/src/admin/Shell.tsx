@@ -81,15 +81,22 @@ export const ACCOUNT_TABS = [
 ] as const;
 export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'guests', label: 'Guests' },
-  { key: 'dietary', label: 'Dietary' },
+  { key: 'guests', label: 'Guest planning' }, // guest list, dietary and seating together (GuestPlanningBar)
   { key: 'texts', label: 'SMS' },
-  { key: 'seating', label: 'Seating' },
   { key: 'photos', label: 'Photos' },
   { key: 'pages', label: 'Setup' },
 ] as const;
 /** Every admin route (Events stays reachable by link; its work now lives in Overview and Setup). */
-export const TABS = [...ACCOUNT_TABS, ...EVENT_TABS, { key: 'events', label: 'Events' }, { key: 'settings', label: 'SMS setup' }] as const;
+export const TABS = [
+  ...ACCOUNT_TABS,
+  ...EVENT_TABS,
+  { key: 'dietary', label: 'Dietary' },
+  { key: 'seating', label: 'Seating' },
+  { key: 'events', label: 'Events' },
+  { key: 'settings', label: 'SMS setup' },
+] as const;
+/** Pages reached inside Guest planning: the menu shows them as that one entry. */
+const navKey = (tab: string) => (tab === 'dietary' || tab === 'seating' ? 'guests' : tab);
 export type TabKey = (typeof TABS)[number]['key'];
 
 function badge(key: TabKey, o: Overview | null, group: string): string {
@@ -115,12 +122,8 @@ function SideNav({ mob }: { mob: boolean }) {
   const { wid, overview: o, event, setEvent } = useAdmin();
   const groups: { key: string; name: string; tabs: readonly { key: TabKey; label: string }[] }[] = [
     { key: ALL_EVENTS, name: 'Account', tabs: ACCOUNT_TABS },
-    ...(o?.events ?? []).map((e) => {
-      // Dietary only where the event asks for it, Seating only where it has a plan (both switch on in Setup → Details).
-      const f = o?.perEvent?.find((x) => x.key === e.key);
-      const tabs = EVENT_TABS.filter((t) => (t.key !== 'dietary' || f?.catered !== false) && (t.key !== 'seating' || f?.hasSeating !== false));
-      return { key: e.key, name: e.name, tabs };
-    }),
+    // Dietary and Seating live inside Guest planning (shown there only where the event uses them).
+    ...(o?.events ?? []).map((e) => ({ key: e.key, name: e.name, tabs: EVENT_TABS })),
   ];
   const current = groups.find((g) => g.key === event) ?? groups[0]!;
   // The menu always shows where you are: an event-only page (guests, seating…) reached from Account opens the
@@ -163,7 +166,7 @@ function SideNav({ mob }: { mob: boolean }) {
     if (g.key !== current.key && !mayLeave()) return;
     setEvent(g.key);
     // Stay on the same kind of page if the section has it (SMS → SMS), else its overview.
-    go(`/admin/${wid}/${g.tabs.some((t) => t.key === tab) ? tab : 'overview'}`);
+    go(`/admin/${wid}/${g.tabs.some((t) => t.key === navKey(tab)) ? tab : 'overview'}`);
   };
   const tabLink = (t: { key: TabKey; label: string }) => (
     <NavLink
@@ -171,7 +174,7 @@ function SideNav({ mob }: { mob: boolean }) {
       to={`/admin/${wid}/${t.key}`}
       className={({ isActive }) =>
         `flex-none whitespace-nowrap flex items-center justify-between gap-[10px] rounded-[8px] text-left no-underline ${mob ? 'py-2 px-3 text-[14px]' : 'py-[9px] px-3 text-[15px]'} ${
-          isActive || tab === t.key ? 'bg-[#f3ecd6] !text-[var(--adm-ink,#33402f)]' : 'bg-transparent !text-[#f3ecd6] hover:!text-[#f3ecd6]'
+          isActive || navKey(tab) === t.key ? 'bg-[#f3ecd6] !text-[var(--adm-ink,#33402f)]' : 'bg-transparent !text-[#f3ecd6] hover:!text-[#f3ecd6]'
         }`
       }
     >

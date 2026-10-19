@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import seedJson from '../../../seed/sophie-nicholas.json';
 import removeSamples from '../../../scripts/once/remove-sample-guests.sql?raw';
+import wetPlan from '../../../scripts/once/wet-weather-placeholder.sql?raw';
 import { buildSeed } from '../src/seed/build';
 import { statements, testD1 } from './support/d1';
 
@@ -50,5 +51,28 @@ describe('one-time: remove the sample guests', () => {
     await t2.db.batch(stmts.map((s) => t2.db.prepare(s.sql).bind(...s.params)));
     expect((await t2.db.prepare(`SELECT COUNT(*) AS n FROM invitation`).first<{ n: number }>())!.n).toBe(0);
     await t2.dispose();
+  });
+});
+
+describe('one-time: the wet-weather placeholder', () => {
+  let t: Awaited<ReturnType<typeof testD1>>;
+  const run = async () => {
+    for (const s of statements(wetPlan)) await t.db.prepare(s).run();
+  };
+  const plan = async () => (await t.db.prepare(`SELECT json_extract(guide, '$.wedding.wetPlan') AS p FROM wedding`).first<{ p: string | null }>())!.p;
+
+  beforeEach(async () => {
+    t = await testD1();
+    const stmts = buildSeed(seedJson, { ownerEmail: 'o@example.com', ownerPassHash: 'x', now: new Date('2026-10-01T00:00:00Z') });
+    await t.db.batch(stmts.map((s) => t.db.prepare(s.sql).bind(...s.params)));
+  });
+  afterEach(() => t.dispose());
+
+  it('fills an empty plan once, and never overwrites what the couple writes later', async () => {
+    await run();
+    expect(await plan()).toMatch(/^Placeholder/);
+    await t.db.prepare(`UPDATE wedding SET guide = json_set(guide, '$.wedding.wetPlan', '')`).run();
+    await run();
+    expect(await plan()).toBe('');
   });
 });
