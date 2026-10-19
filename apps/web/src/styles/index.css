@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base layer copied from design/RSVP Admin.dc.html <style>. */
+@layer base {
+  html,
+  body {
+    margin: 0;
+    background: #f6f0e2;
+  }
+  body {
+    font-family: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif;
+    font-size: 14px;
+    color: #33402f;
+    -webkit-text-size-adjust: 100%;
+  }
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  a {
+    color: #5d6b47;
+  }
+  a:hover {
+    color: #33402f;
+  }
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid #8a9670;
+    outline-offset: 1px;
+  }
+  button:focus-visible {
+    outline: 2px solid #8a9670;
+    outline-offset: 2px;
+  }
+}

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import seedJson from '../../../seed/sophie-nicholas.json';
 import { D1SmsStore } from '../src/db/smsStore';
 import { runAutopilot } from '../src/sms/engine';
+import { renderFor } from '../src/sms/render';
 import { buildSeed, toSqlText, type Statement } from '../src/seed/build';
 import { testD1 } from './support/d1';
 import { fakeClock, FakeProvider } from './support/fakes';
@@ -73,6 +74,20 @@ describe('seed', () => {
     // Ivy Scott has a mobile and no invite yet; Evie Taylor has no mobile. Recent replies get thank-yous only if within 7 days.
     const invites = provider.delivered.filter((m) => m.message.includes('Your invitation and RSVP'));
     expect(invites.map((m) => m.to)).toEqual(['0429736015']);
+  });
+
+  it('night-before texts carry each guest their own guide link, with nothing left unfilled', async () => {
+    await apply(build());
+    const store = new D1SmsStore(t.db, 'https://example.com');
+    const w = (await store.weddings())[0]!;
+    const { events, recipients } = await store.audience(w.id);
+    const both = recipients.find((r) => r.invited.length === 2)!;
+    const body = async (key: string) => (await store.campaigns(w.id)).find((c) => c.key === key)!.body;
+    const night = renderFor(await body('nightW'), w, events, both, { footer: true });
+    const night30 = renderFor(await body('nightB'), w, events, both, { footer: true });
+    expect(night.body).toContain(`https://example.com/w/sophie-and-nicholas/tomorrow?g=${both.token}`);
+    expect(night30.body).toContain(`https://example.com/w/sophie-and-nicholas/tomorrow/30th?g=${both.token}`);
+    expect([...night.unfilled, ...night30.unfilled]).toEqual([]);
   });
 
   it('the .sql file version loads identically', async () => {

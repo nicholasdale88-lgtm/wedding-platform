@@ -59,6 +59,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: Build the website
+        run: pnpm --filter web build
+
       - name: Seed script produces SQL (dummy owner; nothing is deployed)
         run: |
           cd apps/api
