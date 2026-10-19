@@ -76,7 +76,6 @@ export function AdminDataProvider({ wid, children, onSignedOut }: { wid: string;
 export const ACCOUNT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'messages', label: 'Messages' },
-  { key: 'pages', label: 'Invitation' },
   { key: 'texts', label: 'SMS setup' },
 ] as const;
 export const EVENT_TABS = [

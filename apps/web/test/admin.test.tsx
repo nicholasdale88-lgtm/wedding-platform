@@ -49,8 +49,9 @@ describe('admin shell', () => {
     renderAt('/admin');
     expect(await screen.findByText('Alex & Blair')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin' });
-    // Account: what's shared by every event (overview, the invitation, the SMS provider setup).
-    for (const name of [/^Overview/, /^Invitation/, /^SMS setup\s*Not set up/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
+    // Account: what's shared by every event (overview, messages, the SMS provider setup). The invitation is in the first event.
+    for (const name of [/^Overview/, /^Messages/, /^SMS setup\s*Not set up/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: /^Invitation/ })).toBeNull();
     expect(screen.getAllByText('Recovery brunch').length).toBeGreaterThan(0);
     expect(screen.getByText('138 days to go')).toBeInTheDocument();
     expect(location).toBe('/admin/w1/overview');
@@ -206,17 +207,21 @@ describe('guest pages tab', () => {
     ],
   };
 
-  it('Setup: the shared invitation under Account, and each event its own details, timeline and night-before page', async () => {
+  it('Setup: the invitation lives in the first event; every event has its details, timeline, night-before and photo pages', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
     renderAt('/admin/w1/pages');
-    expect(await screen.findByRole('heading', { name: 'Your invitation' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-current', 'true'));
-    for (const name of ['Invitation', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
-    expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
-    await userEvent.click(screen.getByRole('button', { name: 'The wedding' }));
     expect(await screen.findByRole('heading', { name: 'Set up The wedding' })).toBeInTheDocument();
-    for (const name of ['Details', 'Timeline', 'Night-before page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'The wedding' })).toHaveAttribute('aria-current', 'true'));
+    for (const name of ['Invitation', 'Details', 'Timeline', 'Night-before page', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
+    // The preview can be seen as guests will on a laptop or desktop too.
+    await userEvent.click(screen.getByRole('radio', { name: 'Laptop' }));
+    expect(screen.getByRole('radio', { name: 'Laptop' })).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Photo page' }));
+    expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/photos/wedding?preview=1');
     await userEvent.click(screen.getByRole('button', { name: 'Recovery brunch' }));
+    expect(await screen.findByRole('heading', { name: 'Set up Recovery brunch' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Invitation' })).toBeNull();
     await userEvent.click(await screen.findByRole('button', { name: 'Night-before page' }));
     // A stand-in guest by default; only guests invited to the brunch can be picked for its guide.
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/tomorrow/brunch?preview=1');

@@ -10,6 +10,7 @@ import { TimelineEditor } from './TimelineEditor';
 import { Events } from '../events/Events';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
+import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
 
 /**
  * Admin → Setup (Account: the shared invitation and photo page; an event: its details, timeline and night-before page and text). Pick a page (the invitation, each
@@ -34,6 +35,7 @@ export function GuestPages() {
   const [status, setStatus] = useState<'saved' | 'saving' | 'waiting' | 'error'>('saved');
   const [previewKey, setPreviewKey] = useState(0);
   const [sharing, setSharing] = useState(false);
+  const [device, setDevice] = useDevice();
 
   // Pending edits: section -> generation, so an edit made while saving is saved next time.
   const dirty = useRef(new Map<string, number>());
@@ -110,24 +112,20 @@ export function GuestPages() {
 
   const pages = useMemo(() => {
     if (!data) return [];
-    // Account: the shared invitation and photo page. An event: its details, timeline, night-before page and text.
-    const ev = data.events.find((e) => e.key === chosen);
-    if (!ev) {
-      return [
-        { key: 'invitation', label: 'Invitation' },
-        { key: 'photos', label: 'Photo page' },
-      ] as { key: PageKey; label: string }[];
-    }
-    const list: { key: PageKey; label: string }[] = [
-      { key: 'details', label: 'Details' },
-      { key: 'timeline', label: 'Timeline' },
-    ];
+    // Each event's own pages. The invitation lives with the first event (the other events have their
+    // section and timeline in it); every event has its own photo page.
+    const ev = data.events.find((e) => e.key === chosen) ?? data.events[0];
+    if (!ev) return [{ key: 'invitation', label: 'Invitation' }] as { key: PageKey; label: string }[];
+    const list: { key: PageKey; label: string }[] = [];
+    if (data.events.indexOf(ev) === 0) list.push({ key: 'invitation', label: 'Invitation' });
+    list.push({ key: 'details', label: 'Details' }, { key: 'timeline', label: 'Timeline' });
     if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
+    list.push({ key: 'photos', label: 'Photo page' });
     return list;
   }, [data, doc, chosen]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
   const eventKey = page.startsWith('guide:') ? page.slice(6) : null;
-  const ev = data?.events.find((e) => e.key === chosen);
+  const ev = data?.events.find((e) => e.key === chosen) ?? data?.events[0];
   const evSlot = ev && data ? data.events.indexOf(ev) : 0;
 
   const samples = useMemo(() => (data?.samples ?? []).filter((s) => !eventKey || s.invited.includes(eventKey)), [data, eventKey]);
@@ -149,7 +147,7 @@ export function GuestPages() {
       { replace: true },
     );
   const base = `/w/${data.slug}`;
-  const path = page === 'photos' ? '/photos' : eventKey ? `/tomorrow/${eventKey}` : '/';
+  const path = page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
   const previewUrl = `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}preview=1`;
   const shareUrl = `${window.location.origin}${base}${path}${sample ? `?g=${encodeURIComponent(sample.token)}` : ''}`;
 
@@ -190,9 +188,8 @@ export function GuestPages() {
 
   const preview = (
     <div className={`flex flex-col gap-3 ${wide ? 'sticky top-6' : ''}`}>
-      <div className="mx-auto w-[min(390px,100%)] h-[760px] rounded-[30px] border-[10px] border-[#33402f] overflow-hidden bg-[#f6f0e2] shadow-[0_18px_40px_rgba(51,64,47,.25)]">
-        <iframe key={`${previewUrl}#${previewKey}`} src={previewUrl} title="Guest page preview" className="w-full h-full border-0" />
-      </div>
+      <DevicePicker device={device} onChange={setDevice} />
+      <DevicePreview device={device} src={previewUrl} url={shareUrl.replace(/^https?:\/\//, '')} title="Guest page preview" frameKey={`${previewUrl}#${previewKey}`} />
       <div className="flex gap-2 flex-wrap justify-center">
         <a href={previewUrl} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-[#c6b794] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]">
           Open full screen
@@ -208,7 +205,7 @@ export function GuestPages() {
     <div className="flex flex-col gap-5">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>{ev ? `${ev.name} · Setup` : 'Account · Invitation'}</Eyebrow>
+          <Eyebrow>{ev ? `${ev.name} · Setup` : 'Setup'}</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">{ev ? `Set up ${ev.name}` : 'Your invitation'}</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -234,7 +231,7 @@ export function GuestPages() {
             key={p.key}
             type="button"
             aria-pressed={p.key === page}
-            onClick={() => setParam('page', p.key === 'invitation' ? '' : p.key)}
+            onClick={() => setParam('page', p.key === pages[0]?.key ? '' : p.key)}
             className={`py-2 px-4 rounded-full border text-[14px] cursor-pointer ${p.key === page ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`}
           >
             {p.label}
@@ -253,7 +250,7 @@ export function GuestPages() {
       </div>
 
       {wide ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_420px] gap-8 items-start">
+        <div className={`grid ${device === 'phone' ? 'grid-cols-[minmax(0,1fr)_420px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]'} gap-8 items-start`}>
           {editor}
           {preview}
         </div>

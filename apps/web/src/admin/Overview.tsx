@@ -176,7 +176,7 @@ export function Overview() {
 function GettingStarted({ o, to }: { o: NonNullable<ReturnType<typeof useAdmin>['overview']>; to: (link: string, event?: string) => void }) {
   const first = o.events[0]?.key;
   const steps = [
-    { done: !!(o.wedding.name1.trim() && o.wedding.name2.trim()), title: 'Your invitation', detail: 'Names, colours, photo and wording.', link: 'pages', event: 'all' },
+    { done: !!(o.wedding.name1.trim() && o.wedding.name2.trim()), title: 'Your invitation', detail: 'Names, colours, photo and wording (in your first event).', link: 'pages', event: first },
     { done: o.events.length > 0, title: 'Your events', detail: 'Add each celebration below, with its date and place.', link: 'overview', event: 'all' },
     { done: o.nav.guests > 0, title: 'Your guests', detail: 'Import your list or add guests in an event.', link: 'guests?show=all', event: first },
     { done: o.nav.smsLive, title: 'Texting', detail: 'Add your SMS number so invitations and reminders send.', link: 'texts', event: 'all' },
