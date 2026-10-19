@@ -213,6 +213,57 @@ export const VENDOR_SEARCH: Record<string, { label: string; tags: string[] }> = 
   music: { label: 'Music shops and DJs', tags: ['shop=musical_instrument', 'amenity=music_venue'] },
 };
 
+// ---------------------------------------------------------------- the planning checklist
+
+/** One thing to do before the wedding: `before` is how many days before the day it's due. */
+export const PlanTask = z.object({
+  id: z.string().max(40),
+  text: z.string().max(200),
+  before: z.number().int().min(-60).max(800),
+  done: z.boolean().default(false),
+  note: s(600),
+  /** A legal deadline (the Notice of Intended Marriage): shown in red when close. */
+  legal: z.boolean().default(false),
+});
+export type PlanTask = z.infer<typeof PlanTask>;
+export const PlanChecklist = z.object({ tasks: z.array(PlanTask).max(300).default([]) });
+export type PlanChecklist = z.infer<typeof PlanChecklist>;
+
+/** The usual Australian wedding plan, by days before the day (everything editable). */
+export const PLAN_TEMPLATE: Omit<PlanTask, 'id' | 'done' | 'note'>[] = [
+  { text: 'Set the budget and guest numbers together', before: 450, legal: false },
+  { text: 'Book the venue and lock in the date', before: 420, legal: false },
+  { text: 'Book the celebrant', before: 400, legal: false },
+  { text: 'Book the photographer and videographer', before: 365, legal: false },
+  { text: 'Book the caterer (if the venue doesn’t cater)', before: 330, legal: false },
+  { text: 'Send save-the-dates', before: 300, legal: false },
+  { text: 'Book the band or DJ and the florist', before: 300, legal: false },
+  { text: 'Choose the wedding party and tell them', before: 270, legal: false },
+  { text: 'Find the dress and book fittings', before: 270, legal: false },
+  { text: 'Book hair and makeup (with a trial)', before: 240, legal: false },
+  { text: 'Book accommodation blocks for guests', before: 240, legal: false },
+  { text: 'Book cars or a shuttle bus', before: 210, legal: false },
+  { text: 'Order the cake', before: 180, legal: false },
+  { text: 'Lodge the Notice of Intended Marriage (NOI) with your celebrant', before: 180, legal: true },
+  { text: 'Send invitations', before: 120, legal: false },
+  { text: 'Buy the rings', before: 120, legal: false },
+  { text: 'Suits: choose and order', before: 120, legal: false },
+  { text: 'Plan the ceremony with the celebrant (readings, vows)', before: 90, legal: false },
+  { text: 'Book the honeymoon', before: 90, legal: false },
+  { text: 'Last day to lodge the NOI: one month before (it can’t be later)', before: 31, legal: true },
+  { text: 'RSVPs due: chase anyone who hasn’t replied', before: 56, legal: false },
+  { text: 'Final numbers and dietary needs to the caterer', before: 21, legal: false },
+  { text: 'Seating plan done', before: 14, legal: false },
+  { text: 'Final payments to vendors', before: 14, legal: false },
+  { text: 'Run sheet to the venue, MC and wedding party', before: 10, legal: false },
+  { text: 'Vendor envelopes (final payments, tips) ready', before: 3, legal: false },
+  { text: 'Sign the Declaration of No Legal Impediment with the celebrant', before: 3, legal: true },
+  { text: 'Rehearsal', before: 1, legal: false },
+  { text: 'Send thank-you notes', before: -42, legal: false },
+  { text: 'Order the official marriage certificate (Births, Deaths and Marriages)', before: -30, legal: true },
+  { text: 'Change of name (if you are): passport, Medicare, bank, licence, ATO', before: -45, legal: false },
+];
+
 /** The planner documents and their shapes (the API validates every save against these). */
-export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup } as const;
+export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

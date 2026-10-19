@@ -1,4 +1,4 @@
-import { commitmentOf, type Budget as BudgetDoc, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { plannerApi } from '../../lib/api';
@@ -6,6 +6,7 @@ import { useAdmin } from '../Shell';
 import { Eyebrow, H2 } from '../ui';
 import { Assistant } from './Assistant';
 import { Budget } from './Budget';
+import { Checklist, nextTasks } from './Checklist';
 import { Vendors } from './Vendors';
 
 /**
@@ -14,9 +15,10 @@ import { Vendors } from './Vendors';
  * comparisons, the finder near the venue) and the planning assistant. ?view= picks the page.
  */
 
-type View = 'glance' | 'budget' | 'vendors' | 'assistant';
+type View = 'glance' | 'checklist' | 'budget' | 'vendors' | 'assistant';
 const VIEWS: [View, string][] = [
   ['glance', 'At a glance'],
+  ['checklist', 'Checklist'],
   ['budget', 'Budget'],
   ['vendors', 'Vendors'],
   ['assistant', 'Assistant'],
@@ -66,7 +68,7 @@ export function WeddingPlanner() {
           </button>
         ))}
       </nav>
-      {view === 'glance' ? <Glance go={go} /> : view === 'budget' ? <Budget /> : view === 'vendors' ? <Vendors /> : <Assistant />}
+      {view === 'glance' ? <Glance go={go} /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'vendors' ? <Vendors /> : <Assistant />}
     </div>
   );
 }
@@ -75,7 +77,12 @@ function Glance({ go }: { go: (v: View) => void }) {
   const { wid, overview } = useAdmin();
   const [budget, setBudget] = useState<BudgetDoc | null>(null);
   const [vendors, setVendors] = useState<VendorsDoc['list'] | null>(null);
+  const [plan, setPlan] = useState<PlanChecklist['tasks']>([]);
   useEffect(() => {
+    plannerApi
+      .doc<PlanChecklist>(wid, 'checklist')
+      .then((r) => setPlan(r.data.tasks))
+      .catch(() => setPlan([]));
     plannerApi
       .doc<BudgetDoc>(wid, 'budget')
       .then((r) => setBudget(r.data))
@@ -137,6 +144,33 @@ function Glance({ go }: { go: (v: View) => void }) {
             <span className="text-[16px] text-[#7a7466]"> of {vendors.length}</span>
           </span>
         </button>
+      </section>
+
+      <section aria-label="Next up" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <div className="flex justify-between items-baseline gap-2">
+          <H2>Next up</H2>
+          <button type="button" onClick={() => go('checklist')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+            {plan.length ? 'The whole checklist' : 'Start your checklist'}
+          </button>
+        </div>
+        {plan.length ? (
+          nextTasks(plan, first ? Date.parse(first.startsAt) : null).map((t) => {
+            const late = !!t.due && t.due.getTime() < Date.now();
+            return (
+              <div key={t.id} className="flex justify-between gap-3 text-[14px] py-1 border-t border-[#e2d7bc] first:border-t-0">
+                <span className="min-w-0">
+                  {t.legal && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#f1e1d6] text-[#7a4a37] text-[11px] font-semibold">Legal</span>}
+                  {t.text}
+                </span>
+                <span className={`flex-none ${late ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}`}>
+                  {t.due ? `${late ? 'Overdue · ' : ''}${t.due.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
+                </span>
+              </div>
+            );
+          })
+        ) : (
+          <span className="text-[14px] text-[#5b6a52]">The usual Australian plan, counted back from your date, including the Notice of Intended Marriage deadlines.</span>
+        )}
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
