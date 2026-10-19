@@ -701,6 +701,13 @@ export function shotTemplate(o: { p1: string; p2: string; side1: string; side2: 
   ];
 }
 
+// ---------------------------------------------------------------- the coordinator's log
+
+/** Something the day-of coordinator noted (a late supplier, a missing chair), ticked off when sorted. */
+export const LogEntry = z.object({ id: z.string().max(40), at: z.string().max(40), text: z.string().max(300), done: z.boolean().default(false) });
+export const CoordLog = z.object({ entries: z.array(LogEntry).max(200).default([]) });
+export type CoordLog = z.infer<typeof CoordLog>;
+
 // ---------------------------------------------------------------- the ideas board
 
 /** A pinned idea: a photo (kept with the planning files) or just a note, under a category. */
@@ -768,5 +775,6 @@ export const PLANNER_DOCS = {
   'day-roles': DayRoles,
   shots: ShotList,
   ideas: Ideas,
+  'coord-log': CoordLog,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

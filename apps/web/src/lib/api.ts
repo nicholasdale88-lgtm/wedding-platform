@@ -593,6 +593,11 @@ export interface InsightsData {
   chase: { id: string; name: string; opened: string | null; phone: boolean; texted: string | null }[];
   guests: { photos: number; board: number; songs: number; emails: number; vendorEmails: number; guestEmails: number; party: number };
 }
+/** The day-of coordinator's private link. */
+export const coordinatorApi = {
+  get: (wid: string) => request<{ on: boolean; name: string; url: string }>(`${w(wid)}/coordinator`),
+  set: (wid: string, body: { on: boolean; name?: string; fresh?: boolean }) => send<{ on: boolean; name: string; url: string }>('PUT', `${w(wid)}/coordinator`, body),
+};
 /** The plan as a private calendar link to subscribe to. */
 export const plannerCalendarApi = {
   get: (wid: string) => request<{ url: string }>(`${w(wid)}/planner-calendar`),

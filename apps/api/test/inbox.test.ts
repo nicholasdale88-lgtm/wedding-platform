@@ -104,4 +104,22 @@ ${pdf}
     expect((await app.request(url.replace('https://example.com', ''), {}, env, ctx)).status).toBe(404);
     expect((await app.request(again.url.replace('https://example.com', ''), {}, env, ctx)).status).toBe(200);
   });
+
+  it('the coordinator link: off until made, then the day for them (suppliers, party, log); a wrong key sees nothing', async () => {
+    expect(((await (await call('/coordinator')).json()) as { on: boolean }).on).toBe(false);
+    const made = (await (await call('/coordinator', { method: 'PUT', body: JSON.stringify({ on: true, name: 'Jo' }) })).json()) as { url: string };
+    const k = new URL(made.url).searchParams.get('k')!;
+    const page = (key: string) => app.request(`/api/p/sophie-and-nicholas/coordinator?k=${key}`, {}, env, ctx);
+    const d = (await (await page(k)).json()) as { name: string; couple: string; log: unknown[] };
+    expect(d.name).toBe('Jo');
+    expect(d.log).toEqual([]);
+    expect((await page('x'.repeat(24))).status).toBe(404);
+    const add = await app.request('/api/p/sophie-and-nicholas/coordinator', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, action: 'add', text: 'Florist late' }) }, env, ctx);
+    const { log } = (await add.json()) as { log: { id: string; text: string; done: boolean }[] };
+    expect(log[0]).toMatchObject({ text: 'Florist late', done: false });
+    const done = (await (await app.request('/api/p/sophie-and-nicholas/coordinator', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, action: 'done', id: log[0]!.id }) }, env, ctx)).json()) as { log: { done: boolean }[] };
+    expect(done.log[0]!.done).toBe(true);
+    await call('/coordinator', { method: 'PUT', body: JSON.stringify({ on: false }) });
+    expect((await page(k)).status).toBe(404);
+  });
 });

@@ -4,6 +4,7 @@ import { ApiError, plannerApi, type PartyData } from '../../lib/api';
 import { useDocSave } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
 import { H2, Pill, useToast } from '../ui';
+import { CoordinatorCard } from './CoordinatorCard';
 
 /**
  * Wedding → Setup → Wedding party access: each member signs in with their own private link (nothing to
@@ -99,6 +100,7 @@ export function PartyAccess() {
         })}
       </ul>
       <p className="m-0 text-[12px] text-[#7a7466]">“Text it” opens your phone’s messages with the link written for you (free: it’s sent from your own phone).</p>
+      <CoordinatorCard />
     </section>
   );
 }

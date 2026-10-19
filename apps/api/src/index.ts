@@ -23,6 +23,7 @@ import { textRoutes } from './routes/texts';
 import { messageRoutes } from './routes/messages';
 import { inboxRoutes, receiveEmail } from './routes/inbox';
 import { insightsRoutes } from './routes/insights';
+import { coordinatorAdminRoutes, coordinatorPageRoutes } from './routes/coordinator';
 import { plannerCalendarAdminRoutes, plannerCalendarFeed } from './routes/plannerCalendar';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
 import { runAutopilot, type EngineDeps } from './sms/engine';
@@ -40,6 +41,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/messages', messageRoutes(deps));
   app.route('/a/w/:wid/inbox', inboxRoutes());
   app.route('/a/w/:wid/insights', insightsRoutes());
+  app.route('/a/w/:wid/coordinator', coordinatorAdminRoutes());
   app.route('/a/w/:wid/planner-calendar', plannerCalendarAdminRoutes());
   app.route('/cal', plannerCalendarFeed());
   app.route('/a/w/:wid/board', boardAdminRoutes());
@@ -57,6 +59,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid', adminRoutes(deps));
   app.route('/p/:slug/board', boardGuestRoutes());
   app.route('/p/:slug/party', partyGuestRoutes());
+  app.route('/p/:slug/coordinator', coordinatorPageRoutes());
   app.route('/p/:slug/live', liveScreenRoutes());
   app.route('/p/:slug/songs', songGuestRoutes());
   app.route('/p/:slug/calendar', calendarRoutes());

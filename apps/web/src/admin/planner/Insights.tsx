@@ -1,4 +1,4 @@
-import { BUDGET_SPLIT, commitmentOf, dateIn, daysUntil, type Budget, type PlanChecklist, type Vendors } from '@wp/shared';
+import { BUDGET_SPLIT, commitmentOf, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
@@ -112,6 +112,7 @@ export function Insights() {
   const [plan, setPlan] = useState<PlanChecklist | null>(null);
   const [budget, setBudget] = useState<Budget | null>(null);
   const [vendors, setVendors] = useState<Vendors | null>(null);
+  const [gifts, setGifts] = useState<Gifts>({ list: [] });
   const [error, setError] = useState('');
   useEffect(() => {
     insightsApi
@@ -121,6 +122,7 @@ export function Insights() {
     plannerApi.doc<PlanChecklist>(wid, 'checklist').then((r) => setPlan(r.data), () => setPlan({ tasks: [] }));
     plannerApi.doc<Budget>(wid, 'budget').then((r) => setBudget(r.data), () => setBudget({ total: 0, lines: [] }));
     plannerApi.doc<Vendors>(wid, 'vendors').then((r) => setVendors(r.data), () => setVendors({ list: [] }));
+    plannerApi.doc<Gifts>(wid, 'gifts').then((r) => setGifts(r.data), () => undefined);
   }, [wid]);
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!data || !plan || !budget || !vendors) return <div aria-busy="true" className="text-[#5b6a52]">Working out the numbers…</div>;
@@ -403,6 +405,20 @@ export function Insights() {
           />
           <div className="text-[13px] text-[#5b6a52]">{quotes} quotes filed</div>
         </section>
+        {gifts.list.length > 0 && (
+          <section aria-label="Gifts" className={card}>
+            <H2>Gifts and thank-yous</H2>
+            <div className="flex items-center gap-4">
+              <Ring done={gifts.list.filter((g) => g.thanked).length} total={gifts.list.length} size={64} label="Thank-yous sent" />
+              <div className="text-[14px] flex flex-col gap-1">
+                <span>
+                  <strong className="font-semibold">{gifts.list.length}</strong> gifts · {aud(gifts.list.reduce((a, g) => a + g.amount, 0))} in cash
+                </span>
+                <span>{gifts.list.filter((g) => !g.thanked).length} thank-yous still to write</span>
+              </div>
+            </div>
+          </section>
+        )}
         <section aria-label="On the site" className={card}>
           <H2>Guests on the site</H2>
           <Bars
