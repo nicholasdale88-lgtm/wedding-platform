@@ -155,7 +155,7 @@ export function Insights() {
       .get(wid)
       .then(setData)
       .catch((e: Error) => setError(e.message));
-    plannerApi.doc<PlanChecklist>(wid, 'checklist').then((r) => setPlan(r.data), () => setPlan({ tasks: [] }));
+    plannerApi.doc<PlanChecklist>(wid, 'checklist').then((r) => setPlan(r.data), () => setPlan({ tasks: [], helpers: [] }));
     plannerApi.doc<Budget>(wid, 'budget').then((r) => setBudget(r.data), () => setBudget({ total: 0, guests: 0, lines: [] }));
     plannerApi.doc<Vendors>(wid, 'vendors').then((r) => setVendors(r.data), () => setVendors({ list: [] }));
     plannerApi.doc<Gifts>(wid, 'gifts').then((r) => setGifts(r.data), () => undefined);
