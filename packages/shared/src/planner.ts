@@ -701,6 +701,19 @@ export function shotTemplate(o: { p1: string; p2: string; side1: string; side2: 
   ];
 }
 
+// ---------------------------------------------------------------- the ideas board
+
+/** A pinned idea: a photo (kept with the planning files) or just a note, under a category. */
+export const Pin = z.object({ id: z.string().max(40), fileId: s(40), cat: z.string().max(40).default('Styling'), note: s(300), love: z.boolean().default(false) });
+export type Pin = z.infer<typeof Pin>;
+export const Ideas = z.object({
+  pins: z.array(Pin).max(150).default([]),
+  /** The wedding's colours, for vendors (florist, stylist, cake). */
+  palette: z.array(z.string().regex(/^#[0-9a-f]{6}$/i)).max(8).default([]),
+});
+export type Ideas = z.infer<typeof Ideas>;
+export const IDEA_CATEGORIES = ['Flowers', 'Attire', 'Hair and makeup', 'Styling', 'Cake', 'Stationery', 'Venue', 'Other'];
+
 // ---------------------------------------------------------------- menus
 
 /** A menu, course by course. */
@@ -754,5 +767,6 @@ export const PLANNER_DOCS = {
   menus: Menus,
   'day-roles': DayRoles,
   shots: ShotList,
+  ideas: Ideas,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;
