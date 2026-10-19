@@ -125,12 +125,12 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
 
   /** A new message of your own (starts switched off, sent by hand or on dates you pick). */
   app.post('/', writer, async (c) => {
-    const body = z.object({ name: z.string().trim().min(1).max(80), audience: Audience }).safeParse(await readJson(c.req.raw));
+    const body = z.object({ name: z.string().trim().min(1).max(80), audience: Audience, body: z.string().max(1600).optional() }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Give the message a name and choose who it goes to.');
     const id = crypto.randomUUID();
     const sort = (await c.env.DB.prepare(`SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM campaign WHERE wedding_id = ?`).bind(wid(c)).first<{ n: number }>())!.n;
-    await c.env.DB.prepare(`INSERT INTO campaign (id, wedding_id, key, name, body, mode, enabled, audience, sort) VALUES (?, ?, ?, ?, '', 'manual', 0, ?, ?)`)
-      .bind(id, wid(c), `custom-${id.slice(0, 8)}`, body.data.name, JSON.stringify(body.data.audience), sort)
+    await c.env.DB.prepare(`INSERT INTO campaign (id, wedding_id, key, name, body, mode, enabled, audience, sort) VALUES (?, ?, ?, ?, ?, 'manual', 0, ?, ?)`)
+      .bind(id, wid(c), `custom-${id.slice(0, 8)}`, body.data.name, body.data.body ?? '', JSON.stringify(body.data.audience), sort)
       .run();
     await audit(c, 'sms.campaign.add', id);
     return c.json({ id });

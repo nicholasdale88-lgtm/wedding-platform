@@ -223,7 +223,7 @@ export type CampaignPatch = Partial<{ name: string; body: string; enabled: boole
 
 export const textsApi = {
   get: (wid: string) => request<TextsData>(`${w(wid)}/texts`),
-  add: (wid: string, name: string, audience: Audience) => send<{ id: string }>('POST', `${w(wid)}/texts`, { name, audience }),
+  add: (wid: string, name: string, audience: Audience, body?: string) => send<{ id: string }>('POST', `${w(wid)}/texts`, { name, audience, ...(body ? { body } : {}) }),
   patch: (wid: string, c: Pick<Campaign, 'id' | 'version'>, patch: CampaignPatch) => send<{ ok: true; version: number }>('PATCH', `${w(wid)}/texts/${c.id}`, patch, c.version),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/texts/${id}`),
   estimate: (wid: string, id: string, draft: Partial<{ body: string; audience: Audience; excluded: string[]; only: string[] }> = {}) =>

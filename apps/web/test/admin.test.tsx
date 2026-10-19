@@ -281,6 +281,26 @@ describe('SMS messages tab', () => {
     expect(screen.getByText('Marked attending')).toBeInTheDocument();
   });
 
+  it('groups messages by stage; + Add a reminder creates one for everyone still to reply', async () => {
+    let created: { name: string; audience: unknown; body?: string } | null = null;
+    const withReplyGroup = { ...texts, audiences: [...texts.audiences, { key: 'r', label: 'Still to reply', audience: { awaitingAny: true, invitedBefore: true } }] };
+    mockApi({
+      '/api/a/w/w1/texts': (init) => {
+        if (init?.method === 'POST') {
+          created = JSON.parse(String(init.body));
+          return json(200, { id: 'c9' });
+        }
+        return json(200, withReplyGroup);
+      },
+      '/api/a/w/w1/texts/c9/estimate': () => json(200, estimate),
+    });
+    renderAt('/admin/w1/texts');
+    expect(await screen.findByRole('heading', { name: 'Invitations & reminders' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '+ Add a reminder' }));
+    await waitFor(() => expect(created).toMatchObject({ name: 'Reminder 1', audience: { awaitingAny: true, invitedBefore: true } }));
+    expect(created!.body).toMatch(/{link}/);
+  });
+
   it('the autopilot switch saves with the version', async () => {
     let patch: { body: unknown; ifMatch: string | null } | null = null;
     mockApi({

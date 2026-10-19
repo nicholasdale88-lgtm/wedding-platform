@@ -51,7 +51,27 @@ export function SmsMessages() {
     }
   };
 
-  return (
+  /** One tap: a reminder to everyone still to reply (pick its date), or a message to everyone. */
+  const quickAdd = async (kind: 'reminder' | 'everyone') => {
+    const aud = data.audiences.find((a) => a.label === (kind === 'reminder' ? 'Still to reply' : 'Everyone with a mobile'));
+    if (!aud) return;
+    const n = data.campaigns.filter((c) => c.custom && /^Reminder/.test(c.name)).length + 1;
+    const preset = data.presets.find((p) => /remind/i.test(`${p.k} ${p.label}`))?.text;
+    try {
+      const { id } = await textsApi.add(
+        wid,
+        kind === 'reminder' ? `Reminder ${n}` : 'Message to everyone',
+        aud.audience,
+        kind === 'reminder' ? (preset ?? 'Hi {first}, a gentle reminder to RSVP for {pending} here: {link}') : undefined,
+      );
+      await load();
+      setOpen(id);
+      toast(kind === 'reminder' ? 'Reminder added: pick its date, then Save.' : 'Write your message, check the preview, then Send now.');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+
     <div className="flex flex-col gap-6">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
@@ -62,9 +82,13 @@ export function SmsMessages() {
           <div className="mt-1 text-[15px] text-[#5b6a52]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
           {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added in SMS setup.</div>}
         </div>
-        <Pill kind="primary" onClick={() => setAdding(true)}>
-          + New message
-        </Pill>
+        <div className="flex gap-2 flex-wrap">
+          <Pill onClick={() => void quickAdd('reminder')}>+ Add a reminder</Pill>
+          <Pill onClick={() => void quickAdd('everyone')}>Message everyone</Pill>
+          <Pill kind="primary" onClick={() => setAdding(true)}>
+            + New message
+          </Pill>
+        </div>
       </header>
 
       {adding && (
@@ -95,11 +119,21 @@ export function SmsMessages() {
         {!data.inbox.length && <div className="text-[14px] text-[#5b6a52]">No replies yet. When a guest texts back YES or NO it is handled for you and shows up here.</div>}
       </section>
 
-      <section className="flex flex-col">
-        {data.campaigns.map((c) => (
-          <CampaignRow key={c.id} c={c} data={data} open={open === c.id} onOpen={() => setOpen(open === c.id ? null : c.id)} onToggle={() => void toggle(c)} onChanged={load} />
-        ))}
-      </section>
+      {STAGES.map((stage) => {
+        const list = data.campaigns.filter((c) => stageOf(c) === stage.key);
+        if (!list.length) return null;
+        return (
+          <section key={stage.key} className="flex flex-col">
+            <div className="flex items-baseline justify-between gap-3 pb-1">
+              <h2 className="m-0 font-display font-medium text-[24px]">{stage.title}</h2>
+              <span className="text-[13px] text-[#7a7466]">{stage.hint}</span>
+            </div>
+            {list.map((c) => (
+              <CampaignRow key={c.id} c={c} data={data} open={open === c.id} onOpen={() => setOpen(open === c.id ? null : c.id)} onToggle={() => void toggle(c)} onChanged={load} />
+            ))}
+          </section>
+        );
+      })}
 
       <section className="flex flex-col gap-2">
         <button type="button" onClick={() => setHistOpen((o) => !o)} className="self-start p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[#33402f]">
@@ -121,7 +155,30 @@ export function SmsMessages() {
   );
 }
 
-// ---------------------------------------------------------------- one message
+
+// ---------------------------------------------------------------- grouping by stage
+
+type StageKey = 'invite' | 'auto' | 'night' | 'after' | 'own' | 'other';
+const STAGES: { key: StageKey; title: string; hint: string }[] = [
+  { key: 'invite', title: 'Invitations & reminders', hint: 'before the reply-by date' },
+  { key: 'auto', title: 'Thank-yous', hint: 'sent when a guest replies' },
+  { key: 'night', title: 'The night before', hint: 'directions, tables, weather' },
+  { key: 'after', title: 'Afterwards', hint: 'photos and thanks' },
+  { key: 'own', title: 'Your own messages', hint: 'sent when you choose' },
+  { key: 'other', title: 'Other messages', hint: '' },
+];
+
+/** Which stage a message belongs to, from how it's sent and what it's called. */
+export function stageOf(c: Pick<Campaign, 'key' | 'name' | 'custom' | 'trigger'>): StageKey {
+  const text = `${c.key} ${c.name}`.toLowerCase();
+  if (c.custom) return /remind/.test(text) ? 'invite' : 'own';
+  if (c.trigger === 'rsvp_changed' || /thank.*(repl|rsvp)|confirm/.test(text)) return 'auto';
+  if (c.trigger === 'invitation_created' || /invit|remind|rsvp|save.?the.?date/.test(text)) return 'invite';
+  if (/night|tomorrow|guide|day.?of|morning of/.test(text)) return 'night';
+  if (/photo|after|thank/.test(text)) return 'after';
+  return 'other';
+}
+
 
 function whenOf(c: Campaign, tz: string): [string, string] {
   if (c.mode === 'manual') return ['By hand', 'when you choose'];
