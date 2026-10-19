@@ -33,6 +33,17 @@ export function SnapCam({
   const [shots, setShots] = useState(0);
   // Camera refused or missing: say so, with a button for the phone's own camera (it must come from a tap).
   const [blocked, setBlocked] = useState(false);
+  // A proper full-screen dialog: Escape closes it and the page behind doesn't scroll.
+  useEffect(() => {
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = before;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []); // eslint-disable-line
 
   // The camera stream, restarted when flipping; always stopped on close.
   useEffect(() => {
@@ -129,7 +140,7 @@ export function SnapCam({
   };
 
   return (
-    <div role="dialog" aria-label="Camera" className="fixed inset-0 z-[60] bg-black text-white flex flex-col select-none">
+    <div role="dialog" aria-modal="true" aria-label="Camera" className="fixed inset-0 z-[60] bg-black text-white flex flex-col select-none">
       <div className="relative flex-1 overflow-hidden">
         <video ref={video} playsInline muted className={`absolute inset-0 w-full h-full object-cover ${facing === 'user' ? '-scale-x-100' : ''}`} />
         <canvas ref={overlay} aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" />
