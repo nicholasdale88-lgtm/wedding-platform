@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bookingTimeline, CHECK_TEMPLATE, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, bookingTimeline, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -120,5 +120,44 @@ describe('when to book', () => {
   });
   it('a wedding with a venue set counts the venue as booked', () => {
     expect(bookingTimeline([], day, day, true).find((r) => r.what === 'Venue')).toMatchObject({ state: 'booked', late: false });
+  });
+});
+
+describe('payment schedules', () => {
+  const line = (o: Partial<BudgetLine>) => BudgetLine.parse({ category: 'Other', ...o });
+  it('starts from the quote: the deposit and the balance', () => {
+    const v = Vendor.parse({ id: 'a', name: 'Bloom', status: 'booked', quote: 3000, deposit: 500, depositPaid: true, balanceDue: '2027-10-01' });
+    expect(scheduleOf(v).map((p) => [p.label, p.amount, p.paid, p.due])).toEqual([
+      ['Deposit', 500, true, ''],
+      ['Balance', 2500, false, '2027-10-01'],
+    ]);
+    expect(moneyOf(v)).toMatchObject({ total: 3000, paid: 500, owing: 2500 });
+  });
+  it('a vendor on a budget line starts from that line', () => {
+    const v = Vendor.parse({ id: 'a', name: 'Bloom', status: 'booked', quote: 9999 });
+    const l = line({ vendor: 'bloom ', quote: 2000, paid: 800, due: '2027-09-01' });
+    expect(moneyOf(v, l)).toMatchObject({ total: 2000, paid: 800, owing: 1200 });
+  });
+  it('a schedule you set wins, and the budget line follows it', () => {
+    const v = Vendor.parse({
+      id: 'a', name: 'Bloom', status: 'booked', quote: 3000,
+      payments: [
+        { id: '1', label: 'Deposit', amount: 1000, paid: true, paidOn: '2027-01-02' },
+        { id: '2', label: 'Second', amount: 1000, due: '2027-06-01' },
+        { id: '3', label: 'Final', amount: 1000, due: '2027-10-01' },
+      ],
+    });
+    const [l] = withSchedules([line({ vendor: 'Bloom', quote: 3000, paid: 0, due: '2027-12-01' })], [v]);
+    expect(l).toMatchObject({ quote: 3000, paid: 1000, due: '2027-06-01' });
+    expect(moneyOf(v).next?.label).toBe('Second');
+  });
+  it('the whole schedule has every booked vendor and the other budget lines, soonest first', () => {
+    const v = Vendor.parse({ id: 'a', name: 'Bloom', status: 'booked', quote: 1000, balanceDue: '2027-05-01' });
+    const idea = Vendor.parse({ id: 'b', name: 'Maybe', status: 'quoted', quote: 500, balanceDue: '2027-01-01' });
+    const all = allPayments([line({ item: 'Rings', quote: 400, due: '2027-03-01' })], [v, idea]);
+    expect(all.map((p) => [p.who, p.amount, p.due])).toEqual([
+      ['Rings', 400, '2027-03-01'],
+      ['Bloom', 1000, '2027-05-01'],
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import { commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
+import { allPayments, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -103,13 +103,9 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
       event: first.key,
     });
   }
-  const named = new Set(budget.data.lines.map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
-  const due = [
-    ...budget.data.lines.filter((l) => l.due && l.due <= soon && (l.quote || l.estimate) > l.paid).map((l) => ({ what: l.item || l.category, due: l.due, amount: (l.quote || l.estimate) - l.paid })),
-    ...vendors.data.list
-      .filter((v) => v.status === 'booked' && v.balanceDue && v.balanceDue <= soon && !named.has(v.name.trim().toLowerCase()))
-      .map((v) => ({ what: v.name, due: v.balanceDue, amount: commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0) })),
-  ].filter((p) => p.amount > 0);
+  const due = allPayments(budget.data.lines, vendors.data.list)
+    .filter((p) => !p.paid && p.due && p.due <= soon && p.amount > 0)
+    .map((p) => ({ what: p.who, due: p.due, amount: p.amount }));
   if (due.length) {
     const late = due.filter((p) => p.due < today);
     out.push({
@@ -120,8 +116,8 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
         .slice(0, 3)
         .map((p) => `${p.what} $${Math.round(p.amount)}`)
         .join(', '),
-      cta: 'Budget',
-      link: 'planner?view=budget',
+      cta: 'Payments',
+      link: 'planner?view=payments',
       event: first.key,
     });
   }

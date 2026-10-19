@@ -1,4 +1,4 @@
-import { BUDGET_SPLIT, bookingTimeline, commitmentOf, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
+import { allPayments, BUDGET_SPLIT, bookingTimeline, moneyOf, withSchedules, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
@@ -173,13 +173,13 @@ export function Insights() {
   const forecast = first ? Math.round(first.people + first.awaiting * rate * perInvite) : 0;
   // Money.
   const booked = vendors.list.filter((v) => v.status === 'booked');
-  const named = new Set(budget.lines.map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
+  const lines = withSchedules(budget.lines, vendors.list);
+  const named = new Set(lines.map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
   const extra = booked.filter((v) => !named.has(v.name.trim().toLowerCase()));
-  const committed = budget.lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + extra.reduce((a, v) => a + commitmentOf(v).amount, 0);
-  const paid = budget.lines.reduce((a, l) => a + l.paid, 0) + extra.reduce((a, v) => a + (v.depositPaid ? commitmentOf(v).deposit : 0), 0);
+  const committed = lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + extra.reduce((a, v) => a + moneyOf(v).total, 0);
+  const paid = lines.reduce((a, l) => a + l.paid, 0) + extra.reduce((a, v) => a + moneyOf(v).paid, 0);
   const byMonth = new Map<string, number>();
-  for (const l of budget.lines) if (l.due && (l.quote || l.estimate) > l.paid) byMonth.set(l.due.slice(0, 7), (byMonth.get(l.due.slice(0, 7)) ?? 0) + (l.quote || l.estimate) - l.paid);
-  for (const v of extra) if (v.balanceDue) byMonth.set(v.balanceDue.slice(0, 7), (byMonth.get(v.balanceDue.slice(0, 7)) ?? 0) + commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0));
+  for (const p of allPayments(budget.lines, vendors.list)) if (!p.paid && p.due) byMonth.set(p.due.slice(0, 7), (byMonth.get(p.due.slice(0, 7)) ?? 0) + p.amount);
   const months = [...byMonth.entries()].filter(([, a]) => a > 0).sort(([a], [b]) => a.localeCompare(b));
   // Where it's likely to land: quotes so far against their estimates, applied to the lines still on an estimate.
   const quotedLines = budget.lines.filter((l) => l.quote && l.estimate);

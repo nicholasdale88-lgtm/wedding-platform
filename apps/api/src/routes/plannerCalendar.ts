@@ -1,4 +1,4 @@
-import { commitmentOf, dateIn, randomToken } from '@wp/shared';
+import { allPayments, dateIn, randomToken } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
@@ -81,15 +81,10 @@ export function plannerCalendarFeed() {
     if (!Number.isNaN(day)) {
       for (const t of plan.data.tasks.filter((x) => !x.done)) items.push({ id: `task-${t.id}`, date: dateIn(tz, new Date(day - t.before * DAY)), title: `${t.legal ? 'Legal: ' : ''}${t.text}`, note: t.note });
     }
-    for (const [i, l] of budget.data.lines.entries()) {
-      const owe = (l.quote || l.estimate) - l.paid;
-      if (l.due && owe > 0) items.push({ id: `pay-${i}-${l.due}`, date: l.due, title: `Pay ${l.item || l.category} ($${Math.round(owe)})` });
+    for (const p of allPayments(budget.data.lines, vendors.data.list)) {
+      if (!p.paid && p.due && p.amount > 0) items.push({ id: `pay-${p.key}-${p.due}`, date: p.due, title: `Pay ${p.who}${p.label === 'Payment' ? '' : ` (${p.label.toLowerCase()})`} ($${Math.round(p.amount)})` });
     }
     for (const v of vendors.data.list) {
-      if (v.status === 'booked' && v.balanceDue) {
-        const c2 = commitmentOf(v);
-        items.push({ id: `bal-${v.id}`, date: v.balanceDue, title: `Pay ${v.name} balance ($${Math.round(c2.amount - (v.depositPaid ? c2.deposit : 0))})` });
-      }
       if (v.status !== 'booked') for (const q of v.quotes.filter((x) => x.validUntil)) items.push({ id: `quote-${q.id}`, date: q.validUntil, title: `${v.name}'s quote runs out` });
     }
     for (const [side, doc] of [

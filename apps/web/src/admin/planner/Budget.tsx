@@ -1,4 +1,4 @@
-import { BUDGET_SPLIT, commitmentOf, dateIn, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
+import { BUDGET_SPLIT, dateIn, moneyOf, withSchedules, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useUnsavedChanges } from '../leave';
@@ -54,16 +54,18 @@ export function Budget() {
   const headcount = doc?.data.guests || overview?.perEvent?.[0]?.coming || 0;
   const b = useMemo(() => {
     const d = doc?.data;
-    return d && { ...d, lines: d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)) };
-  }, [doc, headcount]);
+    return d && { ...d, lines: withSchedules(d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)), vendors) };
+  }, [doc, headcount, vendors]);
+  // Lines whose vendor has a payment schedule: the quote, paid and due come from Payments.
+  const scheduled = (l: BudgetLine) => vendors.some((v) => v.status === 'booked' && v.payments.length && !!l.vendor.trim() && v.name.trim().toLowerCase() === l.vendor.trim().toLowerCase());
   // Booked vendors not already on a budget line, as lines of their own (read-only here; edit in Vendors).
   const commitments = useMemo(() => {
     const named = new Set((b?.lines ?? []).map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
     return vendors
       .filter((v) => v.status === 'booked' && !named.has(v.name.trim().toLowerCase()))
       .map((v) => {
-        const c = commitmentOf(v);
-        return { vendor: v, line: { category: v.category || 'Other', item: v.name, estimate: 0, quote: c.amount, paid: v.depositPaid ? c.deposit : 0, due: v.balanceDue, vendor: v.name, note: '', payer: '', perHead: 0 } as BudgetLine };
+        const m = moneyOf(v);
+        return { vendor: v, line: { category: v.category || 'Other', item: v.name, estimate: 0, quote: m.total, paid: m.paid, due: m.next?.due ?? '', vendor: v.name, note: '', payer: '', perHead: 0 } as BudgetLine };
       });
   }, [b, vendors]);
   const sums = useMemo(() => {
@@ -199,7 +201,7 @@ export function Budget() {
         <section aria-label="Commitments" className="flex flex-col gap-2">
           <div className="flex justify-between items-baseline gap-2 flex-wrap">
             <H2>Commitments</H2>
-            <span className="text-[13px] text-[#5b6a52]">Vendors you've booked, from their accepted quote. Change them under Vendors.</span>
+            <span className="text-[13px] text-[#5b6a52]">Vendors you've booked. Their payments are in Payments.</span>
           </div>
           {commitments.map(({ vendor: v, line: l }) => (
             <div key={v.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 border-t border-[#e2d7bc] text-[14px]">
@@ -208,8 +210,8 @@ export function Budget() {
                 <span className="text-[#5b6a52]">
                   {' '}
                   · {l.category}
-                  {v.depositPaid ? ` · deposit paid` : commitmentOf(v).deposit ? ` · deposit ${aud(commitmentOf(v).deposit)} to pay` : ''}
-                  {l.due ? ` · balance due ${new Date(`${l.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                  {l.paid ? ` · ${aud(l.paid)} paid` : ''}
+                  {l.due ? ` · next payment ${new Date(`${l.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
                 </span>
               </span>
               <span className="tabular-nums text-right">
@@ -285,18 +287,37 @@ export function Budget() {
               Per guest
               <Money label="Per guest" value={l.perHead} onChange={(perHead) => setLine(i, { perHead })} />
             </label>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-              Quote
-              <Money label="Quote" value={l.quote} onChange={(quote) => setLine(i, { quote })} />
-            </label>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-              Paid
-              <Money label="Paid" value={l.paid} onChange={(paid) => setLine(i, { paid })} />
-            </label>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-              Rest due
-              <input type="date" value={l.due} onChange={(e) => setLine(i, { due: e.target.value })} className={inputCls} />
-            </label>
+            {scheduled(l) ? (
+              <>
+                <span className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  Quote
+                  <span className={`${inputCls} text-right tabular-nums bg-[#f3ecd6]`}>{aud(l.quote)}</span>
+                </span>
+                <span className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  Paid
+                  <span className={`${inputCls} text-right tabular-nums bg-[#f3ecd6]`}>{aud(l.paid)}</span>
+                </span>
+                <span className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  Next due (from Payments)
+                  <span className={`${inputCls} bg-[#f3ecd6]`}>{l.due ? new Date(`${l.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'}</span>
+                </span>
+              </>
+            ) : (
+              <>
+                <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  Quote
+                  <Money label="Quote" value={l.quote} onChange={(quote) => setLine(i, { quote })} />
+                </label>
+                <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  Paid
+                  <Money label="Paid" value={l.paid} onChange={(paid) => setLine(i, { paid })} />
+                </label>
+                <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  Rest due
+                  <input type="date" value={l.due} onChange={(e) => setLine(i, { due: e.target.value })} className={inputCls} />
+                </label>
+              </>
+            )}
             <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] col-span-2 md:col-span-1">
               Paid by
               <input list="budget-payers" placeholder="Us" value={l.payer} onChange={(e) => setLine(i, { payer: e.target.value })} className={inputCls} />

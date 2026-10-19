@@ -188,7 +188,7 @@ describe('planner: wedding party', () => {
     await call('/doc/budget', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ total: 30000, lines: [{ category: 'Cake', item: 'Cake', quote: 900, paid: 200, due: soon }] }) });
     const ov = (await (await app.request(`/api/a/w/${wid}/overview`, { headers: { cookie } }, env, ctx)).json()) as { needsYou: { kind: string; title: string; detail: string; link: string }[] };
     expect(ov.needsYou.find((n) => n.kind === 'plan-overdue')).toMatchObject({ title: 'Overdue: Lodge the NOI', link: 'planner?view=checklist' });
-    expect(ov.needsYou.find((n) => n.kind === 'payments-due')).toMatchObject({ detail: 'Cake $700', link: 'planner?view=budget' });
+    expect(ov.needsYou.find((n) => n.kind === 'payments-due')).toMatchObject({ detail: 'Cake $700', link: 'planner?view=payments' });
   });
 
   it('a stale save is refused with the current version (two people never overwrite each other)', async () => {

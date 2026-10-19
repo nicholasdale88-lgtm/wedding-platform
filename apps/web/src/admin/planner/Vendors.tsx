@@ -1,4 +1,4 @@
-import { commitmentOf, dateIn, VENDOR_SEARCH, VENDOR_STATUS, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, dateIn, moneyOf, VENDOR_SEARCH, VENDOR_STATUS, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type VendorHit } from '../../lib/api';
 import { MoneyInput } from './MoneyInput';
@@ -86,8 +86,8 @@ export function Vendors() {
   };
   const patch = (id: string, p: Partial<Vendor>, done?: string) => void save(list.map((x) => (x.id === id ? { ...x, ...p } : x)), done);
   const booked = list.filter((v) => v.status === 'booked');
-  const committed = booked.reduce((a, v) => a + commitmentOf(v).amount, 0);
-  const paid = booked.reduce((a, v) => a + (v.depositPaid ? commitmentOf(v).deposit : 0), 0);
+  const committed = booked.reduce((a, v) => a + moneyOf(v).total, 0);
+  const paid = booked.reduce((a, v) => a + moneyOf(v).paid, 0);
 
   return (
     <div className="flex flex-col gap-6">
@@ -274,14 +274,22 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
             {field('email', 'Email')}
             {field('website', 'Website')}
             {field('address', 'Address', true)}
-            <label className="flex items-center gap-2 text-[14px] cursor-pointer">
-              <input type="checkbox" checked={v.depositPaid} onChange={() => onChange({ depositPaid: !v.depositPaid })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-              Deposit paid{c.deposit ? ` (${aud(c.deposit)})` : ''}
-            </label>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-              Balance due
-              <input type="date" value={v.balanceDue} onChange={(e) => onChange({ balanceDue: e.target.value })} className={inputCls} />
-            </label>
+            {v.payments.length ? (
+              <p className="m-0 sm:col-span-2 text-[13px] text-[#5b6a52]">
+                {v.payments.length} {v.payments.length === 1 ? 'payment' : 'payments'}: {aud(moneyOf(v).paid)} of {aud(moneyOf(v).total)} paid. Change the schedule in Wedding planner → Payments.
+              </p>
+            ) : (
+              <>
+                <label className="flex items-center gap-2 text-[14px] cursor-pointer">
+                  <input type="checkbox" checked={v.depositPaid} onChange={() => onChange({ depositPaid: !v.depositPaid })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                  Deposit paid{c.deposit ? ` (${aud(c.deposit)})` : ''}
+                </label>
+                <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  Balance due (instalments: Payments)
+                  <input type="date" value={v.balanceDue} onChange={(e) => onChange({ balanceDue: e.target.value })} className={inputCls} />
+                </label>
+              </>
+            )}
             {field('arrival', 'Arriving on the day (e.g. 11:00am)')}
             {field('notes', 'Notes', true)}
           </div>

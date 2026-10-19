@@ -433,6 +433,17 @@ export const SIDE_TEMPLATE: Record<'p1' | 'p2', SideTask[]> = {
 // ---------------------------------------------------------------- budget and vendors
 
 const money = z.number().min(0).max(10_000_000).default(0);
+/** One payment to a vendor: what it's for, how much, when it's due, and whether it's paid (and when). */
+export const Payment = z.object({
+  id: z.string().max(40),
+  label: s(60),
+  amount: money,
+  due: s(10), // yyyy-mm-dd
+  paid: z.boolean().default(false),
+  paidOn: s(10),
+});
+export type Payment = z.infer<typeof Payment>;
+
 /** One budget line: what it's for, the estimate, the quote once you have one, what's paid, when the rest is due. */
 export const BudgetLine = z.object({
   category: z.string().max(60),
@@ -518,6 +529,8 @@ export const Vendor = z.object({
   contractFileName: s(160),
   /** Meals for this vendor's team on the day (tell the caterer). */
   meals: z.number().int().min(0).max(50).default(0),
+  /** The payment schedule (deposit, instalments, balance), once you've set one; until then it comes from the quote. */
+  payments: z.array(Payment).max(12).default([]),
 });
 export type Vendor = z.infer<typeof Vendor>;
 
@@ -571,6 +584,71 @@ export function bookingTimeline(list: Vendor[], day: number, now: number, venueS
     const state: BookingRow['state'] = booked || (b.what === 'Venue' && venueSet) ? 'booked' : vs.length ? 'looking' : 'none';
     return { what: b.what, months: b.months, bookBy: by.toISOString().slice(0, 10), state, vendor: booked?.name ?? '', late: state !== 'booked' && by.getTime() <= now };
   }).sort((a, b) => b.months - a.months);
+}
+
+const same = (a: string, b: string) => !!a.trim() && a.trim().toLowerCase() === b.trim().toLowerCase();
+/** The budget line that tracks this vendor (its "vendor" is the vendor's name), if any. */
+export const lineFor = (v: Vendor, lines: BudgetLine[]) => lines.find((l) => same(l.vendor, v.name));
+
+/**
+ * A vendor's payment schedule: the one you set; or, until then, what's known already (from its budget line:
+ * paid so far and the rest; or from the accepted quote: the deposit and the balance).
+ */
+export function scheduleOf(v: Vendor, line?: BudgetLine): Payment[] {
+  if (v.payments.length) return v.payments;
+  const out: Payment[] = [];
+  if (line) {
+    const total = line.quote || line.estimate;
+    if (line.paid > 0) out.push({ id: 'paid', label: 'Paid so far', amount: Math.min(line.paid, total || line.paid), due: '', paid: true, paidOn: '' });
+    if (total > line.paid) out.push({ id: 'balance', label: line.paid > 0 ? 'Balance' : 'Payment', amount: Math.round((total - line.paid) * 100) / 100, due: line.due, paid: false, paidOn: '' });
+    return out;
+  }
+  const c = commitmentOf(v);
+  if (c.deposit > 0) out.push({ id: 'deposit', label: 'Deposit', amount: Math.min(c.deposit, c.amount || c.deposit), due: '', paid: v.depositPaid, paidOn: '' });
+  if (c.amount > c.deposit) out.push({ id: 'balance', label: c.deposit > 0 ? 'Balance' : 'Payment', amount: Math.round((c.amount - c.deposit) * 100) / 100, due: v.balanceDue, paid: false, paidOn: '' });
+  return out;
+}
+
+/** What a booked vendor costs (the contract: its line or quote, or the schedule if that adds to more), what's paid, what's owing. */
+export function moneyOf(v: Vendor, line?: BudgetLine) {
+  const sched = scheduleOf(v, line);
+  const scheduled = sched.reduce((a, p) => a + p.amount, 0);
+  const contract = line ? line.quote || line.estimate : commitmentOf(v).amount;
+  const total = Math.max(contract, scheduled);
+  const paid = sched.filter((p) => p.paid).reduce((a, p) => a + p.amount, 0);
+  const next = sched.filter((p) => !p.paid).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999'))[0];
+  return { total, paid, owing: Math.max(0, total - paid), unscheduled: Math.max(0, contract - scheduled), schedule: sched, next };
+}
+
+/** A budget line with its vendor's schedule applied (once a schedule is set, it says what's paid and when the rest is due). */
+export function withSchedules(lines: BudgetLine[], vendors: Vendor[]): BudgetLine[] {
+  return lines.map((l) => {
+    const v = vendors.find((x) => x.status === 'booked' && x.payments.length && same(l.vendor, x.name));
+    if (!v) return l;
+    const m = moneyOf(v, l);
+    return { ...l, quote: m.total, paid: m.paid, due: m.next?.due ?? '' };
+  });
+}
+
+/** One payment in the whole-wedding schedule. `vendorId` is '' for a budget line with no booked vendor (`line` is its index). */
+export type DuePayment = { key: string; vendorId: string; line: number; who: string; label: string; amount: number; due: string; paid: boolean; paidOn: string };
+
+/** Every payment for the wedding: each booked vendor's schedule, and each budget line that isn't a booked vendor's. */
+export function allPayments(lines: BudgetLine[], vendors: Vendor[]): DuePayment[] {
+  const booked = vendors.filter((v) => v.status === 'booked');
+  const out: DuePayment[] = [];
+  for (const v of booked) {
+    const line = lineFor(v, lines);
+    for (const p of scheduleOf(v, line)) out.push({ key: `${v.id}:${p.id}`, vendorId: v.id, line: line ? lines.indexOf(line) : -1, who: v.name, label: p.label, amount: p.amount, due: p.due, paid: p.paid, paidOn: p.paidOn });
+  }
+  lines.forEach((l, i) => {
+    if (booked.some((v) => same(l.vendor, v.name))) return;
+    const total = l.quote || l.estimate;
+    const who = l.item || l.vendor || l.category;
+    if (l.paid > 0) out.push({ key: `line${i}:paid`, vendorId: '', line: i, who, label: 'Paid so far', amount: Math.min(l.paid, total || l.paid), due: '', paid: true, paidOn: '' });
+    if (total > l.paid) out.push({ key: `line${i}:rest`, vendorId: '', line: i, who, label: l.paid > 0 ? 'Balance' : 'Payment', amount: Math.round((total - l.paid) * 100) / 100, due: l.due, paid: false, paidOn: '' });
+  });
+  return out.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || a.who.localeCompare(b.who));
 }
 
 export const Vendors = z.object({ list: z.array(Vendor).max(200).default([]) });

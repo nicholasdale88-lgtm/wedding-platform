@@ -98,7 +98,7 @@ ${pdf}
     expect(feed.status).toBe(200);
     const ics = await feed.text();
     expect(ics).toContain('SUMMARY:Book the florist');
-    expect(ics).toContain('SUMMARY:Pay Cake ($700)');
+    expect(ics).toContain('SUMMARY:Pay Cake (balance) ($700)');
     expect(ics).toContain('DTSTART;VALUE=DATE:20271001');
     const again = (await (await call('/planner-calendar', { method: 'PUT', body: JSON.stringify({ on: true }) })).json()) as { url: string };
     expect((await app.request(url.replace('https://example.com', ''), {}, env, ctx)).status).toBe(404);
