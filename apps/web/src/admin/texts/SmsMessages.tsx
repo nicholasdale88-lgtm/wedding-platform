@@ -147,7 +147,7 @@ export function SmsMessages() {
       {night && (
         <section aria-label="Night before" className="flex flex-col gap-3">
           <H2>The night before</H2>
-          <NightText eventKey={chosen} />
+          <NightText eventKey={chosen} data={data} onChanged={load} />
         </section>
       )}
 

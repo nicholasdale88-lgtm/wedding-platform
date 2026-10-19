@@ -1,5 +1,5 @@
 import { zonedToUtc } from '@wp/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError, textsApi, type Campaign, type Estimate, type TextsData } from '../../lib/api';
 import { fmtWhen, toLocalInput } from '../../lib/format';
 import { useUnsavedChanges } from '../leave';
@@ -21,25 +21,13 @@ const eveningBefore = (startsAt: string, tz: string) => {
   return `${toLocalInput(day.toISOString(), tz).slice(0, 10)}T17:00`;
 };
 
-export function NightText({ eventKey }: { eventKey: string }) {
+/** The event's night-before text, inside its Texts page: shares that page's texts data (one load, one refresh). */
+export function NightText({ eventKey, data, onChanged: load }: { eventKey: string; data: TextsData; onChanged: () => Promise<void> }) {
   const { wid, overview } = useAdmin();
   const toast = useToast();
-  const [data, setData] = useState<TextsData | null>(null);
-  const [error, setError] = useState('');
   const ev = overview?.events.find((e) => e.key === eventKey);
 
-  const load = useCallback(async () => {
-    try {
-      setData(await textsApi.get(wid));
-      setError('');
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, [wid]);
-  useEffect(() => void load(), [load]);
-
-  if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data || !ev) return <div aria-busy="true" className="text-[#5b6a52]">Loading the night-before text…</div>;
+  if (!ev) return <div aria-busy="true" className="text-[#5b6a52]">Loading the night-before text…</div>;
   const tz = data.timezone;
   const mine = data.campaigns.filter((c) => eventOf(c) === eventKey && isNightBefore(c));
   const slot = data.events.findIndex((e) => e.key === eventKey);
@@ -48,9 +36,12 @@ export function NightText({ eventKey }: { eventKey: string }) {
     try {
       const guide = slot <= 0 ? '{guide}' : `{guide_${eventKey}}`;
       const { id } = await textsApi.add(wid, `Night before · ${ev.name}`, { attending: eventKey }, `Hi {first}, see you tomorrow! Everything you need, from times to your table: ${guide}`);
-      await textsApi.patch(wid, { id, version: 1 }, { dates: [zonedToUtc(eveningBefore(ev.startsAt, tz), tz).toISOString()] }).catch(() => {});
+      const dated = await textsApi.patch(wid, { id, version: 1 }, { dates: [zonedToUtc(eveningBefore(ev.startsAt, tz), tz).toISOString()] }).then(
+        () => '',
+        (e: Error) => e.message,
+      );
       await load();
-      toast('Night-before text added for the evening before');
+      toast(dated ? `Night-before text added, but its date wasn't set (${dated}). Pick the date below.` : 'Night-before text added for the evening before');
     } catch (e) {
       toast((e as Error).message);
     }
