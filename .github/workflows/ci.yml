@@ -8,7 +8,8 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a run on main: it may be mid-deploy.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: write # only used to commit the lockfile on the very first run
@@ -72,3 +73,41 @@ jobs:
           cd apps/api
           SEED_OWNER_EMAIL=ci@example.com SEED_OWNER_PASSCODE=ci-only-passcode pnpm seed:sql ../../seed/sophie-nicholas.json "$RUNNER_TEMP/seed.sql"
           test "$(wc -l < "$RUNNER_TEMP/seed.sql")" -gt 100
+
+  deploy:
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Deploy to Cloudflare
+        run: ./scripts/deploy.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          SEED_OWNER_EMAIL: ${{ secrets.SEED_OWNER_EMAIL }}
+          SEED_OWNER_PASSCODE: ${{ secrets.SEED_OWNER_PASSCODE }}
+          SUPER_ADMINS: ${{ secrets.SEED_OWNER_EMAIL }}
+          MM_USER: ${{ secrets.MM_USER }}
+          MM_PASS: ${{ secrets.MM_PASS }}
+          MM_HOOK_SECRET: ${{ secrets.MM_HOOK_SECRET }}
+          MM_SIGNING_SECRET: ${{ secrets.MM_SIGNING_SECRET }}

@@ -1,5 +1,7 @@
 name = "wedding-api"
 main = "src/index.ts"
+# Reached only through the website (Pages service binding), so no public workers.dev address.
+workers_dev = false
 compatibility_date = "2026-10-01"
 compatibility_flags = ["nodejs_compat"]
 
@@ -20,6 +22,6 @@ binding = "MEDIA"
 bucket_name = "media"
 
 [vars]
-PUBLIC_BASE_URL = "https://example.com"
+PUBLIC_BASE_URL = "http://localhost:5173" # the deploy sets the real address
 
 # Secrets (never in this file): MM_USER, MM_PASS, MM_HOOK_SECRET, MM_SIGNING_SECRET

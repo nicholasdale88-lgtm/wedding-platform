@@ -1,0 +1,9 @@
+# Cloudflare Pages project for the website. The deploy workflow sets `name`.
+name = "PAGES_PROJECT"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-10-01"
+
+# /api/* is forwarded to the API Worker (functions/api/[[path]].ts).
+[[services]]
+binding = "API"
+service = "wedding-api"
