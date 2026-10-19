@@ -845,6 +845,56 @@ export const SeatRules = z.object({ pairs: z.array(z.object({ a: z.string().max(
 export type SeatRules = z.infer<typeof SeatRules>;
 
 
+// ---------------------------------------------------------------- signage
+
+export const SIGN_FONTS = ['pinyon', 'vibes', 'parisienne', 'playfair', 'cormorant', 'cormorant-italic', 'sans'] as const;
+export const SIGN_SIZES = ['A6', 'A5', 'A4', 'A3', 'A2', 'A1'] as const;
+export const SIGN_BORDERS = ['none', 'line', 'double', 'corners', 'arch', 'dots'] as const;
+const hex = z.string().regex(/^#[0-9a-f]{6}$/i).or(z.literal(''));
+/** One piece of a sign, top to bottom: a small heading, a big script line, text, a rule, a list, a QR code, a gap. */
+export const SignBlock = z.object({
+  id: z.string().max(40),
+  kind: z.enum(['small', 'heading', 'text', 'rule', 'list', 'qr', 'space']),
+  /** The words ({name1}, {name2}, {couple}, {date}, {venue}, {table}, {website} are filled in); a list is one item per line; a QR code is a link. */
+  text: s(1200),
+  /** Bigger or smaller than usual (1 is usual). */
+  size: z.number().min(0.3).max(4).default(1),
+  /** '' is the sign's own font for this kind of block. */
+  font: z.union([z.literal(''), z.enum(SIGN_FONTS)]).default(''),
+  /** '' is the sign's ink colour; 'accent' its accent. */
+  colour: z.enum(['', 'accent', 'soft']).default(''),
+  italic: z.boolean().default(false),
+});
+export type SignBlock = z.infer<typeof SignBlock>;
+/** A sign's look: paper size and way round, colours, fonts, border, alignment. */
+export const SignLook = z.object({
+  size: z.enum(SIGN_SIZES).default('A3'),
+  landscape: z.boolean().default(false),
+  /** Empty colours follow the invitation's theme. */
+  paper: hex.default(''),
+  ink: hex.default(''),
+  accent: hex.default(''),
+  heading: z.enum(SIGN_FONTS).default('pinyon'),
+  body: z.enum(SIGN_FONTS).default('cormorant'),
+  border: z.enum(SIGN_BORDERS).default('line'),
+  align: z.enum(['center', 'left']).default('center'),
+  /** Where the words sit: middle, or from the top. */
+  valign: z.enum(['middle', 'top']).default('middle'),
+});
+export type SignLook = z.infer<typeof SignLook>;
+export const SignDesign = z.object({ look: SignLook.default({}), blocks: z.array(SignBlock).max(40).default([]) });
+export type SignDesign = z.infer<typeof SignDesign>;
+/** A copy saved to the couple's linked storage (or kept here): the planning file it is. */
+export const SavedSign = z.object({ id: z.string().max(60), sign: z.string().max(40), name: z.string().max(160), at: z.string().max(40), where: s(20) });
+/** Wedding planner → Print → signs: each sign's design (by template), your own signs, and the copies saved. */
+export const Signage = z.object({
+  designs: z.record(z.string().max(40), SignDesign).default({}),
+  /** Your own signs (beyond the templates): their names; designs are kept under their ids. */
+  own: z.array(z.object({ id: z.string().max(40), name: z.string().max(80) })).max(30).default([]),
+  saved: z.array(SavedSign).max(100).default([]),
+});
+export type Signage = z.infer<typeof Signage>;
+
 /** The planner documents and their shapes (the API validates every save against these). */
 // ---------------------------------------------------------------- speeches, who holds what, the photo list
 
@@ -989,5 +1039,6 @@ export const PLANNER_DOCS = {
   shots: ShotList,
   ideas: Ideas,
   'coord-log': CoordLog,
+  signage: Signage,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

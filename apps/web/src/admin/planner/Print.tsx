@@ -2,11 +2,14 @@ import { lineFor, moneyOf, type Budget as BudgetDoc, type ReceptionGuide, type V
 import qrcode from 'qrcode-generator';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pagesApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
+import { themeOf } from '../../guest/themeKit';
+import { SignStudio } from '../signs/SignStudio';
 import { useAdmin } from '../Shell';
 import { H2, Pill } from '../ui';
 
 /**
- * Wedding planner → Print: signage in the wedding's own fonts, ready to print at home or send to a
+ * Wedding planner → Print: signs designed here (any sign, every word and colour yours; saved to your
+ * linked storage as a PDF), and the cards and lists that come from your plan, ready to print at home or send to a
  * printer as a PDF (Print → Save as PDF). Welcome sign, table numbers, place cards and the seating
  * chart come from the seating plan; menu cards from the night-before page's menu.
  */
@@ -92,14 +95,28 @@ export function Print() {
     }
   })();
 
+  // Signs: the invitation's colours, and the wedding's details to fill in.
+  const th = themeOf(pages?.theme ?? overview?.wedding.theme, pages?.invitation.custom);
+  const palette = { paper: th.b1 ?? '#fffdf8', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3' };
+  const signVars = {
+    name1: names.name1.split(' ')[0] ?? '',
+    name2: names.name2.split(' ')[0] ?? '',
+    couple,
+    date,
+    venue: overview?.events[0]?.venue ?? '',
+    website: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}`,
+    timeline: items.map((x) => `${x.time}  ${x.title}`).join('\n') || '2:00pm  Ceremony\n3:00pm  Canapés\n5:30pm  Reception\n10:30pm  Farewell',
+  };
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
+      <SignStudio palette={palette} vars={signVars} tables={tables.map((t) => t.name)} />
       <div>
-        <H2>Print</H2>
+        <H2>Cards and lists</H2>
         <div className="text-[13px] text-[#5b6a52]">Signs and cards in your wedding’s fonts. Print at home, or choose “Save as PDF” to send to a printer.</div>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {KINDS.map(([k, label, hint]) => {
+        {KINDS.filter(([k]) => k !== 'welcome' && k !== 'tables').map(([k, label, hint]) => {
           const ready = count[k] > 0;
           return (
             <div key={k} className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">

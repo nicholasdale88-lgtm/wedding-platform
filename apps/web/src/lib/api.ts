@@ -411,7 +411,7 @@ export const plannerApi = {
     const buf = new Uint8Array(await file.arrayBuffer());
     let bin = '';
     for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-    return send<{ id: string; name: string }>('POST', `${w(wid)}/planner/files`, { name: file.name.slice(0, 160), type: file.type, data: btoa(bin) });
+    return send<{ id: string; name: string; where?: string }>('POST', `${w(wid)}/planner/files`, { name: file.name.slice(0, 160), type: file.type, data: btoa(bin) });
   },
   fileUrl: (wid: string, id: string) => `/api${w(wid)}/planner/files/${encodeURIComponent(id)}`,
   readQuote: (wid: string, id: string) =>

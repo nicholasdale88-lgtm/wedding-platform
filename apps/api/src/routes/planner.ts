@@ -394,7 +394,9 @@ export function plannerRoutes() {
       ),
       audit(c, 'planner.file', id),
     ]);
-    return c.json({ id, name: body.data.name });
+    // Where it went: the linked storage's kind (gdrive, dropbox, onedrive), or '' for here.
+    const where = remote ? ((await c.env.DB.prepare(`SELECT provider FROM photo_link WHERE id = ?`).bind(remote.split(':')[1] ?? '').first<{ provider: string }>())?.provider ?? '') : '';
+    return c.json({ id, name: body.data.name, where });
   });
 
   /** A planning file and its bytes (from the linked storage it lives in, or the database). */
