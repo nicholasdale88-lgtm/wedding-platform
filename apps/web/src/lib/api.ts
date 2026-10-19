@@ -591,6 +591,11 @@ export interface InsightsData {
   chase: { id: string; name: string; opened: string | null; phone: boolean; texted: string | null }[];
   guests: { photos: number; board: number; songs: number; emails: number; vendorEmails: number; guestEmails: number; party: number };
 }
+/** The plan as a private calendar link to subscribe to. */
+export const plannerCalendarApi = {
+  get: (wid: string) => request<{ url: string }>(`${w(wid)}/planner-calendar`),
+  set: (wid: string, on: boolean) => send<{ url: string }>('PUT', `${w(wid)}/planner-calendar`, { on }),
+};
 export const insightsApi = { get: (wid: string) => request<InsightsData>(`${w(wid)}/insights`) };
 
 export interface InboxEmail {

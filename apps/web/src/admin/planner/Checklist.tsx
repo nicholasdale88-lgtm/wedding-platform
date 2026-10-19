@@ -2,6 +2,7 @@ import { PLAN_TEMPLATE, type PlanChecklist, type PlanTask } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
+import { CalendarCard } from './CalendarCard';
 import { useDocSave } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
@@ -195,6 +196,8 @@ export function Checklist() {
         </section>
       ))}
       {!groups.length && <p className="m-0 text-[15px] text-[#3d4a2f]">Everything's done ✓</p>}
+
+      <CalendarCard />
 
       <form
         className="flex gap-2 flex-wrap items-end p-4 rounded-[16px] border border-dashed border-[#c6b794]"

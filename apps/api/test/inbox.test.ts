@@ -87,4 +87,21 @@ ${pdf}
     expect(d.events[0]!.invited).toBeGreaterThan(0);
     expect(d.guests.photos).toBe(0);
   });
+
+  it('the plan as a private calendar: off until switched on, then every due date; a new link retires the old', async () => {
+    expect(((await (await call('/planner-calendar')).json()) as { url: string }).url).toBe('');
+    await call('/planner/doc/checklist', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ tasks: [{ id: 't1', text: 'Book the florist', before: 200 }] }) });
+    await call('/planner/doc/budget', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ total: 30000, lines: [{ category: 'Cake', item: 'Cake', quote: 900, paid: 200, due: '2027-10-01' }] }) });
+    const { url } = (await (await call('/planner-calendar', { method: 'PUT', body: JSON.stringify({ on: true }) })).json()) as { url: string };
+    expect(url).toMatch(/\/api\/cal\/[^/]+\/[A-Za-z0-9_-]{20,}\.ics$/);
+    const feed = await app.request(url.replace('https://example.com', ''), {}, env, ctx);
+    expect(feed.status).toBe(200);
+    const ics = await feed.text();
+    expect(ics).toContain('SUMMARY:Book the florist');
+    expect(ics).toContain('SUMMARY:Pay Cake ($700)');
+    expect(ics).toContain('DTSTART;VALUE=DATE:20271001');
+    const again = (await (await call('/planner-calendar', { method: 'PUT', body: JSON.stringify({ on: true }) })).json()) as { url: string };
+    expect((await app.request(url.replace('https://example.com', ''), {}, env, ctx)).status).toBe(404);
+    expect((await app.request(again.url.replace('https://example.com', ''), {}, env, ctx)).status).toBe(200);
+  });
 });
