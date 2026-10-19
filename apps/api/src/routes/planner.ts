@@ -128,6 +128,20 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
   if (lapsing.length) {
     out.push({ kind: 'quotes-lapsing', title: `${lapsing.length === 1 ? 'A quote runs' : `${lapsing.length} quotes run`} out soon`, detail: [...new Set(lapsing)].join(', '), cta: 'Vendors', link: 'planner?view=vendors', event: first.key });
   }
+  // The wedding party: each side's overdue to-dos and fittings in the next fortnight.
+  const sides = await Promise.all([readDoc(db, weddingId, 'party-p1', ''), readDoc(db, weddingId, 'party-p2', '')]);
+  const lateSide = sides.flatMap((s) => s.data.tasks.filter((t) => !t.done && t.due && t.due < today));
+  const fittings = sides.flatMap((s) => Object.values(s.data.people).filter((p) => p.fitting && p.fitting >= today && p.fitting <= soon));
+  if (lateSide.length || fittings.length) {
+    out.push({
+      kind: 'party',
+      title: lateSide.length ? `${lateSide.length} wedding party ${lateSide.length === 1 ? 'to-do is' : 'to-dos are'} overdue` : `${fittings.length} ${fittings.length === 1 ? 'fitting' : 'fittings'} in the next fortnight`,
+      detail: lateSide.length ? lateSide.slice(0, 2).map((t) => t.text).join('; ') : fittings.map((p) => p.outfit || 'Fitting').slice(0, 3).join(', '),
+      cta: 'Wedding party',
+      link: 'party',
+      event: first.key,
+    });
+  }
   // Booked without a signed contract: the deposit is at risk if anything goes wrong.
   const unsigned = vendors.data.list.filter((v) => v.status === 'booked' && !v.contractSigned);
   if (unsigned.length) {
