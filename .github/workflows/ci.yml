@@ -20,12 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
-
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: pnpm
+          package-manager-cache: false
+
+      # pnpm comes from Corepack (version pinned in package.json "packageManager").
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+          pnpm --version
 
       # No Node on the dev machine: CI keeps the lockfile up to date and commits any change back.
       - name: Install
