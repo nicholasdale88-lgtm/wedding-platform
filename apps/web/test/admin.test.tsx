@@ -212,8 +212,9 @@ describe('guest pages tab', () => {
     for (const name of ['Invitation', 'Night before: Wedding', 'Night before: Recovery brunch', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
     await userEvent.click(screen.getByRole('button', { name: 'Night before: Recovery brunch' }));
-    // Only guests invited to the brunch can be previewed for its guide.
-    expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', `/w/alex-and-blair/tomorrow/brunch?g=${'T'.repeat(22)}&preview=1`);
+    // A stand-in guest by default; only guests invited to the brunch can be picked for its guide.
+    expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/tomorrow/brunch?preview=1');
+    expect(screen.getByRole('option', { name: 'A sample guest' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Jo Banks' })).toBeNull();
     expect(screen.getByDisplayValue('Hat')).toBeInTheDocument();
   });

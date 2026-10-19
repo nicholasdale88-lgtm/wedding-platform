@@ -90,6 +90,7 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
       headers: { 'If-Match': String((await invId('Ann Able')).version) },
       body: JSON.stringify({ events: {}, diet: 'Ann vegetarian, Andy coeliac' }),
     });
+    clock.set('2027-06-01T10:15'); // thank-yous wait 10 minutes, so a changed mind gets one text
     await tick();
     expect(to(A)).toHaveLength(2);
     expect(to(A)[1]!.message).toMatch(/^Thanks Ann/);
