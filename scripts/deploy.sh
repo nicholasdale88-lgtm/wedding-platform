@@ -8,8 +8,14 @@
 #   5. Website (Pages), whose /api/* is forwarded to the Worker
 #   6. Health check through the public address
 set -euo pipefail
-: "${CLOUDFLARE_API_TOKEN:?Add the CLOUDFLARE_API_TOKEN secret}" "${CLOUDFLARE_ACCOUNT_ID:?Add the CLOUDFLARE_ACCOUNT_ID secret}"
-: "${SESSION_SECRET:?Add the SESSION_SECRET secret}"
+: "${CLOUDFLARE_API_TOKEN:?Add the CLOUDFLARE_API_TOKEN secret (docs/SETUP_ACCOUNTS.md)}"
+
+# The account id comes from the token when not given.
+if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+  CLOUDFLARE_ACCOUNT_ID=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id // empty')
+  : "${CLOUDFLARE_ACCOUNT_ID:?Could not read the account from the token. Add a CLOUDFLARE_ACCOUNT_ID secret.}"
+fi
+export CLOUDFLARE_ACCOUNT_ID
 
 ROOT=$(pwd)
 PROJECT="${PAGES_PROJECT:-wedding-platform-nd}"
@@ -61,6 +67,12 @@ echo "::endgroup::"
 
 echo "::group::5. API Worker"
 wr deploy --var "PUBLIC_BASE_URL:$SITE"
+# SESSION_SECRET: use the GitHub secret if set; otherwise create one inside Cloudflare on the first deploy and keep it.
+if [ -z "${SESSION_SECRET:-}" ] && ! wr secret list 2>/dev/null | grep -q '"SESSION_SECRET"'; then
+  SESSION_SECRET=$(openssl rand -base64 48)
+  export SESSION_SECRET
+  echo "Created a new SESSION_SECRET in Cloudflare"
+fi
 node -e '
   const keys = ["SESSION_SECRET", "SUPER_ADMINS", "MM_USER", "MM_PASS", "MM_HOOK_SECRET", "MM_SIGNING_SECRET"];
   const out = Object.fromEntries(keys.filter((k) => process.env[k]).map((k) => [k, process.env[k]]));

@@ -105,9 +105,10 @@ Add these under **repo → Settings → Secrets and variables → Actions**:
 | Secret | From | Step |
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | Cloudflare → My Profile → API Tokens | 2 |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare → Account Home | 2 |
+| `CLOUDFLARE_ACCOUNT_ID` (optional: read from the token) | Cloudflare → Account Home | 2 |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Cloudflare → R2 → Manage API tokens | 2 |
-| `SESSION_SECRET` | You make it up (40+ random characters) | 2 |
+| `SESSION_SECRET` (optional: created in Cloudflare on the first deploy) | You make it up (40+ random characters) | 2 |
+| `SEED_OWNER_EMAIL`, `SEED_OWNER_PASSCODE` | Your admin sign-in (passcode 8+ characters) | 2 |
 | `MM_USER`, `MM_PASS` | Mobile Message → Settings → API | 4 |
 | `MM_SIGNING_SECRET` | Mobile Message → Settings → API → webhook signing secret | 4 |
 | `MM_HOOK_SECRET` | You make it up (32 random characters) | 4 |
