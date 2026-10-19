@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
 import { fileName } from '../lib/csv';
-import { downloadXlsx } from '../lib/xlsx';
+import { downloadDressed } from './exportLook';
 import { GuestDrawer } from './GuestDrawer';
 import { exportSheets } from './guestImport';
 import { ImportGuests } from './ImportGuests';
@@ -102,7 +102,7 @@ export function Guests() {
         <div className="flex gap-[10px] flex-wrap">
           <Pill onClick={() => setManual((x) => !x)}>Send without SMS</Pill>
           <Pill onClick={() => setImporting((x) => !x)}>Import</Pill>
-          <Pill disabled={!guests.length} onClick={() => downloadXlsx(fileName(overview?.wedding.slug ?? 'wedding', 'guests', 'xlsx'), exportSheets(guests, events, data?.links))}>
+          <Pill disabled={!guests.length} onClick={() => void downloadDressed(wid, overview, fileName(overview?.wedding.slug ?? 'wedding', 'guests', 'xlsx'), 'Guest list', exportSheets(guests, events, data?.links), events.map((e) => e.key))}>
             Export
           </Pill>
           <Pill kind="primary" onClick={addGuest}>Add guest</Pill>

@@ -1,3 +1,4 @@
+import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { exportRows, exportSheets, toImportRows } from '../src/admin/guestImport';
 import { parseTable } from '../src/lib/csv';
@@ -36,6 +37,27 @@ describe('Excel files (.xlsx)', () => {
     const rows = [['Name', 'Mobile', 'Seats', 'Note'], ['Alex & Sam', '0412 345 678', 2, '=1+1 <b>&"quotes"'], ['Jo', '', 1, 'Line one\nline two']];
     const back = readXlsx(writeXlsx([{ name: 'Guests', rows }]));
     expect(back).toEqual([['Name', 'Mobile', 'Seats', 'Note'], ['Alex & Sam', '0412 345 678', '2', '=1+1 <b>&"quotes"'], ['Jo', '', '1', 'Line one\nline two']]);
+  });
+
+  it('a dressed export: title band, event lines, filters, frozen themed header, seal; it still imports straight back', () => {
+    const sheets = exportSheets(guests, events, {});
+    const head = { title: 'Alex & Blair · Guest list', lines: ['The wedding · Sat 6 Mar 2027, 4:00pm · The Garden', 'Exported Tue 19 Oct, 9:00am'] };
+    const seal = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    const file = writeXlsx([{ ...sheets[0]!, head }], { ink: '#46543a', soft: '#ece8d3', band: '#f6f0e2', line: '#d3cba9', seal });
+    const zip = unzipSync(file);
+    const xml = strFromU8(zip['xl/worksheets/sheet1.xml']!);
+    const lastRow = sheets[0]!.rows.length + 3; // title, two event lines, a gap, then the table
+    expect(xml).toContain('Alex &amp; Blair · Guest list');
+    expect(xml).toContain('The wedding · Sat 6 Mar 2027, 4:00pm · The Garden');
+    expect(xml).toMatch(new RegExp(`<autoFilter ref="A4:[A-Z]+${lastRow}"/>`));
+    expect(xml).toContain('<pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/>');
+    expect(xml).toContain('<mergeCell ref="A1:');
+    expect(xml).toContain('<drawing r:id="rId1"/>');
+    expect(strFromU8(zip['xl/styles.xml']!)).toContain('FF46543A'); // the theme's ink
+    expect(zip['xl/media/seal.png']).toEqual(seal);
+    expect(strFromU8(zip['xl/workbook.xml']!)).toContain('_xlnm._FilterDatabase');
+    const { rows } = toImportRows(readXlsx(file), events);
+    expect(rows.length).toBe(guests.length);
   });
 
   it('the full export has invitations, people and a summary; it imports straight back', () => {

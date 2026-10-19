@@ -2,8 +2,9 @@ import { dietCategories, isSerious } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, type EventInfo, type Guest, type Person } from '../../lib/api';
-import { downloadCsv, fileName } from '../../lib/csv';
+import { fileName } from '../../lib/csv';
 import { fmtWeekday, shortLabel } from '../../lib/format';
+import { downloadDressed } from '../exportLook';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Pill, useAutoRefresh, useToast } from '../ui';
 
@@ -59,18 +60,18 @@ export function Dietary() {
   const mealEvent = catered.find((e) => e.hasSeating) ?? catered[0];
 
   const exportAll = () =>
-    downloadCsv(fileName(slug, 'dietary'), [
+    void downloadDressed(wid, overview, fileName(slug, 'dietary', 'xlsx'), 'Dietary list', [{ name: 'Dietary', rows: [
       ['Name', 'Dietary', 'Serious', 'Table', ...shown.map((e) => `Coming to ${shortLabel(e.name)}`)],
       ...view.withDiet.map(({ g, p }) => [p.name, p.diet, isSerious(p.diet) ? 'Yes' : '', p.table ?? '', ...shown.map((e) => (coming(g, e) ? 'Yes' : ''))]),
-    ]);
+    ] }], shown.map((e) => e.key));
   const exportEvent = (e: EventInfo) =>
-    downloadCsv(fileName(slug, `${e.key}-caterer`), [
+    void downloadDressed(wid, overview, fileName(slug, `${e.key}-caterer`, 'xlsx'), `For the caterer`, [{ name: shortLabel(e.name), rows: [
       ['Name', 'Table', 'Dietary', 'Serious', 'Entrée', 'Main', 'Dessert'],
       ...data.guests
         .filter((g) => coming(g, e))
         .flatMap((g) => g.people.slice(0, Math.max(1, g.rsvp[e.key]?.count ?? g.people.length)))
         .map((p) => [p.name, p.table ?? '', p.diet, isSerious(p.diet) ? 'Yes' : '', p.meal.entree, p.meal.main, p.meal.dessert]),
-    ]);
+    ] }], [e.key]);
 
   return (
     <div className="flex flex-col gap-7">

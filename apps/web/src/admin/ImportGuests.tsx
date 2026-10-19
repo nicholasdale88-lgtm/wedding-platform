@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { api, type EventInfo, type ImportResult } from '../lib/api';
 import { parseTable } from '../lib/csv';
-import { downloadXlsx, readTableFile } from '../lib/xlsx';
+import { readTableFile } from '../lib/xlsx';
+import { downloadDressed } from './exportLook';
 import { templateSheet, toImportRows, type ImportRow } from './guestImport';
 import { useAdmin } from './Shell';
 import { inputCls, Pill, useToast } from './ui';
@@ -11,7 +12,7 @@ import { inputCls, Pill, useToast } from './ui';
  * Shows exactly what will happen (a dry run on the server) before anyone is added.
  */
 export function ImportGuests({ events, onClose, onDone }: { events: EventInfo[]; onClose: () => void; onDone: () => Promise<void> }) {
-  const { wid } = useAdmin();
+  const { wid, overview } = useAdmin();
   const toast = useToast();
   const [text, setText] = useState('');
   const [rows, setRows] = useState<ImportRow[] | null>(null);
@@ -76,7 +77,7 @@ export function ImportGuests({ events, onClose, onDone }: { events: EventInfo[];
           Choose an Excel or CSV file
           <input type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void readFile(f); }} />
         </label>
-        <Pill kind="dashed" onClick={() => downloadXlsx('guest-list-template.xlsx', [templateSheet(events)])}>
+        <Pill kind="dashed" onClick={() => void downloadDressed(wid, overview, 'guest-list-template.xlsx', 'Guest list template', [templateSheet(events)])}>
           Download a template
         </Pill>
         <span className="text-[13px] text-[#7a7466]">or copy rows from your spreadsheet and paste below</span>

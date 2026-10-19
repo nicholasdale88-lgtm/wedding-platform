@@ -2,7 +2,8 @@ import { clampTable, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STRETCHES
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData } from '../../lib/api';
-import { downloadCsv, fileName } from '../../lib/csv';
+import { fileName } from '../../lib/csv';
+import { downloadDressed } from '../exportLook';
 import { fmtWhen, shortLabel } from '../../lib/format';
 import { useAdmin } from '../Shell';
 import { groupColour } from '../groups';
@@ -251,16 +252,19 @@ export function Seating() {
   const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
   const ordered = [...tables].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   const exportList = () =>
-    downloadCsv(fileName(slug, `${s.event.key}-tables`), [
+    void downloadDressed(wid, overview, fileName(slug, `${s.event.key}-tables`, 'xlsx'), 'Seating plan', [
+      { name: 'Seats', rows: [
       ['Table', 'Seat', 'Name', 'Dietary', 'Serious', 'Entrée', 'Main', 'Dessert'],
       ...ordered.flatMap((t) => (byTable.get(t.id) ?? []).map((p, i) => [t.name, i + 1, p.name, p.diet, isSerious(p.diet) ? 'Yes' : '', p.meal.e, p.meal.m, p.meal.d])),
-      [],
+      ] },
+      { name: 'Tables', rows: [
       ['Table', 'Guests', 'Seats', 'Dietary needs', 'Serious', 'Special meals'],
       ...ordered.map((t) => {
         const ps = byTable.get(t.id) ?? [];
         return [t.name, ps.length, t.seats, ps.filter((p) => p.diet.trim()).length, ps.filter((p) => isSerious(p.diet)).length, ps.filter((p) => p.meal.e || p.meal.m || p.meal.d).length];
       }),
-    ]);
+      ] },
+    ], [s.event.key]);
 
   const seated = s.people.filter((p) => seats[p.id]).length;
   const comingUnseated = s.people.filter((p) => p.coming && !seats[p.id]).length;
