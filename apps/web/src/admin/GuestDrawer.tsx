@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { groupSuggestions } from './groups';
+import { canShareNative, fallbackMessage, sendMessenger, sendWhatsApp, shareNative } from './share';
 import { useAdmin } from './Shell';
 import { Drawer, Eyebrow, inputCls, Label, Pill, useToast } from './ui';
 
@@ -125,10 +126,26 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
     }
   }
 
-  const whatsapp = () => {
-    const to = g.phone ? g.phone.replace(/^\+/, '') : '';
-    window.open(`https://wa.me/${to}?text=${encodeURIComponent(d.link)}`, '_blank', 'noopener');
+  /** Their invitation text (as the SMS would read, without the STOP line), or a friendly default. */
+  const message = async () => {
+    const inv = d.campaigns.find((x) => /invit/i.test(x.name));
+    if (inv && g.phone) {
+      try {
+        const e = await api.estimateOne(wid, g.id, inv.id);
+        if (e.sample) return e.sample.replace(/\s*Reply STOP.*$/i, '').trim();
+      } catch {
+        /* fall back below */
+      }
+    }
+    const w = overview?.wedding;
+    const couple = w ? `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}` : 'We';
+    return fallbackMessage(g.people[0]?.name.split(' ')[0] ?? 'there', couple, d.link);
   };
+  const whatsapp = async () => sendWhatsApp(g.phone, await message());
+  const messenger = async () => {
+    if ((await sendMessenger(d.link, await message())) === 'copied') toast('Message copied: paste it into Messenger');
+  };
+  const share = async () => void (await shareNative(await message(), d.link));
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(d.link);
@@ -269,7 +286,12 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
         <div className="flex gap-2 items-center">
           <code className="flex-1 min-w-0 py-[9px] px-3 rounded-[10px] bg-[#fbf8f2] border border-[#e2d7bc] text-[12px] overflow-hidden text-ellipsis whitespace-nowrap">{d.link}</code>
           <Pill className="!py-[9px] !px-[14px] !text-[13px] !font-normal" onClick={copy}>Copy</Pill>
-          <Pill className="!py-[9px] !px-[14px] !text-[13px] !font-normal" onClick={whatsapp}>WhatsApp</Pill>
+        </div>
+        <div className="flex gap-2 flex-wrap items-center">
+          <span className="text-[13px] text-[#5b6a52]">Send it by</span>
+          <Pill className="!py-[7px] !px-[14px] !text-[13px] !font-normal" onClick={() => void whatsapp()}>WhatsApp</Pill>
+          <Pill className="!py-[7px] !px-[14px] !text-[13px] !font-normal" onClick={() => void messenger()}>Messenger</Pill>
+          {canShareNative() && <Pill className="!py-[7px] !px-[14px] !text-[13px] !font-normal" onClick={() => void share()}>Share…</Pill>}
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <span className="text-[13px] text-[#5b6a52]">Preview as this guest</span>

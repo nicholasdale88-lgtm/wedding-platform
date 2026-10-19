@@ -7,6 +7,7 @@ import { downloadXlsx } from '../lib/xlsx';
 import { GuestDrawer } from './GuestDrawer';
 import { exportSheets } from './guestImport';
 import { ImportGuests } from './ImportGuests';
+import { ManualSend } from './ManualSend';
 import { answerLabel, applyFilters, dropdowns, quickFilters, shortAnswer, type FilterState } from './guestFilters';
 import { useAdmin } from './Shell';
 import { Eyebrow, Pill, StatusPill, useMedia, useToast } from './ui';
@@ -23,6 +24,7 @@ export function Guests() {
   const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> } | null>(null);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [manual, setManual] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +96,7 @@ export function Guests() {
           </h1>
         </div>
         <div className="flex gap-[10px] flex-wrap">
+          <Pill onClick={() => setManual((x) => !x)}>Send without SMS</Pill>
           <Pill onClick={() => setImporting((x) => !x)}>Import</Pill>
           <Pill disabled={!guests.length} onClick={() => downloadXlsx(fileName(overview?.wedding.slug ?? 'wedding', 'guests', 'xlsx'), exportSheets(guests, events, data?.links))}>
             Export
@@ -103,6 +106,7 @@ export function Guests() {
       </header>
 
       {importing && data && <ImportGuests events={events} onClose={() => setImporting(false)} onDone={changed} />}
+      {manual && data && <ManualSend guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
 
       <div className="flex gap-3 flex-wrap items-center">
         <input

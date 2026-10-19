@@ -505,3 +505,22 @@ describe('seating publish', () => {
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeDisabled();
   });
 });
+
+describe('send without SMS', () => {
+  it('steps through guests texts cannot reach, with their personal link, and remembers who is done', async () => {
+    localStorage.clear();
+    const links = Object.fromEntries(guests.map((g) => [g.id, `https://example.com/w/alex-and-blair/?g=${g.id}`]));
+    mockApi({ '/api/a/w/w1/guests': () => json(200, { events, guests, links }) });
+    const opened: string[] = [];
+    vi.spyOn(window, 'open').mockImplementation((u) => (opened.push(String(u)), null));
+    renderAt('/admin/w1/guests');
+    await userEvent.click(await screen.findByRole('button', { name: 'Send without SMS' }));
+    expect(screen.getByText(/1 guest can't get texts/)).toBeInTheDocument();
+    expect(screen.getByText(/g=g2/)).toBeInTheDocument(); // Jo Banks has no mobile
+    await userEvent.click(screen.getByRole('button', { name: 'WhatsApp' }));
+    expect(opened[0]).toMatch(/^https:\/\/wa\.me\/\?text=.*g%3Dg2/);
+    await userEvent.click(screen.getByRole('button', { name: 'Sent, next guest' }));
+    expect(screen.getByText('All done. Everyone has their invitation.')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('wp-manual-sent-w1')!)).toEqual(['g2']);
+  });
+});
