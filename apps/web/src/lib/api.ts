@@ -408,7 +408,7 @@ export const plannerApi = {
     send<{ amount: number; deposit: number; validUntil: string; date: string; includes: string; excludes: string; extract: string }>('POST', `${w(wid)}/planner/files/${encodeURIComponent(id)}/read`, {}),
   compare: (wid: string, vendorIds: string[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/compare`, { vendorIds }),
   /** A per-event planning document (e.g. that event's shuttles). */
-  docFor: <T>(wid: string, kind: 'shuttles' | 'seat-rules' | 'checkin', scope: string) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`),
+  docFor: <T>(wid: string, kind: 'shuttles' | 'seat-rules' | 'checkin' | 'day-checklist', scope: string) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`),
   doc: <T>(wid: string, kind: 'budget' | 'vendors' | 'checklist' | 'gifts') => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
   searchVendors: (wid: string, category: string, km: number) =>
     request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),

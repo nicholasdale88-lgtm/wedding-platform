@@ -1,6 +1,8 @@
 import { CHECK_TEMPLATE, PACK_TEMPLATE, PARTY_TEMPLATE, type CheckItem, type DayChecklist, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
+import { useDocSave } from '../planner/useDocSave';
+import { useUnsavedChanges } from '../leave';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Pill, useToast } from '../ui';
 
@@ -31,6 +33,7 @@ export function Party() {
   const [error, setError] = useState('');
   const [sheet, setSheet] = useState<PartyRunsheet | null>(null);
   const [dirty, setDirty] = useState(false);
+  useUnsavedChanges(dirty);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -219,7 +222,7 @@ export function Party() {
         </Pill>
       </section>
 
-      {d.event && d.checklist && <Checklists wid={wid} scope={d.event} names={{ p1: `${sideName('p1')} · ${d.names.p1}`, p2: `${sideName('p2')} · ${d.names.p2}` }} initial={d.checklist} />}
+      {d.event && d.checklist && <Checklists key={d.event} wid={wid} scope={d.event} names={{ p1: `${sideName('p1')} · ${d.names.p1}`, p2: `${sideName('p2')} · ${d.names.p2}` }} initial={d.checklist} />}
     </div>
   );
 }
@@ -395,15 +398,18 @@ function AddToSide({ roles, people, loading, label, onAdd }: { roles: string[]; 
 function Checklists({ wid, scope, names, initial }: { wid: string; scope: string; names: { p1: string; p2: string }; initial: { data: DayChecklist; version: number } }) {
   const toast = useToast();
   const [doc, setDoc] = useState(initial);
+  const saveDoc = useDocSave<DayChecklist>(wid, 'day-checklist', scope, doc.version);
   const [adding, setAdding] = useState<Record<'p1' | 'p2', string>>({ p1: '', p2: '' });
   const save = async (data: DayChecklist) => {
-    const before = doc;
-    setDoc({ ...doc, data }); // show it straight away
+    setDoc((d) => ({ ...d, data })); // show it straight away
     try {
-      setDoc(await plannerApi.saveDoc(wid, 'day-checklist', scope, data, before.version));
+      const r = await saveDoc(data);
+      setDoc((d) => ({ ...d, version: r.version })); // keep what's on screen: a later tick may be on its way
     } catch (e) {
-      setDoc(before);
-      toast(e instanceof ApiError && e.status === 409 ? 'Changed on another device: reload to see it.' : (e as Error).message);
+      const conflict = e instanceof ApiError && e.status === 409;
+      toast(conflict ? 'Changed on another device: here it is now.' : (e as Error).message);
+      // Put back what's really saved (the other device's ticks too).
+      plannerApi.docFor<DayChecklist>(wid, 'day-checklist', scope).then(setDoc, () => undefined);
     }
   };
   const empty = !doc.data.p1.length && !doc.data.p2.length;

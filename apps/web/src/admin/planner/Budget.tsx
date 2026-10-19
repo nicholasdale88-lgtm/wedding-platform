@@ -1,6 +1,7 @@
-import { BUDGET_SPLIT, commitmentOf, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
+import { BUDGET_SPLIT, commitmentOf, dateIn, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
+import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
@@ -38,6 +39,7 @@ export function Budget() {
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: BudgetDoc; version: number } | null>(null);
   const [dirty, setDirty] = useState(false);
+  useUnsavedChanges(dirty);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [vendors, setVendors] = useState<VendorsDoc['list']>([]);
@@ -105,7 +107,7 @@ export function Budget() {
   const left = b.total - sums.committed;
   const cats = [...new Set([...BUDGET_SPLIT.map((x) => x.category), ...b.lines.map((l) => l.category)])];
   const colour = (cat: string) => PALETTE[Math.max(0, cats.indexOf(cat)) % PALETTE.length]!;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateIn(overview?.wedding.timezone);
 
   return (
     <div className="flex flex-col gap-6">

@@ -1,7 +1,8 @@
-import { commitmentOf, VENDOR_SEARCH, VENDOR_STATUS, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, dateIn, VENDOR_SEARCH, VENDOR_STATUS, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type VendorHit } from '../../lib/api';
 import { useAdmin } from '../Shell';
+import { useDocSave } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
@@ -46,6 +47,7 @@ export function Vendors() {
   const { wid } = useAdmin();
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: VendorsDoc; version: number } | null>(null);
+  const saveDoc = useDocSave<VendorsDoc>(wid, 'vendors', '', doc?.version);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<string | null>(null);
 
@@ -67,7 +69,8 @@ export function Vendors() {
     const before = doc;
     setDoc({ ...doc, data: { list: next } });
     try {
-      setDoc(await plannerApi.saveDoc(wid, 'vendors', '', { list: next }, before.version));
+      const r = await saveDoc({ list: next });
+      setDoc((d) => (d ? { ...d, version: r.version } : r)); // keep what's on screen: a later change may be on its way
       if (done) toast(done);
     } catch (e) {
       setDoc(before);
@@ -304,9 +307,9 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
 
 /** File a quote: attach the PDF or a photo (the assistant can read the numbers out), check, save. */
 function QuoteForm({ onSave, onCancel }: { onSave: (q: Quote) => void; onCancel: () => void }) {
-  const { wid } = useAdmin();
+  const { wid, overview } = useAdmin();
   const toast = useToast();
-  const [q, setQ] = useState<Quote>({ ...BLANK_QUOTE, id: newId(), date: new Date().toISOString().slice(0, 10) });
+  const [q, setQ] = useState<Quote>({ ...BLANK_QUOTE, id: newId(), date: dateIn(overview?.wedding.timezone) });
   const [busy, setBusy] = useState('');
   const pick = async (file: File | undefined) => {
     if (!file) return;

@@ -1,7 +1,8 @@
-import { commitmentOf, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, dateIn, daysUntil, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { plannerApi } from '../../lib/api';
+import { confirmLeave } from '../leave';
 import { useAdmin } from '../Shell';
 import { Eyebrow, H2 } from '../ui';
 import { Assistant } from './Assistant';
@@ -54,6 +55,7 @@ export function WeddingPlanner() {
   const [params, setParams] = useSearchParams();
   const view = (VIEWS.find(([k]) => k === params.get('view'))?.[0] ?? 'glance') as View;
   const go = (v: View) => {
+    if (!confirmLeave()) return; // unsaved budget, transport or run-sheet edits
     const n = new URLSearchParams(params);
     if (v === 'glance') n.delete('view');
     else n.set('view', v);
@@ -105,14 +107,15 @@ function Glance({ go }: { go: (v: View) => void }) {
   if (!budget || !vendors) return <div aria-busy="true" className="text-[#5b6a52]">Loading your planner…</div>;
 
   const first = overview?.events[0];
-  const days = first ? Math.ceil((Date.parse(first.startsAt) - Date.now()) / 86_400_000) : null;
+  const tz = overview?.wedding.timezone;
+  const days = first ? daysUntil(first.startsAt, tz) : null;
   const booked = vendors.filter((v) => v.status === 'booked');
   const named = new Set(budget.lines.map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
   const vendorCommit = booked.filter((v) => !named.has(v.name.trim().toLowerCase())).reduce((a, v) => a + commitmentOf(v).amount, 0);
   const committed = budget.lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + vendorCommit;
   const paid = budget.lines.reduce((a, l) => a + l.paid, 0) + booked.filter((v) => !named.has(v.name.trim().toLowerCase()) && v.depositPaid).reduce((a, v) => a + commitmentOf(v).deposit, 0);
   const missing = USUAL.filter(([, re]) => !booked.some((v) => re.test(`${v.category} ${v.name}`)));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateIn(tz);
   const payments = [
     ...budget.lines.filter((l) => l.due && (l.quote || l.estimate) > l.paid).map((l) => ({ what: l.item || l.category, due: l.due, amount: (l.quote || l.estimate) - l.paid })),
     ...booked.filter((v) => v.balanceDue && !named.has(v.name.trim().toLowerCase())).map((v) => ({ what: v.name, due: v.balanceDue, amount: commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0) })),

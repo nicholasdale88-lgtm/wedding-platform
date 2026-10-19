@@ -1,6 +1,7 @@
 import type { SeatRules } from '@wp/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type SeatingData, type SeatTable } from '../../lib/api';
+import { useDocSave } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
 import { inputCls, useToast } from '../ui';
 
@@ -15,11 +16,12 @@ export function SeatChecks({ data, tables, seats }: { data: SeatingData; tables:
   const [pick, setPick] = useState({ a: '', b: '', kind: 'apart' as 'apart' | 'together' });
   const [open, setOpen] = useState(false);
   const ev = data.event.key;
+  const saveDoc = useDocSave<SeatRules>(wid, 'seat-rules', ev, rules?.version);
   useEffect(() => {
     plannerApi
       .docFor<SeatRules>(wid, 'seat-rules', ev)
       .then(setRules)
-      .catch(() => setRules({ data: { pairs: [] }, version: 0 }));
+      .catch(() => setRules(null)); // no rules panel rather than one whose saves can't land
   }, [wid, ev]);
 
   const coming = data.people.filter((p) => p.coming);
@@ -55,9 +57,12 @@ export function SeatChecks({ data, tables, seats }: { data: SeatingData; tables:
   const save = async (pairs: SeatRules['pairs']) => {
     if (!rules) return;
     try {
-      setRules(await plannerApi.saveDoc(wid, 'seat-rules', ev, { pairs }, rules.version));
+      setRules({ ...rules, data: { pairs } });
+      const r = await saveDoc({ pairs });
+      setRules((d) => (d ? { ...d, version: r.version } : r));
     } catch (e) {
-      toast(e instanceof ApiError && e.status === 409 ? 'Changed elsewhere: reload the page.' : (e as Error).message);
+      toast(e instanceof ApiError && e.status === 409 ? 'Changed elsewhere: reloaded.' : (e as Error).message);
+      plannerApi.docFor<SeatRules>(wid, 'seat-rules', ev).then(setRules, () => undefined);
     }
   };
 

@@ -1,4 +1,4 @@
-import { commitmentOf, guidesOf, isToken, itemsFor, PARTY_ROLES, PLANNER_DOCS, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
+import { commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PLANNER_DOCS, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -23,7 +23,7 @@ const json = <T>(s: string | null | undefined, fallback: T): T => {
     return fallback;
   }
 };
-const isKind = (k: string): k is PlannerKind => k in PLANNER_DOCS;
+const isKind = (k: string): k is PlannerKind => Object.prototype.hasOwnProperty.call(PLANNER_DOCS, k); // not 'constructor' and friends
 
 type DocOf<K extends PlannerKind> = z.infer<(typeof PLANNER_DOCS)[K]>;
 async function readDoc<K extends PlannerKind>(db: D1Database, weddingId: string, kind: K, scope: string): Promise<{ data: DocOf<K>; version: number }> {
@@ -49,7 +49,7 @@ async function members(db: D1Database, weddingId: string) {
  * the next fortnight or overdue, quotes about to lapse, new song requests. They open the Wedding planner
  * in the first event's section.
  */
-export async function plannerNeedsYou(db: D1Database, weddingId: string, first: { key: string; starts_at: string } | undefined, now: Date) {
+export async function plannerNeedsYou(db: D1Database, weddingId: string, first: { key: string; starts_at: string } | undefined, now: Date, tz = 'Australia/Sydney') {
   if (!first) return [];
   const day = Date.parse(first.starts_at);
   const [checklist, budget, vendors, songs] = await Promise.all([
@@ -59,7 +59,7 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
     db.prepare(`SELECT COUNT(*) AS n FROM song_request WHERE wedding_id = ? AND status = 'new' AND invitation_id IS NOT NULL AND deleted_at IS NULL`).bind(weddingId).first<{ n: number }>(),
   ]);
   const out: { kind: string; title: string; detail: string; cta: string; link: string; event: string }[] = [];
-  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const iso = (ms: number) => dateIn(tz, new Date(ms)); // dates where the wedding is
   const today = iso(now.getTime());
   const soon = iso(now.getTime() + 14 * 86_400_000);
   const overdue = Number.isNaN(day) ? [] : checklist.data.tasks.filter((t) => !t.done && day - t.before * 86_400_000 < now.getTime());
@@ -265,7 +265,7 @@ export function plannerRoutes() {
     const spend = budget.lines.reduce((a, l) => a + (l.quote || l.estimate), 0);
     const paid = budget.lines.reduce((a, l) => a + l.paid, 0);
     const facts = [
-      `Today: ${new Date().toISOString().slice(0, 10)}. Couple: ${w?.name1} and ${w?.name2}. Timezone ${w?.timezone}.`,
+      `Today: ${dateIn(w?.timezone)}. Couple: ${w?.name1} and ${w?.name2}. Timezone ${w?.timezone}.`,
       ...events.map((e) => `Event "${e.name}" on ${e.starts_at.slice(0, 16).replace('T', ' ')}${e.venue ? ` at ${e.venue}` : ''}: ${e.invited} invitations, ${e.yes} replied yes (${e.coming} people coming).`),
       budget.total ? `Budget: $${budget.total} total, $${spend} committed, $${paid} paid.` : 'No budget entered yet.',
       ...budget.lines.filter((l) => (l.quote || l.estimate) > l.paid && l.due).slice(0, 8).map((l) => `Owing: ${l.item || l.category} $${(l.quote || l.estimate) - l.paid} due ${l.due}.`),

@@ -1,6 +1,7 @@
 import type { Shuttle, Shuttles } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, plannerApi, shuttlesApi } from '../../lib/api';
+import { confirmLeave, useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
@@ -15,10 +16,13 @@ export function Transport() {
   const { wid, overview } = useAdmin();
   const toast = useToast();
   const events = overview?.events ?? [];
-  const [ev, setEv] = useState(events[0]?.key ?? '');
+  const [picked, setEv] = useState('');
+  // The first event until one is picked (the overview may arrive after this page opens).
+  const ev = picked || events[0]?.key || '';
   const [doc, setDoc] = useState<{ data: Shuttles; version: number } | null>(null);
   const [list, setList] = useState<Shuttle[]>([]);
   const [dirty, setDirty] = useState(false);
+  useUnsavedChanges(dirty);
   const [bookings, setBookings] = useState<Record<string, { names: string; seats: number }[]>>({});
 
   const load = useCallback(async () => {
@@ -53,6 +57,8 @@ export function Transport() {
     }
   };
   const set = (i: number, p: Partial<Shuttle>) => edit(list.map((s, j) => (j === i ? { ...s, ...p } : s)));
+  if (!ev) return <p className="text-[#5b6a52]">Add an event first (Account → Events).</p>;
+  if (!doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading the shuttle runs…</div>;
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,7 +69,7 @@ export function Transport() {
         </div>
         <div className="flex gap-2 items-center flex-wrap">
           {events.length > 1 && (
-            <select aria-label="Event" value={ev} onChange={(e) => setEv(e.target.value)} className={inputCls}>
+            <select aria-label="Event" value={ev} onChange={(e) => confirmLeave() && setEv(e.target.value)} className={inputCls}>
               {events.map((e) => (
                 <option key={e.key} value={e.key}>
                   {e.name}

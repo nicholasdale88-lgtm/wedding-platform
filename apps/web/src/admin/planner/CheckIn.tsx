@@ -13,7 +13,9 @@ export function CheckIn() {
   const { wid, overview } = useAdmin();
   const toast = useToast();
   const events = overview?.events ?? [];
-  const [ev, setEv] = useState(events[0]?.key ?? '');
+  const [picked, setEv] = useState('');
+  // The first event until one is picked (the overview may arrive after this page opens).
+  const ev = picked || events[0]?.key || '';
   const [guests, setGuests] = useState<Guest[]>([]);
   const [doc, setDoc] = useState<{ data: CheckInDoc; version: number } | null>(null);
   const [q, setQ] = useState('');
@@ -44,6 +46,7 @@ export function CheckIn() {
         .sort((a, b) => a.names.localeCompare(b.names)),
     [guests, ev],
   );
+  if (!ev) return <p className="text-[#5b6a52]">Add an event first (Account → Events).</p>;
   if (!doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading the guest list…</div>;
   const arrived = doc.data.arrived;
   const expected = coming.reduce((a, g) => a + g.count, 0);

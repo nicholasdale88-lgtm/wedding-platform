@@ -2,6 +2,7 @@ import { PLAN_TEMPLATE, type PlanChecklist, type PlanTask } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
+import { useDocSave } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
@@ -27,6 +28,7 @@ export function Checklist() {
   const { wid, overview } = useAdmin();
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: PlanChecklist; version: number } | null>(null);
+  const saveDoc = useDocSave<PlanChecklist>(wid, 'checklist', '', doc?.version);
   const [error, setError] = useState('');
   const [show, setShow] = useState<'todo' | 'all'>('todo');
   const [adding, setAdding] = useState({ text: '', when: '' });
@@ -51,7 +53,8 @@ export function Checklist() {
     const before = doc;
     setDoc({ ...doc, data: { tasks } });
     try {
-      setDoc(await plannerApi.saveDoc(wid, 'checklist', '', { tasks }, before.version));
+      const r = await saveDoc({ tasks });
+      setDoc((d) => (d ? { ...d, version: r.version } : r)); // keep what's on screen: a later change may be on its way
       if (done) toast(done);
     } catch (e) {
       setDoc(before);

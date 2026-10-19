@@ -1,7 +1,8 @@
-import type { Gift, Gifts as GiftsDoc } from '@wp/shared';
+import { dateIn, type Gift, type Gifts as GiftsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
+import { useDocSave } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
@@ -13,9 +14,10 @@ const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', c
 const newId = () => crypto.randomUUID().slice(0, 12);
 
 export function Gifts() {
-  const { wid } = useAdmin();
+  const { wid, overview } = useAdmin();
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: GiftsDoc; version: number } | null>(null);
+  const saveDoc = useDocSave<GiftsDoc>(wid, 'gifts', '', doc?.version);
   const [error, setError] = useState('');
   const [guests, setGuests] = useState<{ id: string; label: string }[]>([]);
   const [show, setShow] = useState<'all' | 'owing'>('owing');
@@ -46,7 +48,8 @@ export function Gifts() {
     const before = doc;
     setDoc({ ...doc, data: { list: next } });
     try {
-      setDoc(await plannerApi.saveDoc(wid, 'gifts', '', { list: next }, before.version));
+      const r = await saveDoc({ list: next });
+      setDoc((d) => (d ? { ...d, version: r.version } : r)); // keep what's on screen: a later change may be on its way
       if (done) toast(done);
     } catch (e) {
       setDoc(before);
@@ -90,7 +93,7 @@ export function Gifts() {
                 invitationId: form.invitationId,
                 gift: form.gift.trim(),
                 amount: Math.max(0, Number(form.amount.replace(/[^\d.]/g, '')) || 0),
-                received: new Date().toISOString().slice(0, 10),
+                received: dateIn(overview?.wedding.timezone),
                 thanked: false,
                 note: '',
               },

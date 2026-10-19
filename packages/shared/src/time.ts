@@ -59,6 +59,22 @@ export function inQuietHours(utc: Date, tz: string, start = 8, end = 20): boolea
 
 export const iso = (d: Date): string => d.toISOString();
 
+/** The calendar date ("2027-11-18") of an instant where the wedding is (not UTC, which is yesterday in Australia until mid-morning). */
+export function dateIn(tz: string | undefined, at: Date = new Date()): string {
+  let p: LocalParts;
+  try {
+    p = localParts(at, tz || 'Australia/Sydney');
+  } catch {
+    p = localParts(at, 'Australia/Sydney');
+  }
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+}
+
+/** Whole calendar days until an instant, counted where the wedding is: the day before is 1, the morning of is 0. */
+export function daysUntil(whenIso: string, tz: string | undefined, now: Date = new Date()): number {
+  return Math.round((Date.parse(dateIn(tz, new Date(whenIso))) - Date.parse(dateIn(tz, now))) / 86_400_000);
+}
+
 /** Invitations go out this many months before the first event, unless the couple picks a date. */
 export const INVITE_LEAD_MONTHS = 8;
 export function defaultInvitesFrom(firstEventIso: string): string {

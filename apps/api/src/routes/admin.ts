@@ -100,7 +100,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     // The planner lives with the first event: its reminders show in Account and in that event.
     const first = data.events[0];
     if (first && (!ov.focus || ov.focus === first.key)) {
-      ov.needsYou.push(...(await plannerNeedsYou(c.env.DB, wid(c), { key: first.key, starts_at: first.startsAt }, now).catch(() => [])));
+      ov.needsYou.push(...(await plannerNeedsYou(c.env.DB, wid(c), { key: first.key, starts_at: first.startsAt }, now, w.timezone).catch(() => [])));
     }
     return c.json({
       wedding: { id: w.id, slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone, adminName: (w.content.adminName as string | undefined) ?? '' },
