@@ -86,6 +86,30 @@ describe('addresses', () => {
 });
 
 describe('Overview', () => {
+  it('Account overview is the hub: tasks, who has them, payments and budget, each with its chart', async () => {
+    const doc = (data: unknown) => () => json(200, { data, version: 1 });
+    mockApi({
+      '/api/a/w/w1/planner/doc/checklist': doc({
+        tasks: [
+          { id: 't1', text: 'Book the venue', before: 400, done: true, note: '', legal: false, owner: 'p1' },
+          { id: 't2', text: 'Send save the dates', before: 300, done: false, note: '', legal: false, owner: 'p1' },
+          { id: 't3', text: 'Final numbers to caterer', before: 14, done: false, note: '', legal: false, owner: '' },
+        ],
+      }),
+      '/api/a/w/w1/planner/doc/budget': doc({ total: 30000, guests: 0, lines: [{ category: 'Venue', item: 'Venue hire', estimate: 10000, quote: 12000, paid: 5000, due: '2027-01-10', vendor: '', note: '', payer: '', perHead: 0 }] }),
+      '/api/a/w/w1/planner/doc/vendors': doc({ list: [] }),
+    });
+    renderAt('/admin/w1/account/overview');
+    const tasks = await screen.findByRole('region', { name: 'Planning tasks' });
+    expect(within(tasks).getByText('33%')).toBeInTheDocument();
+    const glance = screen.getByRole('region', { name: 'At a glance' });
+    expect(within(glance).getByText('1/3')).toBeInTheDocument();
+    expect(within(glance).getByText('1 overdue')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Tasks by person' })).toHaveTextContent(/Alex.*1\/2/);
+    expect(screen.getByRole('region', { name: 'Payments' })).toHaveTextContent('$7,000 still to pay');
+    expect(screen.getByRole('region', { name: 'Budget' })).toHaveTextContent('$5,000 paid · $12,000 committed · $30,000 budget');
+  });
+
   it('shows answered, figures per event, Needs you and latest replies', async () => {
     mockApi();
     renderAt('/admin/w1/account/overview');

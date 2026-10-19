@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtEvent, fmtWhen, shortLabel } from '../lib/format';
 import { Events } from './events/Events';
+import { Hub } from './hub/Hub';
 import { useAdmin, useSectionOverview } from './Shell';
 import { ErrorState, Eyebrow, H2, Loading } from './ui';
 
@@ -11,7 +12,7 @@ const dot = (bg: string, border?: string) => (
 
 /** design/RSVP Admin.dc.html → Overview. */
 export function Overview() {
-  const { error, reload, path } = useAdmin();
+  const { wid, error, reload, path } = useAdmin();
   // Figures for the section in the address only: while another section's are still on screen, this is loading.
   const o = useSectionOverview();
   const go = useNavigate();
@@ -62,6 +63,32 @@ export function Overview() {
         ))}
       </div>
 
+      <section className="flex flex-col gap-1" aria-label="Needs you">
+        <div className="flex justify-between items-baseline gap-3 mb-[6px]">
+          <H2>Needs you</H2>
+          {o.needsYou.length > 0 && (
+            <span className="text-[13px] text-[#5b6a52]">{o.needsYou.length} {o.needsYou.length === 1 ? 'thing' : 'things'} to do</span>
+          )}
+        </div>
+        {o.needsYou.map((t) => (
+          <div key={t.kind} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-center py-[13px] border-t border-[#e2d7bc]">
+            <span className="w-[18px] h-[18px] rounded-full border-[1.5px] border-[#8a5a45]" />
+            <span className="min-w-0">
+              <span className="block font-semibold">{t.title}</span>
+              <span className="block text-[13px] text-[#5b6a52] mt-[2px]">{t.detail}</span>
+            </span>
+            <button onClick={() => to(t.link, t.event)} className="py-2 px-[14px] rounded-full border border-[#33402f] bg-transparent text-[13px] font-medium cursor-pointer whitespace-nowrap hover:bg-[#33402f] hover:text-[#f3ecd6]">
+              {t.cta}
+            </button>
+          </div>
+        ))}
+        {o.needsYou.length === 0 && (
+          <div className="py-4 border-t border-[#e2d7bc] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>
+        )}
+      </section>
+
+      {!o.focus && <Hub wid={wid} o={o} to={to} />}
+
       {!o.focus && (o.perEvent?.length ?? 0) > 0 && (
         <section aria-label="Events side by side" className="flex flex-col gap-3">
           <H2>Side by side</H2>
@@ -111,29 +138,6 @@ export function Overview() {
 
       {!o.focus && <Events addOnly />}
 
-      <section className="flex flex-col gap-1" aria-label="Needs you">
-        <div className="flex justify-between items-baseline gap-3 mb-[6px]">
-          <H2>Needs you</H2>
-          {o.needsYou.length > 0 && (
-            <span className="text-[13px] text-[#5b6a52]">{o.needsYou.length} {o.needsYou.length === 1 ? 'thing' : 'things'} to do</span>
-          )}
-        </div>
-        {o.needsYou.map((t) => (
-          <div key={t.kind} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-center py-[13px] border-t border-[#e2d7bc]">
-            <span className="w-[18px] h-[18px] rounded-full border-[1.5px] border-[#8a5a45]" />
-            <span className="min-w-0">
-              <span className="block font-semibold">{t.title}</span>
-              <span className="block text-[13px] text-[#5b6a52] mt-[2px]">{t.detail}</span>
-            </span>
-            <button onClick={() => to(t.link, t.event)} className="py-2 px-[14px] rounded-full border border-[#33402f] bg-transparent text-[13px] font-medium cursor-pointer whitespace-nowrap hover:bg-[#33402f] hover:text-[#f3ecd6]">
-              {t.cta}
-            </button>
-          </div>
-        ))}
-        {o.needsYou.length === 0 && (
-          <div className="py-4 border-t border-[#e2d7bc] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>
-        )}
-      </section>
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-[34px]">
         <section className="flex flex-col" aria-label="Coming up">
