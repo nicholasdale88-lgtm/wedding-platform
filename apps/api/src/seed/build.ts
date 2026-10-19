@@ -24,6 +24,7 @@ export const SeedFile = z.object({
     .min(1),
   guide: z.record(z.unknown()),
   presets: z.array(z.object({ k: z.string(), label: z.string(), text: z.string() })).default([]),
+  invitation: z.record(z.unknown()).default({}),
   campaigns: z.array(
     z.object({
       key: z.string(), name: z.string(), text: z.string(), aud: z.string().default(''), audKey: z.string().optional(),
@@ -58,6 +59,8 @@ export interface SeedOptions {
   ownerPassHash: string;
   /** The couple's mobile, for "Needs you" forwards. Optional. */
   adminMobile?: string;
+  /** The page wording catalogue (seed/texts.json + seed/texts.dynamic.json). */
+  texts?: Record<string, string>;
   now?: Date;
   newId?: () => string;
   newToken?: () => string;
@@ -106,7 +109,7 @@ export function buildSeed(input: unknown, o: SeedOptions): Statement[] {
     `INSERT INTO wedding (id, slug, name1, name2, monogram, theme, timezone, content, guide, admin_mobile, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     weddingId, seed.wedding.slug, seed.wedding.name1, seed.wedding.name2, seed.wedding.monogram, seed.wedding.theme, tz,
-    JSON.stringify({ smsPresets: seed.presets }), JSON.stringify(seed.guide), toE164(o.adminMobile), now, now,
+    JSON.stringify({ smsPresets: seed.presets, invitation: seed.invitation, texts: o.texts ?? {} }), JSON.stringify(seed.guide), toE164(o.adminMobile), now, now,
   );
   q(`INSERT INTO user (id, email, pass_hash, created_at) VALUES (?, ?, ?, ?)`, userId, o.ownerEmail.trim().toLowerCase(), o.ownerPassHash, now);
   q(`INSERT INTO membership (wedding_id, user_id, role) VALUES (?, ?, 'owner')`, weddingId, userId);

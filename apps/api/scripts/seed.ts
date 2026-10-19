@@ -5,6 +5,7 @@
  * Seeding twice fails on the unique wedding slug, so it can never duplicate a wedding.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { hashPasscode, passcodeProblem } from '../src/lib/auth';
 import { buildSeed, toSqlText } from '../src/seed/build';
 
@@ -16,7 +17,13 @@ if (!email) throw new Error('Set SEED_OWNER_EMAIL (the owner login).');
 const problem = passcodeProblem(passcode);
 if (problem) throw new Error(`SEED_OWNER_PASSCODE: ${problem}`);
 
+const seedDir = dirname(file);
+const texts = {
+  ...JSON.parse(readFileSync(join(seedDir, 'texts.json'), 'utf8')),
+  ...JSON.parse(readFileSync(join(seedDir, 'texts.dynamic.json'), 'utf8')),
+} as Record<string, string>;
 const statements = buildSeed(JSON.parse(readFileSync(file, 'utf8')), {
+  texts,
   ownerEmail: email,
   ownerPassHash: await hashPasscode(passcode),
   adminMobile: process.env.SEED_ADMIN_MOBILE,

@@ -250,6 +250,12 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
           <Pill className="!py-[9px] !px-[14px] !text-[13px] !font-normal" onClick={copy}>Copy</Pill>
           <Pill className="!py-[9px] !px-[14px] !text-[13px] !font-normal" onClick={whatsapp}>WhatsApp</Pill>
         </div>
+        <div className="flex gap-2 flex-wrap items-center">
+          <span className="text-[13px] text-[#5b6a52]">Preview as this guest</span>
+          <a href={previewUrl(d.link)} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]">
+            Invitation
+          </a>
+        </div>
       </section>
 
       <section className="flex flex-col gap-[10px] pt-5 border-t border-[#e2d7bc]">
@@ -272,4 +278,15 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
       <button onClick={remove} className="self-start p-0 border-0 bg-transparent text-[#8a5a45] text-[13px] underline cursor-pointer">Remove guest</button>
     </Drawer>
   );
+}
+
+/** The guest's own link, opened in preview mode: it doesn't count as them opening it and never records a reply. */
+function previewUrl(link: string): string {
+  try {
+    const u = new URL(link);
+    u.searchParams.set('preview', '1');
+    return `${u.pathname}${u.search}`;
+  } catch {
+    return link;
+  }
 }

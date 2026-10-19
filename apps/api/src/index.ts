@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { engineDeps, type Env } from './env';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
+import { guestRoutes } from './routes/guest';
 import { hookRoutes } from './routes/hooks';
 import { runAutopilot, type EngineDeps } from './sms/engine';
 import { sweepInbound } from './sms/inbound';
@@ -13,6 +14,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/hooks', hookRoutes(deps));
   app.route('/a', authRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
+  app.route('/p/:slug', guestRoutes());
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {
     console.error(err);

@@ -210,6 +210,19 @@
    "text": "Hi {first}, glamping and camping at Glenworth Valley are filling up for 18 to 20 November. If you're staying, book soon. Details: {link}"
   }
  ],
+ "invitation": {
+  "initials": "Sophie & Nicholas",
+  "rsvpBy": "Kindly reply by 18 August 2027",
+  "rideTime": "10:00am",
+  "directionsUrl": "https://www.google.com/maps/search/?api=1&query=69+Cooks+Road+Glenworth+Valley+NSW+2250",
+  "registryUrl": "",
+  "giftAccount": "",
+  "giftAccountLabel": "Wishing well",
+  "audioUrl": "https://youtu.be/u2ah9tWTkmk",
+  "rsvpEmail": "sophienickwedding@outlook.com.au",
+  "seal": "Sandstone",
+  "images": { "lookout": "/seed-media/lookout.jpg" }
+ },
  "autopilotDefaults": {
   "invite": {
    "mode": "auto",

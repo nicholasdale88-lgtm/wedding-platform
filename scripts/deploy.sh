@@ -58,6 +58,12 @@ else
   echo "Already seeded ($WEDDINGS wedding(s)); leaving data alone."
 fi
 
+# New page wording and settings from the design reach the live wedding; the couple's own edits are kept.
+wr d1 execute "$DB" --remote --json --command "SELECT content FROM wedding WHERE slug = 'sophie-and-nicholas'" > "$TMP/content.json"
+(cd "$API" && pnpm exec tsx scripts/content-sync.ts "$TMP/content.json" "$ROOT/seed/sophie-nicholas.json" sophie-and-nicholas "$TMP/content.sql")
+if [ -s "$TMP/content.sql" ]; then wr d1 execute "$DB" --remote --file "$TMP/content.sql"; fi
+rm -f "$TMP/content.json" "$TMP/content.sql"
+
 # Keep the owner's sign-in matched to the SEED_OWNER_* secrets (change email, reset a forgotten passcode).
 if [ -n "${SEED_OWNER_EMAIL:-}${SEED_OWNER_PASSCODE:-}" ]; then
   wr d1 execute "$DB" --remote --json --command "SELECT u.id, u.email, u.pass_hash FROM user u JOIN membership m ON m.user_id = u.id JOIN wedding w ON w.id = m.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND m.role = 'owner' ORDER BY u.created_at LIMIT 1" > "$TMP/owner.json"
