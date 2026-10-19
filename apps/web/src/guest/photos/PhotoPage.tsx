@@ -1,10 +1,10 @@
 import '@fontsource/cormorant-garamond/400.css';
+import { themeOf } from '../themeKit';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { fillTags } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PhotoUploadView } from '../generated/PhotoUploadView';
-import { THEMES } from '../generated/themes';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, type PhotoEvent, type PhotoPagePayload } from '../invitation/api';
 import { assetOf, setPageClass } from '../guide/common';
@@ -131,7 +131,7 @@ export function PhotoPage() {
   const ev: PhotoEvent | null = page?.event ?? (page?.events?.length === 1 ? page.events[0]! : null);
   const info = useMemo<FilterInfo | null>(() => {
     if (!page || !ev) return null;
-    const theme: Record<string, string | undefined> = THEMES[page.wedding.theme] ?? {};
+    const theme: Record<string, string | undefined> = themeOf(page.wedding.theme);
     const couple = `${first(page.wedding.name1)} & ${first(page.wedding.name2)}`;
     return {
       title: ev.name,
@@ -353,7 +353,7 @@ export function PhotoPage() {
 
 /** A link that doesn't name an event: each event has its own album, so ask which. */
 function ChooseEvent({ page, slug, token }: { page: PhotoPagePayload; slug: string; token: string }) {
-  const theme: Record<string, string | undefined> = THEMES[page.wedding.theme] ?? {};
+  const theme: Record<string, string | undefined> = themeOf(page.wedding.theme);
   return (
     <main
       className="min-h-screen flex flex-col items-center justify-center gap-6 px-6 text-center"

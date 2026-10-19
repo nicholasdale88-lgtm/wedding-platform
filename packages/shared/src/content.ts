@@ -35,6 +35,15 @@ export const InvitationContent = z
     audioUrl: z.string().max(500),
     /** Backup RSVP by email. */
     rsvpEmail: z.string().max(200),
+    /** The couple's own touches on the theme: paper, ink and metallic colours, and how the names are set. */
+    custom: z
+      .object({
+        paper: z.string().regex(/^#[0-9a-f]{6}$/i),
+        ink: z.string().regex(/^#[0-9a-f]{6}$/i),
+        accent: z.string().regex(/^#[0-9a-f]{6}$/i),
+        names: z.enum(['script', 'caps']),
+      })
+      .partial(),
     /** The last day replies can be changed online ("2027-08-01"); after it, guests are asked to email. */
     rsvpClose: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
     seal: z.enum(['Sandstone', 'Dusty rose', 'Daphne blue']),

@@ -1,7 +1,7 @@
 import type { DayoutGuide, GuideContent, InvitationContent, ReceptionGuide } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { THEMES } from '../../guest/generated/themes';
+import { ThemeGallery } from './ThemeGallery';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
@@ -328,13 +328,12 @@ function InvitationEditor({
     <>
       <Section n={n()} title="Look and feel" hint="The colour theme, wax seal and the photo on the invitation.">
         <Grid>
-          <Label text="Colour theme">
-            <select value={doc.theme} onChange={(e) => setTheme(e.target.value)} className={inputCls}>
-              {Object.keys(THEMES).map((t) => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </Label>
+          <div className="sm:col-span-2">
+            <ThemeGallery theme={doc.theme} custom={inv.custom ?? {}} onTheme={(t) => {
+              setTheme(t);
+              if (inv.custom && (inv.custom.paper || inv.custom.ink || inv.custom.accent)) setInv({ custom: { names: inv.custom.names } }); // a new theme starts from its own colours
+            }} onCustom={(custom) => setInv({ custom })} />
+          </div>
           <Label text="Wax seal">
             <select value={inv.seal ?? 'Sandstone'} onChange={(e) => setInv({ seal: e.target.value as InvitationContent['seal'] })} className={inputCls}>
               {['Sandstone', 'Dusty rose', 'Daphne blue'].map((s) => (

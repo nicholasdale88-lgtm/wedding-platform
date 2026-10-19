@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { themeOf } from '../themeKit';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { THEMES } from '../generated/themes';
 
 /**
  * /w/:slug/live?k=<code>: the live photo wall for the venue's screen (a laptop on the projector, or cast
@@ -108,7 +108,7 @@ export function LivePage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const theme = THEMES[wall?.theme ?? ''] ?? {};
+  const theme = themeOf(wall?.theme);
   const gold = theme.acc ?? '#b39563';
   if (err && !wall) {
     return (

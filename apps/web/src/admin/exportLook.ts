@@ -1,4 +1,4 @@
-import { THEMES } from '../guest/generated/themes';
+import { themeOf } from '../guest/themeKit';
 import { eventsApi, type EventFull, type Overview } from '../lib/api';
 import { fmtEvent, fmtWhen } from '../lib/format';
 import { downloadXlsx, type Sheet, type XlsxLook } from '../lib/xlsx';
@@ -42,7 +42,7 @@ async function sealPng(monogram: string, gold: string, ink: string): Promise<Uin
 }
 
 export async function lookOf(o: Overview | null): Promise<XlsxLook> {
-  const t = (o?.wedding.theme && THEMES[o.wedding.theme]) || THEMES['Cream & Sage'] || {};
+  const t = themeOf(o?.wedding.theme);
   const ink = t.dg ?? '#33402f';
   const monogram = o?.wedding.monogram?.trim() || (o ? `${o.wedding.name1.charAt(0)}&${o.wedding.name2.charAt(0)}` : '');
   return {

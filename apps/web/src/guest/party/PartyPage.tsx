@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
+import { themeOf } from '../themeKit';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { THEMES } from '../generated/themes';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, type PartyAct, type PartyMine, type PartyPayload } from '../invitation/api';
 
@@ -253,7 +253,7 @@ export function PartyPage() {
         setNote(e.message);
       });
   };
-  const theme = THEMES[data.theme] ?? {};
+  const theme = themeOf(data.theme);
   const ink = '#33402f';
   const gold = theme.acc ?? '#b39563';
   const roles = [...new Set(data.me.map((m) => m.role))];

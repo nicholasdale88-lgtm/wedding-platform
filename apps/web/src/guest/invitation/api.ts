@@ -18,6 +18,7 @@ export interface InvitePayload {
   content: {
     initials?: string; rsvpBy?: string; rideTime?: string; directionsUrl?: string; registryUrl?: string; giftAccount?: string;
     giftAccountLabel?: string; audioUrl?: string; rsvpEmail?: string; seal?: 'Sandstone' | 'Dusty rose' | 'Daphne blue';
+    custom?: { paper?: string; ink?: string; accent?: string; names?: 'script' | 'caps' };
     images?: Record<string, string>;
     hidden?: Record<string, boolean>;
     lists?: Record<string, { q: string; a: string[] }[]>;

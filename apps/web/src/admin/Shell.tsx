@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { themeOf } from '../guest/themeKit';
 import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
-import { THEMES } from '../guest/generated/themes';
 import { coupleName } from '../lib/remember';
 import { DEFAULT_LOOK, lookVars } from './AdminLook';
 import { confirmLeave, LeaveGuard } from './leave';
@@ -332,7 +332,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
  * too: you always know which event you're in.
  */
 function themeVars(theme: string | undefined, slot: number): CSSProperties {
-  const t: Record<string, string | undefined> = (theme && THEMES[theme]) || {};
+  const t: Record<string, string | undefined> = themeOf(theme);
   if (slot === 1) {
     const ink = t.bdtx ?? '#2f3d5c';
     return { '--adm-ink': ink, '--adm-soft': t.bdbg ?? '#dde7f3', '--adm-bg': '#eef2f8', '--adm-accent': t.bdac ?? '#4a6290', '--adm-accent-deep': ink } as CSSProperties;

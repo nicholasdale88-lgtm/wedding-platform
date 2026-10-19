@@ -1,4 +1,5 @@
 import '@fontsource/cormorant-garamond/400.css';
+import { themeOf } from '../themeKit';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -7,7 +8,6 @@ import { InvitationView } from '../generated/InvitationView';
 import { guestApi, type InvitePayload } from './api';
 import { useInvitation } from './useInvitation';
 import { MessageUs } from '../MessageUs';
-import { THEMES } from '../generated/themes';
 
 /**
  * /w/:slug/?g=<token>: the invitation. The design view is generated (guest/generated/InvitationView);
@@ -46,12 +46,12 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
       </div>
       {/* Once the envelope is open: a guest with their own link can write to the couple (Account → Messages), and
           the wedding party has a link to their own run sheet. */}
-      {token && phase >= 3 && <MessageUs slug={slug} token={token} ink={THEMES[data.wedding.theme]?.dg} />}
+      {token && phase >= 3 && <MessageUs slug={slug} token={token} ink={themeOf(data.wedding.theme, data.content.custom).dg} />}
       {token && phase >= 3 && inParty && (
         <a
           href={`/w/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`}
           className="fixed z-40 top-[max(14px,env(safe-area-inset-top))] right-4 py-[9px] px-4 rounded-full text-[15px] no-underline shadow-[0_6px_18px_rgba(30,30,30,.2)]"
-          style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", background: THEMES[data.wedding.theme]?.dg ?? '#33402f', color: '#fbf8f2' }}
+          style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", background: themeOf(data.wedding.theme, data.content.custom).dg ?? '#33402f', color: '#fbf8f2' }}
         >
           Wedding party run sheet
         </a>

@@ -1,8 +1,8 @@
 import { andList, eventSlotOfPart, fillTags, joinDiet } from '@wp/shared';
+import { themeOf } from '../themeKit';
 import { playerFor } from '../audio';
 import { createElement, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { SECTION_PARTS } from '../generated/InvitationView.meta';
-import { THEMES } from '../generated/themes';
 import type { ViewValues } from '../types';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
 import { shownRows, TIMELINE_ROWS, TimelineRows } from './Timeline';
@@ -122,7 +122,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
 
   // ---------------------------------------------------------------- theme
   useEffect(() => {
-    const th = THEMES[data.wedding.theme] ?? THEMES['Cream & Sage']!;
+    const th = themeOf(data.wedding.theme, data.content.custom);
     const st = document.documentElement.style;
     Object.entries(th).forEach(([k, val]) => st.setProperty(`--${k}`, val));
     const blush = data.wedding.theme === 'Bridgerton Blush';
@@ -133,7 +133,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       document.documentElement.classList.remove('pg-inv');
       Object.keys(th).concat(['pgbg', 'pgbg2']).forEach((k) => st.removeProperty(`--${k}`));
     };
-  }, [data.wedding.theme]);
+  }, [data.wedding.theme, JSON.stringify(data.content.custom ?? {})]); // eslint-disable-line
 
   // ---------------------------------------------------------------- music (plays once, from the tap)
   useEffect(() => {

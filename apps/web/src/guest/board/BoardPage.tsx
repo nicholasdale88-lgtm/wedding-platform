@@ -1,8 +1,8 @@
 import '@fontsource/cormorant-garamond/400.css';
+import { themeOf } from '../themeKit';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { THEMES } from '../generated/themes';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, type BoardPayload, type BoardPost } from '../invitation/api';
 
@@ -61,7 +61,7 @@ export function BoardPage() {
   if (err && !data) return <GuestMessage message={err} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
   // The wedding's colours (its invitation theme), from the board's own answer.
-  const theme: Record<string, string | undefined> = THEMES[data.theme ?? ''] ?? {};
+  const theme: Record<string, string | undefined> = themeOf(data.theme);
   const ink = theme.dg ?? '#33402f';
   const bg = theme.iv ?? '#f6f0e2';
   const gold = theme.acc ?? '#b39563';
