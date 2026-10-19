@@ -623,7 +623,8 @@ export function partyGuestRoutes() {
     if (!who && setupDoc.signIn) return c.json({ error: { code: 'sign_in', message: 'Please sign in to the wedding party portal.' } }, 401);
     const inv = who ? { id: who.person.invitation_id } : isToken(token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>() : null;
     if (!inv) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
-    const perms: Record<PartyPerm, boolean> = who ? who.perms : (Object.fromEntries(PARTY_PERMS.map((k) => [k, !['vendors', 'guests', 'seating'].includes(k)])) as Record<PartyPerm, boolean>);
+    // A private link (no sign-in) sees what it always did: never phone numbers, suppliers, guest numbers or seating.
+    const perms: Record<PartyPerm, boolean> = who ? who.perms : (Object.fromEntries(PARTY_PERMS.map((k) => [k, !['people', 'vendors', 'guests', 'seating'].includes(k)])) as Record<PartyPerm, boolean>);
     const { results: everyone } = await db.prepare(`SELECT id, name, party_role FROM person WHERE invitation_id = ? AND deleted_at IS NULL AND party_role != '' ORDER BY idx`).bind(inv.id).all<{ id: string; name: string; party_role: string }>();
     if (!everyone.length) return c.json({ error: { code: 'not_party', message: 'This page is for the wedding party.' } }, 404);
     // The couple can pause a member's page (Setup → Wedding party access); signed in, it's just them.

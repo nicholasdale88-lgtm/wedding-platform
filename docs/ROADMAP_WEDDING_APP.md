@@ -232,6 +232,20 @@ Admin:
 - Account → Admin look.
 - Realistic text previews.
 
+**Added 20 Oct (afternoon):**
+
+Wedding planner:
+- Six everyday tabs (At a glance, Checklist, Budget, Payments, Vendors, Insights); the rest under More. Check-in and the guest quiz were removed.
+- Payments: every vendor's schedule (deposit, instalments, balance) with due dates, paid ticks, and "split into monthly". Budget, Insights, At a glance, Needs you and the phone calendar all read from it.
+- Payment reminders: a text to your own mobile 1, 3, 7 or 14 days before (off until switched on), and calendar alerts.
+- Checklist: vendor items by date (payments, contracts to sign, quotes running out), "add your own" at the top.
+- Tasks with people: each task has a who (either of you, both, or someone helping) and a status (to do, doing, done). Helpers get a private link to their own list. The checklist shows By date or By person.
+- Signs: a designer with twelve signs to start from (or your own). Every word, font, colour, size and border can be changed. Print, or save a print-ready PDF to Google Drive, Dropbox or OneDrive.
+
+Wedding party portal:
+- Each member's own sign-in (email and password), with what they can see and do, set by you.
+- Invite links, password resets (from you, or texted to them), sign out everywhere, and "sign-in needed".
+
 **Needs you (free):**
 - **Email intake:** in Cloudflare → your domain → Email → Email Routing, switch it on and route the event address to the `wedding-api` Worker. Then put the address in Messages → Email.
 
