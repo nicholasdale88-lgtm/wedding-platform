@@ -1,5 +1,6 @@
-import { andList, fillTags, joinDiet } from '@wp/shared';
+import { andList, eventSlotOfPart, fillTags, joinDiet } from '@wp/shared';
 import { createElement, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
+import { SECTION_PARTS } from '../generated/InvitationView.meta';
 import { THEMES } from '../generated/themes';
 import type { ViewValues } from '../types';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
@@ -501,6 +502,14 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     },
     // Admin → Guest pages → Timeline: the couple's own order of events, drawn as the design's rows.
     rows: (key: string) => (key === TIMELINE_ROWS && data.content.timeline && shownRows(data.content.timeline).length ? createElement(TimelineRows, { items: data.content.timeline }) : undefined),
+    // The end of an event's own section (the birthday's): that event's timeline, in the section's colours.
+    after: (label: string) => {
+      const slot = eventSlotOfPart(SECTION_PARTS[label]);
+      const ev = slot ? data.events[slot] : undefined;
+      const items = ev ? data.content.timelines?.[ev.key] : undefined;
+      if (!items || !shownRows(items).length) return undefined;
+      return createElement('div', { style: { width: '100%', marginTop: 8 } }, createElement(TimelineRows, { items, onSection: true }));
+    },
   };
   return {
     v,

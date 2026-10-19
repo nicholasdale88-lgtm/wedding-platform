@@ -7,6 +7,8 @@ import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
+import { NightText } from './NightText';
+import { Events } from '../events/Events';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
 
@@ -17,10 +19,9 @@ import { ORIGINAL, Wording } from './Wording';
  */
 
 type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts'>;
-type PageKey = 'invitation' | 'photos' | `guide:${string}`;
+type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | 'nighttext' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
-const shortName = (name: string) => name.replace(/^the\s+/i, '').replace(/^\w/, (c) => c.toUpperCase());
 const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s));
 
 export function GuestPages() {
@@ -109,15 +110,26 @@ export function GuestPages() {
 
   const pages = useMemo(() => {
     if (!data) return [];
-    const list: { key: PageKey; label: string }[] = [{ key: 'invitation', label: 'Invitation' }];
-    // The invitation and photo page are shared; the night-before guide is the sidebar's event's.
-    const one = data.events.some((e) => e.key === chosen);
-    for (const e of data.events) if (doc?.guides[e.key] && (!one || e.key === chosen)) list.push({ key: `guide:${e.key}`, label: `Night before: ${shortName(e.name)}` });
-    list.push({ key: 'photos', label: 'Photo page' });
+    // Account: the shared invitation and photo page. An event: its details, timeline, night-before page and text.
+    const ev = data.events.find((e) => e.key === chosen);
+    if (!ev) {
+      return [
+        { key: 'invitation', label: 'Invitation' },
+        { key: 'photos', label: 'Photo page' },
+      ] as { key: PageKey; label: string }[];
+    }
+    const list: { key: PageKey; label: string }[] = [
+      { key: 'details', label: 'Details' },
+      { key: 'timeline', label: 'Timeline' },
+    ];
+    if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
+    list.push({ key: 'nighttext', label: 'Night-before text' });
     return list;
   }, [data, doc, chosen]);
-  const page = (pages.find((p) => p.key === params.get('page'))?.key ?? 'invitation') as PageKey;
+  const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
   const eventKey = page.startsWith('guide:') ? page.slice(6) : null;
+  const ev = data?.events.find((e) => e.key === chosen);
+  const evSlot = ev && data ? data.events.indexOf(ev) : 0;
 
   const samples = useMemo(() => (data?.samples ?? []).filter((s) => !eventKey || s.invited.includes(eventKey)), [data, eventKey]);
   const pv = params.get('as') ?? '';
@@ -138,7 +150,7 @@ export function GuestPages() {
       { replace: true },
     );
   const base = `/w/${data.slug}`;
-  const path = page === 'invitation' ? '/' : page === 'photos' ? '/photos' : `/tomorrow/${eventKey}`;
+  const path = page === 'photos' ? '/photos' : eventKey ? `/tomorrow/${eventKey}` : '/';
   const previewUrl = `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}preview=1`;
   const shareUrl = `${window.location.origin}${base}${path}${sample ? `?g=${encodeURIComponent(sample.token)}` : ''}`;
 
@@ -158,10 +170,23 @@ export function GuestPages() {
   let n = 0;
   const editor = (
     <div className="flex flex-col gap-6 min-w-0">
-      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} setText={setText} onCopyToGuide={copyToGuide(data.events[0]?.key)} />}
+      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
+      {page === 'details' && ev && <Events only={ev.key} />}
+      {page === 'timeline' && ev && (
+        <Section
+          n={++n}
+          title={`${ev.name}: timeline`}
+          hint={evSlot === 0 ? "The invitation's order of events: add your own moments, reorder them, change the times, words and icons." : "This event's moments, shown at the end of its section of the invitation in its own colours."}
+        >
+          <TimelineEditor eventKey={ev.key} slot={evSlot} inv={doc.invitation} texts={doc.texts} setInv={setInv} setText={setText} onCopyToGuide={copyToGuide(ev.key)} />
+        </Section>
+      )}
+      {page === 'nighttext' && ev && <NightText eventKey={ev.key} />}
       {guide?.style === 'reception' && <ReceptionEditor g={guide} n={() => ++n} set={setGuide} />}
       {guide?.style === 'dayout' && <DayoutEditor g={guide} n={() => ++n} set={setGuide} />}
-      <Wording n={++n} prefix={page === 'invitation' ? 'inv' : page === 'photos' ? 'ph' : guide?.style === 'dayout' ? 'g30' : 'gd'} texts={doc.texts} onChange={setText} />
+      {(page === 'invitation' || page === 'photos' || guide) && (
+        <Wording n={++n} prefix={page === 'invitation' ? 'inv' : page === 'photos' ? 'ph' : guide?.style === 'dayout' ? 'g30' : 'gd'} texts={doc.texts} onChange={setText} />
+      )}
     </div>
   );
 
@@ -185,8 +210,8 @@ export function GuestPages() {
     <div className="flex flex-col gap-5">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>Guest pages</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">What your guests see</h1>
+          <Eyebrow>Setup · {ev ? ev.name : 'Account'}</Eyebrow>
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">{ev ? `Set up ${ev.name}` : 'Your invitation'}</h1>
         </div>
         <span role="status" aria-live="polite" className="text-[13px] text-[#5b6a52]">
           {status === 'saving' ? 'Saving…' : status === 'waiting' ? 'Unsaved changes' : status === 'error' ? 'Not saved. Check your connection.' : 'All changes saved'}
@@ -252,16 +277,12 @@ function InvitationEditor({
   setInv,
   setNames,
   setTheme,
-  setText,
-  onCopyToGuide,
 }: {
   doc: Doc;
   n: () => number;
   setInv: (p: Partial<InvitationContent>) => void;
   setNames: (names: PageNames) => void;
   setTheme: (t: string) => void;
-  setText: (key: string, value: string) => void;
-  onCopyToGuide?: (runsheet: { t: string; what: string; where: string }[]) => void;
 }) {
   const inv = doc.invitation;
   return (
@@ -318,9 +339,6 @@ function InvitationEditor({
             );
           })}
         </div>
-      </Section>
-      <Section n={n()} title="Timeline" hint="The invitation's order of events: add your own moments, reorder them, change the times, words and icons.">
-        <TimelineEditor inv={inv} texts={doc.texts} setInv={setInv} setText={setText} onCopyToGuide={onCopyToGuide} />
       </Section>
       <Section n={n()} title="Questions & answers" hint="Write your own questions for any of the invitation's question lists, or keep the design's. One answer point per line.">
         {INV_LISTS.map((l, i) => {

@@ -46,12 +46,16 @@ export const InvitationContent = z
     timeline: z.array(TimelineItem).max(30),
     /** How the timeline's times read: "2:00pm" (12h) or "14:00" (24h). */
     timelineClock: z.enum(['12h', '24h']),
+    /** Each other event's own timeline, by event key, shown at the end of that event's section of the invitation. */
+    timelines: z.record(z.string().max(40), z.array(TimelineItem).max(30)),
   })
   .partial();
 export type InvitationContent = z.infer<typeof InvitationContent>;
 
 /** Design parts that are per event: in this template the first event is "W", the second "B". */
-const PART_EVENT: Record<string, 0 | 1> = { wDisp: 0, invW: 0, bSecDisp: 1, bFaqDisp: 1, bDisp: 1, rideDisp: 1, invB: 1 };
+const PART_EVENT: Record<string, 0 /** Which event (0 = first, 1 = second) a per-guest part of the design belongs to. */
+export const eventSlotOfPart = (part: string | undefined): 0 | 1 | undefined => (part ? PART_EVENT[part] : undefined);
+| 1> = { wDisp: 0, invW: 0, bSecDisp: 1, bFaqDisp: 1, bDisp: 1, rideDisp: 1, invB: 1 };
 
 /**
  * The wording a guest may receive (docs/09 §J): everything for unidentified visitors; for an

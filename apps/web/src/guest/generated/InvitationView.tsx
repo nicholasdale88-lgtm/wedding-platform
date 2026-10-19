@@ -161,6 +161,7 @@ export function InvitationView({ v, t }: ViewProps) {
               {" "}
             </div>
             {" "}
+            {v.after?.("01 Welcome")}
           </section>
           )}
           {" "}
@@ -206,6 +207,7 @@ export function InvitationView({ v, t }: ViewProps) {
                 </div>
               </div>
             </div>
+            {v.after?.("01b Countdown")}
           </section>
           )}
           {" "}
@@ -250,6 +252,7 @@ export function InvitationView({ v, t }: ViewProps) {
               {t("inv.920b4069")}
             </div>
             {" "}
+            {v.after?.("02 The Wedding")}
           </section>
           )}
           {" "}
@@ -509,6 +512,7 @@ export function InvitationView({ v, t }: ViewProps) {
               )}
             </div>
             {" "}
+            {v.after?.("03 Timeline")}
           </section>
           )}
           {" "}
@@ -621,6 +625,7 @@ export function InvitationView({ v, t }: ViewProps) {
               </div>
             </div>
             {" "}
+            {v.after?.("07 Dress Code")}
           </section>
           )}
           {" "}
@@ -864,6 +869,7 @@ export function InvitationView({ v, t }: ViewProps) {
               {" "}
             </div>
             {" "}
+            {v.after?.("08 Accommodation")}
           </section>
           )}
           {" "}
@@ -908,6 +914,7 @@ export function InvitationView({ v, t }: ViewProps) {
               </>
             ) : null}
             {" "}
+            {v.after?.("09 Gift Registry")}
           </section>
           )}
           {" "}
@@ -1104,6 +1111,7 @@ export function InvitationView({ v, t }: ViewProps) {
               </div>
             </div>
             {" "}
+            {v.after?.("05 Birthday & Horse Riding")}
           </section>
           )}
           {" "}
@@ -1298,6 +1306,7 @@ export function InvitationView({ v, t }: ViewProps) {
               </>
             ) : null}
             {" "}
+            {v.after?.("10 RSVP")}
           </section>
           )}
           {" "}
@@ -2118,6 +2127,7 @@ export function InvitationView({ v, t }: ViewProps) {
               {" "}
             </div>
             {" "}
+            {v.after?.("11 FAQ")}
           </section>
           )}
           {" "}

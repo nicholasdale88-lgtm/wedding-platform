@@ -97,7 +97,12 @@ export function TimelineEditor({
   setInv,
   setText,
   onCopyToGuide,
+  eventKey,
+  slot = 0,
 }: {
+  /** The event this timeline belongs to; the first event's is the invitation's main "Order of events". */
+  eventKey?: string;
+  slot?: number;
   inv: InvitationContent;
   texts: Record<string, string>;
   setInv: (patch: Partial<InvitationContent>) => void;
@@ -106,13 +111,17 @@ export function TimelineEditor({
   onCopyToGuide?: (runsheet: { t: string; what: string; where: string }[]) => void;
 }) {
   // An empty list means "the design's rows" (settings are merged on save, so off is saved as []).
-  const own = inv.timeline?.length ? inv.timeline : undefined;
+  const main = slot === 0 || !eventKey;
+  const list = main ? inv.timeline : inv.timelines?.[eventKey!];
+  const own = list?.length ? list : undefined;
   const clock: Clock = inv.timelineClock ?? '12h';
   const [preset, setPreset] = useState('');
   const word = (k: string) => (k ? (texts[k] ?? ORIGINAL[k] ?? '').trim() : '');
   const fromDesign = (): TimelineItem[] =>
-    DESIGN_ROWS.map(([t, u, ti, n, icon]) => ({ time: reclock(word(t), clock), until: reclock(untilOf(word(u)), clock), title: word(ti), note: word(n), where: '', icon }));
-  const set = (rows: TimelineItem[]) => setInv({ timeline: rows });
+    !main
+      ? [{ ...BLANK }]
+      : DESIGN_ROWS.map(([t, u, ti, n, icon]) => ({ time: reclock(word(t), clock), until: reclock(untilOf(word(u)), clock), title: word(ti), note: word(n), where: '', icon }));
+  const set = (rows: TimelineItem[]) => setInv(main ? { timeline: rows } : { timelines: { ...inv.timelines, [eventKey!]: rows } });
   const edit = (i: number, patch: Partial<TimelineItem>) => own && set(own.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const move = (i: number, by: -1 | 1) => {
     if (!own || i + by < 0 || i + by >= own.length) return;
@@ -132,11 +141,13 @@ export function TimelineEditor({
     set(keyed.sort((a, b) => Number(a.r.icon === 'end') - Number(b.r.icon === 'end') || a.k.localeCompare(b.k) || a.i - b.i).map((x) => x.r));
   };
   const setClock = (c: Clock) => {
-    setInv({ timelineClock: c, ...(own ? { timeline: own.map((r) => ({ ...r, time: reclock(r.time, c), until: reclock(r.until, c) })) } : {}) });
+    setInv({ timelineClock: c });
+    if (own) set(own.map((r) => ({ ...r, time: reclock(r.time, c), until: reclock(r.until, c) })));
   };
 
   return (
     <div className="flex flex-col gap-4">
+      {main && (
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-[14px]">
         {HEADINGS.map(([k, label]) => (
           <Label key={k} text={label}>
@@ -144,10 +155,11 @@ export function TimelineEditor({
           </Label>
         ))}
       </div>
+      )}
       <div className="flex gap-4 flex-wrap items-center">
         <label className="flex items-center gap-2 text-[14px] cursor-pointer">
           <input type="checkbox" role="switch" checked={!!own} onChange={() => set(own ? [] : fromDesign())} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-          Use my own timeline
+          {main ? 'Use my own timeline' : 'Show a timeline in this event\'s section'}
         </label>
         <div role="radiogroup" aria-label="Clock" className="flex gap-1 text-[13px]">
           {(['12h', '24h'] as const).map((c) => (
@@ -166,7 +178,11 @@ export function TimelineEditor({
       </div>
 
       {!own ? (
-        <span className="text-[13px] text-[#7a7466]">Showing the design's {DESIGN_ROWS.length} moments. Switch on to add, remove, reorder, retime or reword them.</span>
+        <span className="text-[13px] text-[#7a7466]">
+          {main
+            ? `Showing the design's ${DESIGN_ROWS.length} moments. Switch on to add, remove, reorder, retime or reword them.`
+            : "Switch on to add this event's moments; they appear at the end of its section of the invitation, in its colours."}
+        </span>
       ) : (
         <>
           {own.map((r, i) => (

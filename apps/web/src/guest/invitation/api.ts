@@ -20,6 +20,7 @@ export interface InvitePayload {
     hidden?: Record<string, boolean>;
     lists?: Record<string, { q: string; a: string[] }[]>;
     timeline?: TimelineItem[];
+    timelines?: Record<string, TimelineItem[]>;
   };
   texts: Record<string, string>;
   events: { key: string; name: string; startsAt: string; slot: number; questions: { key: string; label: string; type: string; options?: string[] }[] }[];

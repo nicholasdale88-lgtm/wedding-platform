@@ -1,5 +1,5 @@
 import type { TimelineIcon, TimelineItem } from '@wp/shared';
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { sx } from '../sx';
 
 /*
@@ -22,6 +22,18 @@ const TEXT = sx('display:flex;flex-direction:column;gap:2px;padding-bottom:22px'
 const TITLE = sx('font-size:25px;color:var(--mg,#3e4a6b)');
 const NOTE = sx('font-size:18px;font-style:italic;color:#6d6680');
 const WHERE = sx('font-size:13px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--sg,#4f6b40);margin-top:2px');
+
+/** Inside another event's section (the birthday's): the section's own colours instead of the timeline's. */
+const ON_SECTION = {
+  TIME: sx('font-size:22px;color:var(--bdac,var(--bacc,#d9e0cf));text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1'),
+  RING: sx('width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid currentColor;background:transparent;display:flex;align-items:center;justify-content:center;flex:none'),
+  ICON: sx('fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round'),
+  LINE: sx('flex:1;width:0;min-height:30px;border-left:1.5px dotted currentColor;opacity:.6;margin:4px 0'),
+  DIAMOND: sx('width:11px;height:11px;margin-top:9px;background:currentColor;transform:rotate(45deg);flex:none'),
+  TITLE: sx('font-size:25px;color:inherit'),
+  NOTE: sx('font-size:18px;font-style:italic;color:inherit;opacity:.85'),
+  WHERE: sx('font-size:13px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--bdac,var(--bacc,#d9e0cf));margin-top:2px'),
+};
 
 /** The design's icons, as drawn in each of its rows. */
 const PATHS: Record<Exclude<TimelineIcon, 'end'>, ReactNode> = {
@@ -81,9 +93,9 @@ const PATHS: Record<Exclude<TimelineIcon, 'end'>, ReactNode> = {
   ),
 };
 
-export function TimelineIconSvg({ icon, size = 24 }: { icon: Exclude<TimelineIcon, 'end'>; size?: number }) {
+export function TimelineIconSvg({ icon, size = 24, style = ICON }: { icon: Exclude<TimelineIcon, 'end'>; size?: number; style?: CSSProperties }) {
   return (
-    <svg viewBox="0 0 24 24" width={size} height={size} style={ICON} aria-hidden="true">
+    <svg viewBox="0 0 24 24" width={size} height={size} style={style} aria-hidden="true">
       {PATHS[icon] ?? PATHS.arrive}
     </svg>
   );
@@ -95,8 +107,9 @@ export const TIMELINE_ROWS = '03 Timeline#rows1';
 /** Rows with a title; blank rows (half-typed in the admin) are left out. */
 export const shownRows = (items: TimelineItem[]) => items.filter((it) => it.title.trim() || it.time.trim());
 
-export function TimelineRows({ items }: { items: TimelineItem[] }) {
+export function TimelineRows({ items, onSection = false }: { items: TimelineItem[]; onSection?: boolean }) {
   const rows = shownRows(items);
+  const s = onSection ? ON_SECTION : { TIME, RING, ICON, LINE, DIAMOND, TITLE, NOTE, WHERE };
   return (
     <>
       {rows.map((it, i) => {
@@ -105,24 +118,24 @@ export function TimelineRows({ items }: { items: TimelineItem[] }) {
         const line = it.icon !== 'end' && next && next.icon !== 'end';
         return (
           <div key={i} style={ROW}>
-            <div style={TIME}>
+            <div style={s.TIME}>
               {it.time.trim()}
               {it.until.trim() ? <div style={UNTIL}>{`to ${it.until.trim().replace(/^to\s+/i, '')}`}</div> : null}
             </div>
             <div style={COL}>
               {it.icon === 'end' ? (
-                <div style={DIAMOND} />
+                <div style={s.DIAMOND} />
               ) : (
-                <div style={RING}>
-                  <TimelineIconSvg icon={it.icon} />
+                <div style={s.RING}>
+                  <TimelineIconSvg icon={it.icon} style={s.ICON} />
                 </div>
               )}
-              {line ? <div style={LINE} /> : null}
+              {line ? <div style={s.LINE} /> : null}
             </div>
             <div style={TEXT}>
-              <div style={TITLE}>{it.title.trim()}</div>
-              {it.note.trim() ? <div style={NOTE}>{it.note.trim()}</div> : null}
-              {it.where?.trim() ? <div style={WHERE}>{it.where.trim()}</div> : null}
+              <div style={s.TITLE}>{it.title.trim()}</div>
+              {it.note.trim() ? <div style={s.NOTE}>{it.note.trim()}</div> : null}
+              {it.where?.trim() ? <div style={s.WHERE}>{it.where.trim()}</div> : null}
             </div>
           </div>
         );
