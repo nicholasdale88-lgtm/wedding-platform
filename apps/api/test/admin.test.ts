@@ -118,7 +118,7 @@ describe('admin API', () => {
     const { guest } = await json<{ guest: { rsvp: Record<string, { attending: boolean; via: string; count: number }>; people: { name: string; diet: string }[] } }>(res);
     expect(guest.rsvp.wedding).toMatchObject({ attending: true, via: 'admin', count: 2 });
     expect(guest.rsvp['30th']!.attending).toBe(false);
-    expect(guest.people.find((p) => p.name === 'Mia Rossi')!.diet).toBe('Mia is vegan');
+    expect(guest.people.find((p) => p.name === 'Mia Rossi')!.diet).toBe('Vegan'); // split per person, in the caterer's words
   });
 
   it('rejects a bad mobile in plain English, and an unknown table', async () => {
@@ -130,8 +130,13 @@ describe('admin API', () => {
     expect((await json<{ error: { message: string } }>(table)).error.message).toBe('There\'s no table called "99" yet. Add it in Seating.');
   });
 
-  it('seats a whole invitation at a table by name', async () => {
-    const g = await guestNamed('Ivy Scott');
+  it('seats a whole invitation at a table by name, once they have said yes', async () => {
+    let g = await guestNamed('Ivy Scott');
+    const early = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ table: '3' }) });
+    expect(early.status).toBe(400);
+    expect((await json<{ error: { message: string } }>(early)).error.message).toMatch(/haven't said yes .* yet/);
+    await call(`/guests/${g.id}/rsvp`, { method: 'PUT', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ events: { wedding: { attending: true } } }) });
+    g = await guestNamed('Ivy Scott');
     const res = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ table: '3' }) });
     expect((await json<{ guest: { people: { table: string }[] } }>(res)).guest.people[0]!.table).toBe('3');
   });

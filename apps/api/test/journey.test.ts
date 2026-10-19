@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import seedJson from '../../../seed/sophie-nicholas.json';
 import { D1SmsStore } from '../src/db/smsStore';
 import type { Env } from '../src/env';
@@ -23,6 +23,11 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
   let cookie = '';
   let wid = '';
   const clock = fakeClock('2027-06-01T10:00');
+  // The routes stamp replies with the real time, the SMS engine reads the fake clock: keep the two together.
+  const at = (local: string) => {
+    clock.set(local);
+    vi.setSystemTime(clock.now());
+  };
   const deps = (e: Env): EngineDeps => ({ store: new D1SmsStore(e.DB, e.PUBLIC_BASE_URL), provider, now: clock.now, uuid: () => crypto.randomUUID() });
   const app = createApp(deps);
   const ctx = () => ({ waitUntil: (p: Promise<unknown>) => void waits.push(p), passThroughOnException: () => {}, props: {} }) as unknown as ExecutionContext;
@@ -44,9 +49,10 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
   const C = '0412000103'; // both, never replies, then replies STOP
 
   beforeEach(async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
     provider = new FakeProvider();
     waits = [];
-    clock.set('2027-06-01T10:00');
+    at('2027-06-01T10:00');
     t = await testD1();
     const stmts = buildSeed(seedJson, { ownerEmail: 'owner@example.com', ownerPassHash: await hashPasscode('valley-2027'), sampleGuests: false });
     await t.db.batch(stmts.map((s) => t.db.prepare(s.sql).bind(...s.params)));
@@ -55,8 +61,12 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     const res = await app.request('/api/a/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'owner@example.com', passcode: 'valley-2027' }) }, env, ctx());
     cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     wid = ((await res.json()) as { weddings: { id: string }[] }).weddings[0]!.id;
+    await t.db.prepare(`UPDATE session SET expires_at = '2099-01-01T00:00:00.000Z'`).run(); // the journey spans months; sign-ins last 30 days
   });
-  afterEach(() => t.dispose());
+  afterEach(() => {
+    t.dispose();
+    vi.useRealTimers();
+  });
 
   it('runs the whole journey with every rule holding', async () => {
     // 1. Import the guest list from a spreadsheet.
@@ -90,7 +100,7 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
       headers: { 'If-Match': String((await invId('Ann Able')).version) },
       body: JSON.stringify({ events: {}, diet: 'Ann vegetarian, Andy coeliac' }),
     });
-    clock.set('2027-06-01T10:15'); // thank-yous wait 10 minutes, so a changed mind gets one text
+    at('2027-06-01T10:15'); // thank-yous wait 10 minutes, so a changed mind gets one text
     await tick();
     expect(to(A)).toHaveLength(2);
     expect(to(A)[1]!.message).toMatch(/^Thanks Ann/);
@@ -103,14 +113,14 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
       body: JSON.stringify({ to: '0400000999', message: 'No sorry', sender: B, received_at: '2027-06-02 10:00:00', type: 'inbound', original_message_id: '', original_custom_ref: '' }),
     }, env, ctx());
     await Promise.all(waits);
-    clock.set('2027-06-02T10:05');
+    at('2027-06-02T10:05');
     await tick();
     const ben = await t.db.prepare(`SELECT r.attending, r.via FROM rsvp r JOIN event e ON e.id = r.event_id WHERE e.key = 'wedding' AND r.invitation_id = ?`).bind((await invId('Ben Bell')).id).first();
     expect(ben).toEqual({ attending: 0, via: 'sms' });
     const benTexts = to(B).length;
 
     // 5. The first reminder date: only Cat (still to reply) gets it. Ann and Ben have replied.
-    clock.set('2027-06-18T10:05');
+    at('2027-06-18T10:05');
     await tick();
     expect(to(C).at(-1)!.message).toMatch(/gentle reminder/);
     expect(to(A).some((m) => /gentle reminder/.test(m.message))).toBe(false);
@@ -136,14 +146,14 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     }, env, ctx());
     await Promise.all(waits);
     const catTexts = to(C).length;
-    clock.set('2027-07-18T10:05'); // second reminder date
+    at('2027-07-18T10:05'); // second reminder date
     await tick();
     expect(to(C)).toHaveLength(catTexts);
 
     // 8. The night before the wedding: only Ann (coming), with her published table filled in.
     const night = (await t.db.prepare(`SELECT id, version FROM campaign WHERE key = 'nightW'`).first<{ id: string; version: number }>())!;
     await api(`/a/w/${wid}/texts/${night.id}`, { method: 'PATCH', headers: { 'If-Match': String(night.version) }, body: JSON.stringify({ body: 'Hi {first}, see you tomorrow at table {table}!' }) });
-    clock.set('2027-11-17T17:05');
+    at('2027-11-17T17:05');
     await tick();
     expect(to(A).at(-1)!.message).toMatch(/^Hi Ann & Andy, see you tomorrow at table 1!/);
     expect(to(B).some((m) => /tomorrow/.test(m.message))).toBe(false);
@@ -152,7 +162,7 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     await api(`/a/w/${wid}/guests/${(await invId('Ann Able')).id}`, { method: 'DELETE' });
     const annTexts = to(A).length;
     const everyone = (await t.db.prepare(`SELECT id FROM campaign WHERE key = 'invite'`).first<{ id: string }>())!;
-    clock.set('2027-11-18T12:00');
+    at('2027-11-18T12:00');
     await api(`/a/w/${wid}/texts/${everyone.id}/send`, { method: 'POST', body: '{}' });
     expect(to(A)).toHaveLength(annTexts);
 
@@ -178,7 +188,7 @@ describe('invitation send date', () => {
     const run = () => scheduled({ DB: t.db, PUBLIC_BASE_URL: 'https://example.com' }, () => ({ store: new D1SmsStore(t.db, 'https://example.com'), provider, now: clock.now, uuid: () => crypto.randomUUID() }));
     await run();
     expect(provider.delivered).toHaveLength(0);
-    clock.set('2027-03-18T15:00'); // 8 months to the hour before the 2pm ceremony
+    at('2027-03-18T15:00'); // 8 months to the hour before the 2pm ceremony
     await run();
     expect(provider.delivered).toHaveLength(1);
     // A couple's own (earlier) date is honoured for guests added later.

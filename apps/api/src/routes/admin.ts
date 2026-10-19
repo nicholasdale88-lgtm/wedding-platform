@@ -217,12 +217,17 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       tableId = null;
       if (p.table) {
         const t = await c.env.DB.prepare(
-          `SELECT t.id FROM seat_table t JOIN event e ON e.id = t.event_id
+          `SELECT t.id, e.name AS event,
+                  EXISTS (SELECT 1 FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
+                           WHERE r.invitation_id = ? AND r.event_id = t.event_id AND r.attending = 1) AS coming
+             FROM seat_table t JOIN event e ON e.id = t.event_id
             WHERE t.wedding_id = ? AND t.deleted_at IS NULL AND lower(t.name) = lower(?) ORDER BY e.has_seating DESC, e.sort LIMIT 1`,
         )
-          .bind(wid(c), p.table)
-          .first<{ id: string }>();
+          .bind(invId, wid(c), p.table)
+          .first<{ id: string; event: string; coming: number }>();
         if (!t) return err(c, 400, 'no_table', `There's no table called "${p.table}" yet. Add it in Seating.`);
+        // Same rule as Seating: only guests who have said yes to that event get a table.
+        if (!t.coming) return err(c, 400, 'not_coming', `They haven't said yes to the ${t.event} yet, so they can't have a table. Record their RSVP first.`);
         tableId = t.id;
       }
     }
