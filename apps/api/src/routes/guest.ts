@@ -65,7 +65,7 @@ async function wedding(c: C) {
 async function invitationJson(db: D1Database, invId: string, events: EventRow[]) {
   const [inv, people, invites, rsvps] = await db.batch([
     db.prepare(`SELECT id, token, seats_held FROM invitation WHERE id = ? AND deleted_at IS NULL`).bind(invId),
-    db.prepare(`SELECT idx, name, diet FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(invId),
+    db.prepare(`SELECT idx, name, diet, party_role FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(invId),
     db.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(invId),
     db.prepare(`SELECT event_id, attending, count, answers, message, updated_at FROM rsvp WHERE invitation_id = ?`).bind(invId),
   ]);
@@ -85,7 +85,9 @@ async function invitationJson(db: D1Database, invId: string, events: EventRow[])
   }
   return {
     token: i.token,
-    people: (people!.results as { idx: number; name: string; diet: string }[]).map((p) => ({ idx: p.idx, name: p.name, diet: p.diet })),
+    people: (people!.results as { idx: number; name: string; diet: string; party_role: string }[]).map((p) => ({ idx: p.idx, name: p.name, diet: p.diet })),
+    // In the wedding party: their page has the party's own run sheet (/w/:slug/party).
+    party: (people!.results as { party_role: string }[]).some((p) => !!p.party_role),
     seatsHeld: i.seats_held,
     invited: events.filter((e) => invitedIds.has(e.id)).map((e) => e.key),
     rsvp,

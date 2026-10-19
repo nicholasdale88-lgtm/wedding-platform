@@ -34,7 +34,7 @@ export function InvitationPage() {
 }
 
 function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; preview: boolean }) {
-  const { v, t } = useInvitation(slug, data, preview);
+  const { v, t, phase } = useInvitation(slug, data, preview);
   useEffect(() => {
     document.title = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
   }, [data.wedding]);
@@ -44,8 +44,18 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
       <div className="dz">
         <InvitationView v={v} t={t} />
       </div>
-      {/* A guest with their own link can write to the couple (Account → Messages). */}
-      {token && <MessageUs slug={slug} token={token} ink={THEMES[data.wedding.theme]?.dg} />}
+      {/* Once the envelope is open: a guest with their own link can write to the couple (Account → Messages), and
+          the wedding party has a link to their own run sheet. */}
+      {token && phase >= 3 && <MessageUs slug={slug} token={token} ink={THEMES[data.wedding.theme]?.dg} />}
+      {token && phase >= 3 && data.invitation?.party && (
+        <a
+          href={`/w/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`}
+          className="fixed z-40 top-[max(14px,env(safe-area-inset-top))] right-4 py-[9px] px-4 rounded-full text-[15px] no-underline shadow-[0_6px_18px_rgba(30,30,30,.2)]"
+          style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", background: THEMES[data.wedding.theme]?.dg ?? '#33402f', color: '#fbf8f2' }}
+        >
+          Wedding party run sheet
+        </a>
+      )}
     </>
   );
 }

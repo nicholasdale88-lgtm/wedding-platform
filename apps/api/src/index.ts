@@ -8,6 +8,7 @@ import { hookRoutes } from './routes/hooks';
 import { pagesRoutes } from './routes/pages';
 import { photoRoutes } from './routes/photos';
 import { oauthRoutes, photoLinkRoutes } from './routes/photoLinks';
+import { partyGuestRoutes, plannerRoutes } from './routes/planner';
 import { runCopies } from './photos/store';
 import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
@@ -34,10 +35,12 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/seating', seatingRoutes());
   app.route('/a/w/:wid/photos', photoRoutes());
   app.route('/a/w/:wid/photo-links', photoLinkRoutes());
+  app.route('/a/w/:wid/planner', plannerRoutes());
   app.route('/oauth', oauthRoutes());
   app.route('/a/w/:wid/events', eventRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
   app.route('/p/:slug/board', boardGuestRoutes());
+  app.route('/p/:slug/party', partyGuestRoutes());
   app.route('/p/:slug', guestRoutes(deps));
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {

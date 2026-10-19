@@ -125,6 +125,7 @@ export const person = sqliteTable('person', {
   mealMain: text('meal_main').notNull().default(''),
   mealDessert: text('meal_dessert').notNull().default(''),
   tableId: text('table_id'), // no longer used: seats are per event (seat, migration 0011)
+  partyRole: text('party_role').notNull().default(''), // migration 0012: bridesmaid, best man, MC…
   version: version(),
   deletedAt: text('deleted_at'),
 });
@@ -328,6 +329,20 @@ export const boardLike = sqliteTable(
   'board_like',
   { postId: text('post_id').notNull(), invitationId: text('invitation_id').notNull(), createdAt: text('created_at').notNull() },
   (t) => ({ pk: primaryKey({ columns: [t.postId, t.invitationId] }) }),
+);
+
+// migration 0012: the couple's planning documents (JSON with a version)
+export const plannerDoc = sqliteTable(
+  'planner_doc',
+  {
+    weddingId: text('wedding_id').notNull(),
+    kind: text('kind').notNull(),
+    scope: text('scope').notNull().default(''),
+    data: text('data').notNull().default('{}'),
+    version: integer('version').notNull().default(1),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.kind, t.scope] }) }),
 );
 
 export const audit = sqliteTable('audit', {

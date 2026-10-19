@@ -81,6 +81,7 @@ export const ACCOUNT_TABS = [
 export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'guests', label: 'Guest planning' }, // guest list, dietary and seating together (GuestPlanningBar)
+  { key: 'party', label: 'Wedding party' },
   { key: 'texts', label: 'SMS' },
   { key: 'photos', label: 'Photos' },
   { key: 'pages', label: 'Setup' },

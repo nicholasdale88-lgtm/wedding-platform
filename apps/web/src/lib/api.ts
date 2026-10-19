@@ -1,4 +1,4 @@
-import type { GuideContent, InvitationContent, TableShape } from '@wp/shared';
+import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, Side, TableShape } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -355,6 +355,32 @@ export const photoLinksApi = {
   connect: (wid: string, provider: PhotoLink['provider']) => send<{ url: string }>('POST', `${w(wid)}/photo-links/connect`, { provider }),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photo-links/${id}`),
   copyAll: (wid: string, id: string) => send<{ ok: true; queued: number }>('POST', `${w(wid)}/photo-links/${id}/copy-all`),
+};
+
+export interface PartyMember {
+  personId: string;
+  invitationId: string;
+  name: string;
+  role: string;
+  side: Side;
+  token: string | null;
+}
+export interface PartyData {
+  slug: string;
+  names: { p1: string; p2: string };
+  roles: { role: string; side: Side }[];
+  events: { key: string; name: string; startsAt: string }[];
+  event: string | null;
+  members: PartyMember[];
+  runsheet: { data: PartyRunsheet; version: number } | null;
+  checklist: { data: DayChecklist; version: number } | null;
+}
+/** The planner: wedding party roles, its run sheet, the on-the-day checklists (versioned documents). */
+export const plannerApi = {
+  party: (wid: string, event?: string) => request<PartyData>(`${w(wid)}/planner/party${event ? `?event=${encodeURIComponent(event)}` : ''}`),
+  setRole: (wid: string, personId: string, role: string) => send<{ ok: true; members: PartyMember[] }>('PUT', `${w(wid)}/planner/people/${personId}/role`, { role }),
+  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist', scope: string, data: T, version: number) =>
+    send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`, data, version),
 };
 
 export const photosApi = {

@@ -8,6 +8,7 @@ const InvitationPage = lazy(() => import('./guest/invitation/InvitationPage').th
 const GuidePage = lazy(() => import('./guest/guide/GuidePage').then((m) => ({ default: m.GuidePage })));
 const PhotoPage = lazy(() => import('./guest/photos/PhotoPage').then((m) => ({ default: m.PhotoPage })));
 const BoardPage = lazy(() => import('./guest/board/BoardPage').then((m) => ({ default: m.BoardPage })));
+const PartyPage = lazy(() => import('./guest/party/PartyPage').then((m) => ({ default: m.PartyPage })));
 
 export function App() {
   return (
@@ -21,6 +22,7 @@ export function App() {
           <Route path="/w/:slug/photos" element={<PhotoPage />} />
           <Route path="/w/:slug/photos/:event" element={<PhotoPage />} />
           <Route path="/w/:slug/board" element={<BoardPage />} />
+          <Route path="/w/:slug/party" element={<PartyPage />} />
           <Route path="/" element={<Navigate to="/admin" replace />} />
           {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
           <Route path="*" element={<GuestNotFound />} />

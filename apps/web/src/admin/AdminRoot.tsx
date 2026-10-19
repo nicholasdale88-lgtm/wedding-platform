@@ -9,6 +9,7 @@ import { Overview } from './Overview';
 import { GuestPages } from './pages/GuestPages';
 import { Dietary } from './diet/Dietary';
 import { Photos } from './photos/Photos';
+import { Party } from './party/Party';
 import { Seating } from './seating/Seating';
 
 import { SmsTab } from './texts/SmsTab';
@@ -68,7 +69,7 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
   return (
     <AdminDataProvider wid={wid} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
-        {tab === 'overview' ? <Overview /> : tab === 'messages' ? <Messages /> : tab === 'events' ? <Navigate to={`/admin/${wid}/overview`} replace /> : tab === 'guests' ? <Planning><Guests /></Planning> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsTab /> : tab === 'settings' ? <Navigate to={`/admin/${wid}/texts`} replace /> : tab === 'dietary' ? <Planning><Dietary /></Planning> : tab === 'seating' ? <Planning><Seating /></Planning> : tab === 'photos' ? <Photos /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
+        {tab === 'overview' ? <Overview /> : tab === 'messages' ? <Messages /> : tab === 'events' ? <Navigate to={`/admin/${wid}/overview`} replace /> : tab === 'guests' ? <Planning><Guests /></Planning> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsTab /> : tab === 'settings' ? <Navigate to={`/admin/${wid}/texts`} replace /> : tab === 'dietary' ? <Planning><Dietary /></Planning> : tab === 'seating' ? <Planning><Seating /></Planning> : tab === 'photos' ? <Photos /> : tab === 'party' ? <Party /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
       </Shell>
     </AdminDataProvider>
   );

@@ -9,6 +9,8 @@ export interface GuestInvitation {
   rsvp: Record<string, { attending: boolean | null; count: number; answers: Record<string, string> }>;
   message: string;
   repliedAt: string | null;
+  /** Someone on this invitation is in the wedding party (they have a run sheet of their own). */
+  party?: boolean;
 }
 
 export interface InvitePayload {
@@ -104,6 +106,8 @@ export const guestApi = {
   /** Their conversation with the couple (needs their own link). */
   messages: (slug: string, token: string) =>
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
+  /** A wedding party member's own run sheet (needs their own link). */
+  party: (slug: string, token: string) => call<PartyPayload>(`/p/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`),
   /** The message board (a public wall; needs their own link). */
   board: (slug: string, token: string) => call<BoardPayload>(`/p/${encodeURIComponent(slug)}/board?g=${encodeURIComponent(token)}`),
   boardPost: (slug: string, token: string, body: string, parent?: string) =>
@@ -138,6 +142,14 @@ export interface BoardPost {
   likes: number;
   liked: boolean;
   replies: BoardPost[];
+}
+export interface PartyPayload {
+  couple: string;
+  names: { p1: string; p2: string };
+  theme: string;
+  me: { name: string; role: string }[];
+  party: { name: string; role: string; side: 'p1' | 'p2' | '' }[];
+  events: { key: string; name: string; startsAt: string; note: string; items: { time: string; until: string; title: string; detail: string; place: string; who: string[] }[] }[];
 }
 export interface BoardPayload {
   on: boolean;
