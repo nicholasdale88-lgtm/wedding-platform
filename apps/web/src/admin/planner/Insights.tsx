@@ -181,6 +181,11 @@ export function Insights() {
   for (const l of budget.lines) if (l.due && (l.quote || l.estimate) > l.paid) byMonth.set(l.due.slice(0, 7), (byMonth.get(l.due.slice(0, 7)) ?? 0) + (l.quote || l.estimate) - l.paid);
   for (const v of extra) if (v.balanceDue) byMonth.set(v.balanceDue.slice(0, 7), (byMonth.get(v.balanceDue.slice(0, 7)) ?? 0) + commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0));
   const months = [...byMonth.entries()].filter(([, a]) => a > 0).sort(([a], [b]) => a.localeCompare(b));
+  // Where it's likely to land: quotes so far against their estimates, applied to the lines still on an estimate.
+  const quotedLines = budget.lines.filter((l) => l.quote && l.estimate);
+  const drift = quotedLines.length >= 2 ? quotedLines.reduce((a, l) => a + l.quote, 0) / quotedLines.reduce((a, l) => a + l.estimate, 0) : 1;
+  const unquoted = budget.lines.filter((l) => !l.quote && l.estimate).reduce((a, l) => a + l.estimate, 0);
+  const landing = committed + (drift - 1) * unquoted;
   // Saving for it: what's still owing spread over the months to the day.
   const monthsLeft = days !== null && days > 0 ? Math.max(1, Math.ceil(days / 30.4)) : 0;
   // Reply pace: at the last fortnight's rate, how many will still be waiting when replies close.
@@ -422,6 +427,13 @@ export function Insights() {
               {budget.total > 0 && <span className={committed > budget.total ? 'text-[#7a4a37] font-semibold' : ''}>{committed > budget.total ? `${aud(committed - budget.total)} over budget` : `${aud(budget.total - committed)} left to allocate`}</span>}
             </div>
           </div>
+          {Math.abs(drift - 1) >= 0.03 && unquoted > 0 && (
+            <p className={`m-0 text-[13px] ${budget.total && landing > budget.total ? 'text-[#7a4a37]' : 'text-[#5b6a52]'}`}>
+              Your quotes have come in {Math.round(Math.abs(drift - 1) * 100)}% {drift > 1 ? 'over' : 'under'} your estimates. If the {aud(unquoted)} still on estimates does the same, you’ll land
+              near <strong className="font-semibold">{aud(landing)}</strong>
+              {budget.total ? (landing > budget.total ? `, ${aud(landing - budget.total)} over budget.` : `, ${aud(budget.total - landing)} under budget.`) : '.'}
+            </p>
+          )}
           {byCat.size > 0 && <Bars rows={[...byCat.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => ({ label: k, value: v, note: aud(v) }))} />}
         </section>
         <section aria-label="Payments by month" className={card}>
