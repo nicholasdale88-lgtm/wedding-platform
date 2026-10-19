@@ -21,6 +21,7 @@ const DIAMOND = sx('width:11px;height:11px;margin-top:9px;background:var(--mg,#3
 const TEXT = sx('display:flex;flex-direction:column;gap:2px;padding-bottom:22px');
 const TITLE = sx('font-size:25px;color:var(--mg,#3e4a6b)');
 const NOTE = sx('font-size:18px;font-style:italic;color:#6d6680');
+const WHERE = sx('font-size:13px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--sg,#4f6b40);margin-top:2px');
 
 /** The design's icons, as drawn in each of its rows. */
 const PATHS: Record<Exclude<TimelineIcon, 'end'>, ReactNode> = {
@@ -66,6 +67,18 @@ const PATHS: Record<Exclude<TimelineIcon, 'end'>, ReactNode> = {
       <circle cx="16.5" cy="16" r="2.5" />
     </>
   ),
+  // Drawn in the same fine line as the design's own icons.
+  speech: <path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v4M9 21h6" />,
+  cake: <path d="M4 20h16M5 20v-6h14v6M7 14v-3h10v3M12 11V8M12 6.5c-.8-.6-.8-1.6 0-2.5.8.9.8 1.9 0 2.5zM5 17c2 1 3-1 4.7 0s2.6 1 4.6 0 3 1 4.7 0" />,
+  heart: <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />,
+  sparkle: <path d="M11 3l1.8 5.4L18 10l-5.2 1.6L11 17l-1.8-5.4L4 10l5.2-1.6zM18 15l.8 2.2L21 18l-2.2.8L18 21l-.8-2.2L15 18l2.2-.8z" />,
+  car: (
+    <>
+      <path d="M3 16v-3l2-5h14l2 5v3zM3 13h18" />
+      <circle cx="7.5" cy="16.5" r="1.5" />
+      <circle cx="16.5" cy="16.5" r="1.5" />
+    </>
+  ),
 };
 
 export function TimelineIconSvg({ icon, size = 24 }: { icon: Exclude<TimelineIcon, 'end'>; size?: number }) {
@@ -109,6 +122,7 @@ export function TimelineRows({ items }: { items: TimelineItem[] }) {
             <div style={TEXT}>
               <div style={TITLE}>{it.title.trim()}</div>
               {it.note.trim() ? <div style={NOTE}>{it.note.trim()}</div> : null}
+              {it.where?.trim() ? <div style={WHERE}>{it.where.trim()}</div> : null}
             </div>
           </div>
         );

@@ -146,11 +146,19 @@ export function GuestPages() {
   const setGuide = (g: GuideContent) => mark(`guide:${eventKey}`, (d) => ({ ...d, guides: { ...d.guides, [eventKey!]: g } }));
   const setInv = (patch: Partial<InvitationContent>) => mark('invitation', (d) => ({ ...d, invitation: { ...d.invitation, ...patch } }));
   const setText = (key: string, value: string) => mark(`text:${key}`, (d) => ({ ...d, texts: { ...d.texts, [key]: value } }));
+  /** The timeline's moments onto an event's night-before run sheet (none when that event has no guide). */
+  const copyToGuide = (key: string | undefined) =>
+    key && doc.guides[key]
+      ? (runsheet: { t: string; what: string; where: string }[]) => {
+          mark(`guide:${key}`, (d) => ({ ...d, guides: { ...d.guides, [key]: { ...d.guides[key]!, runsheet } as GuideContent } }));
+          toast('Copied to the night-before run sheet');
+        }
+      : undefined;
 
   let n = 0;
   const editor = (
     <div className="flex flex-col gap-6 min-w-0">
-      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
+      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} setText={setText} onCopyToGuide={copyToGuide(data.events[0]?.key)} />}
       {guide?.style === 'reception' && <ReceptionEditor g={guide} n={() => ++n} set={setGuide} />}
       {guide?.style === 'dayout' && <DayoutEditor g={guide} n={() => ++n} set={setGuide} />}
       <Wording n={++n} prefix={page === 'invitation' ? 'inv' : page === 'photos' ? 'ph' : guide?.style === 'dayout' ? 'g30' : 'gd'} texts={doc.texts} onChange={setText} />
@@ -244,12 +252,16 @@ function InvitationEditor({
   setInv,
   setNames,
   setTheme,
+  setText,
+  onCopyToGuide,
 }: {
   doc: Doc;
   n: () => number;
   setInv: (p: Partial<InvitationContent>) => void;
   setNames: (names: PageNames) => void;
   setTheme: (t: string) => void;
+  setText: (key: string, value: string) => void;
+  onCopyToGuide?: (runsheet: { t: string; what: string; where: string }[]) => void;
 }) {
   const inv = doc.invitation;
   return (
@@ -308,7 +320,7 @@ function InvitationEditor({
         </div>
       </Section>
       <Section n={n()} title="Timeline" hint="The invitation's order of events: add your own moments, reorder them, change the times, words and icons.">
-        <TimelineEditor inv={inv} texts={doc.texts} setInv={setInv} />
+        <TimelineEditor inv={inv} texts={doc.texts} setInv={setInv} setText={setText} onCopyToGuide={onCopyToGuide} />
       </Section>
       <Section n={n()} title="Questions & answers" hint="Write your own questions for any of the invitation's question lists, or keep the design's. One answer point per line.">
         {INV_LISTS.map((l, i) => {

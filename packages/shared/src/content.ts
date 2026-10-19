@@ -2,13 +2,17 @@ import { z } from 'zod';
 import { INV_SCOPES } from './generated/invScopes';
 
 /** Pictures a timeline row can carry (drawn as in the design); "end" is the closing diamond. */
-export const TIMELINE_ICONS = ['arrive', 'rings', 'camera', 'drinks', 'sunset', 'dinner', 'music', 'end'] as const;
+export const TIMELINE_ICONS = [
+  'arrive', 'rings', 'camera', 'drinks', 'sunset', 'dinner', 'music', 'speech', 'cake', 'heart', 'sparkle', 'car', 'end',
+] as const;
 export type TimelineIcon = (typeof TIMELINE_ICONS)[number];
 export const TimelineItem = z.object({
   time: z.string().max(40),
   until: z.string().max(40),
   title: z.string().max(120),
   note: z.string().max(400),
+  /** Where it happens ("The Lookout"), shown under the detail; optional. */
+  where: z.string().max(120).optional(),
   icon: z.enum(TIMELINE_ICONS),
 });
 export type TimelineItem = z.infer<typeof TimelineItem>;
@@ -40,6 +44,8 @@ export const InvitationContent = z
     lists: z.record(z.string().max(80), z.array(z.object({ q: z.string().max(300), a: z.array(z.string().max(1000)).max(30) })).max(40)),
     /** The couple's own order of events (03 Timeline), replacing the design's rows. */
     timeline: z.array(TimelineItem).max(30),
+    /** How the timeline's times read: "2:00pm" (12h) or "14:00" (24h). */
+    timelineClock: z.enum(['12h', '24h']),
   })
   .partial();
 export type InvitationContent = z.infer<typeof InvitationContent>;
