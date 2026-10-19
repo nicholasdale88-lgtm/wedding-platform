@@ -1,4 +1,5 @@
 import type { ReceptionGuide, Vendors as VendorsDoc } from '@wp/shared';
+import qrcode from 'qrcode-generator';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pagesApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -10,13 +11,14 @@ import { H2, Pill } from '../ui';
  * chart come from the seating plan; menu cards from the night-before page's menu.
  */
 
-type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu' | 'runsheet';
+type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu' | 'runsheet' | 'savedate';
 const KINDS: [Kind, string, string][] = [
   ['welcome', 'Welcome sign', 'One A3 page (prints well up to A1).'],
   ['tables', 'Table numbers', 'An A5 card for each table.'],
   ['places', 'Place cards', 'Name and table, eight to an A4 page: cut on the lines and fold.'],
   ['chart', 'Seating chart', 'Everyone A to Z with their table, on A3 posters (one per 135 guests).'],
   ['menu', 'Menu cards', 'The menu from your night-before page, two to an A4 page.'],
+  ['savedate', 'Save the date cards', 'Four A6 cards to an A4 page, with a QR code to the online save the date: for guests you’d rather post one to.'],
   ['runsheet', 'Run sheet for the day', 'For the venue, coordinator, photographer and MC: the whole day, who’s in the party, and every supplier with their arrival time and phone.'],
 ];
 
@@ -66,7 +68,19 @@ export function Print() {
   const booked = vendors.filter((v) => v.status === 'booked').sort((a, b) => (a.arrival || '~').localeCompare(b.arrival || '~', undefined, { numeric: true }) || a.name.localeCompare(b.name));
   const sideName = { p1: party?.setup?.data.p1 || 'Bride', p2: party?.setup?.data.p2 || 'Groom' };
   const whoLabel = (w: string) => (w === 'party' ? 'Everyone' : w === 'p1' ? `${sideName.p1}’s side` : w === 'p2' ? `${sideName.p2}’s side` : w);
-  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length };
+  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length, savedate: first ? 1 : 0 };
+  // The online save the date (no guest link: anyone with the card can open it).
+  const stdUrl = `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/save-the-date`;
+  const qr = (() => {
+    try {
+      const q = qrcode(0, 'M');
+      q.addData(stdUrl);
+      q.make();
+      return q.createDataURL(6, 0);
+    } catch {
+      return '';
+    }
+  })();
 
   return (
     <div className="flex flex-col gap-4">
@@ -158,6 +172,23 @@ export function Print() {
                 ))}
               </div>
             </section>
+            ))}
+          {kind === 'savedate' &&
+            [0].map((n) => (
+              <section key={n} className="pp pp-a4 grid grid-cols-2 grid-rows-2">
+                {[0, 1, 2, 3].map((c) => (
+                  <div key={c} className="pp-place flex flex-col items-center justify-center gap-[3mm] text-center px-[8mm]">
+                    <div className="pp-small">Save the date</div>
+                    <div className="pp-script text-[15mm] leading-[1.05]">{names.name1.split(' ')[0]}</div>
+                    <div className="pp-serif text-[6mm] italic">&amp;</div>
+                    <div className="pp-script text-[15mm] leading-[1.05]">{names.name2.split(' ')[0]}</div>
+                    <div className="pp-rule" />
+                    <div className="pp-serif text-[5.5mm]">{date}</div>
+                    <div className="pp-serif text-[3.6mm] italic">Formal invitation to follow</div>
+                    {qr && <img src={qr} alt="" className="w-[16mm] h-[16mm] mt-[1mm]" />}
+                  </div>
+                ))}
+              </section>
             ))}
           {kind === 'runsheet' && (
             <section className="pp pp-flow pp-serif text-[4mm] leading-snug">
