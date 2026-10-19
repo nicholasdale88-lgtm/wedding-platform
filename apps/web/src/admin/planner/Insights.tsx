@@ -1,4 +1,4 @@
-import { commitmentOf, dateIn, daysUntil, type Budget, type PlanChecklist, type Vendors } from '@wp/shared';
+import { BUDGET_SPLIT, commitmentOf, dateIn, daysUntil, type Budget, type PlanChecklist, type Vendors } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
@@ -279,6 +279,31 @@ export function Insights() {
               .map(({ l, d }) => ({ label: l.item || l.category, value: Math.abs(d), note: `${d > 0 ? '+' : '−'}${aud(Math.abs(d))}`, colour: d > 0 ? '#a5533c' : '#5d6b47' }))}
           />
           <p className="m-0 text-[12px] text-[#7a7466]">Red is over your estimate, green under.</p>
+        </section>
+      )}
+
+      {budget.lines.length > 0 && committed > 0 && (
+        <section aria-label="Your split against typical couples" className={card}>
+          <H2>Your split against typical couples</H2>
+          <p className="m-0 text-[13px] text-[#5b6a52]">Each category’s share of what you’ve committed (the bar), and what Australian couples usually spend on it (the mark).</p>
+          <div className="flex flex-col gap-2">
+            {BUDGET_SPLIT.map(({ category, share }) => {
+              const mine = budget.lines.filter((l) => l.category === category).reduce((a, l) => a + (l.quote || l.estimate), 0) / committed;
+              const over = mine > share * 1.25 && mine - share > 0.02;
+              return (
+                <div key={category} className="grid grid-cols-[minmax(0,150px)_minmax(0,1fr)_auto] gap-3 items-center text-[13px]">
+                  <span className="truncate">{category}</span>
+                  <span className="relative h-[12px] rounded-full bg-[#e9e2cc]">
+                    <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (mine / 0.5) * 100)}%`, background: over ? '#a5533c' : '#8a9670' }} />
+                    <span aria-hidden className="absolute -top-[3px] -bottom-[3px] w-[2px] bg-[#33402f]" style={{ left: `${Math.min(100, (share / 0.5) * 100)}%` }} />
+                  </span>
+                  <span className="tabular-nums text-[#5b6a52] whitespace-nowrap">
+                    {Math.round(mine * 100)}% <span className="text-[#7a7466]">· usually {Math.round(share * 100)}%</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 

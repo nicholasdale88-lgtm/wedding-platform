@@ -7,6 +7,7 @@ import { MoneyInput } from '../planner/MoneyInput';
 import { useLiveDoc } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
+import { GlamSchedule } from './GlamSchedule';
 import { Members, type PartyView, type SideName } from './Party';
 
 const newId = () => crypto.randomUUID().slice(0, 10);
@@ -175,6 +176,8 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
           <textarea aria-label="Plan" rows={3} placeholder="The plan: what you'll do, who's coming, what to bring" value={doc.party.notes} maxLength={1000} onChange={(e) => set({ party: { ...doc.party, notes: e.target.value } })} className={`${inputCls} resize-y`} />
         </section>
       </div>
+
+      <GlamSchedule glam={doc.glam} set={(glam, now) => set({ glam }, now)} names={people.map((m) => m.name.split(' ')[0] ?? m.name)} star={d.names[side]} />
 
       <section aria-label="To-dos" className="flex flex-col gap-3">
         <div className="flex justify-between items-end gap-3 flex-wrap">

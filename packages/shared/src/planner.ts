@@ -129,8 +129,93 @@ export const SideParty = z.object({
 });
 /** What the side wears: one look, where it's from, roughly what it costs each. */
 export const SideAttire = z.object({ what: s(120), colour: s(60), where: s(160), each: money0(), orderBy: s(10), notes: s(600) });
+/** One person in the hair and makeup chairs: what they're having and how long each takes. */
+export const GlamPerson = z.object({
+  id: z.string().max(40),
+  who: z.string().max(80),
+  hair: z.boolean().default(true),
+  makeup: z.boolean().default(true),
+  hairMins: z.number().int().min(10).max(240).default(45),
+  makeupMins: z.number().int().min(10).max(240).default(45),
+  /** The bride (or whoever should be done last, fresh for the photos). */
+  last: z.boolean().default(false),
+});
+export type GlamPerson = z.infer<typeof GlamPerson>;
+/** The hair and makeup morning: when everyone must be ready, how many artists of each, who's in the chairs. */
+export const Glam = z.object({
+  finish: s(20),
+  hairArtists: z.number().int().min(1).max(6).default(1),
+  makeupArtists: z.number().int().min(1).max(6).default(1),
+  people: z.array(GlamPerson).max(20).default([]),
+});
+export type Glam = z.infer<typeof Glam>;
+
+/** "9:30am" (or "14:15") → minutes after midnight; null when it can't be read. */
+export function clockMinutes(t: string): number | null {
+  const m = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i.exec(t.trim());
+  if (!m) return null;
+  let h = Number(m[1]);
+  const ap = (m[3] ?? '').toLowerCase();
+  if (h > 23 || Number(m[2] ?? 0) > 59) return null;
+  if (ap) h = (h % 12) + (ap === 'pm' ? 12 : 0);
+  return h * 60 + Number(m[2] ?? 0);
+}
+/** Minutes after midnight → "9:30am". */
+export const clockText = (mins: number) => {
+  const m = ((Math.round(mins) % 1440) + 1440) % 1440;
+  const h = Math.floor(m / 60);
+  return `${h % 12 || 12}:${String(m % 60).padStart(2, '0')}${h < 12 ? 'am' : 'pm'}`;
+};
+
+/**
+ * The chairs: each artist takes the next person waiting for them (the one marked last goes after everyone
+ * else), worked forward, then the whole morning is set to end at the finish time. Returns each person's
+ * slots in minutes after midnight (or relative to the end when there's no finish time) and the start.
+ */
+export function glamSchedule(g: Glam): { start: number; end: number; rows: { id: string; who: string; hair?: [number, number]; makeup?: [number, number] }[] } {
+  type Job = { p: GlamPerson; need: Set<'hair' | 'makeup'>; busyUntil: number; slots: { hair?: [number, number]; makeup?: [number, number] } };
+  const jobs: Job[] = g.people.map((p) => ({ p, need: new Set([...(p.hair ? ['hair' as const] : []), ...(p.makeup ? ['makeup' as const] : [])]), busyUntil: 0, slots: {} }));
+  const artists: { kind: 'hair' | 'makeup'; free: number }[] = [
+    ...Array.from({ length: g.hairArtists }, () => ({ kind: 'hair' as const, free: 0 })),
+    ...Array.from({ length: g.makeupArtists }, () => ({ kind: 'makeup' as const, free: 0 })),
+  ];
+  // Whoever is marked last waits until everyone else is done with that service.
+  const othersNeed = (kind: 'hair' | 'makeup', who: Job) => jobs.some((j) => j !== who && !j.p.last && j.need.has(kind));
+  let guard = 0;
+  while (jobs.some((j) => j.need.size) && guard++ < 500) {
+    const a = artists.reduce((x, y) => (y.free < x.free ? y : x));
+    const waiting = jobs
+      .filter((j) => j.need.has(a.kind) && !(j.p.last && othersNeed(a.kind, j)))
+      .sort((x, y) => Math.max(x.busyUntil, a.free) - Math.max(y.busyUntil, a.free) || Number(x.p.last) - Number(y.p.last));
+    const j = waiting[0];
+    if (!jobs.some((x) => x.need.has(a.kind))) {
+      a.free = Infinity; // nobody left for this artist
+      continue;
+    }
+    if (!j) {
+      // Nothing this artist can do yet: wait for the next person to come free.
+      const next = Math.min(...jobs.filter((x) => x.need.has(a.kind)).map((x) => x.busyUntil).filter((t) => t > a.free), Infinity);
+      if (!Number.isFinite(next)) a.free = Math.min(...artists.filter((x) => x !== a).map((x) => x.free)) + 1;
+      else a.free = next;
+      continue;
+    }
+    const s = Math.max(a.free, j.busyUntil);
+    const e = s + (a.kind === 'hair' ? j.p.hairMins : j.p.makeupMins);
+    j.slots[a.kind] = [s, e];
+    j.need.delete(a.kind);
+    j.busyUntil = e;
+    a.free = e;
+  }
+  const total = Math.max(0, ...jobs.flatMap((j) => [j.slots.hair?.[1] ?? 0, j.slots.makeup?.[1] ?? 0]));
+  const finish = clockMinutes(g.finish);
+  const shift = finish === null ? -total : finish - total;
+  const at = (x?: [number, number]): [number, number] | undefined => (x ? [x[0] + shift, x[1] + shift] : undefined);
+  return { start: shift, end: shift + total, rows: jobs.map((j) => ({ id: j.p.id, who: j.p.who, hair: at(j.slots.hair), makeup: at(j.slots.makeup) })) };
+}
+
 export const PartySide = z.object({
   tasks: z.array(SideTask).max(80).default([]),
+  glam: Glam.default({}),
   people: z.record(z.string().max(40), SidePerson).default({}),
   party: SideParty.default({}),
   attire: SideAttire.default({}),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHECK_TEMPLATE, commitmentOf, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { CHECK_TEMPLATE, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -67,5 +67,31 @@ describe('menus', () => {
     expect(PLANNER_DOCS['event-checklist'].safeParse(PARTY_CHECK_TEMPLATE).success).toBe(true);
     expect(PLANNER_DOCS['party-p1'].safeParse({ tasks: SIDE_TEMPLATE.p1.map((t, i) => ({ ...t, id: `t${i}` })) }).success).toBe(true);
     expect(CHECK_TEMPLATE.both.length).toBeGreaterThan(5);
+  });
+});
+
+describe('hair and makeup', () => {
+  const person = (id: string, last = false) => ({ id, who: id, hair: true, makeup: true, hairMins: 45, makeupMins: 45, last });
+  it('reads and writes clock times', () => {
+    expect(clockMinutes('9:30am')).toBe(570);
+    expect(clockMinutes('12:15pm')).toBe(735);
+    expect(clockMinutes('14:00')).toBe(840);
+    expect(clockMinutes('soon')).toBeNull();
+    expect(clockText(570)).toBe('9:30am');
+  });
+  it('everyone is ready by the finish time, nobody is in two chairs at once, the bride goes last', () => {
+    const g = { finish: '12:00pm', hairArtists: 1, makeupArtists: 1, people: [person('Bride', true), person('Amy'), person('Bea')] };
+    const s = glamSchedule(g);
+    expect(s.end).toBe(720);
+    for (const r of s.rows) {
+      expect(r.hair && r.makeup).toBeTruthy();
+      expect(r.hair![1] <= r.makeup![0] || r.makeup![1] <= r.hair![0]).toBe(true); // never both at once
+    }
+    const bride = s.rows.find((r) => r.who === 'Bride')!;
+    const others = s.rows.filter((r) => r.who !== 'Bride');
+    expect(Math.max(bride.hair![0], bride.makeup![0])).toBeGreaterThanOrEqual(Math.max(...others.map((r) => Math.min(r.hair![0], r.makeup![0]))));
+    // Two people sharing the hair artist never overlap.
+    const hairs = s.rows.map((r) => r.hair!).sort((a, b) => a[0] - b[0]);
+    for (let i = 1; i < hairs.length; i++) expect(hairs[i]![0]).toBeGreaterThanOrEqual(hairs[i - 1]![1]);
   });
 });

@@ -7,7 +7,7 @@ import { H2, Pill } from '../ui';
 import { Members, SideNames, type PartyView, type SideName } from './Party';
 
 const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]';
-const EMPTY: PartySide = { tasks: [], people: {}, party: { title: '', date: '', place: '', organiser: '', budget: 0, notes: '' }, attire: { what: '', colour: '', where: '', each: 0, orderBy: '', notes: '' } };
+const EMPTY: PartySide = { tasks: [], glam: { finish: '', hairArtists: 1, makeupArtists: 1, people: [] }, people: {}, party: { title: '', date: '', place: '', organiser: '', budget: 0, notes: '' }, attire: { what: '', colour: '', where: '', each: 0, orderBy: '', notes: '' } };
 const longDate = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
 /** Wedding party → Overview: each side as a card (people, progress, what's next), helpers, the day, your lists. */
