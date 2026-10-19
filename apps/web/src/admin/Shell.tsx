@@ -119,12 +119,12 @@ function badge(key: TabKey, o: Overview | null): string {
 /** design/RSVP Admin.dc.html shell: 236px sidebar #33402f; under 760px a sticky top bar with scrolling nav pills. */
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
   const { tab = 'overview' } = useParams();
-  const { wid, overview: o } = useAdmin();
+  const { wid, overview: o, event } = useAdmin();
   const mob = useMedia('(max-width: 759px)');
   const name = o ? o.wedding.adminName.trim() || coupleName(o.wedding) : '';
 
   return (
-    <div style={themeVars(o?.wedding.theme)} className={`grid min-h-screen bg-[#f6f0e2] text-[14px] text-[#33402f] ${mob ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'}`}>
+    <div style={themeVars(o?.wedding.theme, o ? Math.max(0, o.events.findIndex((e) => e.key === event)) : 0)} className={`grid min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[#33402f] transition-colors duration-300 ${mob ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'}`}>
       <aside
         className={`bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 ${mob ? 'gap-[10px] pt-3 px-[14px] pb-[10px] h-auto' : 'gap-[30px] pt-[30px] px-4 pb-[22px] h-screen'}`}
       >
@@ -173,9 +173,15 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   );
 }
 
-/** The admin wears the invitation's colour theme (Guest pages → Look and feel): its dark ink for the sidebar. */
-function themeVars(theme: string | undefined): CSSProperties | undefined {
-  const t = theme ? THEMES[theme] : undefined;
-  if (!t?.dg) return undefined;
-  return { '--adm-ink': t.dg, '--adm-soft': t.b2 ?? '#cfd8bb' } as CSSProperties;
+/**
+ * The admin wears the invitation's colour theme (Guest pages → Look and feel). The second event is the
+ * design's blue celebration (the birthday section of the invitation), so looking at it turns the admin blue
+ * too: you always know which event you're in.
+ */
+function themeVars(theme: string | undefined, slot: number): CSSProperties {
+  const t: Record<string, string | undefined> = (theme && THEMES[theme]) || {};
+  if (slot === 1) {
+    return { '--adm-ink': t.bdtx ?? '#2f3d5c', '--adm-soft': t.bdbg ?? '#dde7f3', '--adm-bg': '#eef2f8' } as CSSProperties;
+  }
+  return { '--adm-ink': t.dg ?? '#33402f', '--adm-soft': t.b2 ?? '#cfd8bb', '--adm-bg': t.iv ?? '#f6f0e2' } as CSSProperties;
 }
