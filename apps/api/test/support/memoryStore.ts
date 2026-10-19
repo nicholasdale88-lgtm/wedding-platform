@@ -46,6 +46,10 @@ export class MemoryStore implements SmsStore {
   async finishSlot(id: string, status: 'done' | 'failed' | 'cancelled', error?: string) { const s = this.slot(id); s.status = status; s.lastError = error ?? null; }
   private slot(id: string) { const s = this.slots.find((x) => x.id === id); if (!s) throw new Error('no slot'); return s; }
 
+  async queuedKeys(weddingId: string, prefix: string) {
+    return new Set(this.outbox.filter((o) => o.weddingId === weddingId && o.dedupeKey.startsWith(prefix)).map((o) => o.dedupeKey));
+  }
+
   async enqueue(rows: NewOutbox[]) {
     let n = 0;
     for (const r of rows) {

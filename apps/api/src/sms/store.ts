@@ -25,6 +25,8 @@ export interface SmsStore {
 
   /** Returns how many rows were new. */
   enqueue(rows: NewOutbox[]): Promise<number>;
+  /** Dedupe keys already in the outbox that start with this (so the cron doesn't rebuild texts it has). */
+  queuedKeys(weddingId: string, prefix: string): Promise<Set<string>>;
   /** Cancel still-queued, never-attempted rows with this prefix whose invitation no longer qualifies. */
   cancelQueued(dedupePrefix: string, keepInvitationIds: Set<string>): Promise<void>;
   /**

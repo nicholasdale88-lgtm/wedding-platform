@@ -124,6 +124,11 @@ export class D1SmsStore implements SmsStore {
 
   // ---------------------------------------------------------------- outbox
 
+  async queuedKeys(weddingId: string, prefix: string) {
+    const rows = await this.all<{ dedupe_key: string }>(`SELECT dedupe_key FROM sms_out WHERE wedding_id = ? AND substr(dedupe_key, 1, ?) = ?`, weddingId, prefix.length, prefix);
+    return new Set(rows.map((r) => r.dedupe_key));
+  }
+
   async enqueue(rows: NewOutbox[]) {
     const now = new Date().toISOString();
     let inserted = 0;

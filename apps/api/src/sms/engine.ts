@@ -108,7 +108,10 @@ async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
       if (c.trigger === 'invitation_created') {
         // Invitations wait for their date (8 months before the first event, or the couple's choice).
         if (w.invitesFrom && now.toISOString() < w.invitesFrom) continue;
-        await enqueueCampaign(d, w, events, c, recipientsFor(c, recipients, invitedBefore), (r) => `auto:${c.id}:${r.id}`);
+        // Only guests who don't have theirs yet: no rebuilding every invitation every 15 minutes.
+        const have = await d.store.queuedKeys(w.id, `auto:${c.id}:`);
+        const owed = recipientsFor(c, recipients, invitedBefore).filter((r) => !have.has(`auto:${c.id}:${r.id}`));
+        if (owed.length) await enqueueCampaign(d, w, events, c, owed, (r) => `auto:${c.id}:${r.id}`);
       } else if (c.trigger === 'rsvp_changed') {
         const replied = recipients.filter((r) => {
           if (!r.rsvpUpdatedAt || !textable(r, c)) return false;
