@@ -42,6 +42,8 @@ export function GuestPages() {
   const gen = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const saving = useRef(false);
+  const again = useRef(false); // an edit asked to save while a save was in flight: send it straight after
+  const previewTimer = useRef<ReturnType<typeof setTimeout>>();
   const docRef = useRef<Doc | null>(null);
   const versionRef = useRef(0);
   docRef.current = doc;
@@ -62,7 +64,12 @@ export function GuestPages() {
 
   const flush = useCallback(async () => {
     const d = docRef.current;
-    if (!d || saving.current || !dirty.current.size) return;
+    if (saving.current) {
+      again.current = true;
+      return;
+    }
+    if (!d || !dirty.current.size) return;
+    clearTimeout(timer.current);
     saving.current = true;
     setStatus('saving');
     const sent = new Map(dirty.current);
@@ -80,7 +87,9 @@ export function GuestPages() {
       setData(res);
       for (const [k, g] of sent) if (dirty.current.get(k) === g) dirty.current.delete(k);
       setStatus(dirty.current.size ? 'waiting' : 'saved');
-      setPreviewKey((n) => n + 1);
+      // The preview reloads once typing settles, not after every save.
+      clearTimeout(previewTimer.current);
+      previewTimer.current = setTimeout(() => setPreviewKey((n) => n + 1), 1200);
       if (sent.has('names') || sent.has('theme')) void reloadOverview(); // the admin's title and colours follow
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
@@ -93,7 +102,10 @@ export function GuestPages() {
       }
     } finally {
       saving.current = false;
-      if (dirty.current.size) timer.current = setTimeout(() => void flush(), SAVE_AFTER_MS);
+      if (again.current && dirty.current.size) {
+        again.current = false;
+        void flush();
+      } else if (dirty.current.size) timer.current = setTimeout(() => void flush(), SAVE_AFTER_MS);
     }
   }, [wid, load, toast, reloadOverview]);
 
@@ -107,8 +119,22 @@ export function GuestPages() {
     },
     [flush],
   );
-  // Leaving the tab saves straight away.
-  useEffect(() => () => void flush(), [flush]);
+  // Leaving the tab saves straight away (after any save in flight); closing the browser with edits unsent asks first.
+  useEffect(
+    () => () => {
+      clearTimeout(timer.current);
+      clearTimeout(previewTimer.current);
+      void flush();
+    },
+    [flush],
+  );
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (dirty.current.size || saving.current) e.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, []);
 
   const pages = useMemo(() => {
     if (!data) return [];
