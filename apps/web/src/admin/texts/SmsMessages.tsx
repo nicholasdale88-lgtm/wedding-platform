@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, textsApi, type Campaign, type Estimate, type TextsData } from '../../lib/api';
 import { fmtDay, fmtTime, fmtWhen, shortLabel, toLocalInput } from '../../lib/format';
 import { useNavigate } from 'react-router-dom';
+import { useUnsavedChanges } from '../leave';
 import { ALL_EVENTS, useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
 import { isNightBefore, NightText } from '../pages/NightText';
@@ -13,7 +14,7 @@ import { isNightBefore, NightText } from '../pages/NightText';
  * Replies from guests are above; what has been sent is at the bottom.
  */
 export function SmsMessages() {
-  const { wid, reload: reloadOverview, event: chosen, setEvent } = useAdmin();
+  const { wid, reload: reloadOverview, event: chosen, path } = useAdmin();
   const go = useNavigate();
   const section = useSectionName();
   const toast = useToast();
@@ -92,7 +93,7 @@ export function SmsMessages() {
             {auto.length} {auto.length === 1 ? 'message' : 'messages'} on autopilot
           </h1>
           <div className="mt-1 text-[15px] text-[#5b6a52]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
-          {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added under Account → SMS setup.</div>}
+          {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added under Account → Texting setup.</div>}
           {data.invitesFrom && <InvitesFrom data={data} onChanged={load} />}
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -125,10 +126,7 @@ export function SmsMessages() {
           YES and NO replies are recorded for you. Questions and messages from guests, texted or written on their page, are in{' '}
           <button
             type="button"
-            onClick={() => {
-              setEvent(ALL_EVENTS);
-              go(`/admin/${wid}/messages`);
-            }}
+            onClick={() => go(path('messages', ALL_EVENTS))}
             className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f] text-[14px]"
           >
             Account → Messages
@@ -227,6 +225,9 @@ function whenOf(c: Campaign, tz: string): [string, string] {
 
 function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campaign; data: TextsData; open: boolean; onOpen: () => void; onToggle: () => void; onChanged: () => Promise<void> }) {
   const [when, whenSub] = whenOf(c, data.timezone);
+  // Once opened, the editor stays mounted (hidden when the row is closed), so a half-written text survives.
+  const [opened, setOpened] = useState(open);
+  if (open && !opened) setOpened(true);
   return (
     <div className="border-t border-[#e2d7bc]">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-[14px]">
@@ -255,13 +256,17 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
             aria-checked={c.enabled}
             aria-label={`Autopilot: ${c.name}`}
             onClick={onToggle}
-            className={`relative w-[44px] h-[26px] rounded-full border-0 cursor-pointer transition-colors ${c.enabled ? 'bg-[#5d6b47]' : 'bg-[#d3c6a4]'}`}
+            className={`relative w-[44px] h-[26px] rounded-full border-0 cursor-pointer transition-colors ${c.enabled ? 'bg-[var(--adm-accent,#5d6b47)]' : 'bg-[#d3c6a4]'}`}
           >
             <span className={`absolute top-[3px] w-[20px] h-[20px] rounded-full bg-[#fbf8f2] transition-all ${c.enabled ? 'left-[21px]' : 'left-[3px]'}`} />
           </button>
         )}
       </div>
-      {open && <Editor c={c} data={data} onChanged={onChanged} />}
+      {opened && (
+        <div hidden={!open}>
+          <Editor c={c} data={data} onChanged={onChanged} />
+        </div>
+      )}
     </div>
   );
 }
@@ -290,6 +295,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
     JSON.stringify(audience) !== JSON.stringify(c.audience) ||
     JSON.stringify(excluded) !== JSON.stringify(c.excluded) ||
     ((c.mode === 'dates' || c.custom) && JSON.stringify([...datesUtc].sort()) !== JSON.stringify(savedDates));
+  useUnsavedChanges(dirty);
 
   // Live count, cost and phone preview for exactly what is on screen (nothing is saved or sent).
   useEffect(() => {
@@ -536,6 +542,10 @@ function InvitesFrom({ data, onChanged }: { data: TextsData; onChanged: () => Pr
   const tz = data.timezone;
   const from = data.invitesFrom!;
   const open = from <= new Date().toISOString();
+  const saved = toLocalInput(from, tz).slice(0, 10);
+  // Typing a date only changes the box; it saves when you leave it (not on every keystroke).
+  const [day, setDay] = useState(saved);
+  useEffect(() => setDay(saved), [saved]);
   const save = async (date: string | null) => {
     try {
       await textsApi.invitesFrom(wid, date);
@@ -551,8 +561,13 @@ function InvitesFrom({ data, onChanged }: { data: TextsData; onChanged: () => Pr
       <input
         type="date"
         aria-label="Invitations go out from"
-        value={toLocalInput(from, tz).slice(0, 10)}
-        onChange={(e) => e.target.value && void save(zonedToUtc(`${e.target.value}T09:00`, tz).toISOString())}
+        value={day}
+        onChange={(e) => setDay(e.target.value)}
+        onBlur={() => {
+          if (!day) setDay(saved);
+          else if (day !== saved) void save(zonedToUtc(`${day}T09:00`, tz).toISOString());
+        }}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
         className={`${inputCls} !py-[5px] !text-[14px]`}
       />
       <span className="text-[13px] text-[#7a7466]">{data.invitesFromCustom ? 'your date' : '8 months before the first event'}</span>

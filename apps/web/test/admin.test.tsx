@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
+import { describe, expect, it, vi } from 'vitest';
 import { AdminRoot } from '../src/admin/AdminRoot';
 import { applyFilters } from '../src/admin/guestFilters';
 import { detailOf, events, guests, overviewFixture } from './fixtures';
@@ -34,14 +34,12 @@ function Where() {
   location = l.pathname + l.search;
   return null;
 }
-const renderAt = (path: string) =>
-  render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/admin/*" element={<><AdminRoot /><Where /></>} />
-      </Routes>
-    </MemoryRouter>,
-  );
+/** The admin in a memory data router (as in the app, so leaving unsaved work can be guarded); returns the router. */
+const renderAt = (path: string) => {
+  const router = createMemoryRouter([{ path: '/admin/*', element: <><AdminRoot /><Where /></> }], { initialEntries: [path] });
+  render(<RouterProvider router={router} />);
+  return router;
+};
 
 describe('admin shell', () => {
   it('opens straight to the only wedding, with the couple name, nav badges, events and days to go', async () => {
@@ -50,18 +48,47 @@ describe('admin shell', () => {
     expect(await screen.findByText('Alex & Blair')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin' });
     // Account: what's shared by every event (overview, messages, the SMS provider setup). The invitation is in the first event.
-    for (const name of [/^Overview/, /^Messages/, /^SMS setup\s*Not set up/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
+    for (const name of [/^Overview/, /^Messages/, /^Texting setup\s*Not set up/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: /^Invitation/ })).toBeNull();
     expect(screen.getAllByText('Recovery brunch').length).toBeGreaterThan(0);
     expect(screen.getByText('138 days to go')).toBeInTheDocument();
-    expect(location).toBe('/admin/w1/overview');
+    expect(location).toBe('/admin/w1/account/overview');
+  });
+});
+
+describe('addresses', () => {
+  it('old addresses without a section open the right one, keeping their filters', async () => {
+    localStorage.clear();
+    mockApi();
+    renderAt('/admin/w1/guests?show=all');
+    expect(await screen.findByRole('heading', { name: '4 guests on 3 invitations' })).toBeInTheDocument();
+    expect(location).toBe('/admin/w1/wedding/guests?show=all');
+  });
+
+  it('a removed event (an old link) lands in Account', async () => {
+    mockApi();
+    renderAt('/admin/w1/gone/overview');
+    await waitFor(() => expect(location).toBe('/admin/w1/account/overview'));
+  });
+
+  it('switching section is in the address, so Back returns to the section you were in', async () => {
+    mockApi();
+    const router = renderAt('/admin/w1/wedding/guests?show=all');
+    await screen.findByText('Robin Hart');
+    await userEvent.click(screen.getByRole('button', { name: 'Recovery brunch' }));
+    await waitFor(() => expect(location).toBe('/admin/w1/brunch/guests'));
+    expect(screen.getByRole('button', { name: 'Recovery brunch' })).toHaveAttribute('aria-current', 'true');
+    await act(() => router.navigate(-1));
+    await waitFor(() => expect(location).toBe('/admin/w1/wedding/guests?show=all'));
+    expect(screen.getByRole('button', { name: 'The wedding' })).toHaveAttribute('aria-current', 'true');
+    expect(localStorage.getItem('wp.admin.event.w1')).toBe('wedding'); // only for /admin/w1
   });
 });
 
 describe('Overview', () => {
   it('shows answered, figures per event, Needs you and latest replies', async () => {
     mockApi();
-    renderAt('/admin/w1/overview');
+    renderAt('/admin/w1/account/overview');
     expect(await screen.findByRole('heading', { name: '2 of 3 invitations answered' })).toBeInTheDocument();
     expect(screen.getByText('138 days to the wedding')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Wedding\s*2\s*guests coming/ })).toBeInTheDocument();
@@ -74,9 +101,9 @@ describe('Overview', () => {
 
   it('Needs you buttons go straight to the fix', async () => {
     mockApi();
-    renderAt('/admin/w1/overview');
+    renderAt('/admin/w1/account/overview');
     await userEvent.click(await screen.findByRole('button', { name: 'See who' }));
-    expect(location).toBe('/admin/w1/guests?filter=awaiting');
+    expect(location).toBe('/admin/w1/wedding/guests?filter=awaiting');
     expect(await screen.findByText('Jo Banks')).toBeInTheDocument();
     expect(screen.queryByText('Robin Hart')).not.toBeInTheDocument();
   });
@@ -85,7 +112,7 @@ describe('Overview', () => {
 describe('Guests', () => {
   it('lists invitations with status pills, answers and diet; title counts guests and invitations', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?show=all');
+    renderAt('/admin/w1/wedding/guests?show=all');
     expect(await screen.findByRole('heading', { name: '4 guests on 3 invitations' })).toBeInTheDocument();
     const row = screen.getByText('Robin Hart').closest('[role=row]') as HTMLElement;
     expect(within(row).getAllByText('Attending')).toHaveLength(2);
@@ -97,7 +124,7 @@ describe('Guests', () => {
 
   it('search and filters combine, show the count, and live in the address bar', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?show=all');
+    renderAt('/admin/w1/wedding/guests?show=all');
     await screen.findByText('Robin Hart');
     await userEvent.selectOptions(screen.getByLabelText('Mobile'), 'has');
     expect(screen.getByText('2 of 3 invitations')).toBeInTheDocument();
@@ -114,7 +141,7 @@ describe('Guests', () => {
     const calls = mockApi({
       '/api/a/w/w1/guests/g1/rsvp': () => json(200, detailOf({ ...g1, version: 4, rsvp: { ...g1.rsvp, brunch: { ...g1.rsvp.brunch!, attending: false } } })),
     });
-    renderAt('/admin/w1/guests?show=all&g=g1');
+    renderAt('/admin/w1/wedding/guests?show=all&g=g1');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Robin Hart' });
     const brunch = within(drawer).getByRole('group', { name: 'Recovery brunch' });
     await userEvent.click(within(brunch).getByRole('button', { name: 'Declined' }));
@@ -131,7 +158,7 @@ describe('Guests', () => {
       '/api/a/w/w1/guests/g2': () => json(200, detailOf({ ...guests[1]!, version: 1 + n++ })),
       '/api/a/w/w1/guests/g2/rsvp': () => json(409, { error: { code: 'conflict', message: 'Updated elsewhere, reloaded.' } }),
     });
-    renderAt('/admin/w1/guests?show=all&g=g2');
+    renderAt('/admin/w1/wedding/guests?show=all&g=g2');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
     await userEvent.click(within(within(drawer).getByRole('group', { name: 'The wedding' })).getByRole('button', { name: 'Attending' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Updated elsewhere, reloaded.');
@@ -140,7 +167,7 @@ describe('Guests', () => {
 
   it('shows the personal link and text history; no mobile is called out', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?show=all&g=g2');
+    renderAt('/admin/w1/wedding/guests?show=all&g=g2');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
     expect(within(drawer).getByText(/\/w\/alex-and-blair\/\?g=/)).toBeInTheDocument();
     expect(within(drawer).getByText('No mobile, so this guest will not receive any SMS.')).toBeInTheDocument();
@@ -149,7 +176,7 @@ describe('Guests', () => {
 
   it('previews every page this guest gets, in preview mode', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?show=all&g=g2');
+    renderAt('/admin/w1/wedding/guests?show=all&g=g2');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
     const hrefs = within(drawer).getAllByRole('link').map((a) => a.getAttribute('href') ?? '');
     expect(hrefs.some((h) => /^\/w\/alex-and-blair\/\?g=[^&]+&preview=1$/.test(h))).toBe(true);
@@ -159,11 +186,11 @@ describe('Guests', () => {
 
   it('Escape closes the drawer and clears it from the address bar', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?show=all&g=g1');
+    renderAt('/admin/w1/wedding/guests?show=all&g=g1');
     await screen.findByRole('dialog');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(location).toBe('/admin/w1/guests?show=all');
+    expect(location).toBe('/admin/w1/wedding/guests?show=all');
   });
 });
 
@@ -190,8 +217,6 @@ describe('guest filters (pure)', () => {
 });
 
 describe('guest pages tab', () => {
-  // Setup belongs to an event (opened from its section of the menu).
-  beforeEach(() => localStorage.setItem('wp.admin.event.w1', 'wedding'));
   const pages = {
     version: 5,
     slug: 'alex-and-blair',
@@ -211,7 +236,7 @@ describe('guest pages tab', () => {
 
   it('Setup: the invitation lives in the first event; every event has its details, timeline, night-before and photo pages', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
-    renderAt('/admin/w1/pages');
+    renderAt('/admin/w1/wedding/pages');
     expect(await screen.findByRole('heading', { name: 'Set up The wedding' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'The wedding' })).toHaveAttribute('aria-current', 'true'));
     for (const name of ['Invitation', 'Details', 'Timeline', 'Night-before page', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
@@ -245,7 +270,7 @@ describe('guest pages tab', () => {
         return json(200, pages);
       },
     });
-    renderAt('/admin/w1/pages');
+    renderAt('/admin/w1/wedding/pages');
     const field = await screen.findByLabelText('Reply-by line');
     await userEvent.clear(field);
     await userEvent.type(field, 'Reply by 2 May');
@@ -257,7 +282,7 @@ describe('guest pages tab', () => {
 
   it('every word: grouped by section; a changed sentence shows what it was, and Reset brings it back', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, { ...pages, texts: { 'inv.dyn.greetAnon': 'Hello friend' } }) });
-    renderAt('/admin/w1/pages');
+    renderAt('/admin/w1/wedding/pages');
     expect(await screen.findByDisplayValue('Hello friend')).toBeInTheDocument();
     expect(screen.getAllByText(/sentences · 1 changed$/)).toHaveLength(2); // the page's total and its section's
     expect(screen.getByText(/^Was: /)).toBeInTheDocument(); // the original shows only once changed
@@ -267,8 +292,6 @@ describe('guest pages tab', () => {
 });
 
 describe('SMS messages tab', () => {
-  // Scheduling lives in each event's section.
-  beforeEach(() => localStorage.setItem('wp.admin.event.w1', 'wedding'));
   const camp = (over: Record<string, unknown>) => ({
     key: 'k', body: 'Hi {first}', mode: 'auto', enabled: true, trigger: 'invitation_created', audience: { all: true }, audienceLabel: 'Everyone with a mobile',
     excluded: [], custom: false, version: 2, count: 3, slots: [], ...over,
@@ -290,7 +313,7 @@ describe('SMS messages tab', () => {
 
   it('shows autopilot count, the next send and replies', async () => {
     mockApi({ '/api/a/w/w1/texts': () => json(200, texts) });
-    renderAt('/admin/w1/texts');
+    renderAt('/admin/w1/wedding/texts');
     expect(await screen.findByRole('heading', { name: '2 messages on autopilot' })).toBeInTheDocument();
     expect(screen.getByText(/Next: Reminder, 18 Jun/)).toBeInTheDocument();
     expect(screen.getByText('“Yes!”')).toBeInTheDocument();
@@ -310,7 +333,7 @@ describe('SMS messages tab', () => {
       },
       '/api/a/w/w1/texts/c9/estimate': () => json(200, estimate),
     });
-    renderAt('/admin/w1/texts');
+    renderAt('/admin/w1/wedding/texts');
     expect(await screen.findByRole('heading', { name: 'Invitations & reminders' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '+ Add a reminder' }));
     // Inside the wedding's section: a reminder for the wedding's guests still to reply.
@@ -327,7 +350,7 @@ describe('SMS messages tab', () => {
         return json(200, { ok: true, version: 3 });
       },
     });
-    renderAt('/admin/w1/texts');
+    renderAt('/admin/w1/wedding/texts');
     await userEvent.click(await screen.findByRole('switch', { name: 'Autopilot: Invitation' }));
     await waitFor(() => expect(patch).toEqual({ body: { enabled: false }, ifMatch: '2' }));
   });
@@ -338,7 +361,7 @@ describe('SMS messages tab', () => {
       '/api/a/w/w1/texts/c1/estimate': () => json(200, estimate),
       '/api/a/w/w1/texts/c1/send': () => json(200, { queued: 1, sent: 1, failed: 0 }),
     });
-    renderAt('/admin/w1/texts');
+    renderAt('/admin/w1/wedding/texts');
     await userEvent.click(await screen.findByRole('button', { name: /^When invited/ }));
     expect(await screen.findByText('Hi Robin')).toBeInTheDocument();
     expect(screen.getByText('About $0.02')).toBeInTheDocument();
@@ -384,7 +407,7 @@ describe('SMS setup tab', () => {
         return json(200, settings);
       },
     });
-    renderAt('/admin/w1/settings');
+    renderAt('/admin/w1/account/texts');
     const yes = await screen.findByLabelText('When they reply YES');
     await userEvent.clear(yes);
     await userEvent.type(yes, 'Hooray');
@@ -418,7 +441,7 @@ describe('seating tab', () => {
         return json(200, seating);
       },
     });
-    renderAt('/admin/w1/seating');
+    renderAt('/admin/w1/wedding/seating');
     expect(await screen.findByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Table 1, 1 of 4' }));
     expect(screen.getByText('Nut allergy')).toBeInTheDocument(); // who sits there, with their diet
@@ -432,16 +455,31 @@ describe('seating tab', () => {
 
   it('Auto-seat seats only guests who said yes, keeping invitations together', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
-    renderAt('/admin/w1/seating');
+    renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
     expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument(); // Jo hasn't replied: not seated
     expect(screen.getByText('Waiting for a reply (1)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Jo Banks' })).toBeNull(); // can't be seated until she says yes
   });
 
+  it('unsaved seating: leaving asks first, and staying keeps the changes', async () => {
+    mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
+    const ask = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
+    await userEvent.click(screen.getByRole('link', { name: 'Guest list' }));
+    expect(ask).toHaveBeenCalledWith('You have seating changes that are not saved. Leave without saving them?');
+    expect(location).toBe('/admin/w1/wedding/seating');
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    ask.mockReturnValue(true);
+    await userEvent.click(screen.getByRole('link', { name: 'Guest list' }));
+    await waitFor(() => expect(location).toBe('/admin/w1/wedding/guests'));
+    ask.mockRestore();
+  });
+
   it('undo and redo every change', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
-    renderAt('/admin/w1/seating');
+    renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
     expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
@@ -458,7 +496,7 @@ describe('seating tab', () => {
         return json(200, seating);
       },
     });
-    renderAt('/admin/w1/seating');
+    renderAt('/admin/w1/wedding/seating');
     fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
     await userEvent.selectOptions(screen.getByLabelText('Table 1 type'), 'long');
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
@@ -474,7 +512,7 @@ describe('photos tab', () => {
       { id: 'a3', by: 'Ivy', at: '2026-10-01T00:00:00.000Z', bytes: 10, type: 'image/jpeg', url: '/api/a/w/w1/photos/a3' },
     ];
     mockApi({ '/api/a/w/w1/photos': () => json(200, { enabled: true, items }) });
-    renderAt('/admin/w1/photos');
+    renderAt('/admin/w1/wedding/photos');
     expect(await screen.findByRole('heading', { name: '3 photos from 2 guests' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Robin · 1' }));
     expect(screen.getAllByRole('img')).toHaveLength(1);
@@ -483,7 +521,7 @@ describe('photos tab', () => {
 
   it('says how to switch storage on when it is off', async () => {
     mockApi({ '/api/a/w/w1/photos': () => json(200, { enabled: false, items: [] }) });
-    renderAt('/admin/w1/photos');
+    renderAt('/admin/w1/wedding/photos');
     expect(await screen.findByText("Guests can't add photos yet.")).toBeInTheDocument();
   });
 });
@@ -505,7 +543,7 @@ describe('seating publish', () => {
         return json(200, { ...base, version: 5, published: { at: '2026-10-19T05:00:00.000Z', changes: 0 } });
       },
     });
-    renderAt('/admin/w1/seating');
+    renderAt('/admin/w1/wedding/seating');
     expect(await screen.findByText(/Not published yet/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Publish to guests' }));
     await waitFor(() => expect(v).toBe('4'));
@@ -515,7 +553,7 @@ describe('seating publish', () => {
 
   it('saved changes since publishing are counted; publishing waits for unsaved edits to be saved', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, { ...base, published: { at: '2026-10-19T05:00:00.000Z', changes: 2 } }) });
-    renderAt('/admin/w1/seating');
+    renderAt('/admin/w1/wedding/seating');
     expect(await screen.findByText(/2 saved changes are not live yet/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: 'Line up tables' })); // an unsaved edit
@@ -530,7 +568,7 @@ describe('send without SMS', () => {
     mockApi({ '/api/a/w/w1/guests': () => json(200, { events, guests, links }) });
     const opened: string[] = [];
     vi.spyOn(window, 'open').mockImplementation((u) => (opened.push(String(u)), null));
-    renderAt('/admin/w1/guests?show=all');
+    renderAt('/admin/w1/wedding/guests?show=all');
     await userEvent.click(await screen.findByRole('button', { name: 'Send without SMS' }));
     expect(screen.getByText(/1 guest can't get texts/)).toBeInTheDocument();
     expect(screen.getByText(/g=g2/)).toBeInTheDocument(); // Jo Banks has no mobile

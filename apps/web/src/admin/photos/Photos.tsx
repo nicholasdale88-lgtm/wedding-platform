@@ -158,7 +158,7 @@ export function Photos() {
                 aria-label="Select photo"
                 aria-pressed={on}
                 onClick={() => setSel((s) => (on ? new Set([...s].filter((x) => x !== p.id)) : new Set([...s, p.id])))}
-                className={`absolute top-2 left-2 w-[26px] h-[26px] rounded-full border-2 border-[#fbf8f2] cursor-pointer text-[13px] ${on ? 'bg-[#5d6b47] text-[#fbf8f2]' : 'bg-[rgba(51,64,47,.35)] text-transparent'}`}
+                className={`absolute top-2 left-2 w-[26px] h-[26px] rounded-full border-2 border-[#fbf8f2] cursor-pointer text-[13px] ${on ? 'bg-[var(--adm-accent,#5d6b47)] text-[#fbf8f2]' : 'bg-[rgba(51,64,47,.35)] text-transparent'}`}
               >
                 ✓
               </button>

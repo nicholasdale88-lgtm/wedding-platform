@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { lazy, Suspense, useState } from 'react';
+import { createBrowserRouter, Navigate, Route, RouterProvider, Routes } from 'react-router-dom';
 import { GuestNotFound } from './guest/GuestMessage';
 
 // Guests and the couple download separate code: a guest opening their invitation never loads the admin.
@@ -10,24 +10,28 @@ const PhotoPage = lazy(() => import('./guest/photos/PhotoPage').then((m) => ({ d
 const BoardPage = lazy(() => import('./guest/board/BoardPage').then((m) => ({ default: m.BoardPage })));
 const PartyPage = lazy(() => import('./guest/party/PartyPage').then((m) => ({ default: m.PartyPage })));
 
-export function App() {
+function Pages() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />}>
-        <Routes>
-          <Route path="/admin/*" element={<AdminRoot />} />
-          <Route path="/w/:slug" element={<InvitationPage />} />
-          <Route path="/w/:slug/tomorrow" element={<GuidePage />} />
-          <Route path="/w/:slug/tomorrow/:event" element={<GuidePage />} />
-          <Route path="/w/:slug/photos" element={<PhotoPage />} />
-          <Route path="/w/:slug/photos/:event" element={<PhotoPage />} />
-          <Route path="/w/:slug/board" element={<BoardPage />} />
-          <Route path="/w/:slug/party" element={<PartyPage />} />
-          <Route path="/" element={<Navigate to="/admin" replace />} />
-          {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
-          <Route path="*" element={<GuestNotFound />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <Suspense fallback={<div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />}>
+      <Routes>
+        <Route path="/admin/*" element={<AdminRoot />} />
+        <Route path="/w/:slug" element={<InvitationPage />} />
+        <Route path="/w/:slug/tomorrow" element={<GuidePage />} />
+        <Route path="/w/:slug/tomorrow/:event" element={<GuidePage />} />
+        <Route path="/w/:slug/photos" element={<PhotoPage />} />
+        <Route path="/w/:slug/photos/:event" element={<PhotoPage />} />
+        <Route path="/w/:slug/board" element={<BoardPage />} />
+        <Route path="/w/:slug/party" element={<PartyPage />} />
+        <Route path="/" element={<Navigate to="/admin" replace />} />
+        {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
+        <Route path="*" element={<GuestNotFound />} />
+      </Routes>
+    </Suspense>
   );
+}
+
+/** A data router, so the admin can ask before leaving unsaved work (menu, links and the browser's Back). */
+export function App() {
+  const [router] = useState(() => createBrowserRouter([{ path: '*', element: <Pages /> }]));
+  return <RouterProvider router={router} />;
 }

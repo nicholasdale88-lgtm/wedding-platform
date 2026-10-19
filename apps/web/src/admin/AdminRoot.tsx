@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
 import { coupleName } from '../lib/remember';
 import { GuestPlanningBar } from './GuestPlanning';
@@ -14,11 +14,10 @@ import { Budget } from './planner/Budget';
 import { Vendors } from './planner/Vendors';
 import { Assistant } from './planner/Assistant';
 import { Seating } from './seating/Seating';
-
 import { SmsTab } from './texts/SmsTab';
 import { Messages } from './messages/Messages';
-import { AdminDataProvider, Shell, TABS } from './Shell';
-import { Eyebrow, ToastProvider } from './ui';
+import { ACCOUNT, ALL_EVENTS, AdminDataProvider, lastSection, Shell, TABS, useAdmin } from './Shell';
+import { Eyebrow, Loading, Pill, ToastProvider } from './ui';
 
 type State = { kind: 'loading' } | { kind: 'signed-out' } | { kind: 'signed-in'; me: Me } | { kind: 'error'; message: string };
 
@@ -57,25 +56,88 @@ export function AdminRoot() {
   return (
     <ToastProvider>
       <Routes>
-        <Route index element={me.weddings.length === 1 ? <Navigate to={`${me.weddings[0]!.id}/overview`} replace /> : <WeddingPicker me={me} onSignOut={signOut} />} />
-        <Route path=":wid" element={<Navigate to="overview" replace />} />
-        <Route path=":wid/:tab" element={<WeddingAdmin me={me} onSignedOut={signedOut} onSignOut={signOut} />} />
+        <Route index element={me.weddings.length === 1 ? <Navigate to={me.weddings[0]!.id} replace /> : <WeddingPicker me={me} onSignOut={signOut} />} />
+        <Route path=":wid" element={<Remembered />} />
+        <Route path=":wid/:tab" element={<OldAddress />} />
+        <Route path=":wid/:section/:tab" element={<WeddingAdmin me={me} onSignedOut={signedOut} onSignOut={signOut} />} />
       </Routes>
     </ToastProvider>
   );
 }
 
+/** /admin/:wid opens the section last used on this device. */
+function Remembered() {
+  const { wid = '' } = useParams();
+  return <Navigate to={`/admin/${wid}/${lastSection(wid)}/overview`} replace />;
+}
+
+/** Addresses from before the section was in them (/admin/:wid/:tab), or a bare section (/admin/:wid/brunch). */
+function OldAddress() {
+  const { wid = '', tab = '' } = useParams();
+  const { search } = useLocation();
+  if (!TABS.some((t) => t.key === tab)) return <Navigate to={`/admin/${wid}/${tab}/overview`} replace />;
+  return <Navigate to={`/admin/${wid}/${lastSection(wid)}/${tab}${search}`} replace />;
+}
+
+/** Pages that belong to Account only, or to an event only; the rest (Overview, SMS) exist in both. */
+const ACCOUNT_ONLY = new Set<string>(['messages', 'budget', 'vendors', 'assistant', 'settings', 'events']);
+const EVENT_ONLY = new Set<string>(['guests', 'dietary', 'seating', 'party', 'photos', 'pages']);
+
 function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () => void; onSignOut: () => void }) {
-  const { wid = '', tab = 'overview' } = useParams();
+  const { wid = '', section = ACCOUNT, tab = 'overview' } = useParams();
   if (!me.weddings.some((w) => w.id === wid)) return <Navigate to="/admin" replace />;
-  const known = TABS.find((t) => t.key === tab);
   return (
-    <AdminDataProvider wid={wid} onSignedOut={onSignedOut}>
+    <AdminDataProvider wid={wid} section={section} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
-        {tab === 'overview' ? <Overview /> : tab === 'messages' ? <Messages /> : tab === 'events' ? <Navigate to={`/admin/${wid}/overview`} replace /> : tab === 'guests' ? <Planning><Guests /></Planning> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsTab /> : tab === 'settings' ? <Navigate to={`/admin/${wid}/texts`} replace /> : tab === 'dietary' ? <Planning><Dietary /></Planning> : tab === 'seating' ? <Planning><Seating /></Planning> : tab === 'photos' ? <Photos /> : tab === 'party' ? <Party /> : tab === 'budget' ? <Budget /> : tab === 'vendors' ? <Vendors /> : tab === 'assistant' ? <Assistant /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
+        <SectionPage section={section} tab={tab} />
       </Shell>
     </AdminDataProvider>
   );
+}
+
+/**
+ * The page for /admin/:wid/:section/:tab. An address that doesn't fit (an event that was removed, an event
+ * page asked for in Account, an Account page in an event, an old name) is corrected, keeping its filters.
+ */
+function SectionPage({ section, tab }: { section: string; tab: string }) {
+  const { overview: o, path } = useAdmin();
+  const { search } = useLocation();
+  if (tab === 'settings') return <Navigate to={path('texts', ALL_EVENTS)} replace />;
+  if (tab === 'events') return <Navigate to={path('overview', ALL_EVENTS)} replace />;
+  if (!TABS.some((t) => t.key === tab)) return <Navigate to={path('overview')} replace />;
+  if (section !== ACCOUNT && ACCOUNT_ONLY.has(tab)) return <Navigate to={path(tab, ALL_EVENTS) + search} replace />;
+  if (o && section !== ACCOUNT && !o.events.some((e) => e.key === section)) return <Navigate to={path('overview', ALL_EVENTS)} replace />;
+  if (section === ACCOUNT && EVENT_ONLY.has(tab)) {
+    if (!o) return <Loading />;
+    const first = o.events[0]?.key;
+    return <Navigate to={first ? path(tab, first) + search : path('overview')} replace />;
+  }
+  switch (tab) {
+    case 'overview':
+      return <Overview />;
+    case 'messages':
+      return <Messages />;
+    case 'guests':
+      return <Planning><Guests /></Planning>;
+    case 'dietary':
+      return <Planning><Dietary /></Planning>;
+    case 'seating':
+      return <Planning><Seating /></Planning>;
+    case 'pages':
+      return <GuestPages />;
+    case 'texts':
+      return <SmsTab />;
+    case 'photos':
+      return <Photos />;
+    case 'party':
+      return <Party />;
+    case 'budget':
+      return <Budget />;
+    case 'vendors':
+      return <Vendors />;
+    default:
+      return <Assistant />;
+  }
 }
 
 /** Guest list, Dietary and Seating share the Guest planning switcher. */
@@ -88,19 +150,6 @@ function Planning({ children }: { children: ReactNode }) {
   );
 }
 
-/** Tabs still being built show where they are in the plan, rather than a blank page. */
-function Building({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col gap-[14px]">
-      <Eyebrow>{label}</Eyebrow>
-      <h1 className="m-0 font-display font-medium text-[40px] leading-[1.08]">Being built next</h1>
-      <p className="m-0 max-w-[560px] text-[15px] text-[#5b6a52]">
-        This part of the admin is on its way. Overview and Guests are working now; the rest arrive one by one, each live here as soon as it is ready.
-      </p>
-    </div>
-  );
-}
-
 function WeddingPicker({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
   return (
     <main className="min-h-screen p-6 max-w-[1180px] mx-auto">
@@ -109,14 +158,14 @@ function WeddingPicker({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
       <ul className="list-none p-0 mt-4 flex flex-col">
         {me.weddings.map((w) => (
           <li key={w.id} className="py-3 border-t border-[#e2d7bc]">
-            <Link to={`${w.id}/overview`} className="font-script text-[30px] leading-[1.15] no-underline !text-[#33402f]">{coupleName(w)}</Link>
+            <Link to={w.id} className="font-script text-[30px] leading-[1.15] no-underline !text-[#33402f]">{coupleName(w)}</Link>
           </li>
         ))}
         {me.weddings.length === 0 && <li className="py-3 border-t border-[#e2d7bc] text-[#5b6a52]">No weddings on this account yet.</li>}
       </ul>
-      <button onClick={onSignOut} className="mt-4 py-[10px] px-[18px] rounded-full border border-[#c6b794] bg-transparent text-[14px] font-medium cursor-pointer hover:bg-[#efe7d3]">
+      <Pill onClick={onSignOut} className="mt-4">
         Sign out
-      </button>
+      </Pill>
     </main>
   );
 }

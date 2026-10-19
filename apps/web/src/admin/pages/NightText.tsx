@@ -2,6 +2,7 @@ import { zonedToUtc } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, textsApi, type Campaign, type Estimate, type TextsData } from '../../lib/api';
 import { fmtWhen, toLocalInput } from '../../lib/format';
+import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { eventOf } from '../texts/SmsMessages';
 import { inputCls, Pill, useToast } from '../ui';
@@ -106,6 +107,7 @@ function NightCard({ c, tz, startsAt, onChanged }: { c: Campaign; tz: string; st
     }
   };
   const dirty = body !== c.body || (next ? toLocalInput(next, tz) : '') !== when;
+  useUnsavedChanges(dirty);
   const sent = c.slots.some((s) => s.status === 'sent');
 
   return (

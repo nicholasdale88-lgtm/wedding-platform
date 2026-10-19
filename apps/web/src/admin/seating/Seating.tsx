@@ -5,7 +5,8 @@ import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData }
 import { fileName } from '../../lib/csv';
 import { downloadDressed } from '../exportLook';
 import { fmtWhen } from '../../lib/format';
-import { ALL_EVENTS, leaveGuard, useAdmin } from '../Shell';
+import { useUnsavedChanges } from '../leave';
+import { ALL_EVENTS, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
@@ -79,17 +80,8 @@ export function Seating() {
     return () => document.removeEventListener('keydown', onKey);
   }, [undo, redo]);
 
-  // Leaving with unsaved seating asks first: closing the page, or switching section in the menu.
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener('beforeunload', warn);
-    leaveGuard.current = () => window.confirm('You have seating changes that are not saved. Leave without saving them?');
-    return () => {
-      window.removeEventListener('beforeunload', warn);
-      leaveGuard.current = null;
-    };
-  }, [dirty]);
+  // Leaving with unsaved seating asks first: the menu, links, Back, or closing the page.
+  useUnsavedChanges(dirty, 'You have seating changes that are not saved. Leave without saving them?');
 
   const byTable = useMemo(() => {
     const m = new Map<string, Person[]>();

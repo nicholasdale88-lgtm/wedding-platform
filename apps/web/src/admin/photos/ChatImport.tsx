@@ -123,7 +123,7 @@ export function ChatImport({ wid, events, event: fixed, onDone }: { wid: string;
       {progress && (
         <div role="status" className="flex flex-col gap-1">
           <div className="h-[6px] rounded-full bg-[#e2d7bc] overflow-hidden">
-            <div className="h-full bg-[#5d6b47] transition-[width]" style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }} />
+            <div className="h-full bg-[var(--adm-accent,#5d6b47)] transition-[width]" style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }} />
           </div>
           <span className="text-[13px] text-[#5b6a52]">
             {busy ? `Adding ${progress.done} of ${progress.total}…` : `Done: ${progress.added} added${progress.repeat ? `, ${progress.repeat} already there` : ''}${progress.failed ? `, ${progress.failed} could not be added` : ''}.`}

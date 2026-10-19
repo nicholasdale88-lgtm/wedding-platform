@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAdmin } from './Shell';
+import { tabCls } from './ui';
 
 /**
  * Guest planning: the guest list, dietary needs and seating are one piece of work, so they share one
@@ -7,7 +8,7 @@ import { useAdmin } from './Shell';
  * only where the event has a plan (both switch on in Setup → Details), as before.
  */
 export function GuestPlanningBar() {
-  const { wid, overview: o, event } = useAdmin();
+  const { overview: o, event, path } = useAdmin();
   const f = o?.perEvent?.find((x) => x.key === event);
   const tabs = [
     { key: 'guests', label: 'Guest list' },
@@ -16,14 +17,12 @@ export function GuestPlanningBar() {
   ];
   if (tabs.length < 2) return null;
   return (
-    <nav aria-label="Guest planning" className="flex gap-6 border-b border-[#e2d7bc] -mt-1">
+    <nav aria-label="Guest planning" className="flex gap-6 border-b border-[#e2d7bc] -mt-1 overflow-x-auto [scrollbar-width:none]">
       {tabs.map((t) => (
         <NavLink
           key={t.key}
-          to={`/admin/${wid}/${t.key}`}
-          className={({ isActive }) =>
-            `py-2 border-0 border-b-2 border-solid no-underline text-[15px] -mb-px ${isActive ? 'border-[#33402f] font-semibold !text-[#33402f]' : 'border-transparent !text-[#5b6a52] hover:!text-[#33402f]'}`
-          }
+          to={path(t.key)}
+          className={({ isActive }) => tabCls(isActive)}
         >
           {t.label}
         </NavLink>

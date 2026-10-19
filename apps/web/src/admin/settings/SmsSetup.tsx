@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, settingsApi, textsApi, type SettingsData, type SettingsPut } from '../../lib/api';
+import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
 
 /**
- * Admin → SMS setup (design: isSettings). Set once and left alone: your sender number and mobile,
+ * Account → Texting setup (design: isSettings). Set once and left alone: your sender number and mobile,
  * pause, sending hours, daily limit, the opt-out line, automatic replies, the price per text and
  * what the whole plan costs; plus a full backup and changing your passcode.
  */
@@ -30,13 +31,15 @@ export function SmsSetup() {
     }
   }, [wid]);
   useEffect(() => void load(), [load]);
+  useUnsavedChanges(Object.keys(draft).length > 0);
 
   const save = async (body: SettingsPut, done = 'Saved') => {
     if (!s) return;
     setBusy(true);
     try {
       setS(await settingsApi.save(wid, s.version, body));
-      setDraft({});
+      // Only what was saved leaves the draft: Pause all texts keeps your other edits waiting for Save.
+      setDraft((d) => Object.fromEntries(Object.entries(d).filter(([k]) => !(k in body))) as SettingsPut);
       toast(done);
       void reloadOverview();
     } catch (e) {
@@ -58,7 +61,7 @@ export function SmsSetup() {
   return (
     <div className="flex flex-col gap-7 max-w-[1000px]">
       <header>
-        <Eyebrow>Account · SMS setup</Eyebrow>
+        <Eyebrow>Account · Texting setup</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Automatic texts for a few cents each</h1>
         <p className="m-0 mt-2 max-w-[640px] text-[15px] text-[#5b6a52]">
           Texts go out through {s.provider}, an Australian SMS provider: you only pay for the texts you send, and guests can text YES or NO straight back to your number.

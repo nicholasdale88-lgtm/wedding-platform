@@ -17,7 +17,7 @@ import { Eyebrow, inputCls, Pill, useAutoRefresh, useToast } from '../ui';
 const coming = (g: Guest, e: EventInfo) => g.invited.includes(e.key) && g.rsvp[e.key]?.attending === true;
 
 export function Dietary() {
-  const { wid, overview, event: chosen } = useAdmin();
+  const { wid, overview, event: chosen, path } = useAdmin();
   const section = useSectionName();
   const navigate = useNavigate();
   const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[] } | null>(null);
@@ -55,7 +55,7 @@ export function Dietary() {
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!data || !view) return <div aria-busy="true" className="text-[#5b6a52]">Loading dietary needs…</div>;
 
-  const open = (g: Guest) => navigate(`/admin/${wid}/guests?g=${g.id}`);
+  const open = (g: Guest) => navigate(path(`guests?g=${g.id}`));
   const shown = view.focus ? [view.focus] : data.events;
   const catered = shown.filter((e) => e.catered);
   const mealEvent = catered.find((e) => e.hasSeating) ?? catered[0];

@@ -26,6 +26,7 @@ export function Guests() {
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
   const [manual, setManual] = useState(false);
+  const [fresh, setFresh] = useState(''); // the guest "Add guest" just made
 
   const load = useCallback(async () => {
     try {
@@ -73,6 +74,7 @@ export function Guests() {
     try {
       const d = await api.addGuest(wid, focusEv ? [focusEv.key] : undefined);
       await changed();
+      setFresh(d.guest.id);
       set({ g: d.guest.id });
     } catch (e) {
       toast((e as Error).message);
@@ -273,6 +275,7 @@ export function Guests() {
           wid={wid}
           id={open}
           tz={tz}
+          isNew={open === fresh}
           onClose={() => set({ g: '' })}
           onChanged={changed}
         />

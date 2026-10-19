@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtEvent, fmtWhen, shortLabel } from '../lib/format';
 import { Events } from './events/Events';
-import { useAdmin } from './Shell';
-import { Eyebrow, H2 } from './ui';
+import { useAdmin, useSectionOverview } from './Shell';
+import { ErrorState, Eyebrow, H2, Loading } from './ui';
 
 const pc = (n: number, total: number) => `${total ? ((n / total) * 100).toFixed(1) : 0}%`;
 const dot = (bg: string, border?: string) => (
@@ -11,15 +11,14 @@ const dot = (bg: string, border?: string) => (
 
 /** design/RSVP Admin.dc.html → Overview. */
 export function Overview() {
-  const { wid, overview: o, error, setEvent } = useAdmin();
+  const { error, reload, path } = useAdmin();
+  // Figures for the section in the address only: while another section's are still on screen, this is loading.
+  const o = useSectionOverview();
   const go = useNavigate();
-  /** Open a page in the right section of the menu (an event's guests, Account's SMS setup…). */
-  const to = (link: string, event?: string) => {
-    if (event) setEvent(event);
-    go(`/admin/${wid}/${link}`);
-  };
-  if (error) return <p role="alert" className="text-[#8a5a45]">{error}</p>;
-  if (!o) return <div aria-busy="true" className="min-h-[60vh]" />;
+  /** Open a page in the right section of the menu (an event's guests, Account's texting setup…). */
+  const to = (link: string, event?: string) => go(path(link, event));
+  if (error && !o) return <ErrorState message={error} onRetry={() => void reload()} />;
+  if (!o) return <Loading />;
   const tz = o.wedding.timezone;
   // The event switcher: figures are about the event being looked at.
   const shown = o.focus ? o.events.filter((e) => e.key === o.focus) : o.events;
@@ -31,7 +30,7 @@ export function Overview() {
   const figures = [
     ...shown.map((e) => ({ label: shortLabel(e.name), val: e.coming, sub: 'guests coming', link: `guests?filter=attending:${e.key}`, event: e.key })),
     { label: 'Awaiting', val: o.awaiting, sub: 'invitations to reply', link: `guests?${all}filter=awaiting`, event: home },
-    { label: 'Dietary', val: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, link: 'dietary', event: home },
+    { label: 'Dietary', val: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, link: 'dietary', event: o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home },
   ];
 
   return (
@@ -99,7 +98,7 @@ export function Overview() {
                 </dl>
                 <button
                   type="button"
-                  onClick={() => setEvent(e.key)}
+                  onClick={() => to('overview', e.key)}
                   className="self-start py-2 px-[14px] rounded-full border border-[#33402f] bg-transparent text-[13px] font-medium cursor-pointer hover:bg-[#33402f] hover:text-[#f3ecd6]"
                 >
                   Open {e.name}
@@ -197,7 +196,7 @@ function GettingStarted({ o, to }: { o: NonNullable<ReturnType<typeof useAdmin>[
           <li key={s.title} className="grid grid-cols-[28px_minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[#ece3cc]">
             <span
               aria-label={s.done ? 'Done' : 'To do'}
-              className={`w-[24px] h-[24px] rounded-full flex items-center justify-center text-[13px] font-semibold ${s.done ? 'bg-[#5d6b47] text-[#f3ecd6]' : 'border-[1.5px] border-[#c6b794] text-[#5b6a52]'}`}
+              className={`w-[24px] h-[24px] rounded-full flex items-center justify-center text-[13px] font-semibold ${s.done ? 'bg-[var(--adm-accent,#5d6b47)] text-[#f3ecd6]' : 'border-[1.5px] border-[#c6b794] text-[#5b6a52]'}`}
             >
               {s.done ? '✓' : i + 1}
             </span>

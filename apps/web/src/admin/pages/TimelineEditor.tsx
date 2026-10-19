@@ -5,7 +5,7 @@ import { inputCls, Label } from '../ui';
 import { ORIGINAL } from './Wording';
 
 /**
- * Admin → Guest pages → Timeline: the invitation's "Order of events".
+ * An event's Setup → Timeline: the invitation's "Order of events".
  * Settings (heading, title, date line, 12/24-hour clock) apply either way. Off, guests see the design's
  * rows (their words editable under "Every word"); on, the couple's own moments, drawn the same way:
  * real time pickers, a library of common moments, icons to pick from, a place for each moment,

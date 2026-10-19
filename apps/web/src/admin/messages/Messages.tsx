@@ -177,11 +177,19 @@ export function Messages() {
   );
 }
 
+/** Replies being written, per conversation: switching to another guest and back keeps yours. */
+const drafts = new Map<string, string>();
+
 function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const [c, setC] = useState<Conversation | null>(null);
-  const [text, setText] = useState('');
+  const [text, setTextState] = useState(() => drafts.get(inv) ?? '');
+  const setText = (v: string) => {
+    setTextState(v);
+    if (v) drafts.set(inv, v);
+    else drafts.delete(inv);
+  };
   const [sms, setSms] = useState(false);
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
@@ -196,6 +204,22 @@ function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () =
     }
   }, [wid, inv]); // eslint-disable-line
   useEffect(() => void load(), [load]);
+  // The open conversation stays current too; the list and badges reload only when something new arrived.
+  const shown = useRef(-1);
+  useEffect(() => {
+    shown.current = c ? c.messages.length : -1;
+  }, [c]);
+  const refresh = useCallback(async () => {
+    try {
+      const conv = await messagesApi.open(wid, inv);
+      const grew = shown.current >= 0 && conv.messages.length !== shown.current;
+      setC(conv);
+      if (grew) onChanged();
+    } catch {
+      /* next time */
+    }
+  }, [wid, inv]); // eslint-disable-line
+  useAutoRefresh(refresh, 15_000);
   useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [c?.messages.length]);
 
   const send = async () => {

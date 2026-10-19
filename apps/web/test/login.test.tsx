@@ -1,18 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { AdminRoot } from '../src/admin/AdminRoot';
 import { overviewFixture } from './fixtures';
 
-const renderAdmin = () =>
-  render(
-    <MemoryRouter initialEntries={['/admin']}>
-      <Routes>
-        <Route path="/admin/*" element={<AdminRoot />} />
-      </Routes>
-    </MemoryRouter>,
-  );
+const renderAdmin = () => render(<RouterProvider router={createMemoryRouter([{ path: '/admin/*', element: <AdminRoot /> }], { initialEntries: ['/admin'] })} />);
 
 const ME = {
   user: { id: 'u1', email: 'owner@example.com', superAdmin: false },

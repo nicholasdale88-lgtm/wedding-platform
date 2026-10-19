@@ -1,5 +1,5 @@
 import { joinDiet } from '@wp/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { groupSuggestions } from './groups';
@@ -14,8 +14,11 @@ const SEG: [boolean | null, string, string, string][] = [
 ];
 const VIA: Record<string, string> = { invitation: 'Invitation', sms: 'Text reply', admin: 'Entered by you' };
 
-/** design/RSVP Admin.dc.html → guest drawer. Text fields save when you leave them; buttons save straight away. */
-export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; id: string; tz: string; onClose: () => void; onChanged: () => Promise<void> }) {
+/**
+ * design/RSVP Admin.dc.html → guest drawer. Text fields save when you leave them; buttons save straight away.
+ * `isNew`: just made by "Add guest", so closing it with nothing filled in removes it again.
+ */
+export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: { wid: string; id: string; tz: string; isNew?: boolean; onClose: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast();
   const { overview } = useAdmin();
   const [d, setD] = useState<GuestDetail | null>(null);
@@ -27,8 +30,12 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
   const [message, setMessage] = useState('');
   const [pick, setPick] = useState('');
   const [busy, setBusy] = useState(false);
+  // Saves run one after another, each with the version the previous one returned (never a stale one).
+  const latest = useRef<GuestDetail | null>(null);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
 
   const fill = useCallback((x: GuestDetail) => {
+    latest.current = x;
     setD(x);
     setNames(x.guest.people.map((p) => p.name));
     setPhone(x.guest.phoneDisplay);
@@ -49,10 +56,16 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
     void load();
   }, [load]);
 
-  /** Run a save; on success refresh from the server's answer, on a clash reload. */
-  async function save(run: () => Promise<GuestDetail>) {
+  /** Queue a save; on success refresh from the server's answer, on a clash reload. */
+  function save(run: (g: GuestDetail['guest']) => Promise<GuestDetail>) {
+    const next = queue.current.then(() => saveNow(run));
+    queue.current = next;
+    return next;
+  }
+  async function saveNow(run: (g: GuestDetail['guest']) => Promise<GuestDetail>) {
+    if (!latest.current) return;
     try {
-      fill(await run());
+      fill(await run(latest.current.guest));
       toast('Saved');
       await onChanged();
     } catch (e) {
@@ -66,17 +79,33 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
       }
     }
   }
-  const patch = (p: GuestPatch) => d && save(() => api.patchGuest(wid, d.guest, p));
-  const rsvp = (r: RsvpPut) => d && save(() => api.putRsvp(wid, d.guest, r));
+  const patch = (p: GuestPatch) => save((g) => api.patchGuest(wid, g, p));
+  const rsvp = (r: RsvpPut) => save((g) => api.putRsvp(wid, g, r));
+
+  /** Close once pending saves are sent; a new guest left blank (no name, no mobile) is removed, not kept empty. */
+  const close = () => {
+    onClose();
+    if (!isNew) return;
+    void queue.current.then(async () => {
+      const g = latest.current?.guest;
+      if (!g || g.phone || g.people.some((p) => p.name.trim())) return;
+      try {
+        await api.removeGuest(wid, g.id);
+        await onChanged();
+      } catch {
+        /* it stays in the list, and can be removed there */
+      }
+    });
+  };
 
   if (error) {
     return (
-      <Drawer onClose={onClose} label="Guest">
+      <Drawer onClose={close} label="Guest">
         <p role="alert" className="text-[#8a5a45]">{error}</p>
       </Drawer>
     );
   }
-  if (!d) return <Drawer onClose={onClose} label="Guest"><div aria-busy="true" /></Drawer>;
+  if (!d) return <Drawer onClose={close} label="Guest"><div aria-busy="true" /></Drawer>;
 
   const g = d.guest;
   const events = d.events;
@@ -162,14 +191,14 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
       : events.map((e) => [e.key, shortLabel(e.name), g.invited.includes(e.key) ? g.invited.filter((k) => k !== e.key) : [...g.invited, e.key]]);
 
   return (
-    <Drawer onClose={onClose} label={`Guest: ${g.people[0]?.name || 'New guest'}`}>
+    <Drawer onClose={close} label={`Guest: ${g.people[0]?.name || 'New guest'}`}>
       <div className="flex justify-between items-start gap-3">
         <div>
           <Eyebrow>Guest</Eyebrow>
           <h2 className="mt-1 mb-0 font-display font-medium text-[32px] leading-[1.1]">{g.people[0]?.name || 'New guest'}</h2>
           <div className="mt-1 text-[13px] text-[#5b6a52]">{g.repliedAt ? `Replied ${fmtWhen(g.repliedAt, tz)} · ${VIA[lastVia] ?? lastVia}` : 'No reply yet'}</div>
         </div>
-        <button onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent text-[18px] leading-none cursor-pointer">×</button>
+        <button onClick={close} aria-label="Close" className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent text-[18px] leading-none cursor-pointer">×</button>
       </div>
 
       <section className="flex flex-col gap-3">

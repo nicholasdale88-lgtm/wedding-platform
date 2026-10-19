@@ -1,7 +1,9 @@
 import { zonedToUtc } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ApiError, eventsApi, type EventFull, type EventQuestion, type EventsData } from '../../lib/api';
 import { fmtEvent, toLocalInput } from '../../lib/format';
+import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
 
@@ -37,7 +39,8 @@ const keyOf = (label: string, taken: string[]) => {
  * Neither: the full list (the Events page).
  */
 export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } = {}) {
-  const { wid, reload: reloadNav, setEvent } = useAdmin();
+  const { wid, reload: reloadNav, path } = useAdmin();
+  const go = useNavigate();
   const toast = useToast();
   const [data, setData] = useState<EventsData | null>(null);
   const [error, setError] = useState('');
@@ -123,7 +126,7 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
           try {
             const r = await eventsApi.add(wid, { name, startsAt: zonedToUtc(local, tz).toISOString(), inviteEveryone });
             await done(r.events, `${name} added`);
-            setEvent(r.added); // straight into the new event's own section
+            go(path('overview', r.added)); // straight into the new event's own section
             return true;
           } catch (err) {
             await fail(err);
@@ -140,6 +143,7 @@ function EventCard({ e, tz, onSave, onRemove }: { e: EventFull; tz: string; onSa
   const [d, setD] = useState<Draft>(() => draftOf(e, tz));
   const [busy, setBusy] = useState(false);
   const dirty = JSON.stringify(d) !== JSON.stringify(draftOf(e, tz));
+  useUnsavedChanges(dirty);
   const set = (patch: Partial<Draft>) => setD((x) => ({ ...x, ...patch }));
   const setQ = (i: number, patch: Partial<EventQuestion>) => set({ questions: d.questions.map((q, j) => (j === i ? { ...q, ...patch } : q)) });
   const run = async (f: () => Promise<void>) => {

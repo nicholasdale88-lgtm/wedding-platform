@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { inputCls, Label } from '../ui';
 
-/** Form pieces for Admin → Guest pages (design: numbered sections, labelled inputs, row editors with ×). */
+/** Form pieces for an event's Setup (design: numbered sections, labelled inputs, row editors with ×). */
 
 export function Section({ n, title, hint, children }: { n: number | string; title: string; hint: string; children: ReactNode }) {
   return (
