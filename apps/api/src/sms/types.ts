@@ -121,7 +121,7 @@ export interface NewOutbox {
   error?: string | null;
 }
 
-export interface OutboxRow extends NewOutbox {
+export interface OutboxRow extends Omit<NewOutbox, 'status' | 'error'> {
   id: string;
   status: OutboxStatus;
   providerId: string | null;

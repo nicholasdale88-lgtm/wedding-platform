@@ -4,7 +4,7 @@ const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 export function randomToken(length = 22): string {
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   let out = '';
-  for (const b of bytes) out += ALPHABET[b & 63];
+  for (const b of bytes) out += ALPHABET[b & 63]!;
   return out;
 }
 
@@ -13,7 +13,7 @@ export function shortCode(length = 6): string {
   const safe = 'abcdefghjkmnpqrstuvwxyz23456789';
   const bytes = crypto.getRandomValues(new Uint8Array(length));
   let out = '';
-  for (const b of bytes) out += safe[b % safe.length];
+  for (const b of bytes) out += safe[b % safe.length]!;
   return out;
 }
 
