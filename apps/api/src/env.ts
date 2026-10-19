@@ -13,6 +13,10 @@ export interface Env {
   MM_HOOK_SECRET?: string;
   /** Optional HMAC secret from Mobile Message Settings > API. When set, signatures are required. */
   MM_SIGNING_SECRET?: string;
+  /** 32+ random bytes; sessions are stored as HMAC(SESSION_SECRET, token). */
+  SESSION_SECRET?: string;
+  /** Comma-separated emails of platform super-admins. */
+  SUPER_ADMINS?: string;
 }
 
 /** Real dependencies for the SMS engine. Tests build their own. */
