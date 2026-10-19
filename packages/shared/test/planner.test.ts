@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHECK_TEMPLATE, commitmentOf, itemsFor, PACK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, sideOf, Vendor } from '../src/planner';
+import { CHECK_TEMPLATE, commitmentOf, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -48,5 +48,24 @@ describe('vendors', () => {
   });
   it('negative amounts are refused', () => {
     expect(PLANNER_DOCS.vendors.safeParse({ list: [{ id: 'x', name: 'A', quote: -5 }] }).success).toBe(false);
+  });
+});
+
+describe('menus', () => {
+  const special = [
+    { id: 'v', name: 'Vegan', suits: 'vegan, plant based', entree: 'a', main: 'b', dessert: 'c' },
+    { id: 'g', name: 'Gluten free', suits: 'gluten, coeliac', entree: 'd', main: 'e', dessert: 'f' },
+  ];
+  it('a guest is matched to the special menu whose words appear in what they wrote', () => {
+    expect(suggestMenu('Vegan please', special)?.id).toBe('v');
+    expect(suggestMenu('Coeliac (serious)', special)?.id).toBe('g');
+    expect(suggestMenu('gluten-free', special)?.id).toBe('g');
+    expect(suggestMenu('No onion', special)).toBeUndefined();
+    expect(suggestMenu('', special)).toBeUndefined();
+  });
+  it('the couple-side templates are valid', () => {
+    expect(PLANNER_DOCS['event-checklist'].safeParse(PARTY_CHECK_TEMPLATE).success).toBe(true);
+    expect(PLANNER_DOCS['party-p1'].safeParse({ tasks: SIDE_TEMPLATE.p1.map((t, i) => ({ ...t, id: `t${i}` })) }).success).toBe(true);
+    expect(CHECK_TEMPLATE.both.length).toBeGreaterThan(5);
   });
 });

@@ -28,6 +28,22 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
   const [table, setTable] = useState('');
   const [diet, setDiet] = useState('');
   const [message, setMessage] = useState('');
+  // The guest's own words (dietary needs, their message) are locked: "Manual override" unlocks them (remembered here).
+  const [override, setOverride] = useState(() => {
+    try {
+      return localStorage.getItem('wp.admin.override') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleOverride = (on: boolean) => {
+    setOverride(on);
+    try {
+      localStorage.setItem('wp.admin.override', on ? '1' : '0');
+    } catch {
+      /* this visit only */
+    }
+  };
   const [pick, setPick] = useState('');
   const [busy, setBusy] = useState(false);
   // Saves run one after another, each with the version the previous one returned (never a stale one).
@@ -302,11 +318,30 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
               : [],
           )}
         </div>
+        <div className="flex justify-between items-center gap-3 pt-1">
+          <span className="text-[12px] text-[#5b6a52]">{override ? 'Manual override is on: you can change what the guest told you.' : 'What the guest told you (locked so it can’t be changed by accident).'}</span>
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer flex-none">
+            <input type="checkbox" role="switch" checked={override} onChange={(e) => toggleOverride(e.target.checked)} className="w-[18px] h-[18px] accent-[#a5533c]" />
+            Manual override
+          </label>
+        </div>
         <Label text="Dietary requirements">
-          <textarea rows={2} value={diet} onChange={(e) => setDiet(e.target.value)} onBlur={() => diet !== joinDiet(g.people) && void rsvp({ events: {}, diet })} className={`${inputCls} resize-y`} />
+          {override ? (
+            <textarea rows={2} value={diet} onChange={(e) => setDiet(e.target.value)} onBlur={() => diet !== joinDiet(g.people) && void rsvp({ events: {}, diet })} className={`${inputCls} resize-y !border-[#c98a70]`} />
+          ) : (
+            <div aria-readonly="true" className="min-h-[44px] py-[10px] px-3 rounded-[10px] border border-dashed border-[#d3c6a4] bg-[#f6f0e2] text-[15px] whitespace-pre-wrap">
+              {diet.trim() || <span className="text-[#7a7466]">None</span>}
+            </div>
+          )}
         </Label>
         <Label text="Message for the couple">
-          <textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} onBlur={() => message !== (Object.values(g.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '') && void rsvp({ events: {}, message })} className={`${inputCls} resize-y`} />
+          {override ? (
+            <textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} onBlur={() => message !== (Object.values(g.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '') && void rsvp({ events: {}, message })} className={`${inputCls} resize-y !border-[#c98a70]`} />
+          ) : (
+            <div aria-readonly="true" className="min-h-[44px] py-[10px] px-3 rounded-[10px] border border-dashed border-[#d3c6a4] bg-[#f6f0e2] text-[15px] italic whitespace-pre-wrap">
+              {message.trim() ? `“${message.trim()}”` : <span className="not-italic text-[#7a7466]">No message</span>}
+            </div>
+          )}
         </Label>
       </section>
 

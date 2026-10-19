@@ -536,6 +536,41 @@ export const CheckIn = z.object({ arrived: z.record(z.string().max(40), z.number
 export type CheckIn = z.infer<typeof CheckIn>;
 
 /** The planner documents and their shapes (the API validates every save against these). */
+// ---------------------------------------------------------------- menus
+
+/** A menu, course by course. */
+export const Menu = z.object({
+  id: s(40),
+  name: s(80),
+  /** Who it's for, as the guests write it ("vegan, dairy free"): guests are matched to it by these words. */
+  suits: s(200),
+  entree: s(200),
+  main: s(200),
+  dessert: s(200),
+});
+export type Menu = z.infer<typeof Menu>;
+/** An event's menus: the set menu everyone has, the special ones, and the caterer's menus as files. */
+export const Menus = z.object({
+  set: Menu.default({}),
+  special: z.array(Menu).max(20).default([]),
+  files: z.array(z.object({ id: z.string().max(40), name: z.string().max(160) })).max(12).default([]),
+});
+export type Menus = z.infer<typeof Menus>;
+
+/** The special menu that suits what a guest told you (the first whose words appear in it), if any. */
+export function suggestMenu(diet: string, special: Menu[]): Menu | undefined {
+  const d = diet.toLowerCase();
+  if (!d.trim()) return undefined;
+  return special.find((m) =>
+    m.suits
+      .toLowerCase()
+      .split(/[,;/]|\band\b/)
+      .map((w) => w.trim())
+      .filter((w) => w.length > 2)
+      .some((w) => d.includes(w) || d.includes(w.replace(/-/g, ' ')) || d.replace(/-/g, ' ').includes(w)),
+  );
+}
+
 export const PLANNER_DOCS = {
   'party-runsheet': PartyRunsheet,
   'day-checklist': DayChecklist,
@@ -551,5 +586,6 @@ export const PLANNER_DOCS = {
   'party-p2': PartySide,
   'party-help': PartySide, // helpers (MC, ushers): their own to-dos and packing
   'event-checklist': EventChecklist,
+  menus: Menus,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;
