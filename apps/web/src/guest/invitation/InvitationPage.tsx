@@ -34,11 +34,11 @@ export function InvitationPage() {
 }
 
 function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; preview: boolean }) {
-  const { v, t, phase } = useInvitation(slug, data, preview);
+  const { v, t, phase, guestToken, inParty } = useInvitation(slug, data, preview);
   useEffect(() => {
     document.title = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
   }, [data.wedding]);
-  const token = !preview && data.invitation?.token;
+  const token = !preview && guestToken;
   return (
     <>
       <div className="dz">
@@ -47,7 +47,7 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
       {/* Once the envelope is open: a guest with their own link can write to the couple (Account → Messages), and
           the wedding party has a link to their own run sheet. */}
       {token && phase >= 3 && <MessageUs slug={slug} token={token} ink={THEMES[data.wedding.theme]?.dg} />}
-      {token && phase >= 3 && data.invitation?.party && (
+      {token && phase >= 3 && inParty && (
         <a
           href={`/w/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`}
           className="fixed z-40 top-[max(14px,env(safe-area-inset-top))] right-4 py-[9px] px-4 rounded-full text-[15px] no-underline shadow-[0_6px_18px_rgba(30,30,30,.2)]"

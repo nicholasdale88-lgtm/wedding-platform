@@ -38,8 +38,24 @@ const remembered = () => {
   }
 };
 
-/** Kept for callers that only shrink (no filter). */
-export const shrink = (file: Blob) => renderPhoto(file, 'none', null);
+/**
+ * A small copy for the tile once a photo is sent: the full-size original is let go, so adding fifty
+ * photos doesn't run a phone out of memory. Falls back to the original if it can't be drawn.
+ */
+async function thumbOf(file: Blob): Promise<Blob> {
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 360 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k);
+    c.height = Math.round(bmp.height * k);
+    c.getContext('2d')?.drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close();
+    return await new Promise<Blob>((res) => c.toBlob((b) => res(b ?? file), 'image/jpeg', 0.8));
+  } catch {
+    return file;
+  }
+}
 
 const first = (s: string) => s.trim().split(/\s+/)[0] ?? '';
 const longDate = (iso: string, tz: string | undefined) => {
@@ -118,9 +134,16 @@ export function PhotoPage() {
       try {
         const photo = it.pre ? it.file : await renderPhoto(it.file, it.filter, info);
         await guestApi.uploadPhoto(slug, token, by.trim(), photo, ev?.key ?? '');
-        mark(it.id, 'ok');
-      } catch {
+        // Sent: swap the full-size original for a small tile copy.
+        const small = await thumbOf(it.file);
+        const url = URL.createObjectURL(small);
+        URL.revokeObjectURL(it.url);
+        setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, st: 'ok', file: small, url } : x)));
+        itemsRef.current = itemsRef.current.map((x) => (x.id === it.id ? { ...x, st: 'ok', file: small, url } : x));
+      } catch (e) {
         mark(it.id, 'err');
+        // Say why (album closed, too large, not a photo, too many at once), not just "Retry".
+        setErr((e as Error).message);
       }
     }
     running.current = false;

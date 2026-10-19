@@ -412,10 +412,19 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       }
     },
     findGuest: () => void findGuest(),
+    // Someone else on this phone: forget this guest completely (and their link in the address bar).
     notMe: () => {
       setGuest(null);
       setLookup('');
+      setLookErr('');
+      setErr('');
+      setSent(false);
       setForm(formFrom(null, data));
+      if (!preview) {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('g');
+        window.history.replaceState(null, '', u);
+      }
     },
     welcome: guest ? tx('inv.dyn.welcome', { name: names[0] ?? '' }) : '',
     reserved: guest ? (guest.seatsHeld === 1 ? t('inv.dyn.reservedOne') : tx('inv.dyn.reservedMany', { n: guest.seatsHeld })) : '',
@@ -522,6 +531,9 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     v,
     t,
     phase: p,
+    /** The guest this page is for now (null after "Not me"): their link drives Message us. */
+    guestToken: guest?.token ?? null,
+    inParty: !!guest?.party,
     replay: () => {
       phase.current = 0;
       setP(0);
