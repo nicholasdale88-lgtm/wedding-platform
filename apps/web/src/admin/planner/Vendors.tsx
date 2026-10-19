@@ -42,6 +42,7 @@ const newVendor = (over: Partial<Vendor>): Vendor => ({
   contractFileId: '',
   contractFileName: '',
   meals: 0,
+  payments: [],
   ...over,
 });
 const BLANK_QUOTE: Quote = { id: '', amount: 0, deposit: 0, date: '', validUntil: '', includes: '', excludes: '', notes: '', fileId: '', fileName: '', extract: '' };
