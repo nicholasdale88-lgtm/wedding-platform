@@ -72,7 +72,10 @@ describe('photos (admin)', () => {
     const up = (body: Uint8Array, headers: Record<string, string> = {}, ck = cookie) =>
       app.request(`/api/a/w/${wid}/photos/upload?event=wedding`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-Upload': '1', 'X-Photo-By': encodeURIComponent('Alex (group chat)'), cookie: ck, ...headers }, body }, env, ctx);
     const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 9, 9]);
-    const first = (await (await up(PNG)).json()) as { duplicate: boolean };
+    const res1 = await up(PNG);
+    const text1 = await res1.text();
+    expect(res1.status, text1).toBe(200);
+    const first = JSON.parse(text1) as { duplicate: boolean };
     expect(first.duplicate).toBe(false);
     expect(((await (await up(PNG)).json()) as { duplicate: boolean }).duplicate).toBe(true);
     const list = (await (await call(`/a/w/${wid}/photos`)).json()) as { items: { by: string; event: string | null }[] };

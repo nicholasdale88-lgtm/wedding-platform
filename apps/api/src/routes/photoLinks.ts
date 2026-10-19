@@ -117,7 +117,7 @@ export function oauthRoutes() {
       ? await c.env.DB.prepare(`SELECT wedding_id, user_id, provider, created_at FROM oauth_state WHERE id = ?`).bind(state).first<{ wedding_id: string; user_id: string; provider: ProviderKey; created_at: string }>()
       : null;
     if (row) await c.env.DB.prepare(`DELETE FROM oauth_state WHERE id = ?`).bind(state).run(); // used once
-    const back = (q: string) => c.redirect(row ? `${base}/admin/${encodeURIComponent(row.wedding_id)}/photos?${q}` : `${base}/admin`, 302);
+    const back = (q: string) => c.redirect(row ? `${base}/admin/${encodeURIComponent(row.wedding_id)}/photos?${q}` : `${base}/admin?${q}`, 302);
     if (!row || Date.now() - Date.parse(row.created_at) > STATE_MINUTES * 60_000) return back('link_error=expired');
     // Still the same signed-in person who started it (so a link can't be planted on someone else's wedding).
     const token = getCookie(c, SESSION_COOKIE);
