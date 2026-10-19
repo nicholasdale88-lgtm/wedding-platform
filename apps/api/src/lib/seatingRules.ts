@@ -6,13 +6,11 @@
 export const unseatIfNotComing = (db: D1Database, invitationId: string): D1PreparedStatement =>
   db
     .prepare(
-      `UPDATE person SET table_id = NULL
-        WHERE invitation_id = ?1 AND table_id IS NOT NULL
-          AND table_id IN (
-            SELECT t.id FROM seat_table t
-             WHERE t.event_id NOT IN (
-               SELECT r.event_id FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
-                WHERE r.invitation_id = ?1 AND r.attending = 1))`,
+      `DELETE FROM seat
+        WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?1)
+          AND event_id NOT IN (
+            SELECT r.event_id FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
+             WHERE r.invitation_id = ?1 AND r.attending = 1)`,
     )
     .bind(invitationId);
 
@@ -20,10 +18,11 @@ export const unseatIfNotComing = (db: D1Database, invitationId: string): D1Prepa
 export const unseatEveryoneNotComing = (db: D1Database, eventId: string): D1PreparedStatement =>
   db
     .prepare(
-      `UPDATE person SET table_id = NULL
-        WHERE table_id IN (SELECT id FROM seat_table WHERE event_id = ?1)
-          AND invitation_id NOT IN (
-            SELECT r.invitation_id FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
+      `DELETE FROM seat
+        WHERE event_id = ?1
+          AND person_id NOT IN (
+            SELECT p.id FROM person p JOIN rsvp r ON r.invitation_id = p.invitation_id
+              JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
              WHERE r.event_id = ?1 AND r.attending = 1)`,
     )
     .bind(eventId);

@@ -58,7 +58,7 @@ export function seatingRoutes() {
       db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
       db.prepare(
-        `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, p.table_id AS tableId,
+        `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, (SELECT s.table_id FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS tableId,
                 p.meal_entree AS e, p.meal_main AS m, p.meal_dessert AS d, i.party,
                 ie.event_id IS NOT NULL AS invited, r.attending
            FROM person p JOIN invitation i ON i.id = p.invitation_id
@@ -159,13 +159,20 @@ export function seatingRoutes() {
     for (const id of known) {
       if (keep.has(id)) continue;
       stmts.push(db.prepare(`UPDATE seat_table SET deleted_at = ? WHERE id = ?`).bind(now, id));
-      stmts.push(db.prepare(`UPDATE person SET table_id = NULL WHERE table_id = ?`).bind(id));
+      stmts.push(db.prepare(`DELETE FROM seat WHERE table_id = ?`).bind(id));
     }
     stmts.push(db.prepare(`DELETE FROM seat_area WHERE event_id = ?`).bind(ev));
     for (const a of b.areas) {
       stmts.push(db.prepare(`INSERT INTO seat_area (id, wedding_id, event_id, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), ev, a.label, a.x, a.y, a.w, a.h));
     }
-    for (const [pid, tid] of Object.entries(b.seats)) stmts.push(db.prepare(`UPDATE person SET table_id = ? WHERE id = ?`).bind(tid, pid));
+    // Only this event's seats change: the same guest's seat at another event is left alone.
+    for (const [pid, tid] of Object.entries(b.seats)) {
+      stmts.push(
+        tid
+          ? db.prepare(`INSERT INTO seat (person_id, event_id, table_id) VALUES (?1, ?2, ?3) ON CONFLICT (person_id, event_id) DO UPDATE SET table_id = ?3`).bind(pid, ev, tid)
+          : db.prepare(`DELETE FROM seat WHERE person_id = ? AND event_id = ?`).bind(pid, ev),
+      );
+    }
     stmts.push(unseatEveryoneNotComing(db, ev)); // a reply that changed while this was open still wins
     stmts.push(
       db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.save', ?, ?, ?)`).bind(

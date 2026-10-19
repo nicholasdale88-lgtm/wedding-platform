@@ -86,8 +86,13 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
     q(`SELECT id, slug, name1, name2, monogram, theme, timezone, sms_sender, content, guide FROM wedding WHERE id = ? AND deleted_at IS NULL`),
     q(`SELECT id, key, name, pending_label, starts_at, sort, has_seating, catered, questions FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
     q(`SELECT id, phone, seats_held, party, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
-    q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.meal_entree, p.meal_main, p.meal_dessert, t.name AS table_name
-         FROM person p JOIN invitation i ON i.id = p.invitation_id LEFT JOIN seat_table t ON t.id = p.table_id AND t.deleted_at IS NULL
+    // Each person's seat at each event ({ eventKey: table name }); "table" is their first event's.
+    q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.meal_entree, p.meal_main, p.meal_dessert,
+              (SELECT json_group_object(e.key, t.name) FROM seat s JOIN seat_table t ON t.id = s.table_id AND t.deleted_at IS NULL
+                 JOIN event e ON e.id = s.event_id AND e.deleted_at IS NULL WHERE s.person_id = p.id) AS seats,
+              (SELECT t.name FROM seat s JOIN seat_table t ON t.id = s.table_id AND t.deleted_at IS NULL
+                 JOIN event e ON e.id = s.event_id AND e.deleted_at IS NULL WHERE s.person_id = p.id ORDER BY e.sort LIMIT 1) AS table_name
+         FROM person p JOIN invitation i ON i.id = p.invitation_id
         WHERE i.wedding_id = ? AND p.deleted_at IS NULL ORDER BY p.invitation_id, p.idx`),
     q(`SELECT ie.invitation_id, e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id WHERE e.wedding_id = ? AND e.deleted_at IS NULL ORDER BY e.sort`),
     q(`SELECT r.invitation_id, e.key, r.attending, r.count, r.answers, r.message, r.via, r.updated_at FROM rsvp r JOIN event e ON e.id = r.event_id WHERE e.wedding_id = ?`),
@@ -114,6 +119,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
   for (const p of ppl!.results as Record<string, string | number | null>[]) {
     guests.get(String(p.invitation_id))?.people.push({
       id: String(p.id), idx: Number(p.idx), name: String(p.name), diet: String(p.diet ?? ''), table: (p.table_name as string | null) ?? null,
+      tables: json<Record<string, string>>(p.seats as string | null, {}),
       meal: { entree: String(p.meal_entree ?? ''), main: String(p.meal_main ?? ''), dessert: String(p.meal_dessert ?? '') },
     });
   }

@@ -167,10 +167,10 @@ export function buildSeed(input: unknown, o: SeedOptions): Statement[] {
     const dietFor = attachDiet(g.rsvp.diet, people);
     people.forEach((name, idx) => {
       const table = seed.exampleSeating?.seats[`${g.id}:${idx}`];
-      q(
-        `INSERT INTO person (id, invitation_id, idx, name, diet, table_id) VALUES (?, ?, ?, ?, ?, ?)`,
-        newId(), invId, idx, name, idx === dietFor ? g.rsvp.diet.trim() : '', (table && tableIds.get(table)) || null,
-      );
+      const personId = newId();
+      q(`INSERT INTO person (id, invitation_id, idx, name, diet) VALUES (?, ?, ?, ?, ?)`, personId, invId, idx, name, idx === dietFor ? g.rsvp.diet.trim() : '');
+      const tableId = table && tableIds.get(table);
+      if (tableId) q(`INSERT INTO seat (person_id, event_id, table_id) VALUES (?, ?, ?)`, personId, eventIds[0]!, tableId); // the example plan is the first event's
     });
 
     const invited: [string, boolean | null, Record<string, string>][] = [];

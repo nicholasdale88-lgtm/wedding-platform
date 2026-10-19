@@ -74,14 +74,31 @@ describe('seating API', () => {
     expect((await put(s3, { tables: [...s3.tables, { id: other!.id, name: 'Mine now', shape: 'round', dir: 'h', len: 40, x: 1, y: 1, seats: 8 }] })).status).toBe(400);
   });
 
+  it("a guest has a seat at each event: saving the second event's plan leaves the first event's seats alone", async () => {
+    const wedding = await get('?event=wedding');
+    const seated = wedding.people.find((p) => p.tableId)!;
+    // Make them coming to the second event too, then seat them there.
+    const inv = (await t.db.prepare(`SELECT invitation_id FROM person WHERE id = ?`).bind(seated.id).first<{ invitation_id: string }>())!.invitation_id;
+    const second = (await t.db.prepare(`SELECT id FROM event WHERE key = '30th'`).first<{ id: string }>())!.id;
+    await t.db.batch([
+      t.db.prepare(`INSERT OR IGNORE INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(inv, second),
+      t.db.prepare(`INSERT OR REPLACE INTO rsvp (invitation_id, event_id, attending, count, updated_at) VALUES (?, ?, 1, 1, '2026-10-19T00:00:00Z')`).bind(inv, second),
+    ]);
+    const b = await get('?event=30th');
+    const table: Table = { id: crypto.randomUUID(), name: 'Picnic 1', shape: 'round', dir: 'h', len: 40, x: 50, y: 50, seats: 10 };
+    expect((await put(b, { tables: [...b.tables, table], seats: { ...Object.fromEntries(b.people.map((p) => [p.id, p.tableId])), [seated.id]: table.id } })).status).toBe(200);
+    expect((await get('?event=30th')).people.find((p) => p.id === seated.id)!.tableId).toBe(table.id);
+    expect((await get('?event=wedding')).people.find((p) => p.id === seated.id)!.tableId).toBe(seated.tableId); // still there
+  });
+
   it('seating follows replies: declining (by the guest or the couple) or being un-invited frees the seat', async () => {
     const seatedInv = await t.db
       .prepare(
-        `SELECT i.id, i.token FROM invitation i JOIN person p ON p.invitation_id = i.id JOIN seat_table st ON st.id = p.table_id JOIN event e ON e.id = st.event_id
+        `SELECT i.id, i.token FROM invitation i JOIN person p ON p.invitation_id = i.id JOIN seat s ON s.person_id = p.id JOIN event e ON e.id = s.event_id
           WHERE e.key = 'wedding' AND i.deleted_at IS NULL LIMIT 1`,
       )
       .first<{ id: string; token: string }>();
-    const seatedCount = async (id: string) => (await t.db.prepare(`SELECT COUNT(*) AS n FROM person WHERE invitation_id = ? AND table_id IS NOT NULL`).bind(id).first<{ n: number }>())!.n;
+    const seatedCount = async (id: string) => (await t.db.prepare(`SELECT COUNT(*) AS n FROM seat s JOIN person p ON p.id = s.person_id WHERE p.invitation_id = ?`).bind(id).first<{ n: number }>())!.n;
     expect(await seatedCount(seatedInv!.id)).toBeGreaterThan(0);
 
     // The guest declines on their invitation.

@@ -10,6 +10,7 @@ import m0007 from '../../migrations/0007_media_event.sql?raw';
 import m0008 from '../../migrations/0008_messages.sql?raw';
 import m0009 from '../../migrations/0009_board.sql?raw';
 import m0010 from '../../migrations/0010_photo_links.sql?raw';
+import m0011 from '../../migrations/0011_seats_per_event.sql?raw';
 import { CAMPAIGNS, phoneOf, SENDER, ADMIN } from './fixture';
 import { TZ } from './fakes';
 
@@ -17,7 +18,7 @@ import { TZ } from './fakes';
 export async function testD1() {
   const mf = new Miniflare({ modules: true, script: 'export default {}', d1Databases: { DB: crypto.randomUUID() } });
   const db = (await mf.getD1Database('DB')) as unknown as D1Database;
-  for (const stmt of [m0001, m0002, m0003, m0004, m0005, m0006, m0007, m0008, m0009, m0010].flatMap(statements)) await db.prepare(stmt).run();
+  for (const stmt of [m0001, m0002, m0003, m0004, m0005, m0006, m0007, m0008, m0009, m0010, m0011].flatMap(statements)) await db.prepare(stmt).run();
   return { db, dispose: () => mf.dispose() };
 }
 
@@ -76,7 +77,7 @@ export async function publishSeating(db: D1Database) {
     const areas = (await db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ?`).bind(e.id).all()).results;
     const { results: seated } = await db
       .prepare(
-        `SELECT p.id, p.table_id FROM person p JOIN seat_table t ON t.id = p.table_id AND t.event_id = ?1
+        `SELECT p.id, s.table_id FROM person p JOIN seat s ON s.person_id = p.id AND s.event_id = ?1
            JOIN rsvp r ON r.invitation_id = p.invitation_id AND r.event_id = ?1 AND r.attending = 1`,
       )
       .bind(e.id)

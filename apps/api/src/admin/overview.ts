@@ -123,7 +123,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
   });
 
   if (seatedEvent?.hasSeating) {
-    const unseated = G.flatMap((g) => comingPeople(g, seatedEvent.key)).filter((p) => !p.table).length;
+    const unseated = G.flatMap((g) => comingPeople(g, seatedEvent.key)).filter((p) => !p.tables[seatedEvent.key]).length;
     add(unseated, {
       kind: 'unseated', title: `${unseated} ${shortName(seatedEvent)} guests not seated`,
       detail: 'Everyone sees their table and tablemates on the night-before guide.', cta: 'Seat', link: 'seating', event: seatedEvent.key,
@@ -200,7 +200,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
         awaiting: inv.filter((g) => (g.rsvp[e.key]?.attending ?? null) === null).length,
         coming: people.length,
         diet: e.catered ? people.filter((p) => p.diet.trim()).length : 0,
-        seated: people.filter((p) => p.table).length,
+        seated: people.filter((p) => p.tables[e.key]).length,
       };
     }),
     nav: {

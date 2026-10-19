@@ -31,7 +31,7 @@ describe('one-time: remove the sample guests', () => {
     expect(left!.id).toBe('real1');
     const texts = await t.db.prepare(`SELECT COUNT(*) AS n FROM sms_out o JOIN invitation i ON i.id = o.invitation_id WHERE i.deleted_at IS NOT NULL`).first<{ n: number }>();
     expect(texts!.n).toBe(0);
-    const seated = await t.db.prepare(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.deleted_at IS NOT NULL AND p.table_id IS NOT NULL`).first<{ n: number }>();
+    const seated = await t.db.prepare(`SELECT COUNT(*) AS n FROM seat s JOIN person p ON p.id = s.person_id JOIN invitation i ON i.id = p.invitation_id WHERE i.deleted_at IS NOT NULL`).first<{ n: number }>();
     expect(seated!.n).toBe(0);
     // Recoverable: the rows are still there, just marked deleted.
     expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM invitation`).first<{ n: number }>())!.n).toBe(seedJson.sampleGuests.length + 1);

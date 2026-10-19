@@ -177,7 +177,7 @@ export function eventRoutes() {
     // RSVPs stay in the database, so the event can be put back by support if it was removed by mistake.
     await db.batch([
       db.prepare(`DELETE FROM invite_event WHERE event_id = ?`).bind(eventId),
-      db.prepare(`UPDATE person SET table_id = NULL WHERE table_id IN (SELECT id FROM seat_table WHERE event_id = ?)`).bind(eventId),
+      db.prepare(`DELETE FROM seat WHERE event_id = ?`).bind(eventId),
       audit(c, 'event.remove', eventId),
     ]);
     return c.json({ events: await list(c) });

@@ -67,7 +67,7 @@ describe('events API', () => {
     expect((await call(`/${wedding!.id}`, { method: 'DELETE', headers: { 'If-Match': String(wedding!.version) } })).status).toBe(200);
     expect((await list()).map((e) => e.key)).toEqual(['30th']);
     expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM invite_event WHERE event_id = ?`).bind(wedding!.id).first<{ n: number }>())!.n).toBe(0);
-    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM person WHERE table_id IS NOT NULL`).first<{ n: number }>())!.n).toBe(0);
+    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM seat`).first<{ n: number }>())!.n).toBe(0);
     const last = await call(`/${thirtieth!.id}`, { method: 'DELETE', headers: { 'If-Match': String(thirtieth!.version) } });
     expect(last.status).toBe(400);
   });

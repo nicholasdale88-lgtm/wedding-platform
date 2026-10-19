@@ -248,11 +248,12 @@ describe('guest pages tab', () => {
     expect(await screen.findByText('All changes saved')).toBeInTheDocument();
   });
 
-  it('every word: shows the original, marks changes, and Reset brings it back', async () => {
+  it('every word: grouped by section; a changed sentence shows what it was, and Reset brings it back', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, { ...pages, texts: { 'inv.dyn.greetAnon': 'Hello friend' } }) });
     renderAt('/admin/w1/pages');
-    expect(await screen.findByDisplayValue('Hello friend')).toBeInTheDocument(); // changes listed first
-    expect(screen.getByText('1 changed', { exact: false })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('Hello friend')).toBeInTheDocument();
+    expect(screen.getAllByText(/sentences · 1 changed$/)).toHaveLength(2); // the page's total and its section's
+    expect(screen.getByText(/^Was: /)).toBeInTheDocument(); // the original shows only once changed
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
     expect(screen.queryByDisplayValue('Hello friend')).toBeNull();
   });

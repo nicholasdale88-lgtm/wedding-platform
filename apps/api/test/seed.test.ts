@@ -27,7 +27,7 @@ describe('seed', () => {
     expect(await count(`SELECT COUNT(*) n FROM invitation`)).toBe(22);
     expect(await count(`SELECT COUNT(*) n FROM campaign`)).toBe(8);
     expect(await count(`SELECT COUNT(*) n FROM campaign_slot`)).toBe(8); // 3 reminders, 2 ride, 2 night-before, 1 photos
-    expect(await count(`SELECT COUNT(*) n FROM person WHERE table_id IS NOT NULL`)).toBe(Object.keys(seedJson.exampleSeating.seats).length);
+    expect(await count(`SELECT COUNT(*) n FROM seat`)).toBe(Object.keys(seedJson.exampleSeating.seats).length);
     expect(await one(`SELECT pending_label FROM event WHERE sort = 0`)).toEqual({ pending_label: 'the wedding' });
   });
 

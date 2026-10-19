@@ -124,10 +124,17 @@ export const person = sqliteTable('person', {
   mealEntree: text('meal_entree').notNull().default(''),
   mealMain: text('meal_main').notNull().default(''),
   mealDessert: text('meal_dessert').notNull().default(''),
-  tableId: text('table_id'),
+  tableId: text('table_id'), // no longer used: seats are per event (seat, migration 0011)
   version: version(),
   deletedAt: text('deleted_at'),
 });
+
+// migration 0011: one seat per person per event
+export const seat = sqliteTable(
+  'seat',
+  { personId: text('person_id').notNull(), eventId: text('event_id').notNull(), tableId: text('table_id').notNull() },
+  (t) => ({ pk: primaryKey({ columns: [t.personId, t.eventId] }) }),
+);
 
 export const inviteEvent = sqliteTable(
   'invite_event',
