@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { EmailInbox } from './EmailInbox';
 import { useSearchParams } from 'react-router-dom';
 import { messagesApi, type Conversation, type MessageThread, type ThreadMessage } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
@@ -54,9 +55,10 @@ export function Messages() {
   };
 
   const board = params.get('view') === 'board';
-  const setView = (v: 'chats' | 'board') => {
+  const email = params.get('view') === 'email';
+  const setView = (v: 'chats' | 'board' | 'email') => {
     const n = new URLSearchParams();
-    if (v === 'board') n.set('view', 'board');
+    if (v !== 'chats') n.set('view', v);
     setParams(n, { replace: true });
   };
   const tabs = (
@@ -64,10 +66,11 @@ export function Messages() {
       {(
         [
           ['chats', 'Conversations'],
+          ['email', 'Email'],
           ['board', 'Message board'],
         ] as const
       ).map(([k, label]) => {
-        const sel = (k === 'board') === board;
+        const sel = k === (board ? 'board' : email ? 'email' : 'chats');
         return (
           <button
             key={k}
@@ -83,6 +86,18 @@ export function Messages() {
       })}
     </div>
   );
+  if (email) {
+    return (
+      <div className="flex flex-col gap-5">
+        <header>
+          <Eyebrow>Account · Messages</Eyebrow>
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Email</h1>
+        </header>
+        {tabs}
+        <EmailInbox />
+      </div>
+    );
+  }
   if (board) {
     return (
       <div className="flex flex-col gap-5">

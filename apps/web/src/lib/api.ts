@@ -567,6 +567,33 @@ export const boardApi = {
   remove: (wid: string, id: string) => send<AdminBoard>('DELETE', `${w(wid)}/board/${id}`),
 };
 
+export interface InboxEmail {
+  id: string;
+  from: string;
+  fromName: string;
+  subject: string;
+  preview: string;
+  kind: 'guest' | 'vendor' | 'other';
+  invitationId: string | null;
+  guest: string | null;
+  vendorId: string | null;
+  vendor: string | null;
+  files: { id: string; name: string; type: string }[];
+  /** The vendor a quote from it was filed under ('' when none). */
+  filed: string;
+  receivedAt: string;
+  read: boolean;
+}
+/** The event's own email address: what arrived, sorted into guests, vendors and other. */
+export const inboxApi = {
+  list: (wid: string, archived = false) => request<{ address: string; emails: InboxEmail[] }>(`${w(wid)}/inbox${archived ? '?archived=1' : ''}`),
+  get: (wid: string, id: string) => request<{ body: string }>(`${w(wid)}/inbox/${encodeURIComponent(id)}`),
+  update: (wid: string, id: string, patch: { kind?: InboxEmail['kind']; vendorId?: string | null; archived?: boolean; read?: boolean }) =>
+    send<{ ok: true }>('PUT', `${w(wid)}/inbox/${encodeURIComponent(id)}`, patch),
+  file: (wid: string, id: string, vendorId: string, fileId: string) => send<{ ok: true }>('POST', `${w(wid)}/inbox/${encodeURIComponent(id)}/file`, { vendorId, fileId }),
+  setAddress: (wid: string, address: string) => send<{ address: string }>('PUT', `${w(wid)}/inbox/settings/address`, { address }),
+};
+
 export const messagesApi = {
   list: (wid: string) => request<{ threads: MessageThread[] }>(`${w(wid)}/messages`),
   open: (wid: string, inv: string) => request<Conversation>(`${w(wid)}/messages/${inv}`),

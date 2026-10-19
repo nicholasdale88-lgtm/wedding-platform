@@ -26,7 +26,7 @@ const json = <T>(s: string | null | undefined, fallback: T): T => {
 const isKind = (k: string): k is PlannerKind => Object.prototype.hasOwnProperty.call(PLANNER_DOCS, k); // not 'constructor' and friends
 
 type DocOf<K extends PlannerKind> = z.infer<(typeof PLANNER_DOCS)[K]>;
-async function readDoc<K extends PlannerKind>(db: D1Database, weddingId: string, kind: K, scope: string): Promise<{ data: DocOf<K>; version: number }> {
+export async function readDoc<K extends PlannerKind>(db: D1Database, weddingId: string, kind: K, scope: string): Promise<{ data: DocOf<K>; version: number }> {
   const row = await db.prepare(`SELECT data, version FROM planner_doc WHERE wedding_id = ? AND kind = ? AND scope = ?`).bind(weddingId, kind, scope).first<{ data: string; version: number }>();
   const schema = PLANNER_DOCS[kind];
   const parsed = schema.safeParse(json(row?.data, {}));
@@ -44,23 +44,31 @@ async function members(db: D1Database, weddingId: string) {
   return results.map((r) => ({ personId: r.id, invitationId: r.invitation_id, name: r.name, role: r.party_role, side: sideOf(r.party_role), phone: r.phone ?? '' }));
 }
 
-/** Change one side's document on behalf of a member (read, change, save only if no one saved in between; retried). */
-async function changeSide(db: D1Database, weddingId: string, kind: 'party-p1' | 'party-p2' | 'party-help', fn: (d: PartySide) => void): Promise<boolean> {
+/**
+ * Change a planning document on someone's behalf (a party member's tick, an emailed quote): read it, change
+ * it, save only if no one saved in between; retried a few times. False when it couldn't be saved.
+ */
+export async function changeDoc<K extends PlannerKind>(db: D1Database, weddingId: string, kind: K, scope: string, fn: (d: DocOf<K>) => void): Promise<boolean> {
   for (let attempt = 0; attempt < 4; attempt++) {
-    const cur = await readDoc(db, weddingId, kind, '');
+    const cur = await readDoc(db, weddingId, kind, scope);
     const next = structuredClone(cur.data);
     fn(next);
-    const parsed = PartySide.safeParse(next);
+    const parsed = PLANNER_DOCS[kind].safeParse(next);
     if (!parsed.success) return false;
     const data = JSON.stringify(parsed.data);
     const now = new Date().toISOString();
     const res =
       cur.version === 0
-        ? await db.prepare(`INSERT INTO planner_doc (wedding_id, kind, scope, data, version, updated_at) VALUES (?, ?, '', ?, 1, ?) ON CONFLICT DO NOTHING`).bind(weddingId, kind, data, now).run()
-        : await db.prepare(`UPDATE planner_doc SET data = ?, version = version + 1, updated_at = ? WHERE wedding_id = ? AND kind = ? AND scope = '' AND version = ?`).bind(data, now, weddingId, kind, cur.version).run();
+        ? await db.prepare(`INSERT INTO planner_doc (wedding_id, kind, scope, data, version, updated_at) VALUES (?, ?, ?, ?, 1, ?) ON CONFLICT DO NOTHING`).bind(weddingId, kind, scope, data, now).run()
+        : await db.prepare(`UPDATE planner_doc SET data = ?, version = version + 1, updated_at = ? WHERE wedding_id = ? AND kind = ? AND scope = ? AND version = ?`).bind(data, now, weddingId, kind, scope, cur.version).run();
     if (res.meta.changes) return true;
   }
   return false;
+}
+
+/** Change one side's document on behalf of a member. */
+function changeSide(db: D1Database, weddingId: string, kind: 'party-p1' | 'party-p2' | 'party-help', fn: (d: PartySide) => void): Promise<boolean> {
+  return changeDoc(db, weddingId, kind, '', fn as (d: DocOf<typeof kind>) => void);
 }
 
 /**
