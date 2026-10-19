@@ -149,6 +149,7 @@ export interface InboundRow {
   weddingId: string | null;
   invitationId: string | null;
   providerId: string;
+  type: 'inbound' | 'unsubscribe';
   from: string;
   to: string | null;
   body: string;

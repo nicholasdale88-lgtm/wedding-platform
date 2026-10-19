@@ -17,7 +17,7 @@ export interface SmsStore {
   audience(weddingId: string): Promise<{ events: EventInfo[]; recipients: Recipient[] }>;
   campaigns(weddingId: string): Promise<Campaign[]>;
 
-  /** Due slots of enabled 'dates' campaigns: pending|failed, send_at <= now, attempts < max. */
+  /** Due slots of enabled 'dates' campaigns: pending|failed, send_at <= now, attempts < max. Also reclaims slots left 'claimed' for over 10 minutes by a crashed run. */
   claimDueSlots(weddingId: string, now: Iso, maxAttempts: number): Promise<Slot[]>;
   /** Hand a claimed slot back untouched (quiet hours): pending, attempt not counted. */
   releaseSlot(slotId: string): Promise<void>;
@@ -48,6 +48,10 @@ export interface SmsStore {
 
   // Inbound
   insertInbound(row: InboundRow): Promise<boolean>;
+  /** Atomically take a recorded text for processing (or one stuck in processing since before staleBefore). */
+  claimInbound(id: string, now: Iso, staleBefore: Iso): Promise<boolean>;
+  /** Texts recorded but never processed, or stuck in processing since before staleBefore. */
+  unprocessedInbound(staleBefore: Iso): Promise<InboundRow[]>;
   setInboundOutcome(id: string, outcome: Pick<InboundRow, 'weddingId' | 'invitationId' | 'action'>): Promise<void>;
   matchPhone(phone: string): Promise<PhoneMatch[]>;
   /** Platform-wide STOP: every invitation with this number, in every wedding. */

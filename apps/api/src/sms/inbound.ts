@@ -1,7 +1,7 @@
 import { segments, toE164 } from '@wp/shared';
 import { flush, thanksKey, type EngineDeps } from './engine';
 import { renderFor } from './render';
-import type { Iso, NewOutbox, PhoneMatch, WeddingCtx } from './types';
+import type { InboundRow, Iso, NewOutbox, PhoneMatch, WeddingCtx } from './types';
 
 export interface InboundSms {
   from: string;
@@ -39,24 +39,48 @@ export type InboundAction =
  * retry with the same payload is recorded once and acted on once.
  */
 export async function handleInbound(d: EngineDeps, sms: InboundSms): Promise<InboundAction> {
+  const rec = await recordInbound(d, sms);
+  if (!rec) return 'Ignored';
+  if (!rec.fresh) return 'Duplicate';
+  return (await processInbound(d, rec.row)) ?? 'Duplicate';
+}
+
+/** Step 1, inside the webhook request: save it. Returns null for junk (no valid sender). */
+export async function recordInbound(d: EngineDeps, sms: InboundSms): Promise<{ row: InboundRow; fresh: boolean } | null> {
   const from = toE164(sms.from);
-  const text = sms.body.trim();
-  if (!from) return 'Ignored';
+  if (!from) return null;
+  const row: InboundRow = {
+    id: d.uuid(), weddingId: null, invitationId: null, providerId: sms.providerId, type: sms.type, from, to: sms.to,
+    body: sms.body.trim().slice(0, 1000), action: 'Received',
+    // Our own clock, so re-processing after a crash reuses the same time (and the same thank-you key).
+    receivedAt: d.now().toISOString(),
+  };
+  return { row, fresh: await d.store.insertInbound(row) };
+}
 
-  const id = d.uuid();
-  const at = d.now().toISOString();
-  const fresh = await d.store.insertInbound({
-    id, weddingId: null, invitationId: null, providerId: sms.providerId, from, to: sms.to, body: text.slice(0, 1000),
-    action: 'Received', receivedAt: sms.receivedAt || at,
-  });
-  if (!fresh) return 'Duplicate';
+/** Cron: finish any text whose processing never completed (crash, timeout). */
+export async function sweepInbound(d: EngineDeps): Promise<number> {
+  const rows = await d.store.unprocessedInbound(new Date(d.now().getTime() - INBOUND_STALE_MS).toISOString());
+  let n = 0;
+  for (const row of rows) if (await processInbound(d, row)) n++;
+  return n;
+}
 
-  const match = pick(await d.store.matchPhone(from), sms.to);
-  const wedding = match?.wedding ?? (await weddingBySender(d, sms.to));
+const INBOUND_STALE_MS = 2 * 60_000;
+
+/** Step 2: act on it. Claimed atomically, so the webhook and the sweep never both act. */
+export async function processInbound(d: EngineDeps, row: InboundRow): Promise<InboundAction | null> {
+  const now = d.now();
+  const claimed = await d.store.claimInbound(row.id, now.toISOString(), new Date(now.getTime() - INBOUND_STALE_MS).toISOString());
+  if (!claimed) return null;
+  const { id, from, body: text, receivedAt: at } = row;
+
+  const match = pick(await d.store.matchPhone(from), row.to);
+  const wedding = match?.wedding ?? (await weddingBySender(d, row.to));
   const outcome = (action: InboundAction) =>
     d.store.setInboundOutcome(id, { weddingId: wedding?.id ?? null, invitationId: match?.recipient.id ?? null, action });
 
-  if (sms.type === 'unsubscribe' || STOP.test(text)) {
+  if (row.type === 'unsubscribe' || STOP.test(text)) {
     await d.store.optOut(from, 'STOP reply'); // the provider confirms the opt-out itself
     await outcome('Opted out');
     return 'Opted out';

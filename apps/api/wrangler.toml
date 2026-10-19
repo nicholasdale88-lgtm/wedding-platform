@@ -1,0 +1,25 @@
+name = "wedding-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The SMS autopilot (docs/05).
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wedding-db"
+# Filled in by the deploy workflow once the Cloudflare secrets exist (docs/SETUP_ACCOUNTS.md step 2).
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Photos, videos, music, plan images (docs/09). Uploads go straight from the browser with presigned URLs.
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "media"
+
+[vars]
+PUBLIC_BASE_URL = "https://example.com"
+
+# Secrets (never in this file): MM_USER, MM_PASS, MM_HOOK_SECRET, MM_SIGNING_SECRET

@@ -30,12 +30,16 @@ export class MemoryStore implements SmsStore {
 
   async campaigns(weddingId: string) { return this.clone(this.campaignList.filter((c) => c.weddingId === weddingId)); }
 
+  slotClaims = new Map<string, string>();
   async claimDueSlots(weddingId: string, now: string, maxAttempts: number) {
+    const stale = new Date(Date.parse(now) - 10 * 60_000).toISOString();
     const ok = new Set(this.campaignList.filter((c) => c.weddingId === weddingId && c.enabled && c.mode === 'dates').map((c) => c.id));
     const claimed = this.slots.filter(
-      (s) => ok.has(s.campaignId) && (s.status === 'pending' || s.status === 'failed') && s.sendAt <= now && s.attempts < maxAttempts,
+      (s) =>
+        ok.has(s.campaignId) && s.sendAt <= now && s.attempts < maxAttempts &&
+        (s.status === 'pending' || s.status === 'failed' || (s.status === 'claimed' && (this.slotClaims.get(s.id) ?? '') < stale)),
     );
-    for (const s of claimed) { s.status = 'claimed'; s.attempts++; }
+    for (const s of claimed) { s.status = 'claimed'; s.attempts++; this.slotClaims.set(s.id, now); }
     return this.clone(claimed);
   }
   async releaseSlot(id: string) { const s = this.slot(id); s.status = 'pending'; s.attempts--; }
@@ -96,10 +100,24 @@ export class MemoryStore implements SmsStore {
   }
   async optedOut(phones: string[]) { return new Set(phones.filter((p) => this.stopList.has(p))); }
 
+  inboundClaims = new Map<string, string>();
   async insertInbound(row: InboundRow) {
     if (this.inbound.some((i) => i.providerId === row.providerId)) return false;
     this.inbound.push({ ...row });
     return true;
+  }
+  async claimInbound(id: string, now: string, staleBefore: string) {
+    const row = this.inbound.find((i) => i.id === id);
+    const stuck = row?.action === 'Processing' && (this.inboundClaims.get(id) ?? '') < staleBefore;
+    if (!row || (row.action !== 'Received' && !stuck)) return false;
+    row.action = 'Processing';
+    this.inboundClaims.set(id, now);
+    return true;
+  }
+  async unprocessedInbound(staleBefore: string) {
+    return this.clone(
+      this.inbound.filter((i) => i.action === 'Received' || (i.action === 'Processing' && (this.inboundClaims.get(i.id) ?? '') < staleBefore)),
+    );
   }
   async setInboundOutcome(id: string, o: Pick<InboundRow, 'weddingId' | 'invitationId' | 'action'>) {
     Object.assign(this.inbound.find((i) => i.id === id)!, o);
