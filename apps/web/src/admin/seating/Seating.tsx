@@ -9,6 +9,7 @@ import { useUnsavedChanges } from '../leave';
 import { ALL_EVENTS, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
+import { SeatChecks } from './SeatChecks';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
 
 /**
@@ -502,6 +503,8 @@ export function Seating() {
               </Pill>
             </div>
           )}
+
+          <SeatChecks data={s} tables={tables} seats={seats} />
 
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-baseline">

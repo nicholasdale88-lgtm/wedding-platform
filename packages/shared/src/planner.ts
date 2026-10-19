@@ -295,6 +295,10 @@ export type Shuttle = z.infer<typeof Shuttle>;
 export const Shuttles = z.object({ list: z.array(Shuttle).max(20).default([]) });
 export type Shuttles = z.infer<typeof Shuttles>;
 
+/** Seating rules per event: pairs of people (person ids) to keep apart or together. */
+export const SeatRules = z.object({ pairs: z.array(z.object({ a: z.string().max(40), b: z.string().max(40), kind: z.enum(['apart', 'together']) })).max(200).default([]) });
+export type SeatRules = z.infer<typeof SeatRules>;
+
 /** The planner documents and their shapes (the API validates every save against these). */
-export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist, gifts: Gifts, shuttles: Shuttles } as const;
+export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist, gifts: Gifts, shuttles: Shuttles, 'seat-rules': SeatRules } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;
