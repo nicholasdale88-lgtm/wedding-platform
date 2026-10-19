@@ -1,0 +1,212 @@
+import type { ReceptionGuide } from '@wp/shared';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { pagesApi, seatingApi, type PagesData, type SeatingData } from '../../lib/api';
+import { useAdmin } from '../Shell';
+import { H2, Pill } from '../ui';
+
+/**
+ * Wedding planner → Print: signage in the wedding's own fonts, ready to print at home or send to a
+ * printer as a PDF (Print → Save as PDF). Welcome sign, table numbers, place cards and the seating
+ * chart come from the seating plan; menu cards from the night-before page's menu.
+ */
+
+type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu';
+const KINDS: [Kind, string, string][] = [
+  ['welcome', 'Welcome sign', 'One A3 page (prints well up to A1).'],
+  ['tables', 'Table numbers', 'An A5 card for each table.'],
+  ['places', 'Place cards', 'Name and table, eight to an A4 page: cut on the lines and fold.'],
+  ['chart', 'Seating chart', 'Everyone A to Z with their table, on one A3 poster.'],
+  ['menu', 'Menu cards', 'The menu from your night-before page, two to an A4 page.'],
+];
+
+export function Print() {
+  const { wid, overview } = useAdmin();
+  const [pages, setPages] = useState<PagesData | null>(null);
+  const [seating, setSeating] = useState<SeatingData | null>(null);
+  const [kind, setKind] = useState<Kind | null>(null);
+  const first = overview?.events[0];
+  useEffect(() => {
+    pagesApi
+      .get(wid)
+      .then(setPages)
+      .catch(() => setPages(null));
+    seatingApi
+      .get(wid, first?.key)
+      .then(setSeating)
+      .catch(() => setSeating(null));
+  }, [wid, first?.key]);
+
+  const names = pages?.names ?? { name1: overview?.wedding.name1 ?? '', name2: overview?.wedding.name2 ?? '', monogram: '' };
+  const couple = `${names.name1.split(' ')[0]} & ${names.name2.split(' ')[0]}`;
+  const date = first?.startsAt ? new Date(first.startsAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  const tables = useMemo(() => (seating?.tables ?? []).slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })), [seating]);
+  const seated = useMemo(
+    () =>
+      (seating?.people ?? [])
+        .filter((p) => p.coming && p.tableId)
+        .map((p) => ({ name: p.name, table: tables.find((t) => t.id === p.tableId)?.name ?? '' }))
+        .filter((p) => p.table)
+        .sort((a, b) => a.name.split(' ').slice(-1)[0]!.localeCompare(b.name.split(' ').slice(-1)[0]!) || a.name.localeCompare(b.name)),
+    [seating, tables],
+  );
+  const guide = first && pages ? (pages.guides[first.key] as ReceptionGuide | undefined) : undefined;
+  const menu = guide?.style === 'reception' ? (guide.menu ?? []) : [];
+  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <H2>Print</H2>
+        <div className="text-[13px] text-[#5b6a52]">Signs and cards in your wedding’s fonts. Print at home, or choose “Save as PDF” to send to a printer.</div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {KINDS.map(([k, label, hint]) => {
+          const ready = count[k] > 0;
+          return (
+            <div key={k} className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+              <strong className="font-display text-[22px] font-medium">{label}</strong>
+              <span className="text-[13px] text-[#5b6a52] flex-1">{hint}</span>
+              <span className="text-[12px] text-[#7a7466]">
+                {k === 'tables' ? `${tables.length} tables` : k === 'places' || k === 'chart' ? `${seated.length} guests seated` : k === 'menu' ? `${menu.length} courses` : couple}
+                {!ready && (k === 'menu' ? ' (add the menu in Setup → Night-before page)' : k !== 'welcome' ? ' (seat guests in Guest planning → Seating)' : '')}
+              </span>
+              <Pill kind="outline" className="self-start" disabled={!ready} onClick={() => setKind(k)}>
+                Preview and print
+              </Pill>
+            </div>
+          );
+        })}
+      </div>
+      {kind && (
+        <PrintSheet onClose={() => setKind(null)}>
+          {kind === 'welcome' && (
+            <section className="pp pp-a3 flex flex-col items-center justify-center text-center gap-[10mm]">
+              <div className="pp-small">Welcome to the wedding of</div>
+              <div className="pp-script text-[42mm] leading-[1.05]">{names.name1.split(' ')[0]}</div>
+              <div className="pp-serif text-[16mm] italic">&amp;</div>
+              <div className="pp-script text-[42mm] leading-[1.05]">{names.name2.split(' ')[0]}</div>
+              <div className="pp-rule" />
+              <div className="pp-serif text-[9mm]">{date}</div>
+            </section>
+          )}
+          {kind === 'tables' &&
+            tables.map((t) => (
+              <section key={t.id} className="pp pp-a5 flex flex-col items-center justify-center text-center gap-[6mm]">
+                <div className="pp-small">{/^\d+$/.test(t.name) ? 'Table' : ''}</div>
+                <div className="pp-script text-[52mm] leading-none">{t.name}</div>
+                <div className="pp-rule" />
+                <div className="pp-serif text-[6mm] italic">{couple}</div>
+              </section>
+            ))}
+          {kind === 'places' &&
+            chunk(seated, 8).map((page, n) => (
+              <section key={n} className="pp pp-a4 grid grid-cols-2 grid-rows-4">
+                {page.map((p) => (
+                  <div key={`${p.name}-${p.table}`} className="pp-place flex flex-col items-center justify-end pb-[8mm] text-center">
+                    <div className="pp-script text-[13mm] leading-tight">{p.name}</div>
+                    <div className="pp-small mt-[2mm]">{/^\d+$/.test(p.table) ? `Table ${p.table}` : p.table}</div>
+                  </div>
+                ))}
+              </section>
+            ))}
+          {kind === 'chart' && (
+            <section className="pp pp-a3 flex flex-col gap-[6mm]">
+              <div className="text-center">
+                <div className="pp-script text-[26mm] leading-none">Find your seat</div>
+                <div className="pp-serif text-[7mm] italic mt-[3mm]">{couple}</div>
+              </div>
+              <div className="pp-chart flex-1">
+                {seated.map((p) => (
+                  <div key={`${p.name}-${p.table}`} className="flex justify-between gap-[3mm] pp-serif text-[4.6mm] border-b border-[#d8cfb8] py-[0.8mm]">
+                    <span>{p.name}</span>
+                    <span className="italic">{p.table}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+          {kind === 'menu' && (
+              <section className="pp pp-a4 grid grid-cols-2">
+                {[0, 1].map((n) => (
+                  <div key={n} className="flex flex-col items-center text-center gap-[5mm] px-[10mm] py-[16mm] border-dashed border-[#d8cfb8] first:border-r">
+                    <div className="pp-script text-[18mm] leading-none">Menu</div>
+                    <div className="pp-rule" />
+                    {menu.map((m) => (
+                      <div key={m.course} className="flex flex-col gap-[1.5mm]">
+                        <div className="pp-small">{m.course}</div>
+                        <div className="pp-serif text-[5mm] leading-snug">{m.a}</div>
+                        {m.b?.trim() && (
+                          <>
+                            <div className="pp-serif text-[3.6mm] italic">or</div>
+                            <div className="pp-serif text-[5mm] leading-snug">{m.b}</div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    <div className="mt-auto pp-serif text-[4mm] italic">{couple} · {date}</div>
+                  </div>
+                ))}
+              </section>
+            )}
+        </PrintSheet>
+      )}
+    </div>
+  );
+}
+
+const chunk = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
+
+/** A full-screen preview of the pages; Print sends only the pages to the printer. */
+function PrintSheet({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    document.documentElement.classList.add('printing');
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.documentElement.classList.remove('printing');
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+  return (
+    <div className="pp-root fixed inset-0 z-[80] overflow-auto bg-[#77786f]" role="dialog" aria-modal="true" aria-label="Print preview">
+      <style>{PRINT_CSS}</style>
+      <div className="pp-bar sticky top-0 z-10 flex justify-between items-center gap-3 py-3 px-5 bg-[#33402f] text-[#f3ecd6]">
+        <span className="text-[14px]">Preview. Print, or choose “Save as PDF” in the print dialog.</span>
+        <span className="flex gap-2">
+          <button type="button" onClick={() => window.print()} className="py-2 px-4 rounded-full border-0 bg-[#f3ecd6] text-[#33402f] text-[14px] font-medium cursor-pointer">
+            Print
+          </button>
+          <button type="button" onClick={onClose} className="py-2 px-4 rounded-full border border-[#f3ecd6] bg-transparent text-[#f3ecd6] text-[14px] cursor-pointer">
+            Close
+          </button>
+        </span>
+      </div>
+      <div className="pp-pages flex flex-col items-center gap-6 py-6">{children}</div>
+    </div>
+  );
+}
+
+// Page sizes, fonts and print rules (only the pages print; the admin and the bar don't).
+const PRINT_CSS = `
+.pp { background: #fffdf8; color: #33402f; box-shadow: 0 6px 24px rgba(0,0,0,.25); padding: 16mm; box-sizing: border-box; overflow: hidden; break-after: page; position: relative; }
+.pp::before { content: ''; position: absolute; inset: 7mm; border: 0.5mm solid #c8a46a; pointer-events: none; }
+.pp-a3 { width: 297mm; height: 420mm; }
+.pp-a4 { width: 210mm; height: 297mm; padding: 0; }
+.pp-a4::before { display: none; }
+.pp-a5 { width: 148mm; height: 210mm; }
+.pp-script { font-family: 'Pinyon Script', cursive; color: #33402f; }
+.pp-serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+.pp-small { font-family: 'DM Sans', system-ui, sans-serif; font-size: 3.4mm; letter-spacing: .3em; text-transform: uppercase; font-weight: 600; color: #6b6558; }
+.pp-rule { width: 30mm; height: 0.5mm; background: #c8a46a; }
+.pp-place { border: 0.2mm dashed #d8cfb8; }
+.pp-chart { column-count: 3; column-gap: 10mm; }
+@media print {
+  @page { margin: 0; }
+  html.printing body * { visibility: hidden !important; }
+  html.printing .pp-root, html.printing .pp-root * { visibility: visible !important; }
+  html.printing .pp-root { position: absolute !important; inset: 0 !important; overflow: visible !important; background: none !important; }
+  html.printing .pp-bar { display: none !important; }
+  html.printing .pp-pages { padding: 0 !important; gap: 0 !important; }
+  .pp { box-shadow: none !important; margin: 0 !important; }
+}
+`;
