@@ -122,6 +122,7 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
       {!only && (
       <AddEvent
         tz={tz}
+        first={data.events[0]?.startsAt}
         onAdd={async (name, local, inviteEveryone) => {
           try {
             const r = await eventsApi.add(wid, { name, startsAt: zonedToUtc(local, tz).toISOString(), inviteEveryone });
@@ -247,14 +248,40 @@ function EventCard({ e, tz, onSave, onRemove }: { e: EventFull; tz: string; onSa
   );
 }
 
-function AddEvent({ tz, onAdd }: { tz: string; onAdd: (name: string, local: string, inviteEveryone: boolean) => Promise<boolean> }) {
+/** The usual extra celebrations around a wedding: a name, and when (days from the wedding, the time). */
+const USUAL_EVENTS: [string, number, string][] = [
+  ['After-wedding brunch', 1, '10:00'],
+  ['Welcome drinks', -1, '18:00'],
+  ['Rehearsal dinner', -1, '19:00'],
+  ['Pool day', 1, '12:00'],
+];
+
+function AddEvent({ tz, first, onAdd }: { tz: string; first?: string; onAdd: (name: string, local: string, inviteEveryone: boolean) => Promise<boolean> }) {
   const [name, setName] = useState('');
   const [local, setLocal] = useState(() => toLocalInput(new Date(Date.now() + 180 * 86_400_000).toISOString(), tz).slice(0, 11) + '12:00');
+  /** A usual one: its name, on the day before or after the wedding, at its usual time. */
+  const pick = ([n, days, time]: [string, number, string]) => {
+    setName(n);
+    if (first) setLocal(toLocalInput(new Date(Date.parse(first) + days * 86_400_000).toISOString(), tz).slice(0, 11) + time);
+  };
   const [everyone, setEveryone] = useState(true);
   const [busy, setBusy] = useState(false);
   return (
     <section aria-label="Add an event" className="flex flex-col gap-3 p-5 rounded-[16px] border border-dashed border-[#8a9670]">
       <h2 className="m-0 font-display font-medium text-[24px]">Add an event</h2>
+      <div className="flex gap-2 flex-wrap" aria-label="Usual events">
+        {USUAL_EVENTS.map((u) => (
+          <button
+            key={u[0]}
+            type="button"
+            onClick={() => pick(u)}
+            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${name === u[0] ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`}
+          >
+            {u[0]}
+            {first && <span className="opacity-70"> · {u[1] > 0 ? 'day after' : 'day before'}</span>}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-[14px]">
         <Label text="Name">
           <input value={name} placeholder="Recovery brunch" onChange={(x) => setName(x.target.value)} className={inputCls} />
