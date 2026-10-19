@@ -164,6 +164,29 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     await next();
   });
 
+  /** The save the date: the names, the date and the place in the invitation's look (it doesn't count as opening the invitation). */
+  app.get('/save-the-date', async (c) => {
+    const w = await wedding(c);
+    if (!w) return err(c, 404, 'not_found', 'We could not find this page.');
+    const token = c.req.query('g') ?? '';
+    const who = isToken(token)
+      ? await c.env.DB.prepare(
+          `SELECT p.name FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 AND p.deleted_at IS NULL WHERE i.token = ? AND i.wedding_id = ? AND i.deleted_at IS NULL`,
+        )
+          .bind(token, w.id)
+          .first<{ name: string }>()
+      : null;
+    const first = await c.env.DB.prepare(`SELECT key, name, starts_at, venue, address FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(w.id).first<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null }>();
+    const content = json<Record<string, unknown>>(w.content, {});
+    const inv = InvitationContent.safeParse(content.invitation ?? {});
+    return c.json({
+      wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
+      custom: inv.success ? (inv.data.custom ?? {}) : {},
+      guest: who ? who.name.split(' ')[0] : '',
+      event: first ? { key: first.key, name: first.name, startsAt: first.starts_at, venue: first.venue ?? '', address: first.address ?? '' } : null,
+    });
+  });
+
   app.get('/invite', async (c) => {
     const w = await wedding(c);
     if (!w) return err(c, 404, 'not_found', 'We could not find this invitation.');

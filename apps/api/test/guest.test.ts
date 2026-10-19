@@ -49,6 +49,16 @@ describe('guest API', () => {
     expect(((await again.json()) as { error: { message: string } }).error.message).toContain('us@example.com');
   });
 
+  it('the save the date: names, the first event and the guest’s first name; opening it is not opening the invitation', async () => {
+    const tok = await tokenOf('Ella Thompson');
+    await t.db.prepare(`UPDATE invitation SET opened_at = NULL WHERE token = ?`).bind(tok).run();
+    const r = (await (await get(`/save-the-date?g=${tok}`)).json()) as { guest: string; event: { key: string } | null; wedding: { name1: string } };
+    expect(r.guest).toBe('Ella');
+    expect(r.event!.key).toBe('wedding');
+    const opened = await t.db.prepare(`SELECT opened_at FROM invitation WHERE token = ?`).bind(tok).first<{ opened_at: string | null }>();
+    expect(opened!.opened_at).toBeNull();
+  });
+
   it('a guest not invited to the 30th never receives its event or its wording (docs/09 §J)', async () => {
     const res = await get(`/invite?g=${await tokenOf('Ella Thompson')}`); // wedding only
     const p = (await res.json()) as Payload;

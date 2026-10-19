@@ -9,6 +9,7 @@ const GuidePage = lazy(() => import('./guest/guide/GuidePage').then((m) => ({ de
 const PhotoPage = lazy(() => import('./guest/photos/PhotoPage').then((m) => ({ default: m.PhotoPage })));
 const BoardPage = lazy(() => import('./guest/board/BoardPage').then((m) => ({ default: m.BoardPage })));
 const PartyPage = lazy(() => import('./guest/party/PartyPage').then((m) => ({ default: m.PartyPage })));
+const SaveTheDatePage = lazy(() => import('./guest/savethedate/SaveTheDatePage').then((m) => ({ default: m.SaveTheDatePage })));
 const CoordinatorPage = lazy(() => import('./guest/coordinator/CoordinatorPage').then((m) => ({ default: m.CoordinatorPage })));
 const LivePage = lazy(() => import('./guest/live/LivePage').then((m) => ({ default: m.LivePage })));
 const ShuttlePage = lazy(() => import('./guest/shuttle/ShuttlePage').then((m) => ({ default: m.ShuttlePage })));
@@ -27,6 +28,7 @@ function Pages() {
         <Route path="/w/:slug/board" element={<BoardPage />} />
         <Route path="/w/:slug/party" element={<PartyPage />} />
         <Route path="/w/:slug/coordinator" element={<CoordinatorPage />} />
+        <Route path="/w/:slug/save-the-date" element={<SaveTheDatePage />} />
         <Route path="/w/:slug/live" element={<LivePage />} />
         <Route path="/w/:slug/shuttle" element={<ShuttlePage />} />
         <Route path="/w/:slug/album" element={<AlbumPage />} />

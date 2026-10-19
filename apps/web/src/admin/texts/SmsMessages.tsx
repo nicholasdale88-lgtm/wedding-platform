@@ -387,6 +387,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
     ['+ RSVP link', '{link}'],
     ...data.events.map((e, i): [string, string] => [`+ ${shortLabel(e.name)} guide`, i === 0 ? '{guide}' : `{guide_${e.key}}`]),
     ['+ Photo link', '{photos}'],
+    ['+ Save the date', '{savethedate}'],
   ];
 
   return (
