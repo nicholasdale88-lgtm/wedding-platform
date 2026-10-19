@@ -57,7 +57,7 @@ export function LooksPanel() {
     gold: th.acc ?? '#c8a46a',
     slot: Math.min(at, 1),
   };
-  const frames = filtersFor(info).filter((f) => f !== 'none');
+  const frames: FilterKey[] = filtersFor(info).filter((f) => f !== 'none');
   const shown = framesOn(frames, cfg.frames);
   // The saved list covers every event: this event's choice joins the others' (all of this one's until chosen).
   const onFrames = [...(cfg.frames ?? []).filter((f) => !frames.includes(f as FilterKey)), ...shown];
