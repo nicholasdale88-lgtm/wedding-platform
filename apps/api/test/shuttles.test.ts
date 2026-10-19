@@ -49,4 +49,15 @@ describe('shuttles', () => {
     const who = (await (await admin('/shuttles')).json()) as { bookings: Record<string, { names: string; seats: number }[]> };
     expect(who.bookings.s1).toEqual([{ names: 'Ella Thompson', seats: 1 }]);
   });
+
+  it('saying no to the event gives the seats back, and a guest who said no cannot book', async () => {
+    const run = { id: 's1', time: '1:00pm', from: 'Gosford station', to: 'The ceremony', seats: 3 };
+    await admin('/planner/doc/shuttles/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ list: [run] }) });
+    const b = await tokenOf('Ella Thompson');
+    expect((await guest('/shuttles', { method: 'POST', body: JSON.stringify({ token: b, shuttleId: 's1', seats: 1 }) })).status).toBe(200);
+    expect((await guest('/rsvp', { method: 'POST', body: JSON.stringify({ token: b, events: { wedding: { attending: false } } }) })).status).toBe(200);
+    const left = await t.db.prepare(`SELECT COUNT(*) AS n FROM shuttle_booking WHERE shuttle_id = 's1'`).first<{ n: number }>();
+    expect(left!.n).toBe(0);
+    expect((await guest('/shuttles', { method: 'POST', body: JSON.stringify({ token: b, shuttleId: 's1', seats: 1 }) })).status).toBe(404); // not their event any more
+  });
 });

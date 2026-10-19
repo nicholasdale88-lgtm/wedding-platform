@@ -43,3 +43,15 @@ export const clearDietIfDeclinedAll = (db: D1Database, invitationId: string): D1
              WHERE ie.invitation_id = ?1 AND (r.attending IS NULL OR r.attending = 1))`,
     )
     .bind(invitationId);
+
+/** A guest who says they can't come to an event gives back their seats on its shuttles (in the RSVP's own batch). */
+export const releaseShuttlesIfDeclined = (db: D1Database, invitationId: string): D1PreparedStatement =>
+  db
+    .prepare(
+      `DELETE FROM shuttle_booking WHERE invitation_id = ?1 AND shuttle_id IN (
+         SELECT json_extract(j.value, '$.id') FROM planner_doc pd JOIN json_each(pd.data, '$.list') j
+           JOIN event e ON e.wedding_id = pd.wedding_id AND e.key = pd.scope
+           JOIN rsvp r ON r.event_id = e.id AND r.invitation_id = ?1 AND r.attending = 0
+          WHERE pd.kind = 'shuttles' AND pd.wedding_id = shuttle_booking.wedding_id)`,
+    )
+    .bind(invitationId);

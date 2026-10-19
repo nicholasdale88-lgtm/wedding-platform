@@ -6,7 +6,7 @@ import { engineDeps, type Env } from '../env';
 import { sendReply, type EngineDeps } from '../sms/engine';
 import { SESSION_COOKIE, sessionId } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
-import { clearDietIfDeclinedAll, unseatIfNotComing } from '../lib/seatingRules';
+import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import type { Snapshot as SeatSnapshot } from './seating';
 import { imageType } from '../lib/images';
 import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
@@ -466,6 +466,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       people.forEach((p, i) => stmts.push(db.prepare(`UPDATE person SET diet = ? WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(parts[i] ?? '', inv.id, p.idx)));
     }
     stmts.push(unseatIfNotComing(db, inv.id)); // declined: their seat is freed
+    stmts.push(releaseShuttlesIfDeclined(db, inv.id)); // and their shuttle seats
     stmts.push(clearDietIfDeclinedAll(db, inv.id)); // not coming to anything: no dietary on any list
     // Bump the version so an admin with this guest open sees "updated elsewhere" instead of overwriting the reply.
     stmts.push(db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(now, inv.id));

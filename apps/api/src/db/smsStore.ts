@@ -1,5 +1,5 @@
 import { defaultInvitesFrom } from '@wp/shared';
-import { clearDietIfDeclinedAll, unseatIfNotComing } from '../lib/seatingRules';
+import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import type { SmsStore } from '../sms/store';
 import {
   Audience, type Campaign, type EventInfo, type InboundRow, type Iso, type NewOutbox, type OutboxKind, type OutboxResult,
@@ -299,6 +299,7 @@ export class D1SmsStore implements SmsStore {
       // Bump the version so an admin editing this invitation gets "updated elsewhere" instead of overwriting it.
       // Same rules as replies on the invitation: a seat needs a yes; declining everything clears dietary.
       unseatIfNotComing(this.db, invitationId),
+      releaseShuttlesIfDeclined(this.db, invitationId),
       clearDietIfDeclinedAll(this.db, invitationId),
       this.db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(at, invitationId),
     ]);

@@ -1,5 +1,5 @@
 import { randomToken, splitDiet, toE164 } from '@wp/shared';
-import { clearDietIfDeclinedAll, unseatIfNotComing } from '../lib/seatingRules';
+import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -367,6 +367,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       people.forEach((p, i) => stmts.push(db.prepare(`UPDATE person SET diet = ? WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(parts[i] ?? '', invId, p.idx)));
     }
     stmts.push(unseatIfNotComing(db, invId)); // declined: their seat is freed
+    stmts.push(releaseShuttlesIfDeclined(db, invId)); // and their shuttle seats
     stmts.push(clearDietIfDeclinedAll(db, invId)); // not coming to anything: no dietary on any list
     stmts.push(audit(c, 'guest.rsvp', invId, r));
     await db.batch(stmts);

@@ -34,11 +34,14 @@ async function guestOf(c: GC, token: string) {
   const inv = await c.env.DB.prepare(`SELECT id, seats_held FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string; seats_held: number }>();
   if (!inv) return null;
   const { results: events } = await c.env.DB.prepare(
-    `SELECT e.key, e.name, e.starts_at FROM event e JOIN invite_event ie ON ie.event_id = e.id AND ie.invitation_id = ? WHERE e.deleted_at IS NULL ORDER BY e.sort`,
+    `SELECT e.key, e.name, e.starts_at, r.attending FROM event e JOIN invite_event ie ON ie.event_id = e.id AND ie.invitation_id = ?1
+       LEFT JOIN rsvp r ON r.event_id = e.id AND r.invitation_id = ?1
+      WHERE e.deleted_at IS NULL ORDER BY e.sort`,
   )
     .bind(inv.id)
-    .all<{ key: string; name: string; starts_at: string }>();
-  return { w, inv, events };
+    .all<{ key: string; name: string; starts_at: string; attending: number | null }>();
+  // Not the events they've said they can't come to.
+  return { w, inv, events: events.filter((e) => e.attending !== 0) };
 }
 
 export function shuttleGuestRoutes() {
