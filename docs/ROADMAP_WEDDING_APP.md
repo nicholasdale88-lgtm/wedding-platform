@@ -173,8 +173,63 @@ Everything below fits the free tiers unless flagged. Building order is the ★ p
 - Shuttle seats are given back when a guest declines.
 - Linked storage refreshes its token once an hour, not for every photo; puts all of an event's photos in one folder or album; and retries copies that were cut off.
 
+**Added 20 Oct (day):**
+
+Wedding party:
+- Five views, shown under it in the menu: Overview, each side, Run sheet, Your checklists.
+- Each side tracks its people (outfit, size, fitting, gift), what they wear, the hens or bucks, its to-dos, and a hair and makeup schedule.
+- Each member signs in with a private link, set up in Setup → Wedding party access, and ticks and adds their own to-dos and packing.
+- A day-of coordinator link.
+- Your checklists run from a month out to after the wedding, by moment.
+- The birthday has a host's day checklist instead of a wedding party.
+
+Wedding planner:
+- Insights:
+  - Replies, a forecast and who to chase.
+  - Money, payments by month, and your split against typical couples.
+  - The plan (on track?), vendors, catering, seating, key dates, gifts, and how texts did.
+- Ideas board.
+- Photo list.
+- Task owners.
+- Who's paying.
+- Vendor contracts.
+- Speeches and who holds what.
+- A calendar link for your phones.
+
+Menus and dietary:
+- Set and special menus, matched to guests.
+- The caterer's menu files.
+- Dietary needs and messages are locked unless manual override is on.
+
+Seating: banquet tables with seats on one side.
+
+RSVP:
+- An automatic reply to a "no".
+- Replies close on a set date.
+- Save the date (page, text tag, printed cards).
+
+Messages: email to the event's address, sorted into guests, vendors and other; vendor quotes are filed automatically.
+
+Planning files: can live in a linked Google Drive, Dropbox or OneDrive.
+
+Photos and video:
+- Videos.
+- Looks (colour grades) and new frames.
+- A Frames and looks setting.
+- Videos on the live wall.
+
+Invitations:
+- 11 more themes.
+- Make it yours (five colours and five name styles).
+
+Admin:
+- Account → Admin look.
+- Realistic text previews.
+
+**Needs you (free):**
+- **Email intake:** in Cloudflare → your domain → Email → Email Routing, switch it on and route the event address to the `wedding-api` Worker. Then put the address in Messages → Email.
+
 **Still open from the research:**
-- Accommodation board
 - Multilingual invitation
 - QR table cards (photo upload uses each guest's private link, so a shared QR needs a public upload page first)
 - Guest games
