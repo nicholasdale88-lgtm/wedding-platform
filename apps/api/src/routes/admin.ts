@@ -180,7 +180,20 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
 
     const t = now();
     // D1 batches are all-or-nothing and up to ~100 statements: pack whole guests, never half of one.
+    // A batch that fails is retried once (each batch is all-or-nothing). If it still fails, say exactly how many
+    // were added: running the import again adds the rest and skips everyone already added.
+    let added = 0;
+    let pending = 0;
+    const commit = async (stmts: D1PreparedStatement[], guests: number) => {
+      try {
+        await db.batch(stmts);
+      } catch {
+        await db.batch(stmts);
+      }
+      added += guests;
+    };
     let batch: D1PreparedStatement[] = [];
+    try {
     for (const g of ok) {
       const invId = id();
       const one = [
@@ -189,14 +202,23 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         ...g.eventIds.map((e) => db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, e)),
       ];
       if (batch.length + one.length > 90) {
-        await db.batch(batch);
+        await commit(batch, pending);
         batch = [];
+        pending = 0;
       }
       batch.push(...one);
+      pending++;
     }
-    if (batch.length) await db.batch(batch);
-    await audit(c, 'guest.import', w, { added: ok.length, skipped: skipped.length }).run();
-    return c.json({ added: ok.length, wouldAdd: ok.length, skipped, problems: [], dry: false });
+    if (batch.length) await commit(batch, pending);
+    } catch {
+      await audit(c, 'guest.import', w, { added, skipped: skipped.length, stopped: true }).run().catch(() => {});
+      return c.json(
+        { error: { code: 'import_partial', message: `Added ${added} of ${ok.length} guests before the connection dropped. Run the same import again to add the rest: nobody is added twice.` }, added },
+        503,
+      );
+    }
+    await audit(c, 'guest.import', w, { added, skipped: skipped.length }).run();
+    return c.json({ added, wouldAdd: ok.length, skipped, problems: [], dry: false });
   });
 
   app.patch('/guests/:id', writer, async (c) => {
