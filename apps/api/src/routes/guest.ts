@@ -371,7 +371,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     if (photo && bytes.byteLength > MAX_PHOTO) return err(c, 413, 'too_large', 'That photo is too large.');
     // A video's look (shown when it plays): one of the page's looks, by name.
     const asked = c.req.header('X-Photo-Look') ?? '';
-    const look = video && ['golden', 'film', 'classic', 'blush', 'moody', 'airy', 'vintage'].includes(asked) ? asked : '';
+    const look = video && ['golden', 'film', 'classic', 'blush', 'moody', 'airy', 'vintage', 'disposable', 'cinematic', 'glow', 'noir'].includes(asked) ? asked : '';
     // A video is big: twenty a day each, so one phone can't fill the album or the couple's Drive.
     if (video && !(await allow(db, `video-day:${inv.id}`, 20, 86_400_000))) return err(c, 429, 'slow_down', 'That’s a lot of videos today. Please try again tomorrow.');
     let by = '';

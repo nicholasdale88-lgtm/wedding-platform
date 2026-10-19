@@ -4,7 +4,7 @@
  * on every phone); on a video it's kept with the video and shown when it plays (the same look in CSS).
  */
 
-export type LookKey = 'original' | 'golden' | 'film' | 'classic' | 'blush' | 'moody' | 'airy' | 'vintage';
+export type LookKey = 'original' | 'golden' | 'film' | 'classic' | 'blush' | 'moody' | 'airy' | 'vintage' | 'disposable' | 'cinematic' | 'glow' | 'noir';
 
 interface Grade {
   label: string;
@@ -30,6 +30,10 @@ export const LOOKS: Record<LookKey, Grade> = {
   blush: { label: 'Blush', css: 'saturate(1.08) brightness(1.06) hue-rotate(-6deg)', b: 1.06, c: 0.97, s: 1.05, warm: 0.2, mono: 0, sepia: 0, fade: 0.15, vignette: 0.1, grain: 0 },
   moody: { label: 'Moody', css: 'contrast(1.15) brightness(.92) saturate(.78)', b: 0.93, c: 1.16, s: 0.75, warm: -0.1, mono: 0, sepia: 0, fade: 0.05, vignette: 0.45, grain: 0.1 },
   airy: { label: 'Bright & airy', css: 'brightness(1.12) contrast(.9) saturate(.95)', b: 1.12, c: 0.9, s: 0.95, warm: 0.05, mono: 0, sepia: 0, fade: 0.2, vignette: 0, grain: 0 },
+  disposable: { label: 'Disposable camera', css: 'contrast(1.18) saturate(1.2) brightness(1.04) sepia(.1)', b: 1.04, c: 1.18, s: 1.2, warm: 0.3, mono: 0, sepia: 0.08, fade: 0.1, vignette: 0.4, grain: 0.45 },
+  cinematic: { label: 'Cinematic', css: 'contrast(1.12) saturate(1.1) sepia(.12) brightness(.98)', b: 0.98, c: 1.12, s: 1.1, warm: 0.25, mono: 0, sepia: 0.05, fade: 0.12, vignette: 0.35, grain: 0.05 },
+  glow: { label: 'Soft glow', css: 'brightness(1.1) contrast(.86) saturate(1.05)', b: 1.1, c: 0.86, s: 1.05, warm: 0.15, mono: 0, sepia: 0, fade: 0.28, vignette: 0, grain: 0 },
+  noir: { label: 'Noir', css: 'grayscale(1) contrast(1.35) brightness(.95)', b: 0.95, c: 1.35, s: 1, warm: 0, mono: 1, sepia: 0, fade: 0, vignette: 0.5, grain: 0.25 },
   vintage: { label: 'Vintage', css: 'sepia(.55) contrast(.95) brightness(1.03)', b: 1.03, c: 0.95, s: 0.9, warm: 0.2, mono: 0, sepia: 0.5, fade: 0.3, vignette: 0.35, grain: 0.3 },
 };
 export const LOOK_KEYS = Object.keys(LOOKS) as LookKey[];
