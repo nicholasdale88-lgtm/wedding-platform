@@ -1,0 +1,193 @@
+/**
+ * Event filters for guests' photos (like Snapchat's geofilters), drawn onto the photo itself so they
+ * travel with it: the event's name and date in the invitation's script, the couple's wax seal, a
+ * framed border, and for the second celebration a big "30"-style number badge in its blue. Each event
+ * offers its own set, in the wedding's colours.
+ */
+
+export type FilterKey = 'none' | 'names' | 'seal' | 'frame' | 'number';
+
+export interface FilterInfo {
+  /** "The wedding", "Alex's 30th" */
+  title: string;
+  /** "Thursday 18 November 2027" */
+  date: string;
+  /** "Alex & Sam" */
+  couple: string;
+  /** "A&S" */
+  monogram: string;
+  /** The theme's dark ink and gold. */
+  ink: string;
+  gold: string;
+  /** 0: the first event (wedding look), 1: the second (its blue). */
+  slot: number;
+}
+
+export const FILTER_LABEL: Record<FilterKey, string> = { none: 'No filter', names: 'Names', seal: 'Wax seal', frame: 'Frame', number: 'Birthday' };
+
+/** The filters an event offers, best first. */
+export function filtersFor(info: Pick<FilterInfo, 'slot' | 'title'>): FilterKey[] {
+  const hasNumber = info.slot === 1 && /\d/.test(info.title);
+  return hasNumber ? ['none', 'number', 'names', 'frame'] : ['none', 'names', 'seal', 'frame'];
+}
+
+const SCRIPT = '"Pinyon Script", "Snell Roundhand", cursive';
+const SERIF = '"Cormorant Garamond", Georgia, serif';
+
+/** The fonts the filters use, ready before anything is drawn (a first frame in a fallback font looks wrong). */
+export async function filterFontsReady() {
+  try {
+    await Promise.all([document.fonts.load(`64px ${SCRIPT}`), document.fonts.load(`32px ${SERIF}`), document.fonts.load(`italic 32px ${SERIF}`)]);
+  } catch {
+    /* draw with what the browser has */
+  }
+}
+
+function fitText(g: CanvasRenderingContext2D, text: string, font: (px: number) => string, maxW: number, start: number): number {
+  let px = start;
+  g.font = font(px);
+  while (px > 10 && g.measureText(text).width > maxW) {
+    px -= 2;
+    g.font = font(px);
+  }
+  return px;
+}
+
+/** Draw the filter over whatever is already on the canvas (a photo, or nothing for the live camera overlay). */
+export function drawFilter(g: CanvasRenderingContext2D, w: number, h: number, key: FilterKey, info: FilterInfo) {
+  if (key === 'none') return;
+  const u = Math.min(w, h); // filters scale with the shorter side, so they look the same portrait or landscape
+  g.save();
+  g.textAlign = 'center';
+  g.textBaseline = 'alphabetic';
+
+  if (key === 'names') {
+    const band = g.createLinearGradient(0, h * 0.68, 0, h);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(1, 'rgba(0,0,0,.6)');
+    g.fillStyle = band;
+    g.fillRect(0, h * 0.68, w, h * 0.32);
+    g.fillStyle = '#ffffff';
+    g.shadowColor = 'rgba(0,0,0,.35)';
+    g.shadowBlur = u * 0.01;
+    fitText(g, info.couple, (px) => `${px}px ${SCRIPT}`, w * 0.86, Math.round(u * 0.11));
+    g.fillText(info.couple, w / 2, h - u * 0.12);
+    g.shadowBlur = 0;
+    small(g, `${info.title} · ${info.date}`, w / 2, h - u * 0.05, u, w);
+  }
+
+  if (key === 'seal') {
+    const r = u * 0.1;
+    const cx = w - r - u * 0.05;
+    const cy = h - r - u * 0.05;
+    seal(g, cx, cy, r, info);
+    g.fillStyle = '#ffffff';
+    g.shadowColor = 'rgba(0,0,0,.45)';
+    g.shadowBlur = u * 0.012;
+    g.textAlign = 'right';
+    fitText(g, info.title, (px) => `${px}px ${SCRIPT}`, w - r * 2 - u * 0.14, Math.round(u * 0.07));
+    g.fillText(info.title, cx - r - u * 0.03, cy + u * 0.02);
+  }
+
+  if (key === 'frame') {
+    const m = u * 0.035;
+    g.strokeStyle = 'rgba(255,255,255,.92)';
+    g.lineWidth = Math.max(2, u * 0.006);
+    g.strokeRect(m, m, w - m * 2, h - m * 2);
+    g.strokeStyle = info.gold;
+    g.lineWidth = Math.max(1, u * 0.003);
+    g.strokeRect(m * 1.6, m * 1.6, w - m * 3.2, h - m * 3.2);
+    // A cream label at the foot of the frame, the invitation's card.
+    const lw = Math.min(w * 0.7, u * 0.9);
+    const lh = u * 0.15;
+    const lx = (w - lw) / 2;
+    const ly = h - m * 1.6 - lh - u * 0.03;
+    g.fillStyle = 'rgba(251,248,242,.94)';
+    g.fillRect(lx, ly, lw, lh);
+    g.strokeStyle = info.gold;
+    g.strokeRect(lx + u * 0.008, ly + u * 0.008, lw - u * 0.016, lh - u * 0.016);
+    g.fillStyle = info.ink;
+    fitText(g, info.title, (px) => `${px}px ${SCRIPT}`, lw * 0.86, Math.round(lh * 0.5));
+    g.fillText(info.title, w / 2, ly + lh * 0.55);
+    g.font = `600 ${Math.round(lh * 0.16)}px ${SERIF}`;
+    g.fillText(spaced(info.date.toUpperCase()), w / 2, ly + lh * 0.82);
+  }
+
+  if (key === 'number') {
+    const n = /\d+/.exec(info.title)?.[0] ?? '';
+    const band = g.createLinearGradient(0, h * 0.55, 0, h);
+    band.addColorStop(0, 'rgba(47,61,92,0)');
+    band.addColorStop(1, 'rgba(47,61,92,.78)');
+    g.fillStyle = band;
+    g.fillRect(0, h * 0.55, w, h * 0.45);
+    g.font = `300 ${Math.round(u * 0.34)}px ${SERIF}`;
+    g.lineWidth = Math.max(2, u * 0.006);
+    g.strokeStyle = '#ffffff';
+    g.fillStyle = 'rgba(255,255,255,.18)';
+    g.fillText(n, w / 2, h - u * 0.2);
+    g.strokeText(n, w / 2, h - u * 0.2);
+    g.fillStyle = '#e6d79e';
+    small(g, info.title.toUpperCase(), w / 2, h - u * 0.11, u, w);
+    g.fillStyle = '#ffffff';
+    small(g, info.date, w / 2, h - u * 0.05, u, w);
+  }
+  g.restore();
+}
+
+const spaced = (s: string) => s.split('').join(' ');
+
+function small(g: CanvasRenderingContext2D, text: string, x: number, y: number, u: number, w: number) {
+  fitText(g, spaced(text), (px) => `600 ${px}px ${SERIF}`, w * 0.9, Math.round(u * 0.034));
+  g.fillText(spaced(text), x, y);
+}
+
+function seal(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, info: FilterInfo) {
+  const grad = g.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r);
+  grad.addColorStop(0, '#fff3dc');
+  grad.addColorStop(0.45, info.gold);
+  grad.addColorStop(1, info.ink);
+  g.fillStyle = grad;
+  g.beginPath();
+  g.arc(cx, cy, r, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.6)';
+  g.lineWidth = Math.max(1, r * 0.04);
+  g.beginPath();
+  g.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
+  g.stroke();
+  g.fillStyle = '#ffffff';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  fitText(g, info.monogram, (px) => `italic 500 ${px}px ${SERIF}`, r * 1.4, Math.round(r * 0.62));
+  g.fillText(info.monogram, cx, cy + r * 0.04);
+  g.textBaseline = 'alphabetic';
+}
+
+/**
+ * A photo (from the camera roll or a camera frame) shrunk for upload (longest side 2400px) with the filter
+ * drawn on, as a JPEG. A format the browser can't draw (e.g. HEIC on some phones) is sent as it is, unfiltered.
+ */
+export function renderPhoto(source: Blob, key: FilterKey, info: FilterInfo | null): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const u = URL.createObjectURL(source);
+    img.onload = () => {
+      const k = Math.min(1, 2400 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k);
+      c.height = Math.round(img.height * k);
+      const g = c.getContext('2d');
+      if (g) {
+        g.drawImage(img, 0, 0, c.width, c.height);
+        if (info) drawFilter(g, c.width, c.height, key, info);
+      }
+      URL.revokeObjectURL(u);
+      c.toBlob((b) => resolve(b ?? source), 'image/jpeg', 0.88);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(u);
+      resolve(source);
+    };
+    img.src = u;
+  });
+}

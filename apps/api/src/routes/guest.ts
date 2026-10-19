@@ -239,7 +239,7 @@ export function guestRoutes() {
         : null,
       mates,
       weather,
-      photoUrl: (guide.style === 'reception' && guide.photoUrl) || `${base}/w/${w.slug}/photos${couple ? '' : `?g=${token}`}`,
+      photoUrl: (guide.style === 'reception' && guide.photoUrl) || `${base}/w/${w.slug}/photos/${encodeURIComponent(ev.key)}${couple ? '' : `?g=${token}`}`,
     });
   });
 
@@ -256,9 +256,14 @@ export function guestRoutes() {
           .bind(token, w.id)
           .first<{ name: string }>()
       : null;
+    // Each event has its own album; the page offers the events this guest is invited to.
+    const events = await eventsOf(c.env.DB, w.id);
+    const ev = events.find((e) => e.key === c.req.query('event')) ?? null;
     const content = json<Record<string, unknown>>(w.content, {});
     return c.json({
-      wedding: { slug: w.slug, name1: w.name1, name2: w.name2, theme: w.theme },
+      wedding: { slug: w.slug, name1: w.name1, name2: w.name2, theme: w.theme, monogram: w.monogram, timezone: w.timezone },
+      events: events.map((e, i) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: i })),
+      event: ev ? { key: ev.key, name: ev.name, startsAt: ev.starts_at, slot: events.indexOf(ev) } : null,
       images: imagesOf(content),
       name: who?.name ?? '',
       linked: !!who,
@@ -290,12 +295,14 @@ export function guestRoutes() {
     } catch {
       /* a garbled name is just left off */
     }
+    const evKey = c.req.query('event') ?? '';
+    const ev = evKey ? (await eventsOf(db, w.id)).find((e) => e.key === evKey) : undefined;
     const id = crypto.randomUUID();
     const key = `w/${w.id}/photos/${id}.${kind.ext}`;
     await c.env.MEDIA.put(key, bytes, { httpMetadata: { contentType: kind.type } });
     await db
-      .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at) VALUES (?, ?, 'photo', ?, ?, ?, ?, ?, ?)`)
-      .bind(id, w.id, key, kind.type, bytes.byteLength, by || null, inv.id, new Date().toISOString())
+      .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key) VALUES (?, ?, 'photo', ?, ?, ?, ?, ?, ?, ?)`)
+      .bind(id, w.id, key, kind.type, bytes.byteLength, by || null, inv.id, new Date().toISOString(), ev?.key ?? null)
       .run();
     return c.json({ ok: true, id });
   });

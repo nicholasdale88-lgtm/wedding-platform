@@ -6,6 +6,7 @@ import m0003 from '../../migrations/0003_table_shapes.sql?raw';
 import m0004 from '../../migrations/0004_seat_publish.sql?raw';
 import m0005 from '../../migrations/0005_guest_groups.sql?raw';
 import m0006 from '../../migrations/0006_invites_from.sql?raw';
+import m0007 from '../../migrations/0007_media_event.sql?raw';
 import { CAMPAIGNS, phoneOf, SENDER, ADMIN } from './fixture';
 import { TZ } from './fakes';
 
@@ -13,7 +14,7 @@ import { TZ } from './fakes';
 export async function testD1() {
   const mf = new Miniflare({ modules: true, script: 'export default {}', d1Databases: { DB: crypto.randomUUID() } });
   const db = (await mf.getD1Database('DB')) as unknown as D1Database;
-  for (const stmt of [m0001, m0002, m0003, m0004, m0005, m0006].flatMap(statements)) await db.prepare(stmt).run();
+  for (const stmt of [m0001, m0002, m0003, m0004, m0005, m0006, m0007].flatMap(statements)) await db.prepare(stmt).run();
   return { db, dispose: () => mf.dispose() };
 }
 

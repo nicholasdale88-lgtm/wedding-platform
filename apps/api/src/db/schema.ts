@@ -251,6 +251,7 @@ export const media = sqliteTable('media', {
   edit: text('edit'),
   createdAt: text('created_at').notNull(),
   deletedAt: text('deleted_at'),
+  eventKey: text('event_key'), // migration 0007: which event's album
 });
 
 export const audit = sqliteTable('audit', {

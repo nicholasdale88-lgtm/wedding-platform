@@ -16,9 +16,12 @@ const EXT: Record<string, string> = { 'image/png': 'png', 'image/webp': 'webp', 
 const ext = (type: string) => EXT[type] ?? 'jpg';
 
 export function Photos() {
-  const { wid, overview } = useAdmin();
+  const { wid, overview, event: chosen } = useAdmin();
   const toast = useToast();
-  const [data, setData] = useState<PhotosData | null>(null);
+  const [all, setData] = useState<PhotosData | null>(null);
+  // Each event's own album (photos added before albums were split show in every event); Account shows all.
+  const one = overview?.events.some((e) => e.key === chosen) ?? false;
+  const data = useMemo(() => (all && one ? { ...all, items: all.items.filter((p) => !p.event || p.event === chosen) } : all), [all, one, chosen]);
   const [error, setError] = useState('');
   const [by, setBy] = useState('');
   const [sel, setSel] = useState<Set<string>>(new Set());

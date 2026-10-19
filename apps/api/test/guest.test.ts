@@ -173,7 +173,7 @@ describe('guest API', () => {
     expect(p.guide.faq!.length).toBeGreaterThan(3);
     expect(Object.keys(p.texts).length).toBeGreaterThan(30);
     expect(Object.keys(p.texts).every((k) => k.startsWith('gd.'))).toBe(true);
-    expect(p.photoUrl).toBe(`https://example.com/w/sophie-and-nicholas/photos?g=${ella}`);
+    expect(p.photoUrl).toBe(`https://example.com/w/sophie-and-nicholas/photos/wedding?g=${ella}`); // the wedding's own album
     expect(p.weather).toBeNull(); // more than two weeks out: no forecast, never a made-up one
   });
 

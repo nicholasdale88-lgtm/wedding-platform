@@ -58,8 +58,17 @@ export interface GuidePayload {
   photoUrl: string;
 }
 
+export interface PhotoEvent {
+  key: string;
+  name: string;
+  startsAt: string;
+  slot: number;
+}
 export interface PhotoPagePayload {
-  wedding: { slug: string; name1: string; name2: string; theme: string };
+  wedding: { slug: string; name1: string; name2: string; theme: string; monogram?: string; timezone?: string };
+  /** Every event (each has its own album); `event` is the one this page is for, if the link names one. */
+  events?: PhotoEvent[];
+  event?: PhotoEvent | null;
   images: Record<string, string>;
   name: string;
   linked: boolean;
@@ -89,10 +98,11 @@ export const guestApi = {
     call<GuidePayload>(
       `/p/${encodeURIComponent(slug)}/guide?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${preview ? '&preview=1' : ''}`,
     ),
-  photos: (slug: string, token: string) => call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}`),
-  /** One photo; the server checks it really is one. */
-  uploadPhoto: async (slug: string, token: string, by: string, photo: Blob) => {
-    const res = await fetch(`/api/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}`, {
+  photos: (slug: string, token: string, event = '') =>
+    call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`),
+  /** One photo, into an event's album; the server checks it really is one. */
+  uploadPhoto: async (slug: string, token: string, by: string, photo: Blob, event = '') => {
+    const res = await fetch(`/api/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`, {
       method: 'PUT',
       headers: { 'content-type': photo.type || 'image/jpeg', 'X-Photo-By': encodeURIComponent(by) },
       body: photo,

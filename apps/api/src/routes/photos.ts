@@ -16,12 +16,12 @@ export function photoRoutes() {
 
   app.get('/', async (c) => {
     const { results } = await c.env.DB.prepare(
-      `SELECT m.id, m.uploaded_by, m.created_at, m.bytes, m.content_type,
+      `SELECT m.id, m.uploaded_by, m.created_at, m.bytes, m.content_type, m.event_key,
               (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0) AS guest
          FROM media m WHERE m.wedding_id = ? AND m.kind = 'photo' AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 5000`,
     )
       .bind(wid(c))
-      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; guest: string | null }>();
+      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; event_key: string | null; guest: string | null }>();
     return c.json({
       enabled: !!c.env.MEDIA,
       items: results.map((r) => ({
@@ -30,6 +30,7 @@ export function photoRoutes() {
         at: r.created_at,
         bytes: r.bytes,
         type: r.content_type,
+        event: r.event_key, // which event's album (null: before albums were split)
         url: `/api/a/w/${wid(c)}/photos/${r.id}`,
       })),
     });

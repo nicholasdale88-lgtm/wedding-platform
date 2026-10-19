@@ -18,6 +18,7 @@ export function App() {
           <Route path="/w/:slug/tomorrow" element={<GuidePage />} />
           <Route path="/w/:slug/tomorrow/:event" element={<GuidePage />} />
           <Route path="/w/:slug/photos" element={<PhotoPage />} />
+          <Route path="/w/:slug/photos/:event" element={<PhotoPage />} />
           <Route path="/" element={<Navigate to="/admin" replace />} />
           {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
           <Route path="*" element={<GuestNotFound />} />

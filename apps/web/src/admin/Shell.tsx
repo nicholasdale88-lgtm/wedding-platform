@@ -82,6 +82,7 @@ export const EVENT_TABS = [
   { key: 'dietary', label: 'Dietary' },
   { key: 'texts', label: 'SMS' },
   { key: 'seating', label: 'Seating' },
+  { key: 'photos', label: 'Photos' },
   { key: 'pages', label: 'Setup' },
 ] as const;
 /** Every admin route (Events stays reachable by link; its work now lives in Overview and Setup). */

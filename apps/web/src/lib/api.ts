@@ -324,7 +324,7 @@ export const seatingApi = {
 
 export interface PhotosData {
   enabled: boolean;
-  items: { id: string; by: string; at: string; bytes: number; type: string; url: string }[];
+  items: { id: string; by: string; at: string; bytes: number; type: string; url: string; event?: string | null }[];
 }
 export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
