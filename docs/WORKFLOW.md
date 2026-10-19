@@ -7,6 +7,14 @@ One wedding, three sides that must always agree:
 
 Everything reads and writes the same records, so a change on one side shows up everywhere at once.
 
+**The rule between the two sides.** The admin is the workhorse: every word, link, photo, time and setting a guest sees is edited there. The guest side is finished stationery: it never shows admin controls, never links to the sign-in, and never loads admin code. Old or mistyped links get a gentle message in the same style. The couple sees exactly what a guest sees through **Preview as this guest** (invitation, each night-before guide, photos), which never counts as the guest opening it.
+
+| Guest page | Address | Needs their link | Edited in admin |
+|---|---|---|---|
+| Invitation + RSVP | `/w/<wedding>/?g=…` | No (shows the name lookup) | Guest pages → Invitation, Every word |
+| Night-before guide (each event) | `/w/<wedding>/tomorrow/<event>?g=…` | Yes | Guest pages → Night before; Seating; Dietary |
+| Photo upload | `/w/<wedding>/photos?g=…` | Yes | Photos |
+
 ```
  COUPLE (admin)                          DATA (one wedding)                 GUEST (phone)
  ──────────────                          ──────────────────                 ─────────────
