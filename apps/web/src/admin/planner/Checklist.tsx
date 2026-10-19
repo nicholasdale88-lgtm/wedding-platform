@@ -1,14 +1,17 @@
-import { PLAN_TEMPLATE, type PlanChecklist, type PlanTask } from '@wp/shared';
+import { allPayments, dateIn, PLAN_TEMPLATE, vendorActions, type Budget as BudgetDoc, type PlanChecklist, type PlanTask, type VendorAction, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { CalendarCard } from './CalendarCard';
-import { useDocSave } from './useDocSave';
+import { markPaid } from './paying';
+import { useDocSave, useLiveDoc } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
  * Wedding planner → Checklist: what to do and when, counted back from the wedding date (the usual
- * Australian plan to start, including the Notice of Intended Marriage deadlines). Ticks save at once.
+ * Australian plan to start, including the Notice of Intended Marriage deadlines), anything you add, and
+ * what your vendors need from you (each payment, contracts to sign, quotes running out), worked out from
+ * Vendors and Budget: tick a payment here and it's marked paid in Payments. Ticks save at once.
  */
 
 const DAY = 86_400_000;
@@ -34,6 +37,8 @@ export function Checklist() {
   const [show, setShow] = useState<'todo' | 'all'>('todo');
   const [whose, setWhose] = useState<'all' | PlanTask['owner']>('all');
   const [adding, setAdding] = useState({ text: '', when: '' });
+  const vendorsDoc = useLiveDoc<VendorsDoc>(wid, 'vendors', '', toast);
+  const budgetDoc = useLiveDoc<BudgetDoc>(wid, 'budget', '', toast);
 
   const load = useCallback(async () => {
     try {
@@ -74,7 +79,57 @@ export function Checklist() {
   const load_ = { p1: open.filter((t) => t.owner === 'p1' || t.owner === 'both').length, p2: open.filter((t) => t.owner === 'p2' || t.owner === 'both').length, none: open.filter((t) => !t.owner).length };
   const overdue = left.filter((t) => (dueDate(t)?.getTime() ?? Infinity) < now);
   const shown = show === 'todo' ? left : tasks.filter((t) => whose === 'all' || t.owner === whose || (whose !== '' && t.owner === 'both'));
-  const groups = BANDS.map(([, label]) => [label, shown.filter((t) => bandOf(t.before) === label)] as const).filter(([, ts]) => ts.length);
+  // What vendors need from you, placed by date like everything else (no date: at the top, "To do now").
+  const vlist = vendorsDoc.doc?.data.list ?? [];
+  const vlines = budgetDoc.doc?.data.lines ?? [];
+  const today = dateIn(overview?.wedding.timezone);
+  const actions = whose === 'all' ? vendorActions(vlines, vlist).filter((a) => show === 'all' || !a.done) : [];
+  const beforeOf = (a: VendorAction) => (a.due && day !== null ? Math.round((day - Date.parse(`${a.due}T12:00`)) / DAY) : null);
+  const tickVendor = (a: VendorAction) => {
+    if (a.kind === 'payment' && a.payment) {
+      const r = markPaid(a.payment, !a.done, vlist, vlines, today);
+      if (a.payment.vendorId) vendorsDoc.update(() => ({ list: r.vendors }), true);
+      else budgetDoc.update((d) => ({ ...d, lines: r.lines }), true);
+      toast(a.done ? 'Marked not paid' : 'Paid ✓ (in Payments too)');
+    } else if (a.kind === 'contract') {
+      vendorsDoc.update((d) => ({ list: d.list.map((v) => (v.id === a.vendorId ? { ...v, contractSigned: a.done ? '' : today } : v)) }), true);
+      toast(a.done ? 'Contract not signed yet' : 'Contract signed ✓');
+    }
+  };
+  const groups = [
+    ['To do now', [] as PlanTask[], actions.filter((a) => beforeOf(a) === null)] as const,
+    ...BANDS.map(([, label]) => [label, shown.filter((t) => bandOf(t.before) === label), actions.filter((a) => { const b = beforeOf(a); return b !== null && bandOf(b) === label; })] as const),
+  ].filter(([, ts, as]) => ts.length || as.length);
+  const custom = (t: PlanTask) => !PLAN_TEMPLATE.some((x) => x.text === t.text);
+  const pays = allPayments(vlines, vlist);
+  const paidSum = pays.filter((p) => p.paid).reduce((a, p) => a + p.amount, 0);
+  const owingSum = pays.filter((p) => !p.paid).reduce((a, p) => a + p.amount, 0);
+  const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
+  const addForm = (
+    <form
+      className="flex gap-2 flex-wrap items-end p-4 rounded-[16px] border border-dashed border-[#c6b794]"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!adding.text.trim()) return;
+        // A date becomes "days before the day"; no date = in the last month.
+        const before = adding.when && day ? Math.round((day - Date.parse(`${adding.when}T12:00`)) / DAY) : 14;
+        void save([...doc.data.tasks, { id: newId(), text: adding.text.trim(), before: Math.max(-60, Math.min(800, before)), done: false, note: '', legal: false, owner: whose === 'all' ? '' : whose }], 'Added');
+        setAdding({ text: '', when: '' });
+      }}
+    >
+      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] flex-1 min-w-[200px]">
+        Add your own
+        <input value={adding.text} maxLength={200} placeholder="e.g. Book the dress fitting" onChange={(e) => setAdding({ ...adding, text: e.target.value })} className={inputCls} />
+      </label>
+      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        By
+        <input type="date" value={adding.when} onChange={(e) => setAdding({ ...adding, when: e.target.value })} className={inputCls} />
+      </label>
+      <Pill type="submit" kind="outline">
+        Add
+      </Pill>
+    </form>
+  );
 
   if (!tasks.length) {
     return (
@@ -87,6 +142,8 @@ export function Checklist() {
         <Pill kind="primary" className="self-start" onClick={() => void save(PLAN_TEMPLATE.map((t) => ({ ...t, id: newId(), done: false, note: '', owner: '' as const })), 'Checklist ready')}>
           Start the checklist
         </Pill>
+        <span className="text-[13px] text-[#5b6a52]">Or start with your own:</span>
+        {addForm}
       </section>
     );
   }
@@ -100,6 +157,11 @@ export function Checklist() {
             {tasks.length - left.length} of {tasks.length} done
             {overdue.length ? <span className="text-[#7a4a37] font-semibold"> · {overdue.length} overdue</span> : null}
           </div>
+          {pays.length > 0 && (
+            <div className="text-[13px] text-[#5b6a52]">
+              Vendor payments: <strong className="font-semibold text-[#33402f]">{aud(paidSum)}</strong> paid · <strong className={`font-semibold ${owingSum ? 'text-[#7a4a37]' : 'text-[#33402f]'}`}>{aud(owingSum)}</strong> outstanding
+            </div>
+          )}
         </div>
         <div role="radiogroup" aria-label="Show" className="flex gap-2">
           {(
@@ -124,6 +186,7 @@ export function Checklist() {
       <div className="h-[8px] rounded-full bg-[#e9e2cc] overflow-hidden" role="img" aria-label={`${tasks.length - open.length} of ${tasks.length} done`}>
         <div className="h-full bg-[#5d6b47]" style={{ width: `${Math.round(((tasks.length - open.length) / tasks.length) * 100)}%` }} />
       </div>
+      {addForm}
       {/* Who's doing what: still to do, by whose job it is (tap a name to see just theirs). */}
       <div role="radiogroup" aria-label="Whose" className="flex gap-2 flex-wrap items-center text-[13px]">
         {(
@@ -153,9 +216,28 @@ export function Checklist() {
         )}
       </div>
 
-      {groups.map(([label, ts]) => (
+      {groups.map(([label, ts, as]) => (
         <section key={label} aria-label={label} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
           <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52] pb-1">{label}</div>
+          {as.map((a) => {
+            const late = !a.done && !!a.due && a.due < today;
+            return (
+              <div key={a.key} className="flex items-start gap-3 py-2 border-t border-[#e2d7bc] first:border-t-0">
+                {a.kind === 'quote' ? (
+                  <span aria-hidden className="mt-[3px] w-[18px] h-[18px] flex-none rounded-full border border-dashed border-[#c6b794]" />
+                ) : (
+                  <input type="checkbox" checked={a.done} aria-label={a.text} onChange={() => tickVendor(a)} className="mt-[3px] w-[18px] h-[18px] flex-none accent-[#5d6b47]" />
+                )}
+                <div className={`flex-1 min-w-0 text-[15px] ${a.done ? 'line-through text-[#7a7466]' : ''}`}>
+                  <span className="mr-2 py-[1px] px-2 rounded-full bg-[#e6ecdc] text-[#3d4a2f] text-[11px] font-semibold align-middle">{a.kind === 'payment' ? 'Payment' : 'Vendor'}</span>
+                  {a.text}
+                </div>
+                <span className={`text-[12px] whitespace-nowrap ${late ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>
+                  {a.due ? `${late ? 'Overdue · ' : ''}${fmt(new Date(`${a.due}T00:00`))}` : ''}
+                </span>
+              </div>
+            );
+          })}
           {ts.map((t) => {
             const due = dueDate(t);
             const late = !t.done && !!due && due.getTime() < now;
@@ -172,6 +254,7 @@ export function Checklist() {
                 <div className="flex-1 min-w-0">
                   <div className={`text-[15px] ${t.done ? 'line-through text-[#7a7466]' : ''}`}>
                     {t.legal && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#f1e1d6] text-[#7a4a37] text-[11px] font-semibold align-middle">Legal</span>}
+                    {custom(t) && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#efe7d3] text-[#5b6a52] text-[11px] font-semibold align-middle">Yours</span>}
                     {t.text}
                   </div>
                   {t.note && <div className="text-[13px] text-[#5b6a52]">{t.note}</div>}
@@ -198,30 +281,6 @@ export function Checklist() {
       {!groups.length && <p className="m-0 text-[15px] text-[#3d4a2f]">Everything's done ✓</p>}
 
       <CalendarCard />
-
-      <form
-        className="flex gap-2 flex-wrap items-end p-4 rounded-[16px] border border-dashed border-[#c6b794]"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!adding.text.trim()) return;
-          // A date becomes "days before the day"; no date = in the last month.
-          const before = adding.when && day ? Math.round((day - Date.parse(`${adding.when}T12:00`)) / DAY) : 14;
-          void save([...doc.data.tasks, { id: newId(), text: adding.text.trim(), before: Math.max(-60, Math.min(800, before)), done: false, note: '', legal: false, owner: whose === 'all' ? '' : whose }], 'Added');
-          setAdding({ text: '', when: '' });
-        }}
-      >
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] flex-1 min-w-[200px]">
-          Add something to do
-          <input value={adding.text} onChange={(e) => setAdding({ ...adding, text: e.target.value })} className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-          By
-          <input type="date" value={adding.when} onChange={(e) => setAdding({ ...adding, when: e.target.value })} className={inputCls} />
-        </label>
-        <Pill type="submit" kind="outline">
-          Add
-        </Pill>
-      </form>
     </div>
   );
 }

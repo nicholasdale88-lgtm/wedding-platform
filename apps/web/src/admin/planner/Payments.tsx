@@ -1,8 +1,9 @@
-import { allPayments, dateIn, lineFor, moneyOf, scheduleOf, type Budget as BudgetDoc, type DuePayment, type Payment, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, dateIn, lineFor, moneyOf, type Budget as BudgetDoc, type DuePayment, type Payment, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useState } from 'react';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
 import { MoneyInput } from './MoneyInput';
+import { markPaid as paying, ownSchedule } from './paying';
 import { useLiveDoc } from './useDocSave';
 
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: n % 1 ? 2 : 0 }).format(n || 0);
@@ -40,20 +41,13 @@ export function Payments() {
   /** Change a vendor's schedule (the first change keeps what it started from, as payments of its own). */
   const editSchedule = (vid: string, fn: (ps: Payment[]) => Payment[]) =>
     vendorsDoc.update((d) => ({
-      list: d.list.map((v) => (v.id !== vid ? v : { ...v, payments: fn(v.payments.length ? v.payments : scheduleOf(v, lineFor(v, lines)).map((p) => ({ ...p, id: newId() }))) })),
+      list: d.list.map((v) => (v.id !== vid ? v : { ...v, payments: fn(ownSchedule(v, lines)) })),
     }));
   /** Tick a payment off (or back on): a vendor's payment, or a budget line paid in full. */
   const markPaid = (p: DuePayment, on: boolean) => {
-    if (p.vendorId) {
-      const id = p.key.slice(p.vendorId.length + 1);
-      const v = vendors.find((x) => x.id === p.vendorId);
-      if (!v) return;
-      // Derived payments get ids when the schedule is first kept; find this one by its place.
-      const at = scheduleOf(v, lineFor(v, lines)).findIndex((x) => x.id === id);
-      editSchedule(p.vendorId, (ps) => ps.map((x, i) => (i === at ? { ...x, paid: on, paidOn: on ? today : '' } : x)));
-    } else {
-      budgetDoc.update((d) => ({ ...d, lines: d.lines.map((l, i) => (i === p.line ? { ...l, paid: on ? l.quote || l.estimate : 0 } : l)) }));
-    }
+    const r = paying(p, on, vendors, lines, today);
+    if (p.vendorId) vendorsDoc.update(() => ({ list: r.vendors }));
+    else budgetDoc.update((d) => ({ ...d, lines: r.lines }));
     if (on) toast(`${p.who}: ${aud(p.amount)} paid ✓`);
   };
 

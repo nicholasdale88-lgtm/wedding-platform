@@ -651,6 +651,26 @@ export function allPayments(lines: BudgetLine[], vendors: Vendor[]): DuePayment[
   return out.sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || a.who.localeCompare(b.who));
 }
 
+/** Something a vendor needs from you, for the checklist: a payment, a contract to sign, a quote running out. */
+export type VendorAction = { key: string; kind: 'payment' | 'contract' | 'quote'; text: string; due: string; done: boolean; vendorId: string; payment?: DuePayment };
+
+/**
+ * The checklist's vendor items, worked out from the vendors and the budget (nothing to keep in step):
+ * every payment (done once paid), each booked vendor's contract to sign, and quotes that run out while
+ * the vendor isn't booked yet.
+ */
+export function vendorActions(lines: BudgetLine[], vendors: Vendor[]): VendorAction[] {
+  const out: VendorAction[] = allPayments(lines, vendors)
+    .filter((p) => p.amount > 0 && (p.due || !p.paid))
+    .map((p) => ({ key: `pay:${p.key}`, kind: 'payment' as const, text: `Pay ${p.who}${p.label === 'Payment' ? '' : ` · ${p.label.toLowerCase()}`} (${aud0(p.amount)})`, due: p.due, done: p.paid, vendorId: p.vendorId, payment: p }));
+  for (const v of vendors) {
+    if (v.status === 'booked') out.push({ key: `contract:${v.id}`, kind: 'contract', text: `Sign ${v.name}’s contract`, due: '', done: !!v.contractSigned, vendorId: v.id });
+    else for (const q of v.quotes.filter((x) => x.validUntil)) out.push({ key: `quote:${q.id}`, kind: 'quote', text: `Decide on ${v.name}’s quote (it runs out)`, due: q.validUntil, done: false, vendorId: v.id });
+  }
+  return out;
+}
+const aud0 = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
+
 export const Vendors = z.object({ list: z.array(Vendor).max(200).default([]) });
 export type Vendors = z.infer<typeof Vendors>;
 

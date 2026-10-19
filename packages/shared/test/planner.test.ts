@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPayments, bookingTimeline, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -158,6 +158,20 @@ describe('payment schedules', () => {
     expect(all.map((p) => [p.who, p.amount, p.due])).toEqual([
       ['Rings', 400, '2027-03-01'],
       ['Bloom', 1000, '2027-05-01'],
+    ]);
+  });
+});
+
+describe('vendor items for the checklist', () => {
+  it('payments (ticked once paid), contracts to sign, and quotes running out', () => {
+    const booked = Vendor.parse({ id: 'a', name: 'Bloom', status: 'booked', quote: 1000, deposit: 200, depositPaid: true, balanceDue: '2027-10-01', contractSigned: '' });
+    const maybe = Vendor.parse({ id: 'b', name: 'Snap', status: 'quoted', quotes: [{ id: 'q1', amount: 3000, validUntil: '2027-02-01' }] });
+    const items = vendorActions([], [booked, maybe]);
+    // The paid deposit has no date, so it's left off; the rest are there.
+    expect(items.map((i) => [i.kind, i.text, i.due, i.done])).toEqual([
+      ['payment', 'Pay Bloom · balance ($800)', '2027-10-01', false],
+      ['contract', 'Sign Bloom’s contract', '', false],
+      ['quote', 'Decide on Snap’s quote (it runs out)', '2027-02-01', false],
     ]);
   });
 });
