@@ -100,10 +100,13 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
     q(`SELECT r.invitation_id, e.key, r.attending, r.count, r.answers, r.message, r.via, r.updated_at FROM rsvp r JOIN event e ON e.id = r.event_id WHERE e.wedding_id = ? AND e.deleted_at IS NULL`),
     q(`SELECT id, key, name, mode, enabled, audience FROM campaign WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
     q(`SELECT s.campaign_id, s.send_at, s.status, s.last_error FROM campaign_slot s JOIN campaign c ON c.id = s.campaign_id WHERE c.wedding_id = ? AND c.deleted_at IS NULL`),
-    q(`SELECT o.invitation_id, COALESCE(c.name, CASE o.kind WHEN 'reply' THEN 'Reply to their text' ELSE 'Text' END) AS name,
-              COALESCE(o.sent_at, o.created_at) AS at, o.status
-         FROM sms_out o LEFT JOIN campaign c ON c.id = o.campaign_id
-        WHERE o.wedding_id = ? AND o.invitation_id IS NOT NULL AND o.status != 'cancelled' ORDER BY at`),
+    // Each guest's latest text only (not the whole history): one row per invitation.
+    q(`SELECT x.invitation_id, COALESCE(c.name, CASE x.kind WHEN 'reply' THEN 'Reply to their text' ELSE 'Text' END) AS name, x.at, x.status
+         FROM (SELECT o.invitation_id, o.campaign_id, o.kind, o.status, COALESCE(o.sent_at, o.created_at) AS at,
+                      ROW_NUMBER() OVER (PARTITION BY o.invitation_id ORDER BY COALESCE(o.sent_at, o.created_at) DESC, o.rowid DESC) AS n
+                 FROM sms_out o WHERE o.wedding_id = ? AND o.invitation_id IS NOT NULL AND o.status != 'cancelled') x
+         LEFT JOIN campaign c ON c.id = x.campaign_id
+        WHERE x.n = 1`),
     // Messages waiting for the couple: texted questions, unread messages from guests' pages and board posts to approve.
     q(`SELECT (SELECT COUNT(*) FROM sms_in WHERE wedding_id = ?1 AND action = 'Needs you' AND handled = 0) + (SELECT COUNT(*) FROM message WHERE wedding_id = ?1 AND from_guest = 1 AND read_at IS NULL) + (SELECT COUNT(*) FROM board_post WHERE wedding_id = ?1 AND status = 'pending') AS n`),
     q(`SELECT id, event_id, name FROM seat_table WHERE wedding_id = ? AND deleted_at IS NULL`),
