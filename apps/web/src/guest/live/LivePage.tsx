@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isLook, LOOKS } from '../photos/looks';
 import { themeOf } from '../themeKit';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -11,10 +12,10 @@ import { useParams, useSearchParams } from 'react-router-dom';
 interface Wall {
   couple: string;
   theme: string;
-  photos: { id: string; url: string; by: string; at: string }[];
+  photos: { id: string; url: string; by: string; at: string; video?: boolean; look?: string }[];
   posts: { id: string; author: string; body: string; at: string }[];
 }
-type Slide = { kind: 'photo'; id: string; url: string; by: string } | { kind: 'post'; id: string; author: string; body: string };
+type Slide = { kind: 'photo'; id: string; url: string; by: string; video?: boolean; look?: string } | { kind: 'post'; id: string; author: string; body: string };
 const SHOW_MS = 7000;
 
 export function LivePage() {
@@ -69,7 +70,7 @@ export function LivePage() {
     order.forEach((id, n) => {
       const ph = byId.get(id);
       if (!ph) return;
-      out.push({ kind: 'photo', id: ph.id, url: ph.url, by: ph.by });
+      out.push({ kind: 'photo', id: ph.id, url: ph.url, by: ph.by, video: ph.video, look: ph.look });
       if (n % 3 === 2 && wall.posts.length) {
         const post = wall.posts[p++ % wall.posts.length]!;
         out.push({ kind: 'post', id: `${post.id}-after-${ph.id}`, author: post.author, body: post.body });
@@ -90,15 +91,17 @@ export function LivePage() {
     curId.current = s.id;
     if (s.kind === 'photo') lastPhoto.current = s.id;
   }, [i, slides]);
+  // Each slide for its own time: a video plays a little longer (up to 15 seconds).
+  const cur = slides[i % Math.max(1, slides.length)];
   useEffect(() => {
     if (slides.length < 2) return;
-    const t = setInterval(() => setI((x) => (x + 1) % slides.length), SHOW_MS);
-    return () => clearInterval(t);
-  }, [slides.length]);
+    const t = setTimeout(() => setI((x) => (x + 1) % slides.length), cur?.kind === 'photo' && cur.video ? 15_000 : SHOW_MS);
+    return () => clearTimeout(t);
+  }, [slides.length, i, cur?.kind, cur && cur.kind === 'photo' && cur.video]); // eslint-disable-line
   // The next photo loads before it's needed, so every change is a clean crossfade.
   useEffect(() => {
     const next = slides[(i + 1) % Math.max(1, slides.length)];
-    if (next?.kind === 'photo') new Image().src = next.url;
+    if (next?.kind === 'photo' && !next.video) new Image().src = next.url;
   }, [i, slides]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -130,8 +133,15 @@ export function LivePage() {
             {s.kind === 'photo' ? (
               <>
                 {/* The photo blurred behind, then the whole photo on top (nothing cropped, no black bars). */}
-                <img src={on || n === (i + 1) % slides.length ? s.url : undefined} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50" />
-                <img src={on || n === (i + 1) % slides.length ? s.url : undefined} alt={s.by ? `Photo by ${s.by}` : 'A guest photo'} className={`absolute inset-0 w-full h-full object-contain ${on ? 'animate-[kb_7s_ease-out_forwards]' : ''}`} />
+                {s.video ? (
+                  // A guest's video, muted, with the look they chose; only the one on screen plays.
+                  on ? <video src={s.url} autoPlay muted playsInline loop className="absolute inset-0 w-full h-full object-contain" style={{ filter: isLook(s.look) ? LOOKS[s.look].css : undefined }} /> : null
+                ) : (
+                  <>
+                    <img src={on || n === (i + 1) % slides.length ? s.url : undefined} alt="" className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-50" />
+                    <img src={on || n === (i + 1) % slides.length ? s.url : undefined} alt={s.by ? `Photo by ${s.by}` : 'A guest photo'} className={`absolute inset-0 w-full h-full object-contain ${on ? 'animate-[kb_7s_ease-out_forwards]' : ''}`} />
+                  </>
+                )}
                 {s.by && (
                   <div className="absolute bottom-[5vh] left-[4vw] py-2 px-5 rounded-full bg-black/45 text-[clamp(18px,2.4vw,34px)] italic">
                     Photo by {s.by}

@@ -69,8 +69,8 @@ export function liveScreenRoutes() {
     const [photos, posts] = await db.batch([
       db
         .prepare(
-          `SELECT m.id, m.created_at, COALESCE(m.uploaded_by, (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0), '') AS by
-             FROM media m WHERE m.wedding_id = ? AND m.kind = 'photo' AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 80`,
+          `SELECT m.id, m.created_at, m.kind, m.edit, COALESCE(m.uploaded_by, (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0), '') AS by
+             FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 80`,
         )
         .bind(w.id),
       db.prepare(`SELECT id, author, body, created_at FROM board_post WHERE wedding_id = ? AND status = 'shown' AND parent_id IS NULL ORDER BY created_at DESC LIMIT 30`).bind(w.id),
@@ -79,7 +79,7 @@ export function liveScreenRoutes() {
     return c.json({
       couple: `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}`,
       theme: w.theme,
-      photos: (photos!.results as { id: string; created_at: string; by: string }[]).map((p) => ({ id: p.id, at: p.created_at, by: p.by, url: `/api/p/${encodeURIComponent(c.req.param('slug') ?? '')}/live/photo/${p.id}?k=${k}` })),
+      photos: (photos!.results as { id: string; created_at: string; kind: string; edit: string | null; by: string }[]).map((p) => ({ id: p.id, at: p.created_at, by: p.by, video: p.kind === 'video', look: p.edit ?? '', url: `/api/p/${encodeURIComponent(c.req.param('slug') ?? '')}/live/photo/${p.id}?k=${k}` })),
       posts: (posts!.results as { id: string; author: string; body: string; created_at: string }[]).map((p) => ({ id: p.id, author: p.author, body: p.body.slice(0, 280), at: p.created_at })),
     });
   });
@@ -87,7 +87,7 @@ export function liveScreenRoutes() {
   app.get('/photo/:id', async (c) => {
     const w = await wedding(c);
     if (!w) return c.json({ error: { code: 'off', message: 'Not found' } }, 404);
-    const row = await c.env.DB.prepare(`SELECT key, content_type FROM media WHERE id = ? AND wedding_id = ? AND kind = 'photo' AND deleted_at IS NULL`)
+    const row = await c.env.DB.prepare(`SELECT key, content_type FROM media WHERE id = ? AND wedding_id = ? AND kind IN ('photo', 'video') AND deleted_at IS NULL`)
       .bind(c.req.param('id'), w.id)
       .first<{ key: string; content_type: string }>();
     const res = row ? await openPhoto(c.env, w.id, row.key) : null;
