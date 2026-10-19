@@ -312,3 +312,47 @@ describe('SMS messages tab', () => {
     expect(await screen.findByText('Sent to 1 guest')).toBeInTheDocument();
   });
 });
+
+describe('SMS setup tab', () => {
+  const settings = {
+    version: 7, live: true, sender: '0400 000 999', adminMobile: '0400 000 001', paused: false, dailyCap: 500, quietStart: 8, quietEnd: 20,
+    optOutFooter: 'Reply STOP to opt out', replies: { yes: 'Yay {first}', no: 'Sad {first}', multi: 'Both {first}' }, rateX100: 176, timezone: 'Australia/Sydney',
+    plan: [{ name: 'Invitation', detail: '20 guests · 40 credits', costCents: 70, auto: true }], planTotalCents: 70,
+  };
+
+  it('shows live status and cost; Pause all texts saves straight away with the version', async () => {
+    let put: unknown;
+    mockApi({
+      '/api/a/w/w1/settings': (init) => {
+        if (init?.method === 'PUT') {
+          put = { body: JSON.parse(String(init.body)), v: new Headers(init.headers).get('If-Match') };
+          return json(200, { ...settings, version: 8, paused: true });
+        }
+        return json(200, settings);
+      },
+    });
+    renderAt('/admin/w1/settings');
+    expect(await screen.findByText('Texts are live')).toBeInTheDocument();
+    expect(screen.getAllByText('$0.70').length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Pause all texts' }));
+    await waitFor(() => expect(put).toEqual({ body: { paused: true }, v: '7' }));
+    expect(await screen.findByText('All texts are paused')).toBeInTheDocument();
+  });
+
+  it('other edits wait for Save, and only changed fields are sent', async () => {
+    let body: unknown;
+    mockApi({
+      '/api/a/w/w1/settings': (init) => {
+        if (init?.method === 'PUT') body = JSON.parse(String(init.body));
+        return json(200, settings);
+      },
+    });
+    renderAt('/admin/w1/settings');
+    const yes = await screen.findByLabelText('When they reply YES');
+    await userEvent.clear(yes);
+    await userEvent.type(yes, 'Hooray');
+    expect(body).toBeUndefined();
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(body).toEqual({ replies: { yes: 'Hooray' } }));
+  });
+});

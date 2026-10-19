@@ -227,3 +227,30 @@ export const textsApi = {
   sendNow: (wid: string, id: string, only?: string[]) => send<SendResult>('POST', `${w(wid)}/texts/${id}/send`, only ? { only } : {}),
   test: (wid: string, body: string) => send<SendResult>('POST', `${w(wid)}/texts/test`, { body }),
 };
+
+// ---------------------------------------------------------------- SMS setup
+
+export interface SettingsData {
+  version: number;
+  live: boolean;
+  sender: string;
+  adminMobile: string;
+  paused: boolean;
+  dailyCap: number;
+  quietStart: number;
+  quietEnd: number;
+  optOutFooter: string;
+  replies: { yes: string; no: string; multi: string };
+  rateX100: number;
+  timezone: string;
+  plan: { name: string; detail: string; costCents: number; auto: boolean }[];
+  planTotalCents: number;
+}
+export type SettingsPut = Partial<Omit<SettingsData, 'version' | 'live' | 'timezone' | 'plan' | 'planTotalCents' | 'replies'> & { replies: Partial<SettingsData['replies']> }>;
+
+export const settingsApi = {
+  get: (wid: string) => request<SettingsData>(`${w(wid)}/settings`),
+  save: (wid: string, version: number, body: SettingsPut) => send<SettingsData>('PUT', `${w(wid)}/settings`, body, version),
+  backupUrl: (wid: string) => `/api${w(wid)}/settings/backup`,
+  changePasscode: (current: string, next: string) => send<{ ok: true }>('POST', '/a/auth/passcode', { current, next }),
+};

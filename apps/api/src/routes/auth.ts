@@ -3,7 +3,7 @@ import { readJson } from '../lib/security';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
 import type { Env } from '../env';
-import { newSessionToken, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
+import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 
 export type Role = 'owner' | 'editor' | 'viewer';
@@ -107,6 +107,24 @@ export function authRoutes() {
   });
 
   app.get('/me', requireUser, async (c) => c.json(await me(c.env, c.get('user'))));
+
+  /** Change your passcode: needs the current one; every other signed-in device is signed out. */
+  app.post('/auth/passcode', requireUser, async (c) => {
+    const body = z.object({ current: z.string().min(1).max(200), next: z.string().max(200) }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Enter your current and new passcode.');
+    const user = c.get('user');
+    if (!(await allow(c.env.DB, `passcode:${user.id}`, 5, 15 * 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Wait 15 minutes and try again.');
+    const row = await c.env.DB.prepare(`SELECT pass_hash FROM user WHERE id = ?`).bind(user.id).first<{ pass_hash: string | null }>();
+    if (!(await verifyPasscode(body.data.current, row?.pass_hash ?? null))) return err(c, 400, 'bad_passcode', 'Your current passcode is not right.');
+    const problem = passcodeProblem(body.data.next);
+    if (problem) return err(c, 400, 'weak', problem);
+    const keep = await sessionId(getCookie(c, SESSION_COOKIE) ?? '', c.env.SESSION_SECRET!);
+    await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE user SET pass_hash = ? WHERE id = ?`).bind(await hashPasscode(body.data.next), user.id),
+      c.env.DB.prepare(`DELETE FROM session WHERE user_id = ? AND id != ?`).bind(user.id, keep),
+    ]);
+    return c.json({ ok: true });
+  });
 
   // First per-wedding route; the admin API (M3) hangs off this same guard.
   app.get('/w/:wid', requireUser, requireMember(), async (c) => {
