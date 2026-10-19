@@ -548,6 +548,74 @@ export const CheckIn = z.object({ arrived: z.record(z.string().max(40), z.number
 export type CheckIn = z.infer<typeof CheckIn>;
 
 /** The planner documents and their shapes (the API validates every save against these). */
+// ---------------------------------------------------------------- speeches, who holds what, the photo list
+
+/** A speech: who gives it, how long, how ready it is, whether they need the microphone. In speaking order. */
+export const Speech = z.object({
+  id: z.string().max(40),
+  who: z.string().max(80),
+  minutes: z.number().int().min(1).max(20).default(4),
+  status: z.enum(['not started', 'drafting', 'ready']).default('not started'),
+  mic: z.boolean().default(true),
+  notes: s(400),
+});
+export type Speech = z.infer<typeof Speech>;
+/** Something precious on the day and who has it (the rings, the envelopes, the paperwork). */
+export const Hold = z.object({ id: z.string().max(40), what: z.string().max(120), who: s(80) });
+export type Hold = z.infer<typeof Hold>;
+export const DayRoles = z.object({ speeches: z.array(Speech).max(20).default([]), holds: z.array(Hold).max(40).default([]) });
+export type DayRoles = z.infer<typeof DayRoles>;
+export const HOLD_TEMPLATE: Omit<Hold, 'id'>[] = [
+  { what: 'The rings', who: 'Best man' },
+  { what: 'Vendor envelopes (final payments and tips)', who: 'Best man' },
+  { what: 'ID and the marriage paperwork for the celebrant', who: '' },
+  { what: 'Emergency kit', who: 'Maid of honour' },
+  { what: 'The bride’s phone and lipstick', who: 'Maid of honour' },
+  { what: 'Speech notes', who: 'Each speaker' },
+  { what: 'Guest book and pens', who: 'Usher' },
+  { what: 'Run sheet and vendors’ phone numbers', who: 'MC' },
+];
+
+/** One photo on the photographer's list: the shot and who to gather for it. */
+export const Shot = z.object({ id: z.string().max(40), shot: z.string().max(160), who: s(300), done: z.boolean().default(false) });
+export type Shot = z.infer<typeof Shot>;
+export const ShotList = z.object({ shots: z.array(Shot).max(120).default([]) });
+export type ShotList = z.infer<typeof ShotList>;
+
+/**
+ * The usual photo list, made from your names and your wedding party: the moments, then the groups
+ * (smallest to largest, so people can leave as they're done).
+ */
+export function shotTemplate(o: { p1: string; p2: string; side1: string; side2: string; party1: string[]; party2: string[] }): Omit<Shot, 'id'>[] {
+  const both = `${o.p1} & ${o.p2}`;
+  const shot = (s: string, who = ''): Omit<Shot, 'id'> => ({ shot: s, who, done: false });
+  return [
+    shot('Details: rings, invitation, shoes, perfume, flowers'),
+    shot(`${o.p1} getting ready`),
+    shot(`${o.p2} getting ready`),
+    shot('First look (if you’re having one)', both),
+    shot('Walking down the aisle'),
+    shot('Exchanging rings'),
+    shot('First kiss'),
+    shot('Signing the register', `${both}, two witnesses`),
+    shot('Confetti or bubbles exit', 'Everyone'),
+    shot(`${both} together`, both),
+    shot(`With ${o.p1}’s parents`, `${both}, ${o.p1}’s parents`),
+    shot(`With ${o.p1}’s immediate family`, `${both}, ${o.p1}’s parents, brothers and sisters`),
+    shot(`With ${o.p2}’s parents`, `${both}, ${o.p2}’s parents`),
+    shot(`With ${o.p2}’s immediate family`, `${both}, ${o.p2}’s parents, brothers and sisters`),
+    shot('With grandparents', `${both}, all grandparents`),
+    shot('Both families together', 'Both families'),
+    shot(`With ${o.side1.toLowerCase()}’s side`, [o.p1, ...o.party1].join(', ')),
+    shot(`With ${o.side2.toLowerCase()}’s side`, [o.p2, ...o.party2].join(', ')),
+    shot('The whole wedding party', 'Both sides'),
+    shot('Everyone (the big group photo)', 'All guests'),
+    shot('Cutting the cake'),
+    shot('First dance'),
+    shot('Sunset portraits', both),
+  ];
+}
+
 // ---------------------------------------------------------------- menus
 
 /** A menu, course by course. */
@@ -599,5 +667,7 @@ export const PLANNER_DOCS = {
   'party-help': PartySide, // helpers (MC, ushers): their own to-dos and packing
   'event-checklist': EventChecklist,
   menus: Menus,
+  'day-roles': DayRoles,
+  shots: ShotList,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

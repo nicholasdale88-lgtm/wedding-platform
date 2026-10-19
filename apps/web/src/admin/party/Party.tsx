@@ -8,6 +8,7 @@ import { Eyebrow, H2, inputCls, Pill, useToast } from '../ui';
 import { CoupleChecklists } from './CoupleChecklists';
 import { PartyOverview } from './PartyOverview';
 import { SidePage } from './SidePage';
+import { Speeches } from './Speeches';
 
 /**
  * Wedding → Wedding party, in five views (the menu shows them under Wedding party):
@@ -281,6 +282,7 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
         </Pill>
       </section>
 
+      {d.event && <Speeches event={d.event} names={[...d.members.map((m) => m.name), ...d.members.map((m) => m.role)].filter((x, i, a) => a.indexOf(x) === i)} />}
     </div>
   );
 }

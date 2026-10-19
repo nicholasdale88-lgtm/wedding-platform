@@ -194,6 +194,9 @@ export interface PartyPayload {
     note: string;
     items: { time: string; until: string; title: string; detail: string; place: string; who: string[] }[];
     packing?: { text: string; who: string[] }[];
+    /** The speaking order, and what this member holds on the day. */
+    speeches?: { who: string; minutes: number }[];
+    holding?: string[];
   }[];
 }
 export interface BoardPayload {

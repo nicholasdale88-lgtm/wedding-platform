@@ -572,7 +572,12 @@ export function partyGuestRoutes() {
       const items = doc.data.items.filter((it) => roles.some((r) => itemsFor([it], r).length) && !seen.has(JSON.stringify(it)) && seen.add(JSON.stringify(it)));
       const packSeen = new Set<string>();
       const packing = doc.data.packing.filter((p) => roles.some((r) => itemsFor([p], r).length) && !packSeen.has(p.text) && !!packSeen.add(p.text));
-      if (items.length || doc.data.note || packing.length) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: doc.data.note, items, packing });
+      // The speaking order (for everyone in the party), and what this member is holding on the day.
+      const day = (await readDoc(db, w.id, 'day-roles', e.key)).data;
+      const mineWords = [...mine.map((m) => m.name.toLowerCase()), ...mine.map((m) => m.name.split(' ')[0]!.toLowerCase()), ...roles.map((r) => r.toLowerCase())];
+      const holding = day.holds.filter((h) => h.who && mineWords.some((x) => x && h.who.toLowerCase().includes(x))).map((h) => h.what);
+      const speeches = day.speeches.map((s) => ({ who: s.who, minutes: s.minutes }));
+      if (items.length || doc.data.note || packing.length || speeches.length || holding.length) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: doc.data.note, items, packing, speeches, holding });
     }
     const crew = await members(db, w.id);
     const setup = setupDoc;

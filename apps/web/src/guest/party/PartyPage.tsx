@@ -326,6 +326,24 @@ export function PartyPage() {
                 ))}
               </ol>
               {!e.items.length && <p className="m-0 text-center italic opacity-75">The run sheet for this one is coming.</p>}
+              {!!e.holding?.length && (
+                <div className="p-4 rounded-[16px] text-[19px]" style={{ background: 'rgba(179,149,99,.14)' }}>
+                  <strong className="font-semibold">You’re looking after:</strong> {e.holding.join(', ')}
+                </div>
+              )}
+              {!!e.speeches?.length && (
+                <div className="flex flex-col gap-1 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
+                  <h3 className="m-0 font-normal text-[26px]">Speeches</h3>
+                  {e.speeches.map((s, i) => (
+                    <div key={i} className="flex justify-between text-[19px]">
+                      <span>
+                        {i + 1}. {s.who}
+                      </span>
+                      <span className="italic opacity-75">{s.minutes} min</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {mine[0] && (!!e.packing?.length || mine[0].pack.length > 0) && <Packing items={e.packing ?? []} me={mine[0]} act={act} gold={gold} />}
             </section>
           );
