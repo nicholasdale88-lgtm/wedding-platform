@@ -7,19 +7,18 @@ import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
-import { NightText } from './NightText';
 import { Events } from '../events/Events';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
 
 /**
- * Admin → Guest pages: one place for everything guests see. Pick a page (the invitation, each
+ * Admin → Setup (Account: the shared invitation and photo page; an event: its details, timeline and night-before page and text). Pick a page (the invitation, each
  * event's night-before guide, the photo page), edit it, and watch the real page update beside it.
  * Saves by itself a moment after you stop typing; a clash with another editor reloads.
  */
 
 type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts'>;
-type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | 'nighttext' | `guide:${string}`;
+type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
 const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s));
@@ -124,7 +123,6 @@ export function GuestPages() {
       { key: 'timeline', label: 'Timeline' },
     ];
     if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
-    list.push({ key: 'nighttext', label: 'Night-before text' });
     return list;
   }, [data, doc, chosen]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
@@ -182,7 +180,6 @@ export function GuestPages() {
           <TimelineEditor eventKey={ev.key} slot={evSlot} inv={doc.invitation} texts={doc.texts} setInv={setInv} setText={setText} onCopyToGuide={copyToGuide(ev.key)} />
         </Section>
       )}
-      {page === 'nighttext' && ev && <NightText eventKey={ev.key} />}
       {guide?.style === 'reception' && <ReceptionEditor g={guide} n={() => ++n} set={setGuide} />}
       {guide?.style === 'dayout' && <DayoutEditor g={guide} n={() => ++n} set={setGuide} />}
       {(page === 'invitation' || page === 'photos' || guide) && (
@@ -211,12 +208,12 @@ export function GuestPages() {
     <div className="flex flex-col gap-5">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>Setup · {ev ? ev.name : 'Account'}</Eyebrow>
+          <Eyebrow>{ev ? `${ev.name} · Setup` : 'Account · Invitation'}</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">{ev ? `Set up ${ev.name}` : 'Your invitation'}</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <span role="status" aria-live="polite" className="text-[13px] text-[#5b6a52]">
-            {status === 'saving' ? 'Saving…' : status === 'waiting' ? 'Unsaved changes' : status === 'error' ? 'Not saved. Check your connection.' : 'All changes saved'}
+            {page === 'details' ? 'Event details save with the Save button' : status === 'saving' ? 'Saving…' : status === 'waiting' ? 'Unsaved changes' : status === 'error' ? 'Not saved. Check your connection.' : 'All changes saved'}
           </span>
           <Pill onClick={() => setSharing((x) => !x)}>Share a preview</Pill>
         </div>
@@ -261,9 +258,10 @@ export function GuestPages() {
           {preview}
         </div>
       ) : (
+        // On a phone or tablet the fields come first; the preview follows them.
         <>
-          {preview}
           {editor}
+          {preview}
         </>
       )}
     </div>

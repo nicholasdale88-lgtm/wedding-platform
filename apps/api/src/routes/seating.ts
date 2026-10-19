@@ -143,7 +143,8 @@ export function seatingRoutes() {
     if (!claim.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO seat_plan (event_id, aspect) VALUES (?1, ?2) ON CONFLICT (event_id) DO UPDATE SET aspect = ?2`).bind(ev, b.aspect),
-      db.prepare(`UPDATE event SET has_seating = ? WHERE id = ?`).bind(b.tables.length ? 1 : 0, ev),
+      // Adding tables turns the plan on; it is only switched off by the couple (Setup → Details).
+      db.prepare(`UPDATE event SET has_seating = CASE WHEN ?1 THEN 1 ELSE has_seating END WHERE id = ?2`).bind(b.tables.length ? 1 : 0, ev),
     ];
     for (const t of b.tables) {
       stmts.push(

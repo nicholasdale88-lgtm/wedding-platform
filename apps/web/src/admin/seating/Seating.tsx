@@ -4,8 +4,8 @@ import { useSearchParams } from 'react-router-dom';
 import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData } from '../../lib/api';
 import { fileName } from '../../lib/csv';
 import { downloadDressed } from '../exportLook';
-import { fmtWhen, shortLabel } from '../../lib/format';
-import { ALL_EVENTS, useAdmin } from '../Shell';
+import { fmtWhen } from '../../lib/format';
+import { ALL_EVENTS, leaveGuard, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
@@ -24,9 +24,9 @@ const AREAS = ['Dance floor', 'DJ', 'Bar', 'Entrance', 'Balcony', 'Fireplace', '
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export function Seating() {
-  const { wid, overview, reload: reloadOverview, event: chosen, setEvent } = useAdmin();
+  const { wid, overview, reload: reloadOverview, event: chosen } = useAdmin();
   const toast = useToast();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const [s, setS] = useState<SeatingData | null>(null);
   const [{ doc, past, future, dirty }, dispatch] = useReducer(history, emptyHistory);
   const [sel, setSel] = useState<Sel>(null);
@@ -79,12 +79,16 @@ export function Seating() {
     return () => document.removeEventListener('keydown', onKey);
   }, [undo, redo]);
 
-  // Leaving with unsaved seating asks first.
+  // Leaving with unsaved seating asks first: closing the page, or switching section in the menu.
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
+    leaveGuard.current = () => window.confirm('You have seating changes that are not saved. Leave without saving them?');
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      leaveGuard.current = null;
+    };
   }, [dirty]);
 
   const byTable = useMemo(() => {
@@ -280,7 +284,7 @@ export function Seating() {
     <div className="flex flex-col gap-4 seating-page">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>Seating · {shortLabel(s.event.name).toLowerCase()}</Eyebrow>
+          <Eyebrow>{s.event.name} · Seating</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">
             {seated} of {s.people.length} seated
           </h1>
@@ -300,15 +304,6 @@ export function Seating() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap items-center print:hidden">
-          {s.events.length > 1 && (
-            <select value={s.event.key} onChange={(e) => { setEvent(e.target.value); setParams({}); }} aria-label="Event" className={`${inputCls} !py-2`}>
-              {s.events.map((e) => (
-                <option key={e.key} value={e.key}>
-                  {shortLabel(e.name)}
-                </option>
-              ))}
-            </select>
-          )}
           <Pill onClick={undo} disabled={!past.length} aria-label="Undo">
             ↶ Undo
           </Pill>

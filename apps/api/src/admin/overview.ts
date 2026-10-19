@@ -13,6 +13,8 @@ export interface NeedsYou {
   cta: string;
   /** Admin route to open, relative to /admin/:wid/ (e.g. "guests?filter=awaiting"). */
   link: string;
+  /** The section it opens in: "all" (Account) or an event key. */
+  event: string;
 }
 
 export interface Overview {
@@ -32,7 +34,7 @@ export interface Overview {
   /** The event this overview is about (null: all of them). */
   focus: string | null;
   /** Every event side by side (the "Both events" overview). */
-  perEvent: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean }[];
+  perEvent: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -73,21 +75,27 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     return `${p.day} ${MONTHS[p.month - 1]}`;
   };
 
+  // Messages that belong here: with an event in focus, its own plus those to every event (not the other event's).
+  const campaigns = focus ? d.campaigns.filter((c) => [focus.key, null].includes(audienceEvent(c.audience))) : d.campaigns;
+  const campaignIds = new Set(campaigns.map((c) => c.id));
+  /** Where a link opens: the focused event, else the first event (guest lists, texts and seating live in events). */
+  const home = focus?.key ?? d.events[0]?.key ?? 'all';
+
   const needsYou: NeedsYou[] = [];
   const add = (cond: unknown, item: NeedsYou) => {
     if (cond) needsYou.push(item);
   };
 
   add(!d.wedding.sender, {
-    kind: 'sms-setup', title: 'Texts are not set up yet', detail: 'Add your Mobile Message number so texts really send.', cta: 'Set up', link: 'settings',
+    kind: 'sms-setup', title: 'Texts are not set up yet', detail: 'Add your SMS number under Account so texts really send.', cta: 'Set up', link: 'texts', event: 'all',
   });
   add(d.inboxNeedsYou, {
     kind: 'inbox', title: d.inboxNeedsYou === 1 ? '1 reply needs you' : `${d.inboxNeedsYou} replies need you`,
-    detail: 'Guests texted a question back.', cta: 'Read', link: 'texts',
+    detail: 'Guests texted a question back.', cta: 'Read', link: 'texts', event: home,
   });
 
   // Upcoming reminder dates: dated, enabled campaigns aimed at guests still to reply.
-  const reminderIds = new Set(d.campaigns.filter((c) => c.enabled && c.mode === 'dates' && /"awaitingAny":true/.test(c.audience)).map((c) => c.id));
+  const reminderIds = new Set(campaigns.filter((c) => c.enabled && c.mode === 'dates' && /"awaitingAny":true/.test(c.audience)).map((c) => c.id));
   const reminderDates = d.slots
     .filter((s) => reminderIds.has(s.campaignId) && s.status === 'pending' && s.sendAt > now.toISOString())
     .map((s) => s.sendAt)
@@ -97,13 +105,13 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     detail: reminderDates.length
       ? `Reminders go out by themselves on ${listJoin(reminderDates.map(day))}.`
       : 'No reminder texts are scheduled.',
-    cta: 'See who', link: 'guests?filter=awaiting',
+    cta: 'See who', link: focus ? 'guests?filter=awaiting' : 'guests?show=all&filter=awaiting', event: home,
   });
 
   const noPhone = G.filter((g) => !g.phone).length;
   add(noPhone, {
     kind: 'no-mobile', title: `${noPhone} ${noPhone === 1 ? 'invitation has' : 'invitations have'} no mobile`,
-    detail: 'They will not get texts. Add a number or send their link another way.', cta: 'Fix', link: 'guests?mob=none',
+    detail: 'They will not get texts. Add a number or send their link another way.', cta: 'Fix', link: focus ? 'guests?mob=none' : 'guests?show=all&mob=none', event: home,
   });
 
   const byPhone = new Map<string, string[]>();
@@ -111,35 +119,35 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
   const shared = [...byPhone.values()].filter((names) => names.length > 1);
   add(shared.length, {
     kind: 'shared-mobile', title: `${shared.length} shared ${shared.length === 1 ? 'mobile' : 'mobiles'}`,
-    detail: `${shared.slice(0, 2).map((n) => n.join(' & ')).join(', ')}. They would get the same texts twice.`, cta: 'Check', link: 'guests',
+    detail: `${shared.slice(0, 2).map((n) => n.join(' & ')).join(', ')}. They would get the same texts twice.`, cta: 'Check', link: 'guests?show=all', event: home,
   });
 
   if (seatedEvent?.hasSeating) {
     const unseated = G.flatMap((g) => comingPeople(g, seatedEvent.key)).filter((p) => !p.table).length;
     add(unseated, {
       kind: 'unseated', title: `${unseated} ${shortName(seatedEvent)} guests not seated`,
-      detail: 'Everyone sees their table and tablemates on the night-before guide.', cta: 'Seat', link: 'seating',
+      detail: 'Everyone sees their table and tablemates on the night-before guide.', cta: 'Seat', link: 'seating', event: seatedEvent.key,
     });
   }
 
   const noMeal = dietPeople.length - mealsSet;
   add(noMeal, {
     kind: 'meals', title: `${noMeal} dietary ${noMeal === 1 ? 'meal' : 'meals'} not set`,
-    detail: 'Tell each guest what the kitchen will serve them.', cta: 'Set meals', link: 'dietary',
+    detail: 'Tell each guest what the kitchen will serve them.', cta: 'Set meals', link: 'dietary', event: cateredEvent?.key ?? home,
   });
 
   const menu = (d.wedding.guide.menu as { a?: string; b?: string }[] | undefined) ?? [];
   add(menu.some((m) => /to be confirmed/i.test(`${m.a ?? ''} ${m.b ?? ''}`)), {
-    kind: 'menu', title: 'Menu still to confirm', detail: 'The night-before guide shows "To be confirmed".', cta: 'Edit', link: 'pages',
+    kind: 'menu', title: 'Menu still to confirm', detail: 'The night-before guide shows "To be confirmed".', cta: 'Edit', link: `pages?page=guide:${home}`, event: home,
   });
 
-  const failed = d.slots.filter((s) => s.status === 'failed' || s.status === 'cancelled');
+  const failed = d.slots.filter((s) => (s.status === 'failed' || s.status === 'cancelled') && campaignIds.has(s.campaignId));
   add(failed.length, {
     kind: 'sms-failed', title: `${failed.length} scheduled ${failed.length === 1 ? 'text' : 'texts'} did not send`,
-    detail: failed[0]?.lastError ?? 'Open Texts to see why.', cta: 'See texts', link: 'texts',
+    detail: failed[0]?.lastError ?? 'Open Texts to see why.', cta: 'See texts', link: 'texts', event: home,
   });
 
-  const nextUp = d.campaigns
+  const nextUp = campaigns
     .filter((c) => c.enabled && c.mode === 'dates')
     .flatMap((c) => {
       const next = d.slots.filter((s) => s.campaignId === c.id && s.status === 'pending' && s.sendAt > now.toISOString()).map((s) => s.sendAt).sort()[0];
@@ -185,7 +193,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
       const inv = d.guests.filter((g) => g.invited.includes(e.key));
       const people = inv.flatMap((g) => comingPeople(g, e.key));
       return {
-        key: e.key, name: e.name, startsAt: e.startsAt, hasSeating: e.hasSeating,
+        key: e.key, name: e.name, startsAt: e.startsAt, hasSeating: e.hasSeating, catered: e.catered,
         invited: inv.length,
         yes: inv.filter((g) => g.rsvp[e.key]?.attending === true).length,
         no: inv.filter((g) => g.rsvp[e.key]?.attending === false).length,
@@ -212,4 +220,15 @@ export const shortLabel = (e: { name: string }) => {
 
 function listJoin(xs: string[]): string {
   return xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}
+
+/** The event a message is aimed at (from its audience JSON), or null when it goes to guests of every event. */
+export function audienceEvent(audience: string): string | null {
+  try {
+    const a = JSON.parse(audience) as { invitedTo?: unknown; attending?: unknown; answer?: { event?: unknown } };
+    const e = a.invitedTo ?? a.attending ?? a.answer?.event;
+    return typeof e === 'string' ? e : null;
+  } catch {
+    return null;
+  }
 }

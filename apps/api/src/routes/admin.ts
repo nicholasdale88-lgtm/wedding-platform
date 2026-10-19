@@ -117,7 +117,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const w = wid(c);
     const invId = id();
     const t = now();
-    const { results: events } = await c.env.DB.prepare(`SELECT id FROM event WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w).all<{ id: string }>();
+    const { results: all } = await c.env.DB.prepare(`SELECT id, key FROM event WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w).all<{ id: string; key: string }>();
+    // Added from inside an event's section: invited to that event only. Otherwise to every event.
+    const body = z.object({ invited: z.array(z.string().max(40)).max(20).optional() }).safeParse(await readJson(c.req.raw).catch(() => ({})));
+    const wanted = body.success ? body.data.invited : undefined;
+    const events = wanted?.length ? all.filter((e) => wanted.includes(e.key)) : all;
     await c.env.DB.batch([
       c.env.DB.prepare(`INSERT INTO invitation (id, wedding_id, token, seats_held, created_at, updated_at) VALUES (?, ?, ?, 1, ?, ?)`).bind(invId, w, randomToken(), t, t),
       c.env.DB.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, 0, '')`).bind(id(), invId),

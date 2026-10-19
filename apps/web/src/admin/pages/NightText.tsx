@@ -13,7 +13,7 @@ import { inputCls, Pill, useToast } from '../ui';
  * then is included automatically.
  */
 
-const isNightBefore = (c: Campaign) => /night|tomorrow/i.test(`${c.key} ${c.name}`);
+export const isNightBefore = (c: Campaign) => /night|tomorrow/i.test(`${c.key} ${c.name}`);
 /** The evening before the event, 5:00pm in the wedding's time zone, as "2027-11-17T17:00". */
 const eveningBefore = (startsAt: string, tz: string) => {
   const day = new Date(Date.parse(startsAt) - 86_400_000);

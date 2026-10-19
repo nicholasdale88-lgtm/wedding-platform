@@ -58,7 +58,7 @@ export function SmsSetup() {
   return (
     <div className="flex flex-col gap-7 max-w-[1000px]">
       <header>
-        <Eyebrow>SMS setup</Eyebrow>
+        <Eyebrow>Account · SMS setup</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Automatic texts for a few cents each</h1>
         <p className="m-0 mt-2 max-w-[640px] text-[15px] text-[#5b6a52]">
           Texts go out through {s.provider}, an Australian SMS provider: you only pay for the texts you send, and guests can text YES or NO straight back to your number.

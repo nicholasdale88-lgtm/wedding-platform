@@ -5,7 +5,7 @@ import { api, type EventInfo, type Guest, type Person } from '../../lib/api';
 import { fileName } from '../../lib/csv';
 import { fmtWeekday, shortLabel } from '../../lib/format';
 import { downloadDressed } from '../exportLook';
-import { useAdmin } from '../Shell';
+import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, inputCls, Pill, useAutoRefresh, useToast } from '../ui';
 
 /**
@@ -18,6 +18,7 @@ const coming = (g: Guest, e: EventInfo) => g.invited.includes(e.key) && g.rsvp[e
 
 export function Dietary() {
   const { wid, overview, event: chosen } = useAdmin();
+  const section = useSectionName();
   const navigate = useNavigate();
   const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[] } | null>(null);
   const [error, setError] = useState('');
@@ -77,7 +78,7 @@ export function Dietary() {
     <div className="flex flex-col gap-7">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>Dietary &amp; notes</Eyebrow>
+          <Eyebrow>{section} · Dietary</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">For the caterer</h1>
         </div>
         <div className="flex gap-2 flex-wrap">

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminRoot } from '../src/admin/AdminRoot';
 import { applyFilters } from '../src/admin/guestFilters';
 import { detailOf, events, guests, overviewFixture } from './fixtures';
@@ -49,8 +49,8 @@ describe('admin shell', () => {
     renderAt('/admin');
     expect(await screen.findByText('Alex & Blair')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin' });
-    expect(within(nav).getByRole('link', { name: /Guest list\s*3/ })).toBeInTheDocument(); // Account: the joint guest list
-    expect(within(nav).getByRole('link', { name: /^SMS\s*Not set up/ })).toBeInTheDocument(); // messages and setup in one tab
+    // Account: what's shared by every event (overview, the invitation, the SMS provider setup).
+    for (const name of [/^Overview/, /^Invitation/, /^SMS setup\s*Not set up/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
     expect(screen.getAllByText('Recovery brunch').length).toBeGreaterThan(0);
     expect(screen.getByText('138 days to go')).toBeInTheDocument();
     expect(location).toBe('/admin/w1/overview');
@@ -210,12 +210,12 @@ describe('guest pages tab', () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
     renderAt('/admin/w1/pages');
     expect(await screen.findByRole('heading', { name: 'Your invitation' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-expanded', 'true'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Account' })).toHaveAttribute('aria-current', 'true'));
     for (const name of ['Invitation', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
     await userEvent.click(screen.getByRole('button', { name: 'The wedding' }));
     expect(await screen.findByRole('heading', { name: 'Set up The wedding' })).toBeInTheDocument();
-    for (const name of ['Details', 'Timeline', 'Night-before page', 'Night-before text']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    for (const name of ['Details', 'Timeline', 'Night-before page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Recovery brunch' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Night-before page' }));
     // A stand-in guest by default; only guests invited to the brunch can be picked for its guide.
@@ -259,6 +259,8 @@ describe('guest pages tab', () => {
 });
 
 describe('SMS messages tab', () => {
+  // Scheduling lives in each event's section.
+  beforeEach(() => localStorage.setItem('wp.admin.event.w1', 'wedding'));
   const camp = (over: Record<string, unknown>) => ({
     key: 'k', body: 'Hi {first}', mode: 'auto', enabled: true, trigger: 'invitation_created', audience: { all: true }, audienceLabel: 'Everyone with a mobile',
     excluded: [], custom: false, version: 2, count: 3, slots: [], ...over,

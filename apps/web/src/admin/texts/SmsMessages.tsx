@@ -2,8 +2,9 @@ import { zonedToUtc } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, textsApi, type Campaign, type Estimate, type TextsData } from '../../lib/api';
 import { fmtDay, fmtTime, fmtWhen, shortLabel, toLocalInput } from '../../lib/format';
-import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
+import { useAdmin, useSectionName } from '../Shell';
+import { Eyebrow, H2, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
+import { isNightBefore, NightText } from '../pages/NightText';
 
 /**
  * Admin → SMS messages (design: isSms). Every text the wedding sends: when it goes, to whom, the
@@ -12,6 +13,7 @@ import { Eyebrow, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui'
  */
 export function SmsMessages() {
   const { wid, reload: reloadOverview, event: chosen } = useAdmin();
+  const section = useSectionName();
   const toast = useToast();
   const [data, setData] = useState<TextsData | null>(null);
   const [error, setError] = useState('');
@@ -34,8 +36,11 @@ export function SmsMessages() {
   if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading your messages…</div>;
 
   const tz = data.timezone;
-  const auto = data.campaigns.filter((c) => c.enabled && c.mode !== 'manual');
-  const next = data.campaigns
+  // Only this event's messages (and those to every event) count here: the birthday's ride reminder isn't the wedding's.
+  const mine = data.campaigns.filter((c) => forEvent(c, chosen, data.events));
+  const night = data.events.some((e) => e.key === chosen); // inside an event: its night-before text card
+  const auto = mine.filter((c) => c.enabled && c.mode !== 'manual');
+  const next = mine
     .filter((c) => c.enabled && c.mode === 'dates')
     .flatMap((c) => c.slots.filter((s) => s.status === 'pending' && s.sendAt > new Date().toISOString()).map((s) => ({ c, at: s.sendAt })))
     .sort((a, b) => a.at.localeCompare(b.at))[0];
@@ -80,12 +85,12 @@ export function SmsMessages() {
     <div className="flex flex-col gap-6">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>Texts · {data.live ? (data.paused ? 'Paused' : 'Live') : 'Not set up yet'}</Eyebrow>
+          <Eyebrow>{section} · SMS · {data.live ? (data.paused ? 'Paused' : 'Live') : 'Not set up yet'}</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">
             {auto.length} {auto.length === 1 ? 'message' : 'messages'} on autopilot
           </h1>
           <div className="mt-1 text-[15px] text-[#5b6a52]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
-          {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added under Setup.</div>}
+          {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added under Account → SMS setup.</div>}
           {data.invitesFrom && <InvitesFrom data={data} onChanged={load} />}
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -125,9 +130,17 @@ export function SmsMessages() {
         {!data.inbox.length && <div className="text-[14px] text-[#5b6a52]">No replies yet. When a guest texts back YES or NO it is handled for you and shows up here.</div>}
       </section>
 
+      {night && (
+        <section aria-label="Night before" className="flex flex-col gap-3">
+          <H2>The night before</H2>
+          <NightText eventKey={chosen} />
+        </section>
+      )}
+
       {STAGES.map((stage) => {
         // The sidebar's event: its own messages, plus those that go to everyone.
-        const list = data.campaigns.filter((c) => stageOf(c) === stage.key && forEvent(c, chosen, data.events));
+        // The night-before text has its own card above (preview, time, on/off).
+        const list = data.campaigns.filter((c) => stageOf(c) === stage.key && forEvent(c, chosen, data.events) && !(night && isNightBefore(c) && eventOf(c) === chosen));
         if (!list.length) return null;
         return (
           <section key={stage.key} className="flex flex-col">
@@ -207,7 +220,12 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
             <span className="text-[12px] text-[#7a7466]">{whenSub}</span>
           </span>
           <span className="flex flex-col min-w-0">
-            <span className="font-display text-[22px] leading-tight">{c.name}</span>
+            <span className="font-display text-[22px] leading-tight">
+              {c.name}
+              {!eventOf(c) && data.events.length > 1 && (
+                <span className="ml-2 align-middle py-[2px] px-2 rounded-full bg-[#efe7d3] text-[11px] font-sans font-semibold tracking-[.06em] uppercase text-[#5b6a52]">All events</span>
+              )}
+            </span>
             <span className="text-[13px] text-[#5b6a52] truncate">{c.body || 'No wording yet'}</span>
           </span>
           <span className="hidden sm:block text-[13px] text-[#5b6a52] text-right">{c.count} {c.count === 1 ? 'guest' : 'guests'}</span>
@@ -537,6 +555,8 @@ export const eventOf = (c: Pick<Campaign, 'audience'>): string | null => {
   const e = a.invitedTo ?? a.attending ?? a.answer?.event;
   return typeof e === 'string' ? e : null;
 };
-/** Split by event: an event's section shows its own messages; Account shows the ones that go to every event. */
-const forEvent = (c: Pick<Campaign, 'audience'>, chosen: string, events: { key: string }[]) =>
-  events.some((x) => x.key === chosen) ? eventOf(c) === chosen : !eventOf(c);
+/** An event's SMS: its own messages, plus the ones that go to guests of every event (marked "All events"). */
+const forEvent = (c: Pick<Campaign, 'audience'>, chosen: string, events: { key: string }[]) => {
+  const e = eventOf(c);
+  return !e || !events.some((x) => x.key === chosen) || e === chosen;
+};

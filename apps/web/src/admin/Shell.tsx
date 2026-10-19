@@ -20,6 +20,9 @@ export const useAdmin = () => useContext(Ctx);
 
 /** The switcher's "Both events" overview: every tab shows all events together. */
 export const ALL_EVENTS = 'all';
+/** A screen with unsaved work (Seating) sets this; switching section in the menu asks it first. */
+export const leaveGuard: { current: (() => boolean) | null } = { current: null };
+const mayLeave = () => !leaveGuard.current || leaveGuard.current();
 const EVENT_KEY = (wid: string) => `wp.admin.event.${wid}`;
 const readEvent = (wid: string) => {
   try {
@@ -65,16 +68,15 @@ export function AdminDataProvider({ wid, children, onSignedOut }: { wid: string;
 
 
 /**
- * The admin's menu: "Account" (both events together: overview, the joint guest list, messages to
- * everyone and SMS setup, the shared invitation, photos), then one section per event with its own
- * tabs. Opening a section looks at that event everywhere (and turns the birthday blue).
+ * The admin's menu. "Account": everything shared by every event (the overview of all of them, the
+ * invitation's design, and the SMS provider setup). Then one section per event with its own guests,
+ * dietary needs, message scheduling, seating, photos and setup. Opening a section looks at that event
+ * everywhere (and turns the birthday blue).
  */
 export const ACCOUNT_TABS = [
   { key: 'overview', label: 'Overview' },
-  { key: 'guests', label: 'Guest list' },
-  { key: 'texts', label: 'SMS' },
-  { key: 'pages', label: 'Setup' },
-  { key: 'photos', label: 'Photos' },
+  { key: 'pages', label: 'Invitation' },
+  { key: 'texts', label: 'SMS setup' },
 ] as const;
 export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -110,10 +112,52 @@ function SideNav({ mob }: { mob: boolean }) {
   const { wid, overview: o, event, setEvent } = useAdmin();
   const groups: { key: string; name: string; tabs: readonly { key: TabKey; label: string }[] }[] = [
     { key: ALL_EVENTS, name: 'Account', tabs: ACCOUNT_TABS },
-    ...(o?.events ?? []).map((e) => ({ key: e.key, name: e.name, tabs: EVENT_TABS })),
+    ...(o?.events ?? []).map((e) => {
+      // Dietary only where the event asks for it, Seating only where it has a plan (both switch on in Setup → Details).
+      const f = o?.perEvent?.find((x) => x.key === e.key);
+      const tabs = EVENT_TABS.filter((t) => (t.key !== 'dietary' || f?.catered !== false) && (t.key !== 'seating' || f?.hasSeating !== false));
+      return { key: e.key, name: e.name, tabs };
+    }),
   ];
   const current = groups.find((g) => g.key === event) ?? groups[0]!;
+  // The menu always shows where you are: an event-only page (guests, seating…) reached from Account opens the
+  // first event's section; the old SMS setup link opens Account.
+  useEffect(() => {
+    if (tab === 'settings') {
+      if (event !== ALL_EVENTS) setEvent(ALL_EVENTS);
+      return;
+    }
+    if (current.key !== ALL_EVENTS || !o?.events.length || tab === 'events') return;
+    if (!ACCOUNT_TABS.some((t) => t.key === tab)) setEvent(o.events[0]!.key);
+  }, [tab, current.key, event, o, setEvent]);
+  // Sections you've expanded stay expanded (remembered on this device); the one you're in is always open.
+  const [openSet, setOpenSet] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(`wp.admin.open.${wid}`) ?? '[]') as string[]);
+    } catch {
+      return new Set();
+    }
+  });
+  const toggle = (key: string, show: boolean) => {
+    setOpenSet((s) => {
+      const n = new Set(s);
+      if (show) n.add(key);
+      else n.delete(key);
+      try {
+        localStorage.setItem(`wp.admin.open.${wid}`, JSON.stringify([...n]));
+      } catch {
+        /* this visit only */
+      }
+      return n;
+    });
+    // Minimising the section you're in moves you to Account, so it can actually close.
+    if (!show && key === current.key && key !== ALL_EVENTS && mayLeave()) {
+      setEvent(ALL_EVENTS);
+      go(`/admin/${wid}/overview`);
+    }
+  };
   const open = (g: (typeof groups)[number]) => {
+    if (g.key !== current.key && !mayLeave()) return;
     setEvent(g.key);
     // Stay on the same kind of page if the section has it (SMS → SMS), else its overview.
     go(`/admin/${wid}/${g.tabs.some((t) => t.key === tab) ? tab : 'overview'}`);
@@ -138,7 +182,6 @@ function SideNav({ mob }: { mob: boolean }) {
       <button
         key={g.key}
         type="button"
-        aria-expanded={on}
         aria-current={on ? 'true' : undefined}
         onClick={() => open(g)}
         className={`flex-none text-left rounded-[8px] border cursor-pointer font-semibold ${mob ? 'py-[6px] px-3 text-[13px]' : 'py-2 px-3 text-[13px] tracking-[.08em] uppercase'} ${
@@ -164,12 +207,47 @@ function SideNav({ mob }: { mob: boolean }) {
   }
   return (
     <nav aria-label="Admin" className="flex flex-col gap-2 flex-none overflow-y-auto [scrollbar-width:none]">
-      {groups.map((g) => (
-        <div key={g.key} className="flex flex-col gap-1">
-          {groupBtn(g)}
-          {g.key === current.key && <div className="flex flex-col gap-[2px] pl-2">{g.tabs.map(tabLink)}</div>}
-        </div>
-      ))}
+      {groups.map((g) => {
+        const isOpen = openSet.has(g.key) || g.key === current.key;
+        return (
+          <div key={g.key} className="flex flex-col gap-1">
+            <div className="flex items-stretch gap-1">
+              <div className="flex-1 min-w-0 flex [&>button]:flex-1">{groupBtn(g)}</div>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                aria-label={`${isOpen ? 'Hide' : 'Show'} ${g.name}`}
+                title={isOpen ? 'Minimise' : 'Expand'}
+                onClick={() => toggle(g.key, !isOpen)}
+                className="flex-none w-8 rounded-[8px] border border-[rgba(243,236,214,.3)] bg-transparent text-[#f3ecd6] cursor-pointer hover:border-[#f3ecd6]"
+              >
+                <span aria-hidden className={`inline-block transition-transform ${isOpen ? 'rotate-90' : ''}`}>›</span>
+              </button>
+            </div>
+            {isOpen && (
+              <div className="flex flex-col gap-[2px] pl-2">
+                {g.key === current.key
+                  ? g.tabs.map(tabLink)
+                  : // Another section's pages: choosing one moves you into that section.
+                    g.tabs.map((t) => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => {
+                          if (!mayLeave()) return;
+                          setEvent(g.key);
+                          go(`/admin/${wid}/${t.key}`);
+                        }}
+                        className="flex items-center justify-between gap-[10px] rounded-[8px] text-left py-[9px] px-3 text-[15px] border-0 bg-transparent text-[#f3ecd6] opacity-80 cursor-pointer hover:opacity-100"
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 }
@@ -209,7 +287,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
 }
 
 /**
- * The admin wears the invitation's colour theme (Guest pages → Look and feel). The second event is the
+ * The admin wears the invitation's colour theme (Account → Invitation → Look and feel). The second event is the
  * design's blue celebration (the birthday section of the invitation), so looking at it turns the admin blue
  * too: you always know which event you're in.
  */
@@ -219,4 +297,10 @@ function themeVars(theme: string | undefined, slot: number): CSSProperties {
     return { '--adm-ink': t.bdtx ?? '#2f3d5c', '--adm-soft': t.bdbg ?? '#dde7f3', '--adm-bg': '#eef2f8' } as CSSProperties;
   }
   return { '--adm-ink': t.dg ?? '#33402f', '--adm-soft': t.b2 ?? '#cfd8bb', '--adm-bg': t.iv ?? '#f6f0e2' } as CSSProperties;
+}
+
+/** Where you are, for screen titles: an event's name, or "Account". */
+export function useSectionName(): string {
+  const { event, overview } = useAdmin();
+  return overview?.events.find((e) => e.key === event)?.name ?? 'Account';
 }

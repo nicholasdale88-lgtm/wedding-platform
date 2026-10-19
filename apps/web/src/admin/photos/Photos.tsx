@@ -2,7 +2,7 @@ import { zipSync } from 'fflate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { photosApi, type PhotosData } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
-import { useAdmin } from '../Shell';
+import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, Pill, useToast } from '../ui';
 
 /**
@@ -17,6 +17,7 @@ const ext = (type: string) => EXT[type] ?? 'jpg';
 
 export function Photos() {
   const { wid, overview, event: chosen } = useAdmin();
+  const section = useSectionName();
   const toast = useToast();
   const [all, setData] = useState<PhotosData | null>(null);
   // Each event's own album (photos added before albums were split show in every event); Account shows all.
@@ -92,7 +93,7 @@ export function Photos() {
     <div className="flex flex-col gap-5">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>Photo album</Eyebrow>
+          <Eyebrow>{section} · Photos</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">
             {data.items.length} {data.items.length === 1 ? 'photo' : 'photos'}
             {people.length ? ` from ${people.length} ${people.length === 1 ? 'guest' : 'guests'}` : ''}

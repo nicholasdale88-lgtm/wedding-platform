@@ -9,7 +9,7 @@ import { exportSheets } from './guestImport';
 import { ImportGuests } from './ImportGuests';
 import { ManualSend } from './ManualSend';
 import { answerLabel, applyFilters, dropdowns, quickFilters, shortAnswer, type FilterState } from './guestFilters';
-import { useAdmin } from './Shell';
+import { useAdmin, useSectionName } from './Shell';
 import { Eyebrow, Pill, StatusPill, useAutoRefresh, useMedia, useToast } from './ui';
 
 const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'sort'] as const;
@@ -17,6 +17,7 @@ const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'sort'
 /** design/RSVP Admin.dc.html → Guests. Filters live in the address bar, so they survive a reload and can be shared. */
 export function Guests() {
   const { wid, overview, reload: reloadOverview, event: chosen } = useAdmin();
+  const section = useSectionName();
   const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
   const toast = useToast();
   const mob = useMedia('(max-width: 759px)');
@@ -56,7 +57,8 @@ export function Guests() {
   // Account: everyone. An event's section: that event's guests, with everyone one tap away.
   const one = params.get('show') !== 'all' && !!focusEv;
   const events = one ? [focusEv!] : (data?.events ?? []);
-  const guests = (data?.guests ?? []).filter((g) => !one || g.invited.includes(focusEv!.key));
+  // In an event, each guest is shown as invited to this event only, so Awaiting, Declined and the rest mean this event.
+  const guests = (data?.guests ?? []).filter((g) => !one || g.invited.includes(focusEv!.key)).map((g) => (one ? { ...g, invited: [focusEv!.key] } : g));
   const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]);
   const quick = quickFilters(events);
   const drops = dropdowns(events);
@@ -69,7 +71,7 @@ export function Guests() {
 
   async function addGuest() {
     try {
-      const d = await api.addGuest(wid);
+      const d = await api.addGuest(wid, focusEv ? [focusEv.key] : undefined);
       await changed();
       set({ g: d.guest.id });
     } catch (e) {
@@ -95,7 +97,7 @@ export function Guests() {
     <div className="flex flex-col gap-[22px]">
       <header className="flex items-end justify-between gap-5 flex-wrap">
         <div>
-          <Eyebrow>Guests</Eyebrow>
+          <Eyebrow>{section} · Guests</Eyebrow>
           <h1 className="mt-[6px] mb-0 font-display font-medium text-[40px] leading-[1.08] min-h-[43px]">
             {data ? `${seatsHeld} guests on ${guests.length} invitations` : ''}
           </h1>
@@ -110,7 +112,7 @@ export function Guests() {
         </div>
       </header>
 
-      {importing && data && <ImportGuests events={data.events} onClose={() => setImporting(false)} onDone={changed} />}
+      {importing && data && <ImportGuests events={data.events} focus={focusEv} onClose={() => setImporting(false)} onDone={changed} />}
       {manual && data && <ManualSend guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
 
       {data && data.events.length > 1 && focusEv && (

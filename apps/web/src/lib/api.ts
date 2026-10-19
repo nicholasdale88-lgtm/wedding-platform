@@ -108,13 +108,13 @@ export interface Overview {
   events: { key: string; name: string; startsAt: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
   daysToGo: number | null;
-  needsYou: { kind: string; title: string; detail: string; cta: string; link: string }[];
+  needsYou: { kind: string; title: string; detail: string; cta: string; link: string; event?: string }[];
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
   nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
   /** The event these figures are about (the admin's event switcher), or null for all. */
   focus?: string | null;
-  perEvent?: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean }[];
+  perEvent?: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
 }
 
 export interface GuestPatch {
@@ -142,7 +142,8 @@ export const api = {
   overview: (wid: string, event?: string) => request<Overview>(`${w(wid)}/overview${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   guests: (wid: string) => request<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> }>(`${w(wid)}/guests`),
   guest: (wid: string, id: string) => request<GuestDetail>(`${w(wid)}/guests/${id}`),
-  addGuest: (wid: string) => send<GuestDetail>('POST', `${w(wid)}/guests`),
+  /** A new guest; `invited` limits them to those events (added from inside an event). */
+  addGuest: (wid: string, invited?: string[]) => send<GuestDetail>('POST', `${w(wid)}/guests`, invited ? { invited } : {}),
   patchGuest: (wid: string, g: Pick<Guest, 'id' | 'version'>, patch: GuestPatch) => send<GuestDetail>('PATCH', `${w(wid)}/guests/${g.id}`, patch, g.version),
   putRsvp: (wid: string, g: Pick<Guest, 'id' | 'version'>, body: RsvpPut) => send<GuestDetail>('PUT', `${w(wid)}/guests/${g.id}/rsvp`, body, g.version),
   removeGuest: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/guests/${id}`),
