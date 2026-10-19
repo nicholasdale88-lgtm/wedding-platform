@@ -51,12 +51,15 @@ echo "::group::3. Seed"
 WEDDINGS=$(wr d1 execute "$DB" --remote --json --command "SELECT COUNT(*) AS n FROM wedding" | jq -r '.[0].results[0].n')
 if [ "$WEDDINGS" = "0" ]; then
   : "${SEED_OWNER_EMAIL:?Add the SEED_OWNER_EMAIL secret}" "${SEED_OWNER_PASSCODE:?Add the SEED_OWNER_PASSCODE secret}"
-  (cd "$API" && pnpm seed:sql "$ROOT/seed/sophie-nicholas.json" "$TMP/seed.sql")
+  (cd "$API" && SEED_SAMPLE_GUESTS=0 pnpm seed:sql "$ROOT/seed/sophie-nicholas.json" "$TMP/seed.sql") # no sample guests on the live site
   wr d1 execute "$DB" --remote --file "$TMP/seed.sql"
   rm -f "$TMP/seed.sql"
 else
   echo "Already seeded ($WEDDINGS wedding(s)); leaving data alone."
 fi
+
+# One-time data fixes (each guards itself so it runs once).
+for f in "$ROOT"/scripts/once/*.sql; do wr d1 execute "$DB" --remote --file "$f"; done
 
 # New page wording, settings and guide fields from the design reach the live wedding; the couple's own edits are kept.
 wr d1 execute "$DB" --remote --json --command "SELECT content, guide FROM wedding WHERE slug = 'sophie-and-nicholas'" > "$TMP/content.json"

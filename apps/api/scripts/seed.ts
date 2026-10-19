@@ -27,6 +27,8 @@ const statements = buildSeed(JSON.parse(readFileSync(file, 'utf8')), {
   ownerEmail: email,
   ownerPassHash: await hashPasscode(passcode),
   adminMobile: process.env.SEED_ADMIN_MOBILE,
+  // The design's sample guests are for tests and demos only; SEED_SAMPLE_GUESTS=0 leaves them out.
+  sampleGuests: process.env.SEED_SAMPLE_GUESTS !== '0',
 });
 writeFileSync(out, toSqlText(statements) + '\n');
 console.log(`Wrote ${statements.length} statements to ${out}`);

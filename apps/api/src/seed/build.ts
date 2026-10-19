@@ -64,6 +64,8 @@ export interface SeedOptions {
   now?: Date;
   newId?: () => string;
   newToken?: () => string;
+  /** The prototype's sample guests (tests and demos). Off for the live wedding. Default on. */
+  sampleGuests?: boolean;
 }
 
 /** The prototype's campaign keys and who each one goes to (docs/05). */
@@ -155,7 +157,7 @@ export function buildSeed(input: unknown, o: SeedOptions): Statement[] {
   }
 
   // Guests
-  for (const g of seed.sampleGuests) {
+  for (const g of o.sampleGuests === false ? [] : seed.sampleGuests) {
     const invId = newId();
     const people = [g.name, ...g.partners].filter((p) => p.trim());
     q(
