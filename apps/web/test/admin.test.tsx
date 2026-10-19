@@ -401,3 +401,25 @@ describe('seating tab', () => {
     expect(screen.getByText('Everyone has a seat.')).toBeInTheDocument();
   });
 });
+
+describe('photos tab', () => {
+  it('shows the album with who took each photo, and filters by guest', async () => {
+    const items = [
+      { id: 'a1', by: 'Ivy', at: '2026-10-01T00:00:00.000Z', bytes: 10, type: 'image/jpeg', url: '/api/a/w/w1/photos/a1' },
+      { id: 'a2', by: 'Robin', at: '2026-10-01T00:00:00.000Z', bytes: 10, type: 'image/jpeg', url: '/api/a/w/w1/photos/a2' },
+      { id: 'a3', by: 'Ivy', at: '2026-10-01T00:00:00.000Z', bytes: 10, type: 'image/jpeg', url: '/api/a/w/w1/photos/a3' },
+    ];
+    mockApi({ '/api/a/w/w1/photos': () => json(200, { enabled: true, items }) });
+    renderAt('/admin/w1/photos');
+    expect(await screen.findByRole('heading', { name: '3 photos from 2 guests' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Robin · 1' }));
+    expect(screen.getAllByRole('img')).toHaveLength(1);
+    expect(screen.getByRole('img')).toHaveAttribute('alt', 'Photo by Robin');
+  });
+
+  it('says how to switch storage on when it is off', async () => {
+    mockApi({ '/api/a/w/w1/photos': () => json(200, { enabled: false, items: [] }) });
+    renderAt('/admin/w1/photos');
+    expect(await screen.findByText("Photo storage isn't switched on yet.")).toBeInTheDocument();
+  });
+});

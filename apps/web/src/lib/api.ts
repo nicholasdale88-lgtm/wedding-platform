@@ -297,3 +297,14 @@ export const seatingApi = {
   get: (wid: string, event?: string) => request<SeatingData>(`${w(wid)}/seating${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   save: (wid: string, version: number, body: SeatingSave) => send<SeatingData>('PUT', `${w(wid)}/seating`, body, version),
 };
+
+// ---------------------------------------------------------------- Photos
+
+export interface PhotosData {
+  enabled: boolean;
+  items: { id: string; by: string; at: string; bytes: number; type: string; url: string }[];
+}
+export const photosApi = {
+  list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
+  remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),
+};
