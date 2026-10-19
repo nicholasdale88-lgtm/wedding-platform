@@ -66,6 +66,29 @@ function formFrom(g: GuestInvitation | null, data: InvitePayload): Form {
   };
 }
 
+/** "Add to your calendar": the calendar file (Apple, Outlook) and Google, in the section's own colours. */
+function calendarLinks(data: InvitePayload, ev: InvitePayload['events'][number]) {
+  const start = new Date(ev.startsAt);
+  if (Number.isNaN(start.getTime())) return null;
+  const z = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const couple = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
+  const google = `https://calendar.google.com/calendar/render?${new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `${couple}: ${ev.name}`,
+    dates: `${z(start)}/${z(new Date(start.getTime() + 6 * 3_600_000))}`,
+    details: `${window.location.origin}/w/${data.wedding.slug}`,
+  }).toString()}`;
+  const link = { color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
+  return createElement(
+    'div',
+    { style: { fontSize: 15, opacity: 0.85, textAlign: 'center' as const, fontFamily: "'Cormorant Garamond', Georgia, serif" } },
+    'Add to your calendar: ',
+    createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics`, style: link }, 'Apple / Outlook'),
+    ' · ',
+    createElement('a', { href: google, target: '_blank', rel: 'noopener noreferrer', style: link }, 'Google'),
+  );
+}
+
 /** The template's two event places: slot 0 (first event) and slot 1 (second event). */
 const slots = (d: InvitePayload) => [d.events.find((e) => e.slot === 0), d.events.find((e) => e.slot === 1)] as const;
 
@@ -483,14 +506,16 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     },
     // Admin → Guest pages → Timeline: the couple's own order of events, drawn as the design's rows.
     rows: (key: string) => (key === TIMELINE_ROWS && data.content.timeline && shownRows(data.content.timeline).length ? createElement(TimelineRows, { items: data.content.timeline }) : undefined),
-    // The end of an event's own section (the birthday's): that event's timeline, in the section's colours.
+    // The end of an event's own section: "Add to your calendar", and (for the second event) its timeline.
     after: (label: string) => {
-      const slot = eventSlotOfPart(SECTION_PARTS[label]);
+      const slot = eventSlotOfPart(SECTION_PARTS[label]) ?? (/^02\b/.test(label) ? 0 : undefined); // "02 …" is the first event's details
+      if (slot === undefined) return undefined;
       // By slot, not position: a guest invited only to the second event is sent just that one event.
-      const ev = slot ? data.events.find((e) => e.slot === slot) : undefined; // the first event's timeline is the main one
-      const items = ev ? data.content.timelines?.[ev.key] : undefined;
-      if (!items || !shownRows(items).length) return undefined;
-      return createElement('div', { style: { width: '100%', marginTop: 8 } }, createElement(TimelineRows, { items, onSection: true }));
+      const ev = data.events.find((e) => e.slot === slot);
+      if (!ev) return undefined;
+      const items = slot ? data.content.timelines?.[ev.key] : undefined; // the first event's timeline is the main one
+      const timeline = items && shownRows(items).length ? createElement(TimelineRows, { items, onSection: true }) : null;
+      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev));
     },
   };
   return {
