@@ -111,6 +111,17 @@ describe('guest API', () => {
     expect(again.invitation!.people.map((p) => (p as { diet?: string }).diet)).toEqual(['Vegetarian', 'Coeliac']);
   });
 
+  it('declining everything clears dietary notes and meals; declining one of two keeps them', async () => {
+    const tok = await tokenOf('Margaret Bloor'); // invited to both
+    const diets = async () => (await t.db.prepare(`SELECT p.diet, p.meal_main FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.token = ? ORDER BY p.idx`).bind(tok).all()).results;
+    await post('/rsvp', { token: tok, events: { wedding: { attending: true }, '30th': { attending: true } }, diet: 'Margaret vegetarian' });
+    await t.db.prepare(`UPDATE person SET meal_main = 'Risotto' WHERE name = 'Margaret Bloor'`).run();
+    await post('/rsvp', { token: tok, events: { wedding: { attending: false }, '30th': { attending: true } } });
+    expect((await diets())[0]).toEqual({ diet: 'Vegetarian', meal_main: 'Risotto' }); // still coming to the 30th
+    await post('/rsvp', { token: tok, events: { wedding: { attending: false }, '30th': { attending: false } } });
+    expect(await diets()).toEqual([{ diet: '', meal_main: '' }, { diet: '', meal_main: '' }]); // not coming to anything
+  });
+
   it('changing a reply moves the reply time (thank-you); repeating the same answer does not', async () => {
     const tok = await tokenOf('Ivy Scott');
     const at = () => t.db.prepare(`SELECT r.updated_at FROM rsvp r JOIN invitation i ON i.id = r.invitation_id JOIN event e ON e.id = r.event_id WHERE i.token = ? AND e.key = 'wedding'`).bind(tok).first<{ updated_at: string }>();

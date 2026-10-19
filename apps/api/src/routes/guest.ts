@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
-import { unseatIfNotComing } from '../lib/seatingRules';
+import { clearDietIfDeclinedAll, unseatIfNotComing } from '../lib/seatingRules';
 import type { Snapshot as SeatSnapshot } from './seating';
 import { imageType } from '../lib/images';
 import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
@@ -335,6 +335,7 @@ export function guestRoutes() {
       people.forEach((p, i) => stmts.push(db.prepare(`UPDATE person SET diet = ? WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(parts[i] ?? '', inv.id, p.idx)));
     }
     stmts.push(unseatIfNotComing(db, inv.id)); // declined: their seat is freed
+    stmts.push(clearDietIfDeclinedAll(db, inv.id)); // not coming to anything: no dietary on any list
     // Bump the version so an admin with this guest open sees "updated elsewhere" instead of overwriting the reply.
     stmts.push(db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(now, inv.id));
     await db.batch(stmts);

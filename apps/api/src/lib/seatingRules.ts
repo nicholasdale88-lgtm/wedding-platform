@@ -27,3 +27,20 @@ export const unseatEveryoneNotComing = (db: D1Database, eventId: string): D1Prep
              WHERE r.event_id = ?1 AND r.attending = 1)`,
     )
     .bind(eventId);
+
+/**
+ * Not coming to anything: once a guest has declined every event they're invited to, their dietary
+ * notes and meals are cleared, so no caterer list or count includes them. (If they change to yes,
+ * the RSVP form asks again.)
+ */
+export const clearDietIfDeclinedAll = (db: D1Database, invitationId: string): D1PreparedStatement =>
+  db
+    .prepare(
+      `UPDATE person SET diet = '', meal_entree = '', meal_main = '', meal_dessert = ''
+        WHERE invitation_id = ?1
+          AND EXISTS (SELECT 1 FROM invite_event WHERE invitation_id = ?1)
+          AND NOT EXISTS (
+            SELECT 1 FROM invite_event ie LEFT JOIN rsvp r ON r.invitation_id = ie.invitation_id AND r.event_id = ie.event_id
+             WHERE ie.invitation_id = ?1 AND (r.attending IS NULL OR r.attending = 1))`,
+    )
+    .bind(invitationId);
