@@ -66,7 +66,7 @@ export function liveScreenRoutes() {
     const w = await wedding(c);
     if (!w) return c.json({ error: { code: 'off', message: 'The photo wall is off. Switch it on in the admin (Photos).' } }, 404);
     const db = c.env.DB;
-    const [photos, posts] = await db.batch([
+    const [photos, posts, leaders, quizOn] = await db.batch([
       db
         .prepare(
           `SELECT m.id, m.created_at, m.kind, m.edit, COALESCE(m.uploaded_by, (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0), '') AS by
@@ -74,13 +74,18 @@ export function liveScreenRoutes() {
         )
         .bind(w.id),
       db.prepare(`SELECT id, author, body, created_at FROM board_post WHERE wedding_id = ? AND status = 'shown' AND parent_id IS NULL ORDER BY created_at DESC LIMIT 30`).bind(w.id),
+      // The quiz's top five, between the photos (when the quiz is on and someone has played).
+      db.prepare(`SELECT name, score FROM quiz_answer WHERE wedding_id = ? ORDER BY score DESC, created_at LIMIT 5`).bind(w.id),
+      db.prepare(`SELECT json_extract(data, '$.on') AS on_, json_array_length(json_extract(data, '$.questions')) AS n FROM planner_doc WHERE wedding_id = ? AND kind = 'quiz' AND scope = ''`).bind(w.id),
     ]);
+    const quiz = quizOn!.results[0] as { on_: number | null; n: number | null } | undefined;
     const k = encodeURIComponent(c.req.query('k')!);
     return c.json({
       couple: `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}`,
       theme: w.theme,
       photos: (photos!.results as { id: string; created_at: string; kind: string; edit: string | null; by: string }[]).map((p) => ({ id: p.id, at: p.created_at, by: p.by, video: p.kind === 'video', look: p.edit ?? '', url: `/api/p/${encodeURIComponent(c.req.param('slug') ?? '')}/live/photo/${p.id}?k=${k}` })),
       posts: (posts!.results as { id: string; author: string; body: string; created_at: string }[]).map((p) => ({ id: p.id, author: p.author, body: p.body.slice(0, 280), at: p.created_at })),
+      quiz: quiz?.on_ && leaders!.results.length ? { of: quiz.n ?? 0, leaders: leaders!.results as { name: string; score: number }[] } : null,
     });
   });
 

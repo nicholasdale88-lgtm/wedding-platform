@@ -14,8 +14,9 @@ interface Wall {
   theme: string;
   photos: { id: string; url: string; by: string; at: string; video?: boolean; look?: string }[];
   posts: { id: string; author: string; body: string; at: string }[];
+  quiz?: { of: number; leaders: { name: string; score: number }[] } | null;
 }
-type Slide = { kind: 'photo'; id: string; url: string; by: string; video?: boolean; look?: string } | { kind: 'post'; id: string; author: string; body: string };
+type Slide = { kind: 'quiz'; id: string } | { kind: 'photo'; id: string; url: string; by: string; video?: boolean; look?: string } | { kind: 'post'; id: string; author: string; body: string };
 const SHOW_MS = 7000;
 
 export function LivePage() {
@@ -77,6 +78,10 @@ export function LivePage() {
       }
     });
     if (!wall.photos.length) wall.posts.forEach((post) => out.push({ kind: 'post', id: post.id, author: post.author, body: post.body }));
+    // The quiz leaderboard after every tenth slide (once, if the wall is short).
+    if (wall.quiz) {
+      for (let at = Math.min(10, out.length), n = 0; at <= out.length; at += 11, n++) out.splice(at, 0, { kind: 'quiz', id: `quiz-${n}` });
+    }
     return out;
   }, [wall, order]);
   // New slides never move the screen: stay on the one showing.
@@ -130,7 +135,26 @@ export function LivePage() {
         const on = n === i % slides.length;
         return (
           <div key={s.id} aria-hidden={!on} className="absolute inset-0 transition-opacity duration-[1400ms] ease-in-out" style={{ opacity: on ? 1 : 0 }}>
-            {s.kind === 'photo' ? (
+            {s.kind === 'quiz' ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-[3vh] px-[10vw] text-center bg-[radial-gradient(ellipse_at_center,#2b3226_0%,#141511_70%)]">
+                <span className="text-[clamp(16px,2vw,28px)] tracking-[.3em] uppercase" style={{ color: gold }}>
+                  The quiz · top scores
+                </span>
+                <span className="text-[clamp(26px,4vw,60px)] italic">How well do you know {wall?.couple}?</span>
+                <ol className="list-none m-0 p-0 flex flex-col gap-[1.2vh] text-[clamp(22px,3.2vw,48px)]">
+                  {(wall?.quiz?.leaders ?? []).map((l, k) => (
+                    <li key={k} className="flex justify-between gap-[4vw] min-w-[40vw]">
+                      <span>
+                        {k === 0 ? '🥇' : k === 1 ? '🥈' : k === 2 ? '🥉' : `${k + 1}.`} {l.name}
+                      </span>
+                      <span style={{ color: gold }}>
+                        {l.score}/{wall?.quiz?.of}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : s.kind === 'photo' ? (
               <>
                 {/* The photo blurred behind, then the whole photo on top (nothing cropped, no black bars). */}
                 {s.video ? (
