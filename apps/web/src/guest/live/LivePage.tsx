@@ -117,7 +117,7 @@ export function LivePage() {
           </div>
         );
       })}
-      {!slides.length && (
+      {wall && !slides.length && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-8">
           <div className="text-[clamp(48px,7vw,110px)]" style={{ fontFamily: "'Pinyon Script', cursive", color: gold }}>
             {wall?.couple}
