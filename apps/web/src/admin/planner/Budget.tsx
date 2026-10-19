@@ -1,4 +1,4 @@
-import { BUDGET_SPLIT, dateIn, moneyOf, withSchedules, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
+import { BUDGET_SPLIT, dateIn, moneyOf, splitOf, standardLines, withSchedules, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useUnsavedChanges } from '../leave';
@@ -54,7 +54,7 @@ export function Budget() {
   const headcount = doc?.data.guests || overview?.perEvent?.[0]?.coming || 0;
   const b = useMemo(() => {
     const d = doc?.data;
-    return d && { ...d, lines: withSchedules(d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)), vendors) };
+    return d && { ...d, split: d.split ?? {}, lines: withSchedules(d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)), vendors) };
   }, [doc, headcount, vendors]);
   // Lines whose vendor has a payment schedule: the quote, paid and due come from Payments.
   const scheduled = (l: BudgetLine) => vendors.some((v) => v.status === 'booked' && v.payments.length && !!l.vendor.trim() && v.name.trim().toLowerCase() === l.vendor.trim().toLowerCase());
@@ -146,6 +146,20 @@ export function Budget() {
           </div>
         ))}
       </section>
+
+      <Plan
+        b={b}
+        guests={headcount}
+        coming={coming}
+        planned={new Map(sums.byCat.map(([cat, x]) => [cat, x.cost]))}
+        onGuests={setGuests}
+        onSplit={(split) => edit({ ...b, split })}
+        onStandard={() => {
+          const add = standardLines(b, headcount);
+          edit({ ...b, lines: [...b.lines, ...add] });
+          toast(`${add.length} standard lines added from your budget${headcount ? ` and ${headcount} guests` : ''}. Change any of them below, then save.`);
+        }}
+      />
 
       <WhatIf guests={headcount} lines={b.lines} committed={sums.committed} total={b.total} setGuests={setGuests} saved={b.guests} />
 
@@ -249,9 +263,9 @@ export function Budget() {
               kind="dashed"
               disabled={!b.total}
               title={b.total ? '' : 'Enter your total budget first'}
-              onClick={() => edit({ ...b, lines: BUDGET_SPLIT.map((x) => ({ ...BLANK, category: x.category, item: x.category, estimate: Math.round(b.total * x.share) })) })}
+              onClick={() => edit({ ...b, lines: standardLines(b, headcount) })}
             >
-              Start with a typical Australian split
+              Start with the standard categories
             </Pill>
           )}
         </div>
@@ -371,6 +385,138 @@ function WhatIf({ guests, lines, committed, total, setGuests, saved }: { guests:
           {total > 0 && <span className={committed + change > total ? ' text-[#7a4a37] font-semibold' : ' text-[#5b6a52]'}>{committed + change > total ? ` · ${aud(committed + change - total)} over budget` : ` · ${aud(total - committed - change)} under budget`}</span>}
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * Your plan: the total worked out per guest and per table, and per category (your split, the usual one to
+ * start) against what's planned in each, with what's left. The shares can be changed; the standard lines
+ * can be added in one go, priced from the total and the guests.
+ */
+function Plan({ b, guests, coming, planned, onGuests, onSplit, onStandard }: { b: BudgetDoc; guests: number; coming: number; planned: Map<string, number>; onGuests: (n: number) => void; onSplit: (split: BudgetDoc['split']) => void; onStandard: () => void }) {
+  const [open, setOpen] = useState(false);
+  const split = splitOf(b);
+  const missing = standardLines(b, guests).length;
+  const shareSum = split.reduce((a, x) => a + x.share, 0);
+  const others = [...planned.entries()].filter(([cat]) => !split.some((x) => x.category === cat));
+  const card = 'flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]';
+  if (!b.total) {
+    return (
+      <section aria-label="Your plan" className={card}>
+        <H2>Your plan</H2>
+        <p className="m-0 text-[14px] text-[#5b6a52]">Enter your total budget above: it’s worked out per guest, per table and for each category (venue and catering, photography, flowers…), with the standard lines to start from.</p>
+      </section>
+    );
+  }
+  const perGuest = guests ? b.total / guests : 0;
+  return (
+    <section aria-label="Your plan" className={card}>
+      <div className="flex justify-between items-baseline gap-3 flex-wrap">
+        <H2>Your plan</H2>
+        {missing > 0 && (
+          <Pill kind="outline" size="sm" onClick={onStandard}>
+            Add the standard lines ({missing})
+          </Pill>
+        )}
+      </div>
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          Guests you’re planning for
+          <input
+            type="number"
+            min={0}
+            max={5000}
+            value={b.guests || ''}
+            placeholder={coming ? `${coming} coming so far` : 'e.g. 100'}
+            onChange={(e) => onGuests(Math.max(0, Math.min(5000, Number(e.target.value) || 0)))}
+            className={`${inputCls} w-full`}
+          />
+        </label>
+        {[
+          ['Per guest', guests ? aud(perGuest) : '—', guests ? `${aud(b.total)} for ${guests} guests` : 'Enter your guests'],
+          ['Per table of 10', guests ? aud(perGuest * 10) : '—', 'Handy when adding or cutting a table'],
+          ['Catering and drinks', guests ? `${aud(((split.find((x) => x.category === 'Venue and catering')?.share ?? 0.44) * b.total * (0.28 / 0.44)) / guests)} a head` : '—', 'What your plan allows per guest'],
+        ].map(([k, v, sub]) => (
+          <div key={k} className="flex flex-col gap-1">
+            <span className="text-[12px] text-[#5b6a52]">{k}</span>
+            <span className="font-display text-[26px] leading-none">{v}</span>
+            <span className="text-[12px] text-[#7a7466]">{sub}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[14px] min-w-[560px]">
+          <thead>
+            <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[#5b6a52]">
+              <th className="py-1 font-semibold">Category</th>
+              <th className="py-1 font-semibold text-right">Share</th>
+              <th className="py-1 font-semibold text-right">Allowed</th>
+              <th className="py-1 font-semibold text-right">Planned</th>
+              <th className="py-1 font-semibold text-right">Left</th>
+              <th className="py-1 font-semibold text-right">Per guest</th>
+            </tr>
+          </thead>
+          <tbody>
+            {split.map(({ category, share }) => {
+              const allowed = b.total * share;
+              const have = planned.get(category) ?? 0;
+              const left = allowed - have;
+              return (
+                <tr key={category} className="border-t border-[#ece3cd]">
+                  <td className="py-[6px]">{category}</td>
+                  <td className="py-[6px] text-right">
+                    {open ? (
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        aria-label={`${category} share`}
+                        value={Math.round(share * 1000) / 10}
+                        onChange={(e) => onSplit({ ...b.split, [category]: Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100 })}
+                        className="w-[64px] py-[2px] px-2 border border-[#d3c6a4] rounded-[8px] bg-white text-right"
+                      />
+                    ) : (
+                      <span className={b.split[category] !== undefined ? 'font-semibold' : 'text-[#5b6a52]'}>{Math.round(share * 1000) / 10}%</span>
+                    )}
+                  </td>
+                  <td className="py-[6px] text-right tabular-nums">{aud(allowed)}</td>
+                  <td className="py-[6px] text-right tabular-nums">{have ? aud(have) : <span className="text-[#a39d8e]">—</span>}</td>
+                  <td className={`py-[6px] text-right tabular-nums ${left < 0 ? 'text-[#7a4a37] font-semibold' : have ? 'text-[#3d4a2f]' : 'text-[#7a7466]'}`}>{left < 0 ? `${aud(-left)} over` : aud(left)}</td>
+                  <td className="py-[6px] text-right tabular-nums text-[#5b6a52]">{guests ? aud(allowed / guests) : '—'}</td>
+                </tr>
+              );
+            })}
+            {others.map(([cat, have]) => (
+              <tr key={cat} className="border-t border-[#ece3cd] text-[#5b6a52]">
+                <td className="py-[6px]">{cat}</td>
+                <td className="py-[6px] text-right">—</td>
+                <td className="py-[6px] text-right">—</td>
+                <td className="py-[6px] text-right tabular-nums">{aud(have)}</td>
+                <td className="py-[6px]" />
+                <td className="py-[6px] text-right tabular-nums">{guests ? aud(have / guests) : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex gap-4 flex-wrap items-center text-[13px]">
+        <button type="button" onClick={() => setOpen(!open)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+          {open ? 'Done changing the split' : 'Change the split'}
+        </button>
+        {Object.keys(b.split).length > 0 && (
+          <button type="button" onClick={() => onSplit({})} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+            Back to the usual split
+          </button>
+        )}
+        {Math.abs(shareSum - 1) > 0.001 && (
+          <span className={shareSum > 1 ? 'text-[#7a4a37] font-semibold' : 'text-[#8a6d2f]'}>
+            The shares add to {Math.round(shareSum * 1000) / 10}%{shareSum < 1 ? ` (${aud(b.total * (1 - shareSum))} not given to a category yet)` : ' (more than your budget)'}
+          </span>
+        )}
+        <span className="text-[#7a7466]">The usual split is what Australian couples typically spend; yours can be anything.</span>
+      </div>
     </section>
   );
 }

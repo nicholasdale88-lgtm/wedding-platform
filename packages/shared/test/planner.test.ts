@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPayments, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -223,5 +223,24 @@ describe('quote tracker', () => {
     expect(quoted).toMatchObject({ stage: 'in', amount: 2600, took: 4, expires: '2027-04-01' });
     expect(quoteStatus(v({ status: 'declined', quotes: [{ id: 'a', amount: 1 }] }), '2027-03-10').stage).toBe('out');
     expect(quoteStatus(v({ status: 'booked' }), '2027-03-10').stage).toBe('booked');
+  });
+});
+
+describe('standard budget', () => {
+  it('each category’s lines add up to its usual share, and the whole to 100%', () => {
+    for (const c of BUDGET_SPLIT) {
+      const sum = BUDGET_TEMPLATE.filter((t) => t.category === c.category).reduce((a, t) => a + t.share, 0);
+      expect(sum, c.category).toBeCloseTo(c.share, 5);
+    }
+    expect(BUDGET_SPLIT.reduce((a, c) => a + c.share, 0)).toBeCloseTo(1, 5);
+  });
+  it('lines from the total and the guests (per head), following your split, skipping what you have', () => {
+    const lines = standardLines({ total: 50000, split: {}, lines: [{ category: 'Cake', item: 'Wedding cake', estimate: 900, quote: 0, paid: 0, due: '', vendor: '', note: '', payer: '', perHead: 0 }] }, 100);
+    expect(lines.find((l) => l.item === 'Wedding cake')).toBeUndefined();
+    expect(lines.find((l) => l.item === 'Catering')).toMatchObject({ perHead: 100, estimate: 10000 });
+    expect(lines.find((l) => l.item === 'Photographer')!.estimate).toBe(4000);
+    // Photography at 20% (not 12%): the photographer's line grows to match.
+    const more = standardLines({ total: 50000, split: { 'Photography and video': 0.2 }, lines: [] }, 100);
+    expect(more.find((l) => l.item === 'Photographer')!.estimate).toBe(Math.round((50000 * 0.08 * 0.2) / 0.12));
   });
 });

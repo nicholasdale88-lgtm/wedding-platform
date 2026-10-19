@@ -125,7 +125,7 @@ function Glance({ go }: { go: (v: View) => void }) {
     plannerApi
       .doc<BudgetDoc>(wid, 'budget')
       .then((r) => setBudget(r.data))
-      .catch(() => setBudget({ total: 0, guests: 0, lines: [] }));
+      .catch(() => setBudget({ total: 0, guests: 0, lines: [], split: {} }));
     plannerApi
       .doc<VendorsDoc>(wid, 'vendors')
       .then((r) => setVendors(r.data.list))

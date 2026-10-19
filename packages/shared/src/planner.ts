@@ -498,8 +498,63 @@ export const Budget = z.object({
   /** The guest count per-guest lines are priced for (0: the number coming so far). */
   guests: z.number().int().min(0).max(5000).default(0),
   lines: z.array(BudgetLine).max(300).default([]),
+  /** Your own split by category (share of the total, 0 to 1); categories not here use the usual split. */
+  split: z.record(z.string().max(60), z.number().min(0).max(1)).default({}),
 });
 export type Budget = z.infer<typeof Budget>;
+
+/**
+ * The standard budget: each category's usual lines and their share of the whole budget (Australian
+ * weddings). Per-guest lines (catering, drinks) are priced per head from the guest count.
+ */
+export const BUDGET_TEMPLATE: { category: string; item: string; share: number; perHead?: boolean }[] = [
+  { category: 'Venue and catering', item: 'Venue hire', share: 0.14 },
+  { category: 'Venue and catering', item: 'Catering', share: 0.2, perHead: true },
+  { category: 'Venue and catering', item: 'Drinks package', share: 0.08, perHead: true },
+  { category: 'Venue and catering', item: 'Ceremony venue and fees', share: 0.02 },
+  { category: 'Photography and video', item: 'Photographer', share: 0.08 },
+  { category: 'Photography and video', item: 'Videographer', share: 0.04 },
+  { category: 'Attire and rings', item: 'Wedding dress', share: 0.04 },
+  { category: 'Attire and rings', item: 'Suit', share: 0.015 },
+  { category: 'Attire and rings', item: 'Alterations', share: 0.005 },
+  { category: 'Attire and rings', item: 'Wedding rings', share: 0.04 },
+  { category: 'Attire and rings', item: 'Shoes and accessories', share: 0.02 },
+  { category: 'Flowers and styling', item: 'Florist', share: 0.05 },
+  { category: 'Flowers and styling', item: 'Styling and hire', share: 0.03 },
+  { category: 'Music and entertainment', item: 'Band or DJ', share: 0.05 },
+  { category: 'Music and entertainment', item: 'Ceremony music', share: 0.01 },
+  { category: 'Hair and makeup', item: 'Hair and makeup', share: 0.03 },
+  { category: 'Cake', item: 'Wedding cake', share: 0.02 },
+  { category: 'Stationery', item: 'Invitations and stationery', share: 0.012 },
+  { category: 'Stationery', item: 'Signage', share: 0.008 },
+  { category: 'Celebrant', item: 'Celebrant', share: 0.015 },
+  { category: 'Celebrant', item: 'Marriage certificate and fees', share: 0.005 },
+  { category: 'Transport', item: 'Wedding cars', share: 0.012 },
+  { category: 'Transport', item: 'Guest shuttle', share: 0.008 },
+  { category: 'Accommodation and extras', item: 'Accommodation', share: 0.02 },
+  { category: 'Accommodation and extras', item: 'Favours and gifts', share: 0.015 },
+  { category: 'Accommodation and extras', item: 'Wedding party gifts', share: 0.01 },
+  { category: 'Accommodation and extras', item: 'Contingency (for surprises)', share: 0.025 },
+];
+
+/** Each category's share of the budget: your own where you've set one, else the usual. */
+export const splitOf = (b: Pick<Budget, 'split'>) => BUDGET_SPLIT.map((x) => ({ category: x.category, share: b.split?.[x.category] ?? x.share }));
+
+/**
+ * The standard lines for a budget: each line's amount from your total and your split (a category's
+ * share is divided among its lines as usual); per-guest lines priced per head. Lines you already have
+ * (same item in the same category) are left out.
+ */
+export function standardLines(b: Pick<Budget, 'total' | 'split' | 'lines'>, guests: number): BudgetLine[] {
+  const shares = new Map(splitOf(b).map((x) => [x.category, x.share]));
+  const have = new Set(b.lines.map((l) => `${l.category}|${l.item}`.toLowerCase()));
+  return BUDGET_TEMPLATE.filter((t) => !have.has(`${t.category}|${t.item}`.toLowerCase())).map((t) => {
+    const usual = BUDGET_SPLIT.find((x) => x.category === t.category)?.share ?? t.share;
+    const amount = Math.round((b.total * t.share * (shares.get(t.category) ?? usual)) / usual);
+    const perHead = t.perHead && guests > 0 ? Math.round((amount / guests) * 100) / 100 : 0;
+    return { category: t.category, item: t.item, estimate: perHead ? Math.round(perHead * guests * 100) / 100 : amount, quote: 0, paid: 0, due: '', vendor: '', note: '', payer: '', perHead };
+  });
+}
 
 /** How Australian couples usually split the budget (a starting point, by share of the total). */
 export const BUDGET_SPLIT: { category: string; share: number }[] = [
