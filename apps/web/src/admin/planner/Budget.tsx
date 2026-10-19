@@ -1,12 +1,13 @@
-import { BUDGET_SPLIT, type Budget as BudgetDoc, type BudgetLine } from '@wp/shared';
+import { BUDGET_SPLIT, commitmentOf, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
-import { Eyebrow, H2, inputCls, Pill, useToast } from '../ui';
+import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
- * Account → Budget: your total, each line's estimate, quote and what's paid, and what's still owing by
- * due date. A typical Australian split gets you started; the charts show where the money is going.
+ * Wedding planner → Budget: your total, each line's estimate, quote and what's paid, and what's still
+ * owing by due date. Booked vendors' accepted quotes count as commitments (unless a line already names
+ * that vendor). A typical Australian split gets you started; the charts show where the money is going.
  */
 
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
@@ -39,10 +40,13 @@ export function Budget() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [vendors, setVendors] = useState<VendorsDoc['list']>([]);
 
   const load = useCallback(async () => {
     try {
-      setDoc(await plannerApi.doc<BudgetDoc>(wid, 'budget'));
+      const [b, v] = await Promise.all([plannerApi.doc<BudgetDoc>(wid, 'budget'), plannerApi.doc<VendorsDoc>(wid, 'vendors').catch(() => null)]);
+      setDoc(b);
+      setVendors(v?.data.list ?? []);
       setDirty(false);
     } catch (e) {
       setError((e as Error).message);
@@ -51,8 +55,18 @@ export function Budget() {
   useEffect(() => void load(), [load]);
 
   const b = doc?.data;
+  // Booked vendors not already on a budget line, as lines of their own (read-only here; edit in Vendors).
+  const commitments = useMemo(() => {
+    const named = new Set((b?.lines ?? []).map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
+    return vendors
+      .filter((v) => v.status === 'booked' && !named.has(v.name.trim().toLowerCase()))
+      .map((v) => {
+        const c = commitmentOf(v);
+        return { vendor: v, line: { category: v.category || 'Other', item: v.name, estimate: 0, quote: c.amount, paid: v.depositPaid ? c.deposit : 0, due: v.balanceDue, vendor: v.name, note: '' } as BudgetLine };
+      });
+  }, [b, vendors]);
   const sums = useMemo(() => {
-    const lines = b?.lines ?? [];
+    const lines = [...(b?.lines ?? []), ...commitments.map((x) => x.line)];
     const byCat = new Map<string, { cost: number; paid: number }>();
     for (const l of lines) {
       const x = byCat.get(l.category) ?? { cost: 0, paid: 0 };
@@ -64,7 +78,7 @@ export function Budget() {
     const paid = lines.reduce((a, l) => a + l.paid, 0);
     const owing = lines.filter((l) => cost(l) > l.paid).sort((a, z) => (a.due || '9999').localeCompare(z.due || '9999'));
     return { byCat: [...byCat.entries()].sort((a, z) => z[1].cost - a[1].cost), committed, paid, owing };
-  }, [b]);
+  }, [b, commitments]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!doc || !b) return <div aria-busy="true" className="text-[#5b6a52]">Loading your budget…</div>;
@@ -96,10 +110,7 @@ export function Budget() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex justify-between items-end gap-4 flex-wrap">
-        <div>
-          <Eyebrow>Account · Budget</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Budget</h1>
-        </div>
+        <H2>Budget</H2>
         <Pill kind="primary" disabled={!dirty || saving} onClick={() => void save()}>
           {saving ? 'Saving…' : dirty ? 'Save budget' : 'Saved'}
         </Pill>
@@ -154,6 +165,32 @@ export function Budget() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {commitments.length > 0 && (
+        <section aria-label="Commitments" className="flex flex-col gap-2">
+          <div className="flex justify-between items-baseline gap-2 flex-wrap">
+            <H2>Commitments</H2>
+            <span className="text-[13px] text-[#5b6a52]">Vendors you've booked, from their accepted quote. Change them under Vendors.</span>
+          </div>
+          {commitments.map(({ vendor: v, line: l }) => (
+            <div key={v.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 border-t border-[#e2d7bc] text-[14px]">
+              <span className="min-w-0">
+                <span className="font-medium">{v.name}</span>
+                <span className="text-[#5b6a52]">
+                  {' '}
+                  · {l.category}
+                  {v.depositPaid ? ` · deposit paid` : commitmentOf(v).deposit ? ` · deposit ${aud(commitmentOf(v).deposit)} to pay` : ''}
+                  {l.due ? ` · balance due ${new Date(`${l.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}
+                </span>
+              </span>
+              <span className="tabular-nums text-right">
+                <strong className="font-semibold">{aud(l.quote)}</strong>
+                {l.quote > l.paid && <span className="block text-[12px] text-[#7a7466]">{aud(l.quote - l.paid)} to pay</span>}
+              </span>
+            </div>
+          ))}
         </section>
       )}
 

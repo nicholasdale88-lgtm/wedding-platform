@@ -1,9 +1,9 @@
-import { guidesOf, isToken, itemsFor, PARTY_ROLES, PLANNER_DOCS, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
+import { commitmentOf, guidesOf, isToken, itemsFor, PARTY_ROLES, PLANNER_DOCS, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
-import { readJson } from '../lib/security';
+import { MAX_PLANNER_FILE, readJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -218,6 +218,175 @@ export function plannerRoutes() {
         messages: [{ role: 'system', content: system }, ...body.data.history.map((h) => ({ role: h.role, content: h.text })), { role: 'user', content: body.data.question }],
         max_tokens: 700,
         temperature: 0.4,
+      })) as { response?: string };
+      const answer = (out.response ?? '').trim();
+      if (!answer) throw new Error('empty');
+      return c.json({ answer });
+    } catch {
+      return err(c, 502, 'unavailable', 'The assistant is busy right now. Please try again in a minute.');
+    }
+  });
+
+  // ---------------------------------------------------------------- quote files
+
+  /** File a quote (a PDF or photo, base64 in JSON, up to 1.5 MB). Returns its id for the vendor's quote. */
+  app.post('/files', writer, async (c) => {
+    const body = z
+      .object({ name: z.string().trim().min(1).max(160), type: z.enum(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']), data: z.string().max(Math.ceil(MAX_PLANNER_FILE * 1.4)) })
+      .strict()
+      .safeParse(await readJson(c.req.raw, Math.ceil(MAX_PLANNER_FILE * 1.4) + 4096));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose a PDF or a photo of the quote, up to 1.5 MB.');
+    let bytes: Uint8Array;
+    try {
+      bytes = Uint8Array.from(atob(body.data.data), (ch) => ch.charCodeAt(0));
+    } catch {
+      return err(c, 400, 'invalid', 'That file could not be read.');
+    }
+    if (bytes.byteLength > MAX_PLANNER_FILE) return err(c, 400, 'too_large', 'That file is over 1.5 MB. Try a smaller PDF or a photo.');
+    // It must really be what it says (a PDF starts %PDF; images by their first bytes).
+    const head = String.fromCharCode(...bytes.slice(0, 12));
+    const t = body.data.type;
+    const real =
+      t === 'application/pdf'
+        ? head.startsWith('%PDF')
+        : t === 'image/jpeg'
+          ? bytes[0] === 0xff && bytes[1] === 0xd8
+          : t === 'image/png'
+            ? bytes[0] === 0x89 && head.slice(1, 4) === 'PNG'
+            : t === 'image/webp'
+              ? head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP'
+              : head.slice(4, 8) === 'ftyp';
+    if (!real) return err(c, 400, 'invalid', "That file isn't the PDF or photo it says it is.");
+    const id = crypto.randomUUID();
+    await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO planner_file (id, wedding_id, name, type, bytes, data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(
+        id,
+        wid(c),
+        body.data.name,
+        t,
+        bytes.byteLength,
+        bytes,
+        new Date().toISOString(),
+      ),
+      audit(c, 'planner.file', id),
+    ]);
+    return c.json({ id, name: body.data.name });
+  });
+
+  const fileOf = (c: C, id: string) =>
+    c.env.DB.prepare(`SELECT name, type, data FROM planner_file WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`)
+      .bind(id, wid(c))
+      .first<{ name: string; type: string; data: ArrayBuffer | number[] }>();
+  const asBytes = (d: ArrayBuffer | number[]) => (d instanceof ArrayBuffer ? new Uint8Array(d) : Uint8Array.from(d));
+
+  /** The file itself, for members only; shown in the browser, never run. */
+  app.get('/files/:id', async (c) => {
+    const f = await fileOf(c, c.req.param('id'));
+    if (!f) return err(c, 404, 'not_found', 'File not found.');
+    return new Response(asBytes(f.data), {
+      headers: {
+        'content-type': f.type,
+        'content-disposition': `inline; filename="${f.name.replace(/[^\w. -]/g, '_')}"`,
+        'cache-control': 'private, max-age=3600',
+        'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
+        'x-content-type-options': 'nosniff',
+      },
+    });
+  });
+
+  app.delete('/files/:id', writer, async (c) => {
+    const r = await c.env.DB.prepare(`UPDATE planner_file SET deleted_at = ? WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(new Date().toISOString(), c.req.param('id'), wid(c)).run();
+    if (!r.meta.changes) return err(c, 404, 'not_found', 'File not found.');
+    return c.json({ ok: true });
+  });
+
+  /**
+   * Read a quote for you: the file to text (Workers AI), then the numbers and what's in and out.
+   * Returns a suggestion to check before saving; nothing is changed.
+   */
+  app.post('/files/:id/read', writer, async (c) => {
+    if (!c.env.AI?.toMarkdown) return err(c, 400, 'off', "Reading quotes needs the planning assistant, which isn't switched on yet.");
+    if (!(await allow(c.env.DB, `ask:${wid(c)}`, 40, 86_400_000))) return err(c, 429, 'slow_down', "That's today's assistant use up. Fill it in yourself, or try tomorrow.");
+    const f = await fileOf(c, c.req.param('id'));
+    if (!f) return err(c, 404, 'not_found', 'File not found.');
+    let text = '';
+    try {
+      const md = await c.env.AI.toMarkdown([{ name: f.name, blob: new Blob([asBytes(f.data)], { type: f.type }) }]);
+      text = (md[0]?.data ?? '').replace(/[ \t]+\n/g, '\n').slice(0, 12000);
+    } catch {
+      /* falls through to "couldn't read it" */
+    }
+    if (text.trim().length < 20) return err(c, 502, 'unreadable', "Couldn't read words in that file (a blurry photo?). Enter the numbers yourself.");
+    try {
+      const out = (await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You read wedding vendor quotes. Reply with JSON only, no other text: {"amount": total price in AUD as a number (0 if not stated), "deposit": deposit in AUD as a number (0 if none), "validUntil": "yyyy-mm-dd" or "", "date": "yyyy-mm-dd" or "", "includes": "short list of what is included", "excludes": "short list of what is not included or costs extra", "summary": "two sentences: what this quote is for and anything to watch"}. Never guess numbers that are not in the text.',
+          },
+          { role: 'user', content: text.slice(0, 9000) },
+        ],
+        max_tokens: 600,
+        temperature: 0,
+      })) as { response?: string };
+      const r = out.response ?? '';
+      const j = JSON.parse(r.slice(r.indexOf('{'), r.lastIndexOf('}') + 1)) as Record<string, unknown>;
+      const num = (v: unknown) => Math.max(0, Math.min(10_000_000, Number(String(v ?? '').replace(/[^\d.]/g, '')) || 0));
+      const day = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) ? String(v) : '');
+      const str = (v: unknown, n: number) => String(v ?? '').slice(0, n);
+      return c.json({
+        amount: num(j.amount),
+        deposit: num(j.deposit),
+        validUntil: day(j.validUntil),
+        date: day(j.date),
+        includes: str(j.includes, 1500),
+        excludes: str(j.excludes, 1500),
+        extract: `${str(j.summary, 600)}\n\n${text}`.slice(0, 6000),
+      });
+    } catch {
+      return err(c, 502, 'unavailable', "The assistant couldn't make sense of it just now. Enter the numbers yourself, or try again.");
+    }
+  });
+
+  /** Compare the quotes of the vendors you pick, with the assistant's view. */
+  app.post('/compare', writer, async (c) => {
+    const body = z.object({ vendorIds: z.array(z.string().max(40)).min(2).max(8) }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose two or more vendors to compare.');
+    if (!c.env.AI) return err(c, 400, 'off', "The planning assistant isn't switched on for this site yet.");
+    const list = (await readDoc(c.env.DB, wid(c), 'vendors', '')).data.list.filter((v) => body.data.vendorIds.includes(v.id));
+    if (list.length < 2) return err(c, 400, 'invalid', 'Choose two or more vendors to compare.');
+    if (!(await allow(c.env.DB, `ask:${wid(c)}`, 40, 86_400_000))) return err(c, 429, 'slow_down', "That's today's assistant use up. Try again tomorrow.");
+    const budget = (await readDoc(c.env.DB, wid(c), 'budget', '')).data;
+    const facts = list
+      .map((v) => {
+        const qs = v.quotes.length
+          ? v.quotes
+              .map(
+                (q) =>
+                  `  Quote $${q.amount}${q.deposit ? `, deposit $${q.deposit}` : ''}${q.validUntil ? `, valid until ${q.validUntil}` : ''}. Includes: ${q.includes || '-'}. Excludes: ${q.excludes || '-'}.${q.notes ? ` Notes: ${q.notes}.` : ''}${q.extract ? `\n  From the quote: ${q.extract.slice(0, 1500)}` : ''}`,
+              )
+              .join('\n')
+          : `  ${commitmentOf(v).amount ? `Quote $${commitmentOf(v).amount}` : 'No quote yet'}.`;
+        return `${v.name} (${v.category || 'vendor'}, ${v.status}${v.km !== null ? `, ${v.km} km from the venue` : ''})${v.notes ? `. Our notes: ${v.notes}` : ''}\n${qs}`;
+      })
+      .join('\n\n');
+    const word = (list[0]!.category.toLowerCase().split(' ')[0] ?? '').replace(/s$/, '');
+    const line = word ? budget.lines.find((l) => l.category.toLowerCase().includes(word)) : undefined;
+    try {
+      const out = (await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You help an Australian couple compare wedding vendor quotes. Use Australian spelling and only the facts given; never invent prices or inclusions. ' +
+              'Reply in this shape: a one-line verdict; then "Price" (compare like for like, noting what is excluded); then "What you get"; then "Watch out for"; then "Ask them" (2 to 4 questions to send each vendor). Keep it under 260 words.' +
+              (line ? ` Their budget for this is about $${line.quote || line.estimate}.` : ''),
+          },
+          { role: 'user', content: facts.slice(0, 11000) },
+        ],
+        max_tokens: 750,
+        temperature: 0.3,
       })) as { response?: string };
       const answer = (out.response ?? '').trim();
       if (!answer) throw new Error('empty');

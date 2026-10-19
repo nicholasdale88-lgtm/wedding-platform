@@ -2,7 +2,7 @@
  * Drizzle mirror of migrations/0001_init.sql (the source of truth).
  * test/schema.test.ts fails if a table or column here drifts from the migration.
  */
-import { integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { blob, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 const id = () => text('id').primaryKey();
 const version = () => integer('version').notNull().default(1);
@@ -344,6 +344,18 @@ export const plannerDoc = sqliteTable(
   },
   (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.kind, t.scope] }) }),
 );
+
+// migration 0013: files kept with the planning (quotes, contracts)
+export const plannerFile = sqliteTable('planner_file', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  name: text('name').notNull(),
+  type: text('type').notNull(),
+  bytes: integer('bytes').notNull(),
+  data: blob('data').notNull(),
+  createdAt: text('created_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
 
 export const audit = sqliteTable('audit', {
   id: id(),

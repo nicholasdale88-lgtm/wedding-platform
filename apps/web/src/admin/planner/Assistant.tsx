@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Pill } from '../ui';
+import { H2, inputCls, Pill } from '../ui';
 
 /**
- * Account → Planning assistant: ask anything about planning the wedding. It knows your dates, replies,
+ * Wedding planner → Assistant: ask anything about planning the wedding. It knows your dates, replies,
  * budget, vendors and wedding party (from this app), and drafts wording, speeches and to-do lists.
  * Runs on the free daily allowance; the conversation isn't stored.
  */
@@ -49,8 +49,7 @@ export function Assistant() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <Eyebrow>Account · Planning assistant</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Planning assistant</h1>
+        <H2>Planning assistant</H2>
         <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">Ask about anything wedding. It knows your dates, replies, budget, vendors and wedding party, and drafts wording for you. Check anything important before you rely on it.</p>
       </header>
 

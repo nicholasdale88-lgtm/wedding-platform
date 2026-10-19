@@ -32,7 +32,11 @@ export interface Env {
   MS_CLIENT_ID?: string;
   MS_CLIENT_SECRET?: string;
   /** Workers AI, for the planning assistant (bound by the deploy only when the account allows it). */
-  AI?: { run(model: string, input: unknown): Promise<unknown> };
+  AI?: {
+    run(model: string, input: unknown): Promise<unknown>;
+    /** Documents (PDF, images) to Markdown text (used to read vendors' quotes). */
+    toMarkdown?(files: { name: string; blob: Blob }[]): Promise<{ name: string; data: string; format?: string }[]>;
+  };
 }
 
 /** Real dependencies for the SMS engine. Tests build their own. */

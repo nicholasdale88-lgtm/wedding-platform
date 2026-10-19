@@ -120,6 +120,23 @@ export const BUDGET_SPLIT: { category: string; share: number }[] = [
 ];
 
 export const VENDOR_STATUS = ['idea', 'contacted', 'quoted', 'booked'] as const;
+
+/** A quote from a vendor: the numbers, what's in and out, and the file it came in (if filed). */
+export const Quote = z.object({
+  id: z.string().max(40),
+  amount: money,
+  deposit: money,
+  date: s(10), // yyyy-mm-dd, when it was given
+  validUntil: s(10),
+  includes: s(1500),
+  excludes: s(1500),
+  notes: s(1500),
+  fileId: s(40),
+  fileName: s(160),
+  /** What the assistant read from the file (kept so quotes can be compared later). */
+  extract: s(6000),
+});
+export type Quote = z.infer<typeof Quote>;
 export const Vendor = z.object({
   id: z.string().max(40),
   name: z.string().max(120),
@@ -137,8 +154,17 @@ export const Vendor = z.object({
   balanceDue: s(10), // yyyy-mm-dd
   arrival: s(20), // on the day
   notes: s(1500),
+  quotes: z.array(Quote).max(12).default([]),
+  /** The quote you accepted (its id): its amount and deposit are this vendor's commitment. */
+  accepted: s(40),
 });
 export type Vendor = z.infer<typeof Vendor>;
+
+/** A booked vendor's commitment: the accepted quote (or the quote entered by hand). */
+export function commitmentOf(v: Vendor): { amount: number; deposit: number } {
+  const q = v.quotes.find((x) => x.id === v.accepted);
+  return { amount: q?.amount ?? v.quote, deposit: q?.deposit ?? v.deposit };
+}
 export const Vendors = z.object({ list: z.array(Vendor).max(200).default([]) });
 export type Vendors = z.infer<typeof Vendors>;
 

@@ -100,6 +100,41 @@ describe('planner: wedding party', () => {
     expect(seen.input!.messages.at(-1)).toEqual({ role: 'user', content: 'What next?' });
   });
 
+  it('files a quote (members only), reads it with the assistant, and compares vendors', async () => {
+    const pdf = btoa('%PDF-1.4 quote for flowers, total $2,400, deposit $500');
+    // Not what it says it is: refused.
+    expect((await call('/files', { method: 'POST', body: JSON.stringify({ name: 'q.pdf', type: 'application/pdf', data: btoa('<html>') }) })).status).toBe(400);
+    const up = (await (await call('/files', { method: 'POST', body: JSON.stringify({ name: 'Bloom quote.pdf', type: 'application/pdf', data: pdf }) })).json()) as { id: string };
+    const file = await call(`/files/${up.id}`);
+    expect(file.status).toBe(200);
+    expect(file.headers.get('content-type')).toBe('application/pdf');
+    expect(await file.text()).toContain('total $2,400');
+    expect((await app.request(`/api/a/w/${wid}/planner/files/${up.id}`, {}, env, ctx)).status).toBe(401); // signed out
+
+    env.AI = {
+      run: async (_m: string, input: unknown) => {
+        const sys = (input as { messages: { content: string }[] }).messages[0]!.content;
+        return sys.startsWith('You read wedding vendor quotes')
+          ? { response: 'Here you go: {"amount": "$2,400", "deposit": 500, "validUntil": "2027-03-01", "includes": "Bouquets, arch", "excludes": "Delivery", "summary": "Flowers."}' }
+          : { response: 'Bloom is better value once delivery is added.' };
+      },
+      toMarkdown: async () => [{ name: 'Bloom quote.pdf', data: 'Quote: flowers. Total $2,400. Deposit $500. Valid until 1 March 2027.' }],
+    };
+    const read = (await (await call(`/files/${up.id}/read`, { method: 'POST', body: '{}' })).json()) as { amount: number; deposit: number; validUntil: string; excludes: string };
+    expect(read).toMatchObject({ amount: 2400, deposit: 500, validUntil: '2027-03-01', excludes: 'Delivery' });
+
+    const vendors = {
+      list: [
+        { id: 'v1', name: 'Bloom', category: 'Florist', quotes: [{ id: 'q1', amount: 2400, deposit: 500, includes: 'Bouquets', fileId: up.id }] },
+        { id: 'v2', name: 'Petal Co', category: 'Florist', quotes: [{ id: 'q2', amount: 2100 }] },
+      ],
+    };
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify(vendors) })).status).toBe(200);
+    const cmp = (await (await call('/compare', { method: 'POST', body: JSON.stringify({ vendorIds: ['v1', 'v2'] }) })).json()) as { answer: string };
+    expect(cmp.answer).toContain('better value');
+    expect((await call('/compare', { method: 'POST', body: JSON.stringify({ vendorIds: ['v1'] }) })).status).toBe(400);
+  });
+
   it('a stale save is refused with the current version (two people never overwrite each other)', async () => {
     await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [{ text: 'Breakfast' }], p2: [] }) });
     const stale = await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [], p2: [] }) });
