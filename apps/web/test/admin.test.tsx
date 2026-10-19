@@ -289,7 +289,7 @@ describe('SMS messages tab', () => {
     expect(screen.getByText('Marked attending')).toBeInTheDocument();
   });
 
-  it('groups messages by stage; + Add a reminder creates one for everyone still to reply', async () => {
+  it('groups messages by stage; + Add a reminder creates one for this event's guests still to reply', async () => {
     let created: { name: string; audience: unknown; body?: string } | null = null;
     const withReplyGroup = { ...texts, audiences: [...texts.audiences, { key: 'r', label: 'Still to reply', audience: { awaitingAny: true, invitedBefore: true } }] };
     mockApi({
@@ -305,7 +305,8 @@ describe('SMS messages tab', () => {
     renderAt('/admin/w1/texts');
     expect(await screen.findByRole('heading', { name: 'Invitations & reminders' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '+ Add a reminder' }));
-    await waitFor(() => expect(created).toMatchObject({ name: 'Reminder 1', audience: { awaitingAny: true, invitedBefore: true } }));
+    // Inside the wedding's section: a reminder for the wedding's guests still to reply.
+    await waitFor(() => expect(created).toMatchObject({ name: 'Reminder 1 · The wedding', audience: { awaitingAny: true, invitedBefore: true, invitedTo: 'wedding' } }));
     expect(created!.body).toMatch(/{link}/);
   });
 
