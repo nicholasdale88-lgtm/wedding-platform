@@ -30,6 +30,8 @@ export interface InvitePayload {
   invitation: GuestInvitation | null;
   /** "Who's who" in the wedding party, when the couple shows it (side '' is neither side). */
   party?: { sides: { p1: string; p2: string }; people: { name: string; role: string; side: 'p1' | 'p2' | '' }[] } | null;
+  /** The couple quiz is open. */
+  quiz?: boolean;
 }
 
 export interface RsvpBody {
