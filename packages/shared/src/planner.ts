@@ -234,8 +234,41 @@ export const PartySetup = z.object({
   showOnInvite: z.boolean().default(false),
   /** Wedding party sign-in, per person id: false pauses that member's page (everyone else can sign in). */
   access: z.record(z.string().max(40), z.boolean()).default({}),
+  /** The party portal needs a sign-in (email and password): their private links alone no longer open it. */
+  signIn: z.boolean().default(false),
 });
 export type PartySetup = z.infer<typeof PartySetup>;
+
+// ---------------------------------------------------------------- the wedding party portal: what each member can see and do
+
+export const PARTY_PERMS = ['runsheet', 'tasks', 'addTasks', 'sideTasks', 'packing', 'speeches', 'people', 'vendors', 'guests', 'seating'] as const;
+export type PartyPerm = (typeof PARTY_PERMS)[number];
+/** Each permission: its name and what it means, for the couple. */
+export const PARTY_PERM_LABEL: Record<PartyPerm, [string, string]> = {
+  runsheet: ['Their part of the day', 'The run sheet lines for them, their side or their role'],
+  tasks: ['Their to-dos', 'See and tick off what you’ve given them'],
+  addTasks: ['Add their own to-dos', 'Keep their own list with yours'],
+  sideTasks: ['Their side’s shared to-dos', 'Everything for the whole side, not just theirs'],
+  packing: ['Packing list', 'What to bring on the day, ticked off'],
+  speeches: ['Speeches and who holds what', 'The speaking order, and what they’re looking after'],
+  people: ['Wedding party phone numbers', 'Everyone in the party, a tap to call or text'],
+  vendors: ['Suppliers and arrival times', 'Who’s coming when on the day, with their phone'],
+  guests: ['Guest numbers', 'How many are coming and how many still to reply'],
+  seating: ['The seating plan', 'Every table and who’s at it'],
+};
+/** Starting points: the lead of each side (maid of honour, best man) sees more. */
+export const PERM_PRESETS: Record<'lead' | 'member' | 'view', { label: string; perms: PartyPerm[] }> = {
+  lead: { label: 'Lead (maid of honour, best man)', perms: ['runsheet', 'tasks', 'addTasks', 'sideTasks', 'packing', 'speeches', 'people', 'vendors', 'guests', 'seating'] },
+  member: { label: 'Wedding party', perms: ['runsheet', 'tasks', 'addTasks', 'sideTasks', 'packing', 'speeches', 'people'] },
+  view: { label: 'Just looking', perms: ['runsheet', 'packing', 'speeches'] },
+};
+export const presetFor = (role: string): keyof typeof PERM_PRESETS => (/(maid|matron) of honou?r|best (wo)?man|lead/i.test(role) ? 'lead' : 'member');
+/** A member's permissions: what the couple set, else the preset for their role. */
+export function permsOf(stored: unknown, role: string): Record<PartyPerm, boolean> {
+  const set = stored && typeof stored === 'object' ? (stored as Record<string, unknown>) : null;
+  const preset = new Set(PERM_PRESETS[presetFor(role)].perms);
+  return Object.fromEntries(PARTY_PERMS.map((k) => [k, set && typeof set[k] === 'boolean' ? (set[k] as boolean) : preset.has(k)])) as Record<PartyPerm, boolean>;
+}
 
 /** A starting packing list for the day. */
 export const PACK_TEMPLATE: PackItem[] = [

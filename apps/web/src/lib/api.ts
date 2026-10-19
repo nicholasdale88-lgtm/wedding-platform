@@ -605,6 +605,27 @@ export const plannerCalendarApi = {
   get: (wid: string) => request<{ url: string }>(`${w(wid)}/planner-calendar`),
   set: (wid: string, on: boolean) => send<{ url: string }>('PUT', `${w(wid)}/planner-calendar`, { on }),
 };
+/** The wedding party portal: each member's sign-in, what they can see and do, and resets. */
+export type PartyPermKey = 'runsheet' | 'tasks' | 'addTasks' | 'sideTasks' | 'packing' | 'speeches' | 'people' | 'vendors' | 'guests' | 'seating';
+export interface PortalMember {
+  personId: string;
+  name: string;
+  role: string;
+  side: string;
+  hasMobile: boolean;
+  paused: boolean;
+  account: { status: 'invited' | 'active'; email: string; lastLogin: string | null; inviteExpires: string | null; locked: boolean } | null;
+  perms: Record<PartyPermKey, boolean>;
+}
+export const partyAccountsApi = {
+  list: (wid: string) => request<{ signIn: boolean; members: PortalMember[] }>(`${w(wid)}/party-accounts`),
+  settings: (wid: string, signIn: boolean) => send<{ signIn: boolean }>('PUT', `${w(wid)}/party-accounts/settings`, { signIn }),
+  invite: (wid: string, pid: string, email?: string) => send<{ link: string; expires: string; phone: string }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/invite`, email ? { email } : {}),
+  perms: (wid: string, pid: string, perms: Record<PartyPermKey, boolean>) => send<{ perms: Record<PartyPermKey, boolean> }>('PUT', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/perms`, { perms }),
+  reset: (wid: string, pid: string) => send<{ link: string; phone: string }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/reset`, {}),
+  signOut: (wid: string, pid: string) => send<{ ok: true }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/signout`, {}),
+  remove: (wid: string, pid: string) => send<{ ok: true }>('DELETE', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}`),
+};
 /** Payment reminders by text to the couple's own mobile (off until switched on). */
 export interface PayReminders {
   on: boolean;

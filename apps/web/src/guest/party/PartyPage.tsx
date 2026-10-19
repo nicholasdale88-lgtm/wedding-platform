@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { themeOf } from '../themeKit';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
-import { guestApi, type PartyAct, type PartyMine, type PartyPayload } from '../invitation/api';
+import { guestApi, GuestApiError, type PartyAct, type PartyMine, type PartyPayload } from '../invitation/api';
+import { AccountBar, PartySignIn } from './PartyAuth';
 
 /**
- * /w/:slug/party?g=<token>: a wedding party member's own run sheet. Only the lines meant for them (the
+ * /w/:slug/party (signed in to the portal) or ?g=<token> (their private link): a wedding party member's own page.
+ * What they see is what the couple allows (Setup → Wedding party access): their own run sheet. Only the lines meant for them (the
  * whole party, their side, or their role), for the events they're invited to; who's who in the party;
  * the couple's note. On the day, the line happening now is marked.
  */
@@ -88,7 +90,7 @@ function Packing({ items, me, act, gold }: { items: { text: string }[]; me: Part
 }
 
 /** Their to-dos before the day: their own and their side's, ticked off here (the couple sees it). They can add their own. */
-function Todos({ me, act, gold, many }: { me: PartyMine; act: Act; gold: string; many: boolean }) {
+function Todos({ me, act, gold, many, canAdd }: { me: PartyMine; act: Act; gold: string; many: boolean; canAdd: boolean }) {
   const [adding, setAdding] = useState('');
   const left = me.tasks.filter((t) => !t.done).length;
   const fmt = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '');
@@ -119,7 +121,8 @@ function Todos({ me, act, gold, many }: { me: PartyMine; act: Act; gold: string;
           )}
         </div>
       ))}
-      {!me.tasks.length && <p className="m-0 italic opacity-75">Nothing yet. Add your own below.</p>}
+      {!me.tasks.length && <p className="m-0 italic opacity-75">{canAdd ? 'Nothing yet. Add your own below.' : 'Nothing yet.'}</p>}
+      {canAdd && (
       <form
         className="flex gap-2 mt-1"
         onSubmit={(e) => {
@@ -136,6 +139,7 @@ function Todos({ me, act, gold, many }: { me: PartyMine; act: Act; gold: string;
           Add
         </button>
       </form>
+      )}
     </section>
   );
 }
@@ -218,6 +222,7 @@ export function PartyPage() {
   const [now, setNow] = useState(() => Date.now());
   const [mine, setMine] = useState<PartyMine[]>([]);
   const [note, setNote] = useState('');
+  const [signIn, setSignIn] = useState(false);
   const loaded = useRef(false);
 
   const load = () =>
@@ -227,10 +232,12 @@ export function PartyPage() {
         setData(d);
         loaded.current = true;
         setMine(d.mine ?? []);
+        setSignIn(false);
       })
       // Once the page is up, a failed refresh keeps what's showing (with a note).
       .catch((e: Error) => {
-        if (loaded.current) setNote('Can’t reach the site just now: showing what you had.');
+        if (e instanceof GuestApiError && (e.status === 401 || (!token && e.status === 404))) setSignIn(true);
+        else if (loaded.current) setNote('Can’t reach the site just now: showing what you had.');
         else setErr(e.message);
       });
   useEffect(() => {
@@ -242,8 +249,11 @@ export function PartyPage() {
     if (data) document.title = `${data.couple} · wedding party`;
   }, [data]);
 
+  if (signIn) return <PartySignIn slug={slug} onDone={() => void load()} />;
   if (err) return <GuestMessage message={err} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
+  const perms = data.perms;
+  const link = token || data.account?.token || '';
   /** Shows the change straight away, saves it, and puts it back (with a note) if it didn't save. */
   const act: Act = (body, apply) => {
     const before = mine;
@@ -284,9 +294,22 @@ export function PartyPage() {
           <p className="m-0 text-[21px] italic">
             {data.me.map((m) => first(m.name)).join(' & ')}, you're {roles.length === 1 ? `our ${roles[0]!.toLowerCase()}` : `in our wedding party (${roles.join(', ')})`}. Thank you!
           </p>
-          <a href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(token)}`} className="text-[16px] underline" style={{ color: ink }}>
-            ← Your invitation
-          </a>
+          {link && (
+            <a href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} className="text-[16px] underline" style={{ color: ink }}>
+              ← Your invitation
+            </a>
+          )}
+          {data.account && (
+            <AccountBar
+              slug={slug}
+              name={data.account.name}
+              onSignedOut={() => {
+                loaded.current = false;
+                setData(null);
+                setSignIn(true);
+              }}
+            />
+          )}
         </header>
 
         <NowNext data={data} now={now} gold={gold} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
@@ -296,9 +319,8 @@ export function PartyPage() {
             {note}
           </p>
         )}
-        {mine.map((m) => (
-          <Todos key={m.personId} me={m} act={act} gold={gold} many={mine.length > 1} />
-        ))}
+        {(!perms || perms.tasks) &&
+          mine.map((m) => <Todos key={m.personId} me={m} act={act} gold={gold} many={mine.length > 1} canAdd={!perms || perms.addTasks} />)}
 
         {data.events.map((e) => {
           const times = e.items.map((it) => at(e.startsAt, it.time));
@@ -370,13 +392,85 @@ export function PartyPage() {
                   {ps.map((p) => (
                     <div key={`${p.name}-${p.role}`} className="text-[18px]">
                       {p.name} <span className="italic opacity-75">· {p.role}</span>
+                      {p.phone && (
+                        <span className="block text-[15px]">
+                          <a href={`tel:${p.phone.replace(/[^\d+]/g, '')}`} style={{ color: ink }}>
+                            Call
+                          </a>{' '}
+                          ·{' '}
+                          <a href={`sms:${p.phone.replace(/[^\d+]/g, '')}`} style={{ color: ink }}>
+                            Text
+                          </a>
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
               ))}
           </div>
         </section>
+        <Extras data={data} gold={gold} />
       </div>
     </main>
+  );
+}
+
+/** What the couple lets this member see beyond their part: suppliers on the day, guest numbers, the seating plan. */
+function Extras({ data, gold }: { data: PartyPayload; gold: string }) {
+  const card = 'flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border';
+  const border = { borderColor: 'rgba(0,0,0,.08)' };
+  const tel = (p: string) => `tel:${p.replace(/[^\d+]/g, '')}`;
+  return (
+    <>
+      {data.guests && (
+        <section aria-label="Guests" className={card} style={border}>
+          <h2 className="m-0 font-normal text-[28px]">Guests</h2>
+          <div className="flex gap-6 flex-wrap text-[19px]">
+            <span>
+              <strong className="text-[30px] font-semibold" style={{ color: gold }}>
+                {data.guests.coming}
+              </strong>{' '}
+              coming
+            </span>
+            <span>{data.guests.waiting} still to reply</span>
+            <span>{data.guests.invited} invitations</span>
+          </div>
+        </section>
+      )}
+      {!!data.vendors?.length && (
+        <section aria-label="Suppliers on the day" className={card} style={border}>
+          <h2 className="m-0 font-normal text-[28px]">Suppliers on the day</h2>
+          {data.vendors.map((v) => (
+            <div key={v.name} className="flex justify-between gap-3 py-2 border-t text-[18px]" style={border}>
+              <span className="min-w-0">
+                {v.name}
+                <span className="block text-[15px] italic opacity-75">
+                  {[v.category, v.arrival && `arrives ${v.arrival}`, v.contact].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+              {v.phone && (
+                <a href={tel(v.phone)} className="self-center whitespace-nowrap text-[16px]" style={{ color: '#33402f' }}>
+                  Call
+                </a>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+      {!!data.seating?.length && (
+        <section aria-label="Seating plan" className={card} style={border}>
+          <h2 className="m-0 font-normal text-[28px]">Seating plan</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {data.seating.map((t) => (
+              <div key={t.table} className="text-[17px]">
+                <strong className="font-semibold">{/^\d+$/.test(t.table) ? `Table ${t.table}` : t.table}</strong>
+                <span className="opacity-70"> · {t.people.length}</span>
+                <div className="text-[16px] opacity-85">{t.people.join(', ') || 'No one yet'}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
   );
 }

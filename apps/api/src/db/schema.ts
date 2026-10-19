@@ -440,3 +440,31 @@ export const photoThumb = sqliteTable('photo_thumb', {
   data: blob('data').notNull(),
   createdAt: text('created_at').notNull(),
 });
+
+// migration 0023: the wedding party portal's sign-ins and sessions
+export const partyAccount = sqliteTable('party_account', {
+  id: text('id').primaryKey(),
+  weddingId: text('wedding_id').notNull(),
+  personId: text('person_id').notNull(),
+  email: text('email'),
+  passHash: text('pass_hash'),
+  perms: text('perms').notNull(),
+  inviteHash: text('invite_hash'),
+  inviteExpires: text('invite_expires'),
+  resetHash: text('reset_hash'),
+  resetExpires: text('reset_expires'),
+  failed: integer('failed').notNull(),
+  lockedUntil: text('locked_until'),
+  lastLogin: text('last_login'),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const partySession = sqliteTable('party_session', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  weddingId: text('wedding_id').notNull(),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});

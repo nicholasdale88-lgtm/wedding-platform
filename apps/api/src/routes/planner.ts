@@ -1,10 +1,11 @@
-import { allPayments, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
+import { allPayments, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { MAX_PLANNER_FILE, readJson } from '../lib/security';
 import { keepDocument, openPhoto } from '../photos/store';
+import { portalWho } from './partyPortal';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -34,7 +35,7 @@ export async function readDoc<K extends PlannerKind>(db: D1Database, weddingId: 
   return { data: (parsed.success ? parsed.data : schema.parse({})) as DocOf<K>, version: row?.version ?? 0 };
 }
 
-async function members(db: D1Database, weddingId: string) {
+export async function members(db: D1Database, weddingId: string) {
   const { results } = await db
     .prepare(
       `SELECT p.id, p.invitation_id, p.name, p.party_role, i.phone FROM person p JOIN invitation i ON i.id = p.invitation_id
@@ -567,6 +568,46 @@ export function plannerRoutes() {
 }
 
 /** A wedding party member's run sheet: /api/p/:slug/party?g=<their token>. */
+/** What the couple lets a member see beyond their own part: suppliers on the day, guest numbers, the seating plan. */
+async function partyExtras(db: D1Database, weddingId: string, perms: Record<PartyPerm, boolean>) {
+  const out: { vendors?: { name: string; category: string; arrival: string; phone: string; contact: string }[]; guests?: { coming: number; invited: number; waiting: number }; seating?: { table: string; people: string[] }[] } = {};
+  if (perms.vendors) {
+    const v = (await readDoc(db, weddingId, 'vendors', '')).data;
+    out.vendors = v.list
+      .filter((x) => x.status === 'booked')
+      .sort((a, b) => (a.arrival || '~').localeCompare(b.arrival || '~', undefined, { numeric: true }))
+      .map((x) => ({ name: x.name, category: x.category, arrival: x.arrival, phone: x.phone, contact: x.contact }));
+  }
+  const first = perms.guests || perms.seating ? await db.prepare(`SELECT id FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(weddingId).first<{ id: string }>() : null;
+  if (perms.guests && first) {
+    const g = await db
+      .prepare(
+        `SELECT COUNT(*) AS invited, SUM(CASE WHEN r.attending = 1 THEN r.count ELSE 0 END) AS coming, SUM(CASE WHEN r.attending IS NULL THEN 1 ELSE 0 END) AS waiting
+           FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id WHERE ie.event_id = ?`,
+      )
+      .bind(first.id)
+      .first<{ invited: number; coming: number | null; waiting: number | null }>();
+    out.guests = { invited: g?.invited ?? 0, coming: g?.coming ?? 0, waiting: g?.waiting ?? 0 };
+  }
+  if (perms.seating && first) {
+    const { results } = await db
+      .prepare(
+        `SELECT t.name AS tname, p.name AS pname FROM seat_table t LEFT JOIN seat s ON s.table_id = t.id AND s.event_id = t.event_id LEFT JOIN person p ON p.id = s.person_id AND p.deleted_at IS NULL
+          WHERE t.event_id = ? AND t.deleted_at IS NULL ORDER BY t.name, p.name`,
+      )
+      .bind(first.id)
+      .all<{ tname: string; pname: string | null }>();
+    const tables = new Map<string, string[]>();
+    for (const r of results) {
+      const list = tables.get(r.tname) ?? [];
+      if (r.pname) list.push(r.pname);
+      tables.set(r.tname, list);
+    }
+    out.seating = [...tables.entries()].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })).map(([table, people]) => ({ table, people }));
+  }
+  return out;
+}
+
 export function partyGuestRoutes() {
   const app = new Hono<{ Bindings: Env }>();
   app.get('/', async (c) => {
@@ -575,13 +616,18 @@ export function partyGuestRoutes() {
     if (!(await allow(c.env.DB, `party:${ip}`, 120, 60_000))) return c.json({ error: { code: 'slow_down', message: 'Too many tries. Please wait a minute.' } }, 429);
     const db = c.env.DB;
     const w = await db.prepare(`SELECT id, name1, name2, theme FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string; name1: string; name2: string; theme: string }>();
-    const inv = w && isToken(token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>() : null;
-    if (!w || !inv) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
+    if (!w) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
     const setupDoc = (await readDoc(db, w.id, 'party-setup', '')).data;
+    // Who's here: someone signed in to the portal (with what the couple lets them see), or a private link.
+    const who = await portalWho(c, w.id);
+    if (!who && setupDoc.signIn) return c.json({ error: { code: 'sign_in', message: 'Please sign in to the wedding party portal.' } }, 401);
+    const inv = who ? { id: who.person.invitation_id } : isToken(token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>() : null;
+    if (!inv) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
+    const perms: Record<PartyPerm, boolean> = who ? who.perms : (Object.fromEntries(PARTY_PERMS.map((k) => [k, !['vendors', 'guests', 'seating'].includes(k)])) as Record<PartyPerm, boolean>);
     const { results: everyone } = await db.prepare(`SELECT id, name, party_role FROM person WHERE invitation_id = ? AND deleted_at IS NULL AND party_role != '' ORDER BY idx`).bind(inv.id).all<{ id: string; name: string; party_role: string }>();
     if (!everyone.length) return c.json({ error: { code: 'not_party', message: 'This page is for the wedding party.' } }, 404);
-    // The couple can pause a member's page (Setup → Wedding party access).
-    const mine = everyone.filter((m) => setupDoc.access[m.id] !== false);
+    // The couple can pause a member's page (Setup → Wedding party access); signed in, it's just them.
+    const mine = everyone.filter((m) => setupDoc.access[m.id] !== false && (!who || m.id === who.person.id));
     if (!mine.length) return c.json({ error: { code: 'paused', message: 'This page is paused for now. The couple will let you know when it’s back.' } }, 403);
     const { results: events } = await db
       .prepare(`SELECT e.key, e.name, e.starts_at FROM event e JOIN invite_event ie ON ie.event_id = e.id AND ie.invitation_id = ? WHERE e.deleted_at IS NULL ORDER BY e.sort`)
@@ -602,7 +648,8 @@ export function partyGuestRoutes() {
       const whole = (hay: string, x: string) => new RegExp(`(^|[^a-z])${x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z])`).test(hay);
       const holding = day.holds.filter((h) => h.who && mineWords.some((x) => whole(h.who.toLowerCase(), x))).map((h) => h.what);
       const speeches = day.speeches.map((s) => ({ who: s.who, minutes: s.minutes }));
-      if (items.length || doc.data.note || packing.length || speeches.length || holding.length) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: doc.data.note, items, packing, speeches, holding });
+      const shown = { items: perms.runsheet ? items : [], packing: perms.packing ? packing : [], speeches: perms.speeches ? speeches : [], holding: perms.speeches ? holding : [] };
+      if (shown.items.length || doc.data.note || shown.packing.length || shown.speeches.length || shown.holding.length) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: perms.runsheet ? doc.data.note : '', ...shown });
     }
     const crew = await members(db, w.id);
     const setup = setupDoc;
@@ -616,9 +663,9 @@ export function partyGuestRoutes() {
         personId: m.id,
         name: m.name,
         role: m.party_role,
-        tasks: doc.tasks.filter((t) => t.person === m.id || (!t.person && side)).map((t) => ({ id: t.id, text: t.text, due: t.due, done: t.done, mine: t.person === m.id })),
-        packed: p?.packed ?? [],
-        pack: p?.pack ?? [],
+        tasks: perms.tasks ? doc.tasks.filter((t) => t.person === m.id || (perms.sideTasks && !t.person && side)).map((t) => ({ id: t.id, text: t.text, due: t.due, done: t.done, mine: t.person === m.id })) : [],
+        packed: perms.packing ? (p?.packed ?? []) : [],
+        pack: perms.packing ? (p?.pack ?? []) : [],
       });
     }
     return c.json({
@@ -628,16 +675,19 @@ export function partyGuestRoutes() {
       names: { p1: w.name1.split(' ')[0] ?? '', p2: w.name2.split(' ')[0] ?? '' },
       theme: w.theme,
       me: mine.map((m) => ({ name: m.name, role: m.party_role })),
-      // Who's who in the party (names and roles only).
-      party: crew.map((m) => ({ name: m.name, role: m.role, side: m.side })),
+      // Who's who in the party (names and roles; their numbers too, if the couple allows).
+      party: crew.map((m) => ({ name: m.name, role: m.role, side: m.side, ...(perms.people && m.phone ? { phone: m.phone } : {}) })),
       events: out,
+      perms,
+      account: who ? { name: who.person.name, token: who.person.token } : null,
+      ...(await partyExtras(db, w.id, perms)),
     });
   });
 
   /** A member ticks or adds their own things: a to-do, a packing item, or one of the shared packing list. */
   const Act = z
     .object({
-      token: z.string(),
+      token: z.string().default(''),
       personId: z.string().max(40),
       action: z.enum(['task', 'add-task', 'remove-task', 'packed', 'add-pack', 'own-pack', 'remove-pack']),
       id: z.string().max(40).optional(),
@@ -651,8 +701,15 @@ export function partyGuestRoutes() {
     const a = body.data;
     const db = c.env.DB;
     const w = await db.prepare(`SELECT id FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string }>();
-    const inv = w && isToken(a.token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(a.token, w.id).first<{ id: string }>() : null;
-    if (!w || !inv) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
+    if (!w) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
+    const who = await portalWho(c, w.id);
+    if (!who && (await readDoc(db, w.id, 'party-setup', '')).data.signIn) return c.json({ error: { code: 'sign_in', message: 'Please sign in to the wedding party portal.' } }, 401);
+    if (who && a.personId !== who.person.id) return c.json({ error: { code: 'not_yours', message: 'That’s someone else’s list.' } }, 403);
+    // What this action needs the couple to have allowed (a private link can do everything it always could).
+    const need: Record<typeof a.action, PartyPerm> = { task: 'tasks', 'add-task': 'addTasks', 'remove-task': 'addTasks', packed: 'packing', 'add-pack': 'packing', 'own-pack': 'packing', 'remove-pack': 'packing' };
+    if (who && !who.perms[need[a.action]]) return c.json({ error: { code: 'not_allowed', message: 'The couple hasn’t switched that on for you.' } }, 403);
+    const inv = who ? { id: who.person.invitation_id } : isToken(a.token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(a.token, w.id).first<{ id: string }>() : null;
+    if (!inv) return c.json({ error: { code: 'no_link', message: 'Please open this page from the link you were sent.' } }, 404);
     if (!(await allow(db, `party-act:${inv.id}`, 240, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a minute.' } }, 429);
     const me = await db.prepare(`SELECT id, party_role FROM person WHERE id = ? AND invitation_id = ? AND deleted_at IS NULL AND party_role != ''`).bind(a.personId, inv.id).first<{ id: string; party_role: string }>();
     const setup = (await readDoc(db, w.id, 'party-setup', '')).data;
@@ -664,7 +721,7 @@ export function partyGuestRoutes() {
       switch (a.action) {
         case 'task': {
           // Their own to-dos, or their whole side's.
-          const t = d.tasks.find((x) => x.id === a.id && (x.person === me.id || (!x.person && side)));
+          const t = d.tasks.find((x) => x.id === a.id && (x.person === me.id || ((!who || who.perms.sideTasks) && !x.person && side)));
           if (t) t.done = !!a.done;
           else ok = false;
           break;

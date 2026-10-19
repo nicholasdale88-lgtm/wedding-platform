@@ -5,11 +5,13 @@ import { useDocSave } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
 import { H2, Pill, useToast } from '../ui';
 import { CoordinatorCard } from './CoordinatorCard';
+import { PortalAccounts } from './PortalAccounts';
 
 /**
- * Wedding → Setup → Wedding party access: each member signs in with their own private link (nothing to
- * remember, no password to lose): their part of the run sheet, their to-dos and packing list, which they
- * tick off and add to. Switch anyone off (their page pauses), copy their link, or text it from your phone.
+ * Wedding → Setup → Wedding party access: the wedding party portal. Each member can have their own sign-in
+ * (email and password, with what they can see and do, and password resets), or simply their private link
+ * (nothing to remember). Their part of the run sheet, their to-dos and packing list, which they tick off
+ * and add to. Switch anyone off (their page pauses), copy their link, or text it from your phone.
  */
 export function PartyAccess() {
   const { wid } = useAdmin();
@@ -28,7 +30,7 @@ export function PartyAccess() {
   useEffect(() => void load(), [load]);
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!d) return <div aria-busy="true" className="text-[#5b6a52]">Loading the wedding party…</div>;
-  const setup: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {} };
+  const setup: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {}, signIn: false };
   const couple = `${d.names.p1} & ${d.names.p2}`;
   const linkOf = (token: string) => `${window.location.origin}/w/${d.slug}/party?g=${encodeURIComponent(token)}`;
   const setAccess = async (personId: string, on: boolean) => {
@@ -47,11 +49,12 @@ export function PartyAccess() {
   const on = d.members.filter((m) => setup.access[m.personId] !== false);
 
   return (
-    <section aria-label="Wedding party access" className="flex flex-col gap-4">
+    <section aria-label="Wedding party access" className="flex flex-col gap-6">
+      <PortalAccounts couple={couple} />
       <div>
-        <H2>Wedding party access</H2>
+        <H2>Private links</H2>
         <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[720px]">
-          Each person signs in with their own private link: no password to remember. They see their part of the day, tick off their to-dos and packing list, and add their own. Send it by text from your phone, and tell them to
+          Or no password at all: each person opens the portal with their own private link (unless “Sign-in needed” is on above). They see their part of the day, tick off their to-dos and packing list, and add their own. Send it by text from your phone, and tell them to
           save it to their home screen.
         </p>
       </div>

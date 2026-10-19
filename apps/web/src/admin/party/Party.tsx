@@ -68,7 +68,7 @@ export function Party() {
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!d) return <div aria-busy="true" className="text-[#5b6a52]">Loading the wedding party…</div>;
-  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {} };
+  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {}, signIn: false };
   const sideName: SideName = (k) => sides[k] || (k === 'p1' ? 'Bride' : 'Groom');
   const go = (v: PartyView) => {
     if (v === view || !confirmLeave()) return;
@@ -384,7 +384,7 @@ export function Members({ d, onChange, sideName, only }: { d: PartyData; onChang
 export function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: PartySetup; version: number }) => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
-  const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {} };
+  const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {}, signIn: false };
   const save = async (next: PartySetup) => {
     if (next.p1 === cur.p1 && next.p2 === cur.p2 && next.showOnInvite === cur.showOnInvite) return;
     try {

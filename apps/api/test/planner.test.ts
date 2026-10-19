@@ -200,4 +200,53 @@ describe('planner: wedding party', () => {
     expect((await call('/doc/nonsense/wedding', { method: 'PUT', body: '{}' })).status).toBe(404);
     expect((await call('/doc/party-runsheet/no-such-event', { method: 'PUT', body: '{}' })).status).toBe(404);
   });
+  it('the portal: invite, set a password, sign in, see only what is allowed, a reset signs out, and sign-in needed', async () => {
+    const ella = await personOf('Ella Thompson');
+    await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });
+    const items = [{ time: '2pm', until: '', title: 'Photos', detail: '', place: '', who: ['party'] }];
+    await call('/doc/party-runsheet/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ items, note: '', packing: [{ text: 'Charger', who: ['party'] }] }) });
+    const admin = (path: string, init: RequestInit = {}) => app.request(`/api/a/w/${wid}/party-accounts${path}`, { ...init, headers: { 'content-type': 'application/json', cookie, ...init.headers } }, env, ctx);
+    const portal = (path: string, body?: unknown) => app.request(`/api/p/sophie-and-nicholas/portal${path}`, body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }, env, ctx);
+
+    const inv = (await (await admin(`/${ella.id}/invite`, { method: 'POST', body: JSON.stringify({ email: 'ella@example.com' }) })).json()) as { link: string };
+    const t1 = new URL(inv.link).searchParams.get('t')!;
+    expect(await (await portal(`/link?t=${t1}`)).json()).toMatchObject({ name: 'Ella Thompson', setUp: false, email: 'ella@example.com' });
+    expect((await portal('/password-link', { t: t1, password: 'short' })).status).toBe(400);
+    expect((await portal('/password-link', { t: t1, password: 'bridesmaid-27' })).status).toBe(200);
+    expect((await portal(`/link?t=${t1}`)).status).toBe(404); // used
+
+    expect((await portal('/login', { email: 'ella@example.com', password: 'wrong-pass' })).status).toBe(401);
+    const login = await portal('/login', { email: 'Ella@Example.com', password: 'bridesmaid-27' });
+    expect(login.status).toBe(200);
+    expect(login.headers.get('set-cookie')).toContain('Path=/api/p/sophie-and-nicholas/');
+    const jar = (login.headers.get('set-cookie') ?? '').split(';')[0]!;
+    const party = () => app.request('/api/p/sophie-and-nicholas/party', { headers: { cookie: jar } }, env, ctx);
+    const p1 = (await (await party()).json()) as { account: { name: string }; perms: Record<string, boolean>; events: { items: unknown[] }[]; vendors?: unknown };
+    expect(p1.account.name).toBe('Ella Thompson');
+    expect(p1.events[0]!.items).toHaveLength(1);
+    expect(p1.vendors).toBeUndefined(); // a bridesmaid doesn't see suppliers to start with
+
+    // The couple narrows it (no run sheet, no packing) and opens suppliers.
+    expect((await admin(`/${ella.id}/perms`, { method: 'PUT', body: JSON.stringify({ perms: { ...p1.perms, runsheet: false, packing: false, vendors: true } }) })).status).toBe(200);
+    const p2 = (await (await party()).json()) as { events: { items: unknown[] }[]; vendors?: unknown[] };
+    expect(p2.events.every((e) => !e.items.length)).toBe(true);
+    expect(p2.vendors).toEqual([]);
+    const pack = await app.request('/api/p/sophie-and-nicholas/party', { method: 'POST', headers: { 'content-type': 'application/json', cookie: jar }, body: JSON.stringify({ personId: ella.id, action: 'add-pack', text: 'Shoes' }) }, env, ctx);
+    expect(pack.status).toBe(403);
+
+    // Sign-in needed: the private link alone no longer opens it; signed in still does.
+    expect((await page(ella.token)).status).toBe(200);
+    await admin('/settings', { method: 'PUT', body: JSON.stringify({ signIn: true }) });
+    expect((await page(ella.token)).status).toBe(401);
+    expect((await party()).status).toBe(200);
+
+    // A reset link from the couple: a new password, and the old session is signed out.
+    const rs = (await (await admin(`/${ella.id}/reset`, { method: 'POST', body: '{}' })).json()) as { link: string };
+    expect((await portal('/password-link', { t: new URL(rs.link).searchParams.get('t')!, password: 'new-password-1' })).status).toBe(200);
+    expect((await party()).status).toBe(401);
+    expect((await portal('/login', { email: 'ella@example.com', password: 'new-password-1' })).status).toBe(200);
+    const list = (await (await admin('')).json()) as { signIn: boolean; members: { personId: string; account: { status: string } | null }[] };
+    expect(list.signIn).toBe(true);
+    expect(list.members.find((m) => m.personId === ella.id)!.account!.status).toBe('active');
+  });
 });

@@ -115,6 +115,14 @@ export const guestApi = {
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
   /** A wedding party member's own run sheet (needs their own link). */
   party: (slug: string, token: string) => call<PartyPayload>(`/p/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`),
+  /** The wedding party portal: who's signed in, sign in and out, set or reset a password. */
+  portalMe: (slug: string) => call<PortalMe>(`/p/${encodeURIComponent(slug)}/portal/me`),
+  portalLogin: (slug: string, email: string, password: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/login`, { method: 'POST', body: JSON.stringify({ email, password }) }),
+  portalLogout: (slug: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/logout`, { method: 'POST', body: '{}' }),
+  portalLink: (slug: string, t: string) => call<{ name: string; role: string; couple: string; theme: string; email: string; setUp: boolean }>(`/p/${encodeURIComponent(slug)}/portal/link?t=${encodeURIComponent(t)}`),
+  portalSetPassword: (slug: string, t: string, password: string, email?: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/password-link`, { method: 'POST', body: JSON.stringify({ t, password, ...(email ? { email } : {}) }) }),
+  portalForgot: (slug: string, email: string) => call<{ ok: true; message: string }>(`/p/${encodeURIComponent(slug)}/portal/forgot`, { method: 'POST', body: JSON.stringify({ email }) }),
+  portalPassword: (slug: string, current: string, next: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/password`, { method: 'POST', body: JSON.stringify({ current, next }) }),
   /** A party member ticks or adds their own things (saved with the couple's plan). */
   partyAct: (slug: string, body: PartyAct) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/party`, { method: 'POST', body: JSON.stringify(body) }),
   /** Shuttle runs for their events, seats left, and theirs. */
@@ -169,6 +177,16 @@ export interface ShuttlePayload {
   party: number;
   events: { key: string; name: string; startsAt: string; runs: { id: string; time: string; from: string; to: string; note: string; left: number; mine: number }[] }[];
 }
+export interface PortalMe {
+  signedIn: boolean;
+  couple: string;
+  theme: string;
+  signInRequired: boolean;
+  name?: string;
+  role?: string;
+  email?: string;
+  token?: string;
+}
 export interface PartyAct {
   token: string;
   personId: string;
@@ -195,7 +213,14 @@ export interface PartyPayload {
   me: { name: string; role: string }[];
   /** What the two sides are called ("Bride", "Groom" by default). */
   sides?: { p1: string; p2: string };
-  party: { name: string; role: string; side: 'p1' | 'p2' | '' }[];
+  party: { name: string; role: string; side: 'p1' | 'p2' | ''; phone?: string }[];
+  /** What the couple lets this member see and do (signed in to the portal). */
+  perms?: Record<'runsheet' | 'tasks' | 'addTasks' | 'sideTasks' | 'packing' | 'speeches' | 'people' | 'vendors' | 'guests' | 'seating', boolean>;
+  /** Signed in to the portal: who (and their invitation's link). */
+  account?: { name: string; token: string } | null;
+  vendors?: { name: string; category: string; arrival: string; phone: string; contact: string }[];
+  guests?: { coming: number; invited: number; waiting: number };
+  seating?: { table: string; people: string[] }[];
   events: {
     key: string;
     name: string;
