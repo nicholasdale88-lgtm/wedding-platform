@@ -29,8 +29,14 @@ const write = (db: D1Database, wid: string, s: Setting) => db.prepare(`UPDATE we
 
 /** A payment's reminder key: the payment and its due date (a new date is a new reminder). */
 const keyOf = (p: DuePayment) => `${p.key}@${p.due}`;
-const money = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
-const day = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const money = (n: number) => `$${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "Thu 4 Mar" (spelt out here, so every runtime writes it the same way). */
+const day = (d: string) => {
+  const t = new Date(`${d}T00:00:00Z`);
+  return `${DAYS[t.getUTCDay()]} ${t.getUTCDate()} ${MONTHS[t.getUTCMonth()]}`;
+};
 
 /** The text: what's due (soonest first), at most five lines. */
 export function reminderText(due: DuePayment[], today: string, link: string) {
