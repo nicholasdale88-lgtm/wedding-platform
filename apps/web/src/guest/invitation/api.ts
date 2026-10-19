@@ -145,6 +145,11 @@ export const guestApi = {
       body: photo,
     });
     if (!res.ok) throw new GuestApiError(res.status, ((await res.json().catch(() => null)) as { error?: { message: string } } | null)?.error?.message ?? 'Upload failed');
+    return ((await res.json().catch(() => null)) as { id?: string } | null)?.id ?? '';
+  },
+  /** The small copy for the album grid (best effort: the photo itself is already safe). */
+  uploadThumb: async (slug: string, token: string, id: string, thumb: Blob) => {
+    await fetch(`/api/p/${encodeURIComponent(slug)}/photos/${encodeURIComponent(id)}/thumb?g=${encodeURIComponent(token)}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: thumb }).catch(() => undefined);
   },
 };
 

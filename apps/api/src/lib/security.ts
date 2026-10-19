@@ -13,7 +13,7 @@ export const MAX_BODY = 100 * 1024;
 export const MAX_PHOTO = 15 * 1024 * 1024;
 /** A guest's video (about a minute from a phone); sent as it is. */
 export const MAX_VIDEO = 55 * 1024 * 1024;
-const PHOTO_PATH = /^\/api\/(?:p\/[a-z0-9-]+\/photos|a\/w\/[^/]+\/photos\/upload)$/;
+const PHOTO_PATH = /^\/api\/(?:p\/[a-z0-9-]+\/photos(?:\/[^/]+\/thumb)?|a\/w\/[^/]+\/photos\/upload)$/;
 
 /** Guest list imports: up to 1,000 rows. */
 export const MAX_IMPORT = 1024 * 1024;

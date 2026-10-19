@@ -161,10 +161,12 @@ export function Photos() {
           return (
             <figure key={p.id} className="relative m-0 flex flex-col gap-1">
               <a href={p.url} target="_blank" rel="noopener" className="block aspect-square overflow-hidden rounded-[10px] bg-[#efe7d3]">
-                {p.type.startsWith('video/') ? (
+                {p.type.startsWith('video/') && p.thumb ? (
+                  <img src={p.thumb} alt={`Video by ${p.by}`} loading="lazy" className="w-full h-full object-cover" style={{ filter: isLook(p.look) ? LOOKS[p.look].css : undefined }} />
+                ) : p.type.startsWith('video/') ? (
                   <video src={`${p.url}#t=0.5`} muted playsInline preload="metadata" aria-label={`Video by ${p.by}`} className="w-full h-full object-cover" style={{ filter: isLook(p.look) ? LOOKS[p.look].css : undefined }} />
                 ) : (
-                  <img src={p.url} alt={`Photo by ${p.by}`} loading="lazy" className="w-full h-full object-cover" />
+                  <img src={p.thumb ?? p.url} alt={`Photo by ${p.by}`} loading="lazy" className="w-full h-full object-cover" />
                 )}
               </a>
               <button

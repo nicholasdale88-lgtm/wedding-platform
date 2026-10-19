@@ -10,7 +10,7 @@ import { isLook, LOOKS } from '../photos/looks';
 interface Album {
   couple: string;
   events: { key: string; name: string }[];
-  photos: { id: string; at: string; event: string | null; by: string; url: string; video?: boolean; look?: string }[];
+  photos: { id: string; at: string; event: string | null; by: string; url: string; video?: boolean; look?: string; thumb?: string | null }[];
 }
 
 /** Photos shown at a time (each is a full photo, so a phone isn't asked for 3,000 at once). */
@@ -90,11 +90,15 @@ export function AlbumPage() {
             <button key={p.id} type="button" onClick={() => setOpen(i)} className="aspect-square p-0 border-0 rounded-[8px] overflow-hidden bg-[#e9e2cc] cursor-pointer" aria-label={p.by ? `Photo by ${p.by}` : 'Photo'}>
               {p.video ? (
                 <span className="relative block w-full h-full">
-                  <video src={`${p.url}#t=0.5`} muted playsInline preload="metadata" className="w-full h-full object-cover" style={{ filter: isLook(p.look) ? LOOKS[p.look].css : undefined }} />
+                  {p.thumb ? (
+                    <img src={p.thumb} alt="" loading="lazy" className="w-full h-full object-cover" style={{ filter: isLook(p.look) ? LOOKS[p.look].css : undefined }} />
+                  ) : (
+                    <video src={`${p.url}#t=0.5`} muted playsInline preload="metadata" className="w-full h-full object-cover" style={{ filter: isLook(p.look) ? LOOKS[p.look].css : undefined }} />
+                  )}
                   <span aria-hidden className="absolute inset-0 flex items-center justify-center text-white text-[28px] drop-shadow">▶</span>
                 </span>
               ) : (
-                <img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                <img src={p.thumb ?? p.url} alt="" loading="lazy" className="w-full h-full object-cover" />
               )}
             </button>
           ))}

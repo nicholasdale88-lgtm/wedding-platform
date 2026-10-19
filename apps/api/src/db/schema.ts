@@ -446,3 +446,11 @@ export const quizAnswer = sqliteTable(
   },
   (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.invitationId] }) }),
 );
+
+// migration 0021: small copies of photos for the grids
+export const photoThumb = sqliteTable('photo_thumb', {
+  mediaId: text('media_id').primaryKey(),
+  weddingId: text('wedding_id').notNull(),
+  data: blob('data').notNull(),
+  createdAt: text('created_at').notNull(),
+});

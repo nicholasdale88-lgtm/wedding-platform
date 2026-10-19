@@ -163,7 +163,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
   const app = new Hono<GEnv>();
 
   app.use('*', async (c, next) => {
-    const upload = c.req.method === 'PUT' && c.req.path.endsWith('/photos'); // a photo, checked in its route
+    const upload = c.req.method === 'PUT' && (c.req.path.endsWith('/photos') || /\/photos\/[^/]+\/thumb$/.test(c.req.path)); // a photo (or its small copy), checked in its route
     if (c.req.method !== 'GET' && !upload && !(c.req.header('content-type') ?? '').startsWith('application/json')) return err(c, 400, 'json_required', 'Send JSON.');
     await next();
   });
@@ -385,6 +385,22 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv.id, eventKey: ev?.key ?? null, media: video ? 'video' : 'photo', look });
     if (!r.ok) return err(c, r.status, 'not_saved', r.message);
     return c.json({ ok: true, id: r.id });
+  });
+
+  /** A photo's small copy from the phone that sent it (a JPEG up to 120 KB), for the grids. */
+  app.put('/photos/:id/thumb', async (c) => {
+    const w = await wedding(c);
+    const token = c.req.query('g') ?? '';
+    if (!w || !isToken(token)) return err(c, 404, 'no_link', 'Please open this page from your link.');
+    const db = c.env.DB;
+    const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
+    // Only for a photo this guest sent.
+    const m = inv ? await db.prepare(`SELECT id FROM media WHERE id = ? AND wedding_id = ? AND invitation_id = ? AND deleted_at IS NULL`).bind(c.req.param('id'), w.id, inv.id).first<{ id: string }>() : null;
+    if (!m) return err(c, 404, 'not_found', 'That photo isn’t yours.');
+    const bytes = await readBytes(c.req.raw, 120_000);
+    if (!bytes || imageType(bytes)?.type !== 'image/jpeg') return err(c, 415, 'not_photo', 'A small JPEG, please.');
+    await db.prepare(`INSERT INTO photo_thumb (media_id, wedding_id, data, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (media_id) DO NOTHING`).bind(m.id, w.id, bytes, new Date().toISOString()).run();
+    return c.json({ ok: true });
   });
 
   /**

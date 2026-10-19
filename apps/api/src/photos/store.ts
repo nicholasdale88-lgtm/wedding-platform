@@ -225,6 +225,14 @@ export function mediaResponse(res: Response, type: string): Response {
   return new Response(res.body, { status: res.status === 206 ? 206 : 200, headers: h });
 }
 
+/** A photo's small copy, as an image response (null when there isn't one). */
+export async function thumbResponse(db: D1Database, weddingId: string, mediaId: string): Promise<Response | null> {
+  const t = await db.prepare(`SELECT data FROM photo_thumb WHERE media_id = ? AND wedding_id = ?`).bind(mediaId, weddingId).first<{ data: ArrayBuffer | number[] }>();
+  if (!t) return null;
+  const bytes = t.data instanceof ArrayBuffer ? new Uint8Array(t.data) : Uint8Array.from(t.data);
+  return new Response(bytes, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=604800', 'content-security-policy': "default-src 'none'", 'x-content-type-options': 'nosniff' } });
+}
+
 export interface NewPhoto {
   weddingId: string;
   bytes: Uint8Array;

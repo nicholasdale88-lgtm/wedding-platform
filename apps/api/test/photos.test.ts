@@ -67,6 +67,22 @@ describe('photos (admin)', () => {
     expect(text.status).toBe(415);
   });
 
+  it("a photo's small copy comes from the guest who sent it, and the grid uses it", async () => {
+    const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ivy Scott'`).first<{ token: string }>())!.token;
+    const other = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ella Thompson'`).first<{ token: string }>())!.token;
+    const list = (await (await call(`/a/w/${wid}/photos`)).json()) as { items: { id: string; thumb: string | null }[] };
+    const id = list.items[0]!.id;
+    expect(list.items[0]!.thumb).toBeNull();
+    const small = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 9]);
+    const put = (token: string) => app.request(`/api/p/sophie-and-nicholas/photos/${id}/thumb?g=${token}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: small }, env, ctx);
+    expect((await put(other)).status).toBe(404); // not their photo
+    expect((await put(tok)).status).toBe(200);
+    const after = (await (await call(`/a/w/${wid}/photos`)).json()) as { items: { thumb: string | null }[] };
+    const thumb = await call(after.items[0]!.thumb!.replace('/api', ''));
+    expect(thumb.status).toBe(200);
+    expect(new Uint8Array(await thumb.arrayBuffer())).toEqual(small);
+  });
+
   it('nobody outside the wedding can list or open photos', async () => {
     const list = (await (await call(`/a/w/${wid}/photos`)).json()) as List;
     expect((await call(list.items[0]!.url.replace('/api', ''), {}, '')).status).toBe(401);

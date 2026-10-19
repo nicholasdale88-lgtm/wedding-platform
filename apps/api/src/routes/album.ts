@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
-import { mediaResponse, openPhoto } from '../photos/store';
+import { mediaResponse, openPhoto, thumbResponse } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -54,11 +54,11 @@ export function albumGuestRoutes() {
     if (!g.w.shared) return c.json({ error: { code: 'not_yet', message: 'The album isn’t open yet. The couple will share it after the day.' } }, 404);
     const keys = g.events.map((e) => e.key);
     const { results } = await c.env.DB.prepare(
-      `SELECT m.id, m.created_at, m.event_key, m.content_type, m.edit, COALESCE(m.uploaded_by, (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0), '') AS by
+      `SELECT m.id, m.created_at, m.event_key, m.content_type, m.edit, EXISTS (SELECT 1 FROM photo_thumb t WHERE t.media_id = m.id) AS thumb, COALESCE(m.uploaded_by, (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0), '') AS by
          FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL ORDER BY m.created_at LIMIT 3000`,
     )
       .bind(g.w.id)
-      .all<{ id: string; created_at: string; event_key: string | null; content_type: string | null; edit: string | null; by: string }>();
+      .all<{ id: string; created_at: string; event_key: string | null; content_type: string | null; edit: string | null; thumb: number; by: string }>();
     const tok = encodeURIComponent(c.req.query('g')!);
     return c.json({
       couple: `${g.w.name1.split(' ')[0]} & ${g.w.name2.split(' ')[0]}`,
@@ -67,9 +67,20 @@ export function albumGuestRoutes() {
       // Photos from their own events (and older ones from before albums were split).
       photos: results
         .filter((p) => !p.event_key || keys.includes(p.event_key))
-        .map((p) => ({ id: p.id, at: p.created_at, event: p.event_key, by: p.by, video: (p.content_type ?? '').startsWith('video/'), look: p.edit ?? '', url: `/api/p/${encodeURIComponent(c.req.param('slug') ?? '')}/album/${p.id}?g=${tok}` })),
+        .map((p) => {
+          const url = `/api/p/${encodeURIComponent(c.req.param('slug') ?? '')}/album/${p.id}`;
+          return { id: p.id, at: p.created_at, event: p.event_key, by: p.by, video: (p.content_type ?? '').startsWith('video/'), look: p.edit ?? '', url: `${url}?g=${tok}`, thumb: p.thumb ? `${url}/thumb?g=${tok}` : null };
+        }),
     });
   });
+  app.get('/:id/thumb', async (c) => {
+    const g = await guestOf(c);
+    if (!g || !g.w.shared) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    const row = await c.env.DB.prepare(`SELECT event_key FROM media WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(c.req.param('id'), g.w.id).first<{ event_key: string | null }>();
+    if (!row || (row.event_key && !g.events.some((e) => e.key === row.event_key))) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    return (await thumbResponse(c.env.DB, g.w.id, c.req.param('id'))) ?? c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+  });
+
   app.get('/:id', async (c) => {
     const g = await guestOf(c);
     if (!g || !g.w.shared) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);

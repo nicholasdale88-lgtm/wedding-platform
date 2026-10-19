@@ -186,15 +186,18 @@ export function PhotoPage() {
       mark(it.id, 'up');
       itemsRef.current = itemsRef.current.map((x) => (x.id === it.id ? { ...x, st: 'up' } : x));
       try {
+        let id = '';
+        let sent: Blob = it.file;
         if (isVideo(it.file)) {
           // A video goes as it is; its look is kept with it and shown when it plays.
-          await guestApi.uploadPhoto(slug, token, by.trim(), it.file, ev?.key ?? '', it.look === 'original' ? '' : it.look);
+          id = await guestApi.uploadPhoto(slug, token, by.trim(), it.file, ev?.key ?? '', it.look === 'original' ? '' : it.look);
         } else {
-          const photo = it.pre ? it.file : await renderPhoto(it.file, it.filter, info, it.look);
-          await guestApi.uploadPhoto(slug, token, by.trim(), photo, ev?.key ?? '');
+          sent = it.pre ? it.file : await renderPhoto(it.file, it.filter, info, it.look);
+          id = await guestApi.uploadPhoto(slug, token, by.trim(), sent, ev?.key ?? '');
         }
-        // Sent: swap the full-size original for a small tile copy.
-        const small = await thumbOf(it.file);
+        // Sent: swap the full-size original for a small tile copy (and give the album the same small copy).
+        const small = await thumbOf(sent);
+        if (id && small.type === 'image/jpeg' && small.size <= 120_000) void guestApi.uploadThumb(slug, token, id, small);
         const url = URL.createObjectURL(small);
         URL.revokeObjectURL(it.url);
         setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, st: 'ok', file: small, url } : x)));

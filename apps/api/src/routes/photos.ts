@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { imageType } from '../lib/images';
 import { z } from 'zod';
 import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
-import { canStore, linkKey, mediaResponse, openPhoto, storePhoto } from '../photos/store';
+import { canStore, linkKey, mediaResponse, openPhoto, storePhoto, thumbResponse } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -67,12 +67,12 @@ export function photoRoutes() {
 
   app.get('/', async (c) => {
     const { results } = await c.env.DB.prepare(
-      `SELECT m.id, m.uploaded_by, m.created_at, m.bytes, m.content_type, m.event_key, m.edit,
+      `SELECT m.id, m.uploaded_by, m.created_at, m.bytes, m.content_type, m.event_key, m.edit, EXISTS (SELECT 1 FROM photo_thumb t WHERE t.media_id = m.id) AS thumb,
               (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0) AS guest
          FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 5000`,
     )
       .bind(wid(c))
-      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; event_key: string | null; edit: string | null; guest: string | null }>();
+      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; event_key: string | null; edit: string | null; thumb: number; guest: string | null }>();
     return c.json({
       enabled: await canStore(c.env, wid(c)),
       siteStorage: !!c.env.MEDIA,
@@ -83,6 +83,7 @@ export function photoRoutes() {
         bytes: r.bytes,
         type: r.content_type,
         look: r.edit ?? '',
+        thumb: r.thumb ? `/api/a/w/${wid(c)}/photos/${r.id}/thumb` : null,
         event: r.event_key, // which event's album (null: before albums were split)
         url: `/api/a/w/${wid(c)}/photos/${r.id}`,
       })),
@@ -100,6 +101,8 @@ export function photoRoutes() {
     if (!res?.ok || !res.body) return err(c, 404, 'not_found', 'Photo not found (it may have been moved or removed from the linked storage).');
     return mediaResponse(res, row.content_type);
   });
+
+  app.get('/:id/thumb', async (c) => (await thumbResponse(c.env.DB, wid(c), c.req.param('id'))) ?? err(c, 404, 'not_found', 'No small copy.'));
 
   app.delete('/:id', requireMember('owner', 'editor'), async (c) => {
     const row = await c.env.DB.prepare(`SELECT key FROM media WHERE id = ? AND wedding_id = ? AND kind IN ('photo', 'video') AND deleted_at IS NULL`)
