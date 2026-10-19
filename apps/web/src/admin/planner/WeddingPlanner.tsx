@@ -10,6 +10,7 @@ import { Checklist, nextTasks } from './Checklist';
 import { Gifts } from './Gifts';
 import { Music } from './Music';
 import { Print } from './Print';
+import { Transport } from './Transport';
 import { Vendors } from './Vendors';
 
 /**
@@ -18,12 +19,13 @@ import { Vendors } from './Vendors';
  * comparisons, the finder near the venue) and the planning assistant. ?view= picks the page.
  */
 
-type View = 'glance' | 'checklist' | 'budget' | 'vendors' | 'music' | 'print' | 'gifts' | 'assistant';
+type View = 'glance' | 'checklist' | 'budget' | 'vendors' | 'transport' | 'music' | 'print' | 'gifts' | 'assistant';
 const VIEWS: [View, string][] = [
   ['glance', 'At a glance'],
   ['checklist', 'Checklist'],
   ['budget', 'Budget'],
   ['vendors', 'Vendors'],
+  ['transport', 'Transport'],
   ['music', 'Music'],
   ['print', 'Print'],
   ['gifts', 'Gifts'],
@@ -74,7 +76,7 @@ export function WeddingPlanner() {
           </button>
         ))}
       </nav>
-      {view === 'glance' ? <Glance go={go} /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'vendors' ? <Vendors /> : view === 'music' ? <Music /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
+      {view === 'glance' ? <Glance go={go} /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );
 }

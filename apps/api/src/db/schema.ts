@@ -345,6 +345,19 @@ export const plannerDoc = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.kind, t.scope] }) }),
 );
 
+// migration 0015: shuttle seats guests book
+export const shuttleBooking = sqliteTable(
+  'shuttle_booking',
+  {
+    weddingId: text('wedding_id').notNull(),
+    shuttleId: text('shuttle_id').notNull(),
+    invitationId: text('invitation_id').notNull(),
+    seats: integer('seats').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.shuttleId, t.invitationId] }) }),
+);
+
 // migration 0014: song requests for the DJ
 export const songRequest = sqliteTable('song_request', {
   id: id(),

@@ -108,12 +108,16 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
   const slots = invitation ? (events.map((e, i) => (invitation.invited.includes(e.key) ? i : -1)).filter((i) => i === 0 || i === 1) as (0 | 1)[]) : null;
   const visibleEvents = invitation ? events.filter((e) => invitation.invited.includes(e.key)) : events;
   const inv = InvitationContent.safeParse(content.invitation ?? {});
+  const { results: withShuttles } = await c.env.DB.prepare(`SELECT scope FROM planner_doc WHERE wedding_id = ? AND kind = 'shuttles' AND json_array_length(json_extract(data, '$.list')) > 0`)
+    .bind(w.id)
+    .all<{ scope: string }>();
+  const shuttles = new Set(withShuttles.map((r) => r.scope));
   return {
     wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
     // Music is the link set in Setup (MP3 or YouTube): there are no uploaded music files to point at.
     content: { ...(inv.success ? inv.data : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
     texts: textsFor('inv', (content.texts as Record<string, string> | undefined) ?? {}, slots),
-    events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []) })),
+    events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []), shuttles: shuttles.has(e.key) })),
     invitation,
   };
 }

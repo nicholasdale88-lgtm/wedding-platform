@@ -524,7 +524,20 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       if (!ev) return undefined;
       const items = slot ? data.content.timelines?.[ev.key] : undefined; // the first event's timeline is the main one
       const timeline = items && shownRows(items).length ? createElement(TimelineRows, { items, onSection: true }) : null;
-      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev));
+      // A shuttle for this event: "Book a seat" (for a guest with their own link).
+      const token = guest?.token;
+      const shuttle =
+        ev.shuttles && token
+          ? createElement(
+              'a',
+              {
+                href: `/w/${encodeURIComponent(data.wedding.slug)}/shuttle?g=${encodeURIComponent(token)}`,
+                style: { alignSelf: 'center', fontSize: 16, color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3, fontFamily: "'Cormorant Garamond', Georgia, serif" },
+              },
+              'There’s a shuttle: book your seats',
+            )
+          : null;
+      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle);
     },
   };
   return {

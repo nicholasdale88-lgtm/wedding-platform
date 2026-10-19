@@ -25,7 +25,7 @@ export interface InvitePayload {
     timelines?: Record<string, TimelineItem[]>;
   };
   texts: Record<string, string>;
-  events: { key: string; name: string; startsAt: string; slot: number; questions: { key: string; label: string; type: string; options?: string[] }[] }[];
+  events: { key: string; name: string; startsAt: string; slot: number; questions: { key: string; label: string; type: string; options?: string[] }[]; shuttles?: boolean }[];
   invitation: GuestInvitation | null;
 }
 
@@ -108,6 +108,10 @@ export const guestApi = {
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
   /** A wedding party member's own run sheet (needs their own link). */
   party: (slug: string, token: string) => call<PartyPayload>(`/p/${encodeURIComponent(slug)}/party?g=${encodeURIComponent(token)}`),
+  /** Shuttle runs for their events, seats left, and theirs. */
+  shuttles: (slug: string, token: string) => call<ShuttlePayload>(`/p/${encodeURIComponent(slug)}/shuttles?g=${encodeURIComponent(token)}`),
+  bookShuttle: (slug: string, token: string, shuttleId: string, seats: number) =>
+    call<ShuttlePayload>(`/p/${encodeURIComponent(slug)}/shuttles`, { method: 'POST', body: JSON.stringify({ token, shuttleId, seats }) }),
   /** Ask for a song (the couple passes requests to the DJ). */
   requestSong: (slug: string, token: string, title: string, artist: string) =>
     call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/songs`, { method: 'POST', body: JSON.stringify({ token, title, artist }) }),
@@ -145,6 +149,10 @@ export interface BoardPost {
   likes: number;
   liked: boolean;
   replies: BoardPost[];
+}
+export interface ShuttlePayload {
+  party: number;
+  events: { key: string; name: string; startsAt: string; runs: { id: string; time: string; from: string; to: string; note: string; left: number; mine: number }[] }[];
 }
 export interface PartyPayload {
   couple: string;

@@ -280,6 +280,21 @@ export type Gift = z.infer<typeof Gift>;
 export const Gifts = z.object({ list: z.array(Gift).max(500).default([]) });
 export type Gifts = z.infer<typeof Gifts>;
 
+// ---------------------------------------------------------------- shuttles
+
+/** A shuttle run for one event: guests book seats on it from their invitation. */
+export const Shuttle = z.object({
+  id: z.string().max(40),
+  time: z.string().max(20), // "2:15pm"
+  from: z.string().max(160),
+  to: z.string().max(160),
+  seats: z.number().int().min(1).max(500),
+  note: s(400),
+});
+export type Shuttle = z.infer<typeof Shuttle>;
+export const Shuttles = z.object({ list: z.array(Shuttle).max(20).default([]) });
+export type Shuttles = z.infer<typeof Shuttles>;
+
 /** The planner documents and their shapes (the API validates every save against these). */
-export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist, gifts: Gifts } as const;
+export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist, gifts: Gifts, shuttles: Shuttles } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;
