@@ -44,6 +44,7 @@ export function InvitationView({ v, t }: ViewProps) {
             </defs>
           </svg>
           {" "}
+          {v.hide?.("01 Welcome") ? null : (
           <section data-screen-label={"01 Welcome"} style={sx("position:relative;overflow:hidden;min-height:max(100vh,800px);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:90px;padding-bottom:110px;background:radial-gradient(90% 70% at 50% 40%,var(--hb1,#32503a) 0%,var(--hb2,#1f3224) 75%);color:var(--mg,#3e4a6b)")}>
             <div style={sx("position:absolute;left:50%;top:10px;bottom:10px;transform:translateX(-50%);width:min(560px,calc(100% - 16px));z-index:1;pointer-events:none")}>
               <div style={sx("position:absolute;inset:0;filter:drop-shadow(0 10px 22px rgba(60,50,70,.18))")}>
@@ -161,7 +162,9 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("01b Countdown") ? null : (
           <section data-screen-label={"01b Countdown"} style={sx("box-sizing:border-box;padding:26px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;background:var(--cdbg,var(--mg,#3e4a6b));color:var(--cdtx,var(--btx,#f3ecd6))")}>
             <div style={sx("font-size:12px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;text-align:center")}>
               {t("inv.73032d03")}
@@ -204,7 +207,9 @@ export function InvitationView({ v, t }: ViewProps) {
               </div>
             </div>
           </section>
+          )}
           {" "}
+          {v.hide?.("02 The Wedding") ? null : (
           <section data-screen-label={"02 The Wedding"} style={sx("margin:14px;border-radius:0;clip-path:polygon(26px 0,calc(100% - 26px) 0,100% 26px,100% calc(100% - 26px),calc(100% - 26px) 100%,26px 100%,0 calc(100% - 26px),0 26px);overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;position:relative;overflow:hidden;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:84px;display:flex;flex-direction:column;align-items:center;gap:30px;background:var(--iv,#fdf7f6);background:var(--b1,#fdf7f6)")}>
             <div style={sx("position:absolute;inset:14px;border:2px dashed var(--sg,#5d6b8f);outline:1px solid var(--sg,#5d6b8f);outline-offset:5px;opacity:.45;border-radius:0;pointer-events:none")} />
             <div style={sx("position:absolute;left:4%;top:4%;width:80px;height:2px;transform:rotate(50deg) scale(0.9);transform-origin:0 50%;pointer-events:none")}>
@@ -246,7 +251,9 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("03 Timeline") ? null : (
           <section data-screen-label={"03 Timeline"} style={sx("margin:14px;border-radius:0;clip-path:polygon(26px 0,calc(100% - 26px) 0,100% 26px,100% calc(100% - 26px),calc(100% - 26px) 100%,26px 100%,0 calc(100% - 26px),0 26px);overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:70px;display:flex;flex-direction:column;align-items:center;gap:28px;background:var(--iv,#fdf7f6);border-top:1px solid rgba(62,74,107,.2);background:var(--b2,#fdf7f6);position:relative;overflow:hidden")}>
             <div style={sx("position:absolute;inset:14px;border:2px dashed var(--sg,#5d6b8f);outline:1px solid var(--sg,#5d6b8f);outline-offset:5px;opacity:.45;border-radius:0;pointer-events:none")} />
             <div style={sx("position:absolute;left:4%;top:4%;width:80px;height:2px;transform:rotate(50deg) scale(0.9);transform-origin:0 50%;pointer-events:none")}>
@@ -499,7 +506,9 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("07 Dress Code") ? null : (
           <section data-screen-label={"07 Dress Code"} style={sx("margin:14px;border-radius:0;clip-path:polygon(26px 0,calc(100% - 26px) 0,100% 26px,100% calc(100% - 26px),calc(100% - 26px) 100%,26px 100%,0 calc(100% - 26px),0 26px);overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:84px;display:flex;flex-direction:column;align-items:center;gap:26px;background:var(--reg,#e4ead6);background:var(--b3,#fdf7f6);position:relative")}>
             <div style={sx("position:absolute;inset:14px;border:2px dashed var(--sg,#5d6b8f);outline:1px solid var(--sg,#5d6b8f);outline-offset:5px;opacity:.45;border-radius:0;pointer-events:none")} />
             {" "}
@@ -609,7 +618,9 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("08 Accommodation") ? null : (
           <section data-screen-label={"08 Accommodation"} style={sx("margin:14px;border-radius:0;clip-path:polygon(26px 0,calc(100% - 26px) 0,100% 26px,100% calc(100% - 26px),calc(100% - 26px) 100%,26px 100%,0 calc(100% - 26px),0 26px);overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:84px;display:flex;flex-direction:column;align-items:center;gap:28px;background:var(--iv,#fdf7f6);border-top:1px solid rgba(62,74,107,.2);background:var(--b5,#fdf7f6);position:relative")}>
             <div style={sx("position:absolute;inset:14px;border:2px dashed var(--sg,#5d6b8f);outline:1px solid var(--sg,#5d6b8f);outline-offset:5px;opacity:.45;border-radius:0;pointer-events:none")} />
             {" "}
@@ -628,152 +639,166 @@ export function InvitationView({ v, t }: ViewProps) {
               <div style={sx("font-size:21px;line-height:1.45;color:#3a3550;text-wrap:pretty;text-align:left")}>
                 {t("inv.7fb60683")}
               </div>
-              <details style={sx("width:100%;box-sizing:border-box;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.6)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;min-height:28px;text-align:left")}>
-                  <span style={sx("display:flex;flex-direction:column;gap:2px")}>
-                    <span style={sx("font-size:24px;color:var(--mg,#3e4a6b)")}>
-                      {t("inv.fda13e60")}
-                    </span>
-                    <span style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                      {t("inv.9597d2f2")}
-                    </span>
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#4f6b40);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:4px 18px 20px;display:flex;flex-direction:column;gap:18px")}>
-                  <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
-                    <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {t("inv.c4ca4238")}
-                    </div>
-                    <div style={sx("display:flex;flex-direction:column;gap:3px")}>
-                      <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
-                        {t("inv.5e9657ac")}
-                      </div>
-                      <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
-                        {t("inv.1e770267")}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
-                    <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {t("inv.c81e728d")}
-                    </div>
-                    <div style={sx("display:flex;flex-direction:column;gap:3px")}>
-                      <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
-                        {t("inv.7e0de0e2")}
-                      </div>
-                      <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
-                        {t("inv.2b6ae38a")}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
-                    <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {t("inv.eccbc87e")}
-                    </div>
-                    <div style={sx("display:flex;flex-direction:column;gap:3px")}>
-                      <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
-                        {t("inv.4b34e108")}
-                      </div>
-                      <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
-                        {t("inv.29b7e6aa")}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={sx("display:flex;flex-direction:column;gap:10px")}>
-                    <a href={url(t("inv.07216a5f"))} target={"_blank"} rel={"noopener"} style={sx("display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.7);text-decoration:none;color:var(--mg,#3e4a6b);font-size:21px")} className="hv-inv-1">
-                      <span>
-                        {t("inv.fac3e6d7")}
+              {v.list?.("08 Accommodation#1") ? (
+                (v.list("08 Accommodation#1") as { q: string; a: string[] }[]).map((it, it_i) => (
+                  <details key={it_i} style={sx("width:100%;box-sizing:border-box;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.6)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;min-height:28px;text-align:left")}>
+                      <span style={sx("display:flex;flex-direction:column;gap:2px")}>{it.q}</span>
+                      <span style={sx("font-size:26px;color:var(--sg,#4f6b40);flex:none")}>{"+"}</span>
+                    </summary>
+                    <div style={sx("padding:4px 18px 20px;display:flex;flex-direction:column;gap:18px")}>{it.a.map((l: string, l_i: number) => <p key={l_i} style={{ margin: 0 }}>{l}</p>)}</div>
+                  </details>
+                ))
+              ) : (
+                <>
+                  <details style={sx("width:100%;box-sizing:border-box;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.6)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;min-height:28px;text-align:left")}>
+                      <span style={sx("display:flex;flex-direction:column;gap:2px")}>
+                        <span style={sx("font-size:24px;color:var(--mg,#3e4a6b)")}>
+                          {t("inv.fda13e60")}
+                        </span>
+                        <span style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                          {t("inv.9597d2f2")}
+                        </span>
                       </span>
-                      <span style={sx("font-size:22px;color:var(--sg,#4f6b40)")}>
-                        {t("inv.0616fbe7")}
+                      <span style={sx("font-size:26px;color:var(--sg,#4f6b40);flex:none")}>
+                        {"+"}
                       </span>
-                    </a>
-                    <a href={url(t("inv.c19f9301"))} target={"_blank"} rel={"noopener"} style={sx("display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.7);text-decoration:none;color:var(--mg,#3e4a6b);font-size:21px")} className="hv-inv-2">
-                      <span>
-                        {t("inv.450fb963")}
+                    </summary>
+                    <div style={sx("padding:4px 18px 20px;display:flex;flex-direction:column;gap:18px")}>
+                      <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
+                        <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
+                          {t("inv.c4ca4238")}
+                        </div>
+                        <div style={sx("display:flex;flex-direction:column;gap:3px")}>
+                          <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
+                            {t("inv.5e9657ac")}
+                          </div>
+                          <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
+                            {t("inv.1e770267")}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
+                        <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
+                          {t("inv.c81e728d")}
+                        </div>
+                        <div style={sx("display:flex;flex-direction:column;gap:3px")}>
+                          <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
+                            {t("inv.7e0de0e2")}
+                          </div>
+                          <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
+                            {t("inv.2b6ae38a")}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
+                        <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
+                          {t("inv.eccbc87e")}
+                        </div>
+                        <div style={sx("display:flex;flex-direction:column;gap:3px")}>
+                          <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
+                            {t("inv.4b34e108")}
+                          </div>
+                          <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
+                            {t("inv.29b7e6aa")}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={sx("display:flex;flex-direction:column;gap:10px")}>
+                        <a href={url(t("inv.07216a5f"))} target={"_blank"} rel={"noopener"} style={sx("display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.7);text-decoration:none;color:var(--mg,#3e4a6b);font-size:21px")} className="hv-inv-1">
+                          <span>
+                            {t("inv.fac3e6d7")}
+                          </span>
+                          <span style={sx("font-size:22px;color:var(--sg,#4f6b40)")}>
+                            {t("inv.0616fbe7")}
+                          </span>
+                        </a>
+                        <a href={url(t("inv.c19f9301"))} target={"_blank"} rel={"noopener"} style={sx("display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.7);text-decoration:none;color:var(--mg,#3e4a6b);font-size:21px")} className="hv-inv-2">
+                          <span>
+                            {t("inv.450fb963")}
+                          </span>
+                          <span style={sx("font-size:22px;color:var(--sg,#4f6b40)")}>
+                            {t("inv.0616fbe7")}
+                          </span>
+                        </a>
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680;text-align:left")}>
+                        {t("inv.bdf5a316")}
+                      </div>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;box-sizing:border-box;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.6)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;min-height:28px;text-align:left")}>
+                      <span style={sx("display:flex;flex-direction:column;gap:2px")}>
+                        <span style={sx("font-size:24px;color:var(--mg,#3e4a6b)")}>
+                          {t("inv.c497c365")}
+                        </span>
+                        <span style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                          {t("inv.e0faec4c")}
+                        </span>
                       </span>
-                      <span style={sx("font-size:22px;color:var(--sg,#4f6b40)")}>
-                        {t("inv.0616fbe7")}
+                      <span style={sx("font-size:26px;color:var(--sg,#4f6b40);flex:none")}>
+                        {"+"}
                       </span>
-                    </a>
-                  </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680;text-align:left")}>
-                    {t("inv.bdf5a316")}
-                  </div>
-                </div>
-              </details>
-              <details style={sx("width:100%;box-sizing:border-box;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.6)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 18px;min-height:28px;text-align:left")}>
-                  <span style={sx("display:flex;flex-direction:column;gap:2px")}>
-                    <span style={sx("font-size:24px;color:var(--mg,#3e4a6b)")}>
-                      {t("inv.c497c365")}
-                    </span>
-                    <span style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                      {t("inv.e0faec4c")}
-                    </span>
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#4f6b40);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:4px 18px 20px;display:flex;flex-direction:column;gap:18px")}>
-                  <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
-                    <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {t("inv.c4ca4238")}
-                    </div>
-                    <div style={sx("display:flex;flex-direction:column;gap:3px")}>
-                      <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
-                        {t("inv.7ac4a291")}
+                    </summary>
+                    <div style={sx("padding:4px 18px 20px;display:flex;flex-direction:column;gap:18px")}>
+                      <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
+                        <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
+                          {t("inv.c4ca4238")}
+                        </div>
+                        <div style={sx("display:flex;flex-direction:column;gap:3px")}>
+                          <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
+                            {t("inv.7ac4a291")}
+                          </div>
+                          <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
+                            {t("inv.f3685580")}
+                          </div>
+                        </div>
                       </div>
-                      <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
-                        {t("inv.f3685580")}
+                      <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
+                        <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
+                          {t("inv.c81e728d")}
+                        </div>
+                        <div style={sx("display:flex;flex-direction:column;gap:3px")}>
+                          <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
+                            {t("inv.4b34e108")}
+                          </div>
+                          <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
+                            {t("inv.3a185ec1")}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
-                    <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {t("inv.c81e728d")}
-                    </div>
-                    <div style={sx("display:flex;flex-direction:column;gap:3px")}>
-                      <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
-                        {t("inv.4b34e108")}
+                      <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
+                        <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
+                          {t("inv.eccbc87e")}
+                        </div>
+                        <div style={sx("display:flex;flex-direction:column;gap:3px")}>
+                          <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
+                            {t("inv.eb1f0b18")}
+                          </div>
+                          <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
+                            {t("inv.3deb62ce")}
+                          </div>
+                        </div>
                       </div>
-                      <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
-                        {t("inv.3a185ec1")}
+                      <div style={sx("display:flex;flex-direction:column;gap:10px")}>
+                        <a href={url(t("inv.b7e0ddea"))} target={"_blank"} rel={"noopener"} style={sx("display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.7);text-decoration:none;color:var(--mg,#3e4a6b);font-size:21px")} className="hv-inv-3">
+                          <span>
+                            {t("inv.5929ff3f")}
+                          </span>
+                          <span style={sx("font-size:22px;color:var(--sg,#4f6b40)")}>
+                            {t("inv.0616fbe7")}
+                          </span>
+                        </a>
                       </div>
-                    </div>
-                  </div>
-                  <div style={sx("display:flex;gap:14px;align-items:flex-start;text-align:left")}>
-                    <div style={sx("flex:none;width:34px;height:34px;border-radius:50%;background:var(--mg,#3e4a6b);color:#f3ecd6;display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:600")}>
-                      {t("inv.eccbc87e")}
-                    </div>
-                    <div style={sx("display:flex;flex-direction:column;gap:3px")}>
-                      <div style={sx("font-size:22px;color:var(--mg,#3e4a6b)")}>
-                        {t("inv.eb1f0b18")}
-                      </div>
-                      <div style={sx("font-size:19px;line-height:1.4;color:#3a3550;text-wrap:pretty")}>
-                        {t("inv.3deb62ce")}
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680;text-align:left")}>
+                        {t("inv.bdf5a316")}
                       </div>
                     </div>
-                  </div>
-                  <div style={sx("display:flex;flex-direction:column;gap:10px")}>
-                    <a href={url(t("inv.b7e0ddea"))} target={"_blank"} rel={"noopener"} style={sx("display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid rgba(62,74,107,.35);background:rgba(255,255,255,.7);text-decoration:none;color:var(--mg,#3e4a6b);font-size:21px")} className="hv-inv-3">
-                      <span>
-                        {t("inv.5929ff3f")}
-                      </span>
-                      <span style={sx("font-size:22px;color:var(--sg,#4f6b40)")}>
-                        {t("inv.0616fbe7")}
-                      </span>
-                    </a>
-                  </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680;text-align:left")}>
-                    {t("inv.bdf5a316")}
-                  </div>
-                </div>
-              </details>
+                  </details>
+                </>
+              )}
               <div style={sx("font-size:18px;font-style:italic;color:#6d6680;text-align:left")}>
                 {t("inv.ac4fe845")}
                 <a href={url(t("inv.b697787a"))} style={sx("color:var(--mg,#3e4a6b)")}>
@@ -836,7 +861,9 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("09 Gift Registry") ? null : (
           <section data-screen-label={"09 Gift Registry"} style={sx("margin:14px;border-radius:0;clip-path:polygon(26px 0,calc(100% - 26px) 0,100% 26px,100% calc(100% - 26px),calc(100% - 26px) 100%,26px 100%,0 calc(100% - 26px),0 26px);overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;position:relative;overflow:hidden;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:84px;display:flex;flex-direction:column;align-items:center;gap:24px;background:var(--reg,#e4ead6);background:var(--b6,#fdf7f6)")}>
             <div style={sx("position:absolute;inset:14px;border:2px dashed var(--sg,#5d6b8f);outline:1px solid var(--sg,#5d6b8f);outline-offset:5px;opacity:.45;border-radius:0;pointer-events:none")} />
             {" "}
@@ -878,7 +905,9 @@ export function InvitationView({ v, t }: ViewProps) {
             ) : null}
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("05 Birthday & Horse Riding") ? null : (
           <section data-screen-label={"05 Birthday & Horse Riding"} style={sx(`position:relative;margin:14px;border-radius:200px 200px 28px 28px;overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:84px;display:${v.bSecDisp};flex-direction:column;align-items:center;gap:26px;background:#fdf7f6;border-top:1px solid rgba(62,74,107,.2);background:var(--b4,#fdf7f6);background:var(--bdbg,var(--bdtx,#2f3d5c));color:var(--bdtx,var(--btx,#f3ecd6));display:${v.bSecDisp}`)}>
             {" "}
             <div style={sx("position:absolute;inset:14px;border:2px dashed var(--bdac,var(--bacc,#d9e0cf));outline:1px solid var(--bdac,var(--bacc,#d9e0cf));outline-offset:5px;opacity:.6;border-radius:186px 186px 18px 18px;pointer-events:none")} />
@@ -1072,7 +1101,9 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("10 RSVP") ? null : (
           <section id={"rsvp"} data-screen-label={"10 RSVP"} style={sx("margin:14px;border-radius:200px 200px 28px 28px;overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;position:relative;overflow:hidden;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:84px;display:flex;flex-direction:column;align-items:center;gap:30px;text-align:left;background:var(--iv,#fdf7f6);background:var(--b1,#fdf7f6)")}>
             {v.showBar ? (
               <>
@@ -1264,7 +1295,9 @@ export function InvitationView({ v, t }: ViewProps) {
             ) : null}
             {" "}
           </section>
+          )}
           {" "}
+          {v.hide?.("11 FAQ") ? null : (
           <section data-screen-label={"11 FAQ"} style={sx("margin:14px;border-radius:0;clip-path:polygon(26px 0,calc(100% - 26px) 0,100% 26px,100% calc(100% - 26px),calc(100% - 26px) 100%,26px 100%,0 calc(100% - 26px),0 26px);overflow:hidden;min-height:86vh;box-sizing:border-box;justify-content:center;padding-left:max(30px,calc((100% - 480px)/2));padding-right:max(30px,calc((100% - 480px)/2));padding-top:84px;padding-bottom:84px;display:flex;flex-direction:column;align-items:center;gap:22px;background:var(--reg,#e4ead6);background:var(--b2,#fdf7f6);position:relative")}>
             <div style={sx("position:absolute;inset:14px;border:2px dashed var(--sg,#5d6b8f);outline:1px solid var(--sg,#5d6b8f);outline-offset:5px;opacity:.45;border-radius:0;pointer-events:none")} />
             {" "}
@@ -1281,635 +1314,690 @@ export function InvitationView({ v, t }: ViewProps) {
               <div style={sx("width:100%;font-size:12px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--sg,#5d6b8f);text-align:left;padding:26px 2px 6px;border-bottom:1px solid rgba(62,74,107,.45)")}>
                 {t("inv.be66c60f")}
               </div>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.55437994")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.27a0f512")}
-                      <b>
-                        {t("inv.6fcb1ea3")}
-                      </b>
-                      {t("inv.01439729")}
-                      <b>
-                        {t("inv.8edf3058")}
-                      </b>
-                      {t("inv.b2342c65")}
-                    </li>
-                    <li>
-                      {t("inv.0aa2b422")}
-                    </li>
-                    <li>
-                      {t("inv.dad4a3fc")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.0e84bda0")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.d947e47b")}
-                    </li>
-                    <li>
-                      {t("inv.9964766d")}
-                    </li>
-                    <li>
-                      {t("inv.68f3918b")}
-                    </li>
-                    <li>
-                      {t("inv.08f6da6f")}
-                    </li>
-                    <li>
-                      {t("inv.876beef7")}
-                    </li>
-                    <li>
-                      {t("inv.5d0b67a8")}
-                    </li>
-                    <li>
-                      {t("inv.ce360cc6")}
-                    </li>
-                    <li>
-                      {t("inv.e5b9de9b")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.0675cbdd")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      <b>
-                        {t("inv.5af8021c")}
-                      </b>
-                      {t("inv.032d03ac")}
-                    </li>
-                    <li>
-                      <b>
-                        {t("inv.a0a626a8")}
-                      </b>
-                      {t("inv.ede4d51d")}
-                    </li>
-                    <li>
-                      {t("inv.c4b8a58a")}
-                    </li>
-                    <li>
-                      {t("inv.eb43fa12")}
-                      <b>
-                        {t("inv.4a0b0dce")}
-                      </b>
-                      {t("inv.aedd7358")}
-                    </li>
-                    <li>
-                      {t("inv.ad5111a0")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.c12007af")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.015c0c9d")}
-                      <b>
-                        {t("inv.32c3f38a")}
-                      </b>
-                      {t("inv.85470459")}
-                    </li>
-                    <li>
-                      {t("inv.56b5b56f")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.4637594b")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.e209da8d")}
-                      <b>
-                        {t("inv.fde92566")}
-                      </b>
-                      {t("inv.f563fed4")}
-                    </li>
-                    <li>
-                      {t("inv.140d5a1c")}
-                    </li>
-                    <li>
-                      {t("inv.a77a1181")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.1b4bf539")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.c3a64bbe")}
-                    </li>
-                    <li>
-                      {t("inv.48dfeb11")}
-                    </li>
-                    <li>
-                      {t("inv.203a3117")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.5db0663b")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.d403e700")}
-                    </li>
-                    <li>
-                      {t("inv.a962e43c")}
-                      <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
-                        {t("inv.7c099bd6")}
-                      </a>
-                      {"."}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.91570776")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.f2b4aecd")}
-                    </li>
-                    <li>
-                      {t("inv.149b6ec3")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.08db2058")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.f89c464a")}
-                    </li>
-                    <li>
-                      {t("inv.6104a896")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
+              {v.list?.("11 FAQ#1") ? (
+                (v.list("11 FAQ#1") as { q: string; a: string[] }[]).map((it, it_i) => (
+                  <details key={it_i} style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>{it.q}</span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>{"+"}</span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}><ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>{it.a.map((l: string, l_i: number) => <li key={l_i}>{l}</li>)}</ul></div>
+                  </details>
+                ))
+              ) : (
+                <>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.55437994")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.27a0f512")}
+                          <b>
+                            {t("inv.6fcb1ea3")}
+                          </b>
+                          {t("inv.01439729")}
+                          <b>
+                            {t("inv.8edf3058")}
+                          </b>
+                          {t("inv.b2342c65")}
+                        </li>
+                        <li>
+                          {t("inv.0aa2b422")}
+                        </li>
+                        <li>
+                          {t("inv.dad4a3fc")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.0e84bda0")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.d947e47b")}
+                        </li>
+                        <li>
+                          {t("inv.9964766d")}
+                        </li>
+                        <li>
+                          {t("inv.68f3918b")}
+                        </li>
+                        <li>
+                          {t("inv.08f6da6f")}
+                        </li>
+                        <li>
+                          {t("inv.876beef7")}
+                        </li>
+                        <li>
+                          {t("inv.5d0b67a8")}
+                        </li>
+                        <li>
+                          {t("inv.ce360cc6")}
+                        </li>
+                        <li>
+                          {t("inv.e5b9de9b")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.0675cbdd")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          <b>
+                            {t("inv.5af8021c")}
+                          </b>
+                          {t("inv.032d03ac")}
+                        </li>
+                        <li>
+                          <b>
+                            {t("inv.a0a626a8")}
+                          </b>
+                          {t("inv.ede4d51d")}
+                        </li>
+                        <li>
+                          {t("inv.c4b8a58a")}
+                        </li>
+                        <li>
+                          {t("inv.eb43fa12")}
+                          <b>
+                            {t("inv.4a0b0dce")}
+                          </b>
+                          {t("inv.aedd7358")}
+                        </li>
+                        <li>
+                          {t("inv.ad5111a0")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.c12007af")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.015c0c9d")}
+                          <b>
+                            {t("inv.32c3f38a")}
+                          </b>
+                          {t("inv.85470459")}
+                        </li>
+                        <li>
+                          {t("inv.56b5b56f")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.4637594b")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.e209da8d")}
+                          <b>
+                            {t("inv.fde92566")}
+                          </b>
+                          {t("inv.f563fed4")}
+                        </li>
+                        <li>
+                          {t("inv.140d5a1c")}
+                        </li>
+                        <li>
+                          {t("inv.a77a1181")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.1b4bf539")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.c3a64bbe")}
+                        </li>
+                        <li>
+                          {t("inv.48dfeb11")}
+                        </li>
+                        <li>
+                          {t("inv.203a3117")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.5db0663b")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.d403e700")}
+                        </li>
+                        <li>
+                          {t("inv.a962e43c")}
+                          <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
+                            {t("inv.7c099bd6")}
+                          </a>
+                          {"."}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.91570776")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.f2b4aecd")}
+                        </li>
+                        <li>
+                          {t("inv.149b6ec3")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.08db2058")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.f89c464a")}
+                        </li>
+                        <li>
+                          {t("inv.6104a896")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                </>
+              )}
               <div style={sx("width:100%;font-size:12px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--sg,#5d6b8f);text-align:left;padding:26px 2px 6px;border-bottom:1px solid rgba(62,74,107,.45)")}>
                 {t("inv.f509e9e1")}
               </div>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.a677209e")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      <b>
-                        {t("inv.1fa3ac2b")}
-                      </b>
-                      {t("inv.a045b264")}
-                    </li>
-                    <li>
-                      <b>
-                        {t("inv.b9f6e982")}
-                      </b>
-                      {t("inv.9b689bfa")}
-                    </li>
-                    <li>
-                      {t("inv.8297e5e4")}
-                      <a href={url(v.directionsHref)} target={"_blank"} rel={"noopener"} style={sx("color:var(--mg,#3e4a6b)")}>
-                        {t("inv.a9407a92")}
-                      </a>
-                      {"."}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.014a20eb")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.21d4ba86")}
-                    </li>
-                    <li>
-                      {t("inv.5a1f5679")}
-                    </li>
-                    <li>
-                      {t("inv.75352d1a")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.732eff73")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.96b36ac6")}
-                      <b>
-                        {t("inv.d6baef9c")}
-                      </b>
-                      {t("inv.e52c4abf")}
-                    </li>
-                    <li>
-                      {t("inv.01653e4c")}
-                    </li>
-                    <li>
-                      {t("inv.e67a5204")}
-                    </li>
-                    <li>
-                      <b>
-                        {t("inv.4c322f1c")}
-                      </b>
-                      {", "}
-                      <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {t("inv.1e63886d")}
-                      </a>
-                      {t("inv.81b7b428")}
-                      <a href={url(t("inv.1ca41f6c"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {t("inv.6e1eefa6")}
-                      </a>
-                      {t("inv.698be8f5")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.9b81ca82")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.69bfc8e2")}
-                      <b>
-                        {t("inv.2743222d")}
-                      </b>
-                      {t("inv.8c72ff8d")}
-                      <b>
-                        {t("inv.74e53d90")}
-                      </b>
-                      {"."}
-                    </li>
-                    <li>
-                      <b>
-                        {t("inv.7a0c930e")}
-                      </b>
-                      {t("inv.36315bea")}
-                    </li>
-                    <li>
-                      {t("inv.fb2d8e6f")}
-                      <b>
-                        {t("inv.68f6c1d5")}
-                      </b>
-                      {t("inv.69d27bd3")}
-                      <b>
-                        {t("inv.080fadc0")}
-                      </b>
-                      {t("inv.db80331a")}
-                    </li>
-                    <li>
-                      {t("inv.ce60a6ce")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.856376ed")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.2c7452fe")}
-                      <b>
-                        {t("inv.a08e98e5")}
-                      </b>
-                      {t("inv.d8bb6799")}
-                      <b>
-                        {t("inv.6619a70f")}
-                      </b>
-                      {t("inv.a03d78dd")}
-                    </li>
-                    <li>
-                      <b>
-                        {t("inv.1b21d80e")}
-                      </b>
-                      {t("inv.595944f1")}
-                    </li>
-                    <li>
-                      <b>
-                        {t("inv.6bf14ed8")}
-                      </b>
-                      {t("inv.d91907c5")}
-                      <b>
-                        {t("inv.d6baef9c")}
-                      </b>
-                      {t("inv.0601b9dd")}
-                      <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {t("inv.1e63886d")}
-                      </a>
-                      {"."}
-                    </li>
-                    <li>
-                      <b>
-                        {t("inv.30b9bb44")}
-                      </b>
-                      {t("inv.bcd99820")}
-                    </li>
-                    <li>
-                      {t("inv.611ba684")}
-                      <b>
-                        {t("inv.74e53d90")}
-                      </b>
-                      {t("inv.f192ef2e")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.b61e9f98")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.fabd711b")}
-                      <b>
-                        {t("inv.ee8bde45")}
-                      </b>
-                      {"."}
-                    </li>
-                    <li>
-                      {t("inv.72784071")}
-                    </li>
-                    <li>
-                      {t("inv.4dcee571")}
-                      <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
-                        {t("inv.1e63886d")}
-                      </a>
-                      {t("inv.94b222e4")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.666cb57d")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.b9bc1d63")}
-                    </li>
-                    <li>
-                      {t("inv.5aa877ed")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
+              {v.list?.("11 FAQ#2") ? (
+                (v.list("11 FAQ#2") as { q: string; a: string[] }[]).map((it, it_i) => (
+                  <details key={it_i} style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>{it.q}</span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>{"+"}</span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}><ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>{it.a.map((l: string, l_i: number) => <li key={l_i}>{l}</li>)}</ul></div>
+                  </details>
+                ))
+              ) : (
+                <>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.a677209e")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          <b>
+                            {t("inv.1fa3ac2b")}
+                          </b>
+                          {t("inv.a045b264")}
+                        </li>
+                        <li>
+                          <b>
+                            {t("inv.b9f6e982")}
+                          </b>
+                          {t("inv.9b689bfa")}
+                        </li>
+                        <li>
+                          {t("inv.8297e5e4")}
+                          <a href={url(v.directionsHref)} target={"_blank"} rel={"noopener"} style={sx("color:var(--mg,#3e4a6b)")}>
+                            {t("inv.a9407a92")}
+                          </a>
+                          {"."}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.014a20eb")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.21d4ba86")}
+                        </li>
+                        <li>
+                          {t("inv.5a1f5679")}
+                        </li>
+                        <li>
+                          {t("inv.75352d1a")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.732eff73")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.96b36ac6")}
+                          <b>
+                            {t("inv.d6baef9c")}
+                          </b>
+                          {t("inv.e52c4abf")}
+                        </li>
+                        <li>
+                          {t("inv.01653e4c")}
+                        </li>
+                        <li>
+                          {t("inv.e67a5204")}
+                        </li>
+                        <li>
+                          <b>
+                            {t("inv.4c322f1c")}
+                          </b>
+                          {", "}
+                          <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
+                            {t("inv.1e63886d")}
+                          </a>
+                          {t("inv.81b7b428")}
+                          <a href={url(t("inv.1ca41f6c"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
+                            {t("inv.6e1eefa6")}
+                          </a>
+                          {t("inv.698be8f5")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.9b81ca82")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.69bfc8e2")}
+                          <b>
+                            {t("inv.2743222d")}
+                          </b>
+                          {t("inv.8c72ff8d")}
+                          <b>
+                            {t("inv.74e53d90")}
+                          </b>
+                          {"."}
+                        </li>
+                        <li>
+                          <b>
+                            {t("inv.7a0c930e")}
+                          </b>
+                          {t("inv.36315bea")}
+                        </li>
+                        <li>
+                          {t("inv.fb2d8e6f")}
+                          <b>
+                            {t("inv.68f6c1d5")}
+                          </b>
+                          {t("inv.69d27bd3")}
+                          <b>
+                            {t("inv.080fadc0")}
+                          </b>
+                          {t("inv.db80331a")}
+                        </li>
+                        <li>
+                          {t("inv.ce60a6ce")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.856376ed")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.2c7452fe")}
+                          <b>
+                            {t("inv.a08e98e5")}
+                          </b>
+                          {t("inv.d8bb6799")}
+                          <b>
+                            {t("inv.6619a70f")}
+                          </b>
+                          {t("inv.a03d78dd")}
+                        </li>
+                        <li>
+                          <b>
+                            {t("inv.1b21d80e")}
+                          </b>
+                          {t("inv.595944f1")}
+                        </li>
+                        <li>
+                          <b>
+                            {t("inv.6bf14ed8")}
+                          </b>
+                          {t("inv.d91907c5")}
+                          <b>
+                            {t("inv.d6baef9c")}
+                          </b>
+                          {t("inv.0601b9dd")}
+                          <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
+                            {t("inv.1e63886d")}
+                          </a>
+                          {"."}
+                        </li>
+                        <li>
+                          <b>
+                            {t("inv.30b9bb44")}
+                          </b>
+                          {t("inv.bcd99820")}
+                        </li>
+                        <li>
+                          {t("inv.611ba684")}
+                          <b>
+                            {t("inv.74e53d90")}
+                          </b>
+                          {t("inv.f192ef2e")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.b61e9f98")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.fabd711b")}
+                          <b>
+                            {t("inv.ee8bde45")}
+                          </b>
+                          {"."}
+                        </li>
+                        <li>
+                          {t("inv.72784071")}
+                        </li>
+                        <li>
+                          {t("inv.4dcee571")}
+                          <a href={url(t("inv.7bbb5118"))} style={sx("color:inherit;text-decoration:underline;text-underline-offset:3px")}>
+                            {t("inv.1e63886d")}
+                          </a>
+                          {t("inv.94b222e4")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.666cb57d")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.b9bc1d63")}
+                        </li>
+                        <li>
+                          {t("inv.5aa877ed")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                </>
+              )}
               <div style={sx("width:100%;font-size:12px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--sg,#5d6b8f);text-align:left;padding:26px 2px 6px;border-bottom:1px solid rgba(62,74,107,.45)")}>
                 {t("inv.8e25c2ec")}
               </div>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.5fef5fde")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.07399b8e")}
-                    </li>
-                    <li>
-                      {t("inv.8dda75e5")}
-                    </li>
-                    <li>
-                      {t("inv.151a67c8")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.73310c75")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.3247029a")}
-                      <b>
-                        {t("inv.d8e782e7")}
-                      </b>
-                      {"."}
-                    </li>
-                    <li>
-                      {t("inv.0123399b")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
+              {v.list?.("11 FAQ#3") ? (
+                (v.list("11 FAQ#3") as { q: string; a: string[] }[]).map((it, it_i) => (
+                  <details key={it_i} style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>{it.q}</span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>{"+"}</span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}><ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>{it.a.map((l: string, l_i: number) => <li key={l_i}>{l}</li>)}</ul></div>
+                  </details>
+                ))
+              ) : (
+                <>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.5fef5fde")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.07399b8e")}
+                        </li>
+                        <li>
+                          {t("inv.8dda75e5")}
+                        </li>
+                        <li>
+                          {t("inv.151a67c8")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.73310c75")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.3247029a")}
+                          <b>
+                            {t("inv.d8e782e7")}
+                          </b>
+                          {"."}
+                        </li>
+                        <li>
+                          {t("inv.0123399b")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                </>
+              )}
               <div style={sx("width:100%;font-size:12px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:var(--sg,#5d6b8f);text-align:left;padding:26px 2px 6px;border-bottom:1px solid rgba(62,74,107,.45)")}>
                 {t("inv.4283c157")}
               </div>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.6e7db0be")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.85ae5826")}
-                      <b>
-                        {t("inv.ddbb7763")}
-                      </b>
-                      {t("inv.848c3f9a")}
-                    </li>
-                    <li>
-                      {t("inv.ed0a8680")}
-                      {v.rsvpBdayNote}
-                      {t("inv.a0f9b7a8")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.a34ae708")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.ce43781d")}
-                      <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
-                        {t("inv.7c099bd6")}
-                      </a>
-                      {t("inv.c845ab64")}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
-                <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                  <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
-                    {t("inv.9ed57bfd")}
-                  </span>
-                  <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
-                    {"+"}
-                  </span>
-                </summary>
-                <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
-                  <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                    <li>
-                      {t("inv.e9f353bc")}
-                      <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
-                        {t("inv.7c099bd6")}
-                      </a>
-                      {"."}
-                    </li>
-                    <li>
-                      {t("inv.1af27b77")}
-                      <a href={url(t("inv.f74ee32e"))} style={sx("color:var(--mg,#3e4a6b);overflow-wrap:anywhere")}>
-                        {t("inv.505aebb1")}
-                      </a>
-                      {"."}
-                    </li>
-                  </ul>
-                </div>
-              </details>
-              {" "}
+              {v.list?.("11 FAQ#4") ? (
+                (v.list("11 FAQ#4") as { q: string; a: string[] }[]).map((it, it_i) => (
+                  <details key={it_i} style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>{it.q}</span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>{"+"}</span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}><ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>{it.a.map((l: string, l_i: number) => <li key={l_i}>{l}</li>)}</ul></div>
+                  </details>
+                ))
+              ) : (
+                <>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.6e7db0be")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.85ae5826")}
+                          <b>
+                            {t("inv.ddbb7763")}
+                          </b>
+                          {t("inv.848c3f9a")}
+                        </li>
+                        <li>
+                          {t("inv.ed0a8680")}
+                          {v.rsvpBdayNote}
+                          {t("inv.a0f9b7a8")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.a34ae708")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.ce43781d")}
+                          <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
+                            {t("inv.7c099bd6")}
+                          </a>
+                          {t("inv.c845ab64")}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                  <details style={sx("width:100%;border-bottom:1px solid rgba(62,74,107,.3)")}>
+                    <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                      <span style={sx("font-size:23px;color:var(--mg,#3e4a6b);text-wrap:pretty")}>
+                        {t("inv.9ed57bfd")}
+                      </span>
+                      <span style={sx("font-size:26px;color:var(--sg,#5d6b8f);flex:none")}>
+                        {"+"}
+                      </span>
+                    </summary>
+                    <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#3a3550;text-align:left;text-wrap:pretty")}>
+                      <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                        <li>
+                          {t("inv.e9f353bc")}
+                          <a href={url(t("inv.85eb1a92"))} style={sx("color:var(--mg,#3e4a6b)")}>
+                            {t("inv.7c099bd6")}
+                          </a>
+                          {"."}
+                        </li>
+                        <li>
+                          {t("inv.1af27b77")}
+                          <a href={url(t("inv.f74ee32e"))} style={sx("color:var(--mg,#3e4a6b);overflow-wrap:anywhere")}>
+                            {t("inv.505aebb1")}
+                          </a>
+                          {"."}
+                        </li>
+                      </ul>
+                    </div>
+                  </details>
+                </>
+              )}
               <div style={sx(`display:${v.bFaqDisp};width:100%;margin-top:30px;padding:26px 20px 18px;background:#e7eef8;border:1px solid rgba(47,77,122,.35);box-sizing:border-box`)}>
                 <div style={sx("font-size:13px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;color:#3d5f92;text-align:center")}>
                   {t("inv.620770e9")}
@@ -1918,101 +2006,116 @@ export function InvitationView({ v, t }: ViewProps) {
                   {t("inv.a3238676")}
                 </div>
                 <div style={sx(`display:${v.bSecDisp};width:100%;font-size:12px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#3d5f92;text-align:left;display:none`)} />
-                <details style={sx(`display:${v.bFaqDisp};width:100%;border-bottom:1px solid rgba(47,77,122,.3)`)}>
-                  <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                    <span style={sx("font-size:23px;color:#2f4d7a;text-wrap:pretty")}>
-                      {t("inv.c1324943")}
-                    </span>
-                    <span style={sx("font-size:26px;color:#3d5f92;flex:none")}>
-                      {"+"}
-                    </span>
-                  </summary>
-                  <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#26385a;text-align:left;text-wrap:pretty")}>
-                    <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                      <li>
-                        <b>
-                          {t("inv.5fe13ea6")}
-                        </b>
-                        {t("inv.84993211")}
-                      </li>
-                      <li>
-                        <b>
-                          {t("inv.824481d9")}
-                        </b>
-                        {t("inv.92c748ab")}
-                      </li>
-                      <li>
-                        {t("inv.a117fd31")}
-                      </li>
-                    </ul>
-                  </div>
-                </details>
-                <details style={sx(`display:${v.bFaqDisp};width:100%;border-bottom:1px solid rgba(47,77,122,.3)`)}>
-                  <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                    <span style={sx("font-size:23px;color:#2f4d7a;text-wrap:pretty")}>
-                      {t("inv.b2ef19d8")}
-                    </span>
-                    <span style={sx("font-size:26px;color:#3d5f92;flex:none")}>
-                      {"+"}
-                    </span>
-                  </summary>
-                  <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#26385a;text-align:left;text-wrap:pretty")}>
-                    <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                      <li>
-                        {t("inv.b8629228")}
-                        <b>
-                          {t("inv.819a7e66")}
-                        </b>
-                        {t("inv.1f283149")}
-                      </li>
-                      <li>
-                        {t("inv.3bd11ed9")}
-                        <b>
-                          {t("inv.77a888e3")}
-                        </b>
-                        {"."}
-                      </li>
-                      <li>
-                        {t("inv.81c9de30")}
-                        <b>
-                          {t("inv.bf2c5fab")}
-                        </b>
-                        {t("inv.ddd30bd4")}
-                      </li>
-                      <li>
-                        {t("inv.f98bf5c7")}
-                      </li>
-                    </ul>
-                  </div>
-                </details>
-                <details style={sx(`display:${v.bFaqDisp};width:100%;border-bottom:1px solid rgba(47,77,122,.3)`)}>
-                  <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
-                    <span style={sx("font-size:23px;color:#2f4d7a;text-wrap:pretty")}>
-                      {t("inv.0a4bf101")}
-                    </span>
-                    <span style={sx("font-size:26px;color:#3d5f92;flex:none")}>
-                      {"+"}
-                    </span>
-                  </summary>
-                  <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#26385a;text-align:left;text-wrap:pretty")}>
-                    <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
-                      <li>
-                        {t("inv.afd9daf8")}
-                      </li>
-                      <li>
-                        <a href={url(t("inv.f10fccee"))} target={"_blank"} rel={"noopener"} style={sx("color:#2f4d7a")}>
-                          {t("inv.aa6a7e62")}
-                        </a>
-                        {"."}
-                      </li>
-                    </ul>
-                  </div>
-                </details>
+                {v.list?.("11 FAQ#5") ? (
+                  (v.list("11 FAQ#5") as { q: string; a: string[] }[]).map((it, it_i) => (
+                    <details key={it_i} style={sx(`display:${v.bFaqDisp};width:100%;border-bottom:1px solid rgba(47,77,122,.3)`)}>
+                      <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                        <span style={sx("font-size:23px;color:#2f4d7a;text-wrap:pretty")}>{it.q}</span>
+                        <span style={sx("font-size:26px;color:#3d5f92;flex:none")}>{"+"}</span>
+                      </summary>
+                      <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#26385a;text-align:left;text-wrap:pretty")}><ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>{it.a.map((l: string, l_i: number) => <li key={l_i}>{l}</li>)}</ul></div>
+                    </details>
+                  ))
+                ) : (
+                  <>
+                    <details style={sx(`display:${v.bFaqDisp};width:100%;border-bottom:1px solid rgba(47,77,122,.3)`)}>
+                      <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                        <span style={sx("font-size:23px;color:#2f4d7a;text-wrap:pretty")}>
+                          {t("inv.c1324943")}
+                        </span>
+                        <span style={sx("font-size:26px;color:#3d5f92;flex:none")}>
+                          {"+"}
+                        </span>
+                      </summary>
+                      <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#26385a;text-align:left;text-wrap:pretty")}>
+                        <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                          <li>
+                            <b>
+                              {t("inv.5fe13ea6")}
+                            </b>
+                            {t("inv.84993211")}
+                          </li>
+                          <li>
+                            <b>
+                              {t("inv.824481d9")}
+                            </b>
+                            {t("inv.92c748ab")}
+                          </li>
+                          <li>
+                            {t("inv.a117fd31")}
+                          </li>
+                        </ul>
+                      </div>
+                    </details>
+                    <details style={sx(`display:${v.bFaqDisp};width:100%;border-bottom:1px solid rgba(47,77,122,.3)`)}>
+                      <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                        <span style={sx("font-size:23px;color:#2f4d7a;text-wrap:pretty")}>
+                          {t("inv.b2ef19d8")}
+                        </span>
+                        <span style={sx("font-size:26px;color:#3d5f92;flex:none")}>
+                          {"+"}
+                        </span>
+                      </summary>
+                      <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#26385a;text-align:left;text-wrap:pretty")}>
+                        <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                          <li>
+                            {t("inv.b8629228")}
+                            <b>
+                              {t("inv.819a7e66")}
+                            </b>
+                            {t("inv.1f283149")}
+                          </li>
+                          <li>
+                            {t("inv.3bd11ed9")}
+                            <b>
+                              {t("inv.77a888e3")}
+                            </b>
+                            {"."}
+                          </li>
+                          <li>
+                            {t("inv.81c9de30")}
+                            <b>
+                              {t("inv.bf2c5fab")}
+                            </b>
+                            {t("inv.ddd30bd4")}
+                          </li>
+                          <li>
+                            {t("inv.f98bf5c7")}
+                          </li>
+                        </ul>
+                      </div>
+                    </details>
+                    <details style={sx(`display:${v.bFaqDisp};width:100%;border-bottom:1px solid rgba(47,77,122,.3)`)}>
+                      <summary style={sx("list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 2px;min-height:28px;text-align:left")}>
+                        <span style={sx("font-size:23px;color:#2f4d7a;text-wrap:pretty")}>
+                          {t("inv.0a4bf101")}
+                        </span>
+                        <span style={sx("font-size:26px;color:#3d5f92;flex:none")}>
+                          {"+"}
+                        </span>
+                      </summary>
+                      <div style={sx("padding:0 2px 22px;font-size:20px;line-height:1.5;color:#26385a;text-align:left;text-wrap:pretty")}>
+                        <ul style={sx("margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px")}>
+                          <li>
+                            {t("inv.afd9daf8")}
+                          </li>
+                          <li>
+                            <a href={url(t("inv.f10fccee"))} target={"_blank"} rel={"noopener"} style={sx("color:#2f4d7a")}>
+                              {t("inv.aa6a7e62")}
+                            </a>
+                            {"."}
+                          </li>
+                        </ul>
+                      </div>
+                    </details>
+                  </>
+                )}
               </div>
               {" "}
             </div>
             {" "}
           </section>
+          )}
           {" "}
           <section style={sx("position:relative;overflow:hidden;padding:96px 20px 80px;display:flex;flex-direction:column;align-items:center;gap:14px;background:var(--dg,#1f3224);color:#f3ecd6")}>
             <div style={sx("position:absolute;left:0px;top:0px;width:150px;height:0;transform:rotate(28deg);transform-origin:0 0;pointer-events:none")}>

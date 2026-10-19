@@ -1,4 +1,4 @@
-import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, splitDiet, textsFor, type TableShape } from '@wp/shared';
+import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, splitDiet, textsFor, type TableShape } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -91,7 +91,7 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
   const inv = InvitationContent.safeParse(content.invitation ?? {});
   return {
     wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
-    content: { ...(inv.success ? inv.data : {}), ...(music ? { audioUrl: music } : {}) },
+    content: { ...(inv.success ? inv.data : {}), ...(music ? { audioUrl: music } : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
     texts: textsFor('inv', (content.texts as Record<string, string> | undefined) ?? {}, slots),
     events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []) })),
     invitation,

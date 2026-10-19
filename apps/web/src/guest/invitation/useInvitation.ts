@@ -492,6 +492,12 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     textOp: p >= 2 ? 1 : 0,
     textRise: p >= 2 ? 'translateY(0)' : 'translateY(14px)',
     image: (id: string) => data.content.images?.[id] ?? '',
+    // Admin → Guest pages: sections switched off, and the couple's own accordion lists.
+    hide: (label: string) => !!data.content.hidden?.[label],
+    list: (key: string) => {
+      const items = (data.content.lists?.[key] ?? []).filter((it) => it.q.trim()).map((it) => ({ q: it.q.trim(), a: it.a.map((l) => l.trim()).filter(Boolean) }));
+      return items.length ? items : undefined;
+    },
   };
   return {
     v,

@@ -6,7 +6,8 @@ import { ApiError, pagesApi, type PagesData, type PagesPut } from '../../lib/api
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
-import { Wording } from './Wording';
+import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
+import { ORIGINAL, Wording } from './Wording';
 
 /**
  * Admin → Guest pages: one place for everything guests see. Pick a page (the invitation, each
@@ -261,9 +262,76 @@ function InvitationEditor({ doc, n, setInv, setTheme }: { doc: Doc; n: () => num
           ))}
         </Grid>
       </Section>
+      <Section n={n()} title="Sections" hint="Switch off any part of the invitation you don't need. Guests won't see it; your wording is kept if you switch it back on.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+          {INV_SECTIONS.filter((s) => !ALWAYS_ON.test(s)).map((s) => {
+            const on = !inv.hidden?.[s];
+            return (
+              <label key={s} className="flex items-center justify-between gap-3 py-2 border-b border-[#ece3cc] text-[15px] cursor-pointer">
+                <span>{sectionName(s)}</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={on}
+                  aria-label={`Show ${sectionName(s)}`}
+                  onChange={() => setInv({ hidden: { ...inv.hidden, [s]: on } })}
+                  className="w-[20px] h-[20px] accent-[#5d6b47]"
+                />
+              </label>
+            );
+          })}
+        </div>
+      </Section>
+      <Section n={n()} title="Questions & answers" hint="Write your own questions for any of the invitation's question lists, or keep the design's. One answer point per line.">
+        {INV_LISTS.map((l, i) => {
+          const own = inv.lists?.[l.key];
+          const label = `${sectionName(l.section)}${INV_LISTS.filter((x) => x.section === l.section).length > 1 ? `, list ${INV_LISTS.filter((x) => x.section === l.section).indexOf(l) + 1}` : ''}`;
+          const setList = (rows: { q: string; a: string[] }[] | null) => {
+            const next = { ...inv.lists };
+            if (rows) next[l.key] = rows;
+            else delete next[l.key];
+            setInv({ lists: next });
+          };
+          const fromDesign = () =>
+            l.defaults.map((d) => ({
+              q: d.q.map((k) => doc.texts[k] ?? ORIGINAL[k] ?? '').join('').trim(),
+              a: d.a.map((line) => line.map((k) => doc.texts[k] ?? ORIGINAL[k] ?? '').join('').trim()).filter(Boolean),
+            }));
+          return (
+            <div key={l.key} className={`flex flex-col gap-2 ${i ? 'pt-4 border-t border-[#ece3cc]' : ''}`}>
+              <div className="flex justify-between items-center gap-3 flex-wrap">
+                <strong className="font-semibold text-[15px]">{label}</strong>
+                <label className="flex items-center gap-2 text-[14px] cursor-pointer">
+                  <input type="checkbox" role="switch" checked={!!own} onChange={() => setList(own ? null : fromDesign())} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                  Use my own questions
+                </label>
+              </div>
+              {own ? (
+                <Rows
+                  rows={own.map((r) => ({ q: r.q, a: r.a.join('\n') }))}
+                  cols={[
+                    { key: 'q', label: 'Question' },
+                    { key: 'a', label: 'Answer (one point per line)', long: true },
+                  ]}
+                  blank={{ q: '', a: '' }}
+                  addLabel="+ Add a question"
+                  onChange={(rows) => setList(rows.map((r) => ({ q: r.q, a: r.a.split('\n') })))} // kept as typed; the invitation skips blanks
+                />
+              ) : (
+                <span className="text-[13px] text-[#7a7466]">Showing the design's {l.defaults.length} questions. Edit their words under "Every word", or switch on to write your own.</span>
+              )}
+            </div>
+          );
+        })}
+      </Section>
     </>
   );
 }
+
+/** "11 FAQ" → "FAQ" */
+const sectionName = (s: string) => s.replace(/^\d+\w?\s+/, '');
+/** The welcome and the RSVP are the invitation itself: they can't be switched off. */
+const ALWAYS_ON = /^\d+\w?\s+(welcome|rsvp)$/i;
 
 // ---------------------------------------------------------------- guides
 

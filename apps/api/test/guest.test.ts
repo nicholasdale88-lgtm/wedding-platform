@@ -68,6 +68,15 @@ describe('guest API', () => {
     expect((await opened())!.opened_at).toBe(firstOpen);
   });
 
+  it("custom lists for the second event never reach a guest who isn't invited to it", async () => {
+    const lists = { '11 FAQ#1': [{ q: 'Parking?', a: ['Yes'] }], '11 FAQ#5': [{ q: 'Second event question', a: ['Only for them'] }] };
+    await t.db.prepare(`UPDATE wedding SET content = json_set(content, '$.invitation.lists', json(?))`).bind(JSON.stringify(lists)).run();
+    const ella = (await (await get(`/invite?g=${await tokenOf('Ella Thompson')}`)).json()) as Payload; // wedding only
+    expect(Object.keys((ella.content as { lists: object }).lists)).toEqual(['11 FAQ#1']);
+    const both = (await (await get(`/invite?g=${await tokenOf('Margaret Bloor')}`)).json()) as Payload;
+    expect(Object.keys((both.content as { lists: object }).lists).sort()).toEqual(['11 FAQ#1', '11 FAQ#5']);
+  });
+
   it('a bad link still shows the invitation (with the name lookup)', async () => {
     const p = (await (await get('/invite?g=not-a-real-token-at-all')).json()) as Payload;
     expect(p.invitation).toBeNull();

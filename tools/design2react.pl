@@ -210,6 +210,102 @@ sub norm_text { my $s = shift; $s =~ s/\s+/ /g; return $s; }
 
 my %NO_WS_INSIDE = map { $_ => 1 } qw(select sc-raw-select svg g defs filter pattern ul ol table tbody thead tr option mask clipPath linearGradient radialGradient);
 
+# ---------------------------------------------------------------- sections and lists the couple can change
+# Every element with data-screen-label is a section the couple can switch off (v.hide(label)).
+# A run of 2+ <details> (an FAQ-style accordion) can be replaced by the couple's own questions
+# (v.list(key)), drawn with exactly the design's styles; the design's own items show otherwise.
+my $section = '';
+my %listCount;
+my @sections;     # labels, in order
+my @lists;        # { key, section, defaults: [ { q => [keys], a => [[keys]] } ] }
+
+sub elems { grep { exists $_->{tag} } @{ $_[0]{kids} } }
+sub attr { my ($n, $name) = @_; for (@{ $n->{attrs} }) { return $_->[1] if $_->[0] eq $name } return undef }
+sub keys_under {   # catalogue keys of the text inside a node, in order (same keys the view uses)
+  my ($n) = @_;
+  return () unless $n;
+  if (exists $n->{text}) {
+    my $t = norm_text(decode_entities($n->{text}));
+    return () if $t !~ /\S/ || $t =~ /\{\{/;
+    return () if $t =~ /^[\s\d.,:;!?()\-\x{2013}\x{2014}\x{b7}\x{2022}\/&+*#%]*$/ && $t !~ /\d/;
+    return (key_for($t));
+  }
+  return map { keys_under($_) } @{ $n->{kids} };
+}
+sub style_of { my $s = attr($_[0], 'style'); return defined $s ? ' style=' . style_value($s) : '' }
+
+sub emit_list {
+  my ($run, $ind, $parentTag) = @_;
+  my $pad = '  ' x $ind;
+  my $key = ($section || 'page') . '#' . ++$listCount{$section};
+  my $d = $run->[0];
+  # Which per-guest part this list belongs to (its own display hole, or an ancestor's), like the wording.
+  my ($part) = (attr($d, 'style') // '') =~ /display:\s*\{\{\s*(\w+)\s*\}\}/;
+  my %seenPart;
+  my @parts = grep { defined && !$seenPart{$_}++ } (@scopes, $part);
+  $scope{"list:$key"} = join(',', @parts) if @parts;
+  my ($sum) = grep { lc $_->{tag} eq 'summary' } elems($d);
+  my @spans = $sum ? elems($sum) : ();
+  my ($ans) = grep { lc $_->{tag} ne 'summary' } elems($d);
+  my ($ul) = $ans ? grep { lc $_->{tag} =~ /^(ul|ol)$/ } elems($ans) : ();
+  my $plus = $spans[1] ? join('', map { $_->{text} // '' } @{ $spans[1]{kids} }) : '+';
+  $plus =~ s/^\s+|\s+$//g;
+  push @lists, {
+    key => $key, section => $section,
+    defaults => [ map {
+      my ($s) = grep { lc $_->{tag} eq 'summary' } elems($_);
+      my ($a) = grep { lc $_->{tag} ne 'summary' } elems($_);
+      my ($l) = $a ? grep { lc $_->{tag} =~ /^(ul|ol)$/ } elems($a) : ();
+      my @q = $s ? keys_under((elems($s))[0]) : ();
+      my @a = $l ? map { [ keys_under($_) ] } elems($l) : ($a ? [ keys_under($a) ] : ());
+      { q => \@q, a => \@a }
+    } @$run ],
+  };
+  my $answer = $ul
+    ? "<" . lc($ul->{tag}) . style_of($ul) . ">{it.a.map((l: string, l_i: number) => <li key={l_i}>{l}</li>)}</" . lc($ul->{tag}) . ">"
+    : "{it.a.map((l: string, l_i: number) => <p key={l_i} style={{ margin: 0 }}>{l}</p>)}";
+  my $orig = join '', map { emit($_, $ind + 2, $parentTag) } @$run;
+  my $k = js_str($key);
+  return "$pad\{v.list?.($k) ? (\n"
+    . "$pad  (v.list($k) as { q: string; a: string[] }[]).map((it, it_i) => (\n"
+    . "$pad    <details key={it_i}" . style_of($d) . ">\n"
+    . "$pad      <summary" . ($sum ? style_of($sum) : '') . ">\n"
+    . "$pad        <span" . ($spans[0] ? style_of($spans[0]) : '') . ">{it.q}</span>\n"
+    . ($spans[1] ? "$pad        <span" . style_of($spans[1]) . ">{" . js_str($plus) . "}</span>\n" : '')
+    . "$pad      </summary>\n"
+    . "$pad      <div" . ($ans ? style_of($ans) : '') . ">$answer</div>\n"
+    . "$pad    </details>\n"
+    . "$pad  ))\n"
+    . "$pad) : (\n$pad  <>\n$orig$pad  </>\n$pad)}\n";
+}
+
+sub emit_kids {
+  my ($node, $ind, $tag) = @_;
+  my @kids = @{ $node->{kids} };
+  my $out = '';
+  for (my $i = 0; $i < @kids; $i++) {
+    my $k = $kids[$i];
+    if (exists $k->{tag} && lc $k->{tag} eq 'details') {
+      my @run = ($k);
+      my $j = $i + 1;
+      while ($j < @kids) {
+        my $n = $kids[$j];
+        if (exists $n->{text} && $n->{text} !~ /\S/) { $j++; next; }
+        last unless exists $n->{tag} && lc $n->{tag} eq 'details';
+        push @run, $n;
+        $j++;
+      }
+      if (@run >= 2) {
+        $out .= emit_list(\@run, $ind, $tag);
+        $i = $j - 1;
+        next;
+      }
+    }
+    $out .= emit($k, $ind, $tag);
+  }
+  return $out;
+}
+
 sub emit {
   my ($node, $ind, $parent) = @_;
   my $pad = '  ' x $ind;
@@ -282,9 +378,19 @@ sub emit {
     pop @scopes if $disp;
     return "$pad<$out_tag$attr_s />\n";
   }
-  my $inner = join '', map { emit($_, $ind + 1, $ltag) } @{ $node->{kids} };
+  my $label = defined $a{'data-screen-label'} ? decode_entities($a{'data-screen-label'}) : undef;
+  my $outer = $section;
+  if (defined $label) {
+    $section = $label;
+    push @sections, $label;
+  }
+  my $inner = emit_kids($node, $ind + 1, $ltag);
+  $section = $outer;
   pop @scopes if $disp;
-  return "$pad<$out_tag$attr_s>\n$inner$pad</$out_tag>\n";
+  my $html = "$pad<$out_tag$attr_s>\n$inner$pad</$out_tag>\n";
+  return $html unless defined $label;
+  # A section the couple can switch off in Admin → Guest pages.
+  return "$pad\{v.hide?.(" . js_str($label) . ") ? null : (\n$html$pad)}\n";
 }
 
 my $body = emit($root, 3, undef);
@@ -329,7 +435,22 @@ if ($scopefile) {   # which wording belongs to a per-guest part (the server leav
   print $so "/* AUTO-GENERATED by tools/design2react.pl from $rel: catalogue key -> the design value that shows or hides it. */\nexport const $name: Record<string, string> = {\n$body\n};\n";
   close $so;
 }
-printf STDERR "%s: %d text keys (%d per-guest), %d hover rules\n", $comp, scalar(keys %cat), scalar(keys %scope), scalar(@hover);
+{   # sections and lists the admin can change (keys only: the words live in the catalogue)
+  my $arr = sub { '[' . join(', ', map { js_str($_) } @{ $_[0] }) . ']' };
+  my $lists = join(",\n", map {
+    my $l = $_;
+    '  { key: ' . js_str($l->{key}) . ', section: ' . js_str($l->{section}) . ', defaults: ['
+      . join(', ', map { '{ q: ' . $arr->($_->{q}) . ', a: [' . join(', ', map { $arr->($_) } @{ $_->{a} }) . '] }' } @{ $l->{defaults} }) . '] }'
+  } @lists);
+  my %seen;
+  my $secs = join(', ', map { js_str($_) } grep { !$seen{$_}++ } @sections);
+  open my $mo, '>:raw', "$outdir/$comp.meta.ts" or die $!;
+  print $mo encode_utf8("/* AUTO-GENERATED by tools/design2react.pl from $rel: what the couple can switch off or replace. */\n"
+    . "export const SECTIONS: string[] = [$secs];\n"
+    . "export const LISTS: { key: string; section: string; defaults: { q: string[]; a: string[][] }[] }[] = [\n$lists\n];\n");
+  close $mo;
+}
+printf STDERR "%s: %d text keys (%d per-guest), %d hover rules, %d sections, %d lists\n", $comp, scalar(keys %cat), scalar(keys %scope), scalar(@hover), scalar(@sections), scalar(@lists);
 
 sub unjson {
   my $s = shift;

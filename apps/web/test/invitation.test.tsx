@@ -99,6 +99,18 @@ describe('invitation page', () => {
     expect(sent).toBeUndefined();
   });
 
+  it("the couple's own FAQ replaces the design's list; a switched-off section is gone", async () => {
+    const own = { lists: { '11 FAQ#1': [{ q: 'Is there parking?', a: ['Yes, free', ' '] }, { q: ' ', a: ['ignored'] }] } };
+    const { unmount } = renderAt(`/w/alex-and-blair?g=${TOKEN}`, payload({ content: { ...payload().content, ...own } }));
+    expect(await screen.findByText('Is there parking?')).toBeInTheDocument();
+    expect(screen.getByText('Yes, free')).toBeInTheDocument();
+    expect(screen.queryByText('ignored')).toBeNull(); // blank questions are skipped
+    unmount();
+    renderAt(`/w/alex-and-blair?g=${TOKEN}`, payload({ content: { ...payload().content, ...own, hidden: { '11 FAQ': true } } }));
+    await screen.findByText('Dear Robin Hart & Sam Hart');
+    expect(screen.queryByText('Is there parking?')).toBeNull();
+  });
+
   it('without a link it shows the name lookup', async () => {
     renderAt('/w/alex-and-blair', payload({ invitation: null }));
     expect(await screen.findByText('Find my invitation')).toBeInTheDocument();
