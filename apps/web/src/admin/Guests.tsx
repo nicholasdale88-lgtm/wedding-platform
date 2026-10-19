@@ -56,7 +56,7 @@ export function Guests() {
   const one = params.get('show') === 'event' && !!focusEv;
   const events = one ? [focusEv!] : (data?.events ?? []);
   const guests = (data?.guests ?? []).filter((g) => !one || g.invited.includes(focusEv!.key));
-  const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]);
   const quick = quickFilters(events);
   const drops = dropdowns(events);
   const anyFilter = FILTER_KEYS.some((k) => k !== 'sort' && k !== 'filter' && state[k]) || state.filter !== 'all';
