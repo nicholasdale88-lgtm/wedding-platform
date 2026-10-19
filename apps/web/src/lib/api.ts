@@ -392,6 +392,7 @@ export const plannerApi = {
   setRole: (wid: string, personId: string, role: string) => send<{ ok: true; members: PartyMember[] }>('PUT', `${w(wid)}/planner/people/${personId}/role`, { role }),
   saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist' | 'budget' | 'vendors', scope: string, data: T, version: number) =>
     send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}${scope ? `/${encodeURIComponent(scope)}` : ''}`, data, version),
+  ask: (wid: string, question: string, history: { role: 'user' | 'assistant'; text: string }[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/ask`, { question, history }),
   doc: <T>(wid: string, kind: 'budget' | 'vendors') => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
   searchVendors: (wid: string, category: string, km: number) =>
     request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),

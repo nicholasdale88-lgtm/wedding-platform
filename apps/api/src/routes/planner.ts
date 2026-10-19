@@ -169,6 +169,64 @@ export function plannerRoutes() {
     return c.json({ venue: { event: ev.name, lat: lat0, lon: lon0 }, km, category: cat.label, results: found });
   });
 
+  /**
+   * The planning assistant: answers from this wedding's own details (dates, numbers, budget, vendors,
+   * the party), on Workers AI's free allowance; at most 40 questions a day per wedding.
+   */
+  app.post('/ask', writer, async (c) => {
+    const body = z
+      .object({ question: z.string().trim().min(1).max(800), history: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().max(4000) })).max(8).default([]) })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Ask a question (up to 800 characters).');
+    if (!c.env.AI) return err(c, 400, 'off', "The planning assistant isn't switched on for this site yet.");
+    if (!(await allow(c.env.DB, `ask:${wid(c)}`, 40, 86_400_000))) return err(c, 429, 'slow_down', "That's today's questions used up. Ask again tomorrow.");
+    const db = c.env.DB;
+    const w = await db.prepare(`SELECT name1, name2, timezone FROM wedding WHERE id = ?`).bind(wid(c)).first<{ name1: string; name2: string; timezone: string }>();
+    const { results: events } = await db
+      .prepare(
+        `SELECT e.key, e.name, e.starts_at, e.venue,
+                (SELECT COUNT(*) FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL WHERE ie.event_id = e.id) AS invited,
+                (SELECT COUNT(*) FROM rsvp r WHERE r.event_id = e.id AND r.attending = 1) AS yes,
+                (SELECT COALESCE(SUM(r.count), 0) FROM rsvp r WHERE r.event_id = e.id AND r.attending = 1) AS coming
+           FROM event e WHERE e.wedding_id = ? AND e.deleted_at IS NULL ORDER BY e.sort`,
+      )
+      .bind(wid(c))
+      .all<{ key: string; name: string; starts_at: string; venue: string | null; invited: number; yes: number; coming: number }>();
+    const budget = (await readDoc(db, wid(c), 'budget', '')).data;
+    const vendors = (await readDoc(db, wid(c), 'vendors', '')).data.list;
+    const crew = await members(db, wid(c));
+    const spend = budget.lines.reduce((a, l) => a + (l.quote || l.estimate), 0);
+    const paid = budget.lines.reduce((a, l) => a + l.paid, 0);
+    const facts = [
+      `Today: ${new Date().toISOString().slice(0, 10)}. Couple: ${w?.name1} and ${w?.name2}. Timezone ${w?.timezone}.`,
+      ...events.map((e) => `Event "${e.name}" on ${e.starts_at.slice(0, 16).replace('T', ' ')}${e.venue ? ` at ${e.venue}` : ''}: ${e.invited} invitations, ${e.yes} replied yes (${e.coming} people coming).`),
+      budget.total ? `Budget: $${budget.total} total, $${spend} committed, $${paid} paid.` : 'No budget entered yet.',
+      ...budget.lines.filter((l) => (l.quote || l.estimate) > l.paid && l.due).slice(0, 8).map((l) => `Owing: ${l.item || l.category} $${(l.quote || l.estimate) - l.paid} due ${l.due}.`),
+      vendors.length ? `Vendors: ${vendors.map((v) => `${v.name} (${v.category || 'vendor'}, ${v.status})`).join('; ')}.` : 'No vendors recorded yet.',
+      crew.length ? `Wedding party: ${crew.map((m) => `${m.name} (${m.role})`).join('; ')}.` : 'No wedding party recorded yet.',
+    ].join('\n');
+    const system =
+      'You are a warm, practical wedding planning assistant for an Australian couple using their wedding app. Use Australian spelling. ' +
+      'Be concise: short paragraphs or a short list, under 220 words unless asked for a draft (vows, speeches, wording). ' +
+      'Use the facts below about their wedding; never invent bookings, names, prices or dates that are not there, and say when something is missing. ' +
+      'Australian law: the Notice of Intended Marriage must reach the celebrant at least one month (and no more than 18 months) before the wedding. ' +
+      'When useful, point them to the app: Guest planning, Wedding party, SMS, Photos, Setup, Budget, Vendors.\n\nFacts:\n' +
+      facts;
+    try {
+      const out = (await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [{ role: 'system', content: system }, ...body.data.history.map((h) => ({ role: h.role, content: h.text })), { role: 'user', content: body.data.question }],
+        max_tokens: 700,
+        temperature: 0.4,
+      })) as { response?: string };
+      const answer = (out.response ?? '').trim();
+      if (!answer) throw new Error('empty');
+      return c.json({ answer });
+    } catch {
+      return err(c, 502, 'unavailable', 'The assistant is busy right now. Please try again in a minute.');
+    }
+  });
+
   /** A planning document. Saving needs the version you loaded (If-Match): two people never overwrite each other. */
   app.get('/doc/:kind/:scope?', async (c) => {
     const kind = c.req.param('kind');

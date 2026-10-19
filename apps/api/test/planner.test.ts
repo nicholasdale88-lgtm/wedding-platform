@@ -84,6 +84,22 @@ describe('planner: wedding party', () => {
     expect(((await budget.json()) as { data: { lines: { quote: number }[] } }).data.lines[0]!.quote).toBe(0); // defaults filled in
   });
 
+  it("the assistant answers from the wedding's own facts, and says when it is off", async () => {
+    expect(((await (await call('/ask', { method: 'POST', body: JSON.stringify({ question: 'What next?' }) })).json()) as { error: { code: string } }).error.code).toBe('off');
+    const seen: { input?: { messages: { role: string; content: string }[] } } = {};
+    env.AI = {
+      run: async (_m: string, input: unknown) => {
+        seen.input = input as typeof seen.input;
+        return { response: 'Book your celebrant and lodge the NOI.' };
+      },
+    };
+    const r = (await (await call('/ask', { method: 'POST', body: JSON.stringify({ question: 'What next?' }) })).json()) as { answer: string };
+    expect(r.answer).toBe('Book your celebrant and lodge the NOI.');
+    const system = seen.input!.messages[0]!.content;
+    expect(system).toMatch(/invitations, \d+ replied yes/); // real numbers from this wedding
+    expect(seen.input!.messages.at(-1)).toEqual({ role: 'user', content: 'What next?' });
+  });
+
   it('a stale save is refused with the current version (two people never overwrite each other)', async () => {
     await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [{ text: 'Breakfast' }], p2: [] }) });
     const stale = await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [], p2: [] }) });

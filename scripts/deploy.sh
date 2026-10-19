@@ -47,6 +47,17 @@ else
 fi
 echo "::endgroup::"
 
+echo "::group::2b. Planning assistant"
+# Workers AI (free daily allowance; no card). Only bound when the token can use it, so a token without
+# the "Workers AI" permission never breaks a deploy: the assistant just says it's off.
+if cf "/ai/models/search?per_page=1" >/dev/null 2>&1; then
+  printf '\n[ai]\nbinding = "AI"\n' >> "$API/wrangler.toml"
+  echo "Workers AI ready (planning assistant on)"
+else
+  echo "::warning::Workers AI isn't available to this API token. Add the 'Workers AI' permission to switch the planning assistant on (free within the daily allowance)."
+fi
+echo "::endgroup::"
+
 echo "::group::3. Seed"
 WEDDINGS=$(wr d1 execute "$DB" --remote --json --command "SELECT COUNT(*) AS n FROM wedding" | jq -r '.[0].results[0].n')
 if [ "$WEDDINGS" = "0" ]; then

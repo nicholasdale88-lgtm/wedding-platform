@@ -31,6 +31,8 @@ export interface Env {
   DROPBOX_APP_SECRET?: string;
   MS_CLIENT_ID?: string;
   MS_CLIENT_SECRET?: string;
+  /** Workers AI, for the planning assistant (bound by the deploy only when the account allows it). */
+  AI?: { run(model: string, input: unknown): Promise<unknown> };
 }
 
 /** Real dependencies for the SMS engine. Tests build their own. */

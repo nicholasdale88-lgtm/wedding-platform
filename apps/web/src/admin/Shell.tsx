@@ -78,6 +78,7 @@ export const ACCOUNT_TABS = [
   { key: 'messages', label: 'Messages' },
   { key: 'budget', label: 'Budget' },
   { key: 'vendors', label: 'Vendors' },
+  { key: 'assistant', label: 'Planning assistant' },
   { key: 'texts', label: 'SMS setup' },
 ] as const;
 export const EVENT_TABS = [
