@@ -294,19 +294,22 @@ async function idempotencyKey(ids: string[]): Promise<string> {
 
 export interface Estimate {
   count: number;
+  /** Who it would go to (invitation ids). */
+  ids: string[];
   parts: number;
   costCents: number;
   sample: string | null;
   quiet: boolean;
 }
 
-/** What a send would cost right now. Shown before every manual send. */
-export async function estimate(d: EngineDeps, weddingId: string, campaignId: string, only?: string[]): Promise<Estimate> {
-  const { w, c, events, list } = await prepare(d, weddingId, campaignId, only);
+/** What a send would cost right now. Shown before every manual send, and for a draft (unsaved wording or audience). */
+export async function estimate(d: EngineDeps, weddingId: string, campaignId: string, only?: string[], draft?: Draft): Promise<Estimate> {
+  const { w, c, events, list } = await prepare(d, weddingId, campaignId, only, draft);
   const rendered = list.map((r) => renderFor(c.body, w, events, r, { footer: true }));
   const parts = rendered.reduce((n, m) => n + m.parts, 0);
   return {
     count: list.length,
+    ids: list.map((r) => r.id),
     parts,
     costCents: costCents(parts, w.rateX100),
     sample: rendered[0]?.body ?? null,
@@ -323,11 +326,14 @@ export async function sendNow(d: EngineDeps, weddingId: string, campaignId: stri
   return { queued, ...res };
 }
 
-async function prepare(d: EngineDeps, weddingId: string, campaignId: string, only?: string[]) {
+export type Draft = Partial<Pick<Campaign, 'body' | 'audience' | 'excluded'>>;
+
+async function prepare(d: EngineDeps, weddingId: string, campaignId: string, only?: string[], draft: Draft = {}) {
   const w = await d.store.wedding(weddingId);
   if (!w) throw new Error('Wedding not found');
-  const c = (await d.store.campaigns(weddingId)).find((x) => x.id === campaignId);
-  if (!c) throw new Error('Message not found');
+  const saved = (await d.store.campaigns(weddingId)).find((x) => x.id === campaignId);
+  if (!saved) throw new Error('Message not found');
+  const c: Campaign = { ...saved, ...draft };
   const { events, recipients } = await d.store.audience(weddingId);
   const invitedBefore = await d.store.invitedIds(weddingId);
   const list = only

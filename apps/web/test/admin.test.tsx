@@ -251,3 +251,64 @@ describe('guest pages tab', () => {
     expect(screen.queryByDisplayValue('Hello friend')).toBeNull();
   });
 });
+
+describe('SMS messages tab', () => {
+  const camp = (over: Record<string, unknown>) => ({
+    key: 'k', body: 'Hi {first}', mode: 'auto', enabled: true, trigger: 'invitation_created', audience: { all: true }, audienceLabel: 'Everyone with a mobile',
+    excluded: [], custom: false, version: 2, count: 3, slots: [], ...over,
+  });
+  const texts = {
+    live: true, sender: '+61400000999', paused: false, adminMobile: '+61400000001', timezone: 'Australia/Sydney', quiet: { start: 8, end: 20 },
+    events: [{ key: 'wedding', name: 'The wedding' }],
+    audiences: [{ key: '{"all":true}', label: 'Everyone with a mobile', audience: { all: true } }],
+    presets: [],
+    people: [{ id: 'g1', name: 'Robin Hart', phone: true, optOut: false }, { id: 'g2', name: 'Jo Banks', phone: false, optOut: false }],
+    campaigns: [
+      camp({ id: 'c1', name: 'Invitation' }),
+      camp({ id: 'c2', name: 'Reminder', mode: 'dates', trigger: null, slots: [{ id: 's1', sendAt: '2027-06-18T00:00:00.000Z', status: 'pending', error: null }] }),
+    ],
+    inbox: [{ id: 'i1', at: '2026-10-02T08:00:00.000Z', name: 'Robin Hart', body: 'Yes!', action: 'Marked attending', handled: true }],
+    history: [],
+  };
+  const estimate = { count: 1, ids: ['g1'], parts: 1, costCents: 2, sample: 'Hi Robin', quiet: false };
+
+  it('shows autopilot count, the next send and replies', async () => {
+    mockApi({ '/api/a/w/w1/texts': () => json(200, texts) });
+    renderAt('/admin/w1/texts');
+    expect(await screen.findByRole('heading', { name: '2 messages on autopilot' })).toBeInTheDocument();
+    expect(screen.getByText(/Next: Reminder, 18 Jun/)).toBeInTheDocument();
+    expect(screen.getByText('“Yes!”')).toBeInTheDocument();
+    expect(screen.getByText('Marked attending')).toBeInTheDocument();
+  });
+
+  it('the autopilot switch saves with the version', async () => {
+    let patch: { body: unknown; ifMatch: string | null } | null = null;
+    mockApi({
+      '/api/a/w/w1/texts': () => json(200, texts),
+      '/api/a/w/w1/texts/c1': (init) => {
+        patch = { body: JSON.parse(String(init!.body)), ifMatch: new Headers(init!.headers).get('If-Match') };
+        return json(200, { ok: true, version: 3 });
+      },
+    });
+    renderAt('/admin/w1/texts');
+    await userEvent.click(await screen.findByRole('switch', { name: 'Autopilot: Invitation' }));
+    await waitFor(() => expect(patch).toEqual({ body: { enabled: false }, ifMatch: '2' }));
+  });
+
+  it('opening a message shows the live phone preview; Send now needs a second tap', async () => {
+    const calls = mockApi({
+      '/api/a/w/w1/texts': () => json(200, texts),
+      '/api/a/w/w1/texts/c1/estimate': () => json(200, estimate),
+      '/api/a/w/w1/texts/c1/send': () => json(200, { queued: 1, sent: 1, failed: 0 }),
+    });
+    renderAt('/admin/w1/texts');
+    await userEvent.click(await screen.findByRole('button', { name: /^When invited/ }));
+    expect(await screen.findByText('Hi Robin')).toBeInTheDocument();
+    expect(screen.getByText('About $0.02')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Send now' }));
+    expect(calls.some((c) => c.path.endsWith('/send'))).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Tap again to send to 1 now' }));
+    await waitFor(() => expect(calls.some((c) => c.path === '/api/a/w/w1/texts/c1/send')).toBe(true));
+    expect(await screen.findByText('Sent to 1 guest')).toBeInTheDocument();
+  });
+});

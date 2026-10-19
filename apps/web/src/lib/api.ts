@@ -166,3 +166,64 @@ export const pagesApi = {
   get: (wid: string) => request<PagesData>(`${w(wid)}/pages`),
   save: (wid: string, version: number, body: PagesPut) => send<PagesData>('PUT', `${w(wid)}/pages`, body, version),
 };
+
+// ---------------------------------------------------------------- SMS messages
+
+export type Audience = Record<string, unknown>;
+export interface Campaign {
+  id: string;
+  key: string;
+  name: string;
+  body: string;
+  mode: 'auto' | 'dates' | 'manual';
+  enabled: boolean;
+  trigger: 'invitation_created' | 'rsvp_changed' | null;
+  audience: Audience;
+  audienceLabel: string;
+  excluded: string[];
+  custom: boolean;
+  version: number;
+  count: number;
+  slots: { id: string; sendAt: string; status: string; error: string | null }[];
+}
+export interface TextsData {
+  live: boolean;
+  sender: string | null;
+  paused: boolean;
+  adminMobile: string | null;
+  timezone: string;
+  quiet: { start: number; end: number };
+  events: { key: string; name: string }[];
+  audiences: { key: string; label: string; audience: Audience }[];
+  presets: { k: string; label: string; text: string }[];
+  people: { id: string; name: string; phone: boolean; optOut: boolean }[];
+  campaigns: Campaign[];
+  inbox: { id: string; at: string; name: string; body: string; action: string; handled: boolean }[];
+  history: { at: string; name: string; count: number; sent: number; failed: number; sample: string }[];
+}
+export interface Estimate {
+  count: number;
+  ids: string[];
+  parts: number;
+  costCents: number;
+  sample: string | null;
+  quiet: boolean;
+}
+export interface SendResult {
+  queued: number;
+  sent: number;
+  failed: number;
+  stopped?: { reason: string; error: string };
+}
+export type CampaignPatch = Partial<{ name: string; body: string; enabled: boolean; audience: Audience; excluded: string[]; dates: string[] }>;
+
+export const textsApi = {
+  get: (wid: string) => request<TextsData>(`${w(wid)}/texts`),
+  add: (wid: string, name: string, audience: Audience) => send<{ id: string }>('POST', `${w(wid)}/texts`, { name, audience }),
+  patch: (wid: string, c: Pick<Campaign, 'id' | 'version'>, patch: CampaignPatch) => send<{ ok: true; version: number }>('PATCH', `${w(wid)}/texts/${c.id}`, patch, c.version),
+  remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/texts/${id}`),
+  estimate: (wid: string, id: string, draft: Partial<{ body: string; audience: Audience; excluded: string[]; only: string[] }> = {}) =>
+    send<Estimate>('POST', `${w(wid)}/texts/${id}/estimate`, draft),
+  sendNow: (wid: string, id: string, only?: string[]) => send<SendResult>('POST', `${w(wid)}/texts/${id}/send`, only ? { only } : {}),
+  test: (wid: string, body: string) => send<SendResult>('POST', `${w(wid)}/texts/test`, { body }),
+};

@@ -57,3 +57,13 @@ export const shortLabel = (name: string) => {
   const n = name.replace(/^the\s+/i, '');
   return n.charAt(0).toUpperCase() + n.slice(1);
 };
+
+/** "7:12pm" */
+export const fmtTime = (iso: string, tz: string) => time(local(iso, tz));
+
+/** For a date-and-time box: "2027-06-18T10:00" in the wedding's timezone. */
+export function toLocalInput(iso: string, tz: string): string {
+  const l = local(iso, tz);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${l.year}-${p(l.month)}-${p(l.day)}T${p(l.hour)}:${p(l.minute)}`;
+}
