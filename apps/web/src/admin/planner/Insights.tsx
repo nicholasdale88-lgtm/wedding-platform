@@ -267,6 +267,40 @@ export function Insights() {
 
       {data.chase.length > 0 && <Chase rows={data.chase} tz={tz} />}
 
+      {data.byMessage.length > 0 && (
+        <section aria-label="How your texts did" className={card}>
+          <H2>How your texts did</H2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-[14px] min-w-[520px]">
+              <thead>
+                <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[#5b6a52]">
+                  <th className="py-1 font-semibold">Message</th>
+                  <th className="py-1 font-semibold text-right">Sent</th>
+                  <th className="py-1 font-semibold text-right">Arrived</th>
+                  <th className="py-1 font-semibold text-right">Replied within 3 days</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.byMessage.map((m) => (
+                  <tr key={m.name} className="border-t border-[#ece3cd]">
+                    <td className="py-2">{m.name}</td>
+                    <td className="py-2 text-right tabular-nums">{m.sent}</td>
+                    <td className="py-2 text-right tabular-nums">
+                      {m.delivered}
+                      {m.failed ? <span className="text-[#7a4a37]"> · {m.failed} failed</span> : null}
+                    </td>
+                    <td className="py-2 text-right tabular-nums">
+                      {m.replied} <span className="text-[#7a7466]">({pct(m.replied, m.sent)}%)</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="m-0 text-[12px] text-[#7a7466]">“Arrived” is what the phone network confirmed; some networks don’t confirm, so it can read low.</p>
+        </section>
+      )}
+
       {budget.lines.some((l) => l.quote && l.estimate) && (
         <section aria-label="Quotes against estimates" className={card}>
           <H2>Quotes against estimates</H2>

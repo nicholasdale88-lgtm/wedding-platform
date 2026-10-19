@@ -583,6 +583,8 @@ export interface InsightsData {
   repliesByDay: { day: string; n: number }[];
   groups: { group: string; invited: number; yes: number; no: number }[];
   texts: { sent: number; parts: number; failed: number };
+  /** Each message: sent, arrived, failed, and guests who replied within three days of it. */
+  byMessage: { name: string; sent: number; delivered: number; failed: number; replied: number }[];
   catering: { people: number; withNeeds: number; diets: [string, number][]; mains: [string, number][] };
   seating: { tables: number; seats: number; seated: number };
   shuttles: { runs: number; capacity: number; booked: number };

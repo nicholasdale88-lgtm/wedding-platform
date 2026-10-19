@@ -19,7 +19,7 @@ export function insightsRoutes() {
   app.get('/', async (c) => {
     const db = c.env.DB;
     const w = wid(c);
-    const [events, perEvent, opened, byDay, groups, sms, photos, board, songs, emails, party] = await db.batch([
+    const [events, perEvent, opened, byDay, groups, sms, photos, board, songs, emails, party, byCampaign] = await db.batch([
       db.prepare(`SELECT id, key, name, starts_at FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w),
       db.prepare(
         `SELECT ie.event_id,
@@ -49,6 +49,14 @@ export function insightsRoutes() {
       db.prepare(`SELECT COUNT(*) AS n FROM song_request WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n, SUM(kind = 'vendor') AS vendors, SUM(kind = 'guest') AS guests FROM inbox_email WHERE wedding_id = ?`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND p.party_role != ''`).bind(w),
+      // Each message: how many went, arrived, and how many guests replied within three days of getting it.
+      db.prepare(
+        `SELECT c.name, COUNT(o.id) AS sent, SUM(o.status = 'delivered') AS delivered, SUM(o.status = 'failed') AS failed,
+                SUM(EXISTS (SELECT 1 FROM rsvp r WHERE r.invitation_id = o.invitation_id AND r.attending IS NOT NULL
+                              AND r.updated_at >= o.sent_at AND r.updated_at <= strftime('%Y-%m-%dT%H:%M:%fZ', o.sent_at, '+3 days'))) AS replied
+           FROM sms_out o JOIN campaign c ON c.id = o.campaign_id
+          WHERE o.wedding_id = ? AND o.status IN ('sent', 'delivered', 'failed') GROUP BY c.id ORDER BY MIN(o.sent_at)`,
+      ).bind(w),
     ]);
     // The first event (the wedding): catering, seating and shuttles.
     const firstEv = (events!.results as { id: string; key: string }[])[0];
@@ -97,6 +105,13 @@ export function insightsRoutes() {
       repliesByDay: (byDay!.results as { day: string; n: number }[]).map((r) => ({ day: r.day, n: n(r.n) })),
       groups: (groups!.results as { grp: string; invited: number; yes: number; no: number }[]).map((g) => ({ group: g.grp, invited: n(g.invited), yes: n(g.yes), no: n(g.no) })),
       texts: { sent: n(one(sms).texts), parts: n(one(sms).parts), failed: n(one(sms).failed) },
+      byMessage: (byCampaign!.results as { name: string; sent: number; delivered: number | null; failed: number | null; replied: number | null }[]).map((r) => ({
+        name: r.name,
+        sent: n(r.sent),
+        delivered: n(r.delivered),
+        failed: n(r.failed),
+        replied: n(r.replied),
+      })),
       catering: { people: coming.length, withNeeds: coming.filter((p) => p.diet.trim()).length, diets: [...dietCounts.entries()].sort((a, b) => b[1] - a[1]), mains: [...mains.entries()].sort((a, b) => b[1] - a[1]) },
       seating: { tables: n(one(extra?.[1]).tables), seats: n(one(extra?.[1]).seats), seated: n(one(extra?.[2]).n) },
       shuttles: { runs: runs.length, capacity: runs.reduce((a, s) => a + s.seats, 0), booked: n(one(extra?.[4]).n) },
