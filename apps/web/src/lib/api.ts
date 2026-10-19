@@ -293,6 +293,8 @@ export interface SeatTable {
   x: number;
   y: number;
   seats: number;
+  /** Long and head tables: 2 both sides, 1 the top/left side only, -1 the bottom/right side only. */
+  sides?: number;
 }
 export interface SeatArea {
   label: string;

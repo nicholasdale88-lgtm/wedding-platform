@@ -1,4 +1,4 @@
-import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, PARTY_ROLES, PartySetup, sideOf, splitDiet, textsFor, type TableShape } from '@wp/shared';
+import { dateIn, dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, PARTY_ROLES, PartySetup, sideOf, splitDiet, textsFor, type TableShape } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -23,7 +23,7 @@ const ALBUM_BYTES = 9 * 1024 ** 3;
 
 type GEnv = { Bindings: Env };
 type C = Context<GEnv>;
-const err = (c: C, status: 400 | 404 | 413 | 415 | 429 | 502 | 503, code: string, message: string) => c.json({ error: { code, message } }, status);
+const err = (c: C, status: 400 | 403 | 404 | 413 | 415 | 429 | 502 | 503, code: string, message: string) => c.json({ error: { code, message } }, status);
 const json = <T>(s: string | null | undefined, fallback: T): T => {
   try {
     return s ? (JSON.parse(s) as T) : fallback;
@@ -444,6 +444,17 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       .all<{ id: string; key: string }>();
     const answered = events.filter((e) => r.events[e.key]); // events they're not invited to are ignored
     if (!answered.length) return err(c, 400, 'invalid', 'Please answer for each event.');
+    // After the closing date a reply can't be changed online (a first, late reply still counts).
+    const inv0 = InvitationContent.safeParse(json<Record<string, unknown>>(w.content, {}).invitation ?? {});
+    const close = inv0.success ? inv0.data.rsvpClose : '';
+    if (close && dateIn(w.timezone) > close) {
+      const replied = await db.prepare(`SELECT 1 FROM rsvp WHERE invitation_id = ? AND attending IS NOT NULL LIMIT 1`).bind(inv.id).first();
+      if (replied) {
+        const email = inv0.success ? inv0.data.rsvpEmail?.trim() : '';
+        const day = new Date(`${close}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'long' });
+        return err(c, 403, 'closed', `Replies closed on ${day}. To change yours, please email us${email ? ` at ${email}` : ''}.`);
+      }
+    }
     const count = Math.max(1, Math.min(inv.seats_held, r.count ?? 1));
     const now = new Date().toISOString();
     const stmts: D1PreparedStatement[] = answered.map((e, i) => {

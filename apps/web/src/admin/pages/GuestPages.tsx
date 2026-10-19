@@ -297,9 +297,10 @@ export function GuestPages() {
 
 // ---------------------------------------------------------------- invitation
 
-const INV_FIELDS: { key: keyof InvitationContent & string; label: string; ph?: string; hint?: string }[] = [
+const INV_FIELDS: { key: keyof InvitationContent & string; label: string; ph?: string; hint?: string; type?: 'date' }[] = [
   { key: 'initials', label: 'Initials on the seal and sign-off', ph: 'A & B' },
   { key: 'rsvpBy', label: 'Reply-by line', ph: 'Kindly reply by 1 August' },
+  { key: 'rsvpClose', label: 'Replies close on', type: 'date', hint: 'Guests can change their reply online until the end of this day. After it, they’re asked to email you (the backup RSVP email).' },
   { key: 'rsvpEmail', label: 'Backup RSVP email', ph: 'you@example.com' },
   { key: 'directionsUrl', label: 'Directions link', ph: 'https://maps.google.com/…' },
   { key: 'registryUrl', label: 'Registry link', ph: 'https://…' },
@@ -354,7 +355,7 @@ function InvitationEditor({
         )}
         <Grid>
           {INV_FIELDS.map((f) => (
-            <TextField key={f.key} label={f.label} value={String(inv[f.key] ?? '')} placeholder={f.ph} hint={f.hint} onChange={(v) => setInv({ [f.key]: v })} />
+            <TextField key={f.key} label={f.label} value={String(inv[f.key] ?? '')} placeholder={f.ph} hint={f.hint} type={f.type} onChange={(v) => setInv({ [f.key]: v })} />
           ))}
         </Grid>
       </Section>

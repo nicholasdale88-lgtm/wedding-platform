@@ -470,6 +470,20 @@ export function Seating() {
                   </Label>
                 )}
               </div>
+              {(selTable.shape === 'long' || selTable.shape === 'head') && (
+                <Label text="Seats on">
+                  <select
+                    aria-label="Seats on"
+                    value={String(selTable.shape === 'head' && (selTable.sides ?? 2) === 2 ? 1 : (selTable.sides ?? 2))}
+                    onChange={(e) => setTable(selTable.id, { sides: Number(e.target.value) })}
+                    className={inputCls}
+                  >
+                    {selTable.shape === 'long' && <option value="2">Both sides</option>}
+                    <option value="1">{selTable.dir === 'v' ? 'The left side only' : 'The top side only'} (facing {selTable.dir === 'v' ? 'right' : 'down'})</option>
+                    <option value="-1">{selTable.dir === 'v' ? 'The right side only' : 'The bottom side only'} (facing {selTable.dir === 'v' ? 'left' : 'up'})</option>
+                  </select>
+                </Label>
+              )}
               {STRETCHES(selTable.shape) && (
                 <Label text={`Length · ${selTable.len}%`}>
                   <input type="range" min={10} max={90} value={selTable.len} onChange={(e) => setTable(selTable.id, { len: Number(e.target.value) })} />

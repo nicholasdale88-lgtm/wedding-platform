@@ -10,7 +10,7 @@ export const SHAPE_LABEL: Record<TableShape, string> = {
   round: 'Round',
   oval: 'Oval',
   square: 'Square',
-  long: 'Long banquet (both sides)',
+  long: 'Long banquet',
   head: 'Head table (one side)',
   sweetheart: 'Sweetheart (two)',
 };
@@ -69,7 +69,7 @@ export function clampTable<T extends TableGeom>(t: T, aspect: string): T {
  * Round/oval: evenly round the edge. Square: round all four sides. Long: both long sides.
  * Head and sweetheart: one side only, facing the room.
  */
-export function seatSpots(t: Pick<TableGeom, 'shape' | 'dir'>, seats: number): { x: number; y: number }[] {
+export function seatSpots(t: Pick<TableGeom, 'shape' | 'dir'> & { sides?: number }, seats: number): { x: number; y: number }[] {
   const n = Math.max(0, Math.min(60, Math.floor(seats)));
   const along = (count: number, fixed: number, vertical: boolean) =>
     Array.from({ length: count }, (_, i) => {
@@ -79,12 +79,15 @@ export function seatSpots(t: Pick<TableGeom, 'shape' | 'dir'>, seats: number): {
   const v = t.dir === 'v';
   switch (t.shape) {
     case 'long': {
+      // One side only (a banquet facing the stage), or both.
+      if (t.sides === 1) return along(n, v ? -22 : -38, v);
+      if (t.sides === -1) return along(n, v ? 122 : 138, v);
       const a = Math.ceil(n / 2);
       return [...along(a, v ? -22 : -38, v), ...along(n - a, v ? 122 : 138, v)];
     }
     case 'head':
     case 'sweetheart':
-      return along(n, v ? -22 : -38, v);
+      return t.sides === -1 ? along(n, v ? 122 : 138, v) : along(n, v ? -22 : -38, v);
     case 'square': {
       const side = [0, 0, 0, 0].map((_, i) => Math.floor(n / 4) + (i < n % 4 ? 1 : 0));
       const [top = 0, right = 0, bottom = 0, left = 0] = side;

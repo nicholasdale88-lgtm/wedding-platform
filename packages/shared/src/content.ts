@@ -35,6 +35,8 @@ export const InvitationContent = z
     audioUrl: z.string().max(500),
     /** Backup RSVP by email. */
     rsvpEmail: z.string().max(200),
+    /** The last day replies can be changed online ("2027-08-01"); after it, guests are asked to email. */
+    rsvpClose: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
     seal: z.enum(['Sandstone', 'Dusty rose', 'Daphne blue']),
     /** Photos in the design's picture slots, by slot id (e.g. "lookout"). */
     images: z.record(z.string().max(500)),

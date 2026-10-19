@@ -31,6 +31,8 @@ const Save = z
           x: pct,
           y: pct,
           seats: z.number().int().min(1).max(60),
+          /** Long and head tables: 2 both sides, 1 or -1 one side only. */
+          sides: z.union([z.literal(2), z.literal(1), z.literal(-1)]).default(2),
         }),
       )
       .max(120),
@@ -55,7 +57,7 @@ export function seatingRoutes() {
     if (!ev) return null;
     const [plan, tables, areas, people, pub] = await db.batch([
       db.prepare(`SELECT aspect, image_key FROM seat_plan WHERE event_id = ?`).bind(ev.id),
-      db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
+      db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats, sides FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
       db.prepare(
         `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, (SELECT s.table_id FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS tableId,
@@ -150,10 +152,10 @@ export function seatingRoutes() {
       stmts.push(
         db
           .prepare(
-            `INSERT INTO seat_table (id, wedding_id, event_id, name, shape, dir, length_pct, x, y, seats) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
-             ON CONFLICT (id) DO UPDATE SET name = ?4, shape = ?5, dir = ?6, length_pct = ?7, x = ?8, y = ?9, seats = ?10, deleted_at = NULL, version = version + 1`,
+            `INSERT INTO seat_table (id, wedding_id, event_id, name, shape, dir, length_pct, x, y, seats, sides) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             ON CONFLICT (id) DO UPDATE SET name = ?4, shape = ?5, dir = ?6, length_pct = ?7, x = ?8, y = ?9, seats = ?10, sides = ?11, deleted_at = NULL, version = version + 1`,
           )
-          .bind(t.id, wid(c), ev, t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats),
+          .bind(t.id, wid(c), ev, t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, t.sides),
       );
     }
     for (const id of known) {

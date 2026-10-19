@@ -39,6 +39,16 @@ describe('guest API', () => {
     expect(p.content).toMatchObject({ rsvpBy: 'Kindly reply by 18 August 2027', seal: 'Sandstone' });
   });
 
+  it('after replies close, a reply can no longer be changed online (guests are asked to email); a first late reply still counts', async () => {
+    await t.db.prepare(`UPDATE wedding SET content = json_set(content, '$.invitation.rsvpClose', '2020-01-01', '$.invitation.rsvpEmail', 'us@example.com')`).run();
+    const ella = await tokenOf('Ella Thompson'); // wedding only
+    await t.db.prepare(`DELETE FROM rsvp WHERE invitation_id = (SELECT id FROM invitation WHERE token = ?)`).bind(ella).run();
+    expect((await post('/rsvp', { token: ella, events: { wedding: { attending: true } } })).status).toBe(200); // first reply, late
+    const again = await post('/rsvp', { token: ella, events: { wedding: { attending: false } } });
+    expect(again.status).toBe(403);
+    expect(((await again.json()) as { error: { message: string } }).error.message).toContain('us@example.com');
+  });
+
   it('a guest not invited to the 30th never receives its event or its wording (docs/09 §J)', async () => {
     const res = await get(`/invite?g=${await tokenOf('Ella Thompson')}`); // wedding only
     const p = (await res.json()) as Payload;

@@ -16,13 +16,13 @@ export function Section({ n, title, hint, children }: { n: number | string; titl
   );
 }
 
-export function TextField({ label, value, onChange, placeholder, long, hint }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; long?: boolean; hint?: string }) {
+export function TextField({ label, value, onChange, placeholder, long, hint, type }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; long?: boolean; hint?: string; type?: 'date' }) {
   return (
     <Label text={label}>
       {long ? (
         <textarea rows={3} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={`${inputCls} resize-y`} />
       ) : (
-        <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={inputCls} />
+        <input type={type ?? 'text'} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={inputCls} />
       )}
       {hint && <span className="text-[12px] text-[#7a7466]">{hint}</span>}
     </Label>

@@ -113,8 +113,12 @@ async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
         const owed = recipientsFor(c, recipients, invitedBefore).filter((r) => !have.has(`auto:${c.id}:${r.id}`));
         if (owed.length) await enqueueCampaign(d, w, events, c, owed, (r) => `auto:${c.id}:${r.id}`);
       } else if (c.trigger === 'rsvp_changed') {
+        // A guest who said no to everything gets the "sorry you can't make it" reply when it's on, not the
+        // thank-you (each reply gets one text: they share the reply's key).
+        const declineReply = campaigns.some((x) => x.mode === 'auto' && x.trigger === 'rsvp_changed' && x.audience.declinedAll);
         const replied = recipients.filter((r) => {
-          if (!r.rsvpUpdatedAt || !textable(r, c)) return false;
+          if (!r.rsvpUpdatedAt || !textable(r, c) || !matches(c.audience, r, invitedBefore)) return false;
+          if (declineReply && !c.audience.declinedAll && matches({ declinedAll: true }, r, invitedBefore)) return false;
           const age = t - Date.parse(r.rsvpUpdatedAt);
           return age >= LIMITS.thanksDebounceMs && age <= LIMITS.thanksWindowMs;
         });

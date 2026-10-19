@@ -108,6 +108,7 @@ export const seatTable = sqliteTable('seat_table', {
   shape: text('shape', { enum: ['round', 'long'] }).notNull().default('round'),
   dir: text('dir').notNull().default('h'),
   lengthPct: integer('length_pct').notNull().default(40),
+  sides: integer('sides').notNull().default(2),
   x: real('x').notNull(),
   y: real('y').notNull(),
   seats: integer('seats').notNull().default(10),
