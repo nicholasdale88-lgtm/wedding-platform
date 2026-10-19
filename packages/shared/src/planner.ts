@@ -358,6 +358,8 @@ export const BudgetLine = z.object({
   due: s(10), // yyyy-mm-dd, when the rest is due
   vendor: s(120),
   note: s(500),
+  /** Who's paying for it ('' is the two of you; e.g. "Her parents"). */
+  payer: s(80),
 });
 export type BudgetLine = z.infer<typeof BudgetLine>;
 export const Budget = z.object({ total: money, lines: z.array(BudgetLine).max(300).default([]) });
@@ -416,6 +418,14 @@ export const Vendor = z.object({
   quotes: z.array(Quote).max(12).default([]),
   /** The quote you accepted (its id): its amount and deposit are this vendor's commitment. */
   accepted: s(40),
+  /** The contract: when it was signed, the cancellation terms, whether the deposit comes back, the file. */
+  contractSigned: s(10),
+  cancellation: s(600),
+  depositRefundable: z.boolean().default(false),
+  contractFileId: s(40),
+  contractFileName: s(160),
+  /** Meals for this vendor's team on the day (tell the caterer). */
+  meals: z.number().int().min(0).max(50).default(0),
 });
 export type Vendor = z.infer<typeof Vendor>;
 
@@ -456,13 +466,15 @@ export const PlanTask = z.object({
   note: s(600),
   /** A legal deadline (the Notice of Intended Marriage): shown in red when close. */
   legal: z.boolean().default(false),
+  /** Whose job it is: one of you, both, or not decided yet (''). */
+  owner: z.enum(['', 'p1', 'p2', 'both']).default(''),
 });
 export type PlanTask = z.infer<typeof PlanTask>;
 export const PlanChecklist = z.object({ tasks: z.array(PlanTask).max(300).default([]) });
 export type PlanChecklist = z.infer<typeof PlanChecklist>;
 
 /** The usual Australian wedding plan, by days before the day (everything editable). */
-export const PLAN_TEMPLATE: Omit<PlanTask, 'id' | 'done' | 'note'>[] = [
+export const PLAN_TEMPLATE: Omit<PlanTask, 'id' | 'done' | 'note' | 'owner'>[] = [
   { text: 'Set the budget and guest numbers together', before: 450, legal: false },
   { text: 'Book the venue and lock in the date', before: 420, legal: false },
   { text: 'Book the celebrant', before: 400, legal: false },

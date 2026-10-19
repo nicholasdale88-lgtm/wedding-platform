@@ -31,6 +31,7 @@ export function Checklist() {
   const saveDoc = useDocSave<PlanChecklist>(wid, 'checklist', '', doc?.version);
   const [error, setError] = useState('');
   const [show, setShow] = useState<'todo' | 'all'>('todo');
+  const [whose, setWhose] = useState<'all' | PlanTask['owner']>('all');
   const [adding, setAdding] = useState({ text: '', when: '' });
 
   const load = useCallback(async () => {
@@ -63,9 +64,15 @@ export function Checklist() {
     }
   };
   const tasks = [...doc.data.tasks].sort((a, b) => b.before - a.before);
-  const left = tasks.filter((t) => !t.done);
+  const n1 = overview?.wedding.name1.split(' ')[0] || 'Partner 1';
+  const n2 = overview?.wedding.name2.split(' ')[0] || 'Partner 2';
+  const ownerLabel = (o: PlanTask['owner']) => (o === 'p1' ? n1 : o === 'p2' ? n2 : o === 'both' ? 'Both' : 'Whose?');
+  const NEXT_OWNER: Record<PlanTask['owner'], PlanTask['owner']> = { '': 'p1', p1: 'p2', p2: 'both', both: '' };
+  const left = tasks.filter((t) => !t.done && (whose === 'all' || t.owner === whose || (whose !== '' && t.owner === 'both')));
+  const open = tasks.filter((t) => !t.done);
+  const load_ = { p1: open.filter((t) => t.owner === 'p1' || t.owner === 'both').length, p2: open.filter((t) => t.owner === 'p2' || t.owner === 'both').length, none: open.filter((t) => !t.owner).length };
   const overdue = left.filter((t) => (dueDate(t)?.getTime() ?? Infinity) < now);
-  const shown = show === 'todo' ? left : tasks;
+  const shown = show === 'todo' ? left : tasks.filter((t) => whose === 'all' || t.owner === whose || (whose !== '' && t.owner === 'both'));
   const groups = BANDS.map(([, label]) => [label, shown.filter((t) => bandOf(t.before) === label)] as const).filter(([, ts]) => ts.length);
 
   if (!tasks.length) {
@@ -76,7 +83,7 @@ export function Checklist() {
           Start with the usual Australian wedding plan: {PLAN_TEMPLATE.length} things, each due a set time before your day{day ? ` (${fmt(new Date(day))})` : ''}, including the Notice of
           Intended Marriage deadlines. Change, add or remove anything.
         </p>
-        <Pill kind="primary" className="self-start" onClick={() => void save(PLAN_TEMPLATE.map((t) => ({ ...t, id: newId(), done: false, note: '' })), 'Checklist ready')}>
+        <Pill kind="primary" className="self-start" onClick={() => void save(PLAN_TEMPLATE.map((t) => ({ ...t, id: newId(), done: false, note: '', owner: '' as const })), 'Checklist ready')}>
           Start the checklist
         </Pill>
       </section>
@@ -113,8 +120,36 @@ export function Checklist() {
           ))}
         </div>
       </div>
-      <div className="h-[8px] rounded-full bg-[#e9e2cc] overflow-hidden" role="img" aria-label={`${tasks.length - left.length} of ${tasks.length} done`}>
-        <div className="h-full bg-[#5d6b47]" style={{ width: `${Math.round(((tasks.length - left.length) / tasks.length) * 100)}%` }} />
+      <div className="h-[8px] rounded-full bg-[#e9e2cc] overflow-hidden" role="img" aria-label={`${tasks.length - open.length} of ${tasks.length} done`}>
+        <div className="h-full bg-[#5d6b47]" style={{ width: `${Math.round(((tasks.length - open.length) / tasks.length) * 100)}%` }} />
+      </div>
+      {/* Who's doing what: still to do, by whose job it is (tap a name to see just theirs). */}
+      <div role="radiogroup" aria-label="Whose" className="flex gap-2 flex-wrap items-center text-[13px]">
+        {(
+          [
+            ['all', `Everyone · ${open.length}`],
+            ['p1', `${n1} · ${load_.p1}`],
+            ['p2', `${n2} · ${load_.p2}`],
+            ['', `Not decided · ${load_.none}`],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k || 'none'}
+            type="button"
+            role="radio"
+            aria-checked={whose === k}
+            onClick={() => setWhose(k)}
+            className={`py-[5px] px-3 rounded-full border cursor-pointer ${whose === k ? 'bg-[#5d6b47] text-white border-[#5d6b47]' : 'bg-transparent border-[#c6b794]'}`}
+          >
+            {label}
+          </button>
+        ))}
+        {load_.p1 + load_.p2 > 0 && (
+          <span className="flex-1 min-w-[120px] flex h-[8px] rounded-full overflow-hidden bg-[#e9e2cc]" role="img" aria-label={`${n1} ${load_.p1}, ${n2} ${load_.p2}`}>
+            <span style={{ width: `${(load_.p1 / (load_.p1 + load_.p2)) * 100}%`, background: '#b39563' }} />
+            <span style={{ width: `${(load_.p2 / (load_.p1 + load_.p2)) * 100}%`, background: '#5d6b47' }} />
+          </span>
+        )}
       </div>
 
       {groups.map(([label, ts]) => (
@@ -140,6 +175,14 @@ export function Checklist() {
                   </div>
                   {t.note && <div className="text-[13px] text-[#5b6a52]">{t.note}</div>}
                 </div>
+                <button
+                  type="button"
+                  aria-label={`Whose job: ${ownerLabel(t.owner)}. Tap to change.`}
+                  onClick={() => void save(doc.data.tasks.map((x) => (x.id === t.id ? { ...x, owner: NEXT_OWNER[x.owner] } : x)))}
+                  className={`flex-none py-[2px] px-2 rounded-full border text-[11px] cursor-pointer ${t.owner ? 'bg-[#efe7d3] border-[#e2d7bc] text-[#33402f]' : 'bg-transparent border-dashed border-[#c6b794] text-[#7a7466]'}`}
+                >
+                  {ownerLabel(t.owner)}
+                </button>
                 <span className={`text-[12px] whitespace-nowrap ${late ? 'text-[#7a4a37] font-semibold' : soon ? 'text-[#8a6d2f] font-semibold' : 'text-[#7a7466]'}`}>
                   {due ? `${late ? 'Overdue · ' : soon ? 'Soon · ' : ''}${fmt(due)}` : ''}
                 </span>
@@ -160,7 +203,7 @@ export function Checklist() {
           if (!adding.text.trim()) return;
           // A date becomes "days before the day"; no date = in the last month.
           const before = adding.when && day ? Math.round((day - Date.parse(`${adding.when}T12:00`)) / DAY) : 14;
-          void save([...doc.data.tasks, { id: newId(), text: adding.text.trim(), before: Math.max(-60, Math.min(800, before)), done: false, note: '', legal: false }], 'Added');
+          void save([...doc.data.tasks, { id: newId(), text: adding.text.trim(), before: Math.max(-60, Math.min(800, before)), done: false, note: '', legal: false, owner: whose === 'all' ? '' : whose }], 'Added');
           setAdding({ text: '', when: '' });
         }}
       >

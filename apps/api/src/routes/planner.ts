@@ -127,6 +127,22 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
   if (lapsing.length) {
     out.push({ kind: 'quotes-lapsing', title: `${lapsing.length === 1 ? 'A quote runs' : `${lapsing.length} quotes run`} out soon`, detail: [...new Set(lapsing)].join(', '), cta: 'Vendors', link: 'planner?view=vendors', event: first.key });
   }
+  // Booked without a signed contract: the deposit is at risk if anything goes wrong.
+  const unsigned = vendors.data.list.filter((v) => v.status === 'booked' && !v.contractSigned);
+  if (unsigned.length) {
+    out.push({
+      kind: 'contracts',
+      title: `${unsigned.length} booked ${unsigned.length === 1 ? 'vendor has' : 'vendors have'} no signed contract`,
+      detail: unsigned.slice(0, 3).map((v) => v.name).join(', '),
+      cta: 'Vendors',
+      link: 'planner?view=vendors',
+      event: first.key,
+    });
+  }
+  const mail = await db.prepare(`SELECT COUNT(*) AS n, SUM(kind = 'vendor') AS v FROM inbox_email WHERE wedding_id = ? AND read_at IS NULL AND archived_at IS NULL`).bind(weddingId).first<{ n: number; v: number | null }>();
+  if (mail?.n) {
+    out.push({ kind: 'email-new', title: `${mail.n} new ${mail.n === 1 ? 'email' : 'emails'}`, detail: mail.v ? `${mail.v} from vendors` : 'To your event’s address', cta: 'Email', link: 'messages?view=email', event: first.key });
+  }
   if (songs?.n) {
     out.push({ kind: 'songs-new', title: `${songs.n} new song ${songs.n === 1 ? 'request' : 'requests'}`, detail: 'Mark them for the DJ: must play, maybe or don’t play.', cta: 'Music', link: 'planner?view=music', event: first.key });
   }

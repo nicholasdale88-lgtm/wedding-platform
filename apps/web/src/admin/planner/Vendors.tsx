@@ -36,6 +36,12 @@ const newVendor = (over: Partial<Vendor>): Vendor => ({
   notes: '',
   quotes: [],
   accepted: '',
+  contractSigned: '',
+  cancellation: '',
+  depositRefundable: false,
+  contractFileId: '',
+  contractFileName: '',
+  meals: 0,
   ...over,
 });
 const BLANK_QUOTE: Quote = { id: '', amount: 0, deposit: 0, date: '', validUntil: '', includes: '', excludes: '', notes: '', fileId: '', fileName: '', extract: '' };
@@ -279,6 +285,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
             {field('arrival', 'Arriving on the day (e.g. 11:00am)')}
             {field('notes', 'Notes', true)}
           </div>
+          <Contract v={v} onChange={onChange} />
           <div className="flex gap-4 flex-wrap text-[13px]">
             {v.phone && (
               <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} className="!text-[#33402f]">
@@ -587,5 +594,75 @@ function Finder({ have, onAdd }: { have: Set<string>; onAdd: (v: Vendor) => void
         </div>
       )}
     </section>
+  );
+}
+
+/** The contract: signed when, what happens if anyone cancels, whether the deposit comes back, the file, meals for their team. */
+function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) => void }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  return (
+    <details className="rounded-[12px] border border-[#e2d7bc] bg-white" open={!!(v.contractSigned || v.contractFileId)}>
+      <summary className="cursor-pointer py-2 px-3 text-[14px] font-medium">
+        Contract{v.contractSigned ? ` · signed ${shortDate(v.contractSigned)}` : v.status === 'booked' ? ' · not signed yet' : ''}
+        {v.contractFileId ? ' · file kept' : ''}
+      </summary>
+      <div className="grid gap-3 sm:grid-cols-2 px-3 pb-3">
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          Signed on
+          <input type="date" value={v.contractSigned} onChange={(e) => onChange({ contractSigned: e.target.value })} className={inputCls} />
+        </label>
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          Meals for their team on the day
+          <input type="number" min={0} max={50} value={v.meals} onChange={(e) => onChange({ meals: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })} className={inputCls} />
+        </label>
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] sm:col-span-2">
+          If anyone cancels or postpones
+          <textarea rows={2} value={v.cancellation} maxLength={600} placeholder="e.g. Deposit kept; 50% due if cancelled within 90 days; one free date change" onChange={(e) => onChange({ cancellation: e.target.value })} className={`${inputCls} resize-y`} />
+        </label>
+        <label className="flex items-center gap-2 text-[14px] cursor-pointer">
+          <input type="checkbox" checked={v.depositRefundable} onChange={() => onChange({ depositRefundable: !v.depositRefundable })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+          The deposit is refundable
+        </label>
+        <span className="flex items-center gap-3 text-[14px] flex-wrap">
+          {v.contractFileId ? (
+            <>
+              <a href={plannerApi.fileUrl(wid, v.contractFileId)} target="_blank" rel="noopener" className="!text-[#33402f]">
+                📎 {v.contractFileName || 'Contract'}
+              </a>
+              <button type="button" onClick={() => onChange({ contractFileId: '', contractFileName: '' })} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">
+                Remove
+              </button>
+            </>
+          ) : (
+            <label className={`py-[6px] px-3 rounded-full border border-[#c6b794] text-[13px] cursor-pointer ${busy ? 'opacity-60' : ''}`}>
+              {busy ? 'Uploading…' : 'Keep the contract (PDF or photo)'}
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png,image/webp,image/heic"
+                className="hidden"
+                disabled={busy}
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!f) return;
+                  if (f.size > 1.5 * 1024 * 1024) return toast('That file is over 1.5 MB. Try a smaller PDF or a photo.');
+                  setBusy(true);
+                  try {
+                    const r = await plannerApi.uploadFile(wid, f);
+                    onChange({ contractFileId: r.id, contractFileName: r.name });
+                  } catch (err) {
+                    toast((err as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              />
+            </label>
+          )}
+        </span>
+      </div>
+    </details>
   );
 }

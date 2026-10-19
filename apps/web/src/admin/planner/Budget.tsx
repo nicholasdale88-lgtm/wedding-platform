@@ -14,7 +14,7 @@ import { H2, inputCls, Pill, useToast } from '../ui';
 
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 const cost = (l: BudgetLine) => l.quote || l.estimate; // what it will cost: the quote once there is one
-const BLANK: BudgetLine = { category: 'Other', item: '', estimate: 0, quote: 0, paid: 0, due: '', vendor: '', note: '' };
+const BLANK: BudgetLine = { category: 'Other', item: '', estimate: 0, quote: 0, paid: 0, due: '', vendor: '', note: '', payer: '' };
 const PALETTE = ['#5d6b47', '#b39563', '#8a9670', '#7a4a37', '#3d5f92', '#c8a46a', '#46543a', '#9aa9c8', '#a06a52', '#6d7a47', '#d3c6a4', '#2f3d5c'];
 
 function Money({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
@@ -98,6 +98,13 @@ export function Budget() {
     }
   };
   const coming = overview?.perEvent?.[0]?.coming ?? 0;
+  // Who's paying for what (lines without a payer are the two of you).
+  const payers = [...b.lines.reduce((m, l) => {
+    const k = l.payer.trim() || 'Us';
+    const x = m.get(k) ?? { cost: 0, paid: 0 };
+    m.set(k, { cost: x.cost + (l.quote || l.estimate), paid: x.paid + l.paid });
+    return m;
+  }, new Map<string, { cost: number; paid: number }>())].sort((a, b2) => b2[1].cost - a[1].cost);
   const left = b.total - sums.committed;
   const cats = [...new Set([...BUDGET_SPLIT.map((x) => x.category), ...b.lines.map((l) => l.category)])];
   const colour = (cat: string) => PALETTE[Math.max(0, cats.indexOf(cat)) % PALETTE.length]!;
@@ -164,6 +171,21 @@ export function Budget() {
         </section>
       )}
 
+      {payers.length > 1 && (
+        <section aria-label="Who's paying" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+          <H2>Who’s paying</H2>
+          {payers.map(([who, x]) => (
+            <div key={who} className="flex justify-between gap-3 text-[14px]">
+              <span>{who}</span>
+              <span className="tabular-nums">
+                <strong className="font-semibold">{aud(x.cost)}</strong>
+                <span className="text-[#7a7466]"> · {aud(x.paid)} paid</span>
+              </span>
+            </div>
+          ))}
+        </section>
+      )}
+
       {commitments.length > 0 && (
         <section aria-label="Commitments" className="flex flex-col gap-2">
           <div className="flex justify-between items-baseline gap-2 flex-wrap">
@@ -222,13 +244,18 @@ export function Budget() {
             </Pill>
           )}
         </div>
+        <datalist id="budget-payers">
+          <option value="Us" />
+          <option value={`${overview?.wedding.name1.split(' ')[0] ?? 'Her'}'s family`} />
+          <option value={`${overview?.wedding.name2.split(' ')[0] ?? 'His'}'s family`} />
+        </datalist>
         <datalist id="budget-cats">
           {cats.map((c) => (
             <option key={c} value={c} />
           ))}
         </datalist>
         {b.lines.map((l, i) => (
-          <div key={i} className="grid gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] grid-cols-2 md:grid-cols-[1.1fr_1.3fr_.8fr_.8fr_.8fr_1fr_auto] items-end">
+          <div key={i} className="grid gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] grid-cols-2 md:grid-cols-[1.1fr_1.3fr_.8fr_.8fr_.8fr_1fr_.9fr_auto] items-end">
             <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
               Category
               <input list="budget-cats" value={l.category} onChange={(e) => setLine(i, { category: e.target.value })} className={inputCls} />
@@ -252,6 +279,10 @@ export function Budget() {
             <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
               Rest due
               <input type="date" value={l.due} onChange={(e) => setLine(i, { due: e.target.value })} className={inputCls} />
+            </label>
+            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] col-span-2 md:col-span-1">
+              Paid by
+              <input list="budget-payers" placeholder="Us" value={l.payer} onChange={(e) => setLine(i, { payer: e.target.value })} className={inputCls} />
             </label>
             <button type="button" aria-label="Remove line" onClick={() => edit({ ...b, lines: b.lines.filter((_, j) => j !== i) })} className="w-9 h-9 mb-[2px] rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37] justify-self-end">
               ×
