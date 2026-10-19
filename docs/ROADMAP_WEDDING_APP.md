@@ -155,13 +155,29 @@ Everything below fits the free tiers unless flagged. Building order is the ★ p
 
 **Seating:** a checks panel for capacity, split parties, and keep-apart / keep-together rules.
 
+**Added overnight (20 Oct):**
+- Who's who on the invitation: the wedding party by side, names and roles only. Off until it's switched on in Wedding party.
+- Door check-in in the Wedding planner. Two phones can be used at once.
+- Now/Next and an MC speech timer on the wedding party's page.
+- Shared album after the day: guests see and save everyone's photos from their own events, 90 at a time.
+- Print → Run sheet for the day: the whole day, the party, and suppliers with arrival times and phones, for the venue, coordinator, photographer and MC.
+
+**Review fixes:**
+- Quick changes in a row no longer conflict.
+- Check-in and Transport work when opened from a link.
+- Unsaved planner edits ask before you leave.
+- Dates and days-to-go are counted where the wedding is.
+- Money fields take cents.
+- The seating chart runs on to more posters instead of dropping names, and each sheet prints on its own paper size.
+- The live wall shows new photos next and never jumps back.
+- Shuttle seats are given back when a guest declines.
+- Linked storage refreshes its token once an hour, not for every photo; puts all of an event's photos in one folder or album; and retries copies that were cut off.
+
 **Still open from the research:**
-- Who's who (guest profiles)
 - Accommodation board
 - Multilingual invitation
-- QR table cards to a table page
-- Door check-in
-- MC now/next screen
+- QR table cards (photo upload uses each guest's private link, so a shared QR needs a public upload page first)
 - Guest games
-- After-the-wedding gallery and anniversary text
+- After-the-wedding anniversary text
 - Name-change checklist (part of the checklist already)
+- Album thumbnails (needs Cloudflare Image Resizing, a paid add-on, or thumbnails made at upload)
