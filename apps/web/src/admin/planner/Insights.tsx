@@ -181,6 +181,12 @@ export function Insights() {
   for (const l of budget.lines) if (l.due && (l.quote || l.estimate) > l.paid) byMonth.set(l.due.slice(0, 7), (byMonth.get(l.due.slice(0, 7)) ?? 0) + (l.quote || l.estimate) - l.paid);
   for (const v of extra) if (v.balanceDue) byMonth.set(v.balanceDue.slice(0, 7), (byMonth.get(v.balanceDue.slice(0, 7)) ?? 0) + commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0));
   const months = [...byMonth.entries()].filter(([, a]) => a > 0).sort(([a], [b]) => a.localeCompare(b));
+  // Saving for it: what's still owing spread over the months to the day.
+  const monthsLeft = days !== null && days > 0 ? Math.max(1, Math.ceil(days / 30.4)) : 0;
+  // Reply pace: at the last fortnight's rate, how many will still be waiting when replies close.
+  const recent = data.repliesByDay.filter((r) => Date.parse(r.day) > Date.parse(today) - 14 * DAY).reduce((a, r) => a + r.n, 0);
+  const toClose = data.rsvpClose ? Math.round((Date.parse(data.rsvpClose) - Date.parse(today)) / DAY) : -1;
+  const waitingAtClose = first && first.awaiting > 0 && toClose >= 0 ? Math.max(0, Math.round(first.awaiting - (recent / 14) * toClose)) : null;
   const byCat = new Map<string, number>();
   for (const l of budget.lines) byCat.set(l.category, (byCat.get(l.category) ?? 0) + (l.quote || l.estimate));
   // The plan: done, against what you'd expect to have done by now (tasks whose time has come).
@@ -233,6 +239,19 @@ export function Insights() {
           <p className="m-0 text-[12px] text-[#7a7466]">
             Expected guests assumes the {first?.awaiting ?? 0} still to reply answer like those who have ({Math.round(rate * 100)}% yes).
           </p>
+          {waitingAtClose !== null && (
+            <p className={`m-0 text-[13px] ${waitingAtClose > 0 ? 'text-[#7a4a37]' : 'text-[#5b6a52]'}`}>
+              {recent ? `${recent} ${recent === 1 ? 'reply' : 'replies'} in the last fortnight. At that pace` : 'No replies in the last fortnight. At that pace'},{' '}
+              {waitingAtClose > 0 ? (
+                <>
+                  about <strong className="font-semibold">{waitingAtClose}</strong> will still be waiting when replies close
+                  {toClose ? ` in ${toClose} days` : ' today'}. A reminder text helps.
+                </>
+              ) : (
+                'everyone should be in before replies close.'
+              )}
+            </p>
+          )}
         </section>
         <section aria-label="Replies over time" className={card}>
           <H2>Replies over time</H2>
@@ -411,6 +430,12 @@ export function Insights() {
             <Bars rows={months.map(([m, a]) => ({ label: new Date(`${m}-01T00:00`).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }), value: a, note: aud(a), colour: m < today.slice(0, 7) ? '#a5533c' : '#b39563' }))} />
           ) : (
             <p className="m-0 text-[14px] text-[#7a7466]">Nothing with a due date yet. Add due dates in Budget to see what’s coming each month.</p>
+          )}
+          {committed > paid && monthsLeft > 0 && (
+            <p className="m-0 text-[13px] text-[#5b6a52] pt-2 border-t border-[#e2d7bc]">
+              To have it all paid by the day, put aside about <strong className="font-semibold text-[#33402f]">{aud((committed - paid) / monthsLeft)}</strong> a month for the next {monthsLeft}{' '}
+              {monthsLeft === 1 ? 'month' : 'months'} ({aud(committed - paid)} still to pay).
+            </p>
           )}
         </section>
       </div>
