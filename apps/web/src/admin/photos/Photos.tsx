@@ -81,6 +81,7 @@ export function Photos() {
     }
   };
   const remove = async (id: string) => {
+    if (!window.confirm('Remove this photo from the album? Guests will no longer see it.')) return;
     try {
       await photosApi.remove(wid, id);
       toast('Photo removed');

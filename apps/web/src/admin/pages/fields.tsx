@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { inputCls, Label } from '../ui';
+import { useRef, type ReactNode } from 'react';
+import { inputCls, Label, useToast } from '../ui';
 
 /** Form pieces for an event's Setup (design: numbered sections, labelled inputs, row editors with ×). */
 
@@ -48,6 +48,17 @@ export function Rows<T extends Record<string, string>>({
   onChange: (rows: T[]) => void;
 }) {
   const set = (i: number, key: keyof T, v: string) => onChange(rows.map((r, j) => (j === i ? { ...r, [key]: v } : r)));
+  const toast = useToast();
+  const latest = useRef(rows);
+  latest.current = rows;
+  // A row with something in it can be put back (Undo puts it where it was, keeping edits made since).
+  const remove = (i: number) => {
+    const gone = rows[i]!;
+    onChange(rows.filter((_, j) => j !== i));
+    if (Object.values(gone).some((v) => v.trim())) {
+      toast('Row removed', { label: 'Undo', run: () => onChange([...latest.current.slice(0, i), gone, ...latest.current.slice(i)]) });
+    }
+  };
   return (
     <div className="flex flex-col gap-2">
       {rows.map((r, i) => (
@@ -59,7 +70,7 @@ export function Rows<T extends Record<string, string>>({
               <input key={c.key} aria-label={c.label} placeholder={c.label} value={r[c.key] ?? ''} onChange={(e) => set(i, c.key, e.target.value)} className={`${inputCls} min-w-0 ${c.width ?? 'flex-1'}`} />
             ),
           )}
-          <button type="button" aria-label="Remove" onClick={() => onChange(rows.filter((_, j) => j !== i))} className="shrink-0 w-[38px] h-[42px] rounded-[10px] border border-[#d3c6a4] bg-transparent text-[18px] text-[#7a4a37] cursor-pointer hover:bg-[#efe7d3]">
+          <button type="button" aria-label="Remove" onClick={() => remove(i)} className="shrink-0 w-[38px] h-[42px] rounded-[10px] border border-[#d3c6a4] bg-transparent text-[18px] text-[#7a4a37] cursor-pointer hover:bg-[#efe7d3]">
             ×
           </button>
         </div>

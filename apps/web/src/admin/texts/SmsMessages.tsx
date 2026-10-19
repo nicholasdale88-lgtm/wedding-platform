@@ -369,6 +369,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
   };
 
   const remove = async () => {
+    if (!window.confirm(`Delete "${c.name}"? Anything it still has waiting to send won't go out.`)) return;
     try {
       await textsApi.remove(wid, c.id);
       toast(`${c.name} deleted`);
