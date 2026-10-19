@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { readJson, safeJson } from '../lib/security';
-import { estimate, type EngineDeps } from '../sms/engine';
+import { estimateAll, type EngineDeps, type Estimate } from '../sms/engine';
 import { DEFAULT_REPLIES } from '../sms/inbound';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -67,8 +67,10 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     const d = deps(c.env);
     const campaigns = (await d.store.campaigns(w.id)).filter((x) => x.enabled || x.mode === 'manual');
     const plan: { name: string; detail: string; costCents: number; auto: boolean; fixed?: boolean }[] = [];
+    // One load for every message (not a full guest-list load per message).
+    const estimates = await estimateAll(d, w.id, campaigns.map((x) => x.id)).catch(() => new Map<string, Estimate>());
     for (const x of campaigns) {
-      const e = await estimate(d, w.id, x.id).catch(() => null);
+      const e = estimates.get(x.id);
       if (e) plan.push({ name: x.name, detail: `${e.count} ${e.count === 1 ? 'guest' : 'guests'} · ${e.parts} ${e.parts === 1 ? 'credit' : 'credits'}`, costCents: e.costCents, auto: x.enabled && x.mode !== 'manual' });
     }
     const texto = c.env.SMS_PROVIDER === 'texto';

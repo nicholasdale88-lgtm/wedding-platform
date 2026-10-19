@@ -355,6 +355,26 @@ export async function estimate(d: EngineDeps, weddingId: string, campaignId: str
   };
 }
 
+/** Estimates for many messages at once: the wedding, its guests and messages are loaded once. */
+export async function estimateAll(d: EngineDeps, weddingId: string, campaignIds: string[]): Promise<Map<string, Estimate>> {
+  const out = new Map<string, Estimate>();
+  const w = await d.store.wedding(weddingId);
+  if (!w) return out;
+  const campaigns = new Map((await d.store.campaigns(weddingId)).map((c) => [c.id, c]));
+  const { events, recipients } = await d.store.audience(weddingId);
+  const invitedBefore = await d.store.invitedIds(weddingId);
+  const quiet = inQuietHours(d.now(), w.timezone, w.quietStart, w.quietEnd);
+  for (const id of campaignIds) {
+    const c = campaigns.get(id);
+    if (!c) continue;
+    const list = recipientsFor(c, recipients, invitedBefore);
+    const rendered = list.map((r) => renderFor(c.body, w, events, r, { footer: true }));
+    const parts = rendered.reduce((n, m) => n + m.parts, 0);
+    out.set(id, { count: list.length, ids: list.map((r) => r.id), parts, costCents: costCents(parts, w.rateX100), sample: rendered[0]?.body ?? null, quiet });
+  }
+  return out;
+}
+
 /** "Send now": queues with a one-off key and sends unless it's quiet hours (then it waits for 8am). */
 export async function sendNow(d: EngineDeps, weddingId: string, campaignId: string, only?: string[]) {
   const { w, c, events, list } = await prepare(d, weddingId, campaignId, only);
