@@ -359,6 +359,25 @@ export const shuttleBooking = sqliteTable(
   (t) => ({ pk: primaryKey({ columns: [t.shuttleId, t.invitationId] }) }),
 );
 
+// migration 0018: emails to the event's own address
+export const inboxEmail = sqliteTable('inbox_email', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  messageId: text('message_id'),
+  fromAddr: text('from_addr').notNull(),
+  fromName: text('from_name').notNull().default(''),
+  subject: text('subject').notNull().default(''),
+  body: text('body').notNull().default(''),
+  kind: text('kind', { enum: ['guest', 'vendor', 'other'] }).notNull().default('other'),
+  invitationId: text('invitation_id'),
+  vendorId: text('vendor_id'),
+  files: text('files').notNull().default('[]'),
+  filed: text('filed').notNull().default(''),
+  receivedAt: text('received_at').notNull(),
+  readAt: text('read_at'),
+  archivedAt: text('archived_at'),
+});
+
 // migration 0014: song requests for the DJ
 export const songRequest = sqliteTable('song_request', {
   id: id(),
