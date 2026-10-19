@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import texts from '../../../seed/texts.json';
 import dynamicTexts from '../../../seed/texts.dynamic.json';
+import { assetOf } from '../src/guest/guide/common';
 import { GuidePage } from '../src/guest/guide/GuidePage';
 import type { GuidePayload } from '../src/guest/invitation/api';
 
@@ -79,7 +80,6 @@ describe('night-before guide (reception design)', () => {
     expect(screen.getByText('Main: Fish')).toBeInTheDocument();
     expect(screen.getByText('The kitchen has your note: Vegetarian')).toBeInTheDocument();
     expect(screen.getAllByText(/Robin & Sam/).length).toBeGreaterThan(0);
-    expect(document.body.innerHTML).toContain('/seed-media/lookout.jpg'); // the design's photo, until the couple uploads their own
   });
 
   it('lists only their table mates, with them marked "You"', async () => {
@@ -124,5 +124,16 @@ describe('night-before guide (day-out design)', () => {
     fireEvent.click(screen.getByText('Water'));
     expect(screen.getByText('All packed. See you tomorrow!')).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(`wp-packed-party-${TOKEN}`)!)).toEqual({ Hat: true, Water: true });
+  });
+});
+
+describe('design photos (v.asset)', () => {
+  it("uses the wedding's own picture for the slot, else the design's", () => {
+    expect(assetOf({})('lookout.jpg')).toBe('/seed-media/lookout.jpg');
+    expect(assetOf({ lookout: 'https://cdn.example.com/a b.jpg' })('lookout.jpg')).toBe('https://cdn.example.com/a%20b.jpg');
+  });
+  it('an edited link can never break out of the CSS or run script', () => {
+    expect(assetOf({ lookout: "x.jpg') ; background:red" })('lookout.jpg')).not.toMatch(/['()\s]/);
+    expect(assetOf({ lookout: 'javascript:alert(1)' })('lookout.jpg')).toBe('');
   });
 });
