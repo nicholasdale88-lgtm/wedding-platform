@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, textsApi, type Campaign, type Estimate, type TextsData } from '../../lib/api';
 import { fmtDay, fmtTime, fmtWhen, shortLabel, toLocalInput } from '../../lib/format';
 import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
+import { Eyebrow, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
 
 /**
  * Admin → SMS messages (design: isSms). Every text the wedding sends: when it goes, to whom, the
@@ -28,6 +28,7 @@ export function SmsMessages() {
     }
   }, [wid]);
   useEffect(() => void load(), [load]);
+  useAutoRefresh(load);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading your messages…</div>;

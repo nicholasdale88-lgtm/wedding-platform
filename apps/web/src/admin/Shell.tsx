@@ -3,7 +3,7 @@ import { NavLink, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
 import { fmtEvent } from '../lib/format';
 import { coupleName } from '../lib/remember';
-import { useMedia } from './ui';
+import { useAutoRefresh, useMedia } from './ui';
 
 /** Shared wedding summary: nav badges, sidebar footer and the Overview tab all read it. */
 interface AdminData {
@@ -30,6 +30,7 @@ export function AdminDataProvider({ wid, children, onSignedOut }: { wid: string;
   useEffect(() => {
     void reload();
   }, [reload]);
+  useAutoRefresh(reload); // Overview figures and nav badges stay current
   return <Ctx.Provider value={{ wid, overview, error, reload }}>{children}</Ctx.Provider>;
 }
 

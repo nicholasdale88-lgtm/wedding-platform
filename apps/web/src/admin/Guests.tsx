@@ -10,7 +10,7 @@ import { ImportGuests } from './ImportGuests';
 import { ManualSend } from './ManualSend';
 import { answerLabel, applyFilters, dropdowns, quickFilters, shortAnswer, type FilterState } from './guestFilters';
 import { useAdmin } from './Shell';
-import { Eyebrow, Pill, StatusPill, useMedia, useToast } from './ui';
+import { Eyebrow, Pill, StatusPill, useAutoRefresh, useMedia, useToast } from './ui';
 
 const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'sort'] as const;
 
@@ -37,6 +37,7 @@ export function Guests() {
   useEffect(() => {
     void load();
   }, [load]);
+  useAutoRefresh(load); // new replies appear in the list by themselves
 
   const state: FilterState = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ''])) as FilterState;
   if (!state.filter) state.filter = 'all';

@@ -130,3 +130,24 @@ export function useMedia(query: string): boolean {
   }, [query]);
   return match;
 }
+
+/**
+ * Keeps a screen current without reloading: runs `refresh` every `ms` while the page is visible, and
+ * straight away when you come back to it (new RSVPs, replies and photos appear by themselves).
+ */
+export function useAutoRefresh(refresh: () => unknown, ms = 30_000, enabled = true) {
+  const latest = useRef(refresh);
+  latest.current = refresh;
+  useEffect(() => {
+    if (!enabled) return;
+    const run = () => {
+      if (document.visibilityState === 'visible') void latest.current();
+    };
+    const timer = setInterval(run, ms);
+    document.addEventListener('visibilitychange', run);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', run);
+    };
+  }, [ms, enabled]);
+}

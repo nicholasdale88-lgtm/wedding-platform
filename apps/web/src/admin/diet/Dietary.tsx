@@ -5,7 +5,7 @@ import { api, type EventInfo, type Guest, type Person } from '../../lib/api';
 import { downloadCsv, fileName } from '../../lib/csv';
 import { fmtWeekday, shortLabel } from '../../lib/format';
 import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Pill, useToast } from '../ui';
+import { Eyebrow, inputCls, Pill, useAutoRefresh, useToast } from '../ui';
 
 /**
  * Admin → Dietary (design: isDiet). For the caterer: everyone with a dietary need per event, serious
@@ -29,6 +29,7 @@ export function Dietary() {
     }
   }, [wid]);
   useEffect(() => void load(), [load]);
+  useAutoRefresh(load);
 
   const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
   const slug = overview?.wedding.slug ?? 'wedding';
