@@ -1,6 +1,6 @@
 import { PACK_TEMPLATE, PARTY_TEMPLATE, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, ApiError, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
 import { confirmLeave, useUnsavedChanges } from '../leave';
 import { useAdmin, useSectionName } from '../Shell';
@@ -48,7 +48,7 @@ const INTRO: Record<PartyView, string> = {
 };
 
 export function Party() {
-  const { wid, event } = useAdmin();
+  const { wid, event, path } = useAdmin();
   const section = useSectionName();
   const [params, setParams] = useSearchParams();
   const asked = params.get('view') as PartyView | null;
@@ -89,6 +89,9 @@ export function Party() {
           {view === 'p1' || view === 'p2' ? `${d.names[view]}’s side. ` : ''}
           {INTRO[view]}
         </p>
+        <Link to={path('pages?page=party')} className="inline-block mt-2 text-[14px] font-medium !text-[#33402f]">
+          Sign-ins and permissions for the wedding party →
+        </Link>
       </header>
       <PartyBar view={view} go={go} sides={sides} />
       {view === 'overview' && <PartyOverview d={d} setD={setD} sideName={sideName} go={go} />}
