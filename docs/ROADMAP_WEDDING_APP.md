@@ -70,3 +70,56 @@ A planner card is added to the Account Overview, showing:
 ## Not now
 
 - The sales side (landing page, sign-up, payments) stays paused until the couple has used the planner themselves.
+
+## Research (19 Oct 2026): features we're missing
+
+Sources:
+- **thecompleteweddingplanner.com.au** — an AU printed planner ($69.95), plus a $39.95 guest-list and budget spreadsheet. Its headline is a summary of "payments still owing", and it has a keepsake section.
+- **The Etsy "Ultimate Wedding Planner Bundle"** — the page blocked automated reading. Similar Google Sheets bundles have 15–27 tabs: budget vs actual, RSVP, vendors and quotes, payment schedule, checklist by month, day-of binder, honeymoon and packing, gifts and thank-yous, mood board, bridal party.
+- **Leading apps** — Zola, The Knot, Joy, Bridebook, Easy Weddings, Guestboard, RSVPify, Minted.
+
+Everything below fits the free tiers unless flagged. Building order is the ★ picks first.
+
+### Guest experience
+- ★ **Gift registry, cash fund and AU wishing well.** Registry links and honeymoon "experiences" funded by PayID or bank transfer. Guests pledge, and the couple confirms by hand. No payment gateway, so no fees.
+- ★ **Accommodation and shuttle board.** Hotel codes, shuttle times with seats left, and an SMS one hour before the shuttle.
+- ★ **Song requests.** Collected with the RSVP; the couple marks each must-play or do-not-play; the DJ gets the list as an export.
+- **Add to calendar.** An .ics file for each event, plus a Google Calendar link.
+  - The Google Wallet pass is free.
+  - The Apple Wallet pass needs a developer account (US$99/yr), so it stays optional and needs the couple's OK first.
+- **Countdown and "our story" pages.**
+- **Who's who.** Opt-in guest profiles, plus "people at your table" before the day.
+- **Plus-one and kids' rules, and accessibility needs.** These flow into the dietary and caterer exports.
+- **Guest question assistant.** Answers come from the wedding's own details using keyword search. AI is optional; Cloudflare Workers AI has a free daily allowance and charges beyond it.
+- **Live-stream link.** Shown only during the ceremony, with the replay afterwards.
+- **Multilingual invitation**, for overseas and multicultural family.
+
+### Planner
+- ★ **AU checklist by months to go, with Notice of Intended Marriage (NOI) alerts.** The NOI is due between 18 months and 1 month before the wedding.
+- ★ **Vendor payment schedule.** Deposits, instalments and final balances, with reminders. Includes a day-of envelope list for tips and cash.
+- **Budget split against average AU spend.**
+- ★ **Seating-conflict checker.** Keep-apart and keep-together pairs, table capacity, access needs and kids.
+- **Households and an A/B list.** Send the B-list automatically as declines come in.
+- ★ **Printable stationery and signage.** Welcome sign, table numbers, QR table cards, menus, place cards, seating poster and address labels, all in the invitation's theme.
+- **AI wording helpers** for vows, speeches and thank-yous. Optional and capped.
+- **Wedding party hub.** Roles, tasks, outfits and a private thread.
+- **Travel helper** for overseas guests: arrivals and airport pickups.
+
+### Day of
+- ★ **Live photo wall.** A full-screen /live page cycling new photos and message-board posts, cast to the venue screen. Uses polling, which is free.
+- **QR table cards.** Each opens that table's menu, the people at the table and photo upload.
+- **MC "now / next" and speech timer.** Texts vendors "5 minutes to the first dance".
+- **Door check-in and headcount** for welcome drinks and brunch.
+- **Wet-weather trigger.** When rain is forecast 24–48 hours out, offer to send the wet-weather SMS.
+- **Guest games.** Shoe game, photo scavenger hunt, trivia.
+
+### After
+- ★ **Thank-you tracker.** Each gift is linked to whether its note has been sent.
+- **Gallery highlights.** Download everything as one zip, and a guest-book PDF made from the message board.
+- **Vendor review reminders, and an anniversary text with photos.**
+- **AU name-change checklist.** Births, Deaths and Marriages (BDM) certificate, then passport, Medicare, ATO, bank and licence.
+
+### Cost flags (all optional)
+- Apple Wallet: US$99/yr
+- Real-time sockets on Durable Objects: US$5/mo. Polling avoids this.
+- AI beyond the free Workers AI allowance
