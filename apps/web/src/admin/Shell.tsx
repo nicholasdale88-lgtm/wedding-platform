@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router
 import { api, ApiError, type Overview } from '../lib/api';
 import { THEMES } from '../guest/generated/themes';
 import { coupleName } from '../lib/remember';
+import { DEFAULT_LOOK, lookVars } from './AdminLook';
 import { confirmLeave, LeaveGuard } from './leave';
 import { useAutoRefresh, useMedia } from './ui';
 
@@ -84,6 +85,7 @@ export const ACCOUNT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'messages', label: 'Messages' },
   { key: 'texts', label: 'Texting setup' },
+  { key: 'look', label: 'Admin look' },
 ] as const;
 export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -290,7 +292,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   );
 
   return (
-    <div style={themeVars(o?.wedding.theme, o ? Math.max(0, o.events.findIndex((e) => e.key === event)) : 0)} className={`grid min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300 ${mob ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'}`}>
+    <div style={looks(o, event)} className={`grid min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300 ${mob ? 'grid-cols-[minmax(0,1fr)]' : 'grid-cols-[236px_minmax(0,1fr)]'}`}>
       <LeaveGuard />
       <aside
         className={`bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 ${mob ? 'gap-[10px] pt-3 px-[14px] pb-[10px] h-auto' : 'gap-[24px] pt-[30px] px-4 pb-[22px] h-screen'}`}
@@ -337,6 +339,15 @@ function themeVars(theme: string | undefined, slot: number): CSSProperties {
   }
   // Buttons keep the admin's sage in the first event and Account (the theme's own accents are too light for white text).
   return { '--adm-ink': t.dg ?? '#33402f', '--adm-soft': t.b2 ?? '#cfd8bb', '--adm-bg': t.iv ?? '#f6f0e2', '--adm-accent': '#5d6b47', '--adm-accent-deep': '#46543a' } as CSSProperties;
+}
+
+/** The admin's colours: the chosen palette (or the invitation's), and the second event's own colour if kept. */
+function looks(o: Overview | null, event: string): CSSProperties {
+  const look = { ...DEFAULT_LOOK, ...o?.wedding.adminLook };
+  const slot = o ? Math.max(0, o.events.findIndex((e) => e.key === event)) : 0;
+  const size = look.large ? ({ zoom: 1.12 } as CSSProperties) : {};
+  if (slot === 1 && look.eventColours) return { ...themeVars(o?.wedding.theme, 1), ...size };
+  return { ...(lookVars(look) ?? themeVars(o?.wedding.theme, 0)), ...size };
 }
 
 /** Where you are, for screen titles: an event's name, or "Account". */

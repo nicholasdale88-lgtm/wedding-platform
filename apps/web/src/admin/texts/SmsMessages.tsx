@@ -1,4 +1,5 @@
 import { zonedToUtc } from '@wp/shared';
+import { SmsPhone } from './SmsPhone';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, textsApi, type Campaign, type Estimate, type TextsData } from '../../lib/api';
 import { fmtDay, fmtTime, fmtWhen, shortLabel, toLocalInput } from '../../lib/format';
@@ -434,12 +435,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
             {body.length} characters{perGuest ? ` · ${perGuest} ${perGuest === 1 ? 'part' : 'parts'} per guest` : ''}. Words in {'{brackets}'} are filled in for each guest.
           </span>
         </div>
-        <div className="flex flex-col gap-2 p-4 rounded-[18px] bg-[#fbf8f2] border border-[#e2d7bc]">
-          <div className="text-[12px] text-[#7a7466]">
-            <strong className="text-[#33402f]">{data.sender ?? 'Your number'}</strong> to {est?.ids[0] ? data.people.find((p) => p.id === est.ids[0])?.name : 'a guest'}
-          </div>
-          <div className="self-start max-w-full py-[10px] px-[14px] rounded-[18px] rounded-bl-[6px] bg-[#e9e2cf] text-[14px] whitespace-pre-wrap break-words">{est?.sample ?? (body || '…')}</div>
-        </div>
+        <SmsPhone sender={data.sender ?? 'Your number'} to={(est?.ids[0] ? data.people.find((p) => p.id === est.ids[0])?.name : undefined) ?? 'a guest'} text={est?.sample ?? body} parts={perGuest} />
       </div>
 
       {(c.mode === 'dates' || c.custom) && (

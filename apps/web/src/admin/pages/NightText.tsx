@@ -5,6 +5,7 @@ import { fmtWhen, toLocalInput } from '../../lib/format';
 import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { eventOf } from '../texts/SmsMessages';
+import { SmsPhone } from '../texts/SmsPhone';
 import { inputCls, Pill, useToast } from '../ui';
 
 /**
@@ -155,11 +156,7 @@ function NightCard({ c, tz, startsAt, onChanged }: { c: Campaign; tz: string; st
       </div>
       <div aria-label="How it arrives" className="flex flex-col gap-2">
         <span className="text-[12px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">How it arrives</span>
-        <div className="rounded-[26px] border-[8px] border-[#33402f] bg-[#f2f2f4] p-4 min-h-[220px] flex flex-col justify-end">
-          <div className="self-start max-w-[92%] rounded-[18px] rounded-bl-[6px] bg-white py-2 px-3 text-[14px] leading-[1.35] whitespace-pre-wrap break-words shadow-[0_1px_2px_rgba(0,0,0,.08)]">
-            {est?.sample ?? body}
-          </div>
-        </div>
+        <SmsPhone sender={data.sender ?? 'Your number'} to="a guest" text={est?.sample ?? body} parts={est && est.count ? Math.round(est.parts / est.count) : null} />
         <span className="text-[12px] text-[#7a7466]">{est?.sample ? 'With a real guest’s details. Nothing is sent.' : 'Placeholders fill in for each guest.'}</span>
       </div>
     </section>

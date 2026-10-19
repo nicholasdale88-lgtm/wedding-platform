@@ -43,6 +43,11 @@ const RsvpPut = z
   })
   .strict();
 
+const AdminLook = z
+  .object({ palette: z.enum(['invitation', 'sage', 'eucalyptus', 'navy', 'blush', 'terracotta', 'charcoal']), eventColours: z.boolean(), large: z.boolean() })
+  .partial()
+  .strict();
+
 export function adminRoutes(deps: (env: Env) => EngineDeps) {
   const app = new Hono<AdminEnv>();
   app.use('*', jsonWritesOnly, requireUser, requireMember());
@@ -111,10 +116,30 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       /* the defaults */
     }
     return c.json({
-      wedding: { id: w.id, slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone, adminName: (w.content.adminName as string | undefined) ?? '' },
+      wedding: {
+        id: w.id,
+        slug: w.slug,
+        name1: w.name1,
+        name2: w.name2,
+        monogram: w.monogram,
+        theme: w.theme,
+        timezone: w.timezone,
+        adminName: (w.content.adminName as string | undefined) ?? '',
+        adminLook: AdminLook.safeParse(w.content.adminLook ?? {}).data ?? {},
+      },
       ...ov,
       partySides: { p1: setup.p1, p2: setup.p2 },
     });
+  });
+
+  /** Account → Admin look: the admin's colours for everyone who runs this wedding. */
+  app.put('/look', writer, async (c) => {
+    const body = AdminLook.safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose a look.');
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.adminLook', json(?)), updated_at = ? WHERE id = ? AND json_valid(content)`)
+      .bind(JSON.stringify(body.data), new Date().toISOString(), wid(c))
+      .run();
+    return c.json({ ok: true, look: body.data });
   });
 
   app.get('/guests', async (c) => {
