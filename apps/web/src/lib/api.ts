@@ -1,4 +1,4 @@
-import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, PartySetup, PlannerKind, Side, TableShape } from '@wp/shared';
+import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, PartySetup, PlannerKind, Side, TableShape, TaskTotals } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -578,6 +578,8 @@ export const boardApi = {
 };
 
 export interface InsightsData {
+  /** The plan's tasks: by status, overdue and due soon, by person, done per week (12 Mondays), the next eight. */
+  tasks: TaskTotals;
   events: { key: string; name: string; startsAt: string; venue: string; invited: number; yes: number; no: number; awaiting: number; people: number; seats: number }[];
   opened: { invitations: number; opened: number };
   repliesByDay: { day: string; n: number }[];

@@ -123,4 +123,31 @@ ${pdf}
     await call('/coordinator', { method: 'PUT', body: JSON.stringify({ on: false }) });
     expect((await page(k)).status).toBe(404);
   });
+
+  it('a helper’s own task list: their tasks only, they mark them doing or done, and the totals follow', async () => {
+    const k = 'k'.repeat(24);
+    const list = {
+      helpers: [{ id: 'mum', name: 'Mum', key: k }],
+      tasks: [
+        { id: 't1', text: 'Order the cake', before: 30, helper: 'mum' },
+        { id: 't2', text: 'Book the band', before: 300, owner: 'p1' },
+      ],
+    };
+    expect((await call('/planner/doc/checklist', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify(list) })).status).toBe(200);
+    const page = (key: string) => app.request(`/api/p/sophie-and-nicholas/tasks?k=${key}`, {}, env, ctx);
+    expect((await page('x'.repeat(24))).status).toBe(404);
+    const mine = (await (await page(k)).json()) as { name: string; tasks: { id: string; text: string; status: string; due: string }[] };
+    expect(mine.name).toBe('Mum');
+    expect(mine.tasks.map((t) => [t.text, t.status])).toEqual([['Order the cake', 'todo']]);
+    expect(mine.tasks[0]!.due).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    const mark = (id: string, status: string) => app.request('/api/p/sophie-and-nicholas/tasks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, id, status }) }, env, ctx);
+    const after = (await (await mark('t1', 'doing')).json()) as { tasks: { status: string }[] };
+    expect(after.tasks[0]!.status).toBe('doing');
+    expect((await mark('t2', 'done')).status).toBe(404); // not theirs
+    const ins = (await (await call('/insights')).json()) as { tasks: { total: number; byStatus: { todo: number; doing: number }; byPerson: { name: string; doing: number }[]; donePerWeek: unknown[] } };
+    expect(ins.tasks.total).toBe(2);
+    expect(ins.tasks.byStatus).toMatchObject({ todo: 1, doing: 1 });
+    expect(ins.tasks.byPerson.find((p) => p.name === 'Mum')).toMatchObject({ doing: 1 });
+    expect(ins.tasks.donePerWeek).toHaveLength(12);
+  });
 });

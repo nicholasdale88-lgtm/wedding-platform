@@ -705,13 +705,77 @@ export const PlanTask = z.object({
   legal: z.boolean().default(false),
   /** Whose job it is: one of you, both, or not decided yet (''). */
   owner: z.enum(['', 'p1', 'p2', 'both']).default(''),
+  /** Or someone helping (a helper's id): they see it on their own task list. */
+  helper: s(40),
+  /** Where it's at: to do, under way, done ("done" above is kept in step). */
+  status: z.enum(['todo', 'doing', 'done']).default('todo'),
+  /** The day it was done (yyyy-mm-dd), for "done per week". */
+  doneOn: s(10),
 });
 export type PlanTask = z.infer<typeof PlanTask>;
-export const PlanChecklist = z.object({ tasks: z.array(PlanTask).max(300).default([]) });
+/** Someone helping with the plan (a parent, a bridesmaid, a friend): their own task list on a private link. */
+export const Helper = z.object({ id: z.string().max(40), name: z.string().trim().min(1).max(80), mobile: s(20), key: z.string().max(40) });
+export type Helper = z.infer<typeof Helper>;
+export const PlanChecklist = z.object({ tasks: z.array(PlanTask).max(300).default([]), helpers: z.array(Helper).max(40).default([]) });
 export type PlanChecklist = z.infer<typeof PlanChecklist>;
 
+/** A task's status (older lists only had "done"). */
+export const statusOf = (t: Pick<PlanTask, 'done' | 'status'>): PlanTask['status'] => (t.done ? 'done' : t.status === 'done' ? 'todo' : t.status);
+/** Set a task's status, keeping "done" and the day it was done in step. */
+export const withStatus = (t: PlanTask, status: PlanTask['status'], today: string): PlanTask => ({ ...t, status, done: status === 'done', doneOn: status === 'done' ? t.doneOn || today : '' });
+/** Who a task is with, as one id: 'p1', 'p2', 'both', 'h:<helper id>', or '' (no one yet). */
+export const assigneeOf = (t: Pick<PlanTask, 'owner' | 'helper'>) => (t.helper ? `h:${t.helper}` : t.owner);
+
+const DAY_MS = 86_400_000;
+/** A task's due date (yyyy-mm-dd), counted back from the wedding's date (yyyy-mm-dd). */
+export const taskDue = (t: Pick<PlanTask, 'before'>, weddingDate: string) => new Date(Date.parse(`${weddingDate}T00:00:00Z`) - t.before * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * The task figures for the overview: by status, overdue and due soon, by person, done per week (the last
+ * 12 weeks, Mondays), and the next open tasks. `weddingDate` and `today` are yyyy-mm-dd where the wedding is.
+ */
+export function taskTotals(list: PlanChecklist, weddingDate: string, today: string, names: { p1: string; p2: string }) {
+  const due = (t: PlanTask) => (weddingDate ? taskDue(t, weddingDate) : '');
+  const plus = (n: number) => new Date(Date.parse(`${today}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
+  const open = list.tasks.filter((t) => statusOf(t) !== 'done');
+  const overdue = (t: PlanTask) => statusOf(t) !== 'done' && !!due(t) && due(t) < today;
+  const people = new Map<string, { id: string; name: string; todo: number; doing: number; done: number; overdue: number }>();
+  const nameOf = (id: string) => (id === 'p1' ? names.p1 : id === 'p2' ? names.p2 : id === 'both' ? 'Both of you' : id ? list.helpers.find((h) => `h:${h.id}` === id)?.name ?? 'Someone removed' : 'Not assigned');
+  for (const t of list.tasks) {
+    const id = assigneeOf(t);
+    const row = people.get(id) ?? { id, name: nameOf(id), todo: 0, doing: 0, done: 0, overdue: 0 };
+    row[statusOf(t)]++;
+    if (overdue(t)) row.overdue++;
+    people.set(id, row);
+  }
+  // Mondays, oldest first: the week each task was done in.
+  const monday = (d: string) => {
+    const t = new Date(`${d}T00:00:00Z`);
+    return new Date(t.getTime() - ((t.getUTCDay() + 6) % 7) * DAY_MS).toISOString().slice(0, 10);
+  };
+  const thisWeek = monday(today);
+  const weeks = Array.from({ length: 12 }, (_, i) => new Date(Date.parse(`${thisWeek}T00:00:00Z`) - (11 - i) * 7 * DAY_MS).toISOString().slice(0, 10));
+  const perWeek = new Map(weeks.map((w) => [w, 0]));
+  for (const t of list.tasks) if (statusOf(t) === 'done' && t.doneOn && perWeek.has(monday(t.doneOn))) perWeek.set(monday(t.doneOn), perWeek.get(monday(t.doneOn))! + 1);
+  return {
+    total: list.tasks.length,
+    byStatus: { todo: list.tasks.filter((t) => statusOf(t) === 'todo').length, doing: list.tasks.filter((t) => statusOf(t) === 'doing').length, done: list.tasks.filter((t) => statusOf(t) === 'done').length },
+    overdue: open.filter(overdue).length,
+    due7: open.filter((t) => due(t) && due(t) >= today && due(t) <= plus(7)).length,
+    due30: open.filter((t) => due(t) && due(t) >= today && due(t) <= plus(30)).length,
+    byPerson: [...people.values()].sort((a, b) => (a.id === '' ? 1 : b.id === '' ? -1 : b.todo + b.doing - (a.todo + a.doing))),
+    donePerWeek: weeks.map((week) => ({ week, n: perWeek.get(week) ?? 0 })),
+    next: open
+      .slice()
+      .sort((a, b) => b.before - a.before)
+      .slice(0, 8)
+      .map((t) => ({ id: t.id, text: t.text, due: due(t), who: nameOf(assigneeOf(t)), status: statusOf(t) as 'todo' | 'doing' })),
+  };
+}
+export type TaskTotals = ReturnType<typeof taskTotals>;
+
 /** The usual Australian wedding plan, by days before the day (everything editable). */
-export const PLAN_TEMPLATE: Omit<PlanTask, 'id' | 'done' | 'note' | 'owner'>[] = [
+export const PLAN_TEMPLATE: Omit<PlanTask, 'id' | 'done' | 'note' | 'owner' | 'helper' | 'status' | 'doneOn'>[] = [
   { text: 'Set the budget and guest numbers together', before: 450, legal: false },
   { text: 'Book the venue and lock in the date', before: 420, legal: false },
   { text: 'Book the celebrant', before: 400, legal: false },

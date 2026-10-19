@@ -1,7 +1,8 @@
-import { dietCategories, InvitationContent, Shuttles } from '@wp/shared';
+import { dateIn, dietCategories, InvitationContent, Shuttles, taskTotals } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { readDoc } from './planner';
 
 /**
  * Wedding planner → Insights: the numbers behind the plan. Replies per event (invited, opened, replied,
@@ -93,7 +94,16 @@ export function insightsRoutes() {
     const one = (r: D1Result | undefined) => ((r?.results[0] ?? {}) as Row);
     const n = (x: number | null | undefined) => Number(x ?? 0);
     const stats = new Map((perEvent!.results as (Row & { event_id: string })[]).map((r) => [r.event_id, r]));
+    // The plan's tasks: by status, overdue and due soon, by person, done per week, what's next.
+    const [wrow, checklist] = await Promise.all([
+      db.prepare(`SELECT name1, name2, timezone FROM wedding WHERE id = ?`).bind(w).first<{ name1: string; name2: string; timezone: string }>(),
+      readDoc(db, w, 'checklist', ''),
+    ]);
+    const firstStart = (events!.results as { starts_at: string }[])[0]?.starts_at;
+    const tz = wrow?.timezone ?? 'Australia/Sydney';
+    const tasks = taskTotals(checklist.data, firstStart ? dateIn(tz, new Date(firstStart)) : '', dateIn(tz), { p1: wrow?.name1.split(' ')[0] ?? 'Partner 1', p2: wrow?.name2.split(' ')[0] ?? 'Partner 2' });
     return c.json({
+      tasks,
       events: (events!.results as { id: string; key: string; name: string; starts_at: string; venue: string | null }[]).map((e) => {
         const s = stats.get(e.id);
         const invited = n(s?.invited);

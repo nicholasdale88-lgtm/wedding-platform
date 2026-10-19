@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPayments, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -173,5 +173,40 @@ describe('vendor items for the checklist', () => {
       ['contract', 'Sign Bloom’s contract', '', false],
       ['quote', 'Decide on Snap’s quote (it runs out)', '2027-02-01', false],
     ]);
+  });
+});
+
+describe('tasks: who, status, totals', () => {
+  const list = PlanChecklist.parse({
+    helpers: [{ id: 'mum', name: 'Mum', key: 'k' }],
+    tasks: [
+      { id: 'a', text: 'Book venue', before: 400, done: true, doneOn: '2027-03-02' }, // done (old style)
+      { id: 'b', text: 'Florist', before: 260, owner: 'p1', status: 'doing' }, // overdue, under way
+      { id: 'c', text: 'Invites', before: 250, helper: 'mum' }, // due in 5 days
+      { id: 'd', text: 'Cake', before: 200, helper: 'mum' }, // later
+    ],
+  });
+  const tt = taskTotals(list, '2027-11-18', '2027-03-08', { p1: 'Alex', p2: 'Sam' });
+  it('counts by status, overdue and due soon', () => {
+    expect(tt.byStatus).toEqual({ todo: 2, doing: 1, done: 1 });
+    expect(tt.overdue).toBe(1);
+    expect(tt.due7).toBe(1);
+    expect(tt.due30).toBe(1);
+  });
+  it('by person, unassigned last, and done per week', () => {
+    expect(tt.byPerson.map((p) => [p.name, p.todo, p.doing, p.done, p.overdue])).toEqual([
+      ['Mum', 2, 0, 0, 0],
+      ['Alex', 0, 1, 0, 1],
+      ['Not assigned', 0, 0, 1, 0],
+    ]);
+    expect(tt.donePerWeek).toHaveLength(12);
+    expect(tt.donePerWeek.at(-1)).toEqual({ week: '2027-03-08', n: 0 });
+    expect(tt.donePerWeek.at(-2)).toEqual({ week: '2027-03-01', n: 1 });
+    expect(tt.next.map((n) => n.text)).toEqual(['Florist', 'Invites', 'Cake']);
+  });
+  it('a status change keeps "done" in step', () => {
+    const d = withStatus(list.tasks[2]!, 'done', '2027-03-09');
+    expect(d).toMatchObject({ done: true, status: 'done', doneOn: '2027-03-09' });
+    expect(withStatus(d, 'todo', '2027-03-10')).toMatchObject({ done: false, doneOn: '' });
   });
 });
