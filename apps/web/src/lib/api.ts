@@ -357,6 +357,17 @@ export const photoLinksApi = {
   copyAll: (wid: string, id: string) => send<{ ok: true; queued: number }>('POST', `${w(wid)}/photo-links/${id}/copy-all`),
 };
 
+export interface VendorHit {
+  osm: string;
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  km: number;
+  lat: number;
+  lon: number;
+}
 export interface PartyMember {
   personId: string;
   invitationId: string;
@@ -379,8 +390,11 @@ export interface PartyData {
 export const plannerApi = {
   party: (wid: string, event?: string) => request<PartyData>(`${w(wid)}/planner/party${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   setRole: (wid: string, personId: string, role: string) => send<{ ok: true; members: PartyMember[] }>('PUT', `${w(wid)}/planner/people/${personId}/role`, { role }),
-  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist', scope: string, data: T, version: number) =>
-    send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`, data, version),
+  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist' | 'budget' | 'vendors', scope: string, data: T, version: number) =>
+    send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}${scope ? `/${encodeURIComponent(scope)}` : ''}`, data, version),
+  doc: <T>(wid: string, kind: 'budget' | 'vendors') => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
+  searchVendors: (wid: string, category: string, km: number) =>
+    request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
 };
 
 export const photosApi = {

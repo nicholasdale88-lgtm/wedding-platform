@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import seedJson from '../../../seed/sophie-nicholas.json';
 import type { Env } from '../src/env';
 import { createApp } from '../src/index';
@@ -53,6 +53,35 @@ describe('planner: wedding party', () => {
     expect(mc.events.find((e) => e.key === 'wedding')!.items.map((i) => i.title)).toEqual(['Breakfast', 'Run the speeches']);
     expect(mc.party.map((p) => p.role).sort()).toEqual(['Bridesmaid', 'MC']);
     expect(JSON.stringify(mc)).not.toMatch(/token|phone/); // names and roles only
+  });
+
+  it('finds vendors near the venue, nearest first, named ones only, and keeps a budget', async () => {
+    let query = '';
+    vi.stubGlobal('fetch', async (_u: string, init?: RequestInit) => {
+      query = decodeURIComponent(String(init?.body ?? '').replace(/^data=/, ''));
+      return new Response(
+        JSON.stringify({
+          elements: [
+            { type: 'node', id: 1, lat: -33.5, lon: 151.3, tags: { name: 'Far Flowers', phone: '02 1111 1111' } },
+            { type: 'node', id: 2, lat: -33.38, lon: 151.2, tags: { name: 'Valley Blooms', 'addr:street': 'Main Rd', 'addr:suburb': 'Somersby' } },
+            { type: 'way', id: 3, center: { lat: -33.4, lon: 151.2 }, tags: {} }, // no name: skipped
+          ],
+        }),
+        { status: 200 },
+      );
+    });
+    try {
+      const r = (await (await call('/vendors/search?category=florist&km=30')).json()) as { results: { name: string; km: number; address: string }[] };
+      expect(query).toContain('["shop"="florist"](around:30000,-33.37,151.19)');
+      expect(r.results.map((x) => x.name)).toEqual(['Valley Blooms', 'Far Flowers']);
+      expect(r.results[0]).toMatchObject({ address: 'Main Rd, Somersby' });
+      expect(r.results[0]!.km).toBeLessThan(r.results[1]!.km);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect((await call('/vendors/search?category=nonsense')).status).toBe(400);
+    const budget = await call('/doc/budget', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ total: 40000, lines: [{ category: 'Cake', estimate: 800, paid: 200, due: '2027-10-01' }] }) });
+    expect(((await budget.json()) as { data: { lines: { quote: number }[] } }).data.lines[0]!.quote).toBe(0); // defaults filled in
   });
 
   it('a stale save is refused with the current version (two people never overwrite each other)', async () => {

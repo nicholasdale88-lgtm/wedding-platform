@@ -1,4 +1,4 @@
-import { isToken, itemsFor, PARTY_ROLES, PLANNER_DOCS, sideOf, type PlannerKind } from '@wp/shared';
+import { guidesOf, isToken, itemsFor, PARTY_ROLES, PLANNER_DOCS, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -14,7 +14,7 @@ import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './aut
  */
 
 type C = Context<AdminEnv>;
-const err = (c: C, status: 400 | 404 | 409, code: string, message: string) => c.json({ error: { code, message } }, status);
+const err = (c: C, status: 400 | 404 | 409 | 429 | 502, code: string, message: string) => c.json({ error: { code, message } }, status);
 const wid = (c: C) => c.req.param('wid')!;
 const json = <T>(s: string | null | undefined, fallback: T): T => {
   try {
@@ -99,6 +99,74 @@ export function plannerRoutes() {
     if (!r.meta.changes) return err(c, 404, 'not_found', 'Guest not found.');
     await audit(c, 'party.role', pid).run();
     return c.json({ ok: true, members: await members(c.env.DB, wid(c)) });
+  });
+
+  /**
+   * Find vendors near the venue: OpenStreetMap (free, no key) within `km` of the event's venue (its
+   * latitude and longitude from Setup → Night-before page), nearest first.
+   */
+  app.get('/vendors/search', async (c) => {
+    const cat = VENDOR_SEARCH[c.req.query('category') ?? ''];
+    const km = Math.min(100, Math.max(1, Number(c.req.query('km')) || 25));
+    if (!cat) return err(c, 400, 'invalid', 'Choose what to look for.');
+    if (!(await allow(c.env.DB, `vendors:${wid(c)}`, 40, 3_600_000))) return err(c, 429, 'slow_down', 'That is a lot of searches. Try again in a little while.');
+    const db = c.env.DB;
+    const w = await db.prepare(`SELECT guide FROM wedding WHERE id = ?`).bind(wid(c)).first<{ guide: string }>();
+    const { results: evs } = await db.prepare(`SELECT key, name FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(wid(c)).all<{ key: string; name: string }>();
+    const guides = guidesOf(json(w?.guide, {}), evs.map((e) => e.key));
+    const ev = evs.find((e) => e.key === c.req.query('event') && guides[e.key]?.lat !== undefined) ?? evs.find((e) => guides[e.key]?.lat !== undefined);
+    const g = ev ? guides[ev.key] : undefined;
+    if (!ev || g?.lat === undefined || g.lon === undefined) {
+      return err(c, 400, 'no_venue', "Add your venue's latitude and longitude first (Setup → Night-before page → Arrival and parking).");
+    }
+    const lat0 = g.lat;
+    const lon0 = g.lon;
+    const filters = cat.tags.map((t) => {
+      const [k, v] = t.split('=');
+      return `nwr["${k}"="${v}"](around:${km * 1000},${lat0},${lon0});`;
+    });
+    const query = `[out:json][timeout:20];(${filters.join('')});out center tags 80;`;
+    let els: { lat?: number; lon?: number; center?: { lat: number; lon: number }; id: number; type: string; tags?: Record<string, string> }[] = [];
+    try {
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'wedding-platform vendor finder' },
+        body: `data=${encodeURIComponent(query)}`,
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      els = ((await res.json()) as { elements: typeof els }).elements ?? [];
+    } catch {
+      return err(c, 502, 'unavailable', 'The map search is busy. Please try again in a minute.');
+    }
+    const rad = (d: number) => (d * Math.PI) / 180;
+    const dist = (lat: number, lon: number) => {
+      const a = Math.sin(rad(lat - lat0) / 2) ** 2 + Math.cos(rad(lat0)) * Math.cos(rad(lat)) * Math.sin(rad(lon - lon0) / 2) ** 2;
+      return 6371 * 2 * Math.asin(Math.sqrt(a));
+    };
+    const seen = new Set<string>();
+    const found = els
+      .map((e) => {
+        const t = e.tags ?? {};
+        const lat = e.lat ?? e.center?.lat;
+        const lon = e.lon ?? e.center?.lon;
+        if (!t.name || lat === undefined || lon === undefined) return null;
+        const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
+        return {
+          osm: `${e.type}/${e.id}`,
+          name: t.name,
+          address: [street, t['addr:suburb'] ?? t['addr:city'], t['addr:postcode']].filter(Boolean).join(', '),
+          phone: t.phone ?? t['contact:phone'] ?? '',
+          email: t.email ?? t['contact:email'] ?? '',
+          website: t.website ?? t['contact:website'] ?? '',
+          km: Math.round(dist(lat, lon) * 10) / 10,
+          lat,
+          lon,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => !!x && !seen.has(x.name.toLowerCase()) && !!seen.add(x.name.toLowerCase()))
+      .sort((a, b) => a.km - b.km)
+      .slice(0, 40);
+    return c.json({ venue: { event: ev.name, lat: lat0, lon: lon0 }, km, category: cat.label, results: found });
   });
 
   /** A planning document. Saving needs the version you loaded (If-Match): two people never overwrite each other. */

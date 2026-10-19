@@ -86,6 +86,80 @@ export const CHECK_TEMPLATE: DayChecklist = {
   ],
 };
 
+// ---------------------------------------------------------------- budget and vendors
+
+const money = z.number().min(0).max(10_000_000).default(0);
+/** One budget line: what it's for, the estimate, the quote once you have one, what's paid, when the rest is due. */
+export const BudgetLine = z.object({
+  category: z.string().max(60),
+  item: s(120),
+  estimate: money,
+  quote: money,
+  paid: money,
+  due: s(10), // yyyy-mm-dd, when the rest is due
+  vendor: s(120),
+  note: s(500),
+});
+export type BudgetLine = z.infer<typeof BudgetLine>;
+export const Budget = z.object({ total: money, lines: z.array(BudgetLine).max(300).default([]) });
+export type Budget = z.infer<typeof Budget>;
+
+/** How Australian couples usually split the budget (a starting point, by share of the total). */
+export const BUDGET_SPLIT: { category: string; share: number }[] = [
+  { category: 'Venue and catering', share: 0.44 },
+  { category: 'Photography and video', share: 0.12 },
+  { category: 'Attire and rings', share: 0.12 },
+  { category: 'Flowers and styling', share: 0.08 },
+  { category: 'Music and entertainment', share: 0.06 },
+  { category: 'Hair and makeup', share: 0.03 },
+  { category: 'Cake', share: 0.02 },
+  { category: 'Stationery', share: 0.02 },
+  { category: 'Celebrant', share: 0.02 },
+  { category: 'Transport', share: 0.02 },
+  { category: 'Accommodation and extras', share: 0.07 },
+];
+
+export const VENDOR_STATUS = ['idea', 'contacted', 'quoted', 'booked'] as const;
+export const Vendor = z.object({
+  id: z.string().max(40),
+  name: z.string().max(120),
+  category: s(60),
+  status: z.enum(VENDOR_STATUS).default('idea'),
+  contact: s(120),
+  phone: s(40),
+  email: s(120),
+  website: s(300),
+  address: s(300),
+  km: z.number().min(0).max(100_000).nullable().default(null), // from the venue
+  quote: money,
+  deposit: money,
+  depositPaid: z.boolean().default(false),
+  balanceDue: s(10), // yyyy-mm-dd
+  arrival: s(20), // on the day
+  notes: s(1500),
+});
+export type Vendor = z.infer<typeof Vendor>;
+export const Vendors = z.object({ list: z.array(Vendor).max(200).default([]) });
+export type Vendors = z.infer<typeof Vendors>;
+
+/** What "Find vendors" can search for near the venue (OpenStreetMap tags). */
+export const VENDOR_SEARCH: Record<string, { label: string; tags: string[] }> = {
+  florist: { label: 'Florists', tags: ['shop=florist'] },
+  photographer: { label: 'Photographers', tags: ['craft=photographer', 'shop=photo'] },
+  caterer: { label: 'Caterers', tags: ['craft=caterer'] },
+  cake: { label: 'Cakes and bakeries', tags: ['shop=pastry', 'shop=bakery', 'shop=confectionery'] },
+  hair: { label: 'Hairdressers', tags: ['shop=hairdresser'] },
+  makeup: { label: 'Makeup and beauty', tags: ['shop=beauty', 'shop=cosmetics'] },
+  bridal: { label: 'Bridal wear', tags: ['shop=wedding'] },
+  suits: { label: 'Suits and tailors', tags: ['shop=tailor', 'craft=tailor'] },
+  jewellery: { label: 'Jewellers and rings', tags: ['shop=jewelry'] },
+  accommodation: { label: 'Accommodation', tags: ['tourism=hotel', 'tourism=motel', 'tourism=guest_house', 'tourism=apartment'] },
+  transport: { label: 'Cars, buses and taxis', tags: ['amenity=car_rental', 'amenity=taxi', 'office=taxi', 'amenity=bus_station'] },
+  hire: { label: 'Party hire and styling', tags: ['shop=party', 'shop=interior_decoration'] },
+  print: { label: 'Printing and stationery', tags: ['shop=stationery', 'shop=copyshop', 'craft=printer'] },
+  music: { label: 'Music shops and DJs', tags: ['shop=musical_instrument', 'amenity=music_venue'] },
+};
+
 /** The planner documents and their shapes (the API validates every save against these). */
-export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist } as const;
+export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;
