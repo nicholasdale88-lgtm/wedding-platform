@@ -57,6 +57,14 @@ if [ "$WEDDINGS" = "0" ]; then
 else
   echo "Already seeded ($WEDDINGS wedding(s)); leaving data alone."
 fi
+
+# Keep the owner's sign-in matched to the SEED_OWNER_* secrets (change email, reset a forgotten passcode).
+if [ -n "${SEED_OWNER_EMAIL:-}${SEED_OWNER_PASSCODE:-}" ]; then
+  wr d1 execute "$DB" --remote --json --command "SELECT u.id, u.email, u.pass_hash FROM user u JOIN membership m ON m.user_id = u.id JOIN wedding w ON w.id = m.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND m.role = 'owner' ORDER BY u.created_at LIMIT 1" > "$TMP/owner.json"
+  (cd "$API" && pnpm exec tsx scripts/owner-sync.ts "$TMP/owner.json" "$TMP/owner.sql")
+  if [ -s "$TMP/owner.sql" ]; then wr d1 execute "$DB" --remote --file "$TMP/owner.sql"; fi
+  rm -f "$TMP/owner.json" "$TMP/owner.sql"
+fi
 echo "::endgroup::"
 
 echo "::group::4. Website address"
