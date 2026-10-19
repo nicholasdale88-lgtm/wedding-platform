@@ -44,11 +44,11 @@ export interface WeddingCtx {
   optOutFooter: string;
   baseUrl: string;
   /** Automatic replies to YES / NO texts. Defaults in inbound.ts; editable per wedding. */
-  replies?: Partial<Record<'yes'   /** Invitations start going out at this time (the couple's date, else 8 months before the first event). */
+  replies?: Partial<Record<'yes' | 'no' | 'multi', string>>;
+  /** Invitations start going out at this time (the couple's date, else 8 months before the first event). */
   invitesFrom?: Iso | null;
   /** True when the couple picked the date. */
   invitesFromCustom?: boolean;
-| 'no' | 'multi', string>>;
 }
 
 export interface EventInfo {

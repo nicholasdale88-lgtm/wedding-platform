@@ -127,7 +127,7 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
   }
 
   /** Their invitation text (as the SMS would read, without the STOP line), or a friendly default. */
-  const message = async () => {
+  const inviteText = async () => {
     const inv = d.campaigns.find((x) => /invit/i.test(x.name));
     if (inv && g.phone) {
       try {
@@ -141,11 +141,11 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
     const couple = w ? `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}` : 'We';
     return fallbackMessage(g.people[0]?.name.split(' ')[0] ?? 'there', couple, d.link);
   };
-  const whatsapp = async () => sendWhatsApp(g.phone, await message());
+  const whatsapp = async () => sendWhatsApp(g.phone, await inviteText());
   const messenger = async () => {
-    if ((await sendMessenger(d.link, await message())) === 'copied') toast('Message copied: paste it into Messenger');
+    if ((await sendMessenger(d.link, await inviteText())) === 'copied') toast('Message copied: paste it into Messenger');
   };
-  const share = async () => void (await shareNative(await message(), d.link));
+  const share = async () => void (await shareNative(await inviteText(), d.link));
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(d.link);

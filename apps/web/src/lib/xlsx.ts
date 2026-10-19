@@ -85,7 +85,7 @@ export function writeXlsx(sheets: Sheet[]): Uint8Array {
 }
 
 export function downloadXlsx(filename: string, sheets: Sheet[]) {
-  const blob = new Blob([writeXlsx(sheets)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const blob = new Blob([writeXlsx(sheets) as Uint8Array<ArrayBuffer>], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
