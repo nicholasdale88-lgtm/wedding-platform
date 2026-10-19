@@ -46,11 +46,11 @@ describe('Excel files (.xlsx)', () => {
     const file = writeXlsx([{ ...sheets[0]!, head }], { ink: '#46543a', soft: '#ece8d3', band: '#f6f0e2', line: '#d3cba9', seal });
     const zip = unzipSync(file);
     const xml = strFromU8(zip['xl/worksheets/sheet1.xml']!);
-    const lastRow = sheets[0]!.rows.length + 3; // title, two event lines, a gap, then the table
+    const lastRow = sheets[0]!.rows.length + 4; // title, two event lines, a gap, then the table from row 5
     expect(xml).toContain('Alex &amp; Blair · Guest list');
     expect(xml).toContain('The wedding · Sat 6 Mar 2027, 4:00pm · The Garden');
-    expect(xml).toMatch(new RegExp(`<autoFilter ref="A4:[A-Z]+${lastRow}"/>`));
-    expect(xml).toContain('<pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/>');
+    expect(xml).toMatch(new RegExp(`<autoFilter ref="A5:[A-Z]+${lastRow}"/>`));
+    expect(xml).toContain('<pane ySplit="5" topLeftCell="A6" activePane="bottomLeft" state="frozen"/>');
     expect(xml).toContain('<mergeCell ref="A1:');
     expect(xml).toContain('<drawing r:id="rId1"/>');
     expect(strFromU8(zip['xl/styles.xml']!)).toContain('FF46543A'); // the theme's ink
