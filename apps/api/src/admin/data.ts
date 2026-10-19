@@ -20,6 +20,8 @@ export interface AdminPerson {
   name: string;
   diet: string;
   table: string | null;
+  /** Their seat at each event: { eventKey: table name }. */
+  tables: Record<string, string>;
   meal: { entree: string; main: string; dessert: string };
 }
 

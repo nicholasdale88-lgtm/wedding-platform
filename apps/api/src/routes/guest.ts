@@ -301,7 +301,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     // The site's own storage stays inside its free 10 GB (photos kept in the couple's linked storage don't count).
     if (c.env.MEDIA) {
       const used = await db.prepare(`SELECT COALESCE(SUM(bytes), 0) AS n FROM media WHERE wedding_id = ? AND deleted_at IS NULL AND key NOT LIKE 'link:%'`).bind(w.id).first<{ n: number }>();
-      if ((used?.n ?? 0) > ALBUM_BYTES) return err(c, 503, 'full', 'The album is full for now. The couple has been told.');
+      if ((used?.n ?? 0) > ALBUM_BYTES) return err(c, 503, 'full', 'The album is full for now. Please let the couple know.');
     }
     const bytes = await readBytes(c.req.raw, MAX_PHOTO);
     if (!bytes) return err(c, 413, 'too_large', 'That photo is too large.');
