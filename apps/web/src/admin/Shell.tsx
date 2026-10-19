@@ -38,11 +38,10 @@ export const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'guests', label: 'Guests' },
   { key: 'dietary', label: 'Dietary' },
-  { key: 'texts', label: 'SMS messages' },
+  { key: 'texts', label: 'SMS' }, // messages and setup together
   { key: 'seating', label: 'Seating' },
   { key: 'photos', label: 'Photos' },
   { key: 'pages', label: 'Guest pages' },
-  { key: 'settings', label: 'SMS setup' },
 ] as const;
 export type TabKey = (typeof TABS)[number]['key'];
 
@@ -54,9 +53,7 @@ function badge(key: TabKey, o: Overview | null): string {
     case 'dietary':
       return String(o.nav.dietary);
     case 'texts':
-      return `${o.nav.autopilot} on autopilot`;
-    case 'settings':
-      return o.nav.smsLive ? 'Live' : 'Not set up';
+      return o.nav.smsLive ? `${o.nav.autopilot} on autopilot` : 'Not set up';
     default:
       return '';
   }

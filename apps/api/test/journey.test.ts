@@ -161,3 +161,29 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     expect(provider.delivered.every((m) => /^\+?61/.test(m.to))).toBe(true);
   });
 });
+
+describe('invitation send date', () => {
+  it('invitations wait until 8 months before the first event (or the couple’s date), then all go', async () => {
+    const t = await testD1();
+    const stmts = buildSeed(seedJson, { ownerEmail: 'o@example.com', ownerPassHash: 'x', sampleGuests: false });
+    await t.db.batch(stmts.map((s) => t.db.prepare(s.sql).bind(...s.params)));
+    await t.db.prepare(`UPDATE wedding SET sms_sender = '+61400000999'`).run();
+    const w = (await t.db.prepare(`SELECT id FROM wedding`).first<{ id: string }>())!.id;
+    await t.db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, created_at, updated_at) VALUES ('g1', ?, 'TTTTTTTTTTTTTTTTTTTTTT', '+61412000201', '2026-10-01', '2026-10-01')`).bind(w).run();
+    await t.db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES ('p1', 'g1', 0, 'Early Bird')`).run();
+    await t.db.prepare(`INSERT INTO invite_event (invitation_id, event_id) SELECT 'g1', id FROM event`).run();
+    const provider = new FakeProvider();
+    const clock = fakeClock('2027-03-10T10:00'); // wedding 18 Nov 2027: invitations open 18 Mar 2027
+    const run = () => scheduled({ DB: t.db, PUBLIC_BASE_URL: 'https://example.com' }, () => ({ store: new D1SmsStore(t.db, 'https://example.com'), provider, now: clock.now, uuid: () => crypto.randomUUID() }));
+    await run();
+    expect(provider.delivered).toHaveLength(0);
+    clock.set('2027-03-18T15:00'); // 8 months to the hour before the 2pm ceremony
+    await run();
+    expect(provider.delivered).toHaveLength(1);
+    // A couple's own (earlier) date is honoured for guests added later.
+    await t.db.prepare(`UPDATE wedding SET invites_from = '2027-01-01T00:00:00.000Z'`).run();
+    const ctx = await new D1SmsStore(t.db, 'https://example.com').wedding(w);
+    expect(ctx).toMatchObject({ invitesFrom: '2027-01-01T00:00:00.000Z', invitesFromCustom: true });
+    await t.dispose();
+  });
+});

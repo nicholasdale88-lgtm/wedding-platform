@@ -9,8 +9,8 @@ import { GuestPages } from './pages/GuestPages';
 import { Dietary } from './diet/Dietary';
 import { Photos } from './photos/Photos';
 import { Seating } from './seating/Seating';
-import { SmsSetup } from './settings/SmsSetup';
-import { SmsMessages } from './texts/SmsMessages';
+
+import { SmsTab } from './texts/SmsTab';
 import { AdminDataProvider, Shell, TABS } from './Shell';
 import { Eyebrow, ToastProvider } from './ui';
 
@@ -66,7 +66,7 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
   return (
     <AdminDataProvider wid={wid} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
-        {tab === 'overview' ? <Overview /> : tab === 'guests' ? <Guests /> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsMessages /> : tab === 'settings' ? <SmsSetup /> : tab === 'dietary' ? <Dietary /> : tab === 'seating' ? <Seating /> : tab === 'photos' ? <Photos /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
+        {tab === 'overview' ? <Overview /> : tab === 'guests' ? <Guests /> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsTab /> : tab === 'settings' ? <Navigate to={`/admin/${wid}/texts?view=setup`} replace /> : tab === 'dietary' ? <Dietary /> : tab === 'seating' ? <Seating /> : tab === 'photos' ? <Photos /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
       </Shell>
     </AdminDataProvider>
   );

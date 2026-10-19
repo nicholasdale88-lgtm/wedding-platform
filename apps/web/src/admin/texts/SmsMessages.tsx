@@ -82,7 +82,8 @@ export function SmsMessages() {
             {auto.length} {auto.length === 1 ? 'message' : 'messages'} on autopilot
           </h1>
           <div className="mt-1 text-[15px] text-[#5b6a52]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
-          {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added in SMS setup.</div>}
+          {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added under Setup.</div>}
+          {data.invitesFrom && <InvitesFrom data={data} onChanged={load} />}
         </div>
         <div className="flex gap-2 flex-wrap">
           <Pill onClick={() => void quickAdd('reminder')}>+ Add a reminder</Pill>
@@ -486,6 +487,42 @@ function NewMessage({ data, onCancel, onAdded }: { data: TextsData; onCancel: ()
         Add
       </Pill>
       <Pill onClick={onCancel}>Cancel</Pill>
+    </div>
+  );
+}
+
+/** "Invitations go out from 18 Mar 2027" — 8 months before the first event unless the couple picks a date. */
+function InvitesFrom({ data, onChanged }: { data: TextsData; onChanged: () => Promise<void> }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const tz = data.timezone;
+  const from = data.invitesFrom!;
+  const open = from <= new Date().toISOString();
+  const save = async (date: string | null) => {
+    try {
+      await textsApi.invitesFrom(wid, date);
+      toast(date ? 'Invitation date saved' : 'Back to 8 months before');
+      await onChanged();
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+  return (
+    <div className="mt-2 flex items-center gap-2 flex-wrap text-[14px]">
+      <span className={open ? 'text-[#55633f]' : 'text-[#33402f]'}>{open ? 'Invitations are going out' : 'Invitations go out from'}</span>
+      <input
+        type="date"
+        aria-label="Invitations go out from"
+        value={toLocalInput(from, tz).slice(0, 10)}
+        onChange={(e) => e.target.value && void save(zonedToUtc(`${e.target.value}T09:00`, tz).toISOString())}
+        className={`${inputCls} !py-[5px] !text-[14px]`}
+      />
+      <span className="text-[13px] text-[#7a7466]">{data.invitesFromCustom ? 'your date' : '8 months before the first event'}</span>
+      {data.invitesFromCustom && (
+        <button type="button" onClick={() => void save(null)} className="p-0 border-0 bg-transparent text-[13px] underline cursor-pointer text-[#33402f]">
+          Use 8 months before
+        </button>
+      )}
     </div>
   );
 }

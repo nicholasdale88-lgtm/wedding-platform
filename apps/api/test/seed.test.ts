@@ -69,7 +69,7 @@ describe('seed', () => {
     const clock = fakeClock('2026-10-20T09:00');
     const provider = new FakeProvider();
     const store = new D1SmsStore(t.db, 'https://example.com');
-    await t.db.prepare(`UPDATE wedding SET sms_sender = '+61400000001'`).run();
+    await t.db.prepare(`UPDATE wedding SET sms_sender = '+61400000001', invites_from = '2026-01-01T00:00:00.000Z'`).run(); // invitations already open (the prototype sent them)
     await runAutopilot({ store, provider, now: clock.now, uuid: () => crypto.randomUUID() });
     // Ivy Scott has a mobile and no invite yet; Evie Taylor has no mobile. Recent replies get thank-yous only if within 7 days.
     const invites = provider.delivered.filter((m) => m.message.includes('Your invitation and RSVP'));

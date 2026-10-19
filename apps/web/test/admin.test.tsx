@@ -49,8 +49,7 @@ describe('admin shell', () => {
     expect(await screen.findByText('Alex & Blair')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin' });
     expect(within(nav).getByRole('link', { name: /Guests\s*3/ })).toBeInTheDocument();
-    expect(within(nav).getByRole('link', { name: /SMS messages\s*6 on autopilot/ })).toBeInTheDocument();
-    expect(within(nav).getByRole('link', { name: /SMS setup\s*Not set up/ })).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: /^SMS\s*Not set up/ })).toBeInTheDocument(); // messages and setup in one tab
     expect(screen.getAllByText('Recovery brunch').length).toBeGreaterThan(0);
     expect(screen.getByText('138 days to go')).toBeInTheDocument();
     expect(location).toBe('/admin/w1/overview');

@@ -89,6 +89,8 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
       paused: w.paused,
       adminMobile: w.adminMobile,
       timezone: w.timezone,
+      invitesFrom: w.invitesFrom ?? null,
+      invitesFromCustom: !!w.invitesFromCustom,
       quiet: { start: w.quietStart, end: w.quietEnd },
       events: evs,
       audiences: groups,
@@ -181,6 +183,16 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     await c.env.DB.prepare(`UPDATE campaign_slot SET status = 'cancelled' WHERE campaign_id = ? AND status = 'pending'`).bind(cid).run();
     await audit(c, 'sms.campaign.delete', cid);
     return c.json({ ok: true });
+  });
+
+  /** When invitations start going out (null = back to 8 months before the first event). */
+  app.put('/invites-from', writer, async (c) => {
+    const body = z.object({ date: z.string().datetime().nullable() }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose a date.');
+    await c.env.DB.prepare(`UPDATE wedding SET invites_from = ?, version = version + 1, updated_at = ? WHERE id = ?`).bind(body.data.date, nowIso(), wid(c)).run();
+    await audit(c, 'sms.invites-from', wid(c), body.data);
+    const w = await deps(c.env).store.wedding(wid(c));
+    return c.json({ invitesFrom: w?.invitesFrom ?? null, invitesFromCustom: !!w?.invitesFromCustom });
   });
 
   /** Count, cost and a sample, for the saved message or a draft. Never sends. */

@@ -48,6 +48,7 @@ export const wedding = sqliteTable('wedding', {
   quietStart: integer('quiet_start').notNull().default(8),
   quietEnd: integer('quiet_end').notNull().default(20),
   photoRetentionDays: integer('photo_retention_days').notNull().default(365),
+  invitesFrom: text('invites_from'), // migration 0006: when invitations start (empty = 8 months before)
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
   version: version(),

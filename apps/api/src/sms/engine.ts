@@ -106,6 +106,8 @@ async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
     const t = now.getTime();
     for (const c of campaigns.filter((x) => x.mode === 'auto')) {
       if (c.trigger === 'invitation_created') {
+        // Invitations wait for their date (8 months before the first event, or the couple's choice).
+        if (w.invitesFrom && now.toISOString() < w.invitesFrom) continue;
         await enqueueCampaign(d, w, events, c, recipientsFor(c, recipients, invitedBefore), (r) => `auto:${c.id}:${r.id}`);
       } else if (c.trigger === 'rsvp_changed') {
         const replied = recipients.filter((r) => {

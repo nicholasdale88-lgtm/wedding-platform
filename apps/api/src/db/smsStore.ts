@@ -1,3 +1,4 @@
+import { defaultInvitesFrom } from '@wp/shared';
 import { clearDietIfDeclinedAll, unseatIfNotComing } from '../lib/seatingRules';
 import type { SmsStore } from '../sms/store';
 import {
@@ -24,11 +25,11 @@ export class D1SmsStore implements SmsStore {
   // ---------------------------------------------------------------- reads
 
   async weddings() {
-    return (await this.all<WeddingRow>(`SELECT * FROM wedding WHERE deleted_at IS NULL`)).map((w) => this.toWedding(w));
+    return (await this.all<WeddingRow>(`SELECT *, (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = wedding.id AND e.deleted_at IS NULL) AS first_event FROM wedding WHERE deleted_at IS NULL`)).map((w) => this.toWedding(w));
   }
 
   async wedding(id: string) {
-    const [w] = await this.all<WeddingRow>(`SELECT * FROM wedding WHERE id = ? AND deleted_at IS NULL`, id);
+    const [w] = await this.all<WeddingRow>(`SELECT *, (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = wedding.id AND e.deleted_at IS NULL) AS first_event FROM wedding WHERE id = ? AND deleted_at IS NULL`, id);
     return w ? this.toWedding(w) : null;
   }
 
@@ -312,6 +313,7 @@ export class D1SmsStore implements SmsStore {
       paused: !!w.sms_paused, sender: w.sms_sender, adminMobile: w.admin_mobile, dailyCap: w.sms_daily_cap, rateX100: w.sms_rate_cents_x100,
       walletCredits: w.wallet_credits, optOutFooter: w.sms_optout_footer, baseUrl: this.baseUrl,
       replies: parseJson(w.sms_replies, {}),
+      ...invitesFrom(w.invites_from, w.first_event),
     };
   }
 }
@@ -342,7 +344,7 @@ function chunks<T>(xs: T[], n: number): T[][] {
 interface WeddingRow {
   id: string; slug: string; name1: string; name2: string; timezone: string; quiet_start: number; quiet_end: number;
   sms_paused: number; sms_sender: string | null; admin_mobile: string | null; sms_daily_cap: number; sms_rate_cents_x100: number;
-  wallet_credits: number | null; sms_optout_footer: string; sms_replies: string;
+  wallet_credits: number | null; sms_optout_footer: string; sms_replies: string; invites_from: string | null; first_event: string | null;
 }
 interface EventRow { id: string; key: string; name: string; pending_label: string; sort: number }
 interface InvitationRow { id: string; token: string; phone: string | null; seats_held: number; sms_optout: number; stopped: number }
@@ -360,4 +362,9 @@ interface OutRow {
 interface InRow {
   id: string; wedding_id: string | null; invitation_id: string | null; provider_id: string; type: string; from_phone: string;
   to_phone: string | null; body: string; action: string; received_at: string;
+}
+
+/** The couple's chosen date, else 8 months before the first event. */
+function invitesFrom(custom: string | null, firstEvent: string | null) {
+  return { invitesFrom: custom ?? (firstEvent ? defaultInvitesFrom(firstEvent) : null), invitesFromCustom: !!custom };
 }

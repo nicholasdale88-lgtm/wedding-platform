@@ -196,6 +196,9 @@ export interface TextsData {
   paused: boolean;
   adminMobile: string | null;
   timezone: string;
+  /** When invitations start going out (null: no events yet). */
+  invitesFrom: string | null;
+  invitesFromCustom: boolean;
   quiet: { start: number; end: number };
   events: { key: string; name: string }[];
   audiences: { key: string; label: string; audience: Audience }[];
@@ -230,6 +233,7 @@ export const textsApi = {
     send<Estimate>('POST', `${w(wid)}/texts/${id}/estimate`, draft),
   sendNow: (wid: string, id: string, only?: string[]) => send<SendResult>('POST', `${w(wid)}/texts/${id}/send`, only ? { only } : {}),
   test: (wid: string, body: string) => send<SendResult>('POST', `${w(wid)}/texts/test`, { body }),
+  invitesFrom: (wid: string, date: string | null) => send<{ invitesFrom: string | null; invitesFromCustom: boolean }>('PUT', `${w(wid)}/texts/invites-from`, { date }),
 };
 
 // ---------------------------------------------------------------- SMS setup

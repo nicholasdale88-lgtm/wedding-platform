@@ -58,3 +58,11 @@ export function inQuietHours(utc: Date, tz: string, start = 8, end = 20): boolea
 }
 
 export const iso = (d: Date): string => d.toISOString();
+
+/** Invitations go out this many months before the first event, unless the couple picks a date. */
+export const INVITE_LEAD_MONTHS = 8;
+export function defaultInvitesFrom(firstEventIso: string): string {
+  const d = new Date(firstEventIso);
+  d.setUTCMonth(d.getUTCMonth() - INVITE_LEAD_MONTHS);
+  return d.toISOString();
+}
