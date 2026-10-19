@@ -35,6 +35,9 @@ importers:
       hono:
         specifier: ^4.10.0
         version: 4.13.13
+      postal-mime:
+        specifier: ^2.3.2
+        version: 2.7.6
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -2123,6 +2126,9 @@ packages:
   pirates@4.0.7:
     resolution: {integrity: sha512-TfySrs/5nm8fQJDcBDuUng3VOUKsd7S+zqvbOTiGXHfxX4wK31ard+hoNuvkicM/2YFzlpDgABOevKSsB4G/FA==}
     engines: {node: '>= 6'}
+
+  postal-mime@2.7.6:
+    resolution: {integrity: sha512-UUlyE2KlxmvwMGq060onF/VWU3zD6dVW31FwokQ5v26jWd35fbs2MoTFzh+jXnPwAyV2MULMKXcBInGOl5TO6Q==}
 
   postcss-import@15.1.0:
     resolution: {integrity: sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==}
@@ -4290,6 +4296,8 @@ snapshots:
   picomatch@4.0.7: {}
 
   pirates@4.0.7: {}
+
+  postal-mime@2.7.6: {}
 
   postcss-import@15.1.0(postcss@8.5.31):
     dependencies:
