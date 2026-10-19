@@ -188,6 +188,12 @@ Wedding planner:
   - Replies, a forecast and who to chase.
   - Money, payments by month, and your split against typical couples.
   - The plan (on track?), vendors, catering, seating, key dates, gifts, and how texts did.
+  - When to book: each kind of supplier against when couples usually book it (also on At a glance).
+  - Reply pace: how many will still be waiting when replies close.
+  - Where the budget will land, from how quotes compare with estimates; what to put aside each month.
+  - Busy months ahead.
+- Budget lines priced per guest, with a "what if" for more or fewer guests.
+- Print: vendor envelopes for the day's payments.
 - Ideas board.
 - Photo list.
 - Task owners.
@@ -214,12 +220,12 @@ Planning files: can live in a linked Google Drive, Dropbox or OneDrive.
 
 Photos and video:
 - Videos.
-- Looks (colour grades) and new frames.
+- 12 looks (colour grades, including Disposable camera, Cinematic, Soft glow and Noir) and new frames.
 - A Frames and looks setting.
 - Videos on the live wall.
 
 Invitations:
-- 11 more themes.
+- 18 more themes (23 in all), grouped by mood.
 - Make it yours (five colours and five name styles).
 
 Admin:
@@ -232,7 +238,6 @@ Admin:
 **Still open from the research:**
 - Multilingual invitation
 - QR table cards (photo upload uses each guest's private link, so a shared QR needs a public upload page first)
-- Guest games
 - After-the-wedding anniversary text
 - Name-change checklist (part of the checklist already)
 - Album thumbnails (needs Cloudflare Image Resizing, a paid add-on, or thumbnails made at upload)
