@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { THEMES } from '../src/guest/generated/themes';
-import { mix, PRESETS, THEME_NAMES, themeOf } from '../src/guest/themeKit';
+import { mix, MOOD_OF, PRESETS, THEME_NAMES, themeOf } from '../src/guest/themeKit';
 
 describe('invitation themes', () => {
   it('every theme has its colours, the design’s own unchanged', () => {
@@ -21,6 +21,9 @@ describe('invitation themes', () => {
     expect(t.dg).toBe('#112233');
     expect(t.ntt).toBe('uppercase');
     expect(themeOf('Bridgerton Blush', { names: 'script' }).ntt).toBeUndefined();
+  });
+  it('every theme has a mood', () => {
+    for (const n of THEME_NAMES) expect(MOOD_OF[n], n).toBeTruthy();
   });
   it('mixes colours', () => {
     expect(mix('#000000', '#ffffff', 0.5)).toBe('#808080');

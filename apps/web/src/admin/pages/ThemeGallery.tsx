@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isHex, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
+import { isHex, MOOD_OF, MOODS, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
 
 /**
  * Setup → Invitation → Look and feel: every theme as a little card in its own colours (the design's five
@@ -8,7 +8,10 @@ import { isHex, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type Nam
  */
 export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: string; custom: ThemeCustom; onTheme: (t: string) => void; onCustom: (c: ThemeCustom) => void }) {
   const [own, setOwn] = useState(!!(custom.paper || custom.ink || custom.accent || custom.soft || custom.envelope || custom.names));
+  const [mood, setMood] = useState<string>('All');
   const p = paletteOf(theme);
+  // A mood shows its themes (the one you've chosen always stays in view).
+  const shown = THEME_NAMES.filter((n) => mood === 'All' || MOOD_OF[n] === mood || n === theme);
   const colour = (k: 'paper' | 'ink' | 'accent' | 'soft' | 'envelope', label: string) => (
     <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
       <input
@@ -24,8 +27,22 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
   return (
     <div className="flex flex-col gap-3">
       <span className="text-[13px] font-semibold text-[#33402f]">Theme</span>
+      <div role="group" aria-label="Moods" className="flex gap-[6px] flex-wrap">
+        {['All', ...MOODS].map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={mood === m}
+            onClick={() => setMood(m)}
+            className={`px-3 py-[5px] rounded-full border text-[12px] cursor-pointer ${mood === m ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#d3c6a4] text-[#33402f] hover:border-[#b39563]'}`}
+          >
+            {m}
+            {m !== 'All' && <span className="opacity-70"> · {THEME_NAMES.filter((n) => MOOD_OF[n] === m).length}</span>}
+          </button>
+        ))}
+      </div>
       <div role="radiogroup" aria-label="Theme" className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-        {THEME_NAMES.map((name) => {
+        {shown.map((name) => {
           const t = themeOf(name);
           const on = name === theme;
           return (

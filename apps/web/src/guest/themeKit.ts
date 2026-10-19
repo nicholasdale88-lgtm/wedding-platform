@@ -47,6 +47,41 @@ export const PRESETS: Record<string, Palette & { style: string }> = {
   'Lavender Garden': { paper: '#faf8fb', ink: '#3f3654', accent: '#a99ab9', soft: '#e3dcee', envelope: '#ece6f2', style: 'Soft spring garden' },
   'Black Tie': { paper: '#f6f4ef', ink: '#141414', accent: '#b8955a', soft: '#dcd8cf', envelope: '#e4e0d7', style: 'Black, white and gold' },
   'Autumn Harvest': { paper: '#f8f1e6', ink: '#4a2f1c', accent: '#b5712f', soft: '#e7cfa9', envelope: '#e8d6b8', style: 'Rust, amber, golden fields' },
+  'Blush & Champagne': { paper: '#fdf7f4', ink: '#5a3b3f', accent: '#c9a77c', soft: '#f1d6d3', envelope: '#f2e2dc', style: 'Soft pink, champagne gold' },
+  'Sage & White': { paper: '#fbfbf7', ink: '#3e4d3f', accent: '#a9b39a', soft: '#dbe3d2', envelope: '#e7ebe0', style: 'Fresh, light, greenery' },
+  'Dusty Rose': { paper: '#faf3f2', ink: '#5c3a3e', accent: '#b98a86', soft: '#e8c9c7', envelope: '#ecd8d5', style: 'Muted pink, vintage' },
+  'Mocha & Cream': { paper: '#f7f1ea', ink: '#3e2c23', accent: '#a47864', soft: '#dcc8b8', envelope: '#e4d5c6', style: 'Warm browns, cosy, modern' },
+  'Butter Yellow': { paper: '#fffcf1', ink: '#4a4426', accent: '#d9b44a', soft: '#f6e7a8', envelope: '#f4ebc6', style: 'Sunny, cheerful, garden party' },
+  'Amalfi Lemon & Blue': { paper: '#fdfbf3', ink: '#1f3f73', accent: '#e0b93a', soft: '#cfdcef', envelope: '#e6ecf5', style: 'Mediterranean summer' },
+  'Silver Winter': { paper: '#f8f9fa', ink: '#2b3240', accent: '#9ea4ad', soft: '#dde2e8', envelope: '#e6e9ee', style: 'Icy, silver, candlelit' },
+};
+
+/** Each theme's mood, so the gallery can show a handful at a time. */
+export const MOODS = ['Classic', 'Romantic', 'Garden & rustic', 'Coastal & bright', 'Moody & luxe', 'Modern'] as const;
+export const MOOD_OF: Record<string, (typeof MOODS)[number]> = {
+  'Bridgerton Blush': 'Romantic',
+  'Cream & Sage': 'Garden & rustic',
+  'Forest Green': 'Garden & rustic',
+  'Olive & Gold': 'Classic',
+  'Visco Garden': 'Garden & rustic',
+  'Classic Ivory & Gold': 'Classic',
+  'Modern Minimal': 'Modern',
+  'Rustic Eucalyptus': 'Garden & rustic',
+  'Boho Terracotta': 'Garden & rustic',
+  'Coastal Dusty Blue': 'Coastal & bright',
+  'Moody Burgundy': 'Moody & luxe',
+  'Emerald & Gold': 'Moody & luxe',
+  'Navy & Gold': 'Classic',
+  'Lavender Garden': 'Romantic',
+  'Black Tie': 'Moody & luxe',
+  'Autumn Harvest': 'Garden & rustic',
+  'Blush & Champagne': 'Romantic',
+  'Sage & White': 'Garden & rustic',
+  'Dusty Rose': 'Romantic',
+  'Mocha & Cream': 'Modern',
+  'Butter Yellow': 'Coastal & bright',
+  'Amalfi Lemon & Blue': 'Coastal & bright',
+  'Silver Winter': 'Classic',
 };
 
 const hex = (h: string) => {
