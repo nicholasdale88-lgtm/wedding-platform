@@ -73,7 +73,8 @@ jobs:
         run: pnpm lint
 
       - name: Test
-        run: pnpm test
+        # No package prefix on output lines, so failing tests show as annotations on the run page.
+        run: pnpm -r --reporter-hide-prefix test
 
       - name: Build the website
         run: |
