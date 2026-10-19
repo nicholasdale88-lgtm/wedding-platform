@@ -1,8 +1,9 @@
 import { andList, fillTags, joinDiet } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { THEMES } from '../generated/themes';
 import type { ViewValues } from '../types';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
+import { shownRows, TIMELINE_ROWS, TimelineRows } from './Timeline';
 
 /**
  * The invitation's behaviour, ported from the design's logic (design/extracted/invitation.html, renderVals).
@@ -498,6 +499,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       const items = (data.content.lists?.[key] ?? []).filter((it) => it.q.trim()).map((it) => ({ q: it.q.trim(), a: it.a.map((l) => l.trim()).filter(Boolean) }));
       return items.length ? items : undefined;
     },
+    // Admin → Guest pages → Timeline: the couple's own order of events, drawn as the design's rows.
+    rows: (key: string) => (key === TIMELINE_ROWS && data.content.timeline && shownRows(data.content.timeline).length ? createElement(TimelineRows, { items: data.content.timeline }) : undefined),
   };
   return {
     v,

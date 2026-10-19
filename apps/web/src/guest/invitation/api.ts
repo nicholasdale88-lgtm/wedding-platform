@@ -1,5 +1,5 @@
 /** Guest API: the invitation, the night-before guides and the photo page. */
-import type { DayoutGuide, Forecast, ReceptionGuide, TableShape } from '@wp/shared';
+import type { DayoutGuide, Forecast, ReceptionGuide, TableShape, TimelineItem } from '@wp/shared';
 
 export interface GuestInvitation {
   token: string;
@@ -19,6 +19,7 @@ export interface InvitePayload {
     images?: Record<string, string>;
     hidden?: Record<string, boolean>;
     lists?: Record<string, { q: string; a: string[] }[]>;
+    timeline?: TimelineItem[];
   };
   texts: Record<string, string>;
   events: { key: string; name: string; startsAt: string; slot: number; questions: { key: string; label: string; type: string; options?: string[] }[] }[];

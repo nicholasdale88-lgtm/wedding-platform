@@ -6,6 +6,7 @@ import { ApiError, pagesApi, type PagesData, type PagesPut } from '../../lib/api
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
+import { TimelineEditor } from './TimelineEditor';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
 
@@ -282,6 +283,9 @@ function InvitationEditor({ doc, n, setInv, setTheme }: { doc: Doc; n: () => num
             );
           })}
         </div>
+      </Section>
+      <Section n={n()} title="Timeline" hint="The invitation's order of events: add your own moments, reorder them, change the times, words and icons.">
+        <TimelineEditor inv={inv} texts={doc.texts} setInv={setInv} />
       </Section>
       <Section n={n()} title="Questions & answers" hint="Write your own questions for any of the invitation's question lists, or keep the design's. One answer point per line.">
         {INV_LISTS.map((l, i) => {

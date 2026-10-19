@@ -301,6 +301,27 @@ sub emit_kids {
         next;
       }
     }
+    # A run of 2+ identical grid rows (a timeline): the couple's own rows (v.rows(key)) replace the design's.
+    my $gs = exists $k->{tag} ? (attr($k, 'style') // '') : '';
+    if ($gs =~ /display:\s*grid/ && $gs !~ /\{\{/) {
+      my @run = ($k);
+      my $j = $i + 1;
+      while ($j < @kids) {
+        my $n = $kids[$j];
+        if (exists $n->{text} && $n->{text} !~ /\S/) { $j++; next; }
+        last unless exists $n->{tag} && (attr($n, 'style') // '') eq $gs;
+        push @run, $n;
+        $j++;
+      }
+      if (@run >= 3) {
+        my $key = js_str(($section || 'page') . '#rows' . ++$listCount{"rows:$section"});
+        my $orig = join '', map { emit($_, $ind + 2, $tag) } @run;
+        my $pad = '  ' x $ind;
+        $out .= "$pad\{v.rows?.($key) ?? (\n$pad  <>\n$orig$pad  </>\n$pad)}\n";
+        $i = $j - 1;
+        next;
+      }
+    }
     $out .= emit($k, $ind, $tag);
   }
   return $out;

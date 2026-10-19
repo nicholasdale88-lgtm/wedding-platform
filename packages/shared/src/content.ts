@@ -1,6 +1,18 @@
 import { z } from 'zod';
 import { INV_SCOPES } from './generated/invScopes';
 
+/** Pictures a timeline row can carry (drawn as in the design); "end" is the closing diamond. */
+export const TIMELINE_ICONS = ['arrive', 'rings', 'camera', 'drinks', 'sunset', 'dinner', 'music', 'end'] as const;
+export type TimelineIcon = (typeof TIMELINE_ICONS)[number];
+export const TimelineItem = z.object({
+  time: z.string().max(40),
+  until: z.string().max(40),
+  title: z.string().max(120),
+  note: z.string().max(400),
+  icon: z.enum(TIMELINE_ICONS),
+});
+export type TimelineItem = z.infer<typeof TimelineItem>;
+
 /**
  * Per-wedding content for the guest pages (all editable in Admin → Guest pages).
  * The wording itself lives in the text catalogue (content.texts), keyed like "inv.1a2b3c4d".
@@ -26,6 +38,8 @@ export const InvitationContent = z
     hidden: z.record(z.string().max(80), z.boolean()),
     /** The couple's own questions for an accordion list ("11 FAQ#1"), replacing the design's. */
     lists: z.record(z.string().max(80), z.array(z.object({ q: z.string().max(300), a: z.array(z.string().max(1000)).max(30) })).max(40)),
+    /** The couple's own order of events (03 Timeline), replacing the design's rows. */
+    timeline: z.array(TimelineItem).max(30),
   })
   .partial();
 export type InvitationContent = z.infer<typeof InvitationContent>;

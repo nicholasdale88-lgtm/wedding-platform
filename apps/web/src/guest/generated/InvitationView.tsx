@@ -315,194 +315,198 @@ export function InvitationView({ v, t }: ViewProps) {
             </div>
             {" "}
             <div style={sx("width:100%;margin-top:6px")}>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.6fcb1ea3")}
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
-                    <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
-                      <path d={"M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"} />
-                      <circle cx={"12"} cy={"10"} r={"2.4"} />
-                    </svg>
+              {v.rows?.("03 Timeline#rows1") ?? (
+                <>
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.6fcb1ea3")}
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
+                        <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
+                          <path d={"M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"} />
+                          <circle cx={"12"} cy={"10"} r={"2.4"} />
+                        </svg>
+                      </div>
+                      <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.5db0b693")}
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                        {t("inv.761095ef")}
+                      </div>
+                    </div>
                   </div>
-                  <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.5db0b693")}
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.8edf3058")}
+                      <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
+                        {t("inv.fbc3ea2b")}
+                      </div>
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
+                        <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
+                          <circle cx={"9"} cy={"13"} r={"5.2"} />
+                          <circle cx={"15"} cy={"13"} r={"5.2"} />
+                          <path d={"M12 3.5l1.3 2.2L12 7.6 10.7 5.7z"} />
+                        </svg>
+                      </div>
+                      <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.b243e7fc")}
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                        {t("inv.241f4616")}
+                      </div>
+                    </div>
                   </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                    {t("inv.761095ef")}
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.a52f9f24")}
+                      <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
+                        {t("inv.2ca4f8a1")}
+                      </div>
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
+                        <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
+                          <rect x={"3"} y={"7"} width={"18"} height={"12"} rx={"2"} />
+                          <circle cx={"12"} cy={"13"} r={"3.6"} />
+                          <path d={"M8.5 7l1.2-2.5h4.6L15.5 7"} />
+                        </svg>
+                      </div>
+                      <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.5e764a74")}
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                        {t("inv.12d37530")}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.8edf3058")}
-                  <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
-                    {t("inv.fbc3ea2b")}
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.d35a1578")}
+                      <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
+                        {t("inv.2888fa34")}
+                      </div>
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
+                        <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
+                          <path d={"M5 4h14l-7 8.5z"} />
+                          <path d={"M12 12.5V20M8 20h8"} />
+                          <path d={"M8.5 7.5h7"} />
+                        </svg>
+                      </div>
+                      <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.c587018f")}
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                        {t("inv.22247dac")}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
-                    <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
-                      <circle cx={"9"} cy={"13"} r={"5.2"} />
-                      <circle cx={"15"} cy={"13"} r={"5.2"} />
-                      <path d={"M12 3.5l1.3 2.2L12 7.6 10.7 5.7z"} />
-                    </svg>
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.5a45e731")}
+                      <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
+                        {t("inv.1ab1122a")}
+                      </div>
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
+                        <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
+                          <path d={"M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 6V3.5M4.8 9.8L3.2 8.2M19.2 9.8l1.6-1.6M2.5 14H1M23 14h-1.5"} />
+                        </svg>
+                      </div>
+                      <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.08520579")}
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                        {t("inv.16d5f5fb")}
+                      </div>
+                    </div>
                   </div>
-                  <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.b243e7fc")}
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.33faa687")}
+                      <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
+                        {t("inv.b886f645")}
+                      </div>
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
+                        <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
+                          <circle cx={"12"} cy={"12"} r={"5.5"} />
+                          <circle cx={"12"} cy={"12"} r={"2.4"} />
+                          <path d={"M3 4v5.5a2 2 0 0 0 2 2M5 4v16M21 4c-2 1.5-3 4-3 7h3v9"} />
+                        </svg>
+                      </div>
+                      <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.7f0852e8")}
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                        {t("inv.c64e46d5")}
+                      </div>
+                    </div>
                   </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                    {t("inv.241f4616")}
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.c46863bd")}
+                      <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
+                        {t("inv.26266de5")}
+                      </div>
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
+                        <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
+                          <path d={"M9 18V6l10-2v12"} />
+                          <circle cx={"6.5"} cy={"18"} r={"2.5"} />
+                          <circle cx={"16.5"} cy={"16"} r={"2.5"} />
+                        </svg>
+                      </div>
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.e74777bd")}
+                      </div>
+                      <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
+                        {t("inv.60d06c25")}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.a52f9f24")}
-                  <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
-                    {t("inv.2ca4f8a1")}
+                  <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
+                    <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
+                      {t("inv.ee8bde45")}
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
+                      <div style={sx("width:11px;height:11px;margin-top:9px;background:var(--mg,#3e4a6b);transform:rotate(45deg);flex:none")} />
+                    </div>
+                    <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
+                      <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
+                        {t("inv.7281f143")}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
-                    <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
-                      <rect x={"3"} y={"7"} width={"18"} height={"12"} rx={"2"} />
-                      <circle cx={"12"} cy={"13"} r={"3.6"} />
-                      <path d={"M8.5 7l1.2-2.5h4.6L15.5 7"} />
-                    </svg>
-                  </div>
-                  <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.5e764a74")}
-                  </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                    {t("inv.12d37530")}
-                  </div>
-                </div>
-              </div>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.d35a1578")}
-                  <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
-                    {t("inv.2888fa34")}
-                  </div>
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
-                    <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
-                      <path d={"M5 4h14l-7 8.5z"} />
-                      <path d={"M12 12.5V20M8 20h8"} />
-                      <path d={"M8.5 7.5h7"} />
-                    </svg>
-                  </div>
-                  <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.c587018f")}
-                  </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                    {t("inv.22247dac")}
-                  </div>
-                </div>
-              </div>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.5a45e731")}
-                  <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
-                    {t("inv.1ab1122a")}
-                  </div>
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
-                    <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
-                      <path d={"M3 18h18M6.5 18a5.5 5.5 0 0 1 11 0M12 6V3.5M4.8 9.8L3.2 8.2M19.2 9.8l1.6-1.6M2.5 14H1M23 14h-1.5"} />
-                    </svg>
-                  </div>
-                  <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.08520579")}
-                  </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                    {t("inv.16d5f5fb")}
-                  </div>
-                </div>
-              </div>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.33faa687")}
-                  <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
-                    {t("inv.b886f645")}
-                  </div>
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
-                    <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
-                      <circle cx={"12"} cy={"12"} r={"5.5"} />
-                      <circle cx={"12"} cy={"12"} r={"2.4"} />
-                      <path d={"M3 4v5.5a2 2 0 0 0 2 2M5 4v16M21 4c-2 1.5-3 4-3 7h3v9"} />
-                    </svg>
-                  </div>
-                  <div style={sx("flex:1;width:0;min-height:30px;border-left:1.5px dotted var(--sg,#4f6b40);opacity:.7;margin:4px 0")} />
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.7f0852e8")}
-                  </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                    {t("inv.c64e46d5")}
-                  </div>
-                </div>
-              </div>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.c46863bd")}
-                  <div style={sx("font-size:15px;font-style:italic;opacity:.85;margin-top:4px")}>
-                    {t("inv.26266de5")}
-                  </div>
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:46px;height:46px;border-radius:50%;box-sizing:border-box;border:1px solid var(--sg,#4f6b40);background:var(--b1,#fdfcf8);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 0 0 4px var(--b2,#e4ead6)")}>
-                    <svg viewBox={"0 0 24 24"} width={"24"} height={"24"} style={sx("fill:none;stroke:var(--mg,#3e4a6b);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round")} aria-hidden={"true"}>
-                      <path d={"M9 18V6l10-2v12"} />
-                      <circle cx={"6.5"} cy={"18"} r={"2.5"} />
-                      <circle cx={"16.5"} cy={"16"} r={"2.5"} />
-                    </svg>
-                  </div>
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.e74777bd")}
-                  </div>
-                  <div style={sx("font-size:18px;font-style:italic;color:#6d6680")}>
-                    {t("inv.60d06c25")}
-                  </div>
-                </div>
-              </div>
-              <div style={sx("display:grid;grid-template-columns:64px 46px 1fr;gap:0 14px;align-items:start;text-align:left")}>
-                <div style={sx("font-size:22px;color:var(--sg,#4f6b40);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums;line-height:1.1")}>
-                  {t("inv.ee8bde45")}
-                </div>
-                <div style={sx("display:flex;flex-direction:column;align-items:center;align-self:stretch")}>
-                  <div style={sx("width:11px;height:11px;margin-top:9px;background:var(--mg,#3e4a6b);transform:rotate(45deg);flex:none")} />
-                </div>
-                <div style={sx("display:flex;flex-direction:column;gap:2px;padding-bottom:22px")}>
-                  <div style={sx("font-size:25px;color:var(--mg,#3e4a6b)")}>
-                    {t("inv.7281f143")}
-                  </div>
-                </div>
-              </div>
+                </>
+              )}
             </div>
             {" "}
           </section>
