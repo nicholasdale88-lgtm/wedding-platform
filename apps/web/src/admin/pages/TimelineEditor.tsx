@@ -41,7 +41,7 @@ export function TimelineEditor({ inv, texts, setInv }: { inv: InvitationContent;
   const own = inv.timeline?.length ? inv.timeline : undefined;
   const word = (k: string) => (k ? (texts[k] ?? ORIGINAL[k] ?? '').trim() : '');
   const fromDesign = (): TimelineItem[] => DESIGN_ROWS.map(([t, u, ti, n, icon]) => ({ time: word(t), until: untilOf(word(u)), title: word(ti), note: word(n), icon }));
-  const set = (rows: TimelineItem[]) => setInv({ timeline: rows });| undefined) => setInv({ timeline: rows });
+  const set = (rows: TimelineItem[]) => setInv({ timeline: rows });
   const edit = (i: number, patch: Partial<TimelineItem>) => own && set(own.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const move = (i: number, by: -1 | 1) => {
     if (!own || i + by < 0 || i + by >= own.length) return;
