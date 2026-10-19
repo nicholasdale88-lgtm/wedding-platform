@@ -6,6 +6,10 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import '@fontsource/cormorant-garamond/700.css';
 import '@fontsource/pinyon-script';
+// The other names styles on the invitation (each font file loads only if a wedding uses it).
+import '@fontsource/great-vibes';
+import '@fontsource/parisienne';
+import '@fontsource/playfair-display/400.css';
 import dmSans from '@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2?url';
 import './styles/index.css';
 import { StrictMode } from 'react';

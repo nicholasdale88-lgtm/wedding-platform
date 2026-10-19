@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isHex, paletteOf, PRESETS, THEME_NAMES, themeOf, type ThemeCustom } from '../../guest/themeKit';
+import { isHex, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
 
 /**
  * Setup → Invitation → Look and feel: every theme as a little card in its own colours (the design's five
@@ -66,21 +66,17 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
             {colour('accent', 'Gold or metallic')}
           </div>
           <div role="radiogroup" aria-label="Names" className="flex gap-2 flex-wrap text-[13px]">
-            {(
-              [
-                ['script', 'Names in script'],
-                ['caps', 'Names in classic capitals'],
-              ] as const
-            ).map(([k, label]) => (
+            {(Object.keys(NAMES_STYLES) as NamesStyle[]).map((k) => (
               <button
                 key={k}
                 type="button"
                 role="radio"
-                aria-checked={(custom.names ?? 'theme') === k}
+                aria-checked={custom.names === k}
                 onClick={() => onCustom({ ...custom, names: k })}
-                className={`py-[6px] px-3 rounded-full border cursor-pointer ${custom.names === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+                className={`flex flex-col items-center gap-0 py-[6px] px-3 rounded-[12px] border cursor-pointer ${custom.names === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
               >
-                {label}
+                <span style={{ fontFamily: NAMES_STYLES[k].font, fontSize: k === 'caps' ? 14 : 22, letterSpacing: k === 'caps' ? '.2em' : undefined, textTransform: k === 'caps' ? 'uppercase' : undefined }}>A &amp; B</span>
+                <span className="text-[11px] opacity-80">{NAMES_STYLES[k].label}</span>
               </button>
             ))}
           </div>

@@ -1,5 +1,6 @@
 import { commitmentOf, dateIn, daysUntil, type Budget, type PlanChecklist, type Vendors } from '@wp/shared';
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
 import { Ring } from '../checklists/PhasedChecklist';
 import { useAdmin } from '../Shell';
@@ -25,6 +26,43 @@ function Bars({ rows, max }: { rows: { label: string; value: number; note?: stri
         </div>
       ))}
     </div>
+  );
+}
+
+/** Who to chase: still to reply, split by whether they've opened their invitation (each opens their guest card). */
+function Chase({ rows, tz }: { rows: InsightsData['chase']; tz: string | undefined }) {
+  const { path } = useAdmin();
+  const opened = rows.filter((r) => r.opened);
+  const unopened = rows.filter((r) => !r.opened);
+  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: tz || 'Australia/Sydney' }) : '');
+  const list = (title: string, hint: string, rs: typeof rows) => (
+    <div className="flex flex-col gap-1 min-w-0">
+      <strong className="text-[14px] font-semibold">
+        {title} · {rs.length}
+      </strong>
+      <span className="text-[12px] text-[#7a7466]">{hint}</span>
+      <ul className="list-none m-0 p-0 flex flex-col max-h-[260px] overflow-y-auto">
+        {rs.map((r) => (
+          <li key={r.id} className="flex justify-between gap-3 py-[5px] border-t border-[#ece3cd] text-[14px]">
+            <Link to={path(`guests?g=${r.id}`)} className="truncate !text-[#33402f]">
+              {r.name}
+            </Link>
+            <span className="text-[12px] text-[#7a7466] whitespace-nowrap">
+              {r.opened ? `opened ${when(r.opened)}` : r.phone ? (r.texted ? `texted ${when(r.texted)}` : 'not texted yet') : 'no mobile'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  return (
+    <section aria-label="Who to chase" className={card}>
+      <H2>Who to chase</H2>
+      <div className="grid gap-4 md:grid-cols-2">
+        {list('Opened it, haven’t replied', 'A friendly nudge usually does it.', opened)}
+        {list('Haven’t opened it yet', 'Check their number, or send it another way (Guest planning → their card).', unopened)}
+      </div>
+    </section>
   );
 }
 
@@ -226,6 +264,8 @@ export function Insights() {
           )}
         </section>
       </div>
+
+      {data.chase.length > 0 && <Chase rows={data.chase} tz={tz} />}
 
       {budget.lines.some((l) => l.quote && l.estimate) && (
         <section aria-label="Quotes against estimates" className={card}>

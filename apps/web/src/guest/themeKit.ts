@@ -18,9 +18,19 @@ export interface ThemeCustom {
   paper?: string;
   ink?: string;
   accent?: string;
-  /** How the names are set: flowing script, or classic spaced capitals. */
-  names?: 'script' | 'caps';
+  /** How the names are set: a script, classic spaced capitals, or an elegant serif. */
+  names?: NamesStyle;
 }
+
+export type NamesStyle = 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair';
+/** How the names can be set: the font, size, spacing and case for each. */
+export const NAMES_STYLES: Record<NamesStyle, { label: string; font: string; vars?: Record<string, string> }> = {
+  script: { label: 'Classic script', font: "'Pinyon Script', cursive" },
+  vibes: { label: 'Flowing script', font: "'Great Vibes', cursive", vars: { nf: "'Great Vibes',cursive", nsz: 'clamp(40px,11vw,54px)', nls: '0', ntt: 'none' } },
+  parisienne: { label: 'Handwritten', font: "'Parisienne', cursive", vars: { nf: "'Parisienne',cursive", nsz: 'clamp(34px,9.5vw,46px)', nls: '0', ntt: 'none' } },
+  caps: { label: 'Spaced capitals', font: "'Cormorant Garamond', serif", vars: { nf: "'Cormorant Garamond',serif", nls: '.2em', ntt: 'uppercase', nsz: 'clamp(22px,6vw,31px)' } },
+  playfair: { label: 'Modern serif', font: "'Playfair Display', Georgia, serif", vars: { nf: "'Playfair Display',Georgia,serif", nsz: 'clamp(30px,8vw,40px)', nls: '.02em', ntt: 'none' } },
+};
 
 /** The most-chosen invitation styles, as palettes (the design's own five stay as they are). */
 export const PRESETS: Record<string, Palette & { style: string }> = {
@@ -128,7 +138,8 @@ export function themeOf(name: string | undefined, custom?: ThemeCustom): Record<
   } else {
     t = THEMES[n] ?? (PRESETS[n] ? fromPalette(PRESETS[n]) : (THEMES['Cream & Sage'] ?? {}));
   }
-  if (custom?.names === 'caps') t = { ...t, nf: "'Cormorant Garamond',serif", nls: '.2em', ntt: 'uppercase', nsz: 'clamp(22px,6vw,31px)' };
+  const vars = custom?.names ? NAMES_STYLES[custom.names]?.vars : undefined;
+  if (vars) t = { ...t, ...vars };
   if (custom?.names === 'script') {
     const { nf: _nf, nls: _nls, ntt: _ntt, nsz: _nsz, ...rest } = t;
     void _nf;

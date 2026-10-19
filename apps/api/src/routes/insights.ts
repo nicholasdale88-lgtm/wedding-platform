@@ -63,6 +63,15 @@ export function insightsRoutes() {
           db.prepare(`SELECT data FROM planner_doc WHERE wedding_id = ? AND kind = 'shuttles' AND scope = ?`).bind(w, firstEv.key),
           db.prepare(`SELECT COALESCE(SUM(seats), 0) AS n FROM shuttle_booking WHERE wedding_id = ?`).bind(w),
           db.prepare(`SELECT content FROM wedding WHERE id = ?`).bind(w),
+          // Still to reply to the wedding: who's opened their invitation, who hasn't, and whether we can text them.
+          db.prepare(
+            `SELECT i.id, (SELECT p.name FROM person p WHERE p.invitation_id = i.id AND p.idx = 0 AND p.deleted_at IS NULL) AS name, i.opened_at, i.phone IS NOT NULL AND i.phone != '' AS phone,
+                    (SELECT MAX(o.sent_at) FROM sms_out o WHERE o.invitation_id = i.id AND o.status IN ('sent', 'delivered')) AS texted
+               FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?
+               LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id
+              WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND (r.attending IS NULL)
+              ORDER BY i.opened_at IS NULL, i.opened_at DESC LIMIT 200`,
+          ).bind(firstEv.id, w),
         ])
       : null;
     const coming = (extra?.[0]?.results ?? []) as { diet: string; main: string }[];
@@ -92,6 +101,13 @@ export function insightsRoutes() {
       seating: { tables: n(one(extra?.[1]).tables), seats: n(one(extra?.[1]).seats), seated: n(one(extra?.[2]).n) },
       shuttles: { runs: runs.length, capacity: runs.reduce((a, s) => a + s.seats, 0), booked: n(one(extra?.[4]).n) },
       rsvpClose: inv.success ? (inv.data.rsvpClose ?? '') : '',
+      chase: ((extra?.[6]?.results ?? []) as { id: string; name: string | null; opened_at: string | null; phone: number; texted: string | null }[]).map((r) => ({
+        id: r.id,
+        name: r.name ?? 'A guest',
+        opened: r.opened_at,
+        phone: !!r.phone,
+        texted: r.texted,
+      })),
       guests: { photos: n(one(photos).n), board: n(one(board).n), songs: n(one(songs).n), emails: n(one(emails).n), vendorEmails: n(one(emails).vendors), guestEmails: n(one(emails).guests), party: n(one(party).n) },
     });
   });

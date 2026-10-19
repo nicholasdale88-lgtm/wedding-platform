@@ -587,6 +587,8 @@ export interface InsightsData {
   seating: { tables: number; seats: number; seated: number };
   shuttles: { runs: number; capacity: number; booked: number };
   rsvpClose: string;
+  /** Still to reply to the wedding: when they opened it (null: not yet), whether they can be texted, the last text. */
+  chase: { id: string; name: string; opened: string | null; phone: boolean; texted: string | null }[];
   guests: { photos: number; board: number; songs: number; emails: number; vendorEmails: number; guestEmails: number; party: number };
 }
 export const insightsApi = { get: (wid: string) => request<InsightsData>(`${w(wid)}/insights`) };

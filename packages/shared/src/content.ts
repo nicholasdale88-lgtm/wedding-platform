@@ -41,7 +41,7 @@ export const InvitationContent = z
         paper: z.string().regex(/^#[0-9a-f]{6}$/i),
         ink: z.string().regex(/^#[0-9a-f]{6}$/i),
         accent: z.string().regex(/^#[0-9a-f]{6}$/i),
-        names: z.enum(['script', 'caps']),
+        names: z.enum(['script', 'caps', 'vibes', 'parisienne', 'playfair']),
       })
       .partial(),
     /** The last day replies can be changed online ("2027-08-01"); after it, guests are asked to email. */
