@@ -186,6 +186,11 @@ sub attrs_out {
       push @out, "$name={t(" . js_str(key_for(norm_text(decode_entities($v)))) . ')}';
       next;
     }
+    # React types these as numbers.
+    if ($name =~ /^(tabIndex|rows|cols|maxLength|minLength|colSpan|rowSpan|size|span)$/ && $v =~ /^-?\d+$/) {
+      push @out, "$name={$v}";
+      next;
+    }
     push @out, "$name=" . attr_value($v);
   }
   push @out, 'className=' . js_str(join ' ', @classes) if @classes;

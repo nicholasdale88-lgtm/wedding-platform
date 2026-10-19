@@ -12,7 +12,7 @@ export function InvitationView({ v, t }: ViewProps) {
       {" "}
       {" "}
       {" "}
-      <div onClick={v.open} style={sx("position:fixed;inset:0;overflow:hidden;cursor:pointer;font-family:'Cormorant Garamond',Georgia,serif;color:#3e4a6b;background:var(--pgbg,#fbf1f2);-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none")} role={"button"} tabIndex={"0"} aria-label={t("inv.8b5cd45d")} onKeyDown={v.onKey}>
+      <div onClick={v.open} style={sx("position:fixed;inset:0;overflow:hidden;cursor:pointer;font-family:'Cormorant Garamond',Georgia,serif;color:#3e4a6b;background:var(--pgbg,#fbf1f2);-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none")} role={"button"} tabIndex={0} aria-label={t("inv.8b5cd45d")} onKeyDown={v.onKey}>
         {" "}
         <div onClick={v.cueClick} role={"button"} id={"inv-cue"} aria-label={t("inv.23b0d1e6")} style={sx(`position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:10px;padding:9px 16px 9px 12px;border-radius:999px;background:${v.cueBg};border:1px solid ${v.cueBd};box-shadow:0 6px 18px rgba(30,30,30,.18);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:${v.cueFg};cursor:pointer;opacity:${v.cueOp};pointer-events:${v.cuePE};transition:opacity .5s ease, background-color .45s ease, color .45s ease, border-color .45s ease`)}>
           <div style={sx(`width:16px;height:24px;border:1.5px solid ${v.cueFg};border-radius:9px;display:flex;justify-content:center;padding-top:4px;box-sizing:border-box;transition:border-color .45s ease`)}>
@@ -1232,7 +1232,7 @@ export function InvitationView({ v, t }: ViewProps) {
                         {t("inv.f53d1cd2")}
                       </span>
                     </span>
-                    <textarea rows={"3"} value={v.gMsg} onChange={v.setMsg} style={sx("width:100%;box-sizing:border-box;background:transparent;border:0;border-bottom:1px solid rgba(62,74,107,.55);padding:10px 0;font-family:'Cormorant Garamond',serif;font-size:20px;color:#3a3550;outline:none;border-radius:0;resize:vertical")} />
+                    <textarea rows={3} value={v.gMsg} onChange={v.setMsg} style={sx("width:100%;box-sizing:border-box;background:transparent;border:0;border-bottom:1px solid rgba(62,74,107,.55);padding:10px 0;font-family:'Cormorant Garamond',serif;font-size:20px;color:#3a3550;outline:none;border-radius:0;resize:vertical")} />
                   </label>
                   {" "}
                   <div style={sx("color:#8a3a2a;font-size:18px;font-style:italic;min-height:22px")}>
