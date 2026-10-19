@@ -85,7 +85,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       .bind(guestId)
       .all<{ name: string; at: string; status: string }>();
     const base = (c.env.PUBLIC_BASE_URL ?? '').replace(/\/+$/, '');
-    return { guest: g, link: `${base}/w/${data.wedding.slug}/?g=${row!.token}`, sms, events: data.events, campaigns: data.campaigns.map(({ id, name }) => ({ id, name })) };
+    // A guest's link lets anyone answer as them: owners and editors only (a viewer only reads).
+    const link = c.get('role') === 'viewer' ? '' : `${base}/w/${data.wedding.slug}/?g=${row!.token}`;
+    return { guest: g, link, sms, events: data.events, campaigns: data.campaigns.map(({ id, name }) => ({ id, name })) };
   }
 
   app.get('/overview', async (c) => {
@@ -104,7 +106,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     // Each guest's personal invitation link (for exports and sending by WhatsApp or Messenger).
     const base = (c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '');
     const { results } = await c.env.DB.prepare(`SELECT id, token FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`).bind(wid(c)).all<{ id: string; token: string }>();
-    const links = Object.fromEntries(results.map((r) => [r.id, `${base}/w/${data.wedding.slug}/?g=${r.token}`]));
+    const links = c.get('role') === 'viewer' ? {} : Object.fromEntries(results.map((r) => [r.id, `${base}/w/${data.wedding.slug}/?g=${r.token}`]));
     return c.json({ events: data.events, guests: data.guests, links });
   });
 
@@ -323,7 +325,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const db = c.env.DB;
     const t = now();
     const { results: events } = await db
-      .prepare(`SELECT e.id, e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id WHERE ie.invitation_id = ? ORDER BY e.sort`)
+      .prepare(`SELECT e.id, e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id WHERE ie.invitation_id = ? AND e.deleted_at IS NULL ORDER BY e.sort`)
       .bind(invId)
       .all<{ id: string; key: string }>();
     const stmts: D1PreparedStatement[] = [];

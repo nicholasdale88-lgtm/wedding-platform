@@ -472,5 +472,5 @@ export const boardApi = {
 export const messagesApi = {
   list: (wid: string) => request<{ threads: MessageThread[] }>(`${w(wid)}/messages`),
   open: (wid: string, inv: string) => request<Conversation>(`${w(wid)}/messages/${inv}`),
-  reply: (wid: string, inv: string, body: string, sms: boolean) => send<{ ok: true; sentSms: boolean; messages: ThreadMessage[] }>('POST', `${w(wid)}/messages/${inv}`, { body, sms }),
+  reply: (wid: string, inv: string, body: string, sms: boolean) => send<{ ok: true; sentSms: boolean; smsLater?: boolean; messages: ThreadMessage[] }>('POST', `${w(wid)}/messages/${inv}`, { body, sms }),
 };

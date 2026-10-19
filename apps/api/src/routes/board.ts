@@ -144,11 +144,15 @@ export function boardGuestRoutes() {
     const db = c.env.DB;
     const post = await db.prepare(`SELECT id FROM board_post WHERE id = ? AND wedding_id = ? AND status = 'shown'`).bind(c.req.param('id'), g.w.id).first<{ id: string }>();
     if (!post) return gerr(c, 404, 'not_found', 'That post is no longer on the board.');
-    // A heart toggles: tap again to take it back.
-    const had = await db.prepare(`DELETE FROM board_like WHERE post_id = ? AND invitation_id = ?`).bind(post.id, g.inv.id).run();
-    if (!had.meta.changes) await db.prepare(`INSERT INTO board_like (post_id, invitation_id, created_at) VALUES (?, ?, ?)`).bind(post.id, g.inv.id, new Date().toISOString()).run();
+    if (!(await allow(db, `like:${g.inv.id}`, 300, 3_600_000))) return gerr(c, 429, 'slow_down', 'That is a lot of hearts. Please wait a little.');
+    // A heart toggles: tap again to take it back. (Insert-or-nothing first, so a double tap can't collide.)
+    const added = await db
+      .prepare(`INSERT INTO board_like (post_id, invitation_id, created_at) VALUES (?, ?, ?) ON CONFLICT (post_id, invitation_id) DO NOTHING`)
+      .bind(post.id, g.inv.id, new Date().toISOString())
+      .run();
+    if (!added.meta.changes) await db.prepare(`DELETE FROM board_like WHERE post_id = ? AND invitation_id = ?`).bind(post.id, g.inv.id).run();
     const n = await db.prepare(`SELECT COUNT(*) AS n FROM board_like WHERE post_id = ?`).bind(post.id).first<{ n: number }>();
-    return c.json({ liked: !had.meta.changes, likes: n?.n ?? 0 });
+    return c.json({ liked: !!added.meta.changes, likes: n?.n ?? 0 });
   });
 
   app.delete('/:id', async (c) => {
@@ -205,12 +209,12 @@ export function boardAdminRoutes() {
   app.put('/settings', writer, async (c) => {
     const body = z.object({ on: z.boolean(), approve: z.boolean() }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Check the settings and try again.');
-    const w = await c.env.DB.prepare(`SELECT content FROM wedding WHERE id = ?`).bind(wid(c)).first<{ content: string }>();
-    if (!w) return err(c, 404, 'not_found', 'Wedding not found.');
-    const content = JSON.parse(w.content || '{}') as Record<string, unknown>;
-    content.board = body.data;
+    // Only the board's settings change (json_set), so a page edit saved at the same moment is never lost.
     await c.env.DB.batch([
-      c.env.DB.prepare(`UPDATE wedding SET content = ?, version = version + 1 WHERE id = ?`).bind(JSON.stringify(content), wid(c)),
+      c.env.DB.prepare(`UPDATE wedding SET content = json_set(CASE WHEN json_valid(content) THEN content ELSE '{}' END, '$.board', json(?)), version = version + 1 WHERE id = ?`).bind(
+        JSON.stringify(body.data),
+        wid(c),
+      ),
       audit(c, 'board.settings', wid(c)),
     ]);
     return c.json(await payload(c));

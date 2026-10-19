@@ -363,10 +363,14 @@ export async function sendTest(d: EngineDeps, weddingId: string, to: string, bod
 }
 
 /** The couple's reply to a guest's message, as a text to that guest (Account → Messages). Never to an opted-out number. */
-export async function sendReply(d: EngineDeps, weddingId: string, invitationId: string, to: string, body: string, key: string) {
+/**
+ * One text to one guest. `held`: a message the couple started (not an answer to the guest's own text),
+ * so it waits out quiet hours and counts towards the daily cap like any other text.
+ */
+export async function sendReply(d: EngineDeps, weddingId: string, invitationId: string, to: string, body: string, key: string, held = false) {
   const w = await d.store.wedding(weddingId);
   const phone = toE164(to);
   if (!w || !phone) throw new Error('This guest has no mobile to text.');
-  await d.store.enqueue([{ weddingId, invitationId, campaignId: null, dedupeKey: key, kind: 'reply', to: phone, body, parts: segments(body).parts }]);
+  await d.store.enqueue([{ weddingId, invitationId, campaignId: null, dedupeKey: key, kind: held ? 'campaign' : 'reply', to: phone, body, parts: segments(body).parts }]);
   return flush(d, w);
 }

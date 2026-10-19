@@ -82,7 +82,8 @@ export function pagesRoutes() {
       // The secret preview code (Setup → Share a preview), admins only.
       share: typeof content.previewShare === 'string' ? content.previewShare : null,
       texts: (content.texts as Record<string, string> | undefined) ?? {},
-      samples: (people!.results as { token: string; names: string; invited: string | null }[]).map((r) => ({
+      // Previewing as a real guest uses their link: owners and editors only.
+      samples: (c.get('role') === 'viewer' ? [] : (people!.results as { token: string; names: string; invited: string | null }[])).map((r) => ({
         token: r.token,
         label: r.names,
         invited: (r.invited ?? '').split(',').filter(Boolean),
@@ -106,18 +107,19 @@ export function pagesRoutes() {
     if (!body.success) return err(c, 400, 'invalid', 'Check the details and try again.');
     const w = await load(c);
     if (!w) return err(c, 404, 'not_found', 'Wedding not found.');
-    const content = parse<Record<string, unknown>>(w.content, {});
-    if (body.data.on) {
-      if (typeof content.previewShare !== 'string') {
-        const bytes = crypto.getRandomValues(new Uint8Array(18));
-        content.previewShare = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      }
-    } else delete content.previewShare;
-    await c.env.DB.prepare(`UPDATE wedding SET content = ?, version = version + 1, updated_at = ? WHERE id = ?`).bind(JSON.stringify(content), new Date().toISOString(), w.id).run();
+    // Only the share code changes (json_set / json_remove), so a page edit saved at the same moment is never lost.
+    const code = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(18)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    await c.env.DB.prepare(
+      body.data.on
+        ? `UPDATE wedding SET content = CASE WHEN json_type(content, '$.previewShare') = 'text' THEN content ELSE json_set(content, '$.previewShare', ?1) END, version = version + 1, updated_at = ?2 WHERE id = ?3 AND json_valid(content)`
+        : `UPDATE wedding SET content = json_remove(content, '$.previewShare'), version = version + 1, updated_at = ?2 WHERE id = ?3 AND json_valid(content) AND ?1 IS NOT NULL`,
+    )
+      .bind(code, new Date().toISOString(), w.id)
+      .run();
     await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'pages.share', ?, ?, ?)`)
       .bind(crypto.randomUUID(), w.id, c.get('user').id, w.id, JSON.stringify({ on: body.data.on }), new Date().toISOString())
       .run();
-    return c.json(await payload(c, { ...w, content: JSON.stringify(content), version: w.version + 1 }));
+    return c.json(await payload(c, (await load(c))!));
   });
 
   app.put('/', requireMember('owner', 'editor'), async (c) => {

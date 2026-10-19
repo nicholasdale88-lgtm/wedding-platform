@@ -97,7 +97,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
          FROM person p JOIN invitation i ON i.id = p.invitation_id
         WHERE i.wedding_id = ? AND p.deleted_at IS NULL ORDER BY p.invitation_id, p.idx`),
     q(`SELECT ie.invitation_id, e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id WHERE e.wedding_id = ? AND e.deleted_at IS NULL ORDER BY e.sort`),
-    q(`SELECT r.invitation_id, e.key, r.attending, r.count, r.answers, r.message, r.via, r.updated_at FROM rsvp r JOIN event e ON e.id = r.event_id WHERE e.wedding_id = ?`),
+    q(`SELECT r.invitation_id, e.key, r.attending, r.count, r.answers, r.message, r.via, r.updated_at FROM rsvp r JOIN event e ON e.id = r.event_id WHERE e.wedding_id = ? AND e.deleted_at IS NULL`),
     q(`SELECT id, key, name, mode, enabled, audience FROM campaign WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
     q(`SELECT s.campaign_id, s.send_at, s.status, s.last_error FROM campaign_slot s JOIN campaign c ON c.id = s.campaign_id WHERE c.wedding_id = ? AND c.deleted_at IS NULL`),
     q(`SELECT o.invitation_id, COALESCE(c.name, CASE o.kind WHEN 'reply' THEN 'Reply to their text' ELSE 'Text' END) AS name,

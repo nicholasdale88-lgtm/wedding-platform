@@ -78,7 +78,12 @@ export function authRoutes() {
     if (!body.success) return err(c, 400, 'invalid', 'Enter your email and passcode.');
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
     const fifteenMin = 15 * 60_000;
-    const ok = (await allow(c.env.DB, `login:ip:${ip}`, 30, fifteenMin)) && (await allow(c.env.DB, `login:${ip}:${body.data.email}`, 10, fifteenMin));
+    // Per network, per network and email, and per email from anywhere (many networks guessing one account).
+    const email = body.data.email.trim().toLowerCase();
+    const ok =
+      (await allow(c.env.DB, `login:ip:${ip}`, 30, fifteenMin)) &&
+      (await allow(c.env.DB, `login:${ip}:${email}`, 10, fifteenMin)) &&
+      (await allow(c.env.DB, `login:email:${email}`, 30, 60 * 60_000));
     if (!ok) return err(c, 429, 'slow_down', 'Too many tries. Wait 15 minutes and try again.');
 
     const user = await c.env.DB.prepare(`SELECT id, email, pass_hash FROM user WHERE email = ?`)

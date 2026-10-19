@@ -9,6 +9,7 @@ import { pagesRoutes } from './routes/pages';
 import { photoRoutes } from './routes/photos';
 import { oauthRoutes, photoLinkRoutes } from './routes/photoLinks';
 import { runCopies } from './photos/store';
+import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
 import { settingsRoutes } from './routes/settings';
@@ -53,6 +54,7 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   const report = await runAutopilot(d);
   // Photo copies to the couple's linked storage that are still owed (a failure here never stops the texts).
   const photos = await runCopies(env, { limit: 30 }).catch((e) => ({ error: String(e) }));
+  await purgeExpired(env.DB, d.now()).catch(() => undefined);
   console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos }));
   return { swept, ...report };
 }

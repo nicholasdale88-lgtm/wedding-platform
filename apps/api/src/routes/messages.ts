@@ -102,8 +102,8 @@ export function messageRoutes(deps: (env: Env) => EngineDeps) {
       .first<{ id: string; phone: string | null; names: string | null; opted_out: number }>();
     if (!inv) return err(c, 404, 'not_found', 'That guest no longer exists.');
     const now = new Date().toISOString();
-    // Opening the conversation is reading it.
-    await db.batch([
+    // Opening the conversation is reading it (for the couple; a viewer looking doesn't clear "Needs you").
+    if (c.get('role') !== 'viewer') await db.batch([
       db.prepare(`UPDATE message SET read_at = ? WHERE invitation_id = ? AND from_guest = 1 AND read_at IS NULL`).bind(now, inv.id),
       db.prepare(`UPDATE sms_in SET handled = 1 WHERE invitation_id = ? AND action = 'Needs you' AND handled = 0`).bind(inv.id),
     ]);
@@ -128,10 +128,15 @@ export function messageRoutes(deps: (env: Env) => EngineDeps) {
     if (!inv) return err(c, 404, 'not_found', 'That guest no longer exists.');
     const id = crypto.randomUUID();
     let sentSms = false;
-    if (body.data.sms && inv.phone && !inv.opted_out) {
+    let smsLater = false;
+    const ws = await db.prepare(`SELECT sms_sender, sms_paused FROM wedding WHERE id = ?`).bind(wid(c)).first<{ sms_sender: string | null; sms_paused: number }>();
+    // Only when texting is set up and running: otherwise it would sit in the queue and go out days later.
+    if (body.data.sms && inv.phone && !inv.opted_out && ws?.sms_sender && !ws.sms_paused) {
       try {
-        await sendReply(deps(c.env), wid(c), inv.id, inv.phone, body.data.body, `msg:${id}`);
-        sentSms = true; // sent, or queued for the morning in quiet hours
+        const r = await sendReply(deps(c.env), wid(c), inv.id, inv.phone, body.data.body, `msg:${id}`, true);
+        sentSms = !r.stopped || r.stopped.reason === 'transient';
+        // Not sent now and not stopped: quiet hours or today's cap, so it goes in the morning.
+        smsLater = sentSms && r.sent === 0;
       } catch {
         /* the reply is still saved and shown on their page */
       }
@@ -141,7 +146,7 @@ export function messageRoutes(deps: (env: Env) => EngineDeps) {
       db.prepare(`INSERT INTO message (id, wedding_id, invitation_id, from_guest, kind, body, sent_sms, created_at) VALUES (?, ?, ?, 0, 'message', ?, ?, ?)`).bind(id, wid(c), inv.id, body.data.body, sentSms ? 1 : 0, now),
       db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'message.reply', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, inv.id, JSON.stringify({ sms: sentSms }), now),
     ]);
-    return c.json({ ok: true, sentSms, messages: await threadOf(db, wid(c), inv.id) });
+    return c.json({ ok: true, sentSms, smsLater, messages: await threadOf(db, wid(c), inv.id) });
   });
 
   return app;

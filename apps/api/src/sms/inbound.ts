@@ -92,7 +92,10 @@ export async function processInbound(d: EngineDeps, row: InboundRow): Promise<In
   if (!claimed) return null;
   const { id, from, body: text, receivedAt: at } = row;
 
-  const match = pick(await d.store.matchPhone(from), row.to);
+  const matches = await d.store.matchPhone(from);
+  const match = pick(matches, row.to);
+  // One mobile on two invitations in this wedding (a shared family phone): never guess whose reply it is.
+  const shared = !!match && matches.filter((m) => m.wedding.id === match.wedding.id).length > 1;
   const wedding = match?.wedding ?? (await weddingBySender(d, row.to));
   const outcome = (action: InboundAction) =>
     d.store.setInboundOutcome(id, { weddingId: wedding?.id ?? null, invitationId: match?.recipient.id ?? null, action });
@@ -105,7 +108,7 @@ export async function processInbound(d: EngineDeps, row: InboundRow): Promise<In
 
   if (!match) {
     if (wedding) {
-      await forward(d, wedding, id, `Reply from ${from}: ${text}`);
+      await forward(d, wedding, from, `Reply from ${from}: ${text}`);
       await flush(d, wedding);
     }
     await outcome('Unknown number');
@@ -113,7 +116,7 @@ export async function processInbound(d: EngineDeps, row: InboundRow): Promise<In
   }
 
   const { recipient: r, events, wedding: w } = match;
-  const answer = classify(text);
+  const answer = shared ? 'unclear' : classify(text);
   const yes = answer === 'yes';
   const no = answer === 'no';
   const replies = { yes: w.replies?.yes || DEFAULT_REPLIES.yes, no: w.replies?.no || DEFAULT_REPLIES.no, multi: w.replies?.multi || DEFAULT_REPLIES.multi };
@@ -137,7 +140,7 @@ export async function processInbound(d: EngineDeps, row: InboundRow): Promise<In
   }
 
   if (reply && !r.optOut) await d.store.enqueue([reply]);
-  if (action === 'Needs you') await forward(d, w, id, `Reply from ${r.people[0] ?? from}: ${text}`);
+  if (action === 'Needs you') await forward(d, w, from, `Reply from ${r.people[0] ?? from}${shared ? ' (shared mobile)' : ''}: ${text}`);
   await flush(d, w);
   await outcome(action);
   return action;
@@ -157,10 +160,15 @@ async function weddingBySender(d: EngineDeps, to: string | null): Promise<Weddin
   return (await d.store.weddings()).find((w) => toE164(w.sender) === toE) ?? null;
 }
 
-/** Queue "Reply from …" to the couple's mobile. The caller flushes. */
-async function forward(d: EngineDeps, w: WeddingCtx, inboundId: string, text: string) {
+/**
+ * Queue "Reply from …" to the couple's mobile. The caller flushes. At most one forward per number every
+ * 10 minutes (the key repeats), so nobody can run up texts by messaging the number over and over; every
+ * text is still in Messages.
+ */
+async function forward(d: EngineDeps, w: WeddingCtx, from: string, text: string) {
   const admin = toE164(w.adminMobile);
-  if (admin) await d.store.enqueue([toRow(w, null, `fwd:${inboundId}`, 'forward', admin, text.slice(0, 300))]);
+  const tenMin = Math.floor(d.now().getTime() / 600_000);
+  if (admin) await d.store.enqueue([toRow(w, null, `fwd:${w.id}:${toE164(from) ?? from}:${tenMin}`, 'forward', admin, text.slice(0, 300))]);
 }
 
 function toRow(w: WeddingCtx, invitationId: string | null, dedupeKey: string, kind: NewOutbox['kind'], to: string, body: string): NewOutbox {

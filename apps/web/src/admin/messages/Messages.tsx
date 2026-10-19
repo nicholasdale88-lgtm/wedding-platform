@@ -205,7 +205,7 @@ function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () =
       const r = await messagesApi.reply(wid, inv, text.trim(), sms && c.canText);
       setC({ ...c, messages: r.messages });
       setText('');
-      toast(r.sentSms ? 'Reply sent, and texted to them' : 'Reply sent: they will see it on their page');
+      toast(r.sentSms ? (r.smsLater ? 'Reply sent; the text goes in the morning (quiet hours)' : 'Reply sent, and texted to them') : sms && c.canText ? 'Reply sent to their page; the text couldn’t go (check SMS setup)' : 'Reply sent: they will see it on their page');
       onChanged();
     } catch (e) {
       toast((e as Error).message);
