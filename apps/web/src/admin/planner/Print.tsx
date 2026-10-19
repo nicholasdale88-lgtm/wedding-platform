@@ -1,4 +1,4 @@
-import type { ReceptionGuide, Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, type ReceptionGuide, type Vendors as VendorsDoc } from '@wp/shared';
 import qrcode from 'qrcode-generator';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pagesApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
@@ -11,13 +11,14 @@ import { H2, Pill } from '../ui';
  * chart come from the seating plan; menu cards from the night-before page's menu.
  */
 
-type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu' | 'runsheet' | 'savedate';
+type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu' | 'runsheet' | 'savedate' | 'envelopes';
 const KINDS: [Kind, string, string][] = [
   ['welcome', 'Welcome sign', 'One A3 page (prints well up to A1).'],
   ['tables', 'Table numbers', 'An A5 card for each table.'],
   ['places', 'Place cards', 'Name and table, eight to an A4 page: cut on the lines and fold.'],
   ['chart', 'Seating chart', 'Everyone A to Z with their table, on A3 posters (one per 135 guests).'],
   ['menu', 'Menu cards', 'The menu from your night-before page, two to an A4 page.'],
+  ['envelopes', 'Vendor envelopes', 'A label for each supplier still to be paid on the day: what’s owing, when they arrive, who to give it to. Eight to an A4 page.'],
   ['savedate', 'Save the date cards', 'Four A6 cards to an A4 page, with a QR code to the online save the date: for guests you’d rather post one to.'],
   ['runsheet', 'Run sheet for the day', 'For the venue, coordinator, photographer and MC: the whole day, who’s in the party, and every supplier with their arrival time and phone.'],
 ];
@@ -68,7 +69,10 @@ export function Print() {
   const booked = vendors.filter((v) => v.status === 'booked').sort((a, b) => (a.arrival || '~').localeCompare(b.arrival || '~', undefined, { numeric: true }) || a.name.localeCompare(b.name));
   const sideName = { p1: party?.setup?.data.p1 || 'Bride', p2: party?.setup?.data.p2 || 'Groom' };
   const whoLabel = (w: string) => (w === 'party' ? 'Everyone' : w === 'p1' ? `${sideName.p1}’s side` : w === 'p2' ? `${sideName.p2}’s side` : w);
-  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length, savedate: first ? 1 : 0 };
+  const owing = booked
+    .map((v) => ({ v, amount: commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0) }))
+    .filter((o) => o.amount > 0);
+  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length, savedate: first ? 1 : 0, envelopes: owing.length };
   // The online save the date (no guest link: anyone with the card can open it).
   const stdUrl = `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/save-the-date`;
   const qr = (() => {
@@ -172,6 +176,25 @@ export function Print() {
                 ))}
               </div>
             </section>
+            ))}
+          {kind === 'envelopes' &&
+            chunk(owing, 8).map((page, n) => (
+              <section key={n} className="pp pp-a4 grid grid-cols-2 grid-rows-4">
+                {page.map((o) => (
+                  <div key={o.v.id} className="pp-place flex flex-col justify-center gap-[2mm] px-[8mm]">
+                    <div className="pp-small">For</div>
+                    <div className="pp-script text-[11mm] leading-tight">{o.v.name}</div>
+                    <div className="pp-serif text-[5mm]">
+                      <strong>{aud0(o.amount)}</strong>
+                      {o.v.category ? ` · ${o.v.category}` : ''}
+                    </div>
+                    <div className="pp-serif text-[3.8mm] italic">
+                      {[o.v.arrival && `Arrives ${o.v.arrival}`, o.v.contact && `Give to ${o.v.contact}`, o.v.phone].filter(Boolean).join(' · ')}
+                    </div>
+                    <div className="pp-serif text-[3.4mm] mt-[2mm] border-t border-[#d8cfb8] pt-[1.5mm]">Paid: ____ / ____ (initials)</div>
+                  </div>
+                ))}
+              </section>
             ))}
           {kind === 'savedate' &&
             [0].map((n) => (
@@ -304,6 +327,7 @@ export function Print() {
 
 /** Names on one A3 seating chart (three columns); more guests go on to another poster, A to Z. */
 const CHART_PER_PAGE = 135;
+const aud0 = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 const chunk = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
 
 /** A full-screen preview of the pages; Print sends only the pages to the printer. */
