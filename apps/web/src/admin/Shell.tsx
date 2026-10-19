@@ -75,21 +75,19 @@ export function useSectionOverview(): Overview | null {
 }
 
 /**
- * The admin's menu. "Account": everything shared by every event (the overview of all of them, messages,
- * planning, and the texting setup). Then one section per event with its own guests, dietary needs, texts,
- * seating, photos and setup (the first event's Setup holds the invitation). The section is in the address
+ * The admin's menu. "Account": everything shared by every event (the overview of all of them, messages
+ * and the texting setup). Then one section per event with its own guests, dietary needs, texts, seating,
+ * photos and setup; the first event's section also holds the invitation (in Setup) and the Wedding planner. The section is in the address
  * (/admin/:wid/:section/:tab), and opening one looks at that event everywhere (and turns the birthday blue).
  */
 export const ACCOUNT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'messages', label: 'Messages' },
-  { key: 'budget', label: 'Budget' },
-  { key: 'vendors', label: 'Vendors' },
-  { key: 'assistant', label: 'Planning assistant' },
   { key: 'texts', label: 'Texting setup' },
 ] as const;
 export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'planner', label: 'Wedding planner' }, // the first event's section only (budget, vendors, assistant…)
   { key: 'guests', label: 'Guest planning' }, // guest list, dietary and seating together (GuestPlanningBar)
   { key: 'party', label: 'Wedding party' },
   { key: 'texts', label: 'Texts' },
@@ -131,7 +129,7 @@ function SideNav({ mob }: { mob: boolean }) {
   const groups: { key: string; name: string; tabs: readonly { key: TabKey; label: string }[] }[] = [
     { key: ALL_EVENTS, name: 'Account', tabs: ACCOUNT_TABS },
     // Dietary and Seating live inside Guest planning (shown there only where the event uses them).
-    ...(o?.events ?? []).map((e) => ({ key: e.key, name: e.name, tabs: EVENT_TABS })),
+    ...(o?.events ?? []).map((e, i) => ({ key: e.key, name: e.name, tabs: i === 0 ? EVENT_TABS : EVENT_TABS.filter((t) => t.key !== 'planner') })),
   ];
   const current = groups.find((g) => g.key === event) ?? groups[0]!;
   // Sections you've expanded stay expanded (remembered on this device); the one you're in is always open.

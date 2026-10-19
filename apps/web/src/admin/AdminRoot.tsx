@@ -10,9 +10,7 @@ import { GuestPages } from './pages/GuestPages';
 import { Dietary } from './diet/Dietary';
 import { Photos } from './photos/Photos';
 import { Party } from './party/Party';
-import { Budget } from './planner/Budget';
-import { Vendors } from './planner/Vendors';
-import { Assistant } from './planner/Assistant';
+import { WeddingPlanner } from './planner/WeddingPlanner';
 import { Seating } from './seating/Seating';
 import { SmsTab } from './texts/SmsTab';
 import { Messages } from './messages/Messages';
@@ -75,13 +73,15 @@ function Remembered() {
 function OldAddress() {
   const { wid = '', tab = '' } = useParams();
   const { search } = useLocation();
-  if (!TABS.some((t) => t.key === tab)) return <Navigate to={`/admin/${wid}/${tab}/overview`} replace />;
+  if (!TABS.some((t) => t.key === tab) && !PLANNER_VIEWS.has(tab)) return <Navigate to={`/admin/${wid}/${tab}/overview`} replace />;
   return <Navigate to={`/admin/${wid}/${lastSection(wid)}/${tab}${search}`} replace />;
 }
 
 /** Pages that belong to Account only, or to an event only; the rest (Overview, SMS) exist in both. */
-const ACCOUNT_ONLY = new Set<string>(['messages', 'budget', 'vendors', 'assistant', 'settings', 'events']);
-const EVENT_ONLY = new Set<string>(['guests', 'dietary', 'seating', 'party', 'photos', 'pages']);
+const ACCOUNT_ONLY = new Set<string>(['messages', 'settings', 'events']);
+const EVENT_ONLY = new Set<string>(['guests', 'dietary', 'seating', 'party', 'photos', 'pages', 'planner']);
+/** Budget, Vendors and the assistant were Account pages; they're views of the Wedding planner now. */
+const PLANNER_VIEWS = new Set<string>(['budget', 'vendors', 'assistant']);
 
 function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () => void; onSignOut: () => void }) {
   const { wid = '', section = ACCOUNT, tab = 'overview' } = useParams();
@@ -104,6 +104,12 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
   const { search } = useLocation();
   if (tab === 'settings') return <Navigate to={path('texts', ALL_EVENTS)} replace />;
   if (tab === 'events') return <Navigate to={path('overview', ALL_EVENTS)} replace />;
+  if (PLANNER_VIEWS.has(tab) || (tab === 'planner' && o && o.events[0] && section !== o.events[0].key)) {
+    // The Wedding planner lives in the first event's section only.
+    if (!o) return <Loading />;
+    const first = o.events[0]?.key;
+    return <Navigate to={first ? path(PLANNER_VIEWS.has(tab) ? `planner?view=${tab}` : `planner${search}`, first) : path('overview', ALL_EVENTS)} replace />;
+  }
   if (!TABS.some((t) => t.key === tab)) return <Navigate to={path('overview')} replace />;
   if (section !== ACCOUNT && ACCOUNT_ONLY.has(tab)) return <Navigate to={path(tab, ALL_EVENTS) + search} replace />;
   if (o && section !== ACCOUNT && !o.events.some((e) => e.key === section)) return <Navigate to={path('overview', ALL_EVENTS)} replace />;
@@ -131,12 +137,8 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
       return <Photos />;
     case 'party':
       return <Party />;
-    case 'budget':
-      return <Budget />;
-    case 'vendors':
-      return <Vendors />;
     default:
-      return <Assistant />;
+      return <WeddingPlanner />;
   }
 }
 
