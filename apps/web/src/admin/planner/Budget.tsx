@@ -2,6 +2,7 @@ import { BUDGET_SPLIT, commitmentOf, dateIn, type Budget as BudgetDoc, type Budg
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useUnsavedChanges } from '../leave';
+import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
@@ -22,14 +23,7 @@ function Money({ value, onChange, label }: { value: number; onChange: (n: number
       <span aria-hidden className="absolute left-2 top-1/2 -translate-y-1/2 text-[13px] text-[#7a7466]">
         $
       </span>
-      <input
-        aria-label={label}
-        inputMode="decimal"
-        value={value ? String(value) : ''}
-        placeholder="0"
-        onChange={(e) => onChange(Math.max(0, Math.min(10_000_000, Number(e.target.value.replace(/[^\d.]/g, '')) || 0)))}
-        className={`${inputCls} w-full !pl-5 text-right tabular-nums`}
-      />
+      <MoneyInput aria-label={label} value={value} placeholder="0" onValue={onChange} className={`${inputCls} w-full !pl-5 text-right tabular-nums`} />
     </span>
   );
 }

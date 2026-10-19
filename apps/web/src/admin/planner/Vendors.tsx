@@ -1,6 +1,7 @@
 import { commitmentOf, dateIn, VENDOR_SEARCH, VENDOR_STATUS, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type VendorHit } from '../../lib/api';
+import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
 import { useDocSave } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
@@ -14,7 +15,6 @@ import { H2, inputCls, Pill, useToast } from '../ui';
 const STATUS_LABEL: Record<Vendor['status'], string> = { idea: 'Idea', contacted: 'Contacted', quoted: 'Quoted', booked: 'Booked' };
 const STATUS_COLOUR: Record<Vendor['status'], string> = { idea: '#e9e2cc', contacted: '#f1e7c9', quoted: '#dde7f3', booked: '#dfe5cc' };
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
-const moneyIn = (s: string) => Math.max(0, Math.min(10_000_000, Number(s.replace(/[^\d.]/g, '')) || 0));
 const shortDate = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const newId = () => crypto.randomUUID().slice(0, 12);
 const newVendor = (over: Partial<Vendor>): Vendor => ({
@@ -344,7 +344,7 @@ function QuoteForm({ onSave, onCancel }: { onSave: (q: Quote) => void; onCancel:
   const num = (k: 'amount' | 'deposit', label: string) => (
     <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
       {label}
-      <input inputMode="decimal" value={q[k] ? String(q[k]) : ''} placeholder="0" onChange={(e) => setQ({ ...q, [k]: moneyIn(e.target.value) })} className={`${inputCls} tabular-nums`} />
+      <MoneyInput value={q[k]} placeholder="0" onValue={(n) => setQ((cur) => ({ ...cur, [k]: n }))} className={`${inputCls} tabular-nums`} />
     </label>
   );
   return (

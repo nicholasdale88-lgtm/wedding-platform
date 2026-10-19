@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { THEMES } from '../generated/themes';
 
 /**
  * /w/:slug/live?k=<code>: the live photo wall for the venue's screen (a laptop on the projector, or cast
  * to a TV). Guests' photos crossfade full screen, newest first, with messages from the board in between;
- * it picks up new ones every 20 seconds. Tap or press F for full screen.
+ * it picks up new ones every 20 seconds and shows them next (it never jumps back). Tap or press F for full screen.
  */
 
 interface Wall {
@@ -24,6 +24,10 @@ export function LivePage() {
   const [wall, setWall] = useState<Wall | null>(null);
   const [err, setErr] = useState('');
   const [i, setI] = useState(0);
+  // The play order of photo ids: newest first to begin with; photos that arrive later go straight after the one on screen.
+  const [order, setOrder] = useState<string[]>([]);
+  const curId = useRef('');
+  const lastPhoto = useRef('');
 
   const load = useCallback(async () => {
     try {
@@ -42,21 +46,50 @@ export function LivePage() {
     return () => clearInterval(t);
   }, [load]);
 
-  // Photos, with a message from the board after every third one.
+  useEffect(() => {
+    if (!wall) return;
+    setOrder((prev) => {
+      const ids = wall.photos.map((p) => p.id);
+      if (!prev.length) return ids;
+      const now = new Set(ids);
+      const kept = prev.filter((id) => now.has(id));
+      const fresh = ids.filter((id) => !prev.includes(id));
+      if (!fresh.length && kept.length === prev.length) return prev;
+      const at = kept.indexOf(lastPhoto.current) + 1; // 0 when nothing has shown yet
+      return [...kept.slice(0, at), ...fresh, ...kept.slice(at)];
+    });
+  }, [wall]);
+
+  // Photos in play order, with a message from the board after every third one.
   const slides = useMemo<Slide[]>(() => {
     if (!wall) return [];
+    const byId = new Map(wall.photos.map((p) => [p.id, p]));
     const out: Slide[] = [];
     let p = 0;
-    wall.photos.forEach((ph, n) => {
+    order.forEach((id, n) => {
+      const ph = byId.get(id);
+      if (!ph) return;
       out.push({ kind: 'photo', id: ph.id, url: ph.url, by: ph.by });
       if (n % 3 === 2 && wall.posts.length) {
         const post = wall.posts[p++ % wall.posts.length]!;
-        out.push({ kind: 'post', id: `${post.id}-${n}`, author: post.author, body: post.body });
+        out.push({ kind: 'post', id: `${post.id}-after-${ph.id}`, author: post.author, body: post.body });
       }
     });
     if (!wall.photos.length) wall.posts.forEach((post) => out.push({ kind: 'post', id: post.id, author: post.author, body: post.body }));
     return out;
-  }, [wall]);
+  }, [wall, order]);
+  // New slides never move the screen: stay on the one showing.
+  useEffect(() => {
+    const at = slides.findIndex((s) => s.id === curId.current);
+    if (at >= 0) setI(at);
+    else setI((x) => (slides.length ? x % slides.length : 0));
+  }, [slides]);
+  useEffect(() => {
+    const s = slides[i % Math.max(1, slides.length)];
+    if (!s) return;
+    curId.current = s.id;
+    if (s.kind === 'photo') lastPhoto.current = s.id;
+  }, [i, slides]);
   useEffect(() => {
     if (slides.length < 2) return;
     const t = setInterval(() => setI((x) => (x + 1) % slides.length), SHOW_MS);

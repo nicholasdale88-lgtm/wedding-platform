@@ -65,7 +65,7 @@ export function Gifts() {
 
   return (
     <div className="flex flex-col gap-5">
-      <section aria-label="Gift summary" className="grid gap-3 grid-cols-3">
+      <section aria-label="Gift summary" className="grid gap-3 grid-cols-1 sm:grid-cols-3">
         {[
           ['Gifts', String(list.length)],
           ['Thank-yous to write', String(owing.length)],

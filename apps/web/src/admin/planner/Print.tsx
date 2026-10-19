@@ -15,7 +15,7 @@ const KINDS: [Kind, string, string][] = [
   ['welcome', 'Welcome sign', 'One A3 page (prints well up to A1).'],
   ['tables', 'Table numbers', 'An A5 card for each table.'],
   ['places', 'Place cards', 'Name and table, eight to an A4 page: cut on the lines and fold.'],
-  ['chart', 'Seating chart', 'Everyone A to Z with their table, on one A3 poster.'],
+  ['chart', 'Seating chart', 'Everyone A to Z with their table, on A3 posters (one per 135 guests).'],
   ['menu', 'Menu cards', 'The menu from your night-before page, two to an A4 page.'],
 ];
 
@@ -109,14 +109,18 @@ export function Print() {
                 ))}
               </section>
             ))}
-          {kind === 'chart' && (
-            <section className="pp pp-a3 flex flex-col gap-[6mm]">
+          {kind === 'chart' &&
+            chunk(seated, CHART_PER_PAGE).map((page, n, pages) => (
+            <section key={n} className="pp pp-a3 flex flex-col gap-[6mm]">
               <div className="text-center">
                 <div className="pp-script text-[26mm] leading-none">Find your seat</div>
-                <div className="pp-serif text-[7mm] italic mt-[3mm]">{couple}</div>
+                <div className="pp-serif text-[7mm] italic mt-[3mm]">
+                  {couple}
+                  {pages.length > 1 ? ` · ${page[0]!.name.split(' ').slice(-1)[0]![0]}–${page[page.length - 1]!.name.split(' ').slice(-1)[0]![0]}` : ''}
+                </div>
               </div>
               <div className="pp-chart flex-1">
-                {seated.map((p) => (
+                {page.map((p) => (
                   <div key={`${p.name}-${p.table}`} className="flex justify-between gap-[3mm] pp-serif text-[4.6mm] border-b border-[#d8cfb8] py-[0.8mm]">
                     <span>{p.name}</span>
                     <span className="italic">{p.table}</span>
@@ -124,7 +128,7 @@ export function Print() {
                 ))}
               </div>
             </section>
-          )}
+            ))}
           {kind === 'menu' && (
               <section className="pp pp-a4 grid grid-cols-2">
                 {[0, 1].map((n) => (
@@ -154,6 +158,8 @@ export function Print() {
   );
 }
 
+/** Names on one A3 seating chart (three columns); more guests go on to another poster, A to Z. */
+const CHART_PER_PAGE = 135;
 const chunk = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
 
 /** A full-screen preview of the pages; Print sends only the pages to the printer. */
@@ -190,10 +196,10 @@ function PrintSheet({ onClose, children }: { onClose: () => void; children: Reac
 const PRINT_CSS = `
 .pp { background: #fffdf8; color: #33402f; box-shadow: 0 6px 24px rgba(0,0,0,.25); padding: 16mm; box-sizing: border-box; overflow: hidden; break-after: page; position: relative; }
 .pp::before { content: ''; position: absolute; inset: 7mm; border: 0.5mm solid #c8a46a; pointer-events: none; }
-.pp-a3 { width: 297mm; height: 420mm; }
-.pp-a4 { width: 210mm; height: 297mm; padding: 0; }
+.pp-a3 { width: 297mm; height: 420mm; page: a3; }
+.pp-a4 { width: 210mm; height: 297mm; padding: 0; page: a4; }
 .pp-a4::before { display: none; }
-.pp-a5 { width: 148mm; height: 210mm; }
+.pp-a5 { width: 148mm; height: 210mm; page: a5; }
 .pp-script { font-family: 'Pinyon Script', cursive; color: #33402f; }
 .pp-serif { font-family: 'Cormorant Garamond', Georgia, serif; }
 .pp-small { font-family: 'DM Sans', system-ui, sans-serif; font-size: 3.4mm; letter-spacing: .3em; text-transform: uppercase; font-weight: 600; color: #6b6558; }
@@ -201,7 +207,11 @@ const PRINT_CSS = `
 .pp-place { border: 0.2mm dashed #d8cfb8; }
 .pp-chart { column-count: 3; column-gap: 10mm; }
 @media print {
+  /* Each sheet asks for its own paper size (A3 signs, A4 cards, A5 table numbers); a printer without A3 scales to fit. */
   @page { margin: 0; }
+  @page a3 { size: A3 portrait; margin: 0; }
+  @page a4 { size: A4 portrait; margin: 0; }
+  @page a5 { size: A5 portrait; margin: 0; }
   html.printing body * { visibility: hidden !important; }
   html.printing .pp-root, html.printing .pp-root * { visibility: visible !important; }
   html.printing .pp-root { position: absolute !important; inset: 0 !important; overflow: visible !important; background: none !important; }

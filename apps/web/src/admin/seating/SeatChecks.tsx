@@ -92,8 +92,8 @@ export function SeatChecks({ data, tables, seats }: { data: SeatingData; tables:
               </button>
             </div>
           ))}
-          <div className="grid gap-2 grid-cols-[1fr_auto_1fr] items-center">
-            <select aria-label="First guest" value={pick.a} onChange={(e) => setPick({ ...pick, a: e.target.value })} className={`${inputCls} !py-[6px] !text-[13px]`}>
+          <div className="grid gap-2 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center">
+            <select aria-label="First guest" value={pick.a} onChange={(e) => setPick({ ...pick, a: e.target.value })} className={`${inputCls} !py-[6px] !text-[13px] w-full min-w-0`}>
               <option value="">Someone…</option>
               {coming.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -105,7 +105,7 @@ export function SeatChecks({ data, tables, seats }: { data: SeatingData; tables:
               <option value="apart">apart from</option>
               <option value="together">with</option>
             </select>
-            <select aria-label="Second guest" value={pick.b} onChange={(e) => setPick({ ...pick, b: e.target.value })} className={`${inputCls} !py-[6px] !text-[13px]`}>
+            <select aria-label="Second guest" value={pick.b} onChange={(e) => setPick({ ...pick, b: e.target.value })} className={`${inputCls} !py-[6px] !text-[13px] w-full min-w-0`}>
               <option value="">Someone…</option>
               {coming
                 .filter((p) => p.id !== pick.a)
