@@ -72,6 +72,7 @@ export function SmsMessages() {
     }
   };
 
+  return (
     <div className="flex flex-col gap-6">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
@@ -179,6 +180,8 @@ export function stageOf(c: Pick<Campaign, 'key' | 'name' | 'custom' | 'trigger'>
   return 'other';
 }
 
+
+// ---------------------------------------------------------------- one message
 
 function whenOf(c: Campaign, tz: string): [string, string] {
   if (c.mode === 'manual') return ['By hand', 'when you choose'];
