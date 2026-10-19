@@ -255,3 +255,45 @@ export const settingsApi = {
   backupUrl: (wid: string) => `/api${w(wid)}/settings/backup`,
   changePasscode: (current: string, next: string) => send<{ ok: true }>('POST', '/a/auth/passcode', { current, next }),
 };
+
+// ---------------------------------------------------------------- Seating
+
+export interface SeatTable {
+  id: string;
+  name: string;
+  shape: 'round' | 'long';
+  dir: 'h' | 'v';
+  len: number;
+  x: number;
+  y: number;
+  seats: number;
+}
+export interface SeatArea {
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+export interface SeatingData {
+  version: number;
+  event: { key: string; name: string };
+  events: { key: string; name: string }[];
+  aspect: string;
+  planImg: string;
+  tables: SeatTable[];
+  areas: SeatArea[];
+  people: { id: string; invitationId: string; name: string; diet: string; tableId: string | null; coming: boolean }[];
+}
+export interface SeatingSave {
+  event: string;
+  aspect: string;
+  tables: SeatTable[];
+  areas: SeatArea[];
+  seats: Record<string, string | null>;
+}
+
+export const seatingApi = {
+  get: (wid: string, event?: string) => request<SeatingData>(`${w(wid)}/seating${event ? `?event=${encodeURIComponent(event)}` : ''}`),
+  save: (wid: string, version: number, body: SeatingSave) => send<SeatingData>('PUT', `${w(wid)}/seating`, body, version),
+};

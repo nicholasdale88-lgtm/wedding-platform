@@ -7,6 +7,7 @@ import { Login } from './Login';
 import { Overview } from './Overview';
 import { GuestPages } from './pages/GuestPages';
 import { Dietary } from './diet/Dietary';
+import { Seating } from './seating/Seating';
 import { SmsSetup } from './settings/SmsSetup';
 import { SmsMessages } from './texts/SmsMessages';
 import { AdminDataProvider, Shell, TABS } from './Shell';
@@ -64,7 +65,7 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
   return (
     <AdminDataProvider wid={wid} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
-        {tab === 'overview' ? <Overview /> : tab === 'guests' ? <Guests /> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsMessages /> : tab === 'settings' ? <SmsSetup /> : tab === 'dietary' ? <Dietary /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
+        {tab === 'overview' ? <Overview /> : tab === 'guests' ? <Guests /> : tab === 'pages' ? <GuestPages /> : tab === 'texts' ? <SmsMessages /> : tab === 'settings' ? <SmsSetup /> : tab === 'dietary' ? <Dietary /> : tab === 'seating' ? <Seating /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
       </Shell>
     </AdminDataProvider>
   );

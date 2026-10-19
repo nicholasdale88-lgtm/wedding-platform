@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -354,5 +354,50 @@ describe('SMS setup tab', () => {
     expect(body).toBeUndefined();
     await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(body).toEqual({ replies: { yes: 'Hooray' } }));
+  });
+});
+
+describe('seating tab', () => {
+  const T1 = '11111111-1111-4111-8111-111111111111';
+  const seating = {
+    version: 4, event: { key: 'wedding', name: 'The wedding' }, events: [{ key: 'wedding', name: 'The wedding' }], aspect: '4 / 3', planImg: '',
+    tables: [{ id: T1, name: '1', shape: 'round', dir: 'h', len: 40, x: 30, y: 30, seats: 4 }],
+    areas: [{ label: 'Dance floor', x: 50, y: 50, w: 20, h: 15 }],
+    people: [
+      { id: 'p1', invitationId: 'g1', name: 'Robin Hart', diet: 'Nut allergy', tableId: T1, coming: true },
+      { id: 'p2', invitationId: 'g1', name: 'Sam Hart', diet: '', tableId: null, coming: true },
+      { id: 'p3', invitationId: 'g2', name: 'Jo Banks', diet: '', tableId: null, coming: false },
+    ],
+  };
+
+  it('shows who is seated; tapping a table then a guest seats them; Save sends it with the version', async () => {
+    let saved: { body: { seats: Record<string, string | null> }; v: string | null } | null = null;
+    mockApi({
+      '/api/a/w/w1/seating': (init) => {
+        if (init?.method === 'PUT') {
+          saved = { body: JSON.parse(String(init.body)), v: new Headers(init.headers).get('If-Match') };
+          return json(200, { ...seating, version: 5, people: seating.people.map((p) => (p.id === 'p2' ? { ...p, tableId: T1 } : p)) });
+        }
+        return json(200, seating);
+      },
+    });
+    renderAt('/admin/w1/seating');
+    expect(await screen.findByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Table 1, 1 of 4' }));
+    expect(screen.getByText('Nut allergy')).toBeInTheDocument(); // who sits there, with their diet
+    await userEvent.click(screen.getByRole('button', { name: 'Sam Hart' }));
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
+    await waitFor(() => expect(saved?.v).toBe('4'));
+    expect(saved!.body.seats).toEqual({ p1: T1, p2: T1, p3: null });
+    expect(await screen.findByText('Seating saved. Guides show it now.')).toBeInTheDocument();
+  });
+
+  it('Auto-seat keeps invitations together and fills free seats', async () => {
+    mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
+    renderAt('/admin/w1/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
+    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByText('Everyone has a seat.')).toBeInTheDocument();
   });
 });
