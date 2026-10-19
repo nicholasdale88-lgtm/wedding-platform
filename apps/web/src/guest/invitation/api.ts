@@ -27,6 +27,8 @@ export interface InvitePayload {
   texts: Record<string, string>;
   events: { key: string; name: string; startsAt: string; slot: number; questions: { key: string; label: string; type: string; options?: string[] }[]; shuttles?: boolean }[];
   invitation: GuestInvitation | null;
+  /** "Who's who" in the wedding party, when the couple shows it (side '' is neither side). */
+  party?: { sides: { p1: string; p2: string }; people: { name: string; role: string; side: 'p1' | 'p2' | '' }[] } | null;
 }
 
 export interface RsvpBody {

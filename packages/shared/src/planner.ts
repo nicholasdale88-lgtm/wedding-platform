@@ -49,7 +49,12 @@ export const DayChecklist = z.object({ p1: z.array(CheckItem).max(80).default([]
 export type DayChecklist = z.infer<typeof DayChecklist>;
 
 /** What the two sides are called (the couple can change them, e.g. "Bride" and "Bride"). */
-export const PartySetup = z.object({ p1: z.string().max(30).default('Bride'), p2: z.string().max(30).default('Groom') });
+export const PartySetup = z.object({
+  p1: z.string().max(30).default('Bride'),
+  p2: z.string().max(30).default('Groom'),
+  /** "Who's who" on the invitation: the party's names and roles, under the first event. Off until switched on. */
+  showOnInvite: z.boolean().default(false),
+});
 export type PartySetup = z.infer<typeof PartySetup>;
 
 /** A starting packing list for the day. */

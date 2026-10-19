@@ -72,7 +72,7 @@ export function Party() {
       setSaving(false);
     }
   };
-  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom' };
+  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false };
   const sideName = (k: 'p1' | 'p2') => sides[k] || (k === 'p1' ? 'Bride' : 'Groom');
   // Who an item can be for: everyone, a side, or any role in use (or usual for the day).
   const audiences: [string, string][] = [
@@ -320,9 +320,9 @@ function Members({ d, onChange, sideName }: { d: PartyData; onChange: (m: PartyM
 function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: PartySetup; version: number }) => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
-  const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom' };
+  const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false };
   const save = async (next: PartySetup) => {
-    if (next.p1 === cur.p1 && next.p2 === cur.p2) return;
+    if (next.p1 === cur.p1 && next.p2 === cur.p2 && next.showOnInvite === cur.showOnInvite) return;
     try {
       onSaved(await plannerApi.saveDoc(wid, 'party-setup', '', next, d.setup?.version ?? 0));
       toast('Saved');
@@ -337,6 +337,10 @@ function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: PartySet
       <span>({d.names.p1}) and</span>
       <input aria-label={`${d.names.p2}'s side is called`} defaultValue={cur.p2} maxLength={30} onBlur={(e) => void save({ ...cur, p2: e.target.value.trim() || 'Groom' })} className={`${inputCls} !py-[5px] w-[110px]`} />
       <span>({d.names.p2})</span>
+      <label className="flex items-center gap-2 basis-full mt-1 cursor-pointer">
+        <input type="checkbox" checked={!!cur.showOnInvite} onChange={(e) => void save({ ...cur, showOnInvite: e.target.checked })} />
+        Show “Who’s who” on the invitation (names and roles, under the wedding’s details)
+      </label>
     </div>
   );
 }

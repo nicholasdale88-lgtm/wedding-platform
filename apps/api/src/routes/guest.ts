@@ -1,4 +1,4 @@
-import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, splitDiet, textsFor, type TableShape } from '@wp/shared';
+import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, PARTY_ROLES, PartySetup, sideOf, splitDiet, textsFor, type TableShape } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -101,6 +101,27 @@ async function eventsOf(db: D1Database, weddingId: string) {
   return results;
 }
 
+/** "Who's who" for the invitation, when the couple has switched it on: names and roles, by side, in role order. */
+async function whosWho(db: D1Database, weddingId: string) {
+  const [setupRow, crew] = await db.batch([
+    db.prepare(`SELECT data FROM planner_doc WHERE wedding_id = ? AND kind = 'party-setup' AND scope = ''`).bind(weddingId),
+    db.prepare(
+      `SELECT p.name, p.party_role FROM person p JOIN invitation i ON i.id = p.invitation_id
+        WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND p.party_role != '' AND p.name != ''`,
+    ).bind(weddingId),
+  ]);
+  const setup = PartySetup.safeParse(json((setupRow!.results[0] as { data: string } | undefined)?.data, {}));
+  if (!setup.success || !setup.data.showOnInvite) return null;
+  const rank = (role: string) => {
+    const i = PARTY_ROLES.findIndex((r) => r.role.toLowerCase() === role.trim().toLowerCase());
+    return i < 0 ? PARTY_ROLES.length : i;
+  };
+  const people = (crew!.results as { name: string; party_role: string }[])
+    .map((p) => ({ name: p.name, role: p.party_role, side: sideOf(p.party_role) }))
+    .sort((a, b) => rank(a.role) - rank(b.role) || a.role.localeCompare(b.role) || a.name.localeCompare(b.name));
+  return people.length ? { sides: { p1: setup.data.p1, p2: setup.data.p2 }, people } : null;
+}
+
 async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
   const events = await eventsOf(c.env.DB, w.id);
   const invitation = invId ? await invitationJson(c.env.DB, invId, events) : null;
@@ -119,6 +140,8 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
     texts: textsFor('inv', (content.texts as Record<string, string> | undefined) ?? {}, slots),
     events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []), shuttles: shuttles.has(e.key) })),
     invitation,
+    // Only for a guest opening their own link (not the public page).
+    party: invitation ? await whosWho(c.env.DB, w.id) : null,
   };
 }
 

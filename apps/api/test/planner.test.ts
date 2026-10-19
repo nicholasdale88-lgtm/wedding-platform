@@ -58,6 +58,23 @@ describe('planner: wedding party', () => {
     expect(JSON.stringify(mc)).not.toMatch(/token|phone/); // names and roles only
   });
 
+  it("who's who shows on guests' invitations only once switched on, by role, names and roles only", async () => {
+    const ella = await personOf('Ella Thompson');
+    const ann = await personOf('Margaret Bloor');
+    await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });
+    await call(`/people/${ann.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Maid of honour' }) });
+    const invite = async (tok: string) => (await (await app.request(`/api/p/sophie-and-nicholas/invite?g=${tok}`, {}, env, ctx)).json()) as { party: { sides: { p1: string }; people: { name: string; role: string; side: string }[] } | null };
+    expect((await invite(ella.token)).party).toBeNull(); // off by default
+    await call('/doc/party-setup', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: 'Bride', p2: 'Groom', showOnInvite: true }) });
+    const p = (await invite(ella.token)).party!;
+    expect(p.sides.p1).toBe('Bride');
+    expect(p.people.map((x) => x.role)).toEqual(['Maid of honour', 'Bridesmaid']); // role order, not alphabetical
+    expect(p.people.every((x) => x.side === 'p1')).toBe(true);
+    expect(JSON.stringify(p)).not.toMatch(/token|phone|diet/);
+    const anon = (await (await app.request('/api/p/sophie-and-nicholas/invite', {}, env, ctx)).json()) as { party?: unknown };
+    expect(anon.party ?? null).toBeNull(); // the public page doesn't list the party
+  });
+
   it('finds vendors near the venue, nearest first, named ones only, and keeps a budget', async () => {
     let query = '';
     vi.stubGlobal('fetch', async (_u: string, init?: RequestInit) => {

@@ -537,7 +537,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
               'There’s a shuttle: book your seats',
             )
           : null;
-      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle);
+      const party = slot === 0 && guest ? whosWhoBlock(data) : null;
+      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle, party);
     },
   };
   return {
@@ -552,4 +553,35 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       setP(0);
     },
   };
+}
+
+/** "Who's who": the wedding party by side (each side's people under its name), then anyone on neither side. */
+function whosWhoBlock(data: InvitePayload) {
+  const party = data.party;
+  if (!party?.people.length) return null;
+  const serif = "'Cormorant Garamond', Georgia, serif";
+  const groups = [
+    { title: party.sides.p1, people: party.people.filter((p) => p.side === 'p1') },
+    { title: party.sides.p2, people: party.people.filter((p) => p.side === 'p2') },
+    { title: '', people: party.people.filter((p) => !p.side) },
+  ].filter((g) => g.people.length);
+  return createElement(
+    'section',
+    { 'aria-label': 'Who’s who', style: { marginTop: 14, textAlign: 'center', fontFamily: serif } },
+    createElement('div', { style: { fontSize: 13, letterSpacing: '.28em', textTransform: 'uppercase', fontWeight: 600, fontFamily: "'DM Sans', system-ui, sans-serif", opacity: 0.8 } }, 'Who’s who'),
+    createElement(
+      'div',
+      { style: { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '14px 36px', marginTop: 10 } },
+      ...groups.map((g, i) =>
+        createElement(
+          'div',
+          { key: i, style: { minWidth: 160 } },
+          g.title ? createElement('div', { style: { fontStyle: 'italic', fontSize: 18, marginBottom: 4 } }, g.title === 'Bride' || g.title === 'Groom' ? `The ${g.title.toLowerCase()}’s side` : g.title) : null,
+          ...g.people.map((p, k) =>
+            createElement('div', { key: k, style: { fontSize: 17, lineHeight: 1.45 } }, p.name, createElement('span', { style: { opacity: 0.7, fontStyle: 'italic' } }, ` · ${p.role}`)),
+          ),
+        ),
+      ),
+    ),
+  );
 }
