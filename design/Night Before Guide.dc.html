@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#f6f0e2}*{box-sizing:border-box}a{color:#55633f}a:hover{color:#33402f}
+@keyframes rise{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:none}}
+@keyframes kenburns{0%{transform:scale(1.12)}100%{transform:scale(1)}}
+@keyframes pulseRing{0%{transform:translate(-50%,-50%) scale(1);opacity:.85}100%{transform:translate(-50%,-50%) scale(2.1);opacity:0}}</style>
+</helmet>
+<template id="__bundler_thumbnail"><svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg"><rect width="120" height="120" fill="#3f4c33"></rect><text x="60" y="72" text-anchor="middle" font-family="Georgia,serif" font-size="30" fill="#f3ecd6">S&amp;N</text></svg></template>
+<div style="min-height:100vh;background:#f6f0e2;color:#33402f;font-family:'Cormorant Garamond',Georgia,serif;overflow-x:hidden">
+<div style="max-width:560px;margin:0 auto;background:#f6f0e2">
+
+  <section style="position:relative;height:min(100vh,860px);min-height:620px;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;color:#fbf8f2">
+    <div style="position:absolute;inset:0;background:url('assets/lookout.jpg') center 40%/cover no-repeat;animation:kenburns 9s ease-out forwards"></div>
+    <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(40,48,32,.15) 0%,rgba(40,48,32,.05) 35%,rgba(40,48,32,.78) 78%,#2f3a26 100%)"></div>
+    <div style="position:relative;padding:0 30px 46px;display:flex;flex-direction:column;gap:10px">
+      <div style="opacity:0;animation:rise 1s ease .3s forwards;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.32em;text-transform:uppercase">{{ date }}</div>
+      <div style="opacity:0;animation:rise 1.2s ease .6s forwards;font-family:'Pinyon Script',cursive;font-size:clamp(52px,15vw,72px);line-height:.95">Tomorrow</div>
+      <div style="opacity:0;animation:rise 1.2s ease .9s forwards;font-size:23px;font-style:italic;line-height:1.35;max-width:360px">Dear {{ firsts }}, here is everything you need for Sophie &amp; Nicholas's wedding.</div>
+      <div style="opacity:0;animation:rise 1.2s ease 1.2s forwards;display:flex;flex-wrap:wrap;gap:12px 22px;margin-top:14px;padding-top:16px;border-top:1px solid rgba(251,248,242,.4)">
+        <div><div style="font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;opacity:.85">Arrive</div><div style="font-size:28px;line-height:1.1">{{ arrive }}</div></div>
+        <div><div style="font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;opacity:.85">Vows</div><div style="font-size:28px;line-height:1.1">{{ start }}</div></div>
+        <div><div style="font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;opacity:.85">Reception</div><div style="font-size:28px;line-height:1.1">{{ reception }}</div></div>
+        <div><div style="font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;opacity:.85">Table</div><div style="font-size:28px;line-height:1.1">{{ myTable }}</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="background:#ece6d2;padding:52px 24px 48px;margin-top:0;display:flex;flex-direction:column;gap:14px;border-top:1px solid #c6b794">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap"><div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#8a5a45">Tomorrow's forecast</div><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#5b6a52">{{ wxUpdated }}</span></div>
+    <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center">
+      <svg viewBox="0 0 64 64" width="52" height="52" aria-hidden="true" style="color:#b39563"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="26" cy="24" r="9"></circle><path d="M26 8v4M26 36v4M10 24h4M38 24h4M14.7 12.7l2.8 2.8M34.5 32.5l2.8 2.8M14.7 35.3l2.8-2.8M34.5 15.5l2.8-2.8"></path><path d="M24 50h22a8 8 0 0 0 0-16 11 11 0 0 0-21 3 6.5 6.5 0 0 0-1 13z" fill="#ece6d2" stroke="#55633f"></path></g></svg>
+      <div><div style="font-size:26px;line-height:1.1">{{ wxSummary }}</div><div style="font-size:16px;font-style:italic;color:#5b6a52">{{ wxDetail }}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #c6b794;border-bottom:1px solid #c6b794;padding:8px 0">
+      <sc-for list="{{ wxHours }}" as="w" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:1px"><span style="font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#55633f">{{ w.label }}</span><span style="font-size:22px;line-height:1.15">{{ w.temp }}</span><span style="font-family:'DM Sans',sans-serif;font-size:11px;color:#5b6a52">{{ w.rain }}</span></div>
+      </sc-for>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap"><p style="margin:0;flex:1 1 220px;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.55;color:#33402f;text-wrap:pretty">{{ wxTip }}</p><a href="{{ wxBom }}" target="_blank" rel="noopener" style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:#33402f;text-decoration:underline;text-underline-offset:4px;white-space:nowrap">BOM forecast</a></div>
+  </section>
+
+  <section style="background:#f6f0e2;padding:44px 24px 46px;display:flex;flex-direction:column;gap:16px">
+    <div><div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#8a5a45">Before you set off</div><h2 style="margin:6px 0 0;font-weight:500;font-size:38px;line-height:1">Finding the ceremony</h2></div>
+    <sc-if value="{{ vidIsFrame }}" hint-placeholder-val="{{ false }}"><div style="position:relative;width:100%;aspect-ratio:16/9;background:#2f3a26;box-shadow:0 10px 24px rgba(47,58,38,.25)"><iframe src="{{ vidSrc }}" title="Driving in to the ceremony parking" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe></div></sc-if>
+    <sc-if value="{{ vidIsFile }}" hint-placeholder-val="{{ false }}"><video src="{{ vidSrc }}" controls playsinline preload="metadata" style="width:100%;max-height:70vh;display:block;background:#2f3a26;box-shadow:0 10px 24px rgba(47,58,38,.25)"></video></sc-if>
+    <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.6;text-wrap:pretty">{{ parkDirections }}</p>
+    <div style="display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;padding:14px 0;border-top:1px solid #c6b794;border-bottom:1px solid #c6b794;align-items:baseline">
+      <span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#55633f">Address</span><span style="font-size:19px;line-height:1.3">{{ address }}</span>
+      <span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#55633f">Arrive</span><span style="font-size:19px">From {{ arrive }} for a {{ start }} start</span>
+    </div>
+    <a href="{{ mapUrl }}" target="_blank" rel="noopener" style="align-self:stretch;text-align:center;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;padding:15px 24px;background:#33402f;color:#f6f0e2;text-decoration:none" style-hover="background:#55633f;color:#f6f0e2">Open directions in Maps</a>
+  </section>
+
+  <section data-reveal="cards" style="background:#2f3a26;color:#f3ecd6;padding:54px 26px 60px;display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center">
+    <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#cfd8bb">Your place at the reception</div>
+    <div style="display:flex;flex-direction:column;gap:18px;width:100%;align-items:center;perspective:900px">
+      <sc-for list="{{ people }}" as="p" hint-placeholder-count="2">
+        <div style="width:min(300px,100%);transform-origin:50% 100%;transform:{{ p.flip }};opacity:{{ p.op }};transition:transform 1.1s cubic-bezier(.2,.8,.2,1) {{ p.delay }},opacity .8s ease {{ p.delay }}">
+          <div style="background:#fbf8f2;color:#33402f;padding:26px 20px 22px;box-shadow:0 14px 30px rgba(0,0,0,.35);position:relative;background-image:linear-gradient(180deg,rgba(0,0,0,.05),transparent 14px)">
+            <div style="position:absolute;left:12px;right:12px;top:10px;border-top:1px solid #b39563"></div>
+            <div style="font-family:'Pinyon Script',cursive;font-size:34px;line-height:1.15">{{ p.name }}</div>
+            <div style="margin-top:8px;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#55633f">{{ p.seat }}</div>
+            <div style="margin-top:6px;font-size:16px;font-style:italic;color:{{ p.fg }}">{{ p.meal }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <sc-if value="{{ hasPlan }}" hint-placeholder-val="{{ true }}">
+      <div style="position:relative;width:100%;aspect-ratio:{{ aspect }};background-color:#f3ecd6;background-image:url('{{ planImg }}');background-size:cover;background-position:center;overflow:hidden;margin-top:6px">
+        <sc-for list="{{ features }}" as="f" hint-placeholder-count="0"><div style="position:absolute;left:{{ f.left }};top:{{ f.top }};width:{{ f.w }};height:{{ f.h }};transform:translate(-50%,-50%);border:1px solid #b39563;display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#7d6a45;text-align:center">{{ f.label }}</div></sc-for>
+        <sc-for list="{{ planTables }}" as="t" hint-placeholder-count="8">
+          <div style="position:absolute;left:{{ t.left }};top:{{ t.top }};width:{{ t.size }};height:{{ t.hh }};aspect-ratio:{{ t.ar }};transform:translate(-50%,-50%);border-radius:{{ t.rad }};background:{{ t.bg }};border:1px solid {{ t.bd }};color:{{ t.fg }};display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:15px">
+            <sc-if value="{{ t.mine }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;left:50%;top:50%;width:100%;height:100%;border-radius:50%;border:2px solid #b39563;animation:pulseRing 2.2s ease-out infinite"></span></sc-if>{{ t.name }}
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <sc-if value="{{ hasMates }}" hint-placeholder-val="{{ true }}">
+      <div style="width:100%;display:flex;flex-direction:column;border-top:1px solid rgba(243,236,214,.3)">
+        <sc-for list="{{ mateTables }}" as="mt" hint-placeholder-count="1">
+          <div style="border-bottom:1px solid rgba(243,236,214,.3)">
+            <button onClick="{{ mt.toggle }}" aria-expanded="{{ mt.exp }}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 4px;border:0;background:none;color:#f3ecd6;cursor:pointer;text-align:left;font-family:'Cormorant Garamond',Georgia,serif">
+              <span><span style="display:block;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:#cfd8bb">{{ mt.count }}</span><span style="display:block;margin-top:4px;font-size:26px;line-height:1">{{ mt.label }}</span></span>
+              <span style="flex:none;width:34px;height:34px;border-radius:50%;border:1px solid rgba(243,236,214,.5);display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;font-size:18px;transform:rotate({{ mt.rot }});transition:transform .35s ease">+</span>
+            </button>
+            <div style="display:grid;grid-template-rows:{{ mt.rows }};transition:grid-template-rows .45s ease"><div style="overflow:hidden"><div style="display:flex;flex-direction:column;padding:0 4px 18px;text-align:left">
+              <sc-for list="{{ mt.names }}" as="n" hint-placeholder-count="6"><span style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid rgba(243,236,214,.12);font-size:20px;color:#f3ecd6"><span>{{ n.name }}</span><span style="font-family:'DM Sans',sans-serif;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#cfd8bb">{{ n.tag }}</span></span></sc-for>
+            </div></div></div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+    <div style="font-size:18px;font-style:italic;color:#cfd8bb;max-width:340px">{{ tableNote }}</div>
+  </section>
+
+  <section data-reveal="day" style="padding:58px 28px;display:flex;flex-direction:column;gap:22px;opacity:{{ rv.dayO }};transform:{{ rv.dayT }};transition:opacity 1s ease,transform 1.2s cubic-bezier(.2,.7,.2,1)">
+    <div><div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#8a5a45">The day</div><h2 style="margin:6px 0 0;font-weight:500;font-size:40px;line-height:1">Order of events</h2></div>
+    <div style="position:relative;display:flex;flex-direction:column">
+      <div style="position:absolute;left:96px;top:6px;bottom:6px;width:1px;background:#b39563;transform-origin:top;transform:scaleY({{ rv.line }});transition:transform 2.4s ease .2s"></div>
+      <sc-for list="{{ runsheet }}" as="r" hint-placeholder-count="8">
+        <div style="display:grid;grid-template-columns:84px 24px minmax(0,1fr);align-items:baseline;padding:9px 0">
+          <span style="font-size:22px;font-style:italic;text-align:right;color:#55633f">{{ r.t }}</span>
+          <span style="justify-self:center;width:7px;height:7px;background:#f6f0e2;border:1px solid #b39563;transform:rotate(45deg) translateY(-3px)"></span>
+          <span><span style="display:block;font-size:22px;line-height:1.2">{{ r.what }}</span><span style="display:block;font-family:'DM Sans',sans-serif;font-size:13px;color:#5b6a52;margin-top:2px">{{ r.where }}</span></span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section data-reveal="menu" style="background:#ece6d2;padding:58px 28px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:22px;opacity:{{ rv.menuO }};transform:{{ rv.menuT }};transition:opacity 1s ease,transform 1.2s cubic-bezier(.2,.7,.2,1)">
+    <div><div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#8a5a45">Dinner</div><h2 style="margin:6px 0 0;font-weight:500;font-size:40px;line-height:1">The menu</h2><div style="margin-top:8px;font-size:17px;font-style:italic;color:#5b6a52">Served alternately</div></div>
+    <div style="width:100%;border-top:1px solid #33402f;border-bottom:1px solid #33402f;padding:26px 0;display:flex;flex-direction:column;gap:22px">
+      <sc-for list="{{ menu }}" as="m" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:2px;align-items:center">
+          <div style="font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#55633f;margin-bottom:4px">{{ m.course }}</div>
+          <div style="font-size:22px;line-height:1.25">{{ m.a }}</div>
+          <sc-if value="{{ m.hasB }}" hint-placeholder-val="{{ true }}"><div style="font-size:16px;font-style:italic;color:#7d6a45">or</div><div style="font-size:22px;line-height:1.25">{{ m.b }}</div></sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <sc-for list="{{ dietNotes }}" as="d" hint-placeholder-count="0">
+      <div style="font-family:'Pinyon Script',cursive;font-size:24px;color:#7a4a37;line-height:1.2">{{ d }}</div>
+    </sc-for>
+  </section>
+
+  <section data-reveal="photos" style="background:#3f4c33;color:#f3ecd6;padding:58px 28px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px;opacity:{{ rv.photosO }};transform:{{ rv.photosT }};transition:opacity 1s ease,transform 1.2s cubic-bezier(.2,.7,.2,1)">
+    <div><div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#cfd8bb">After the vows</div><h2 style="margin:6px 0 0;font-weight:500;font-size:40px;line-height:1">Share your photos</h2></div>
+    <div style="font-size:19px;font-style:italic;color:#e6e9d4;max-width:330px;line-height:1.4">From cocktail hour onwards, add your photos to our album. Scan the code, or tap the button.</div>
+    <div style="background:#fbf8f2;padding:16px;box-shadow:0 10px 26px rgba(0,0,0,.3)"><div style="width:180px;height:180px"><sc-if value="{{ hasQr }}" hint-placeholder-val="{{ false }}"><img src="{{ qr }}" alt="QR code to upload photos" style="display:block;width:180px;height:180px;image-rendering:pixelated"></sc-if></div></div>
+    <a href="{{ photoUrl }}" target="_blank" rel="noopener" style="font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;padding:13px 24px;border:1px solid #f3ecd6;color:#f3ecd6;text-decoration:none" style-hover="background:#f3ecd6;color:#3f4c33">Upload photos</a>
+  </section>
+
+  <section data-reveal="travel" style="padding:58px 28px;display:flex;flex-direction:column;gap:16px;opacity:{{ rv.travelO }};transform:{{ rv.travelT }};transition:opacity 1s ease,transform 1.2s cubic-bezier(.2,.7,.2,1)">
+    <div><div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#8a5a45">Getting there</div><h2 style="margin:6px 0 0;font-weight:500;font-size:40px;line-height:1">Parking &amp; travel</h2></div>
+    <div style="font-size:22px;line-height:1.3">{{ address }}</div>
+    <div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px 16px;padding-top:14px;border-top:1px solid #c6b794">
+      <span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#55633f;padding-top:3px">Parking</span>
+      <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.6;text-wrap:pretty">{{ parking }}</p>
+      <span style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:#55633f;padding-top:3px">Home</span>
+      <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.6;text-wrap:pretty">{{ transport }}</p>
+    </div>
+    <a href="{{ mapUrl }}" target="_blank" rel="noopener" style="align-self:flex-start;margin-top:4px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;padding:13px 24px;background:#33402f;color:#f6f0e2;text-decoration:none" style-hover="background:#55633f;color:#f6f0e2">Directions</a>
+  </section>
+
+  <section data-reveal="faq" style="padding:10px 28px 50px;display:flex;flex-direction:column;opacity:{{ rv.faqO }};transform:{{ rv.faqT }};transition:opacity 1s ease,transform 1.2s cubic-bezier(.2,.7,.2,1)">
+    <h2 style="margin:0 0 12px;font-weight:500;font-size:32px">Quick answers</h2>
+    <sc-for list="{{ faq }}" as="f" hint-placeholder-count="5">
+      <div style="border-top:1px solid #c6b794">
+        <button onClick="{{ f.toggle }}" style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border:0;background:none;text-align:left;cursor:pointer;font-family:'Cormorant Garamond',Georgia,serif;font-size:21px;color:#33402f"><span>{{ f.q }}</span><span style="flex:none;font-family:'DM Sans',sans-serif;font-size:20px;line-height:1;color:#8a5a45;transform:rotate({{ f.rot }});transition:transform .3s ease">+</span></button>
+        <div style="display:grid;grid-template-rows:{{ f.rows }};transition:grid-template-rows .35s ease"><div style="overflow:hidden"><p style="margin:0 0 16px;font-family:'DM Sans',sans-serif;font-size:15px;line-height:1.6">{{ f.a }}</p></div></div>
+      </div>
+    </sc-for>
+  </section>
+
+  <section style="background:#2f3a26;color:#f3ecd6;padding:50px 28px 60px;display:flex;flex-direction:column;gap:6px">
+    <div style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;color:#cfd8bb;margin-bottom:8px">On the day, call</div>
+    <sc-for list="{{ contacts }}" as="c" hint-placeholder-count="2">
+      <a href="{{ c.tel }}" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 14px;align-items:baseline;padding:12px 0;border-top:1px solid rgba(243,236,214,.25);text-decoration:none;color:#f3ecd6">
+        <span style="font-size:24px">{{ c.name }}</span>
+        <span style="font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;text-decoration:underline;text-underline-offset:3px">{{ c.phone }}</span>
+        <span style="grid-column:1/-1;font-size:17px;font-style:italic;color:#cfd8bb">{{ c.role }}</span>
+      </a>
+    </sc-for>
+    <div style="margin-top:30px;text-align:center;font-family:'Pinyon Script',cursive;font-size:34px">With love, Sophie &amp; Nicholas</div>
+    <div style="text-align:center;font-size:16px;font-style:italic;color:#cfd8bb">Our ceremony is unplugged. Phones away until the vows are done.</div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:844},&quot;endpoint&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  DEFAULT = {
+    date: 'Thursday 18 November 2027', arrive: '1:30pm', start: '2:00pm',
+    address: 'The Lookout, Glenworth Valley · 69 Cooks Road, Glenworth Valley NSW 2250',
+    mapUrl: 'https://www.google.com/maps/search/?api=1&query=69+Cooks+Road+Glenworth+Valley+NSW+2250',
+    parkDirections: 'Turn into Glenworth Valley from Cooks Road and follow the signs for The Lookout, not the main stables. The track is unsealed, so take it slowly. Ceremony parking is on the grass right beside the trees, and our parking crew will wave you in.', parkVideo: '',
+    photoUrl: 'https://sophieandnicholas.com/photos',
+    parking: 'Parking is free and right beside the ceremony at The Lookout. The driveway is long and unsealed in places, so allow an extra 15 minutes. After the ceremony, follow the signs to the Valley Events Centre for cocktails. Park right outside and leave your car there for the night if you need to.',
+    tableNote: 'Your name card is at your seat. Ushers will point you in from the doors.',
+    transport: 'Taxis and Ubers rarely come out to the valley, and almost never late at night, so please do not count on finding one on the spot. Book ahead: a pre-booked taxi or Uber Reserve for an 11:00pm pick-up from the Valley Events Centre. Share a ride with friends, or line up a designated driver. Local cabs: Central Coast Taxis on 02 4337 3999 (maxi taxis for up to 11) or 13 10 08. The nearest station is Gosford, about 23 km away.',
+    runsheet: [{ t: '1:30pm', what: 'Guests arrive', where: 'The Lookout' }, { t: '2:00pm', what: 'Ceremony', where: 'The Lookout' }, { t: '3:00pm', what: 'Photographs', where: 'Among the trees' }, { t: '4:30pm', what: 'Cocktail hour', where: 'Valley Events Centre' }, { t: '5:30pm', what: 'Sunset surprise', where: 'All will be revealed' }, { t: '6:00pm', what: 'Reception dinner', where: 'Valley Events Centre' }, { t: '7:00pm', what: 'Dancing', where: 'Until late' }, { t: '11:00pm', what: 'The Irish goodbye', where: 'No farewell line. Slip away whenever you are ready, with our blessing' }],
+    menu: [{ course: 'Canapés', a: 'Oysters with finger lime · Wagyu bresaola crostini · Heirloom tomato tartlet', b: '' }, { course: 'Entrée', a: 'Burrata, heirloom tomato, basil oil', b: 'Cured ocean trout, cucumber, crème fraîche' }, { course: 'Main', a: 'Slow-cooked beef cheek, potato purée, red wine jus', b: 'Crispy-skin barramundi, fennel, lemon butter' }, { course: 'Dessert', a: 'Pavlova, passionfruit, mango', b: 'Dark chocolate tart, raspberries, cream' }, { course: 'To finish', a: 'Wedding cake, coffee and tea', b: '' }],
+    contacts: [{ name: 'Nicholas', role: 'The groom, for anything at all', phone: '0411 039 612' }, { name: 'Glenworth Valley', role: 'Venue office', phone: '(02) 4375 1222' }, { name: 'Central Coast Taxis', role: 'Local cabs, book your 11:00pm pick-up', phone: '02 4337 3999' }, { name: 'Sophie & Nicholas', role: 'Email us any time', phone: 'sophienickwedding@outlook.com.au' }],
+    faq: [
+      { q: 'What if it rains?', a: 'The ceremony moves to the balcony of the Valley Events Centre. We will text you in the morning if so.' },
+      { q: 'Can I take photos?', a: 'Not during the ceremony, it is unplugged. From cocktail hour onwards, snap away and add them to our album.' },
+      { q: 'What should I wear?', a: 'Formal. Suits or tuxedos, and cocktail attire. Please avoid pink, white and ivory. Block heels or flats suit the grass.' },
+      { q: 'Are drinks included?', a: 'Beer and wine are included. Cocktails are at the bar at your own cost.' },
+      { q: 'Do we need to say goodbye?', a: 'Not at all. We are doing an Irish goodbye: when you are ready to head off, simply slip away. No farewell line, no hunting for the couple. Just make sure your ride home is booked.' }, { q: 'Need step-free access?', a: 'Parking is beside the ceremony. Tell an usher on arrival and we will seat you close to the aisle.' }
+    ]
+  };
+  state = { g: null, guide: null, seating: null, rv: {}, open: -1 };
+  txApply() {
+    let map = {}; try { const d = JSON.parse(localStorage.getItem('sn-rsvp-admin-v1') || 'null'); map = (d && d.content && d.content.texts && d.content.texts['guide']) || {}; } catch (e) {}
+    this.txMap = map;
+    const run = () => { const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const p = n.parentElement; if (!p || /^(SCRIPT|STYLE|TEXTAREA)$/.test(p.tagName)) continue; if (n.__o === undefined || n.nodeValue !== n.__set) n.__o = n.nodeValue; const k = n.__o.trim(); const v = this.txMap[k]; const want = v != null && String(v).trim() !== '' ? n.__o.replace(k, v) : n.__o; if (n.nodeValue !== want) n.nodeValue = want; n.__set = want; } };
+    run();
+    if (!this.txMo && window.MutationObserver) { this.txMo = new MutationObserver(() => { if (this.txBusy) return; this.txBusy = true; requestAnimationFrame(() => { this.txBusy = false; run(); }); }); this.txMo.observe(document.body, { subtree: true, childList: true, characterData: true }); }
+  }
+  componentDidMount() {
+    this.load(); setTimeout(() => this.txApply(), 0);
+    this.onStore = (e) => { if (!e.key || e.key === 'sn-rsvp-admin-v1') { this.load(); this.txApply(); } };
+    window.addEventListener('storage', this.onStore);
+    this.t = setTimeout(() => {
+      if (!window.IntersectionObserver) return this.setState({ rv: { cards: 1, day: 1, menu: 1, photos: 1, travel: 1, faq: 1 } });
+      this.io = new IntersectionObserver(es => { const add = {}; es.forEach(x => { if (x.isIntersecting) { add[x.target.getAttribute('data-reveal')] = 1; this.io.unobserve(x.target); } }); if (Object.keys(add).length) this.setState(s => ({ rv: Object.assign({}, s.rv, add) })); }, { threshold: 0.15 });
+      document.querySelectorAll('[data-reveal]').forEach(el => this.io.observe(el));
+    }, 300);
+    this.q = setInterval(() => { if (window.qrcode) { clearInterval(this.q); this.forceUpdate(); } }, 300);
+  }
+  componentWillUnmount() { window.removeEventListener('storage', this.onStore); if (this.io) this.io.disconnect(); clearTimeout(this.t); clearInterval(this.q); }
+  load() {
+    const tok = new URLSearchParams(window.location.search).get('g');
+    let ep = this.props.endpoint; try { ep = ep || localStorage.getItem('sn-admin-api'); } catch (e) {}
+    let local = null; try { local = JSON.parse(localStorage.getItem('sn-rsvp-admin-v1') || 'null'); } catch (e) {}
+    const pickLocal = () => {
+      const G = (local && local.guests) || [];
+      const g = (tok && G.find(x => x.token === tok)) || G.find(x => x.W && x.rsvp && x.rsvp.w === true) || null;
+      this.setState({ g, guide: (local && local.guide) || null, seating: (local && local.seating) || null, site: (local && local.siteUrl) || '', all: G, mates: null, meals: (local && local.meals) || {} }); this.loadVid((local && local.guide) || null);
+    };
+    if (ep && tok) fetch(ep + '?action=guide&g=' + encodeURIComponent(tok)).then(r => r.json()).then(j => j.ok ? (this.setState({ g: j.guest, guide: j.guide || null, seating: j.seating || null, mates: j.mates || {}, meals: j.meals || {} }), this.loadVid(j.guide)) : pickLocal()).catch(pickLocal);
+    else pickLocal();
+  }
+  loadVid(guide) {
+    const v = String((guide && guide.parkVideo) || '');
+    if (!/^idb:/.test(v) || typeof indexedDB === 'undefined') return;
+    const r = indexedDB.open('sn-media', 1); r.onupgradeneeded = () => r.result.createObjectStore('m');
+    r.onsuccess = () => { const rq = r.result.transaction('m').objectStore('m').get('parkVideo'); rq.onsuccess = () => { if (rq.result) { if (this.vu) URL.revokeObjectURL(this.vu); this.vu = URL.createObjectURL(rq.result); this.setState({ vidBlob: this.vu }); } }; };
+  }
+  qr(url) {
+    if (!window.qrcode || !url) return '';
+    if (this._qrU === url) return this._qrD;
+    try { const q = window.qrcode(0, 'M'); q.addData(url); q.make(); this._qrU = url; this._qrD = q.createDataURL(6, 0); return this._qrD; } catch (e) { return ''; }
+  }
+  renderVals() {
+    const G = Object.assign({}, this.DEFAULT, this.state.guide || {});
+    const g = this.state.g || { id: 'demo', name: 'Margaret Bloor', partners: ['Peter Bloor'], rsvp: { diet: '' } };
+    const S = this.state.seating || { tables: [], seats: {} };
+    const ppl = [g.name].concat(g.partners || []).map(x => String(x).trim()).filter(Boolean);
+    const firsts = ppl.map(x => x.split(' ')[0]);
+    const diet = String((g.rsvp && g.rsvp.diet) || '').trim();
+    const named = ppl.filter((p, i) => diet && new RegExp('\\b' + firsts[i].replace(/[^\w']/g, '') + '\\b', 'i').test(diet));
+    const tables = S.tables || [], seats = S.seats || {};
+    const tName = id => { const t = tables.find(x => x.id === id); return t ? t.name : null; };
+    const myT = new Set(); const rv = this.state.rv;
+    const people = ppl.map((p, i) => {
+      const tid = seats[g.id + ':' + i]; if (tid && tName(tid)) myT.add(tid);
+      const mine = diet && (ppl.length === 1 || named.includes(p) || (named.length === 0 && i === 0));
+      const tn = tid && tName(tid) ? tName(tid) : g.table; const mv = (this.state.meals || {})[g.id + ':' + i]; const mo = typeof mv === 'string' ? { m: mv } : (mv || {}); const assigned = [['Entrée', mo.e], ['Main', mo.m], ['Dessert', mo.d]].filter(c => String(c[1] || '').trim()).map(c => c[0] + ': ' + String(c[1]).trim()).join(' · ');
+      return { name: p, seat: tn ? (/^\d+$/.test(String(tn)) ? 'Table ' + tn : String(tn) + ' table') : 'Table to come', meal: assigned ? assigned : mine ? 'Your meal: ' + diet : 'Set menu', fg: assigned || mine ? '#7a4a37' : '#5b6a52', flip: rv.cards ? 'rotateX(0deg)' : 'rotateX(80deg)', op: rv.cards ? 1 : 0, delay: (0.25 + i * 0.18).toFixed(2) + 's' };
+    });
+    const myTables = Array.from(myT).map(tName);
+    let mates = this.state.mates;
+    if (!mates) { mates = {}; const byId = {}; (this.state.all || []).forEach(x => { byId[x.id] = x; }); Object.keys(seats).forEach(k => { const tid = seats[k]; if (!myT.has(tid)) return; const [gid, i] = k.split(':'); if (gid === g.id) return; const x = byId[gid]; if (!x) return; const nm = [x.name].concat(x.partners || [])[+i]; if (nm) (mates[tid] = mates[tid] || []).push(nm); }); }
+    const mateTables = Array.from(myT).map(id => { const own = ppl.filter((p, i) => seats[g.id + ':' + i] === id); const others = mates[id] || []; const open = this.state.openT === id; const nm = tName(id); return { label: /^\d+$/.test(String(nm)) ? 'Table ' + nm : nm + ' table', count: own.length + others.length + ' at this table · tap to see who', names: own.map(n => ({ name: n, tag: 'You' })).concat(others.map(n => ({ name: n, tag: '' }))), rows: open ? '1fr' : '0fr', rot: open ? '45deg' : '0deg', exp: open ? 'true' : 'false', toggle: () => this.setState({ openT: open ? null : id }) }; });
+    const R = {}; ['day', 'menu', 'photos', 'travel', 'faq'].forEach(k => { R[k + 'O'] = rv[k] ? 1 : 0; R[k + 'T'] = rv[k] ? 'none' : 'translateY(26px)'; }); R.line = rv.day ? 1 : 0;
+    const days = Math.ceil((new Date(2027, 10, 18) - new Date()) / 864e5);
+    return {
+      rv: R, countdown: days > 1 ? days + ' days to go' : days === 1 ? 'Tomorrow' : 'Today',
+      date: G.date, arrive: G.arrive, start: G.start, address: G.address, mapUrl: G.mapUrl, parking: G.parking, tableNote: G.tableNote, transport: G.transport,
+      ...(() => { const tk = g.token || ''; const dc = /\.dc\.html$/.test(window.location.pathname); const base = String(this.state.site || (!dc && /^https?:/.test(window.location.protocol) ? window.location.origin : '')).replace(/\/+$/, ''); const custom = G.photoUrl && G.photoUrl !== 'https://sophieandnicholas.com/photos' ? G.photoUrl : ''; const href = custom || (base ? base + '/photos/?g=' + tk : dc ? 'Photo%20Upload.dc.html?g=' + tk : G.photoUrl); let abs = href; try { abs = new URL(href, window.location.href).href; } catch (e) {} const qr = this.qr(abs); return { photoUrl: href, qr, hasQr: !!qr }; })(),
+      firsts: firsts.length > 1 ? firsts.slice(0, -1).join(', ') + ' & ' + firsts[firsts.length - 1] : firsts[0],
+      myTable: myTables.length ? myTables.join(' & ') : (g.table ? String(g.table) : 'TBC'),
+      reception: ((G.runsheet || []).find(r => /reception|dinner/i.test(r.what)) || { t: '6:00pm' }).t,
+      parkDirections: G.parkDirections || '',
+      ...(() => { const W = this.state.wx || G.weather || { summary: 'Mostly sunny', detail: 'Top of 27°, light northeast breeze', updated: 'Sample forecast', hours: [{ label: '2pm vows', temp: '26°', rain: '5% rain' }, { label: '4pm', temp: '27°', rain: '5% rain' }, { label: '6pm dinner', temp: '23°', rain: '10% rain' }, { label: '9pm', temp: '18°', rain: '10% rain' }] };
+        const cold = W.hours.some(h => parseInt(h.temp, 10) < 17), wet = W.hours.some(h => parseInt(h.rain, 10) >= 40);
+        return { wxSummary: W.summary, wxDetail: W.detail, wxHours: W.hours, wxUpdated: W.updated, wxBom: G.bomUrl || 'https://www.bom.gov.au/places/nsw/glenworth-valley/forecast/',
+          wxTip: wet ? 'Rain is likely. If the ceremony moves to the balcony of the Valley Events Centre, we will text you in the morning. Block heels and a wrap are a good idea.' : cold ? 'The valley cools quickly after sunset. Bring a wrap or jacket for the evening.' : 'The valley cools after sunset, so a light wrap for the evening is a good idea. Sunglasses for the vows.' }; })(),
+      ...(() => { const v = String(G.parkVideo || '').trim(); const yt = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/.exec(v); const dr = /drive\.google\.com\/file\/d\/([\w-]+)/.exec(v);
+        const src = /^idb:/.test(v) ? (this.state.vidBlob || '') : yt ? 'https://www.youtube.com/embed/' + yt[1] + '?rel=0&playsinline=1' : dr ? 'https://drive.google.com/file/d/' + dr[1] + '/preview' : v;
+        const frame = !!(yt || dr); return { vidSrc: src, vidIsFrame: frame && !!src, vidIsFile: !frame && !!src }; })(),
+      runsheet: G.runsheet, people, mateTables, hasMates: mateTables.length > 0,
+      dietNotes: diet ? ['The kitchen has your note: ' + diet] : [],
+      hasPlan: tables.length > 0 || !!S.img, planImg: S.img || '', aspect: S.aspect || '4 / 3',
+      features: (S.features || []).map(f => ({ label: (/entr/i.test(f.label) ? '↓ ' : '') + f.label, left: f.x + '%', top: f.y + '%', w: f.w + '%', h: f.h + '%' })),
+      planTables: tables.map(t => { const mine = myT.has(t.id); const lg = t.shape === 'long', vt = t.dir === 'v'; return { rad: lg ? '4px' : '50%', ar: lg ? 'auto' : '1', hh: lg ? (vt ? (t.len || 40) + '%' : (mine ? '9%' : '7%')) : 'auto', name: t.name, left: t.x + '%', top: t.y + '%', size: lg ? (vt ? (mine ? '7%' : '5.5%') : (t.len || 40) + '%') : (mine ? '12%' : '8.5%'), mine, bg: mine ? '#33402f' : '#fbf8f2', fg: mine ? '#f3ecd6' : '#5b6a52', bd: mine ? '#b39563' : '#c6b794' }; }),
+      menu: (G.menu || []).map(m => ({ course: m.course, a: m.a, b: m.b, hasB: !!(m.b && m.b.trim()) })),
+      faq: (G.faq || []).map((f, i) => ({ q: f.q, a: f.a, rows: this.state.open === i ? '1fr' : '0fr', rot: this.state.open === i ? '45deg' : '0deg', toggle: () => this.setState({ open: this.state.open === i ? -1 : i }) })),
+      contacts: (G.contacts || []).map(c => ({ name: c.name, role: c.role, phone: c.phone, tel: /@/.test(c.phone) ? 'mailto:' + c.phone : 'tel:' + String(c.phone).replace(/[^\d+]/g, '') }))
+    };
+  }
+}
+</script>
+</body>
+</html>

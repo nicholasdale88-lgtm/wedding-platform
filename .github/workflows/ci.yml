@@ -1,0 +1,53 @@
+# Runs on every push: the full suite must be green before anything else (docs/12).
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # No Node on the dev machine, so the lockfile is generated here on the first run.
+      - name: Install
+        run: |
+          if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
+
+      - name: Upload lockfile (commit it once, then installs are frozen)
+        if: ${{ hashFiles('pnpm-lock.yaml') == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnpm-lock
+          path: pnpm-lock.yaml
+
+      - name: No couple-specific content in app code (docs/13)
+        run: |
+          if grep -rInE 'Sophie|Nicholas|Glenworth|horse' apps/*/src packages/*/src; then
+            echo "::error::Couple-specific text found in app code. Move it to seed/ or tenant content."
+            exit 1
+          fi
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test

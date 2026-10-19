@@ -1,0 +1,1152 @@
+{
+ "wedding": {
+  "slug": "sophie-and-nicholas",
+  "name1": "Sophie Bloor",
+  "name2": "Nicholas Dale",
+  "monogram": "S&N",
+  "theme": "Cream & Sage",
+  "timezone": "Australia/Sydney"
+ },
+ "events": [
+  {
+   "key": "wedding",
+   "name": "The wedding",
+   "date": "2027-11-18",
+   "start": "14:00",
+   "venue": "The Lookout, Glenworth Valley",
+   "address": "69 Cooks Road, Glenworth Valley NSW 2250",
+   "catered": true
+  },
+  {
+   "key": "30th",
+   "name": "Nicholas's 30th",
+   "date": "2027-11-20",
+   "start": "10:00",
+   "venue": "Glenworth Valley (ride + picnic by the river)",
+   "address": "69 Cooks Road, Glenworth Valley NSW 2250",
+   "catered": true,
+   "questions": [
+    {
+     "key": "ride",
+     "label": "Will you ride?",
+     "type": "choice",
+     "options": [
+      "Yes, I will ride",
+      "Not sure yet",
+      "No, not riding"
+     ]
+    }
+   ]
+  }
+ ],
+ "guide": {
+  "date": "Thursday 18 November 2027",
+  "arrive": "1:30pm",
+  "start": "2:00pm",
+  "address": "The Lookout, Glenworth Valley · 69 Cooks Road, Glenworth Valley NSW 2250",
+  "mapUrl": "https://www.google.com/maps/search/?api=1&query=69+Cooks+Road+Glenworth+Valley+NSW+2250",
+  "parkDirections": "Turn into Glenworth Valley from Cooks Road and follow the signs for The Lookout, not the main stables. The track is unsealed, so take it slowly. Ceremony parking is on the grass right beside the trees, and our parking crew will wave you in.",
+  "parkVideo": "",
+  "photoUrl": "https://sophieandnicholas.com/photos",
+  "parking": "Parking is free and right beside the ceremony at The Lookout. The driveway is long and unsealed in places, so allow an extra 15 minutes. After the ceremony, follow the signs to the Valley Events Centre for cocktails. Park right outside and leave your car there for the night if you need to.",
+  "tableNote": "Your name card is at your seat. Ushers will point you in from the doors.",
+  "transport": "Taxis and Ubers rarely come out to the valley, and almost never late at night, so please do not count on finding one on the spot. Book ahead: a pre-booked taxi or Uber Reserve for an 11:00pm pick-up from the Valley Events Centre. Share a ride with friends, or line up a designated driver. The nearest station is Gosford, about 23 km away.",
+  "runsheet": [
+   {
+    "t": "1:30pm",
+    "what": "Guests arrive",
+    "where": "The Lookout"
+   },
+   {
+    "t": "2:00pm",
+    "what": "Ceremony",
+    "where": "The Lookout"
+   },
+   {
+    "t": "3:00pm",
+    "what": "Photographs",
+    "where": "Among the trees"
+   },
+   {
+    "t": "4:30pm",
+    "what": "Cocktail hour",
+    "where": "Valley Events Centre"
+   },
+   {
+    "t": "5:30pm",
+    "what": "Sunset surprise",
+    "where": "All will be revealed"
+   },
+   {
+    "t": "6:00pm",
+    "what": "Reception dinner",
+    "where": "Valley Events Centre"
+   },
+   {
+    "t": "7:00pm",
+    "what": "Dancing",
+    "where": "Until late"
+   },
+   {
+    "t": "11:00pm",
+    "what": "The Irish goodbye",
+    "where": "No farewell line. Slip away whenever you are ready, with our blessing"
+   }
+  ],
+  "menu": [
+   {
+    "course": "Canapés",
+    "a": "Oysters with finger lime · Wagyu bresaola crostini · Heirloom tomato tartlet",
+    "b": ""
+   },
+   {
+    "course": "Entrée",
+    "a": "Burrata, heirloom tomato, basil oil",
+    "b": "Cured ocean trout, cucumber, crème fraîche"
+   },
+   {
+    "course": "Main",
+    "a": "Slow-cooked beef cheek, potato purée, red wine jus",
+    "b": "Crispy-skin barramundi, fennel, lemon butter"
+   },
+   {
+    "course": "Dessert",
+    "a": "Pavlova, passionfruit, mango",
+    "b": "Dark chocolate tart, raspberries, cream"
+   },
+   {
+    "course": "To finish",
+    "a": "Wedding cake, coffee and tea",
+    "b": ""
+   }
+  ],
+  "contacts": [
+   {
+    "name": "Nicholas",
+    "role": "The groom, for anything at all",
+    "phone": "0411 039 612"
+   },
+   {
+    "name": "Glenworth Valley",
+    "role": "Venue office",
+    "phone": "(02) 4375 1222"
+   }
+  ]
+ },
+ "presets": [
+  {
+   "k": "invite",
+   "label": "Invitation, warm",
+   "text": "Hi {first}, Sophie and Nicholas would love you to celebrate with them at Glenworth Valley in November 2027. Your invitation and RSVP: {link}"
+  },
+  {
+   "k": "invite",
+   "label": "Invitation, short",
+   "text": "{first}, you're invited! Sophie & Nicholas, Glenworth Valley, Nov 2027. Open your invitation: {link}"
+  },
+  {
+   "k": "reminder",
+   "label": "Gentle reminder",
+   "text": "Hi {first}, a gentle reminder to RSVP for {pending} by 18 August 2027. It only takes a minute: {link}"
+  },
+  {
+   "k": "reminder",
+   "label": "Last call (final week)",
+   "text": "Hi {first}, RSVPs for {pending} close this Wednesday, 18 August. We'd love to know if you can make it: {link}"
+  },
+  {
+   "k": "thanks",
+   "label": "Thank you for replying",
+   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. Change your reply any time: {link}"
+  },
+  {
+   "k": "ride",
+   "label": "Book your ride",
+   "text": "Hi {first}, riding on Sat 20 Nov? Please book the 10:00am session with Glenworth Valley by 20 August: (02) 4375 1222. Rides are not part of the RSVP."
+  },
+  {
+   "k": "nightW",
+   "label": "Night before, with guide",
+   "text": "Hi {first}, see you tomorrow! Arrive from 1:30pm for a 2:00pm start at The Lookout. Your table, menu and parking: {guide} Love, S & N"
+  },
+  {
+   "k": "nightW",
+   "label": "Night before, full details",
+   "text": "Hi {first}, see you tomorrow! Arrive from 1:30pm for a 2:00pm start at The Lookout, 69 Cooks Road, Glenworth Valley. Allow 15 extra minutes for the unsealed driveway. Parking is beside the ceremony. Phones away during the vows please. Love, S & N"
+  },
+  {
+   "k": "rain",
+   "label": "Rain plan",
+   "text": "Hi {first}, rain is forecast so the ceremony moves to the balcony of the Valley Events Centre, Glenworth Valley. Same time, 2:00pm. See you there! S & N"
+  },
+  {
+   "k": "nightB",
+   "label": "Night before the 30th",
+   "text": "Hi {first}, tomorrow is the 30th! Riders: be at Glenworth Valley by 9:30am, 30 minutes before the 10:00am ride, in long pants and closed shoes. Picnic by the river from 12:00pm, bring a hat and swimmers. Nicholas"
+  },
+  {
+   "k": "photos",
+   "label": "Share your photos",
+   "text": "Thank you for celebrating with us, {first}! Please add your photos from the day to our album: {photos} Love, Sophie & Nicholas"
+  },
+  {
+   "k": "photos",
+   "label": "Last call for photos",
+   "text": "Hi {first}, we're putting our album together this week. If you have any photos from the wedding, we'd love them: {photos}"
+  },
+  {
+   "k": "*",
+   "label": "Change of plans",
+   "text": "Hi {first}, a quick update from Sophie and Nicholas: [details]. Everything else stays the same. See you soon!"
+  },
+  {
+   "k": "*",
+   "label": "Thank you for coming",
+   "text": "Thank you for celebrating with us, {first}. It meant the world. Add your photos to our album: {photos} Love, S & N"
+  },
+  {
+   "k": "*",
+   "label": "Accommodation nudge",
+   "text": "Hi {first}, glamping and camping at Glenworth Valley are filling up for 18 to 20 November. If you're staying, book soon. Details: {link}"
+  }
+ ],
+ "autopilotDefaults": {
+  "invite": {
+   "mode": "auto",
+   "on": true
+  },
+  "photos": {
+   "mode": "dates",
+   "on": true,
+   "name": "Day after: share your photos",
+   "aud": "everyone who came to the wedding",
+   "text": "Thank you for celebrating with us, {first}! Please add your photos from the day to our album: {photos} Love, Sophie & Nicholas",
+   "excl": [],
+   "status": "",
+   "sentAt": "",
+   "dates": [
+    "2027-11-19T11:00"
+   ]
+  },
+  "thanks": {
+   "mode": "auto",
+   "on": true,
+   "name": "RSVP thank-you",
+   "aud": "each guest the moment they reply",
+   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. Change your reply any time: {link}",
+   "excl": [],
+   "status": "",
+   "sentAt": ""
+  },
+  "reminder": {
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-06-18T10:00",
+    "2027-07-18T10:00",
+    "2027-08-11T10:00"
+   ]
+  },
+  "ride": {
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-06-20T10:00",
+    "2027-08-01T10:00"
+   ]
+  },
+  "nightW": {
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-11-17T17:00"
+   ]
+  },
+  "rain": {
+   "mode": "manual",
+   "on": false
+  },
+  "nightB": {
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-11-19T17:00"
+   ]
+  }
+ },
+ "campaigns": [
+  {
+   "done": [],
+   "key": "invite",
+   "name": "Invitation",
+   "aud": "guests with a mobile who have not had their invitation",
+   "text": "Hi {first}, Sophie and Nicholas would love you to celebrate with them at Glenworth Valley in November 2027. Your invitation and RSVP: {link}",
+   "status": "Sent",
+   "schedule": "",
+   "sentAt": "2026-10-02T18:00",
+   "excl": [],
+   "mode": "auto",
+   "on": true
+  },
+  {
+   "key": "thanks",
+   "done": [],
+   "mode": "auto",
+   "on": true,
+   "name": "RSVP thank-you",
+   "aud": "each guest the moment they reply",
+   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. Change your reply any time: {link}",
+   "excl": [],
+   "status": "",
+   "sentAt": ""
+  },
+  {
+   "done": [],
+   "key": "reminder",
+   "name": "RSVP reminder",
+   "aud": "guests still to reply to an event",
+   "text": "Hi {first}, a gentle reminder to RSVP for {pending} by 18 August 2027. It only takes a minute: {link}",
+   "status": "Scheduled",
+   "schedule": "2027-07-18T10:00",
+   "sentAt": "2026-10-16T10:00",
+   "excl": [],
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-06-18T10:00",
+    "2027-07-18T10:00",
+    "2027-08-11T10:00"
+   ]
+  },
+  {
+   "done": [],
+   "key": "ride",
+   "name": "Ride booking reminder",
+   "aud": "30th guests who are riding or not sure",
+   "text": "Hi {first}, riding on Sat 20 Nov? Please book the 10:00am session with Glenworth Valley by 20 August: (02) 4375 1222. Rides are not part of the RSVP.",
+   "status": "Scheduled",
+   "schedule": "2027-06-20T10:00",
+   "sentAt": "",
+   "excl": [],
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-06-20T10:00",
+    "2027-08-01T10:00"
+   ]
+  },
+  {
+   "done": [],
+   "key": "nightW",
+   "name": "Night before: wedding",
+   "aud": "everyone attending the wedding",
+   "text": "Hi {first}, see you tomorrow! Arrive from 1:30pm for a 2:00pm start at The Lookout, 69 Cooks Road, Glenworth Valley. Allow 15 extra minutes for the unsealed driveway. Parking is beside the ceremony. It is an unplugged ceremony, so phones away please. Love, S & N",
+   "status": "Scheduled",
+   "schedule": "2027-11-17T17:00",
+   "sentAt": "",
+   "excl": [],
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-11-17T17:00"
+   ]
+  },
+  {
+   "done": [],
+   "key": "rain",
+   "name": "Morning of: weather plan",
+   "aud": "everyone attending the wedding",
+   "text": "Hi {first}, rain is forecast so the ceremony moves to the balcony of the Valley Events Centre, Glenworth Valley. Same time, 2:00pm. See you there! S & N",
+   "status": "Draft",
+   "schedule": "2027-11-18T08:00",
+   "sentAt": "",
+   "excl": [],
+   "mode": "manual",
+   "on": false
+  },
+  {
+   "done": [],
+   "key": "nightB",
+   "name": "Night before: 30th",
+   "aud": "everyone attending the 30th",
+   "text": "Hi {first}, tomorrow is the 30th! Riders: be at Glenworth Valley by 9:30am, 30 minutes before the 10:00am ride, in long pants and closed shoes. Picnic by the river from 12:00pm, bring a hat and swimmers. Nicholas",
+   "status": "Scheduled",
+   "schedule": "2027-11-19T17:00",
+   "sentAt": "",
+   "excl": [],
+   "mode": "dates",
+   "on": true,
+   "dates": [
+    "2027-11-19T17:00"
+   ]
+  },
+  {
+   "key": "photos",
+   "done": [],
+   "mode": "dates",
+   "on": true,
+   "name": "Day after: share your photos",
+   "aud": "everyone who came to the wedding",
+   "text": "Thank you for celebrating with us, {first}! Please add your photos from the day to our album: {photos} Love, Sophie & Nicholas",
+   "excl": [],
+   "status": "",
+   "sentAt": "",
+   "dates": [
+    "2027-11-19T11:00"
+   ]
+  }
+ ],
+ "sampleGuests": [
+  {
+   "id": "g0",
+   "token": "mbloor-100",
+   "name": "Margaret Bloor",
+   "partners": [
+    "Peter Bloor"
+   ],
+   "phone": "0412 381 904",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": true,
+    "n": 2,
+    "ride": "No, not riding",
+    "diet": "",
+    "msg": "Could not be prouder. See you in the valley!",
+    "at": "2026-10-03T19:12",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g1",
+   "token": "jdale-1rp",
+   "name": "James Dale",
+   "partners": [
+    "Olivia Chen"
+   ],
+   "phone": "0423 554 107",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": true,
+    "n": 2,
+    "ride": "Yes, I will ride",
+    "diet": "Olivia is vegetarian",
+    "msg": "",
+    "at": "2026-10-04T08:40",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g2",
+   "token": "ethompson-2je",
+   "name": "Ella Thompson",
+   "partners": [],
+   "phone": "0431 220 685",
+   "max": 1,
+   "W": true,
+   "B": false,
+   "rsvp": {
+    "w": true,
+    "b": null,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "Coeliac, strictly gluten free",
+    "msg": "",
+    "at": "2026-10-04T21:05",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g3",
+   "token": "lobrien-3b3",
+   "name": "Liam O'Brien",
+   "partners": [
+    "Grace O'Brien"
+   ],
+   "phone": "0402 918 336",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": null,
+    "b": null,
+    "n": 2,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "",
+    "at": null,
+    "via": ""
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    },
+    {
+     "type": "reminder",
+     "at": "2026-10-16T10:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g4",
+   "token": "npatel-42s",
+   "name": "Noah Patel",
+   "partners": [],
+   "phone": "0418 770 251",
+   "max": 1,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": false,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "No pork",
+    "msg": "",
+    "at": "2026-10-06T12:30",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g5",
+   "token": "cwilson-4uh",
+   "name": "Charlotte Wilson",
+   "partners": [
+    "Ben Wilson",
+    "Archie Wilson",
+    "Lily Wilson"
+   ],
+   "phone": "0447 302 918",
+   "max": 4,
+   "W": true,
+   "B": false,
+   "rsvp": {
+    "w": true,
+    "b": null,
+    "n": 4,
+    "ride": "Not sure yet",
+    "diet": "Lily (6) has a severe peanut allergy",
+    "msg": "Could we please have a high chair for Archie?",
+    "at": "2026-10-07T18:22",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g6",
+   "token": "hnguyen-5m6",
+   "name": "Hannah Nguyen",
+   "partners": [],
+   "phone": "0409 645 772",
+   "max": 1,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": false,
+    "b": false,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "So sorry, I will be overseas. Sending all my love.",
+    "at": "2026-10-08T09:10",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g7",
+   "token": "orossi-6dv",
+   "name": "Oscar Rossi",
+   "partners": [
+    "Mia Rossi"
+   ],
+   "phone": "0435 118 093",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": null,
+    "b": null,
+    "n": 2,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "",
+    "at": null,
+    "via": ""
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    },
+    {
+     "type": "reminder",
+     "at": "2026-10-16T10:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g8",
+   "token": "imurray-75k",
+   "name": "Isla Murray",
+   "partners": [],
+   "phone": "0421 903 447",
+   "max": 1,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": true,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "Vegan",
+    "msg": "",
+    "at": "2026-10-09T20:48",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g9",
+   "token": "jharris-7x9",
+   "name": "Jack Harris",
+   "partners": [
+    "Zoe Harris"
+   ],
+   "phone": "0414 667 520",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": true,
+    "n": 2,
+    "ride": "Yes, I will ride",
+    "diet": "",
+    "msg": "Zoe has never ridden. Is that ok?",
+    "at": "2026-10-10T07:55",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g10",
+   "token": "lfernandes-8oy",
+   "name": "Lucas Fernandes",
+   "partners": [],
+   "phone": "0438 205 116",
+   "max": 1,
+   "W": true,
+   "B": false,
+   "rsvp": {
+    "w": null,
+    "b": null,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "",
+    "at": null,
+    "via": ""
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g11",
+   "token": "rkelly-9gn",
+   "name": "Ruby Kelly",
+   "partners": [
+    "Tom Kelly"
+   ],
+   "phone": "0403 772 860",
+   "max": 2,
+   "W": true,
+   "B": false,
+   "rsvp": {
+    "w": true,
+    "b": null,
+    "n": 2,
+    "ride": "Not sure yet",
+    "diet": "Tom is lactose intolerant",
+    "msg": "",
+    "at": "2026-10-11T13:02",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g12",
+   "token": "hwalsh-a8c",
+   "name": "Henry Walsh",
+   "partners": [],
+   "phone": "0427 341 908",
+   "max": 1,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": true,
+    "n": 1,
+    "ride": "Yes, I will ride",
+    "diet": "",
+    "msg": "",
+    "at": "2026-10-12T17:40",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g13",
+   "token": "aclarke-b01",
+   "name": "Amelia Clarke",
+   "partners": [
+    "Josh Clarke"
+   ],
+   "phone": "0416 090 274",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": null,
+    "b": null,
+    "n": 2,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "",
+    "at": null,
+    "via": ""
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g14",
+   "token": "smartin-brq",
+   "name": "Sophia Martin",
+   "partners": [],
+   "phone": "0432 558 761",
+   "max": 1,
+   "W": true,
+   "B": false,
+   "rsvp": {
+    "w": false,
+    "b": null,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "A clash I cannot move, but drinks soon please!",
+    "at": "2026-10-12T19:15",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g15",
+   "token": "wanderson-cjf",
+   "name": "Will Anderson",
+   "partners": [
+    "Chloe Anderson"
+   ],
+   "phone": "0408 213 649",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": false,
+    "n": 2,
+    "ride": "Not sure yet",
+    "diet": "Chloe is pescatarian",
+    "msg": "",
+    "at": "2026-10-13T10:20",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g16",
+   "token": "abrown-db4",
+   "name": "Archie Brown",
+   "partners": [],
+   "phone": "0419 884 302",
+   "max": 1,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": null,
+    "b": null,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "",
+    "at": null,
+    "via": ""
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    },
+    {
+     "type": "reminder",
+     "at": "2026-10-16T10:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g17",
+   "token": "mryan-e2t",
+   "name": "Matilda Ryan",
+   "partners": [
+    "Sean Ryan"
+   ],
+   "phone": "0425 617 033",
+   "max": 2,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": true,
+    "n": 2,
+    "ride": "No, not riding",
+    "diet": "Matilda is pregnant: no soft cheese or raw fish",
+    "msg": "",
+    "at": "2026-10-14T16:05",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g18",
+   "token": "lcampbell-eui",
+   "name": "Leo Campbell",
+   "partners": [],
+   "phone": "0437 402 158",
+   "max": 1,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": true,
+    "b": true,
+    "n": 1,
+    "ride": "Yes, I will ride",
+    "diet": "Halal",
+    "msg": "",
+    "at": "2026-10-15T11:47",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g19",
+   "token": "etaylor-fm7",
+   "name": "Evie Taylor",
+   "partners": [
+    "Max Taylor"
+   ],
+   "phone": "",
+   "max": 2,
+   "W": true,
+   "B": false,
+   "rsvp": {
+    "w": null,
+    "b": null,
+    "n": 2,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "",
+    "at": null,
+    "via": ""
+   },
+   "sms": []
+  },
+  {
+   "id": "g20",
+   "token": "jdale-gdw",
+   "name": "Joan Dale",
+   "partners": [
+    "Ray Dale"
+   ],
+   "phone": "0400 551 278",
+   "max": 2,
+   "W": true,
+   "B": false,
+   "rsvp": {
+    "w": true,
+    "b": null,
+    "n": 2,
+    "ride": "Not sure yet",
+    "diet": "Soft foods for Ray, please",
+    "msg": "Joan needs a step-free seat near the aisle.",
+    "at": "2026-10-16T15:30",
+    "via": "Invitation"
+   },
+   "sms": [
+    {
+     "type": "invite",
+     "at": "2026-10-02T18:00",
+     "status": "Delivered"
+    }
+   ]
+  },
+  {
+   "id": "g21",
+   "token": "iscott-h5l",
+   "name": "Ivy Scott",
+   "partners": [],
+   "phone": "0429 736 015",
+   "max": 1,
+   "W": true,
+   "B": true,
+   "rsvp": {
+    "w": null,
+    "b": null,
+    "n": 1,
+    "ride": "Not sure yet",
+    "diet": "",
+    "msg": "",
+    "at": null,
+    "via": ""
+   },
+   "sms": []
+  }
+ ],
+ "exampleSeating": {
+  "img": "",
+  "aspect": "4 / 3",
+  "tables": [
+   {
+    "id": "tb",
+    "name": "Bridal",
+    "x": 50,
+    "y": 13,
+    "seats": 8
+   },
+   {
+    "id": "t1",
+    "name": "1",
+    "x": 14,
+    "y": 40,
+    "seats": 10
+   },
+   {
+    "id": "t2",
+    "name": "2",
+    "x": 32,
+    "y": 40,
+    "seats": 10
+   },
+   {
+    "id": "t3",
+    "name": "3",
+    "x": 68,
+    "y": 40,
+    "seats": 10
+   },
+   {
+    "id": "t4",
+    "name": "4",
+    "x": 86,
+    "y": 40,
+    "seats": 10
+   },
+   {
+    "id": "t5",
+    "name": "5",
+    "x": 14,
+    "y": 70,
+    "seats": 10
+   },
+   {
+    "id": "t6",
+    "name": "6",
+    "x": 32,
+    "y": 70,
+    "seats": 10
+   },
+   {
+    "id": "t7",
+    "name": "7",
+    "x": 68,
+    "y": 70,
+    "seats": 10
+   },
+   {
+    "id": "t8",
+    "name": "8",
+    "x": 86,
+    "y": 70,
+    "seats": 10
+   }
+  ],
+  "features": [
+   {
+    "id": "f1",
+    "label": "Dance floor",
+    "x": 50,
+    "y": 55,
+    "w": 26,
+    "h": 34
+   },
+   {
+    "id": "f2",
+    "label": "DJ",
+    "x": 50,
+    "y": 33,
+    "w": 12,
+    "h": 6
+   },
+   {
+    "id": "f3",
+    "label": "Bar",
+    "x": 50,
+    "y": 91,
+    "w": 22,
+    "h": 7
+   },
+   {
+    "id": "f4",
+    "label": "Entry",
+    "x": 8,
+    "y": 93,
+    "w": 10,
+    "h": 6
+   }
+  ],
+  "seats": {
+   "g5:0": "t1",
+   "g5:1": "t1",
+   "g5:2": "t1",
+   "g5:3": "t1",
+   "g0:0": "t1",
+   "g0:1": "t1",
+   "g1:0": "t1",
+   "g1:1": "t1",
+   "g9:0": "t1",
+   "g9:1": "t1",
+   "g11:0": "t2",
+   "g11:1": "t2",
+   "g15:0": "t2",
+   "g15:1": "t2",
+   "g17:0": "t2",
+   "g17:1": "t2",
+   "g20:0": "t2",
+   "g20:1": "t2",
+   "g2:0": "t2",
+   "g4:0": "t2",
+   "g8:0": "t3",
+   "g12:0": "t3",
+   "g18:0": "t3"
+  }
+ }
+}

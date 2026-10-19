@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f6f0e2;color:#33402f;font-family:'DM Sans',sans-serif}
+a{color:#33402f}a:hover{color:#5d6b47}
+input[type=range]{accent-color:#5d6b47;width:100%}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-wrap:wrap">
+  <main style="flex:1 1 560px;padding:28px clamp(16px,4vw,44px);display:flex;flex-direction:column;gap:22px;min-width:0">
+    <header style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#5b6a52">Photo filter studio</div>
+        <h1 style="margin:6px 0 0;font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-size:40px;line-height:1.08">Design your filters &amp; frames</h1>
+        <div style="margin-top:6px;color:#5b6a52;max-width:560px;font-size:14px;line-height:1.5">Tune a look, pick a frame, then export. Claude Code loads <b>filters.json</b> so guests get exactly these when they upload.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label style="padding:9px 16px;border-radius:999px;border:1px solid #c6b794;font-size:13px;font-weight:500;cursor:pointer" style-hover="background:#efe7d3">Try your own photo<input type="file" accept="image/*" onChange="{{ pickImg }}" style="display:none"></label>
+        <button onClick="{{ copyJson }}" style="padding:9px 16px;border-radius:999px;border:1px solid #c6b794;background:transparent;font-size:13px;font-weight:500;cursor:pointer;color:#33402f" style-hover="background:#efe7d3">Copy JSON</button>
+        <button onClick="{{ downloadJson }}" style="padding:9px 18px;border-radius:999px;border:1px solid #5d6b47;background:#5d6b47;color:#fbf8f2;font-size:13px;font-weight:500;cursor:pointer">Export filters.json</button>
+      </div>
+    </header>
+
+    <div style="display:flex;justify-content:center;padding:34px 16px;border-top:2px solid #33402f;background:#ece6d2">
+      <div style="position:relative;width:min(100%,460px);box-sizing:border-box;background:{{ F.bg }};padding:{{ F.pad }};border-radius:{{ F.rad }};box-shadow:0 16px 36px rgba(40,40,30,.24);clip-path:{{ F.clip }}">
+        <sc-if value="{{ F.ruled }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:9px;border:1px solid {{ F.line }};border-radius:{{ F.innerRad }};pointer-events:none;clip-path:{{ F.clip }}"></div></sc-if>
+        <div style="position:relative;overflow:hidden;aspect-ratio:4 / 5;border-radius:{{ F.photoRad }};outline:{{ F.photoLine }};outline-offset:5px">
+          <img src="{{ img }}" alt="Preview" style="width:100%;height:100%;object-fit:cover;display:block;filter:{{ L.css }}">
+          <div style="position:absolute;inset:0;background:{{ L.tint }};mix-blend-mode:soft-light;opacity:{{ L.tintOp }};pointer-events:none"></div>
+          <div style="position:absolute;inset:0;background:{{ L.vig }};pointer-events:none"></div>
+          <div style="position:absolute;inset:0;opacity:{{ L.grain }};mix-blend-mode:overlay;pointer-events:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%22.85%22 numOctaves=%222%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23n)%22/%3E%3C/svg%3E')"></div>
+          <sc-if value="{{ T.on }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;right:0;top:{{ T.top }};bottom:{{ T.bottom }};display:flex;align-items:{{ T.align }};justify-content:center;padding:{{ T.padT }} 16px 18px;box-sizing:border-box;pointer-events:none;background:{{ T.shade }}"><div style="max-width:92%;text-align:center;font-family:{{ T.font }};font-size:{{ T.size }};font-weight:{{ T.weight }};letter-spacing:{{ T.ls }};text-transform:{{ T.tt }};line-height:1.05;color:{{ T.color }};text-shadow:{{ T.sh }};white-space:pre-line">{{ T.text }}</div></div></sc-if>
+          <sc-if value="{{ F.seal }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;right:14px;bottom:14px;width:62px;height:62px;border-radius:50% 46% 52% 48%;background:radial-gradient(circle at 35% 30%,#c98f7c,#8a5a45 72%);box-shadow:0 3px 8px rgba(0,0,0,.35),inset 0 0 0 5px rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-family:'Pinyon Script',cursive;font-size:25px;color:#f6e7dc">{{ mono }}</div></sc-if>
+          <sc-if value="{{ F.overlayCap }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;left:0;right:0;bottom:0;padding:40px 16px 16px;background:linear-gradient(transparent,rgba(20,24,18,.55));text-align:center;color:#fbf8f2"><div style="font-family:'Pinyon Script',cursive;font-size:32px;line-height:1">{{ names }}</div><div style="margin-top:4px;font-size:10px;font-weight:600;letter-spacing:.3em;text-transform:uppercase">{{ dateLine }}</div></div></sc-if>
+        </div>
+        <sc-if value="{{ F.cap }}" hint-placeholder-val="{{ false }}"><div style="padding-top:{{ F.capPad }};text-align:center;color:{{ F.capCol }}"><div style="font-family:'Pinyon Script',cursive;font-size:{{ F.capSize }};line-height:1">{{ names }}</div><div style="margin-top:6px;font-size:10px;font-weight:600;letter-spacing:.3em;text-transform:uppercase;opacity:.85">{{ dateLine }}</div></div></sc-if>
+      </div>
+    </div>
+
+    <section style="display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#5b6a52">Filters</div><button onClick="{{ addFilter }}" style="padding:6px 14px;border-radius:999px;border:1px dashed #8a9670;background:transparent;color:#5d6b47;font-size:12px;cursor:pointer">+ New filter</button></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px">
+        <sc-for list="{{ strip }}" as="f" hint-placeholder-count="7">
+          <button onClick="{{ f.pick }}" style="display:flex;flex-direction:column;gap:6px;padding:0;border:none;background:transparent;cursor:pointer;text-align:left;color:#33402f">
+            <div style="position:relative;aspect-ratio:1;overflow:hidden;outline:{{ f.ring }};outline-offset:2px"><img src="{{ img }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;filter:{{ f.css }}"><div style="position:absolute;inset:0;background:{{ f.tint }};mix-blend-mode:soft-light;opacity:{{ f.tintOp }}"></div></div>
+            <span style="font-size:12px;font-weight:{{ f.weight }}">{{ f.name }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#5b6a52">Text on photo</div><button onClick="{{ toggleTxt }}" style="padding:6px 14px;border-radius:999px;border:1px solid #c6b794;background:{{ txtBtnBg }};color:{{ txtBtnFg }};font-size:12px;cursor:pointer">{{ txtBtn }}</button></div>
+      <sc-if value="{{ T.on }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <textarea rows="2" value="{{ T.text }}" onChange="{{ setTxt }}" style="padding:10px 12px;border:1px solid #d3c6a4;border-radius:10px;background:#fff;font:inherit;font-size:15px;color:#33402f;resize:vertical"></textarea>
+          <div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ txtPresets }}" as="tp" hint-placeholder-count="5"><button onClick="{{ tp.pick }}" style="padding:5px 12px;border-radius:999px;border:1px dashed #8a9670;background:transparent;color:#5d6b47;font-size:12px;cursor:pointer">{{ tp.label }}</button></sc-for></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+            <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#5b6a52">Style</span><div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ txtFonts }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" style="padding:5px 12px;border-radius:999px;border:1px solid #c6b794;background:{{ o.bg }};color:{{ o.fg }};font-size:12px;cursor:pointer">{{ o.label }}</button></sc-for></div></div>
+            <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#5b6a52">Position</span><div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ txtPos }}" as="o" hint-placeholder-count="3"><button onClick="{{ o.pick }}" style="padding:5px 12px;border-radius:999px;border:1px solid #c6b794;background:{{ o.bg }};color:{{ o.fg }};font-size:12px;cursor:pointer">{{ o.label }}</button></sc-for></div></div>
+            <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:12px;color:#5b6a52">Colour</span><div style="display:flex;gap:6px;flex-wrap:wrap"><sc-for list="{{ txtCols }}" as="o" hint-placeholder-count="4"><button onClick="{{ o.pick }}" aria-label="{{ o.label }}" style="width:28px;height:28px;border-radius:50%;border:2px solid {{ o.ring }};background:{{ o.hex }};cursor:pointer"></button></sc-for></div></div>
+            <div style="display:flex;flex-direction:column;gap:2px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#5b6a52"><span>Size</span><span>{{ T.sizeN }}</span></div><input type="range" min="14" max="64" step="1" value="{{ T.sizeN }}" onChange="{{ setTxtSize }}"></div>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+
+    <section style="display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#5b6a52">Frames</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="8"><button onClick="{{ fr.pick }}" style="padding:7px 14px;border-radius:999px;border:1px solid #c6b794;background:{{ fr.bg }};color:{{ fr.fg }};font-size:13px;cursor:pointer">{{ fr.name }}</button></sc-for>
+      </div>
+      <div style="font-size:13px;color:#5b6a52;line-height:1.5">{{ frameNote }}</div>
+    </section>
+  </main>
+
+  <aside style="flex:0 1 360px;background:#fbf8f2;border-left:1px solid #e2d7bc;padding:28px 22px;display:flex;flex-direction:column;gap:14px;min-width:280px;box-sizing:border-box">
+    <div style="padding-top:14px;border-top:2px solid #33402f;display:flex;flex-direction:column;gap:6px">
+      <label style="font-size:11px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:#5b6a52">Filter name</label>
+      <input value="{{ fname }}" onChange="{{ setName }}" style="padding:10px 12px;border:1px solid #d3c6a4;border-radius:10px;background:#fff;font:inherit;font-size:15px;color:#33402f">
+    </div>
+    <sc-for list="{{ sliders }}" as="sl" hint-placeholder-count="8">
+      <div style="display:flex;flex-direction:column;gap:2px;padding:6px 0;border-bottom:1px solid #ece3cc">
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span>{{ sl.label }}</span><span style="color:#5b6a52">{{ sl.show }}</span></div>
+        <input type="range" min="{{ sl.min }}" max="{{ sl.max }}" step="{{ sl.step }}" value="{{ sl.val }}" onChange="{{ sl.set }}">
+      </div>
+    </sc-for>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px"><span>Tint colour</span><input type="color" value="{{ tintHex }}" onChange="{{ setTint }}" style="width:44px;height:30px;border:1px solid #d3c6a4;border-radius:8px;background:#fff;padding:2px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px">
+      <button onClick="{{ resetF }}" style="padding:8px 14px;border-radius:999px;border:1px solid #c6b794;background:transparent;font-size:12px;cursor:pointer;color:#33402f">Reset</button>
+      <button onClick="{{ delF }}" style="padding:8px 14px;border-radius:999px;border:1px solid #c6b794;background:transparent;font-size:12px;cursor:pointer;color:#8a5a45">Delete filter</button>
+    </div>
+    <div style="margin-top:auto;padding-top:14px;border-top:1px solid #e2d7bc;font-size:12px;line-height:1.55;color:#5b6a52">Changes save in this browser. Export <b>filters.json</b> and drop it in the Claude Code pack at <b>design/filters.json</b>.</div>
+  </aside>
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}"><div style="position:fixed;left:50%;bottom:22px;transform:translateX(-50%);padding:10px 18px;border-radius:999px;background:#33402f;color:#fbf8f2;font-size:13px;z-index:20">{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  KEY = 'sn-filter-studio-v1';
+  DEF = [
+    { id: 'original', name: 'Original', b: 100, c: 100, s: 100, sep: 0, hue: 0, gs: 0, tint: '#ffffff', tintAmt: 0, vig: 0, grain: 0 },
+    { id: 'valley-warm', name: 'Valley Warm', b: 104, c: 105, s: 110, sep: 18, hue: 0, gs: 0, tint: '#f2c48a', tintAmt: 30, vig: 20, grain: 0 },
+    { id: 'sage', name: 'Sage', b: 102, c: 102, s: 85, sep: 6, hue: -8, gs: 0, tint: '#8fa47a', tintAmt: 35, vig: 15, grain: 0 },
+    { id: 'film', name: 'Film', b: 100, c: 112, s: 90, sep: 12, hue: 0, gs: 0, tint: '#d9b98c', tintAmt: 20, vig: 30, grain: 22 },
+    { id: 'black-white', name: 'Black & White', b: 102, c: 110, s: 100, sep: 0, hue: 0, gs: 100, tint: '#ffffff', tintAmt: 0, vig: 25, grain: 10 },
+    { id: 'soft', name: 'Soft', b: 106, c: 92, s: 95, sep: 4, hue: 0, gs: 0, tint: '#f6e3e6', tintAmt: 30, vig: 0, grain: 0 },
+    { id: 'golden-hour', name: 'Golden Hour', b: 105, c: 104, s: 125, sep: 30, hue: -12, gs: 0, tint: '#f0a95c', tintAmt: 40, vig: 25, grain: 0 }
+  ];
+  FRAMES = [
+    { id: 'none', name: 'None', note: 'The photo on its own.', bg: 'transparent', pad: '0', rad: '0', photoRad: '0' },
+    { id: 'polaroid', name: 'Polaroid', note: 'Cream instant-print border with your names and date in script.', bg: '#fbf8f2', pad: '16px 16px 6px', rad: '2px', cap: true, capPad: '16px', capSize: '34px', capCol: '#33402f', capBottom: '18px' },
+    { id: 'gold-line', name: 'Gold Line', note: 'Ivory mat with a fine gold rule, like the invitation cards.', bg: '#f6f0e2', pad: '26px', rad: '2px', ruled: true, line: '#b39563', photoLine: '1px solid #b39563' },
+    { id: 'sage-mat', name: 'Sage Mat', note: 'Deep sage mat, cream hairline and names beneath.', bg: '#5d6b47', pad: '22px 22px 10px', rad: '2px', ruled: true, line: 'rgba(246,240,226,.6)', cap: true, capPad: '14px', capSize: '30px', capCol: '#f6f0e2' },
+    { id: 'arch', name: 'Arch', note: 'The arched window shape from the invitation sections.', bg: '#f6f0e2', pad: '18px 18px 8px', rad: '230px 230px 18px 18px', innerRad: '220px 220px 12px 12px', photoRad: '210px 210px 6px 6px', textInsetTop: '24%', ruled: true, line: '#b39563', cap: true, capPad: '14px', capSize: '30px', capCol: '#4f6b40' },
+    { id: 'postcard', name: 'Postcard', note: 'Notched corners and a dashed edge, like the invitation\u2019s postcard sections.', bg: '#fdf7f6', pad: '20px 20px 8px', rad: '0', clip: 'polygon(18px 0,calc(100% - 18px) 0,100% 18px,100% calc(100% - 18px),calc(100% - 18px) 100%,18px 100%,0 calc(100% - 18px),0 18px)', ruled: true, line: '#c8a46a', cap: true, capPad: '12px', capSize: '28px', capCol: '#3e4a6b' },
+    { id: 'wax-seal', name: 'Wax Seal', note: 'Thin ivory border with the S & N wax seal in the corner.', bg: '#fbf8f2', pad: '12px', rad: '2px', seal: true },
+    { id: 'evening', name: 'Evening', note: 'Full-bleed photo with names and date over a soft shadow.', bg: 'transparent', pad: '0', rad: '4px', photoRad: '4px', overlayCap: true }
+  ];
+  SL = [['b', 'Brightness', 70, 130, 1, '%'], ['c', 'Contrast', 70, 140, 1, '%'], ['s', 'Saturation', 0, 160, 1, '%'], ['sep', 'Warmth (sepia)', 0, 60, 1, '%'], ['hue', 'Hue shift', -30, 30, 1, '°'], ['gs', 'Black & white', 0, 100, 1, '%'], ['tintAmt', 'Tint strength', 0, 80, 1, '%'], ['vig', 'Vignette', 0, 60, 1, '%'], ['grain', 'Film grain', 0, 40, 1, '%']];
+  TX0 = { on: true, text: "Sophie & Nick's wedding", font: 'script', pos: 'bottom', color: '#fbf8f2', size: 38 };
+  state = { txt: null, filters: null, sel: 'valley-warm', frame: 'polaroid', img: './assets/lookout.jpg', toast: '' };
+  componentDidMount() { let saved = null; try { saved = JSON.parse(localStorage.getItem(this.KEY) || 'null'); } catch (e) {} this.setState({ filters: saved && saved.filters || this.DEF.map(f => ({ ...f })), frame: saved && saved.frame || 'polaroid', txt: saved && saved.txt || { ...this.TX0 } }); }
+  persist(patch) { this.setState(patch, () => { try { localStorage.setItem(this.KEY, JSON.stringify({ filters: this.state.filters, frame: this.state.frame, txt: this.state.txt })); } catch (e) {} }); }
+  flash(t) { this.setState({ toast: t }); clearTimeout(this.tt); this.tt = setTimeout(() => this.setState({ toast: '' }), 2200); }
+  css(f) { return `brightness(${f.b}%) contrast(${f.c}%) saturate(${f.s}%) sepia(${f.sep}%) hue-rotate(${f.hue}deg) grayscale(${f.gs}%)`; }
+  look(f) { return { css: this.css(f), tint: f.tint, tintOp: f.tintAmt / 100, vig: `radial-gradient(ellipse at center,transparent 48%,rgba(20,18,12,${(f.vig / 100).toFixed(2)}) 100%)`, grain: f.grain / 100 }; }
+  json() { return JSON.stringify({ version: 1, couple: { names: 'Sophie & Nicholas', date: '18.11.27', monogram: 'S&N' }, filters: (this.state.filters || []).map(f => ({ ...f, cssFilter: this.css(f), overlay: { tint: f.tint, tintOpacity: f.tintAmt / 100, blend: 'soft-light', vignette: f.vig / 100, grain: f.grain / 100 } })), frames: this.FRAMES.map(({ note, ...fr }) => ({ ...fr, description: note })), defaultFrame: this.state.frame, text: { default: this.state.txt || this.TX0, presets: this.PRESETS, fonts: { script: 'Pinyon Script', serif: 'Cormorant Garamond', caps: 'DM Sans 600 uppercase .28em' }, positions: ['top', 'center', 'bottom'], colours: this.COLS, guestEditable: true, maxLength: 60 } }, null, 2); }
+  PRESETS = ["Sophie & Nick's wedding", 'Sophie & Nicholas · 18.11.27', 'Just married', 'Glenworth Valley', "Nick's 30th"];
+  COLS = [['Cream', '#fbf8f2'], ['Gold', '#d8bd84'], ['Sage', '#5d6b47'], ['Ink', '#33402f']];
+  renderVals() {
+    const tx = this.state.txt || this.TX0, setT = p => this.persist({ txt: { ...tx, ...p } });
+    const FT = { script: ["'Pinyon Script',cursive", 1, 400, '0', 'none'], serif: ["'Cormorant Garamond',Georgia,serif", .72, 500, '.02em', 'none'], caps: ["'DM Sans',sans-serif", .36, 600, '.28em', 'uppercase'] }[tx.font] || ["'Pinyon Script',cursive", 1, 400, '0', 'none'];
+    const light = /fbf8f2|d8bd84/i.test(tx.color);
+    const fr0 = this.FRAMES.find(x => x.id === this.state.frame) || this.FRAMES[0];
+    const seg = (arr, key) => arr.map(([v, l]) => ({ label: l, bg: tx[key] === v ? '#33402f' : 'transparent', fg: tx[key] === v ? '#fbf8f2' : '#33402f', pick: () => setT({ [key]: v }) }));
+    const s = this.state, fl = s.filters || this.DEF, cur = fl.find(f => f.id === s.sel) || fl[0];
+    const upd = (k, v) => this.persist({ filters: fl.map(f => f.id === cur.id ? { ...f, [k]: v } : f) });
+    const fr = this.FRAMES.find(x => x.id === s.frame) || this.FRAMES[0];
+    return {
+      T: { padT: tx.pos === 'top' ? (fr0.textInsetTop || '18px') : '18px', on: !!tx.on, text: tx.text, font: FT[0], size: Math.round(tx.size * FT[1]) + 'px', sizeN: tx.size, weight: FT[2], ls: FT[3], tt: FT[4], color: tx.color, sh: light ? '0 1px 10px rgba(10,14,8,.55)' : '0 1px 6px rgba(255,255,255,.5)', top: tx.pos === 'bottom' ? '45%' : '0', bottom: tx.pos === 'top' ? '45%' : '0', align: tx.pos === 'top' ? 'flex-start' : tx.pos === 'bottom' ? 'flex-end' : 'center', shade: !light ? 'none' : tx.pos === 'top' ? 'linear-gradient(rgba(20,24,18,.4),transparent)' : tx.pos === 'bottom' ? 'linear-gradient(transparent,rgba(20,24,18,.45))' : 'none' },
+      toggleTxt: () => setT({ on: !tx.on }), txtBtn: tx.on ? 'Text on' : 'Add text', txtBtnBg: tx.on ? '#33402f' : 'transparent', txtBtnFg: tx.on ? '#fbf8f2' : '#33402f',
+      setTxt: e => setT({ text: e.target.value.slice(0, 60) }), setTxtSize: e => setT({ size: +e.target.value }),
+      txtPresets: this.PRESETS.map(p => ({ label: p, pick: () => setT({ text: p, on: true }) })),
+      txtFonts: seg([['script', 'Script'], ['serif', 'Serif'], ['caps', 'Capitals']], 'font'),
+      txtPos: seg([['top', 'Top'], ['center', 'Middle'], ['bottom', 'Bottom']], 'pos'),
+      txtCols: this.COLS.map(([l, h]) => ({ label: l, hex: h, ring: tx.color === h ? '#33402f' : '#d3c6a4', pick: () => setT({ color: h }) })),
+      img: s.img, toast: s.toast, names: 'Sophie & Nicholas', dateLine: '18 · 11 · 2027', mono: 'S&N',
+      L: this.look(cur),
+      F: { bg: fr.bg, pad: fr.pad, rad: fr.rad, clip: fr.clip || 'none', ruled: !!fr.ruled, line: fr.line || 'transparent', innerRad: fr.innerRad || fr.rad, photoRad: fr.photoRad || '0', photoLine: fr.photoLine || 'none', seal: !!fr.seal, overlayCap: !!fr.overlayCap, cap: !!fr.cap, capPad: fr.capPad || '0', capSize: fr.capSize || '30px', capCol: fr.capCol || '#33402f' },
+      frameNote: fr.note,
+      strip: fl.map(f => ({ name: f.name, ...this.look(f), ring: f.id === cur.id ? '2px solid #33402f' : 'none', weight: f.id === cur.id ? 600 : 400, pick: () => this.setState({ sel: f.id }) })),
+      frames: this.FRAMES.map(x => ({ name: x.name, bg: x.id === fr.id ? '#33402f' : 'transparent', fg: x.id === fr.id ? '#fbf8f2' : '#33402f', pick: () => this.persist({ frame: x.id }) })),
+      fname: cur.name, setName: e => upd('name', e.target.value),
+      sliders: this.SL.map(([k, label, min, max, step, u]) => ({ label, min, max, step, val: cur[k], show: cur[k] + u, set: e => upd(k, +e.target.value) })),
+      tintHex: cur.tint, setTint: e => upd('tint', e.target.value),
+      resetF: () => { const d = this.DEF.find(x => x.id === cur.id); if (d) upd('b', d.b) || this.persist({ filters: fl.map(f => f.id === cur.id ? { ...d } : f) }); else this.persist({ filters: fl.map(f => f.id === cur.id ? { ...this.DEF[0], id: f.id, name: f.name } : f) }); this.flash('Filter reset'); },
+      delF: () => { if (cur.id === 'original') return this.flash('Original can\u2019t be deleted'); this.persist({ filters: fl.filter(f => f.id !== cur.id) }); this.setState({ sel: 'original' }); this.flash('Filter deleted'); },
+      addFilter: () => { const id = 'custom-' + Date.now().toString(36); this.persist({ filters: fl.concat([{ ...cur, id, name: 'My filter ' + (fl.length) }]) }); this.setState({ sel: id }); this.flash('New filter: tune it with the sliders'); },
+      pickImg: e => { const f = e.target.files && e.target.files[0]; if (f) this.setState({ img: URL.createObjectURL(f) }); },
+      copyJson: () => { try { navigator.clipboard.writeText(this.json()); this.flash('filters.json copied'); } catch (x) { this.flash('Copy not allowed here, use Export'); } },
+      downloadJson: () => { const u = URL.createObjectURL(new Blob([this.json()], { type: 'application/json' })); const a = document.createElement('a'); a.href = u; a.download = 'filters.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 3000); this.flash('filters.json downloaded'); }
+    };
+  }
+}
+</script>
+</body>
+</html>
