@@ -567,6 +567,16 @@ export const boardApi = {
   remove: (wid: string, id: string) => send<AdminBoard>('DELETE', `${w(wid)}/board/${id}`),
 };
 
+export interface InsightsData {
+  events: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; people: number; seats: number }[];
+  opened: { invitations: number; opened: number };
+  repliesByDay: { day: string; n: number }[];
+  groups: { group: string; invited: number; yes: number; no: number }[];
+  texts: { sent: number; parts: number; failed: number };
+  guests: { photos: number; board: number; songs: number; emails: number; vendorEmails: number; guestEmails: number; party: number };
+}
+export const insightsApi = { get: (wid: string) => request<InsightsData>(`${w(wid)}/insights`) };
+
 export interface InboxEmail {
   id: string;
   from: string;

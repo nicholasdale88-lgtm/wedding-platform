@@ -77,4 +77,14 @@ ${pdf}
     expect(vendors.data.list[0]!.quotes[0]).toMatchObject({ fileName: 'quote.pdf', notes: 'From email: Your florals quote' });
     expect(vendors.data.list[0]!.status).toBe('quoted');
   });
+
+  it('insights: replies per event (adding up), groups, and what guests are doing', async () => {
+    const r = await call('/insights');
+    expect(r.status).toBe(200);
+    const d = (await r.json()) as { events: { key: string; invited: number; yes: number; no: number; awaiting: number }[]; groups: { invited: number }[]; guests: { photos: number } };
+    expect(d.events.map((e) => e.key)).toEqual(['wedding', '30th']);
+    for (const e of d.events) expect(e.yes + e.no + e.awaiting).toBe(e.invited);
+    expect(d.events[0]!.invited).toBeGreaterThan(0);
+    expect(d.guests.photos).toBe(0);
+  });
 });

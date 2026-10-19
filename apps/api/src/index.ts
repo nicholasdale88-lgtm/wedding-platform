@@ -22,6 +22,7 @@ import { settingsRoutes } from './routes/settings';
 import { textRoutes } from './routes/texts';
 import { messageRoutes } from './routes/messages';
 import { inboxRoutes, receiveEmail } from './routes/inbox';
+import { insightsRoutes } from './routes/insights';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
 import { runAutopilot, type EngineDeps } from './sms/engine';
 import { sweepInbound } from './sms/inbound';
@@ -37,6 +38,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/texts', textRoutes(deps));
   app.route('/a/w/:wid/messages', messageRoutes(deps));
   app.route('/a/w/:wid/inbox', inboxRoutes());
+  app.route('/a/w/:wid/insights', insightsRoutes());
   app.route('/a/w/:wid/board', boardAdminRoutes());
   app.route('/a/w/:wid/settings', settingsRoutes(deps));
   app.route('/a/w/:wid/seating', seatingRoutes());

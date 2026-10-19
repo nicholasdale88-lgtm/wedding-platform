@@ -1,0 +1,244 @@
+import { commitmentOf, dateIn, daysUntil, type Budget, type PlanChecklist, type Vendors } from '@wp/shared';
+import { useEffect, useState } from 'react';
+import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
+import { Ring } from '../checklists/PhasedChecklist';
+import { useAdmin } from '../Shell';
+import { H2 } from '../ui';
+
+const DAY = 86_400_000;
+const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
+const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]';
+
+/** A row of bars: label, the bar, the figure. */
+function Bars({ rows, max }: { rows: { label: string; value: number; note?: string; colour?: string }[]; max?: number }) {
+  const top = max ?? Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((r) => (
+        <div key={r.label} className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_auto] gap-3 items-center text-[13px]">
+          <span className="truncate text-[#33402f]">{r.label}</span>
+          <span className="h-[10px] rounded-full bg-[#e9e2cc] overflow-hidden">
+            <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${Math.min(100, (r.value / top) * 100)}%`, background: r.colour ?? '#5d6b47' }} />
+          </span>
+          <span className="tabular-nums text-[#5b6a52] whitespace-nowrap">{r.note ?? r.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Replies coming in: a running total over time (one dot per day with replies). */
+function RepliesChart({ days, invited }: { days: { day: string; n: number }[]; invited: number }) {
+  if (!days.length) return <p className="m-0 text-[14px] text-[#7a7466]">No replies yet: the chart starts with the first one.</p>;
+  const W = 520;
+  const H = 150;
+  const start = Date.parse(days[0]!.day);
+  const end = Math.max(Date.parse(days[days.length - 1]!.day), start + DAY);
+  let total = 0;
+  const pts = days.map((d) => {
+    total += d.n;
+    return { x: ((Date.parse(d.day) - start) / (end - start)) * (W - 20) + 10, y: H - 10 - (total / Math.max(1, invited)) * (H - 20), total };
+  });
+  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const fmt = (t: number) => new Date(t).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+  return (
+    <svg viewBox={`0 0 ${W} ${H + 18}`} className="w-full h-auto" role="img" aria-label={`${total} replies so far`}>
+      <line x1={10} y1={10} x2={W - 10} y2={10} stroke="#e2d7bc" strokeDasharray="4 4" />
+      <text x={W - 10} y={8} textAnchor="end" fontSize={10} fill="#7a7466">
+        everyone ({invited})
+      </text>
+      <path d={`${path} L${pts[pts.length - 1]!.x},${H - 10} L${pts[0]!.x},${H - 10} Z`} fill="#cfd8bb" opacity={0.5} />
+      <path d={path} fill="none" stroke="#5d6b47" strokeWidth={2.5} strokeLinejoin="round" />
+      {pts.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={3} fill="#33402f" />
+      ))}
+      <text x={10} y={H + 14} fontSize={10} fill="#7a7466">
+        {fmt(start)}
+      </text>
+      <text x={W - 10} y={H + 14} fontSize={10} fill="#7a7466" textAnchor="end">
+        {fmt(end)}
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * Wedding planner → Insights: how the wedding is tracking. Replies (and a forecast of who'll come), money
+ * (where it goes, what's due by month, cost per guest), the plan (done against where you'd expect to be),
+ * vendors, and what guests are doing on the site.
+ */
+export function Insights() {
+  const { wid, overview } = useAdmin();
+  const [data, setData] = useState<InsightsData | null>(null);
+  const [plan, setPlan] = useState<PlanChecklist | null>(null);
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [vendors, setVendors] = useState<Vendors | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    insightsApi
+      .get(wid)
+      .then(setData)
+      .catch((e: Error) => setError(e.message));
+    plannerApi.doc<PlanChecklist>(wid, 'checklist').then((r) => setPlan(r.data), () => setPlan({ tasks: [] }));
+    plannerApi.doc<Budget>(wid, 'budget').then((r) => setBudget(r.data), () => setBudget({ total: 0, lines: [] }));
+    plannerApi.doc<Vendors>(wid, 'vendors').then((r) => setVendors(r.data), () => setVendors({ list: [] }));
+  }, [wid]);
+  if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
+  if (!data || !plan || !budget || !vendors) return <div aria-busy="true" className="text-[#5b6a52]">Working out the numbers…</div>;
+
+  const tz = overview?.wedding.timezone;
+  const today = dateIn(tz);
+  const first = data.events[0];
+  const days = first ? daysUntil(first.startsAt, tz) : null;
+  // Replies and a forecast: the awaiting split like the replies so far (or 85% yes before any are in).
+  const rate = first && first.yes + first.no ? first.yes / (first.yes + first.no) : 0.85;
+  const perInvite = first && first.yes ? first.people / first.yes : 2;
+  const forecast = first ? Math.round(first.people + first.awaiting * rate * perInvite) : 0;
+  // Money.
+  const booked = vendors.list.filter((v) => v.status === 'booked');
+  const named = new Set(budget.lines.map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
+  const extra = booked.filter((v) => !named.has(v.name.trim().toLowerCase()));
+  const committed = budget.lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + extra.reduce((a, v) => a + commitmentOf(v).amount, 0);
+  const paid = budget.lines.reduce((a, l) => a + l.paid, 0) + extra.reduce((a, v) => a + (v.depositPaid ? commitmentOf(v).deposit : 0), 0);
+  const byMonth = new Map<string, number>();
+  for (const l of budget.lines) if (l.due && (l.quote || l.estimate) > l.paid) byMonth.set(l.due.slice(0, 7), (byMonth.get(l.due.slice(0, 7)) ?? 0) + (l.quote || l.estimate) - l.paid);
+  for (const v of extra) if (v.balanceDue) byMonth.set(v.balanceDue.slice(0, 7), (byMonth.get(v.balanceDue.slice(0, 7)) ?? 0) + commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0));
+  const months = [...byMonth.entries()].filter(([, a]) => a > 0).sort(([a], [b]) => a.localeCompare(b));
+  const byCat = new Map<string, number>();
+  for (const l of budget.lines) byCat.set(l.category, (byCat.get(l.category) ?? 0) + (l.quote || l.estimate));
+  // The plan: done, against what you'd expect to have done by now (tasks whose time has come).
+  const day = first ? Date.parse(first.startsAt) : NaN;
+  const dueBy = plan.tasks.filter((t) => !Number.isNaN(day) && day - t.before * DAY <= Date.now());
+  const done = plan.tasks.filter((t) => t.done).length;
+  const expected = dueBy.length;
+  const onTrack = done >= expected;
+  const owner = (o: string) => plan.tasks.filter((t) => !t.done && (t.owner === o || t.owner === 'both')).length;
+  const n1 = overview?.wedding.name1.split(' ')[0] ?? 'Partner 1';
+  const n2 = overview?.wedding.name2.split(' ')[0] ?? 'Partner 2';
+  const quotes = vendors.list.reduce((a, v) => a + v.quotes.length, 0);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <section aria-label="Headlines" className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+        {[
+          ['Days to go', days === null ? '—' : String(Math.max(0, days)), first?.name ?? ''],
+          ['Replied', `${first ? pct(first.yes + first.no, first.invited) : 0}%`, first ? `${first.yes + first.no} of ${first.invited} invitations` : ''],
+          ['Expected guests', String(forecast), first ? `${first.people} said yes so far` : ''],
+          ['Budget used', `${pct(committed, budget.total)}%`, budget.total ? `${aud(committed)} of ${aud(budget.total)}` : 'Set your budget'],
+          ['Plan done', `${pct(done, plan.tasks.length)}%`, plan.tasks.length ? (onTrack ? 'On track ✓' : `${expected - done} behind where you’d expect`) : 'Start the checklist'],
+        ].map(([k, v, sub]) => (
+          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+            <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">{k}</span>
+            <span className="font-display text-[34px] leading-none">{v}</span>
+            <span className={`text-[12px] ${k === 'Plan done' && !onTrack && plan.tasks.length ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{sub}</span>
+          </div>
+        ))}
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section aria-label="Replies" className={card}>
+          <H2>Replies</H2>
+          {data.events.map((e) => (
+            <div key={e.key} className="flex flex-col gap-2">
+              <strong className="text-[14px] font-semibold">{e.name}</strong>
+              <Bars
+                max={e.invited}
+                rows={[
+                  { label: 'Invited', value: e.invited, colour: '#c6b794' },
+                  ...(e.key === first?.key ? [{ label: 'Opened their invitation', value: Math.min(e.invited, data.opened.opened), colour: '#b39563' }] : []),
+                  { label: 'Replied', value: e.yes + e.no, colour: '#8a9670' },
+                  { label: 'Coming', value: e.yes, note: `${e.yes} (${e.people} people)`, colour: '#5d6b47' },
+                  { label: 'Can’t come', value: e.no, colour: '#a5533c' },
+                ]}
+              />
+            </div>
+          ))}
+          <p className="m-0 text-[12px] text-[#7a7466]">
+            Expected guests assumes the {first?.awaiting ?? 0} still to reply answer like those who have ({Math.round(rate * 100)}% yes).
+          </p>
+        </section>
+        <section aria-label="Replies over time" className={card}>
+          <H2>Replies over time</H2>
+          <RepliesChart days={data.repliesByDay} invited={data.opened.invitations} />
+        </section>
+      </div>
+
+      {data.groups.length > 1 && (
+        <section aria-label="By guest group" className={card}>
+          <H2>By guest group</H2>
+          <Bars rows={data.groups.map((g) => ({ label: g.group, value: g.yes + g.no, note: `${g.yes} yes · ${g.no} no · ${g.invited - g.yes - g.no} waiting`, colour: '#8a9670' }))} max={Math.max(...data.groups.map((g) => g.invited))} />
+        </section>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section aria-label="Money" className={card}>
+          <H2>Money</H2>
+          <div className="flex gap-5 flex-wrap items-center">
+            <Ring done={paid} total={Math.max(committed, 1)} size={70} label={`${aud(paid)} paid of ${aud(committed)}`} />
+            <div className="text-[14px] flex flex-col gap-1">
+              <span>
+                <strong className="font-semibold">{aud(paid)}</strong> paid of {aud(committed)} committed
+              </span>
+              <span>
+                About <strong className="font-semibold">{aud(forecast ? committed / forecast : 0)}</strong> a guest (for {forecast} expected)
+              </span>
+              {budget.total > 0 && <span className={committed > budget.total ? 'text-[#7a4a37] font-semibold' : ''}>{committed > budget.total ? `${aud(committed - budget.total)} over budget` : `${aud(budget.total - committed)} left to allocate`}</span>}
+            </div>
+          </div>
+          {byCat.size > 0 && <Bars rows={[...byCat.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => ({ label: k, value: v, note: aud(v) }))} />}
+        </section>
+        <section aria-label="Payments by month" className={card}>
+          <H2>Still to pay, by month</H2>
+          {months.length ? (
+            <Bars rows={months.map(([m, a]) => ({ label: new Date(`${m}-01T00:00`).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }), value: a, note: aud(a), colour: m < today.slice(0, 7) ? '#a5533c' : '#b39563' }))} />
+          ) : (
+            <p className="m-0 text-[14px] text-[#7a7466]">Nothing with a due date yet. Add due dates in Budget to see what’s coming each month.</p>
+          )}
+        </section>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section aria-label="The plan" className={card}>
+          <H2>The plan</H2>
+          <Bars
+            max={Math.max(plan.tasks.length, 1)}
+            rows={[
+              { label: 'Done', value: done, colour: '#5d6b47' },
+              { label: 'Due by now', value: expected, colour: onTrack ? '#8a9670' : '#a5533c' },
+              { label: 'Everything', value: plan.tasks.length, colour: '#c6b794' },
+            ]}
+          />
+          <div className="text-[13px] text-[#5b6a52]">
+            Still to do: {n1} {owner('p1')} · {n2} {owner('p2')} · not decided {plan.tasks.filter((t) => !t.done && !t.owner).length}
+          </div>
+        </section>
+        <section aria-label="Vendors" className={card}>
+          <H2>Vendors</H2>
+          <Bars
+            max={Math.max(vendors.list.length, 1)}
+            rows={[
+              { label: 'Shortlisted', value: vendors.list.length, colour: '#c6b794' },
+              { label: 'Quoted', value: vendors.list.filter((v) => v.quotes.length || v.quote).length, colour: '#b39563' },
+              { label: 'Booked', value: booked.length, colour: '#5d6b47' },
+              { label: 'Contract signed', value: booked.filter((v) => v.contractSigned).length, colour: '#33402f' },
+            ]}
+          />
+          <div className="text-[13px] text-[#5b6a52]">{quotes} quotes filed</div>
+        </section>
+        <section aria-label="On the site" className={card}>
+          <H2>Guests on the site</H2>
+          <Bars
+            rows={[
+              { label: 'Photos shared', value: data.guests.photos, colour: '#b39563' },
+              { label: 'Board messages', value: data.guests.board, colour: '#8a9670' },
+              { label: 'Song requests', value: data.guests.songs, colour: '#5d6b47' },
+              { label: 'Emails', value: data.guests.emails, note: `${data.guests.emails} (${data.guests.vendorEmails} vendors)`, colour: '#c6b794' },
+              { label: 'Texts sent', value: data.texts.sent, note: `${data.texts.sent}${data.texts.failed ? ` · ${data.texts.failed} failed` : ''}`, colour: '#33402f' },
+            ]}
+          />
+        </section>
+      </div>
+    </div>
+  );
+}
