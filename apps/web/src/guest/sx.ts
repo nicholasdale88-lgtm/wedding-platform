@@ -1,3 +1,4 @@
+import { dropControls } from '@wp/shared';
 import type { CSSProperties } from 'react';
 
 /**
@@ -51,7 +52,7 @@ export function sx(css: string): CSSProperties {
  */
 export function url(u: unknown): string | undefined {
   const s = String(u ?? '').trim();
-  const probe = s.replace(/[\x00-\x20\x7f]+/g, '').toLowerCase(); // browsers ignore these inside a scheme
+  const probe = dropControls(s, true).toLowerCase(); // browsers ignore these inside a scheme
   if (!probe) return undefined;
   if (!/^[a-z][a-z0-9+.-]*:/.test(probe)) return s; // relative, #anchor or ?query
   return /^(https?:|mailto:|tel:|sms:|blob:|data:image\/(png|jpe?g|gif|webp|avif);)/.test(probe) ? s : undefined;

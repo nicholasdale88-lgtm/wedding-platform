@@ -1,14 +1,15 @@
 import { zonedToUtc } from '@wp/shared';
 import { Miniflare } from 'miniflare';
-import migration from '../../migrations/0001_init.sql?raw';
+import m0001 from '../../migrations/0001_init.sql?raw';
+import m0002 from '../../migrations/0002_weather.sql?raw';
 import { CAMPAIGNS, phoneOf, SENDER, ADMIN } from './fixture';
 import { TZ } from './fakes';
 
-/** A fresh in-memory D1 (same engine as Cloudflare) with the migration applied. */
+/** A fresh in-memory D1 (same engine as Cloudflare) with every migration applied, in order. */
 export async function testD1() {
   const mf = new Miniflare({ modules: true, script: 'export default {}', d1Databases: { DB: crypto.randomUUID() } });
   const db = (await mf.getD1Database('DB')) as unknown as D1Database;
-  for (const stmt of statements(migration)) await db.prepare(stmt).run();
+  for (const stmt of [m0001, m0002].flatMap(statements)) await db.prepare(stmt).run();
   return { db, dispose: () => mf.dispose() };
 }
 

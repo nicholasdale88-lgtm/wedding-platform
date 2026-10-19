@@ -1,4 +1,5 @@
-/** Guest API for the invitation page. */
+/** Guest API: the invitation, the night-before guides and the photo page. */
+import type { DayoutGuide, Forecast, ReceptionGuide } from '@wp/shared';
 
 export interface GuestInvitation {
   token: string;
@@ -30,6 +31,36 @@ export interface RsvpBody {
   message: string;
 }
 
+export interface GuidePayload {
+  wedding: { slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string };
+  event: { key: string; name: string; startsAt: string; slot: number };
+  guide: ReceptionGuide | DayoutGuide;
+  texts: Record<string, string>;
+  guest: {
+    token: string;
+    people: { idx: number; name: string; diet: string; tableId: string | null; meals: { e: string; m: string; d: string } }[];
+    attending: boolean | null;
+    answers: Record<string, string>;
+  };
+  seating: {
+    aspect: string;
+    planImg: string;
+    tables: { id: string; name: string; shape: 'round' | 'long'; dir: string; len: number; x: number; y: number }[];
+    features: { label: string; x: number; y: number; w: number; h: number }[];
+  } | null;
+  mates: Record<string, string[]>;
+  weather: Forecast | null;
+  photoUrl: string;
+}
+
+export interface PhotoPagePayload {
+  wedding: { slug: string; name1: string; name2: string; theme: string };
+  name: string;
+  linked: boolean;
+  open: boolean;
+  texts: Record<string, string>;
+}
+
 export class GuestApiError extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
@@ -48,4 +79,16 @@ export const guestApi = {
     call<InvitePayload>(`/p/${encodeURIComponent(slug)}/invite${token ? `?g=${encodeURIComponent(token)}${preview ? '&preview=1' : ''}` : ''}`),
   find: (slug: string, name: string) => call<InvitePayload>(`/p/${encodeURIComponent(slug)}/find`, { method: 'POST', body: JSON.stringify({ name }) }),
   rsvp: (slug: string, body: RsvpBody) => call<{ ok: true; invitation: GuestInvitation }>(`/p/${encodeURIComponent(slug)}/rsvp`, { method: 'POST', body: JSON.stringify(body) }),
+  guide: (slug: string, token: string, event?: string) =>
+    call<GuidePayload>(`/p/${encodeURIComponent(slug)}/guide?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`),
+  photos: (slug: string, token: string) => call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}`),
+  /** One photo; the server checks it really is one. */
+  uploadPhoto: async (slug: string, token: string, by: string, photo: Blob) => {
+    const res = await fetch(`/api/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}`, {
+      method: 'PUT',
+      headers: { 'content-type': photo.type || 'image/jpeg', 'X-Photo-By': encodeURIComponent(by) },
+      body: photo,
+    });
+    if (!res.ok) throw new GuestApiError(res.status, ((await res.json().catch(() => null)) as { error?: { message: string } } | null)?.error?.message ?? 'Upload failed');
+  },
 };

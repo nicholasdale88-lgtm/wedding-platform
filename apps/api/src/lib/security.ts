@@ -9,6 +9,13 @@ import type { Env } from '../env';
 /** Largest request body we accept. Webhooks and RSVPs are a few KB; imports get their own limit. */
 export const MAX_BODY = 100 * 1024;
 
+/** Guest photo uploads: one photo per request, already shrunk on the phone. */
+export const MAX_PHOTO = 15 * 1024 * 1024;
+const PHOTO_PATH = /^\/api\/p\/[a-z0-9-]+\/photos$/;
+
+/** The body limit for a path. */
+export const bodyLimitFor = (path: string) => (PHOTO_PATH.test(path) ? MAX_PHOTO : MAX_BODY);
+
 const HEADERS: Record<string, string> = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff',
@@ -32,7 +39,8 @@ const originOf = (url: string | undefined) => {
 export const hardening = (): MiddlewareHandler<{ Bindings: Env }> => async (c, next) => {
   const method = c.req.method;
   const write = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
-  const hook = new URL(c.req.url).pathname.startsWith('/api/hooks/');
+  const path = new URL(c.req.url).pathname;
+  const hook = path.startsWith('/api/hooks/');
 
   if (write) {
     // Browsers always send Origin on cross-site writes; reject any that isn't us. (Providers' webhooks don't send one.)
@@ -41,7 +49,7 @@ export const hardening = (): MiddlewareHandler<{ Bindings: Env }> => async (c, n
       return json('bad_origin', 'Not allowed.', 403);
     }
     const declared = Number(c.req.header('content-length') ?? 0);
-    if (declared > MAX_BODY) return json('too_large', 'That is too large to send.', 413);
+    if (declared > bodyLimitFor(path)) return json('too_large', 'That is too large to send.', 413);
   }
 
   await next();
@@ -61,8 +69,14 @@ export async function readJson(req: Request, max = MAX_BODY): Promise<unknown> {
 
 /** The raw body as text (webhooks need it exactly, for signatures), capped. Null if too large. */
 export async function readText(req: Request, max = MAX_BODY): Promise<string | null> {
+  const bytes = await readBytes(req, max);
+  return bytes === null ? null : new TextDecoder().decode(bytes);
+}
+
+/** The raw body, capped while reading. Null if too large. */
+export async function readBytes(req: Request, max = MAX_BODY): Promise<Uint8Array | null> {
   const reader = req.body?.getReader();
-  if (!reader) return '';
+  if (!reader) return new Uint8Array(0);
   const chunks: Uint8Array[] = [];
   let size = 0;
   for (;;) {
@@ -81,5 +95,5 @@ export async function readText(req: Request, max = MAX_BODY): Promise<string | n
     all.set(ch, at);
     at += ch.byteLength;
   }
-  return new TextDecoder().decode(all);
+  return all;
 }

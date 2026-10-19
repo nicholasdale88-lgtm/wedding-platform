@@ -10,13 +10,13 @@ import { dirname, join } from 'node:path';
 const [currentFile, seedFile, slug, out] = process.argv.slice(2);
 if (!currentFile || !seedFile || !slug || !out) throw new Error('Usage: content-sync <current.json> <seed.json> <slug> <out.sql>');
 
-const row = (JSON.parse(readFileSync(currentFile, 'utf8')) as { results: { content: string }[] }[])[0]?.results[0];
+const row = (JSON.parse(readFileSync(currentFile, 'utf8')) as { results: { content: string; guide?: string }[] }[])[0]?.results[0];
 if (!row) {
   writeFileSync(out, '');
   console.log(`No wedding "${slug}" yet; nothing to sync`);
   process.exit(0);
 }
-const seed = JSON.parse(readFileSync(seedFile, 'utf8')) as { invitation?: Record<string, string> };
+const seed = JSON.parse(readFileSync(seedFile, 'utf8')) as { invitation?: Record<string, string>; guide?: Record<string, Record<string, unknown>> };
 const dir = dirname(seedFile);
 const texts: Record<string, string> = {
   ...JSON.parse(readFileSync(join(dir, 'texts.json'), 'utf8')),
@@ -37,6 +37,28 @@ const fill = <T extends Record<string, string>>(target: T, defaults: Record<stri
 content.invitation = fill(content.invitation ?? {}, seed.invitation ?? {});
 content.texts = fill(content.texts ?? {}, texts);
 
+// Night-before guides, one per event. An older single guide belongs to the first event.
+const seedGuides = seed.guide ?? {};
+let guides = JSON.parse(row.guide || '{}') as Record<string, Record<string, unknown>>;
+let guideAdded = 0;
+const firstEvent = Object.keys(seedGuides)[0];
+if (firstEvent && !Object.keys(seedGuides).some((k) => k in guides) && Object.keys(guides).length) {
+  const old = guides as Record<string, unknown>;
+  if (old.photoUrl === 'https://sophieandnicholas.com/photos') old.photoUrl = ''; // the design's placeholder: use our own photo page
+  guides = { [firstEvent]: { style: 'reception', ...old } };
+  guideAdded++;
+}
+for (const [ev, g] of Object.entries(seedGuides)) {
+  const cur = (guides[ev] ??= {});
+  for (const [k, v] of Object.entries(g)) {
+    if (!(k in cur)) {
+      cur[k] = v;
+      guideAdded++;
+    }
+  }
+}
+added += guideAdded;
+
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
-writeFileSync(out, added ? `UPDATE wedding SET content = ${q(JSON.stringify(content))}, version = version + 1 WHERE slug = ${q(slug)};\n` : '');
+writeFileSync(out, added ? `UPDATE wedding SET content = ${q(JSON.stringify(content))}, guide = ${q(JSON.stringify(guides))}, version = version + 1 WHERE slug = ${q(slug)};\n` : '');
 console.log(added ? `Added ${added} new wording keys and settings` : 'Wording and settings already up to date');

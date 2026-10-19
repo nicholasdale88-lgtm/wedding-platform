@@ -33,7 +33,7 @@ describe('guest API', () => {
     const p = (await (await get('/invite')).json()) as Payload;
     expect(p.events.map((e) => e.key)).toEqual(['wedding', '30th']);
     expect(p.invitation).toBeNull();
-    expect(Object.keys(p.texts).length).toBe(Object.keys(texts).filter((k) => k.startsWith('inv.')).length + Object.keys(dynamicTexts).length);
+    expect(Object.keys(p.texts).length).toBe(Object.keys({ ...texts, ...dynamicTexts }).filter((k) => k.startsWith('inv.')).length);
     expect(Object.keys(p.texts).some((k) => k.startsWith('gd.'))).toBe(false); // only this page's words
     expect(p.content).toMatchObject({ rsvpBy: 'Kindly reply by 18 August 2027', seal: 'Sandstone' });
   });
@@ -113,6 +113,92 @@ describe('guest API', () => {
     expect((await post('/rsvp', { token: 'a'.repeat(22), events: { wedding: { attending: true } } })).status).toBe(404);
     expect((await post('/rsvp', { token: 'short', events: {} })).status).toBe(400);
     expect((await post('/rsvp', { nope: 1 })).status).toBe(400);
+  });
+
+  type Guide = {
+    event: { key: string };
+    guide: { style: string; faq?: unknown[]; bring?: string[] };
+    texts: Record<string, string>;
+    guest: { people: { name: string; tableId: string | null }[]; answers: Record<string, string> };
+    seating: { tables: { id: string }[] } | null;
+    mates: Record<string, string[]>;
+    photoUrl: string;
+    weather: unknown;
+  };
+
+  it('night-before guide: needs their own link, and only for an event they are invited to', async () => {
+    expect((await get('/guide')).status).toBe(404);
+    expect((await get(`/guide?g=${'a'.repeat(22)}`)).status).toBe(404);
+    const ella = await tokenOf('Ella Thompson'); // wedding only
+    expect((await get(`/guide?g=${ella}&event=30th`)).status).toBe(404);
+    const p = (await (await get(`/guide?g=${ella}`)).json()) as Guide;
+    expect(p.event.key).toBe('wedding');
+    expect(p.guide.style).toBe('reception');
+    expect(p.guide.faq!.length).toBeGreaterThan(3);
+    expect(Object.keys(p.texts).length).toBeGreaterThan(30);
+    expect(Object.keys(p.texts).every((k) => k.startsWith('gd.'))).toBe(true);
+    expect(p.photoUrl).toBe(`https://example.com/w/sophie-and-nicholas/photos?g=${ella}`);
+    expect(p.weather).toBeNull(); // more than two weeks out: no forecast, never a made-up one
+  });
+
+  it('guide seating: their tables, and names of only their own table mates', async () => {
+    const p = (await (await get(`/guide?g=${await tokenOf('Margaret Bloor')}&event=wedding`)).json()) as Guide;
+    const mine = new Set(p.guest.people.map((x) => x.tableId).filter(Boolean));
+    expect(p.seating!.tables.length).toBeGreaterThan(1);
+    for (const id of Object.keys(p.mates)) expect(mine.has(id)).toBe(true);
+    const all = Object.values(p.mates).flat();
+    expect(all).not.toContain('Margaret Bloor');
+    expect(all).not.toContain('Peter Bloor');
+  });
+
+  it('the 30th guide is the day-out design, with their own answer', async () => {
+    const p = (await (await get(`/guide?g=${await tokenOf('Margaret Bloor')}&event=30th`)).json()) as Guide;
+    expect(p.guide.style).toBe('dayout');
+    expect(p.guide.bring!.length).toBeGreaterThan(3);
+    expect(p.guest.answers).toEqual({ ride: 'No, not riding' });
+    expect(Object.keys(p.texts).every((k) => k.startsWith('g30.'))).toBe(true);
+  });
+
+  describe('photos', () => {
+    const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1]);
+    const put = (tok: string, body: BodyInit, byHeader = '') =>
+      app.request(`/api/p/sophie-and-nicholas/photos?g=${tok}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-By': byHeader }, body }, env, ctx);
+    let saved: Map<string, { bytes: number; type?: string }>;
+    beforeEach(() => {
+      saved = new Map();
+      env.MEDIA = {
+        put: async (k: string, v: Uint8Array, o?: { httpMetadata?: { contentType?: string } }) => void saved.set(k, { bytes: v.byteLength, type: o?.httpMetadata?.contentType }),
+      } as unknown as R2Bucket;
+    });
+
+    it('page info: their name, and closed without storage or a link', async () => {
+      const tok = await tokenOf('Ivy Scott');
+      expect(await (await get(`/photos?g=${tok}`)).json()).toMatchObject({ name: 'Ivy Scott', linked: true, open: true });
+      expect(await (await get('/photos')).json()).toMatchObject({ name: '', open: false });
+      delete env.MEDIA;
+      expect(await (await get(`/photos?g=${tok}`)).json()).toMatchObject({ open: false });
+      expect((await put(tok, JPEG)).status).toBe(503);
+    });
+
+    it('stores a real photo privately, under that wedding, with who sent it', async () => {
+      const tok = await tokenOf('Ivy Scott');
+      const res = await put(tok, JPEG, encodeURIComponent('Ivy S ✨'));
+      expect(res.status).toBe(200);
+      const [key, obj] = [...saved.entries()][0]!;
+      expect(key).toMatch(/^w\/[^/]+\/photos\/[0-9a-f-]{36}\.jpg$/);
+      expect(obj).toEqual({ bytes: JPEG.byteLength, type: 'image/jpeg' });
+      const row = await t.db.prepare(`SELECT kind, uploaded_by, bytes FROM media`).first();
+      expect(row).toEqual({ kind: 'photo', uploaded_by: 'Ivy S ✨', bytes: JPEG.byteLength });
+    });
+
+    it('refuses anything that is not a photo, whatever it claims, and needs a real link', async () => {
+      const tok = await tokenOf('Ivy Scott');
+      expect((await put(tok, new TextEncoder().encode('<script>alert(1)</script>'))).status).toBe(415);
+      expect((await put(tok, new Uint8Array([0x4d, 0x5a, 0x90, 0]))).status).toBe(415); // a Windows program
+      expect((await put('a'.repeat(22), JPEG)).status).toBe(404);
+      expect((await put(tok, JPEG, '%E0%A4%A')).status).toBe(200); // garbled name: photo kept, name dropped
+      expect(saved.size).toBe(1);
+    });
   });
 
   it('an unknown wedding is a friendly 404', async () => {

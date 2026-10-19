@@ -40,98 +40,155 @@
   }
  ],
  "guide": {
-  "date": "Thursday 18 November 2027",
-  "arrive": "1:30pm",
-  "start": "2:00pm",
-  "address": "The Lookout, Glenworth Valley · 69 Cooks Road, Glenworth Valley NSW 2250",
-  "mapUrl": "https://www.google.com/maps/search/?api=1&query=69+Cooks+Road+Glenworth+Valley+NSW+2250",
-  "parkDirections": "Turn into Glenworth Valley from Cooks Road and follow the signs for The Lookout, not the main stables. The track is unsealed, so take it slowly. Ceremony parking is on the grass right beside the trees, and our parking crew will wave you in.",
-  "parkVideo": "",
-  "photoUrl": "https://sophieandnicholas.com/photos",
-  "parking": "Parking is free and right beside the ceremony at The Lookout. The driveway is long and unsealed in places, so allow an extra 15 minutes. After the ceremony, follow the signs to the Valley Events Centre for cocktails. Park right outside and leave your car there for the night if you need to.",
-  "tableNote": "Your name card is at your seat. Ushers will point you in from the doors.",
-  "transport": "Taxis and Ubers rarely come out to the valley, and almost never late at night, so please do not count on finding one on the spot. Book ahead: a pre-booked taxi or Uber Reserve for an 11:00pm pick-up from the Valley Events Centre. Share a ride with friends, or line up a designated driver. The nearest station is Gosford, about 23 km away.",
-  "runsheet": [
-   {
-    "t": "1:30pm",
-    "what": "Guests arrive",
-    "where": "The Lookout"
-   },
-   {
-    "t": "2:00pm",
-    "what": "Ceremony",
-    "where": "The Lookout"
-   },
-   {
-    "t": "3:00pm",
-    "what": "Photographs",
-    "where": "Among the trees"
-   },
-   {
-    "t": "4:30pm",
-    "what": "Cocktail hour",
-    "where": "Valley Events Centre"
-   },
-   {
-    "t": "5:30pm",
-    "what": "Sunset surprise",
-    "where": "All will be revealed"
-   },
-   {
-    "t": "6:00pm",
-    "what": "Reception dinner",
-    "where": "Valley Events Centre"
-   },
-   {
-    "t": "7:00pm",
-    "what": "Dancing",
-    "where": "Until late"
-   },
-   {
-    "t": "11:00pm",
-    "what": "The Irish goodbye",
-    "where": "No farewell line. Slip away whenever you are ready, with our blessing"
-   }
-  ],
-  "menu": [
-   {
-    "course": "Canapés",
-    "a": "Oysters with finger lime · Wagyu bresaola crostini · Heirloom tomato tartlet",
-    "b": ""
-   },
-   {
-    "course": "Entrée",
-    "a": "Burrata, heirloom tomato, basil oil",
-    "b": "Cured ocean trout, cucumber, crème fraîche"
-   },
-   {
-    "course": "Main",
-    "a": "Slow-cooked beef cheek, potato purée, red wine jus",
-    "b": "Crispy-skin barramundi, fennel, lemon butter"
-   },
-   {
-    "course": "Dessert",
-    "a": "Pavlova, passionfruit, mango",
-    "b": "Dark chocolate tart, raspberries, cream"
-   },
-   {
-    "course": "To finish",
-    "a": "Wedding cake, coffee and tea",
-    "b": ""
-   }
-  ],
-  "contacts": [
-   {
-    "name": "Nicholas",
-    "role": "The groom, for anything at all",
-    "phone": "0411 039 612"
-   },
-   {
-    "name": "Glenworth Valley",
-    "role": "Venue office",
-    "phone": "(02) 4375 1222"
-   }
-  ]
+  "wedding": {
+   "style": "reception",
+   "date": "Thursday 18 November 2027",
+   "arrive": "1:30pm",
+   "start": "2:00pm",
+   "address": "The Lookout, Glenworth Valley · 69 Cooks Road, Glenworth Valley NSW 2250",
+   "mapUrl": "https://www.google.com/maps/search/?api=1&query=69+Cooks+Road+Glenworth+Valley+NSW+2250",
+   "parkDirections": "Turn into Glenworth Valley from Cooks Road and follow the signs for The Lookout, not the main stables. The track is unsealed, so take it slowly. Ceremony parking is on the grass right beside the trees, and our parking crew will wave you in.",
+   "parkVideo": "",
+   "photoUrl": "",
+   "parking": "Parking is free and right beside the ceremony at The Lookout. The driveway is long and unsealed in places, so allow an extra 15 minutes. After the ceremony, follow the signs to the Valley Events Centre for cocktails. Park right outside and leave your car there for the night if you need to.",
+   "tableNote": "Your name card is at your seat. Ushers will point you in from the doors.",
+   "transport": "Taxis and Ubers rarely come out to the valley, and almost never late at night, so please do not count on finding one on the spot. Book ahead: a pre-booked taxi or Uber Reserve for an 11:00pm pick-up from the Valley Events Centre. Share a ride with friends, or line up a designated driver. The nearest station is Gosford, about 23 km away.",
+   "runsheet": [
+    {
+     "t": "1:30pm",
+     "what": "Guests arrive",
+     "where": "The Lookout"
+    },
+    {
+     "t": "2:00pm",
+     "what": "Ceremony",
+     "where": "The Lookout"
+    },
+    {
+     "t": "3:00pm",
+     "what": "Photographs",
+     "where": "Among the trees"
+    },
+    {
+     "t": "4:30pm",
+     "what": "Cocktail hour",
+     "where": "Valley Events Centre"
+    },
+    {
+     "t": "5:30pm",
+     "what": "Sunset surprise",
+     "where": "All will be revealed"
+    },
+    {
+     "t": "6:00pm",
+     "what": "Reception dinner",
+     "where": "Valley Events Centre"
+    },
+    {
+     "t": "7:00pm",
+     "what": "Dancing",
+     "where": "Until late"
+    },
+    {
+     "t": "11:00pm",
+     "what": "The Irish goodbye",
+     "where": "No farewell line. Slip away whenever you are ready, with our blessing"
+    }
+   ],
+   "menu": [
+    {
+     "course": "Canapés",
+     "a": "Oysters with finger lime · Wagyu bresaola crostini · Heirloom tomato tartlet",
+     "b": ""
+    },
+    {
+     "course": "Entrée",
+     "a": "Burrata, heirloom tomato, basil oil",
+     "b": "Cured ocean trout, cucumber, crème fraîche"
+    },
+    {
+     "course": "Main",
+     "a": "Slow-cooked beef cheek, potato purée, red wine jus",
+     "b": "Crispy-skin barramundi, fennel, lemon butter"
+    },
+    {
+     "course": "Dessert",
+     "a": "Pavlova, passionfruit, mango",
+     "b": "Dark chocolate tart, raspberries, cream"
+    },
+    {
+     "course": "To finish",
+     "a": "Wedding cake, coffee and tea",
+     "b": ""
+    }
+   ],
+   "contacts": [
+    {
+     "name": "Nicholas",
+     "role": "The groom, for anything at all",
+     "phone": "0411 039 612"
+    },
+    {
+     "name": "Glenworth Valley",
+     "role": "Venue office",
+     "phone": "(02) 4375 1222"
+    },
+    {
+     "name": "Central Coast Taxis",
+     "role": "Local cabs, book your 11:00pm pick-up",
+     "phone": "02 4337 3999"
+    },
+    {
+     "name": "Sophie & Nicholas",
+     "role": "Email us any time",
+     "phone": "sophienickwedding@outlook.com.au"
+    }
+   ],
+   "faq": [
+    { "q": "What if it rains?", "a": "The ceremony moves to the balcony of the Valley Events Centre. We will text you in the morning if so." },
+    { "q": "Can I take photos?", "a": "Not during the ceremony, it is unplugged. From cocktail hour onwards, snap away and add them to our album." },
+    { "q": "What should I wear?", "a": "Formal. Suits or tuxedos, and cocktail attire. Please avoid pink, white and ivory. Block heels or flats suit the grass." },
+    { "q": "Are drinks included?", "a": "Beer and wine are included. Cocktails are at the bar at your own cost." },
+    { "q": "Do we need to say goodbye?", "a": "Not at all. We are doing an Irish goodbye: when you are ready to head off, simply slip away. No farewell line, no hunting for the couple. Just make sure your ride home is booked." },
+    { "q": "Need step-free access?", "a": "Parking is beside the ceremony. Tell an usher on arrival and we will seat you close to the aisle." }
+   ],
+   "bomUrl": "https://www.bom.gov.au/places/nsw/glenworth-valley/forecast/",
+   "lat": -33.37,
+   "lon": 151.19
+  },
+  "30th": {
+   "style": "dayout",
+   "date": "Saturday 20 November 2027",
+   "arriveBy": "9:30am",
+   "activityTime": "10:00am",
+   "picnicTime": "12:00pm",
+   "picnicWhere": "By the river",
+   "dress": "Country casual",
+   "address": "Glenworth Valley, 69 Cooks Road. Follow the signs to horse riding and park in the main car park.",
+   "mapUrl": "https://maps.google.com/?q=Glenworth+Valley+Horse+Riding,+69+Cooks+Road,+Glenworth+Valley+NSW",
+   "bomUrl": "https://www.bom.gov.au/places/nsw/glenworth-valley/forecast/",
+   "lat": -33.37,
+   "lon": 151.19,
+   "transport": "Taxis and Ubers rarely come out to the valley, so please pre-book or share a car with friends. Local cabs: Central Coast Taxis on 02 4337 3999 or 13 10 08.",
+   "signoff": "Happy trails",
+   "hero": "/seed-media/valley-30th.jpg",
+   "choiceKey": "ride",
+   "yesAnswer": "Yes, I will ride",
+   "unsureAnswer": "Not sure yet",
+   "bring": ["A water bottle (riders especially)", "Some food or snacks for the ride", "Long pants and closed shoes for riding", "Hat and sunscreen", "Swimmers and a towel", "Light layers for the morning"],
+   "runsheet": [
+    { "t": "9:30am", "what": "Riders check in", "where": "Horse riding stables. Waiver and helmet fitting" },
+    { "t": "10:00am", "what": "Guided trail ride", "where": "Through the valley, about 2 hours" },
+    { "t": "12:00pm", "what": "Picnic by the river", "where": "Catered. Everyone welcome" },
+    { "t": "1:30pm", "what": "Swim and relax", "where": "Bring swimmers if you fancy a dip" },
+    { "t": "3:00pm", "what": "Head home", "where": "Slip away whenever you are ready" }
+   ],
+   "contacts": [
+    { "name": "Nicholas", "role": "The birthday boy", "phone": "0411 039 612" },
+    { "name": "Glenworth Valley", "role": "Horse riding and venue office", "phone": "(02) 4375 1222" },
+    { "name": "Central Coast Taxis", "role": "Local cabs", "phone": "02 4337 3999" }
+   ]
+  }
  },
  "presets": [
   {

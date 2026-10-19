@@ -266,3 +266,9 @@ export const rateLimit = sqliteTable('rate_limit', {
   n: integer('n').notNull(),
   resetAt: text('reset_at').notNull(),
 });
+
+export const weatherCache = sqliteTable('weather_cache', {
+  eventId: text('event_id').primaryKey(),
+  json: text('json').notNull(),
+  fetchedAt: text('fetched_at').notNull(),
+});

@@ -58,8 +58,8 @@ else
   echo "Already seeded ($WEDDINGS wedding(s)); leaving data alone."
 fi
 
-# New page wording and settings from the design reach the live wedding; the couple's own edits are kept.
-wr d1 execute "$DB" --remote --json --command "SELECT content FROM wedding WHERE slug = 'sophie-and-nicholas'" > "$TMP/content.json"
+# New page wording, settings and guide fields from the design reach the live wedding; the couple's own edits are kept.
+wr d1 execute "$DB" --remote --json --command "SELECT content, guide FROM wedding WHERE slug = 'sophie-and-nicholas'" > "$TMP/content.json"
 (cd "$API" && pnpm exec tsx scripts/content-sync.ts "$TMP/content.json" "$ROOT/seed/sophie-nicholas.json" sophie-and-nicholas "$TMP/content.sql")
 if [ -s "$TMP/content.sql" ]; then wr d1 execute "$DB" --remote --file "$TMP/content.sql"; fi
 rm -f "$TMP/content.json" "$TMP/content.sql"

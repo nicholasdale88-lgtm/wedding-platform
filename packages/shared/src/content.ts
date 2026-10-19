@@ -34,7 +34,7 @@ const PART_EVENT: Record<string, 0 | 1> = { wDisp: 0, invW: 0, bSecDisp: 1, bFaq
  * identified guest, nothing that belongs to an event they're not invited to.
  */
 export function textsFor(
-  page: 'inv',
+  page: 'inv' | 'gd' | 'g30' | 'ph',
   texts: Record<string, string>,
   invitedSlots: (0 | 1)[] | null,
 ): Record<string, string> {

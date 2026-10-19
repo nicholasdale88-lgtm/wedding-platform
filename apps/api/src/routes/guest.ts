@@ -1,9 +1,11 @@
-import { attachDiet, InvitationContent, isToken, textsFor } from '@wp/shared';
-import { readJson } from '../lib/security';
+import { attachDiet, dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, textsFor } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
+import { imageType } from '../lib/images';
+import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
+import { forecastFor } from '../lib/weather';
 
 /**
  * Guest-facing API (/api/p/:slug/...). No sign-in: the private link token identifies the invitation.
@@ -12,7 +14,7 @@ import { allow } from '../lib/rateLimit';
 
 type GEnv = { Bindings: Env };
 type C = Context<GEnv>;
-const err = (c: C, status: 400 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
+const err = (c: C, status: 400 | 404 | 413 | 415 | 429 | 503, code: string, message: string) => c.json({ error: { code, message } }, status);
 const json = <T>(s: string | null | undefined, fallback: T): T => {
   try {
     return s ? (JSON.parse(s) as T) : fallback;
@@ -23,12 +25,12 @@ const json = <T>(s: string | null | undefined, fallback: T): T => {
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
 interface WeddingRow {
-  id: string; slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string; content: string; music_key: string | null;
+  id: string; slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string; content: string; guide: string; music_key: string | null;
 }
 interface EventRow { id: string; key: string; name: string; starts_at: string; sort: number; questions: string }
 
 async function wedding(c: C) {
-  return c.env.DB.prepare(`SELECT id, slug, name1, name2, monogram, theme, timezone, content, music_key FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
+  return c.env.DB.prepare(`SELECT id, slug, name1, name2, monogram, theme, timezone, content, guide, music_key FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
     .bind(c.req.param('slug'))
     .first<WeddingRow>();
 }
@@ -103,7 +105,8 @@ export function guestRoutes() {
   const app = new Hono<GEnv>();
 
   app.use('*', async (c, next) => {
-    if (c.req.method !== 'GET' && !(c.req.header('content-type') ?? '').startsWith('application/json')) return err(c, 400, 'json_required', 'Send JSON.');
+    const upload = c.req.method === 'PUT' && c.req.path.endsWith('/photos'); // a photo, checked in its route
+    if (c.req.method !== 'GET' && !upload && !(c.req.header('content-type') ?? '').startsWith('application/json')) return err(c, 400, 'json_required', 'Send JSON.');
     await next();
   });
 
@@ -123,6 +126,143 @@ export function guestRoutes() {
       }
     }
     return c.json(await invitePayload(c, w, invId));
+  });
+
+  /**
+   * The night-before guide for one event (?event=<key>; default: their first). Needs the guest's own
+   * link, and only for an event they're invited to: the guide has the address, menu and phone numbers.
+   */
+  app.get('/guide', async (c) => {
+    const w = await wedding(c);
+    const token = c.req.query('g') ?? '';
+    if (!w || !isToken(token)) return err(c, 404, 'no_link', 'Please open your guide from the link in your text.');
+    const db = c.env.DB;
+    const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
+    if (!inv) return err(c, 404, 'no_link', 'Please open your guide from the link in your text.');
+    const events = await eventsOf(db, w.id);
+    const { results: inviteRows } = await db.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(inv.id).all<{ event_id: string }>();
+    const invited = new Set(inviteRows.map((r) => r.event_id));
+    const wanted = c.req.query('event');
+    const ev = events.find((e) => invited.has(e.id) && (!wanted || e.key === wanted));
+    if (!ev) return err(c, 404, 'not_invited', 'This guide is not part of your invitation.');
+    const guide = guidesOf(json(w.guide, {}), events.map((e) => e.key))[ev.key];
+    if (!guide) return err(c, 404, 'not_ready', 'The guide for this event is not ready yet.');
+
+    const [people, rsvp, tables, areas, plan] = await db.batch([
+      db.prepare(`SELECT idx, name, diet, meal_entree, meal_main, meal_dessert, table_id FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(inv.id),
+      db.prepare(`SELECT attending, answers FROM rsvp WHERE invitation_id = ? AND event_id = ?`).bind(inv.id, ev.id),
+      db.prepare(`SELECT id, name, shape, dir, length_pct, x, y, seats FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
+      db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
+      db.prepare(`SELECT image_key, aspect FROM seat_plan WHERE event_id = ?`).bind(ev.id),
+    ]);
+    type Person = { idx: number; name: string; diet: string; meal_entree: string; meal_main: string; meal_dessert: string; table_id: string | null };
+    type Table = { id: string; name: string; shape: 'round' | 'long'; dir: string; length_pct: number; x: number; y: number; seats: number };
+    const ppl = people!.results as Person[];
+    const tbl = tables!.results as Table[];
+    const tableIds = new Set(tbl.map((t) => t.id));
+    const mine = [...new Set(ppl.map((p) => p.table_id).filter((id): id is string => !!id && tableIds.has(id)))];
+
+    // Table mates: names only, only at their own tables.
+    const mates: Record<string, string[]> = {};
+    if (mine.length) {
+      const { results } = await db
+        .prepare(
+          `SELECT p.table_id, p.name FROM person p JOIN invitation i ON i.id = p.invitation_id
+            WHERE p.table_id IN (${mine.map(() => '?').join(',')}) AND p.invitation_id != ? AND p.deleted_at IS NULL AND i.deleted_at IS NULL
+            ORDER BY p.name`,
+        )
+        .bind(...mine, inv.id)
+        .all<{ table_id: string; name: string }>();
+      for (const r of results) (mates[r.table_id] ??= []).push(r.name);
+    }
+
+    const r = rsvp!.results[0] as { attending: number | null; answers: string } | undefined;
+    const base = (c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '');
+    const planRow = plan!.results[0] as { image_key: string | null; aspect: string } | undefined;
+    const weather =
+      guide.lat !== undefined && guide.lon !== undefined
+        ? await forecastFor(db, { eventId: ev.id, lat: guide.lat, lon: guide.lon, timezone: w.timezone, startsAt: ev.starts_at, times: (guide.runsheet ?? []).map((x) => x.t) }).catch(() => null)
+        : null;
+    const content = json<Record<string, unknown>>(w.content, {});
+    return c.json({
+      wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
+      event: { key: ev.key, name: ev.name, startsAt: ev.starts_at, slot: events.indexOf(ev) },
+      guide,
+      texts: textsFor(GUIDE_PAGE[guide.style], (content.texts as Record<string, string> | undefined) ?? {}, null),
+      guest: {
+        token,
+        people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: p.table_id && tableIds.has(p.table_id) ? p.table_id : null, meals: { e: p.meal_entree, m: p.meal_main, d: p.meal_dessert } })),
+        attending: r ? (r.attending === null ? null : !!r.attending) : null,
+        answers: json<Record<string, string>>(r?.answers, {}),
+      },
+      seating: tbl.length
+        ? {
+            aspect: planRow?.aspect ?? '4 / 3',
+            planImg: planRow?.image_key ? `${base}/api/p/${w.slug}/media/${encodeURIComponent(planRow.image_key)}` : '',
+            tables: tbl.map((t) => ({ id: t.id, name: t.name, shape: t.shape, dir: t.dir, len: t.length_pct, x: t.x, y: t.y })),
+            features: areas!.results as { label: string; x: number; y: number; w: number; h: number }[],
+          }
+        : null,
+      mates,
+      weather,
+      photoUrl: (guide.style === 'reception' && guide.photoUrl) || `${base}/w/${w.slug}/photos?g=${token}`,
+    });
+  });
+
+  /** The photo page: who is adding photos, whether uploads are open, and the page's wording. */
+  app.get('/photos', async (c) => {
+    const w = await wedding(c);
+    if (!w) return err(c, 404, 'not_found', 'We could not find this page.');
+    const token = c.req.query('g') ?? '';
+    const who = isToken(token)
+      ? await c.env.DB.prepare(
+          `SELECT p.name FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 AND p.deleted_at IS NULL
+            WHERE i.token = ? AND i.wedding_id = ? AND i.deleted_at IS NULL`,
+        )
+          .bind(token, w.id)
+          .first<{ name: string }>()
+      : null;
+    const content = json<Record<string, unknown>>(w.content, {});
+    return c.json({
+      wedding: { slug: w.slug, name1: w.name1, name2: w.name2, theme: w.theme },
+      name: who?.name ?? '',
+      linked: !!who,
+      open: !!c.env.MEDIA && !!who,
+      texts: textsFor('ph', (content.texts as Record<string, string> | undefined) ?? {}, null),
+    });
+  });
+
+  /**
+   * One photo per request (PUT, the image bytes). Needs the guest's own link, is checked to really be
+   * a photo, capped in size, and rate limited per invitation. Stored privately in R2 for the couple.
+   */
+  app.put('/photos', async (c) => {
+    const w = await wedding(c);
+    const token = c.req.query('g') ?? '';
+    if (!w || !isToken(token)) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    const db = c.env.DB;
+    const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
+    if (!inv) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    if (!c.env.MEDIA) return err(c, 503, 'closed', 'Photo uploads are not open yet.');
+    if (!(await allow(db, `photo:${inv.id}`, 300, 3_600_000))) return err(c, 429, 'slow_down', 'That is a lot of photos at once. Please wait a little and try again.');
+    const bytes = await readBytes(c.req.raw, MAX_PHOTO);
+    if (!bytes) return err(c, 413, 'too_large', 'That photo is too large.');
+    const kind = imageType(bytes);
+    if (!kind) return err(c, 415, 'not_photo', 'That file is not a photo.');
+    let by = '';
+    try {
+      by = dropControls(decodeURIComponent(c.req.header('X-Photo-By') ?? '')).trim().slice(0, 120);
+    } catch {
+      /* a garbled name is just left off */
+    }
+    const id = crypto.randomUUID();
+    const key = `w/${w.id}/photos/${id}.${kind.ext}`;
+    await c.env.MEDIA.put(key, bytes, { httpMetadata: { contentType: kind.type } });
+    await db
+      .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at) VALUES (?, ?, 'photo', ?, ?, ?, ?, ?, ?)`)
+      .bind(id, w.id, key, kind.type, bytes.byteLength, by || null, inv.id, new Date().toISOString())
+      .run();
+    return c.json({ ok: true, id });
   });
 
   app.post('/find', async (c) => {
