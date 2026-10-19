@@ -1,10 +1,14 @@
-# Weekly pull requests for dependency and security updates; CI must pass before any merge.
+# Weekly pull requests for minor/patch and security updates; CI must pass before any merge.
+# Major versions (breaking changes) are left for a planned upgrade, not a weekly PR.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
     groups:
       minor-and-patch:
         update-types: [minor, patch]

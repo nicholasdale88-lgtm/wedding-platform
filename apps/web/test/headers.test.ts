@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import headers from '../public/_headers?raw';
 
 /** The site's security headers must stay strict without breaking what guests use (music, video, maps, preview). */
-const headers = readFileSync(new URL('../public/_headers', import.meta.url), 'utf8');
 const csp = Object.fromEntries(
   (/Content-Security-Policy: (.+)/.exec(headers)?.[1] ?? '').split(';').map((d) => {
     const [name, ...vals] = d.trim().split(/\s+/);
