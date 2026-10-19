@@ -45,11 +45,11 @@ export function splitDiet(diet: string, people: string[]): string[] {
   const text = diet.trim();
   if (!text || !people.length) return out.map(() => '');
   const firsts = people.map((p) => escape(firstName(p)));
-  const anyName = new RegExp(`\b(${firsts.join('|')})\b`, 'gi');
+  const anyName = new RegExp(String.raw`\b(${firsts.join('|')})\b`, 'gi');
   const who = (name: string) => people.findIndex((p) => firstName(p).toLowerCase() === name.toLowerCase());
   const tidy = (s: string, name?: string) => {
     let t = s.trim();
-    if (name) t = t.replace(new RegExp(`^${escape(name)}('s)?\s*(?:[:\-–—]|\bis\b|\bhas\b|\bneeds\b)?\s*`, 'i'), '');
+    if (name) t = t.replace(new RegExp(String.raw`^${escape(name)}('s)?\s*(?:[:\-–—]|\bis\b|\bhas\b|\bneeds\b)?\s*`, 'i'), '');
     t = t.replace(/^[\s,;:&-]+|[\s,;:&-]+$/g, '').replace(/\s+and$/i, '').trim();
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
   };
