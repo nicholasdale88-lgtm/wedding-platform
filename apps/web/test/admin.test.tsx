@@ -289,7 +289,7 @@ describe('SMS messages tab', () => {
     expect(screen.getByText('Marked attending')).toBeInTheDocument();
   });
 
-  it('groups messages by stage; + Add a reminder creates one for this event's guests still to reply', async () => {
+  it("groups messages by stage; + Add a reminder creates one for this event's guests still to reply", async () => {
     let created: { name: string; audience: unknown; body?: string } | null = null;
     const withReplyGroup = { ...texts, audiences: [...texts.audiences, { key: 'r', label: 'Still to reply', audience: { awaitingAny: true, invitedBefore: true } }] };
     mockApi({
