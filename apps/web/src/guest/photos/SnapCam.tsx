@@ -69,7 +69,7 @@ export function SnapCam({
     const v = video.current;
     if (!c || !v || !ready) return;
     let stop = false;
-    void filterFontsReady().then(() => {
+    const draw = () => {
       if (stop) return;
       const box = c.getBoundingClientRect();
       c.width = Math.round(box.width * devicePixelRatio);
@@ -78,9 +78,15 @@ export function SnapCam({
       if (!g) return;
       g.clearRect(0, 0, c.width, c.height);
       drawFilter(g, c.width, c.height, filter, info);
-    });
+    };
+    void filterFontsReady().then(draw);
+    // Turning the phone changes the picture's shape: draw the filter again to fit.
+    window.addEventListener('resize', draw);
+    window.addEventListener('orientationchange', draw);
     return () => {
       stop = true;
+      window.removeEventListener('resize', draw);
+      window.removeEventListener('orientationchange', draw);
     };
   }, [filter, ready, info]);
 

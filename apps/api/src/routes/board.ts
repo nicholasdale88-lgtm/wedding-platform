@@ -68,7 +68,7 @@ const gerr = (c: GC, status: 400 | 403 | 404 | 429, code: string, message: strin
 async function guestOf(c: GC, token: string) {
   const db = c.env.DB;
   const w = await db
-    .prepare(`SELECT id, name1, name2, content FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
+    .prepare(`SELECT id, name1, name2, content, theme FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
     .bind(c.req.param('slug'))
     .first<{ id: string; name1: string; name2: string; content: string }>();
   if (!w || !isToken(token)) return null;
@@ -89,7 +89,7 @@ export function boardGuestRoutes() {
     const g = await guestOf(c, c.req.query('g') ?? '');
     if (!g) return gerr(c, 404, 'no_link', 'Please open the board from the link in your text.');
     const couple = `${g.w.name1.split(' ')[0]} & ${g.w.name2.split(' ')[0]}`;
-    if (!g.settings.on) return c.json({ on: false, approve: false, couple, me: g.inv.names ?? '', posts: [] });
+    if (!g.settings.on) return c.json({ on: false, approve: false, couple, theme: g.w.theme, me: g.inv.names ?? '', posts: [] });
     const rows = await rowsOf(c.env.DB, g.w.id);
     const { results: liked } = await c.env.DB.prepare(`SELECT post_id FROM board_like WHERE invitation_id = ?`).bind(g.inv.id).all<{ post_id: string }>();
     const mine = new Set(liked.map((l) => l.post_id));
@@ -111,7 +111,7 @@ export function boardGuestRoutes() {
         likes: r.likes,
         liked: mine.has(r.id),
       }));
-    return c.json({ on: true, approve: g.settings.approve, couple, me: g.inv.names ?? '', posts: shape(posts) });
+    return c.json({ on: true, approve: g.settings.approve, couple, theme: g.w.theme, me: g.inv.names ?? '', posts: shape(posts) });
   });
 
   app.post('/', async (c) => {

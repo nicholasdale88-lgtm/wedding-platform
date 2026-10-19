@@ -37,7 +37,13 @@ const SERIF = '"Cormorant Garamond", Georgia, serif';
 /** The fonts the filters use, ready before anything is drawn (a first frame in a fallback font looks wrong). */
 export async function filterFontsReady() {
   try {
-    await Promise.all([document.fonts.load(`64px ${SCRIPT}`), document.fonts.load(`32px ${SERIF}`), document.fonts.load(`italic 32px ${SERIF}`)]);
+    await Promise.all([
+      document.fonts.load(`64px ${SCRIPT}`),
+      document.fonts.load(`32px ${SERIF}`),
+      document.fonts.load(`italic 32px ${SERIF}`),
+      document.fonts.load(`600 32px ${SERIF}`),
+      document.fonts.load(`italic 500 32px ${SERIF}`),
+    ]);
   } catch {
     /* draw with what the browser has */
   }

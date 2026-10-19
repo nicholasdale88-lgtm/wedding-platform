@@ -2,7 +2,7 @@ import type { DayoutGuide } from '@wp/shared';
 import { useState } from 'react';
 import type { GuidePayload } from '../invitation/api';
 import type { ViewValues } from '../types';
-import { contactHref, cssUrl, first, joinNames, say } from './common';
+import { assetOf, contactHref, cssUrl, first, joinNames, say } from './common';
 
 /**
  * The day-out night-before guide's behaviour, ported from design/Night Before 30th.dc.html
@@ -50,7 +50,7 @@ export function useGuide30(data: GuidePayload): ViewValues {
   return {
     firsts: joinNames(names, t('g30.dyn.and')) || t('g30.dyn.friend'),
     isType: true,
-    hero: cssUrl(G.hero),
+    hero: cssUrl(G.hero) || assetOf(data.images)('valley-30th.jpg'),
     date: G.date ?? '',
     mapUrl: G.mapUrl ?? '',
     bomUrl: G.bomUrl ?? '',

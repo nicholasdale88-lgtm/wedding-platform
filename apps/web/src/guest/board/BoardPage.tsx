@@ -19,12 +19,23 @@ const when = (iso: string) => {
   }
 };
 
+/** Small line icons in the page's ink (emoji render differently on every phone). */
+const Heart = ({ on }: { on: boolean }) => (
+  <svg aria-hidden width="17" height="16" viewBox="0 0 24 22" className="inline-block align-[-2px]">
+    <path d="M12 21s-8.5-5.3-10.4-10.6C.3 6.7 2.6 2.5 6.6 2.1c2.3-.2 4.1 1 5.4 2.9 1.3-1.9 3.1-3.1 5.4-2.9 4 .4 6.3 4.6 5 8.3C20.5 15.7 12 21 12 21z" fill={on ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+  </svg>
+);
+const Pin = () => (
+  <svg aria-hidden width="12" height="14" viewBox="0 0 12 16" className="inline-block align-[-1px] mr-1">
+    <path d="M3 1h6l-1 5 3 3H1l3-3-1-5zM6 9v6" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+  </svg>
+);
+
 export function BoardPage() {
   const { slug = '' } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
   const [data, setData] = useState<BoardPayload | null>(null);
-  const [theme, setTheme] = useState<Record<string, string | undefined>>({});
   const [err, setErr] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -43,19 +54,14 @@ export function BoardPage() {
     const t = setInterval(() => document.visibilityState === 'visible' && void load(), 30_000);
     return () => clearInterval(t);
   }, [load]);
-  // The wedding's colours (from the invitation's theme).
-  useEffect(() => {
-    guestApi
-      .invite(slug, token || null, true)
-      .then((p) => setTheme(THEMES[p.wedding.theme] ?? {}))
-      .catch(() => {});
-  }, [slug, token]);
   useEffect(() => {
     if (data) document.title = `${data.couple} · message board`;
   }, [data]);
 
   if (err && !data) return <GuestMessage message={err} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
+  // The wedding's colours (its invitation theme), from the board's own answer.
+  const theme: Record<string, string | undefined> = THEMES[data.theme ?? ''] ?? {};
   const ink = theme.dg ?? '#33402f';
   const bg = theme.iv ?? '#f6f0e2';
   const gold = theme.acc ?? '#b39563';
@@ -87,9 +93,11 @@ export function BoardPage() {
           </h1>
           <span aria-hidden className="mx-auto w-16 h-[2px]" style={{ background: gold }} />
           <p className="m-0 text-[19px] italic opacity-85">Leave a message for {data.couple} and everyone celebrating.</p>
-          <a href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(token)}`} className="text-[16px] underline" style={{ color: ink }}>
-            ← Back to your invitation
-          </a>
+          {token && (
+            <a href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(token)}`} className="text-[16px] underline" style={{ color: ink }}>
+              ← Back to your invitation
+            </a>
+          )}
         </header>
 
         {!data.on ? (
@@ -194,7 +202,7 @@ function Post({
           {p.author}
         </span>
         <span className="text-[14px] opacity-70">
-          {p.pinned ? '📌 ' : ''}
+          {p.pinned ? <Pin /> : null}
           {when(p.at)}
         </span>
       </div>
@@ -203,7 +211,7 @@ function Post({
       {!p.pending && (
         <div className="flex gap-4 items-center text-[16px]">
           <button type="button" onClick={() => void like()} aria-pressed={likes.mine} className="p-0 border-0 bg-transparent cursor-pointer text-[17px]" style={{ color: 'inherit' }}>
-            {likes.mine ? '♥' : '♡'} {likes.n || ''}
+            <Heart on={likes.mine} /> {likes.n || ''}
           </button>
           <button type="button" onClick={() => setReplying((x) => !x)} className="p-0 border-0 bg-transparent cursor-pointer underline text-[16px]" style={{ color: 'inherit' }}>
             Reply
@@ -219,7 +227,15 @@ function Post({
         <div className="flex flex-col gap-2 mt-1 pl-4 border-l-2" style={{ borderColor: gold }}>
           {p.replies.map((r) => (
             <div key={r.id} className="flex flex-col">
-              <span className="text-[15px] font-semibold">{r.couple ? `${r.author} ♥` : r.author}</span>
+              <span className="text-[15px] font-semibold">
+                {r.author}
+                {r.couple ? (
+                  <>
+                    {' '}
+                    <Heart on />
+                  </>
+                ) : null}
+              </span>
               <span className="text-[18px] whitespace-pre-wrap break-words">{r.body}</span>
               {r.pending && <span className="text-[14px] italic opacity-75">Waiting for the couple to see it.</span>}
             </div>

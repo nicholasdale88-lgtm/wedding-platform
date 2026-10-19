@@ -162,6 +162,8 @@ export interface PartyPayload {
 }
 export interface BoardPayload {
   on: boolean;
+  /** The wedding's theme (the board's colours come with it: no second request). */
+  theme?: string;
   approve: boolean;
   couple: string;
   me: string;
