@@ -11,7 +11,7 @@ export function links(w: WeddingCtx, events: EventInfo[], r: Recipient) {
   [...events].sort((a, b) => a.sort - b.sort).forEach((e, i) => {
     guides[i === 0 ? 'guide' : `guide_${e.key}`] = i === 0 ? `${base}/tomorrow${q}` : `${base}/tomorrow/${e.key}${q}`;
   });
-  return { link: `${base}/${q}`, photos: `${base}/photos${q}`, savethedate: `${base}/save-the-date${q}`, quiz: `${base}/quiz${q}`, ...guides };
+  return { link: `${base}/${q}`, photos: `${base}/photos${q}`, savethedate: `${base}/save-the-date${q}`, ...guides };
 }
 
 /** "the wedding and the 30th" for invited events still awaiting a reply. */

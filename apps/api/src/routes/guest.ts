@@ -142,10 +142,6 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
     invitation,
     // Only for a guest opening their own link (not the public page).
     party: invitation ? await whosWho(c.env.DB, w.id) : null,
-    // The couple quiz is open: a link under the first event.
-    quiz: invitation
-      ? !!(await c.env.DB.prepare(`SELECT 1 FROM planner_doc WHERE wedding_id = ? AND kind = 'quiz' AND scope = '' AND json_extract(data, '$.on') = 1 AND json_array_length(json_extract(data, '$.questions')) > 0`).bind(w.id).first())
-      : false,
   };
 }
 

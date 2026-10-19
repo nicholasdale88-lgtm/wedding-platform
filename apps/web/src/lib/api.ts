@@ -593,8 +593,6 @@ export interface InsightsData {
   chase: { id: string; name: string; opened: string | null; phone: boolean; texted: string | null }[];
   guests: { photos: number; board: number; songs: number; emails: number; vendorEmails: number; guestEmails: number; party: number };
 }
-/** The couple quiz: everyone's scores. */
-export const quizApi = { players: (wid: string) => request<{ players: { name: string; score: number; at: string }[] }>(`${w(wid)}/quiz`) };
 /** The day-of coordinator's private link. */
 export const coordinatorApi = {
   get: (wid: string) => request<{ on: boolean; name: string; url: string }>(`${w(wid)}/coordinator`),

@@ -14,10 +14,8 @@ import { Payments } from './Payments';
 import { IdeasBoard } from './IdeasBoard';
 import { Insights } from './Insights';
 import { Print } from './Print';
-import { QuizEditor } from './QuizEditor';
 import { ShotList } from './ShotList';
 import { Transport } from './Transport';
-import { CheckIn } from './CheckIn';
 import { Vendors } from './Vendors';
 
 /**
@@ -26,7 +24,7 @@ import { Vendors } from './Vendors';
  * comparisons, the finder near the venue) and the planning assistant. ?view= picks the page.
  */
 
-type View = 'glance' | 'insights' | 'ideas' | 'quiz' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'checkin' | 'gifts' | 'assistant';
+type View = 'glance' | 'insights' | 'ideas' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
 /** The everyday pages, always in view. */
 const MAIN: [View, string][] = [
   ['glance', 'At a glance'],
@@ -43,9 +41,7 @@ const MORE: [View, string][] = [
   ['music', 'Music'],
   ['photos', 'Photo list'],
   ['print', 'Print'],
-  ['checkin', 'Check-in'],
   ['gifts', 'Gifts'],
-  ['quiz', 'Quiz'],
   ['assistant', 'Assistant'],
 ];
 const VIEWS = [...MAIN, ...MORE];
@@ -111,7 +107,7 @@ export function WeddingPlanner() {
           </div>
         )}
       </nav>
-      {view === 'glance' ? <Glance go={go} /> : view === 'insights' ? <Insights /> : view === 'ideas' ? <IdeasBoard /> : view === 'quiz' ? <QuizEditor /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'checkin' ? <CheckIn /> : view === 'gifts' ? <Gifts /> : <Assistant />}
+      {view === 'glance' ? <Glance go={go} /> : view === 'insights' ? <Insights /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );
 }

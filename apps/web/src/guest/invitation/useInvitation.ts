@@ -538,18 +538,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
             )
           : null;
       const party = slot === 0 && guest ? whosWhoBlock(data) : null;
-      const quiz =
-        slot === 0 && guest && data.quiz
-          ? createElement(
-              'a',
-              {
-                href: `/w/${encodeURIComponent(data.wedding.slug)}/quiz?g=${encodeURIComponent(guest.token)}`,
-                style: { alignSelf: 'center', fontSize: 16, color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3, fontFamily: "'Cormorant Garamond', Georgia, serif" },
-              },
-              'How well do you know us? Take the quiz',
-            )
-          : null;
-      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle, quiz, party);
+      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle, party);
     },
   };
   return {

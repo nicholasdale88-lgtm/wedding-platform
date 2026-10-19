@@ -123,23 +123,4 @@ ${pdf}
     await call('/coordinator', { method: 'PUT', body: JSON.stringify({ on: false }) });
     expect((await page(k)).status).toBe(404);
   });
-
-  it('the quiz: closed until switched on; guests see no answers, play once, and get their score and the leaderboard', async () => {
-    const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ella Thompson'`).first<{ token: string }>())!.token;
-    const quiz = (path = '') => app.request(`/api/p/sophie-and-nicholas/quiz${path}`, {}, env, ctx);
-    expect((await quiz(`?g=${tok}`)).status).toBe(404);
-    await call('/planner/doc/quiz', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ on: true, questions: [{ id: 'a', q: 'Who cooks?', options: ['Partner 1', 'Partner 2'], answer: 1 }, { id: 'b', q: 'Where?', options: ['X', 'Y'], answer: 0 }] }) });
-    const q = (await (await quiz(`?g=${tok}`)).json()) as { questions: { options: string[] }[]; played: unknown };
-    expect(q.played).toBeNull();
-    expect(JSON.stringify(q)).not.toContain('"answer"');
-    expect(q.questions[0]!.options[0]).not.toBe('Partner 1'); // their names filled in
-    const play = (answers: number[]) => app.request('/api/p/sophie-and-nicholas/quiz', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: tok, answers }) }, env, ctx);
-    const first = (await (await play([1, 1])).json()) as { played: { score: number }; leaders: { name: string; score: number }[] };
-    expect(first.played.score).toBe(1);
-    expect(first.leaders[0]).toEqual({ name: 'Ella', score: 1 });
-    const again = (await (await play([1, 0])).json()) as { played: { score: number } };
-    expect(again.played.score).toBe(1); // one go each
-    const admin = (await (await call('/quiz')).json()) as { players: { name: string }[] };
-    expect(admin.players.map((p) => p.name)).toEqual(['Ella']);
-  });
 });

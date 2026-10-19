@@ -780,9 +780,6 @@ export type Shuttles = z.infer<typeof Shuttles>;
 export const SeatRules = z.object({ pairs: z.array(z.object({ a: z.string().max(40), b: z.string().max(40), kind: z.enum(['apart', 'together']) })).max(200).default([]) });
 export type SeatRules = z.infer<typeof SeatRules>;
 
-/** Arrivals on the day, per event: invitation ids and how many of each party are here. */
-export const CheckIn = z.object({ arrived: z.record(z.string().max(40), z.number().int().min(0).max(60)).default({}) });
-export type CheckIn = z.infer<typeof CheckIn>;
 
 /** The planner documents and their shapes (the API validates every save against these). */
 // ---------------------------------------------------------------- speeches, who holds what, the photo list
@@ -853,21 +850,6 @@ export function shotTemplate(o: { p1: string; p2: string; side1: string; side2: 
   ];
 }
 
-// ---------------------------------------------------------------- the couple quiz
-
-/** One question about the two of you, with its choices and the right one. */
-export const QuizQuestion = z.object({ id: z.string().max(40), q: z.string().max(200), options: z.array(z.string().max(120)).min(2).max(5), answer: z.number().int().min(0).max(4) });
-export type QuizQuestion = z.infer<typeof QuizQuestion>;
-/** "How well do you know the couple?": guests play once from their own link. */
-export const Quiz = z.object({ on: z.boolean().default(false), title: s(80), questions: z.array(QuizQuestion).max(20).default([]) });
-export type Quiz = z.infer<typeof Quiz>;
-export const QUIZ_TEMPLATE: Omit<QuizQuestion, 'id'>[] = [
-  { q: 'Where did they meet?', options: ['At work', 'Through friends', 'Online', 'At uni'], answer: 1 },
-  { q: 'Who said “I love you” first?', options: ['Partner 1', 'Partner 2'], answer: 0 },
-  { q: 'Who is the better cook?', options: ['Partner 1', 'Partner 2', 'Neither!'], answer: 1 },
-  { q: 'Where was their first holiday together?', options: ['Bali', 'Byron Bay', 'New Zealand', 'Fiji'], answer: 0 },
-  { q: 'Who takes longer to get ready?', options: ['Partner 1', 'Partner 2'], answer: 0 },
-];
 
 // ---------------------------------------------------------------- the coordinator's log
 
@@ -934,7 +916,6 @@ export const PLANNER_DOCS = {
   gifts: Gifts,
   shuttles: Shuttles,
   'seat-rules': SeatRules,
-  checkin: CheckIn,
   'party-p1': PartySide,
   'party-p2': PartySide,
   'party-help': PartySide, // helpers (MC, ushers): their own to-dos and packing
@@ -944,6 +925,5 @@ export const PLANNER_DOCS = {
   shots: ShotList,
   ideas: Ideas,
   'coord-log': CoordLog,
-  quiz: Quiz,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;
