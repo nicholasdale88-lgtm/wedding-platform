@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
-import { fmtWhen, shortLabel } from '../lib/format';
+import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { Drawer, Eyebrow, inputCls, Label, Pill, useToast } from './ui';
 
 const SEG: [boolean | null, string, string, string][] = [
@@ -79,10 +79,7 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
   const count = Math.max(1, ...Object.values(g.rsvp).map((r) => r.count));
   const lastVia = Object.values(g.rsvp).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.via ?? '';
   const peopleNames = names.filter((n) => n.trim());
-  const dayOf = (iso: string) => {
-    const p = Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short' }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
-    return `${p.weekday} ${p.day} ${p.month}`;
-  };
+  const dayOf = (iso: string) => fmtWeekday(iso, tz);
   const savePeople = (next: string[]) => {
     setNames(next);
     void patch({ people: next.map((n) => n.trim()) });

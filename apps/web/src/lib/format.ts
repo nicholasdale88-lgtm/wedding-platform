@@ -1,30 +1,55 @@
 /** Dates in the wedding's own timezone, worded like the design ("3 Oct, 7:12pm", "Thu 18 Nov 2027, 2:00pm"). */
 
-const parts = (iso: string, tz: string, opts: Intl.DateTimeFormatOptions) =>
-  Object.fromEntries(new Intl.DateTimeFormat('en-AU', { timeZone: tz, ...opts }).formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+// Our own short names: en-AU's Intl writes "June"/"July" in full, the design uses "Jun"/"Jul".
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const time = (iso: string, tz: string) => {
-  const p = parts(iso, tz, { hour: 'numeric', minute: '2-digit', hour12: true });
-  return `${p.hour}:${p.minute}${String(p.dayPeriod ?? '').toLowerCase().replace(/\./g, '')}`;
-};
+interface Local {
+  year: number;
+  month: number;
+  day: number;
+  weekday: number;
+  hour: number;
+  minute: number;
+}
+
+function local(iso: string, tz: string): Local {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', weekday: 'short' })
+      .formatToParts(new Date(iso))
+      .map((x) => [x.type, x.value]),
+  );
+  return {
+    year: Number(p.year), month: Number(p.month), day: Number(p.day), hour: Number(p.hour) % 24, minute: Number(p.minute),
+    weekday: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(String(p.weekday)),
+  };
+}
+
+const time = (l: Local) => `${l.hour % 12 || 12}:${String(l.minute).padStart(2, '0')}${l.hour >= 12 ? 'pm' : 'am'}`;
 
 /** "3 Oct, 7:12pm"; adds the year when it isn't this year. */
 export function fmtWhen(iso: string, tz: string, now = new Date()): string {
-  const p = parts(iso, tz, { day: 'numeric', month: 'short', year: 'numeric' });
-  const thisYear = parts(now.toISOString(), tz, { year: 'numeric' }).year;
-  return `${p.day} ${p.month}${p.year !== thisYear ? ` ${p.year}` : ''}, ${time(iso, tz)}`;
+  const l = local(iso, tz);
+  const year = local(now.toISOString(), tz).year;
+  return `${l.day} ${MONTHS[l.month - 1]}${l.year !== year ? ` ${l.year}` : ''}, ${time(l)}`;
 }
 
 /** "Thu 18 Nov 2027, 2:00pm" */
 export function fmtEvent(iso: string, tz: string): string {
-  const p = parts(iso, tz, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-  return `${p.weekday} ${p.day} ${p.month} ${p.year}, ${time(iso, tz)}`;
+  const l = local(iso, tz);
+  return `${DAYS[l.weekday]} ${l.day} ${MONTHS[l.month - 1]} ${l.year}, ${time(l)}`;
+}
+
+/** "Thu 18 Nov" */
+export function fmtWeekday(iso: string, tz: string): string {
+  const l = local(iso, tz);
+  return `${DAYS[l.weekday]} ${l.day} ${MONTHS[l.month - 1]}`;
 }
 
 /** "18 Jun" */
 export function fmtDay(iso: string, tz: string): string {
-  const p = parts(iso, tz, { day: 'numeric', month: 'short' });
-  return `${p.day} ${p.month}`;
+  const l = local(iso, tz);
+  return `${l.day} ${MONTHS[l.month - 1]}`;
 }
 
 /** "Wedding" for "The wedding"; other event names as written. */
