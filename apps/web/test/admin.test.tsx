@@ -107,6 +107,7 @@ describe('Overview', () => {
     expect(within(glance).getByText('1 overdue')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Tasks by person' })).toHaveTextContent(/Alex.*1\/2/);
     expect(screen.getByRole('region', { name: 'Payments' })).toHaveTextContent('$7,000 still to pay');
+    expect(screen.getByRole('region', { name: "Who's doing what" })).toHaveTextContent(/Next up.*Send save the dates.*Alex/);
     expect(screen.getByRole('region', { name: 'Budget' })).toHaveTextContent('$5,000 paid · $12,000 committed · $30,000 budget');
   });
 

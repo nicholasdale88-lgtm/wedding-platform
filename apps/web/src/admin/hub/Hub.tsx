@@ -3,7 +3,7 @@
  * across features, then charts for replies, planning tasks, payments and the budget, and a tile for each
  * area with what's waiting there. Each piece opens the page it's about.
  */
-import { allPayments, dateIn, moneyOf, withSchedules, type Budget as BudgetDoc, type PlanChecklist, type PlanTask, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, dateIn, moneyOf, taskDue, taskTotals, withSchedules, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { insightsApi, plannerApi, type InsightsData, type Overview } from '../../lib/api';
 import { useAutoRefresh } from '../ui';
@@ -17,7 +17,7 @@ const monthName = (key: string) => new Date(`${key}-15T12:00:00Z`).toLocaleDateS
 
 interface Data {
   insights: InsightsData | null;
-  tasks: PlanTask[];
+  plan: PlanChecklist;
   budget: BudgetDoc;
   vendors: VendorsDoc['list'];
 }
@@ -28,11 +28,16 @@ function useHubData(wid: string) {
   const load = useCallback(async () => {
     const [insights, plan, budget, vendors] = await Promise.all([
       insightsApi.get(wid).catch(() => null),
-      plannerApi.doc<PlanChecklist>(wid, 'checklist').then((r) => r.data.tasks, () => [] as PlanTask[]),
+      plannerApi.doc<PlanChecklist>(wid, 'checklist').then(
+        (r) => r.data,
+        () => ({ tasks: [], helpers: [] }) as PlanChecklist,
+      ),
       plannerApi.doc<BudgetDoc>(wid, 'budget').then((r) => r.data, () => ({ total: 0, guests: 0, lines: [] }) as BudgetDoc),
       plannerApi.doc<VendorsDoc>(wid, 'vendors').then((r) => r.data.list, () => [] as VendorsDoc['list']),
     ]);
-    setD({ insights, tasks: plan, budget, vendors });
+    // Older lists have no status or helpers yet: a task is to do until it's done.
+    const tasks = (plan.tasks ?? []).map((t) => ({ ...t, status: t.done ? ('done' as const) : t.status && t.status !== 'done' ? t.status : ('todo' as const) }));
+    setD({ insights, plan: { tasks, helpers: plan.helpers ?? [] }, budget, vendors });
   }, [wid]);
   useEffect(() => void load(), [load]);
   useAutoRefresh(load, 60_000);
@@ -46,26 +51,24 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
   const first = o.events[0];
   const planner = (view: string) => to(`planner?view=${view}`, first?.key);
   const today = Date.parse(dateIn(tz));
-  const wedding = first ? Date.parse(dateIn(tz, new Date(first.startsAt))) : null;
 
-  // ---- tasks: due date is the wedding day less `before` days
-  const due = (t: PlanTask) => (wedding === null ? null : wedding - t.before * DAY);
-  const open = d.tasks.filter((t) => !t.done);
-  const late = open.filter((t) => (due(t) ?? Infinity) < today);
-  const soon = open.filter((t) => {
-    const at = due(t);
-    return at !== null && at >= today && at < today + 30 * DAY;
-  });
-  const done = d.tasks.length - open.length;
-  const names = { p1: o.wedding.name1.split(' ')[0] || 'Partner 1', p2: o.wedding.name2.split(' ')[0] || 'Partner 2', both: 'Both of you', '': 'Not assigned' } as const;
-  const who = (['p1', 'p2', 'both', ''] as const)
-    .map((k) => {
-      const mine = d.tasks.filter((t) => t.owner === k);
-      const fin = mine.filter((t) => t.done).length;
-      const overdue = mine.filter((t) => !t.done && (due(t) ?? Infinity) < today).length;
-      return { label: names[k], parts: [{ value: fin, colour: C.accent }, { value: overdue, colour: C.late }, { value: mine.length - fin - overdue, colour: C.gold }], right: `${fin}/${mine.length}`, n: mine.length };
-    })
-    .filter((r) => r.n > 0);
+  // ---- tasks: by status, by person (partners, both, helpers), due soon, done per week, next up
+  const weddingDate = first ? dateIn(tz, new Date(first.startsAt)) : '';
+  const todayIso = dateIn(tz);
+  const names = { p1: o.wedding.name1.split(' ')[0] || 'Partner 1', p2: o.wedding.name2.split(' ')[0] || 'Partner 2' };
+  const t = taskTotals(d.plan, weddingDate, todayIso, names);
+  const done = t.byStatus.done;
+  const openN = t.total - done;
+  const who = t.byPerson.map((p) => ({
+    label: p.name,
+    parts: [
+      { value: p.done, colour: C.accent },
+      { value: p.doing, colour: C.sky },
+      { value: p.overdue, colour: C.late },
+      { value: Math.max(0, p.todo - p.overdue), colour: C.gold },
+    ],
+    right: `${p.done}/${p.todo + p.doing + p.done}`,
+  }));
   // Open tasks by the month they fall due: overdue first, then the next six months.
   const months = Array.from({ length: 6 }, (_, i) => {
     const at = new Date(today);
@@ -73,10 +76,13 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
     at.setUTCMonth(at.getUTCMonth() + i);
     return at.toISOString().slice(0, 7);
   });
+  const openTasks = d.plan.tasks.filter((x) => x.status !== 'done');
   const taskCols = [
-    { label: 'Late', parts: [{ value: late.length, colour: C.late }], note: late.length ? 'late' : undefined },
-    ...months.map((m) => ({ label: monthName(m), parts: [{ value: open.filter((t) => due(t) !== null && new Date(due(t)!).toISOString().slice(0, 7) === m).length, colour: C.gold }] })),
+    { label: 'Late', parts: [{ value: t.overdue, colour: C.late }], note: t.overdue ? 'late' : undefined },
+    ...months.map((m) => ({ label: monthName(m), parts: [{ value: weddingDate ? openTasks.filter((x) => monthKey(taskDue(x, weddingDate)) === m).length : 0, colour: C.gold }] })),
   ];
+  const weekCols = t.donePerWeek.map((w) => ({ label: new Date(`${w.week}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'numeric', timeZone: 'UTC' }), parts: [{ value: w.n, colour: C.accent }] }));
+  const shortDay = (iso: string) => (iso ? new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
 
   // ---- money
   const lines = withSchedules(d.budget.lines, d.vendors);
@@ -86,7 +92,6 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
   const committed = lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + extra.reduce((a, v) => a + moneyOf(v).total, 0);
   const paid = lines.reduce((a, l) => a + l.paid, 0) + extra.reduce((a, v) => a + moneyOf(v).paid, 0);
   const pays = allPayments(d.budget.lines, d.vendors).filter((p) => p.amount > 0);
-  const todayIso = dateIn(tz);
   const unpaid = pays.filter((p) => !p.paid);
   const overduePay = unpaid.filter((p) => p.due && p.due < todayIso);
   const next = unpaid.filter((p) => p.due && p.due >= todayIso)[0];
@@ -116,7 +121,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
   const kpis: { label: string; value: string; sub: string; go: () => void; warn?: boolean }[] = [
     { label: 'Replies', value: `${goal ? Math.round((o.replied / goal) * 100) : 0}%`, sub: `${o.replied} of ${goal} invitations`, go: () => to(`guests?show=all`, first?.key) },
     { label: 'Coming', value: String(first?.coming ?? 0), sub: o.events.length > 1 ? `to ${first?.name ?? 'the wedding'}` : 'guests said yes', go: () => to(`guests?filter=attending:${first?.key ?? ''}`, first?.key) },
-    { label: 'Tasks', value: d.tasks.length ? `${done}/${d.tasks.length}` : '—', sub: late.length ? `${late.length} overdue` : `${soon.length} due in 30 days`, go: () => planner('checklist'), warn: late.length > 0 },
+    { label: 'Tasks', value: t.total ? `${done}/${t.total}` : '—', sub: t.overdue ? `${t.overdue} overdue` : `${t.due7} due this week`, go: () => planner('checklist'), warn: t.overdue > 0 },
     { label: 'Budget', value: committed ? audShort(committed) : '—', sub: d.budget.total ? `of ${audShort(d.budget.total)} planned` : 'no total set yet', go: () => planner('budget'), warn: d.budget.total > 0 && committed > d.budget.total },
     { label: 'Next payment', value: next ? aud(next.amount) : overduePay.length ? `${overduePay.length} late` : '—', sub: next ? `${next.who}, ${new Date(`${next.due}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : 'nothing scheduled', go: () => planner('payments'), warn: overduePay.length > 0 },
     { label: 'Vendors', value: `${booked.length}`, sub: `booked of ${d.vendors.length} on your list`, go: () => planner('vendors') },
@@ -150,19 +155,22 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
         </Card>
 
         <Card title="Planning tasks" action={['Checklist', () => planner('checklist')]}>
-          {d.tasks.length ? (
+          {t.total ? (
             <>
               <Donut
                 label="Planning tasks"
-                centre={`${Math.round((done / d.tasks.length) * 100)}%`}
+                centre={`${Math.round((done / t.total) * 100)}%`}
                 sub="done"
                 slices={[
                   { label: 'Done', value: done, colour: C.accent },
-                  { label: 'Overdue', value: late.length, colour: C.late },
-                  { label: 'Due in 30 days', value: soon.length, colour: C.gold },
-                  { label: 'Later', value: open.length - late.length - soon.length, colour: C.sand },
+                  { label: 'Overdue', value: t.overdue, colour: C.late },
+                  { label: 'Due in 30 days', value: t.due30, colour: C.gold },
+                  { label: 'Later', value: Math.max(0, openN - t.overdue - t.due30), colour: C.sand },
                 ]}
               />
+              <p className="m-0 text-[13px] text-[#5b6a52]">
+                {t.byStatus.doing} in progress · {t.due7} due in the next 7 days
+              </p>
               <Columns label="Open tasks by month due" cols={taskCols} height={110} />
             </>
           ) : (
@@ -171,13 +179,37 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
         </Card>
 
         <Card title="Who's doing what" action={['Assign tasks', () => planner('checklist')]}>
-          {who.length ? (
+          {t.total ? (
             <>
               <Rows label="Tasks by person" rows={who} />
-              <p className="m-0 text-[12px] text-[#5b6a52]">Green done · red overdue · gold still to do.</p>
+              <p className="m-0 text-[12px] text-[#5b6a52]">Green done · blue in progress · red overdue · gold to do.</p>
+              {t.next.length > 0 && (
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52] mb-1">Next up</span>
+                  {t.next.slice(0, 5).map((x) => (
+                    <div key={x.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-[7px] border-t border-[#ece3cc] text-[13px]">
+                      <span className="min-w-0 truncate">
+                        {x.text}
+                        {x.status === 'doing' && <span className="ml-2 py-[1px] px-[7px] rounded-full bg-[#dde7f3] text-[#2f3d5c] text-[11px]">In progress</span>}
+                      </span>
+                      <span className={`whitespace-nowrap ${x.due && x.due < todayIso ? 'text-[#a4553c] font-semibold' : 'text-[#5b6a52]'}`}>
+                        {x.who} · {shortDay(x.due)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <Starter text="Give tasks an owner in the checklist to see who has what." go={() => planner('checklist')} />
+          )}
+        </Card>
+
+        <Card title="Tasks done per week" action={['Checklist', () => planner('checklist')]}>
+          {done ? (
+            <Columns label="Tasks done per week, last 12 weeks" cols={weekCols} height={110} />
+          ) : (
+            <p className="m-0 text-[14px] text-[#5b6a52]">Tick tasks off and your weekly pace shows here.</p>
           )}
         </Card>
 
