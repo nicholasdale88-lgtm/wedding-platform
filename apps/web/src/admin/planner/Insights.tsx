@@ -204,6 +204,17 @@ export function Insights() {
   const n1 = overview?.wedding.name1.split(' ')[0] ?? 'Partner 1';
   const n2 = overview?.wedding.name2.split(' ')[0] ?? 'Partner 2';
   const quotes = vendors.list.reduce((a, v) => a + v.quotes.length, 0);
+  // Busy months: what's still to do, by the month it falls due (anything overdue in one pile).
+  const ahead = new Map<string, number>();
+  if (!Number.isNaN(day)) {
+    for (const t of plan.tasks.filter((x) => !x.done)) {
+      const due = dateIn(tz, new Date(day - t.before * DAY));
+      const k = due < today ? 'overdue' : due.slice(0, 7);
+      ahead.set(k, (ahead.get(k) ?? 0) + 1);
+    }
+  }
+  const busy = [...ahead.entries()].sort(([a], [b]) => (a === 'overdue' ? -1 : b === 'overdue' ? 1 : a.localeCompare(b))).slice(0, 7);
+  const busiest = Math.max(0, ...busy.filter(([k]) => k !== 'overdue').map(([, n]) => n));
 
   return (
     <div className="flex flex-col gap-6">
@@ -466,6 +477,19 @@ export function Insights() {
           <div className="text-[13px] text-[#5b6a52]">
             Still to do: {n1} {owner('p1')} · {n2} {owner('p2')} · not decided {plan.tasks.filter((t) => !t.done && !t.owner).length}
           </div>
+          {busy.length > 0 && (
+            <>
+              <div className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52] pt-2 border-t border-[#e2d7bc]">Busy months ahead</div>
+              <Bars
+                rows={busy.map(([k, n]) => ({
+                  label: k === 'overdue' ? 'Overdue' : new Date(`${k}-01T00:00`).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' }),
+                  value: n,
+                  note: `${n} ${n === 1 ? 'task' : 'tasks'}`,
+                  colour: k === 'overdue' ? '#a5533c' : n === busiest && n > 3 ? '#b39563' : '#8a9670',
+                }))}
+              />
+            </>
+          )}
         </section>
         <section aria-label="Vendors" className={card}>
           <H2>Vendors</H2>
