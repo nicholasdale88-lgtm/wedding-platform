@@ -156,15 +156,16 @@ describe('admin API', () => {
 
   it('docs/05 test 9: overview and guest list for 300 invitations with 6 texts each stay fast', async () => {
     const now = '2026-10-01T00:00:00.000Z';
-    const s: D1PreparedStatement[] = [];
-    for (let i = 0; i < 300; i++) {
-      s.push(t.db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(`x${i}`, wid, `tok-load-${String(i).padStart(14, '0')}`, `+6149${String(i).padStart(7, '0')}`, now, now));
-      s.push(t.db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, 0, ?)`).bind(`xp${i}`, `x${i}`, `Load ${i}`));
-      for (let k = 0; k < 6; k++) {
-        s.push(t.db.prepare(`INSERT INTO sms_out (id, wedding_id, invitation_id, dedupe_key, to_phone, body, parts, status, created_at, sent_at) VALUES (?, ?, ?, ?, '+61400000000', 'x', 1, 'sent', ?, ?)`).bind(`xs${i}-${k}`, wid, `x${i}`, `load:${i}:${k}`, now, now));
-      }
-    }
-    for (let i = 0; i < s.length; i += 100) await t.db.batch(s.slice(i, i + 100));
+    // Generated inside the database (recursive CTEs): 300 invitations, 300 people, 1,800 texts.
+    const n300 = `WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 299)`;
+    await t.db.batch([
+      t.db.prepare(`${n300} INSERT INTO invitation (id, wedding_id, token, phone, created_at, updated_at)
+        SELECT 'x' || i, ?1, 'tok-load-' || printf('%014d', i), '+6149' || printf('%07d', i), ?2, ?2 FROM n`).bind(wid, now),
+      t.db.prepare(`${n300} INSERT INTO person (id, invitation_id, idx, name) SELECT 'xp' || i, 'x' || i, 0, 'Load ' || i FROM n`),
+      t.db.prepare(`${n300}, k(j) AS (SELECT 0 UNION ALL SELECT j + 1 FROM k WHERE j < 5)
+        INSERT INTO sms_out (id, wedding_id, invitation_id, dedupe_key, to_phone, body, parts, status, created_at, sent_at)
+        SELECT 'xs' || i || '-' || j, ?1, 'x' || i, 'load:' || i || ':' || j, '+61400000000', 'x', 1, 'sent', ?2, ?2 FROM n, k`).bind(wid, now),
+    ]);
     const started = performance.now();
     expect((await call('/overview')).status).toBe(200);
     expect((await call('/guests')).status).toBe(200);
