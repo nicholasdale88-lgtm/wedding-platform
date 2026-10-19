@@ -27,3 +27,40 @@ export function downloadCsv(filename: string, rows: unknown[][]) {
 
 /** "sophie-and-nicholas-dietary-2026-10-19.csv" */
 export const fileName = (slug: string, what: string) => `${slug}-${what}-${new Date().toISOString().slice(0, 10)}.csv`;
+
+/**
+ * Read a CSV file or cells pasted from Excel / Google Sheets (tab-separated) into rows.
+ * Handles quoted cells with commas, quotes and line breaks. Empty rows are dropped.
+ */
+export function parseTable(text: string): string[][] {
+  const src = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text; // byte-order mark from Excel
+  const firstLine = src.split(/\r?\n/, 1)[0] ?? '';
+  const sep = firstLine.includes('\t') ? '\t' : firstLine.split(';').length > firstLine.split(',').length ? ';' : ',';
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cur = '';
+  let quoted = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i]!;
+    if (quoted) {
+      if (ch === '"' && src[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (ch === '"') quoted = false;
+      else cur += ch;
+    } else if (ch === '"' && cur === '') quoted = true;
+    else if (ch === sep) {
+      row.push(cur);
+      cur = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(cur);
+      rows.push(row);
+      row = [];
+      cur = '';
+    } else cur += ch;
+  }
+  row.push(cur);
+  rows.push(row);
+  return rows.map((r) => r.map((c) => c.trim())).filter((r) => r.some(Boolean));
+}

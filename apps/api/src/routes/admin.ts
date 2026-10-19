@@ -1,5 +1,5 @@
 import { attachDiet, randomToken, toE164 } from '@wp/shared';
-import { readJson } from '../lib/security';
+import { MAX_IMPORT, readJson } from '../lib/security';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { loadWedding } from '../admin/data';
@@ -119,6 +119,77 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       audit(c, 'guest.add', invId),
     ]);
     return c.json(await guestJson(c, invId), 201);
+  });
+
+  /**
+   * Import from a spreadsheet. Every row is checked first; anyone already on the list (same mobile or
+   * same main name) is skipped, never doubled. ?dry=1 reports what would happen without adding anyone.
+   */
+  app.post('/guests/import', writer, async (c) => {
+    const Row = z.object({
+      people: z.array(z.string().trim().max(120)).max(12),
+      phone: z.string().max(40).optional(),
+      seats: z.number().int().min(1).max(60).optional(),
+      invited: z.array(z.string().max(40)).max(20).optional(),
+    });
+    const body = z.object({ rows: z.array(Row).min(1).max(1000) }).strict().safeParse(await readJson(c.req.raw, MAX_IMPORT));
+    if (!body.success) return err(c, 400, 'invalid', 'That file could not be read. Up to 1,000 rows at a time.');
+    const w = wid(c);
+    const db = c.env.DB;
+    const [{ results: events }, { results: existing }] = await Promise.all([
+      db.prepare(`SELECT id, key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w).all<{ id: string; key: string }>(),
+      db
+        .prepare(
+          `SELECT i.phone, (SELECT p.name FROM person p WHERE p.invitation_id = i.id AND p.idx = 0) AS name
+             FROM invitation i WHERE i.wedding_id = ? AND i.deleted_at IS NULL`,
+        )
+        .bind(w)
+        .all<{ phone: string | null; name: string | null }>(),
+    ]);
+    const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const phones = new Set(existing.map((e) => e.phone).filter(Boolean));
+    const names = new Set(existing.map((e) => norm(e.name ?? '')).filter(Boolean));
+    const byKey = new Map(events.map((e) => [e.key, e.id]));
+
+    const ok: { people: string[]; phone: string | null; seats: number; eventIds: string[] }[] = [];
+    const skipped: { row: number; name: string; reason: string }[] = [];
+    const problems: { row: number; name: string; reason: string }[] = [];
+    body.data.rows.forEach((r, i) => {
+      const row = i + 1;
+      const people = r.people.map((p) => p.replace(/\s+/g, ' ').trim()).filter(Boolean);
+      const name = people[0] ?? '';
+      if (!name) return problems.push({ row, name: '', reason: 'No name' });
+      const phone = r.phone && r.phone.trim() ? toE164(r.phone) : null;
+      if (r.phone && r.phone.trim() && !phone) return problems.push({ row, name, reason: `Mobile "${r.phone}" doesn't look Australian` });
+      const unknown = (r.invited ?? []).filter((k) => !byKey.has(k));
+      if (unknown.length) return problems.push({ row, name, reason: `Unknown event "${unknown[0]}"` });
+      if ((phone && phones.has(phone)) || names.has(norm(name))) return skipped.push({ row, name, reason: 'Already on your list' });
+      if (phone) phones.add(phone);
+      names.add(norm(name));
+      ok.push({ people, phone, seats: r.seats ?? people.length, eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
+    });
+
+    if (c.req.query('dry') || problems.length) return c.json({ added: 0, wouldAdd: ok.length, skipped, problems, dry: true }, problems.length && !c.req.query('dry') ? 400 : 200);
+
+    const t = now();
+    // D1 batches are all-or-nothing and up to ~100 statements: pack whole guests, never half of one.
+    let batch: D1PreparedStatement[] = [];
+    for (const g of ok) {
+      const invId = id();
+      const one = [
+        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, seats_held, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, Math.max(g.seats, g.people.length), t, t),
+        ...g.people.map((p, idx) => db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, ?, ?)`).bind(id(), invId, idx, p)),
+        ...g.eventIds.map((e) => db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, e)),
+      ];
+      if (batch.length + one.length > 90) {
+        await db.batch(batch);
+        batch = [];
+      }
+      batch.push(...one);
+    }
+    if (batch.length) await db.batch(batch);
+    await audit(c, 'guest.import', w, { added: ok.length, skipped: skipped.length }).run();
+    return c.json({ added: ok.length, wouldAdd: ok.length, skipped, problems: [], dry: false });
   });
 
   app.patch('/guests/:id', writer, async (c) => {

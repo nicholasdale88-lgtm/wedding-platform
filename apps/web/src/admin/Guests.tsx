@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
+import { downloadCsv, fileName } from '../lib/csv';
 import { GuestDrawer } from './GuestDrawer';
+import { exportRows } from './guestImport';
+import { ImportGuests } from './ImportGuests';
 import { answerLabel, applyFilters, dropdowns, quickFilters, shortAnswer, type FilterState } from './guestFilters';
 import { useAdmin } from './Shell';
 import { Eyebrow, Pill, StatusPill, useMedia, useToast } from './ui';
@@ -18,6 +21,7 @@ export function Guests() {
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[] } | null>(null);
   const [error, setError] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -89,9 +93,15 @@ export function Guests() {
           </h1>
         </div>
         <div className="flex gap-[10px] flex-wrap">
+          <Pill onClick={() => setImporting((x) => !x)}>Import</Pill>
+          <Pill disabled={!guests.length} onClick={() => downloadCsv(fileName(overview?.wedding.slug ?? 'wedding', 'guests'), exportRows(guests, events))}>
+            Export
+          </Pill>
           <Pill kind="primary" onClick={addGuest}>Add guest</Pill>
         </div>
       </header>
+
+      {importing && data && <ImportGuests events={events} onClose={() => setImporting(false)} onDone={changed} />}
 
       <div className="flex gap-3 flex-wrap items-center">
         <input

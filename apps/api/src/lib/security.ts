@@ -13,8 +13,12 @@ export const MAX_BODY = 100 * 1024;
 export const MAX_PHOTO = 15 * 1024 * 1024;
 const PHOTO_PATH = /^\/api\/p\/[a-z0-9-]+\/photos$/;
 
+/** Guest list imports: up to 1,000 rows. */
+export const MAX_IMPORT = 1024 * 1024;
+const IMPORT_PATH = /^\/api\/a\/w\/[^/]+\/guests\/import$/;
+
 /** The body limit for a path. */
-export const bodyLimitFor = (path: string) => (PHOTO_PATH.test(path) ? MAX_PHOTO : MAX_BODY);
+export const bodyLimitFor = (path: string) => (PHOTO_PATH.test(path) ? MAX_PHOTO : IMPORT_PATH.test(path) ? MAX_IMPORT : MAX_BODY);
 
 const HEADERS: Record<string, string> = {
   'Cache-Control': 'no-store',

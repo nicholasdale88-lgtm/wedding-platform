@@ -144,6 +144,7 @@ export const api = {
   restoreGuest: (wid: string, id: string) => send<GuestDetail>('POST', `${w(wid)}/guests/${id}/restore`),
   estimateOne: (wid: string, id: string, campaignId: string) =>
     send<{ count: number; parts: number; costCents: number; sample: string | null; quiet: boolean }>('POST', `${w(wid)}/guests/${id}/send?dry=1`, { campaignId }),
+  importGuests: (wid: string, rows: unknown[], dry: boolean) => send<ImportResult>('POST', `${w(wid)}/guests/import${dry ? '?dry=1' : ''}`, { rows }),
   setMeal: (wid: string, personId: string, meal: { entree: string; main: string; dessert: string }) => send<{ ok: true }>('PUT', `${w(wid)}/people/${personId}/meal`, meal),
   sendOne: (wid: string, id: string, campaignId: string) =>
     send<{ queued: number; sent: number; failed: number; stopped?: { reason: string; error: string } }>('POST', `${w(wid)}/guests/${id}/send`, { campaignId }),
@@ -308,3 +309,11 @@ export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),
 };
+
+export interface ImportResult {
+  added: number;
+  wouldAdd: number;
+  dry: boolean;
+  skipped: { row: number; name: string; reason: string }[];
+  problems: { row: number; name: string; reason: string }[];
+}
