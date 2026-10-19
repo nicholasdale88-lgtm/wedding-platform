@@ -252,8 +252,16 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
         </div>
         <div className="flex gap-2 flex-wrap items-center">
           <span className="text-[13px] text-[#5b6a52]">Preview as this guest</span>
-          <a href={previewUrl(d.link)} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]">
+          <a href={previewUrl(d.link)} target="_blank" rel="noopener" className={previewCls}>
             Invitation
+          </a>
+          {invitedEvents.map((e) => (
+            <a key={e.key} href={previewUrl(d.link, `tomorrow/${e.key}`)} target="_blank" rel="noopener" className={previewCls}>
+              Night before{invitedEvents.length > 1 ? `: ${shortLabel(e.name)}` : ''}
+            </a>
+          ))}
+          <a href={previewUrl(d.link, 'photos')} target="_blank" rel="noopener" className={previewCls}>
+            Photos
           </a>
         </div>
       </section>
@@ -280,10 +288,16 @@ export function GuestDrawer({ wid, id, tz, onClose, onChanged }: { wid: string; 
   );
 }
 
-/** The guest's own link, opened in preview mode: it doesn't count as them opening it and never records a reply. */
-function previewUrl(link: string): string {
+const previewCls = 'py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]';
+
+/**
+ * One of the guest's own pages (invitation, a night-before guide, photos), opened in preview mode:
+ * it doesn't count as them opening it and never records a reply.
+ */
+function previewUrl(link: string, page = ''): string {
   try {
     const u = new URL(link);
+    if (page) u.pathname = `${u.pathname.replace(/\/+$/, '')}/${page}`;
     u.searchParams.set('preview', '1');
     return `${u.pathname}${u.search}`;
   } catch {

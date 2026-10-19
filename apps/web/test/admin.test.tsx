@@ -146,6 +146,16 @@ describe('Guests', () => {
     expect(within(drawer).getByText('Nothing sent yet.')).toBeInTheDocument();
   });
 
+  it('previews every page this guest gets, in preview mode', async () => {
+    mockApi();
+    renderAt('/admin/w1/guests?g=g2');
+    const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
+    const hrefs = within(drawer).getAllByRole('link').map((a) => a.getAttribute('href') ?? '');
+    expect(hrefs.some((h) => /^\/w\/alex-and-blair\/\?g=[^&]+&preview=1$/.test(h))).toBe(true);
+    expect(hrefs.some((h) => /^\/w\/alex-and-blair\/tomorrow\/\w+\?g=[^&]+&preview=1$/.test(h))).toBe(true);
+    expect(hrefs.some((h) => /^\/w\/alex-and-blair\/photos\?g=[^&]+&preview=1$/.test(h))).toBe(true);
+  });
+
   it('Escape closes the drawer and clears it from the address bar', async () => {
     mockApi();
     renderAt('/admin/w1/guests?g=g1');
