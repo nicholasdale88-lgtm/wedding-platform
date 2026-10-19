@@ -61,6 +61,10 @@ fi
 # One-time data fixes (each guards itself so it runs once).
 for f in "$ROOT"/scripts/once/*.sql; do wr d1 execute "$DB" --remote --file "$f"; done
 
+# SMS price per text part follows the provider (Mobile Message 1.76c, Texto 3c); a rate the couple typed themselves is kept.
+if [ "${SMS_PROVIDER:-}" = "texto" ]; then FROM=176; TO=300; else FROM=300; TO=176; fi
+wr d1 execute "$DB" --remote --command "UPDATE wedding SET sms_rate_cents_x100 = $TO WHERE sms_rate_cents_x100 = $FROM"
+
 # New page wording, settings and guide fields from the design reach the live wedding; the couple's own edits are kept.
 wr d1 execute "$DB" --remote --json --command "SELECT content, guide FROM wedding WHERE slug = 'sophie-and-nicholas'" > "$TMP/content.json"
 (cd "$API" && pnpm exec tsx scripts/content-sync.ts "$TMP/content.json" "$ROOT/seed/sophie-nicholas.json" sophie-and-nicholas "$TMP/content.sql")

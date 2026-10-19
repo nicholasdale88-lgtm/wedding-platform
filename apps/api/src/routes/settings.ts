@@ -54,6 +54,9 @@ interface Row {
   sms_rate_cents_x100: number;
 }
 
+/** Texto's dedicated number for replies, per month (cents incl. GST, approximate). */
+const TEXTO_NUMBER_MONTHLY_CENTS = 1500;
+
 export function settingsRoutes(deps: (env: Env) => EngineDeps) {
   const app = new Hono<AdminEnv>();
   app.use('*', jsonWritesOnly, requireUser, requireMember());
@@ -63,15 +66,22 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     // What every message costs to send once to its current group, at this wedding's rate.
     const d = deps(c.env);
     const campaigns = (await d.store.campaigns(w.id)).filter((x) => x.enabled || x.mode === 'manual');
-    const plan = [];
+    const plan: { name: string; detail: string; costCents: number; auto: boolean; fixed?: boolean }[] = [];
     for (const x of campaigns) {
       const e = await estimate(d, w.id, x.id).catch(() => null);
       if (e) plan.push({ name: x.name, detail: `${e.count} ${e.count === 1 ? 'guest' : 'guests'} · ${e.parts} ${e.parts === 1 ? 'credit' : 'credits'}`, costCents: e.costCents, auto: x.enabled && x.mode !== 'manual' });
     }
+    const texto = c.env.SMS_PROVIDER === 'texto';
+    // Texto: guests can only text back to a dedicated number (about $15 a month), kept until the last event is over.
+    if (texto) {
+      const last = await c.env.DB.prepare(`SELECT MAX(starts_at) AS at FROM event WHERE wedding_id = ?`).bind(w.id).first<{ at: string | null }>();
+      const months = Math.max(1, Math.ceil(((last?.at ? Date.parse(last.at) : Date.now()) - Date.now()) / (30.44 * 86_400_000)) + 1);
+      plan.push({ name: 'Reply number (Texto)', detail: `About $15 a month × ${months} ${months === 1 ? 'month' : 'months'}, until after your last event`, costCents: TEXTO_NUMBER_MONTHLY_CENTS * months, auto: true, fixed: true });
+    }
     const replies = { ...DEFAULT_REPLIES, ...(JSON.parse(w.sms_replies || '{}') as Record<string, string>) };
     return {
       version: w.version,
-      provider: c.env.SMS_PROVIDER === 'texto' ? 'Texto' : 'Mobile Message',
+      provider: texto ? 'Texto' : 'Mobile Message',
       live: !!w.sms_sender,
       sender: w.sms_sender ? displayPhone(w.sms_sender) : '',
       adminMobile: w.admin_mobile ? displayPhone(w.admin_mobile) : '',

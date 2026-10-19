@@ -71,7 +71,9 @@ describe('guest import', () => {
   it('handles a big list in whole-guest batches', async () => {
     const before = await count();
     const rows = Array.from({ length: 300 }, (_, i) => ({ people: [`Guest ${i}`, `Partner ${i}`], phone: `04${String(10_000_000 + i).padStart(8, '0')}` }));
-    const r = (await (await imp(rows)).json()) as Res;
+    const res = await imp(rows);
+    const r = (await res.json()) as Res;
+    expect(res.status, JSON.stringify(r).slice(0, 300)).toBe(200);
     expect(r.added).toBe(300);
     expect(await count()).toBe(before + 300);
     const orphans = await t.db.prepare(`SELECT COUNT(*) AS n FROM invitation i WHERE NOT EXISTS (SELECT 1 FROM person p WHERE p.invitation_id = i.id)`).first<{ n: number }>();

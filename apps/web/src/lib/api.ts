@@ -253,7 +253,7 @@ export interface SettingsData {
   replies: { yes: string; no: string; multi: string };
   rateX100: number;
   timezone: string;
-  plan: { name: string; detail: string; costCents: number; auto: boolean }[];
+  plan: { name: string; detail: string; costCents: number; auto: boolean; fixed?: boolean }[];
   planTotalCents: number;
 }
 export type SettingsPut = Partial<Omit<SettingsData, 'version' | 'live' | 'timezone' | 'plan' | 'planTotalCents' | 'replies'> & { replies: Partial<SettingsData['replies']> }>;

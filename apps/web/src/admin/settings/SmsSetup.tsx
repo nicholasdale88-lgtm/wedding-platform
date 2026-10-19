@@ -124,7 +124,7 @@ export function SmsSetup() {
           </Label>
           <p className="m-0 text-[13px] text-[#5b6a52]">
             {s.provider === 'Texto'
-              ? 'Texto charges about 3¢ per text part (less in bigger packs; credits last 12 months). Guests can only text back to a dedicated number, about $15 a month.'
+              ? 'Texto charges about 3¢ per text part (less in bigger packs; credits last 12 months), plus about $15 a month for the dedicated number guests text back to. Both are counted below.'
               : 'Mobile Message charges 1.6¢ + GST (1.76¢) per text if you buy credits within 30 days of signing up; credits never expire. After that the standard rate is 4¢ + GST. New accounts get 50 free texts for testing.'}
           </p>
           <div className="flex flex-col">
@@ -132,11 +132,11 @@ export function SmsSetup() {
               <div key={p.name} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 py-2 border-t border-[#ece3cc] text-[14px]">
                 <span>{p.name}</span>
                 <span className="text-right">{money(p.costCents)}</span>
-                <span className="col-span-2 text-[12px] text-[#7a7466]">{p.detail}{p.auto ? '' : ' · sent by hand'}</span>
+                <span className="col-span-2 text-[12px] text-[#7a7466]">{p.detail}{p.auto || p.fixed ? '' : ' · sent by hand'}</span>
               </div>
             ))}
             <div className="flex justify-between py-2 border-t-2 border-[#33402f] font-semibold">
-              <span>Every message, once, to your current list</span>
+              <span>{s.provider === 'Texto' ? 'Every message once, plus the reply number' : 'Every message, once, to your current list'}</span>
               <span>{money(s.planTotalCents)}</span>
             </div>
           </div>
