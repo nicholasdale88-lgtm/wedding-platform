@@ -187,3 +187,67 @@ describe('guest filters (pure)', () => {
     expect(run({ q: '412000001' })).toEqual(['Robin Hart']);
   });
 });
+
+describe('guest pages tab', () => {
+  const pages = {
+    version: 5,
+    slug: 'alex-and-blair',
+    theme: 'Cream & Sage',
+    events: [{ key: 'wedding', name: 'The wedding' }, { key: 'brunch', name: 'Recovery brunch' }],
+    invitation: { rsvpBy: 'Kindly reply by 1 May', seal: 'Sandstone' },
+    guides: {
+      wedding: { style: 'reception', date: 'Saturday 6 March', runsheet: [{ t: '4:00pm', what: 'Ceremony', where: 'Garden' }], contacts: [], menu: [], faq: [] },
+      brunch: { style: 'dayout', date: 'Sunday 7 March', bring: ['Hat'], runsheet: [], contacts: [] },
+    },
+    texts: { 'inv.dyn.greetAnon': 'Dear Guest' },
+    samples: [
+      { token: 'T'.repeat(22), label: 'Robin Hart & Sam Hart', invited: ['wedding', 'brunch'] },
+      { token: 'U'.repeat(22), label: 'Jo Banks', invited: ['wedding'] },
+    ],
+  };
+
+  it('lists every guest page and previews the real page in preview mode', async () => {
+    mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
+    renderAt('/admin/w1/pages');
+    expect(await screen.findByRole('heading', { name: 'What your guests see' })).toBeInTheDocument();
+    for (const name of ['Invitation', 'Night before: Wedding', 'Night before: Recovery brunch', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
+    await userEvent.click(screen.getByRole('button', { name: 'Night before: Recovery brunch' }));
+    // Only guests invited to the brunch can be previewed for its guide.
+    expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', `/w/alex-and-blair/tomorrow/brunch?g=${'T'.repeat(22)}&preview=1`);
+    expect(screen.queryByRole('option', { name: 'Jo Banks' })).toBeNull();
+    expect(screen.getByDisplayValue('Hat')).toBeInTheDocument();
+  });
+
+  it('saves by itself after typing, with the version, and says so', async () => {
+    let body: unknown;
+    let ifMatch = '';
+    const calls = mockApi({
+      '/api/a/w/w1/pages': (init) => {
+        if (init?.method === 'PUT') {
+          body = JSON.parse(String(init.body));
+          ifMatch = new Headers(init.headers).get('If-Match') ?? '';
+          return json(200, { ...pages, version: 6, invitation: { ...pages.invitation, rsvpBy: 'Reply by 2 May' } });
+        }
+        return json(200, pages);
+      },
+    });
+    renderAt('/admin/w1/pages');
+    const field = await screen.findByLabelText('Reply-by line');
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Reply by 2 May');
+    await waitFor(() => expect(calls.filter((c) => c.init?.method === 'PUT')).toHaveLength(1), { timeout: 3000 });
+    expect(ifMatch).toBe('5');
+    expect(body).toEqual({ invitation: { rsvpBy: 'Reply by 2 May', seal: 'Sandstone' } });
+    expect(await screen.findByText('All changes saved')).toBeInTheDocument();
+  });
+
+  it('every word: shows the original, marks changes, and Reset brings it back', async () => {
+    mockApi({ '/api/a/w/w1/pages': () => json(200, { ...pages, texts: { 'inv.dyn.greetAnon': 'Hello friend' } }) });
+    renderAt('/admin/w1/pages');
+    expect(await screen.findByDisplayValue('Hello friend')).toBeInTheDocument(); // changes listed first
+    expect(screen.getByText('1 changed', { exact: false })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(screen.queryByDisplayValue('Hello friend')).toBeNull();
+  });
+});

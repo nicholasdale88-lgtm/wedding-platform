@@ -5,6 +5,7 @@ import { coupleName } from '../lib/remember';
 import { Guests } from './Guests';
 import { Login } from './Login';
 import { Overview } from './Overview';
+import { GuestPages } from './pages/GuestPages';
 import { AdminDataProvider, Shell, TABS } from './Shell';
 import { Eyebrow, ToastProvider } from './ui';
 
@@ -60,7 +61,7 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
   return (
     <AdminDataProvider wid={wid} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
-        {tab === 'overview' ? <Overview /> : tab === 'guests' ? <Guests /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
+        {tab === 'overview' ? <Overview /> : tab === 'guests' ? <Guests /> : tab === 'pages' ? <GuestPages /> : known ? <Building label={known.label} /> : <Navigate to={`/admin/${wid}/overview`} replace />}
       </Shell>
     </AdminDataProvider>
   );

@@ -22,7 +22,7 @@ What protects the platform. Every item marked *(tested)* is tried as an attack o
 
 ## Browser
 - API responses: `no-store`, `nosniff`, `DENY` framing, `no-referrer`, a deny-all CSP. *(tested)*
-- Site (`apps/web/public/_headers`): strict CSP (scripts only from this site), HSTS, no framing, same-origin referrers (guest tokens never leak to other sites), no indexing, and a locked-down Permissions-Policy. CI fails if the headers are missing from the build.
+- Site (`apps/web/public/_headers`): strict CSP (scripts only from this site), HSTS, framing by this site only (the admin's live preview), same-origin referrers (guest tokens never leak to other sites), no indexing, and a locked-down Permissions-Policy. CI fails if the headers are missing from the build.
 - React escapes all text, and the app never sets raw HTML from data.
 
 ## Supply chain and secrets

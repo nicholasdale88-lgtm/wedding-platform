@@ -17,16 +17,16 @@ describe('guide forecast (Open-Meteo)', () => {
   };
   beforeEach(() => (calls = []));
 
-  it('reads the local day, the run-of-day hours, and caches for an hour', async () => {
+  it('reads the local day, the run-of-day hours, and caches for 30 minutes', async () => {
     const f = await forecastFor(t.db, q, now, ok);
     expect(calls[0]).toContain('start_date=2027-11-18&end_date=2027-11-18');
     expect(calls[0]).toContain('timezone=Australia%2FSydney');
     expect(f).toMatchObject({ summary: 'Rain', max: 27 });
     expect(f!.hours.map((h) => h.label)).toEqual(['1:30pm', '2pm', '6pm', '11pm']);
     expect(f!.hours[1]).toEqual({ label: '2pm', temp: '17°', rain: '7' });
-    await forecastFor(t.db, q, new Date(now.getTime() + 30 * 60_000), ok);
+    await forecastFor(t.db, q, new Date(now.getTime() + 20 * 60_000), ok);
     expect(calls).toHaveLength(1);
-    await forecastFor(t.db, q, new Date(now.getTime() + 61 * 60_000), ok);
+    await forecastFor(t.db, q, new Date(now.getTime() + 31 * 60_000), ok);
     expect(calls).toHaveLength(2);
   });
 

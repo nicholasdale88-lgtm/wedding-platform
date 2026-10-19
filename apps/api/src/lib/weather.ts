@@ -2,11 +2,11 @@ import { localParts, weatherWords, type Forecast } from '@wp/shared';
 
 /**
  * Live forecast for a guide (Open-Meteo: free, no key). Only within its 16-day range; cached per
- * event for an hour in D1 so a busy night-before costs one request. Any failure means "no forecast"
+ * event for 30 minutes in D1 so a busy night-before costs one request. Any failure means "no forecast"
  * and the guide says so; it never shows invented weather.
  */
 
-const TTL_MS = 60 * 60 * 1000;
+const TTL_MS = 30 * 60 * 1000;
 const RANGE_DAYS = 15;
 
 export interface WeatherQuery {

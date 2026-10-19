@@ -29,6 +29,29 @@ export function GuidePage() {
       .catch((e: Error) => setError(e.message));
   }, [slug, token, event]);
 
+  // Live: the forecast, tables and meals refresh while the guide is open (every 15 minutes, and on
+  // coming back to it). A failed refresh keeps what is on screen.
+  useEffect(() => {
+    let last = Date.now();
+    const refresh = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 60_000) return;
+      last = Date.now();
+      guestApi
+        .guide(slug, token, event)
+        .then(setData)
+        .catch(() => {});
+    };
+    const timer = setInterval(() => {
+      last = 0;
+      refresh();
+    }, 15 * 60_000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [slug, token, event]);
+
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
   return data.guide.style === 'dayout' ? <Dayout data={data} /> : <Reception data={data} />;

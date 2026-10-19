@@ -1,3 +1,4 @@
+import type { GuideContent, InvitationContent } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -145,4 +146,23 @@ export const api = {
     send<{ count: number; parts: number; costCents: number; sample: string | null; quiet: boolean }>('POST', `${w(wid)}/guests/${id}/send?dry=1`, { campaignId }),
   sendOne: (wid: string, id: string, campaignId: string) =>
     send<{ queued: number; sent: number; failed: number; stopped?: { reason: string; error: string } }>('POST', `${w(wid)}/guests/${id}/send`, { campaignId }),
+};
+
+// ---------------------------------------------------------------- Guest pages
+
+export interface PagesData {
+  version: number;
+  slug: string;
+  theme: string;
+  events: { key: string; name: string }[];
+  invitation: InvitationContent;
+  guides: Record<string, GuideContent>;
+  texts: Record<string, string>;
+  samples: { token: string; label: string; invited: string[] }[];
+}
+export type PagesPut = Partial<{ theme: string; invitation: InvitationContent; guides: Record<string, GuideContent>; texts: Record<string, string> }>;
+
+export const pagesApi = {
+  get: (wid: string) => request<PagesData>(`${w(wid)}/pages`),
+  save: (wid: string, version: number, body: PagesPut) => send<PagesData>('PUT', `${w(wid)}/pages`, body, version),
 };
