@@ -5,7 +5,7 @@ import texts from '../../../seed/texts.json';
 import dynamicTexts from '../../../seed/texts.dynamic.json';
 import type { InvitePayload } from '../src/guest/invitation/api';
 import { InvitationPage } from '../src/guest/invitation/InvitationPage';
-import { sx } from '../src/guest/sx';
+import { sx, url } from '../src/guest/sx';
 
 const TOKEN = 'A'.repeat(22);
 const payload = (over: Partial<InvitePayload> = {}): InvitePayload => ({
@@ -114,5 +114,20 @@ describe('sx (design CSS -> React style)', () => {
       '--pgbg': '#fff',
       WebkitBackdropFilter: 'blur(6px)',
     });
+  });
+});
+
+describe('url (every editable link and source)', () => {
+  it('keeps web, mail, phone, relative and image links', () => {
+    for (const ok of ['https://maps.google.com/?q=a', 'http://x.com', 'mailto:a@b.com', 'tel:+61400000000', '/w/x/photos?g=1', '#rsvp', 'photos', 'data:image/png;base64,AAAA', 'blob:https://x/1']) {
+      expect(url(ok)).toBe(ok);
+    }
+  });
+  it('drops script and document URLs, however they are disguised', () => {
+    for (const bad of ['javascript:alert(1)', ' JavaScript:alert(1)', 'java\tscript:alert(1)', 'java\nscript:x', '\x01javascript:x', 'vbscript:x', 'data:text/html,<script>x</script>', 'data:image/svg+xml,<svg onload=x>', 'file:///etc/passwd']) {
+      expect(url(bad)).toBeUndefined();
+    }
+    expect(url('')).toBeUndefined();
+    expect(url(undefined)).toBeUndefined();
   });
 });

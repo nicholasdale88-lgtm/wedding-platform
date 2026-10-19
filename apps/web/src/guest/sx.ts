@@ -43,3 +43,16 @@ export function sx(css: string): CSSProperties {
   cache.set(css, style);
   return style;
 }
+
+/**
+ * Every link and source in the guest pages passes through here (the converter wraps href/src),
+ * because couples can edit them: only web, mail, phone and relative links, and image data/blob
+ * sources. Anything else (javascript:, vbscript:, data:text/html…) is dropped.
+ */
+export function url(u: unknown): string | undefined {
+  const s = String(u ?? '').trim();
+  const probe = s.replace(/[\x00-\x20\x7f]+/g, '').toLowerCase(); // browsers ignore these inside a scheme
+  if (!probe) return undefined;
+  if (!/^[a-z][a-z0-9+.-]*:/.test(probe)) return s; // relative, #anchor or ?query
+  return /^(https?:|mailto:|tel:|sms:|blob:|data:image\/(png|jpe?g|gif|webp|avif);)/.test(probe) ? s : undefined;
+}
