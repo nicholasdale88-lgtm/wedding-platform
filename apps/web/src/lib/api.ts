@@ -392,7 +392,7 @@ export interface PartyData {
 export const plannerApi = {
   party: (wid: string, event?: string) => request<PartyData>(`${w(wid)}/planner/party${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   setRole: (wid: string, personId: string, role: string) => send<{ ok: true; members: PartyMember[] }>('PUT', `${w(wid)}/planner/people/${personId}/role`, { role }),
-  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist' | 'budget' | 'vendors' | 'party-setup' | 'checklist', scope: string, data: T, version: number) =>
+  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist' | 'budget' | 'vendors' | 'party-setup' | 'checklist' | 'gifts', scope: string, data: T, version: number) =>
     send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}${scope ? `/${encodeURIComponent(scope)}` : ''}`, data, version),
   ask: (wid: string, question: string, history: { role: 'user' | 'assistant'; text: string }[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/ask`, { question, history }),
   /** File a quote (PDF or photo, up to 1.5 MB). */
@@ -406,7 +406,7 @@ export const plannerApi = {
   readQuote: (wid: string, id: string) =>
     send<{ amount: number; deposit: number; validUntil: string; date: string; includes: string; excludes: string; extract: string }>('POST', `${w(wid)}/planner/files/${encodeURIComponent(id)}/read`, {}),
   compare: (wid: string, vendorIds: string[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/compare`, { vendorIds }),
-  doc: <T>(wid: string, kind: 'budget' | 'vendors' | 'checklist') => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
+  doc: <T>(wid: string, kind: 'budget' | 'vendors' | 'checklist' | 'gifts') => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
   searchVendors: (wid: string, category: string, km: number) =>
     request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
 };

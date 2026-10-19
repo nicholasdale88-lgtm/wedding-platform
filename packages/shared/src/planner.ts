@@ -264,6 +264,22 @@ export const PLAN_TEMPLATE: Omit<PlanTask, 'id' | 'done' | 'note'>[] = [
   { text: 'Change of name (if you are): passport, Medicare, bank, licence, ATO', before: -45, legal: false },
 ];
 
+// ---------------------------------------------------------------- gifts and thank-yous
+
+export const Gift = z.object({
+  id: z.string().max(40),
+  from: z.string().max(160), // who gave it (as you'd write it on the card)
+  invitationId: s(40), // the guest it came from, when picked from the list
+  gift: s(300), // what it was ("Wishing well", "Dinner set")
+  amount: money, // for cash or wishing-well gifts
+  received: s(10), // yyyy-mm-dd
+  thanked: z.boolean().default(false),
+  note: s(1500), // the thank-you note, or a draft of it
+});
+export type Gift = z.infer<typeof Gift>;
+export const Gifts = z.object({ list: z.array(Gift).max(500).default([]) });
+export type Gifts = z.infer<typeof Gifts>;
+
 /** The planner documents and their shapes (the API validates every save against these). */
-export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist } as const;
+export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup, checklist: PlanChecklist, gifts: Gifts } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;
