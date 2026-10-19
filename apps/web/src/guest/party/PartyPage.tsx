@@ -67,6 +67,75 @@ function Packing({ slug, event, items, gold }: { slug: string; event: string; it
   );
 }
 
+/**
+ * On the day: what's happening now and what's next, big, at the top (for the event happening today).
+ * The MC also gets a speech timer (3, 5 or 8 minutes) that turns gold, then red, as time runs out.
+ */
+function NowNext({ data, now, gold, isMc }: { data: PartyPayload; now: number; gold: string; isMc: boolean }) {
+  const today = data.events.find((e) => new Date(e.startsAt).toDateString() === new Date(now).toDateString());
+  const [timer, setTimer] = useState<{ until: number; mins: number } | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!timer) return;
+    const t = setInterval(() => setTick((x) => x + 1), 500);
+    return () => clearInterval(t);
+  }, [timer]);
+  if (!today && !isMc) return null;
+  const items = today?.items ?? [];
+  const times = items.map((it) => (today ? at(today.startsAt, it.time) : null));
+  const cur = times.reduce<number>((acc, t, i) => (t !== null && t <= now ? i : acc), -1);
+  const next = items.findIndex((_, i) => i > cur && times[i] !== null);
+  const left = timer ? Math.max(0, Math.round((timer.until - Date.now()) / 1000)) : 0;
+  void tick;
+  const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  return (
+    <section aria-label="Now and next" className="flex flex-col gap-3 p-5 rounded-[20px] text-[#fbf8f2]" style={{ background: '#33402f' }}>
+      {today && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <div className="text-[12px] tracking-[.25em] uppercase font-semibold opacity-80" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: gold }}>
+              Now
+            </div>
+            <div className="text-[26px] leading-tight">{cur >= 0 ? items[cur]!.title : 'Not started yet'}</div>
+            {cur >= 0 && items[cur]!.place && <div className="text-[17px] italic opacity-80">{items[cur]!.place}</div>}
+          </div>
+          <div>
+            <div className="text-[12px] tracking-[.25em] uppercase font-semibold opacity-80" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: gold }}>
+              Next
+            </div>
+            <div className="text-[26px] leading-tight">{next >= 0 ? `${items[next]!.time} · ${items[next]!.title}` : 'That’s the lot!'}</div>
+            {next >= 0 && times[next] !== null && <div className="text-[17px] italic opacity-80">in {Math.max(0, Math.round((times[next]! - now) / 60_000))} minutes</div>}
+          </div>
+        </div>
+      )}
+      {isMc && (
+        <div className="flex flex-col gap-2 pt-2 border-t border-white/20">
+          <div className="flex justify-between items-center gap-3 flex-wrap">
+            <span className="text-[18px]">Speech timer</span>
+            <span className="flex gap-2">
+              {[3, 5, 8].map((m) => (
+                <button key={m} type="button" onClick={() => setTimer({ until: Date.now() + m * 60_000, mins: m })} className="py-[6px] px-3 rounded-full border border-white/40 bg-transparent text-[#fbf8f2] text-[16px] cursor-pointer">
+                  {m} min
+                </button>
+              ))}
+              {timer && (
+                <button type="button" onClick={() => setTimer(null)} className="py-[6px] px-3 rounded-full border-0 bg-white/15 text-[#fbf8f2] text-[16px] cursor-pointer">
+                  Stop
+                </button>
+              )}
+            </span>
+          </div>
+          {timer && (
+            <div role="timer" aria-live="off" className="text-center text-[64px] leading-none tabular-nums font-semibold" style={{ color: left === 0 ? '#e8a08a' : left <= 30 ? gold : '#fbf8f2' }}>
+              {left === 0 ? 'Time!' : mmss}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function PartyPage() {
   const { slug = '' } = useParams();
   const [params] = useSearchParams();
@@ -118,6 +187,8 @@ export function PartyPage() {
             ← Your invitation
           </a>
         </header>
+
+        <NowNext data={data} now={now} gold={gold} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
 
         {data.events.map((e) => {
           const times = e.items.map((it) => at(e.startsAt, it.time));
