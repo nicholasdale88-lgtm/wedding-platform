@@ -53,9 +53,9 @@ export const InvitationContent = z
 export type InvitationContent = z.infer<typeof InvitationContent>;
 
 /** Design parts that are per event: in this template the first event is "W", the second "B". */
-const PART_EVENT: Record<string, 0 /** Which event (0 = first, 1 = second) a per-guest part of the design belongs to. */
+const PART_EVENT: Record<string, 0 | 1> = { wDisp: 0, invW: 0, bSecDisp: 1, bFaqDisp: 1, bDisp: 1, rideDisp: 1, invB: 1 };
+/** Which event (0 = first, 1 = second) a per-guest part of the design belongs to. */
 export const eventSlotOfPart = (part: string | undefined): 0 | 1 | undefined => (part ? PART_EVENT[part] : undefined);
-| 1> = { wDisp: 0, invW: 0, bSecDisp: 1, bFaqDisp: 1, bDisp: 1, rideDisp: 1, invB: 1 };
 
 /**
  * The wording a guest may receive (docs/09 §J): everything for unidentified visitors; for an

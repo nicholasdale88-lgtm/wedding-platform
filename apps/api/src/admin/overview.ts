@@ -24,16 +24,15 @@ export interface Overview {
   seatsHeld: number;
   events: { key: string; name: string; startsAt: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
-  daysToGo: number |  /** The event this overview is about (null: all of them). */
-  focus: string | null;
-  /** Every event side by side (the "Both events" overview). */
-  perEvent: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean }[];
+  daysToGo: number | null;
   needsYou: NeedsYou[];
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
   nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
   /** The event this overview is about (null: all of them). */
   focus: string | null;
+  /** Every event side by side (the "Both events" overview). */
+  perEvent: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean }[];
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
