@@ -529,7 +529,11 @@ function InvitesFrom({ data, onChanged }: { data: TextsData; onChanged: () => Pr
 }
 
 /** The event a message is aimed at (by who receives it), or null when it goes to guests of every event. */
-export const eventOf = (c: Pick<Campaign, 'audience'>): string | null => c.audience.invitedTo ?? c.audience.attending ?? c.audience.answer?.event ?? null;
+export const eventOf = (c: Pick<Campaign, 'audience'>): string | null => {
+  const a = c.audience as { invitedTo?: unknown; attending?: unknown; answer?: { event?: unknown } };
+  const e = a.invitedTo ?? a.attending ?? a.answer?.event;
+  return typeof e === 'string' ? e : null;
+};
 const forEvent = (c: Pick<Campaign, 'audience'>, chosen: string, events: { key: string }[]) => {
   const e = eventOf(c);
   return !e || !events.some((x) => x.key === chosen) || e === chosen;
