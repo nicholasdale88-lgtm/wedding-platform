@@ -30,7 +30,7 @@ export interface Overview {
   needsYou: NeedsYou[];
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
-  nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
+  nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean; messages?: number };
   /** The event this overview is about (null: all of them). */
   focus: string | null;
   /** Every event side by side (the "Both events" overview). */
@@ -90,8 +90,8 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     kind: 'sms-setup', title: 'Texts are not set up yet', detail: 'Add your SMS number under Account so texts really send.', cta: 'Set up', link: 'texts', event: 'all',
   });
   add(d.inboxNeedsYou, {
-    kind: 'inbox', title: d.inboxNeedsYou === 1 ? '1 reply needs you' : `${d.inboxNeedsYou} replies need you`,
-    detail: 'Guests texted a question back.', cta: 'Read', link: 'texts', event: home,
+    kind: 'inbox', title: d.inboxNeedsYou === 1 ? '1 message needs you' : `${d.inboxNeedsYou} messages need you`,
+    detail: 'Guests wrote to you or texted a question.', cta: 'Read', link: 'messages', event: 'all',
   });
 
   // Upcoming reminder dates: dated, enabled campaigns aimed at guests still to reply.
@@ -208,6 +208,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
       dietary: dietPeople.length,
       autopilot: d.campaigns.filter((c) => c.enabled && c.mode !== 'manual').length,
       smsLive: !!d.wedding.sender,
+      messages: d.inboxNeedsYou, // unread messages from guests (Account → Messages)
     },
   };
 }

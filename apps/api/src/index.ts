@@ -11,6 +11,7 @@ import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
 import { settingsRoutes } from './routes/settings';
 import { textRoutes } from './routes/texts';
+import { messageRoutes } from './routes/messages';
 import { runAutopilot, type EngineDeps } from './sms/engine';
 import { sweepInbound } from './sms/inbound';
 
@@ -23,6 +24,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a', authRoutes());
   app.route('/a/w/:wid/pages', pagesRoutes());
   app.route('/a/w/:wid/texts', textRoutes(deps));
+  app.route('/a/w/:wid/messages', messageRoutes(deps));
   app.route('/a/w/:wid/settings', settingsRoutes(deps));
   app.route('/a/w/:wid/seating', seatingRoutes());
   app.route('/a/w/:wid/photos', photoRoutes());

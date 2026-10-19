@@ -2,7 +2,8 @@ import { zonedToUtc } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, textsApi, type Campaign, type Estimate, type TextsData } from '../../lib/api';
 import { fmtDay, fmtTime, fmtWhen, shortLabel, toLocalInput } from '../../lib/format';
-import { useAdmin, useSectionName } from '../Shell';
+import { useNavigate } from 'react-router-dom';
+import { ALL_EVENTS, useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
 import { isNightBefore, NightText } from '../pages/NightText';
 
@@ -12,7 +13,8 @@ import { isNightBefore, NightText } from '../pages/NightText';
  * Replies from guests are above; what has been sent is at the bottom.
  */
 export function SmsMessages() {
-  const { wid, reload: reloadOverview, event: chosen } = useAdmin();
+  const { wid, reload: reloadOverview, event: chosen, setEvent } = useAdmin();
+  const go = useNavigate();
   const section = useSectionName();
   const toast = useToast();
   const [data, setData] = useState<TextsData | null>(null);
@@ -116,8 +118,22 @@ export function SmsMessages() {
 
       <section className="flex flex-col gap-2 p-5 rounded-[14px] bg-[#efe7d3]">
         <div className="flex justify-between items-baseline gap-3 flex-wrap">
-          <h2 className="m-0 font-display font-medium text-[26px]">Replies from guests</h2>
+          <h2 className="m-0 font-display font-medium text-[26px]">Texted replies</h2>
           <span className="text-[13px] text-[#5b6a52]">{data.inbox.length ? `${data.inbox.length} received` : ''}</span>
+        </div>
+        <div className="text-[14px] text-[#5b6a52]">
+          YES and NO replies are recorded for you. Questions and messages from guests, texted or written on their page, are in{' '}
+          <button
+            type="button"
+            onClick={() => {
+              setEvent(ALL_EVENTS);
+              go(`/admin/${wid}/messages`);
+            }}
+            className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f] text-[14px]"
+          >
+            Account → Messages
+          </button>
+          , where you can reply.
         </div>
         {data.inbox.slice(0, 12).map((m) => (
           <div key={m.id} className="grid grid-cols-[92px_minmax(0,1fr)] sm:grid-cols-[110px_160px_minmax(0,1fr)_auto] gap-x-3 gap-y-1 py-2 border-t border-[#e2d7bc] text-[14px] items-baseline">

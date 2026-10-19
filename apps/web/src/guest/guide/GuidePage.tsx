@@ -9,6 +9,8 @@ import { guestApi, type GuidePayload } from '../invitation/api';
 import { setPageClass } from './common';
 import { useGuide } from './useGuide';
 import { useGuide30 } from './useGuide30';
+import { MessageUs } from '../MessageUs';
+import { THEMES } from '../generated/themes';
 
 /**
  * /w/:slug/tomorrow[/:event]?g=<token>: the night-before guide, linked from the night-before text.
@@ -70,9 +72,12 @@ function Reception({ data }: { data: GuidePayload }) {
   usePage('gd', data);
   const v = useGuide(data);
   return (
+    <>
     <div className="dz">
       <GuideView v={v} t={(k) => data.texts[k] ?? ''} />
     </div>
+    {data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink={THEMES[data.wedding.theme]?.dg} side="right" />}
+    </>
   );
 }
 
@@ -80,8 +85,11 @@ function Dayout({ data }: { data: GuidePayload }) {
   usePage('g30', data);
   const v = useGuide30(data);
   return (
+    <>
     <div className="dz">
       <Guide30View v={v} t={(k) => data.texts[k] ?? ''} />
     </div>
+    {data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink={THEMES[data.wedding.theme]?.bdtx ?? '#2f3d5c'} side="right" />}
+    </>
   );
 }

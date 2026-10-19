@@ -361,3 +361,12 @@ export async function sendTest(d: EngineDeps, weddingId: string, to: string, bod
   ]);
   return flush(d, w);
 }
+
+/** The couple's reply to a guest's message, as a text to that guest (Account → Messages). Never to an opted-out number. */
+export async function sendReply(d: EngineDeps, weddingId: string, invitationId: string, to: string, body: string, key: string) {
+  const w = await d.store.wedding(weddingId);
+  const phone = toE164(to);
+  if (!w || !phone) throw new Error('This guest has no mobile to text.');
+  await d.store.enqueue([{ weddingId, invitationId, campaignId: null, dedupeKey: key, kind: 'reply', to: phone, body, parts: segments(body).parts }]);
+  return flush(d, w);
+}

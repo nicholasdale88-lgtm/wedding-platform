@@ -97,7 +97,8 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
               COALESCE(o.sent_at, o.created_at) AS at, o.status
          FROM sms_out o LEFT JOIN campaign c ON c.id = o.campaign_id
         WHERE o.wedding_id = ? AND o.invitation_id IS NOT NULL AND o.status != 'cancelled' ORDER BY at`),
-    q(`SELECT COUNT(*) AS n FROM sms_in WHERE wedding_id = ? AND action = 'Needs you' AND handled = 0`),
+    // Messages waiting for the couple: texted questions and unread messages from guests' pages.
+    q(`SELECT (SELECT COUNT(*) FROM sms_in WHERE wedding_id = ?1 AND action = 'Needs you' AND handled = 0) + (SELECT COUNT(*) FROM message WHERE wedding_id = ?1 AND from_guest = 1 AND read_at IS NULL) AS n`),
     q(`SELECT id, event_id, name FROM seat_table WHERE wedding_id = ? AND deleted_at IS NULL`),
   ]);
   const wr = w!.results[0] as Record<string, string | null> | undefined;

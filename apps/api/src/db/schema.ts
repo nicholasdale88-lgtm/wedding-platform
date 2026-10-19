@@ -254,6 +254,19 @@ export const media = sqliteTable('media', {
   eventKey: text('event_key'), // migration 0007: which event's album
 });
 
+// migration 0008: messages between guests and the couple (one conversation per invitation)
+export const message = sqliteTable('message', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  invitationId: text('invitation_id').notNull(),
+  fromGuest: integer('from_guest').notNull(),
+  kind: text('kind', { enum: ['message', 'support', 'question'] }).notNull().default('message'),
+  body: text('body').notNull(),
+  sentSms: integer('sent_sms').notNull().default(0),
+  createdAt: text('created_at').notNull(),
+  readAt: text('read_at'),
+});
+
 export const audit = sqliteTable('audit', {
   id: id(),
   weddingId: text('wedding_id'),

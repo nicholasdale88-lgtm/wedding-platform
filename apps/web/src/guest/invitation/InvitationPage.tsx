@@ -6,6 +6,8 @@ import { GuestMessage } from '../GuestMessage';
 import { InvitationView } from '../generated/InvitationView';
 import { guestApi, type InvitePayload } from './api';
 import { useInvitation } from './useInvitation';
+import { MessageUs } from '../MessageUs';
+import { THEMES } from '../generated/themes';
 
 /**
  * /w/:slug/?g=<token>: the invitation. The design view is generated (guest/generated/InvitationView);
@@ -36,9 +38,14 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
   useEffect(() => {
     document.title = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
   }, [data.wedding]);
+  const token = !preview && data.invitation?.token;
   return (
-    <div className="dz">
-      <InvitationView v={v} t={t} />
-    </div>
+    <>
+      <div className="dz">
+        <InvitationView v={v} t={t} />
+      </div>
+      {/* A guest with their own link can write to the couple (Account → Messages). */}
+      {token && <MessageUs slug={slug} token={token} ink={THEMES[data.wedding.theme]?.dg} />}
+    </>
   );
 }

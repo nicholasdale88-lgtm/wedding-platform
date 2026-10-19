@@ -313,6 +313,46 @@ export function guestRoutes() {
     return c.json({ ok: true, id });
   });
 
+  /**
+   * Messages with the couple (support, questions) from the guest's own page: their conversation, and
+   * writing a new message. Needs their link; replies from the couple show here (and are marked seen).
+   */
+  app.get('/messages', async (c) => {
+    const w = await wedding(c);
+    const token = c.req.query('g') ?? '';
+    if (!w || !isToken(token)) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    const db = c.env.DB;
+    const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
+    if (!inv) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    const { results } = await db
+      .prepare(`SELECT id, from_guest, kind, body, created_at FROM message WHERE wedding_id = ? AND invitation_id = ? ORDER BY created_at LIMIT 200`)
+      .bind(w.id, inv.id)
+      .all<{ id: string; from_guest: number; kind: string; body: string; created_at: string }>();
+    await db.prepare(`UPDATE message SET read_at = ? WHERE invitation_id = ? AND from_guest = 0 AND read_at IS NULL`).bind(new Date().toISOString(), inv.id).run();
+    return c.json({
+      couple: `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}`,
+      messages: results.map((m) => ({ id: m.id, from: m.from_guest ? 'guest' : 'couple', kind: m.kind, body: m.body, at: m.created_at })),
+    });
+  });
+
+  app.post('/messages', async (c) => {
+    const w = await wedding(c);
+    const body = z
+      .object({ token: z.string().refine(isToken), body: z.string().trim().min(1).max(1000), kind: z.enum(['message', 'support', 'question']).default('message') })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!w || !body.success) return err(c, 400, 'invalid', 'Write your message first (up to 1,000 characters).');
+    const db = c.env.DB;
+    const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(body.data.token, w.id).first<{ id: string }>();
+    if (!inv) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    if (!(await allow(db, `msg:${inv.id}`, 30, 3_600_000))) return err(c, 429, 'slow_down', 'That is a lot of messages. Please wait a little and try again.');
+    await db
+      .prepare(`INSERT INTO message (id, wedding_id, invitation_id, from_guest, kind, body, created_at) VALUES (?, ?, ?, 1, ?, ?, ?)`)
+      .bind(crypto.randomUUID(), w.id, inv.id, body.data.kind, dropControls(body.data.body), new Date().toISOString())
+      .run();
+    return c.json({ ok: true });
+  });
+
   app.post('/find', async (c) => {
     const w = await wedding(c);
     if (!w) return err(c, 404, 'not_found', 'We could not find this invitation.');

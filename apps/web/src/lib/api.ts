@@ -111,7 +111,7 @@ export interface Overview {
   needsYou: { kind: string; title: string; detail: string; cta: string; link: string; event?: string }[];
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
-  nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
+  nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean; messages?: number };
   /** The event these figures are about (the admin's event switcher), or null for all. */
   focus?: string | null;
   perEvent?: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
@@ -381,4 +381,36 @@ export const eventsApi = {
     send<{ events: EventFull[]; added: string }>('POST', `${w(wid)}/events`, body),
   save: (wid: string, id: string, version: number, body: Partial<EventFields>) => send<{ events: EventFull[] }>('PUT', `${w(wid)}/events/${id}`, body, version),
   remove: (wid: string, id: string, version: number) => send<{ events: EventFull[] }>('DELETE', `${w(wid)}/events/${id}`, {}, version),
+};
+
+// ---------------------------------------------------------------- Messages
+
+export interface MessageThread {
+  invitationId: string;
+  name: string;
+  canText: boolean;
+  last: { body: string; at: string; from: 'guest' | 'couple' };
+  unread: number;
+  kinds: string[];
+}
+export interface ThreadMessage {
+  id: string;
+  from: 'guest' | 'couple';
+  body: string;
+  at: string;
+  via: 'page' | 'rsvp' | 'sms' | 'reply';
+  kind: 'message' | 'support' | 'question';
+  sentSms: boolean;
+}
+export interface Conversation {
+  invitationId: string;
+  name: string;
+  canText: boolean;
+  messages: ThreadMessage[];
+}
+
+export const messagesApi = {
+  list: (wid: string) => request<{ threads: MessageThread[] }>(`${w(wid)}/messages`),
+  open: (wid: string, inv: string) => request<Conversation>(`${w(wid)}/messages/${inv}`),
+  reply: (wid: string, inv: string, body: string, sms: boolean) => send<{ ok: true; sentSms: boolean; messages: ThreadMessage[] }>('POST', `${w(wid)}/messages/${inv}`, { body, sms }),
 };

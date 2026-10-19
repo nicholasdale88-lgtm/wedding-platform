@@ -84,7 +84,7 @@ describe('Overview', () => {
 describe('Guests', () => {
   it('lists invitations with status pills, answers and diet; title counts guests and invitations', async () => {
     mockApi();
-    renderAt('/admin/w1/guests');
+    renderAt('/admin/w1/guests?show=all');
     expect(await screen.findByRole('heading', { name: '4 guests on 3 invitations' })).toBeInTheDocument();
     const row = screen.getByText('Robin Hart').closest('[role=row]') as HTMLElement;
     expect(within(row).getAllByText('Attending')).toHaveLength(2);
@@ -96,7 +96,7 @@ describe('Guests', () => {
 
   it('search and filters combine, show the count, and live in the address bar', async () => {
     mockApi();
-    renderAt('/admin/w1/guests');
+    renderAt('/admin/w1/guests?show=all');
     await screen.findByText('Robin Hart');
     await userEvent.selectOptions(screen.getByLabelText('Mobile'), 'has');
     expect(screen.getByText('2 of 3 invitations')).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('Guests', () => {
     const calls = mockApi({
       '/api/a/w/w1/guests/g1/rsvp': () => json(200, detailOf({ ...g1, version: 4, rsvp: { ...g1.rsvp, brunch: { ...g1.rsvp.brunch!, attending: false } } })),
     });
-    renderAt('/admin/w1/guests?g=g1');
+    renderAt('/admin/w1/guests?show=all&g=g1');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Robin Hart' });
     const brunch = within(drawer).getByRole('group', { name: 'Recovery brunch' });
     await userEvent.click(within(brunch).getByRole('button', { name: 'Declined' }));
@@ -130,7 +130,7 @@ describe('Guests', () => {
       '/api/a/w/w1/guests/g2': () => json(200, detailOf({ ...guests[1]!, version: 1 + n++ })),
       '/api/a/w/w1/guests/g2/rsvp': () => json(409, { error: { code: 'conflict', message: 'Updated elsewhere, reloaded.' } }),
     });
-    renderAt('/admin/w1/guests?g=g2');
+    renderAt('/admin/w1/guests?show=all&g=g2');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
     await userEvent.click(within(within(drawer).getByRole('group', { name: 'The wedding' })).getByRole('button', { name: 'Attending' }));
     expect(await screen.findByRole('status')).toHaveTextContent('Updated elsewhere, reloaded.');
@@ -139,7 +139,7 @@ describe('Guests', () => {
 
   it('shows the personal link and text history; no mobile is called out', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?g=g2');
+    renderAt('/admin/w1/guests?show=all&g=g2');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
     expect(within(drawer).getByText(/\/w\/alex-and-blair\/\?g=/)).toBeInTheDocument();
     expect(within(drawer).getByText('No mobile, so this guest will not receive any SMS.')).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('Guests', () => {
 
   it('previews every page this guest gets, in preview mode', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?g=g2');
+    renderAt('/admin/w1/guests?show=all&g=g2');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
     const hrefs = within(drawer).getAllByRole('link').map((a) => a.getAttribute('href') ?? '');
     expect(hrefs.some((h) => /^\/w\/alex-and-blair\/\?g=[^&]+&preview=1$/.test(h))).toBe(true);
@@ -158,11 +158,11 @@ describe('Guests', () => {
 
   it('Escape closes the drawer and clears it from the address bar', async () => {
     mockApi();
-    renderAt('/admin/w1/guests?g=g1');
+    renderAt('/admin/w1/guests?show=all&g=g1');
     await screen.findByRole('dialog');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(location).toBe('/admin/w1/guests');
+    expect(location).toBe('/admin/w1/guests?show=all');
   });
 });
 
@@ -521,7 +521,7 @@ describe('send without SMS', () => {
     mockApi({ '/api/a/w/w1/guests': () => json(200, { events, guests, links }) });
     const opened: string[] = [];
     vi.spyOn(window, 'open').mockImplementation((u) => (opened.push(String(u)), null));
-    renderAt('/admin/w1/guests');
+    renderAt('/admin/w1/guests?show=all');
     await userEvent.click(await screen.findByRole('button', { name: 'Send without SMS' }));
     expect(screen.getByText(/1 guest can't get texts/)).toBeInTheDocument();
     expect(screen.getByText(/g=g2/)).toBeInTheDocument(); // Jo Banks has no mobile

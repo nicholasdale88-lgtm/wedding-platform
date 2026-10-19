@@ -75,6 +75,7 @@ export function AdminDataProvider({ wid, children, onSignedOut }: { wid: string;
  */
 export const ACCOUNT_TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'messages', label: 'Messages' },
   { key: 'pages', label: 'Invitation' },
   { key: 'texts', label: 'SMS setup' },
 ] as const;
@@ -99,6 +100,8 @@ function badge(key: TabKey, o: Overview | null, group: string): string {
       return String(ev ? ev.invited : o.nav.guests);
     case 'dietary':
       return String(o.nav.dietary);
+    case 'messages':
+      return o.nav.messages ? String(o.nav.messages) : '';
     case 'texts':
       return o.nav.smsLive ? (ev ? '' : `${o.nav.autopilot} on autopilot`) : 'Not set up';
     default:
