@@ -61,7 +61,7 @@ export const membership = sqliteTable(
     userId: text('user_id').notNull(),
     role: text('role', { enum: ['owner', 'editor', 'viewer'] }).notNull(),
   },
-  (t) => [primaryKey({ columns: [t.weddingId, t.userId] })],
+  (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.userId] }) }),
 );
 
 export const event = sqliteTable('event', {
@@ -130,7 +130,7 @@ export const person = sqliteTable('person', {
 export const inviteEvent = sqliteTable(
   'invite_event',
   { invitationId: text('invitation_id').notNull(), eventId: text('event_id').notNull() },
-  (t) => [primaryKey({ columns: [t.invitationId, t.eventId] })],
+  (t) => ({ pk: primaryKey({ columns: [t.invitationId, t.eventId] }) }),
 );
 
 export const rsvp = sqliteTable(
@@ -145,7 +145,7 @@ export const rsvp = sqliteTable(
     via: text('via').notNull().default('invitation'),
     updatedAt: text('updated_at').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.invitationId, t.eventId] })],
+  (t) => ({ pk: primaryKey({ columns: [t.invitationId, t.eventId] }) }),
 );
 
 export const campaign = sqliteTable('campaign', {
