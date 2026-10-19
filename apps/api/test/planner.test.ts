@@ -42,13 +42,16 @@ describe('planner: wedding party', () => {
       { time: '9:00am', title: 'Hair and makeup', who: ['p1'] },
       { time: '7:30pm', title: 'Run the speeches', who: ['MC'] },
     ];
-    const save = await call('/doc/party-runsheet/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ items, note: 'Be early!' }) });
+    const save = await call('/doc/party-runsheet/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ items, note: 'Be early!', packing: [{ text: 'The rings', who: ['Best man'] }, { text: 'Charger', who: ['party'] }, { text: 'Dress', who: ['p1'] }] }) });
+    await call('/doc/party-setup', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: 'Bride', p2: 'Groom' }) });
     expect(save.status).toBe(200);
     expect(((await save.json()) as { version: number }).version).toBe(1);
 
-    const bridesmaid = (await (await page(ella.token)).json()) as { me: { role: string }[]; events: { key: string; items: { title: string }[]; note: string }[] };
+    const bridesmaid = (await (await page(ella.token)).json()) as { me: { role: string }[]; sides: { p1: string }; events: { key: string; items: { title: string }[]; packing: { text: string }[]; note: string }[] };
     expect(bridesmaid.me[0]!.role).toBe('Bridesmaid');
+    expect(bridesmaid.sides.p1).toBe('Bride');
     expect(bridesmaid.events.find((e) => e.key === 'wedding')!.items.map((i) => i.title)).toEqual(['Breakfast', 'Hair and makeup']);
+    expect(bridesmaid.events.find((e) => e.key === 'wedding')!.packing.map((p) => p.text)).toEqual(['Charger', 'Dress']); // not the best man's rings
     const mc = (await (await page(ann.token)).json()) as { events: { key: string; items: { title: string }[] }[]; party: { name: string; role: string }[] };
     expect(mc.events.find((e) => e.key === 'wedding')!.items.map((i) => i.title)).toEqual(['Breakfast', 'Run the speeches']);
     expect(mc.party.map((p) => p.role).sort()).toEqual(['Bridesmaid', 'MC']);

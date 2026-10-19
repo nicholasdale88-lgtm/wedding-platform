@@ -82,6 +82,7 @@ export function plannerRoutes() {
       event: ev?.key ?? null,
       members: people.map((p) => ({ ...p, token: tokens.get(p.invitationId) ?? null })),
       runsheet: ev ? await readDoc(db, wid(c), 'party-runsheet', ev.key) : null,
+      setup: await readDoc(db, wid(c), 'party-setup', ''),
       checklist: ev ? await readDoc(db, wid(c), 'day-checklist', ev.key) : null,
     });
   });
@@ -457,11 +458,15 @@ export function partyGuestRoutes() {
       const seen = new Set<string>();
       // Everything for any of the roles on this invitation, once each, in the couple's order.
       const items = doc.data.items.filter((it) => roles.some((r) => itemsFor([it], r).length) && !seen.has(JSON.stringify(it)) && seen.add(JSON.stringify(it)));
-      if (items.length || doc.data.note) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: doc.data.note, items });
+      const packSeen = new Set<string>();
+      const packing = doc.data.packing.filter((p) => roles.some((r) => itemsFor([p], r).length) && !packSeen.has(p.text) && !!packSeen.add(p.text));
+      if (items.length || doc.data.note || packing.length) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: doc.data.note, items, packing });
     }
     const crew = await members(db, w.id);
+    const setup = (await readDoc(db, w.id, 'party-setup', '')).data;
     return c.json({
       couple: `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}`,
+      sides: setup,
       names: { p1: w.name1.split(' ')[0] ?? '', p2: w.name2.split(' ')[0] ?? '' },
       theme: w.theme,
       me: mine.map((m) => ({ name: m.name, role: m.party_role })),

@@ -30,6 +30,43 @@ const at = (day: string, t: string) => {
   return d.getTime();
 };
 
+/** Their own packing list, ticked off on this phone (remembered here, nowhere else). */
+function Packing({ slug, event, items, gold }: { slug: string; event: string; items: { text: string }[]; gold: string }) {
+  const key = `wp.pack.${slug}.${event}`;
+  const [done, setDone] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, boolean>;
+    } catch {
+      return {};
+    }
+  });
+  const toggle = (t: string) =>
+    setDone((cur) => {
+      const next = { ...cur, [t]: !cur[t] };
+      try {
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch {
+        /* this visit only */
+      }
+      return next;
+    });
+  const left = items.filter((i) => !done[i.text]).length;
+  return (
+    <div className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
+      <div className="flex justify-between items-baseline">
+        <h3 className="m-0 font-normal text-[26px]">What to pack</h3>
+        <span className="text-[15px] italic opacity-75">{left ? `${left} to go` : 'All packed ✓'}</span>
+      </div>
+      {items.map((i) => (
+        <label key={i.text} className="flex items-start gap-3 text-[19px] leading-[1.3] cursor-pointer">
+          <input type="checkbox" checked={!!done[i.text]} onChange={() => toggle(i.text)} className="mt-[5px] w-[20px] h-[20px] flex-none" style={{ accentColor: gold }} />
+          <span style={done[i.text] ? { textDecoration: 'line-through', opacity: 0.55 } : undefined}>{i.text}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export function PartyPage() {
   const { slug = '' } = useParams();
   const [params] = useSearchParams();
@@ -56,10 +93,11 @@ export function PartyPage() {
   const ink = '#33402f';
   const gold = theme.acc ?? '#b39563';
   const roles = [...new Set(data.me.map((m) => m.role))];
-  const sides: [string, PartyPayload['party']][] = [
-    [`${data.names.p1}'s side`, data.party.filter((p) => p.side === 'p1')],
-    [`${data.names.p2}'s side`, data.party.filter((p) => p.side === 'p2')],
-    ['Also helping', data.party.filter((p) => !p.side)],
+  const title = (k: 'p1' | 'p2') => `${data.sides?.[k] || (k === 'p1' ? 'Bride' : 'Groom')}'s side`;
+  const sides: [string, string, PartyPayload['party']][] = [
+    [title('p1'), data.names.p1, data.party.filter((p) => p.side === 'p1')],
+    [title('p2'), data.names.p2, data.party.filter((p) => p.side === 'p2')],
+    ['Also helping', '', data.party.filter((p) => !p.side)],
   ];
 
   return (
@@ -113,6 +151,7 @@ export function PartyPage() {
                 ))}
               </ol>
               {!e.items.length && <p className="m-0 text-center italic opacity-75">The run sheet for this one is coming.</p>}
+              {!!e.packing?.length && <Packing slug={slug} event={e.key} items={e.packing} gold={gold} />}
             </section>
           );
         })}
@@ -122,11 +161,12 @@ export function PartyPage() {
           <h2 className="m-0 font-normal text-[30px] text-center">Who's who</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             {sides
-              .filter(([, ps]) => ps.length)
-              .map(([label, ps]) => (
+              .filter(([, , ps]) => ps.length)
+              .map(([label, who, ps]) => (
                 <div key={label} className="flex flex-col gap-1">
                   <div className="text-[12px] tracking-[.2em] uppercase font-semibold opacity-75" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
                     {label}
+                    {who ? <span className="normal-case tracking-normal font-normal"> · {who}</span> : null}
                   </div>
                   {ps.map((p) => (
                     <div key={`${p.name}-${p.role}`} className="text-[18px]">

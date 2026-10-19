@@ -37,7 +37,10 @@ export const PartyItem = z.object({
   who: z.array(z.string().max(40)).max(20).default(['party']),
 });
 export type PartyItem = z.infer<typeof PartyItem>;
-export const PartyRunsheet = z.object({ items: z.array(PartyItem).max(100).default([]), note: s(1500) });
+/** Something to bring on the day, for everyone in the party, one side, or one role. */
+export const PackItem = z.object({ text: z.string().max(160), who: z.array(z.string().max(40)).max(20).default(['party']) });
+export type PackItem = z.infer<typeof PackItem>;
+export const PartyRunsheet = z.object({ items: z.array(PartyItem).max(100).default([]), note: s(1500), packing: z.array(PackItem).max(120).default([]) });
 export type PartyRunsheet = z.infer<typeof PartyRunsheet>;
 
 export const CheckItem = z.object({ text: z.string().max(200), time: s(20), done: z.boolean().default(false) });
@@ -45,8 +48,32 @@ export type CheckItem = z.infer<typeof CheckItem>;
 export const DayChecklist = z.object({ p1: z.array(CheckItem).max(80).default([]), p2: z.array(CheckItem).max(80).default([]) });
 export type DayChecklist = z.infer<typeof DayChecklist>;
 
+/** What the two sides are called (the couple can change them, e.g. "Bride" and "Bride"). */
+export const PartySetup = z.object({ p1: z.string().max(30).default('Bride'), p2: z.string().max(30).default('Groom') });
+export type PartySetup = z.infer<typeof PartySetup>;
+
+/** A starting packing list for the day. */
+export const PACK_TEMPLATE: PackItem[] = [
+  { text: 'Phone, charger and a power bank', who: ['party'] },
+  { text: 'Water bottle and a snack', who: ['party'] },
+  { text: 'Sunscreen and sunglasses (outdoor photos)', who: ['party'] },
+  { text: 'Cash or card for a taxi home', who: ['party'] },
+  { text: 'Dress, shoes and jewellery', who: ['p1'] },
+  { text: 'Flat shoes for dancing', who: ['p1'] },
+  { text: 'Emergency kit: safety pins, bobby pins, tissues, blotting paper, painkillers', who: ['Maid of honour'] },
+  { text: 'Lipstick and powder for touch-ups', who: ['p1'] },
+  { text: 'A wrap or jacket for the evening', who: ['p1'] },
+  { text: 'Suit, shirt, tie and cufflinks', who: ['p2'] },
+  { text: 'Polished shoes and dark socks', who: ['p2'] },
+  { text: 'Lint roller and deodorant', who: ['p2'] },
+  { text: 'The rings', who: ['Best man'] },
+  { text: 'Vendor envelopes (final payments and tips)', who: ['Best man'] },
+  { text: 'Speech notes', who: ['Best man', 'Maid of honour', 'MC'] },
+  { text: 'Run sheet and the vendors’ phone numbers', who: ['MC'] },
+];
+
 /** What a party member sees: items for everyone in the party, their side, or their own role. */
-export function itemsFor(items: PartyItem[], role: string): PartyItem[] {
+export function itemsFor<T extends { who: string[] }>(items: T[], role: string): T[] {
   const side = sideOf(role);
   const r = role.trim().toLowerCase();
   return items.filter((it) => !it.who.length || it.who.some((w) => w === 'party' || (side && w === side) || w.toLowerCase() === r));
@@ -187,5 +214,5 @@ export const VENDOR_SEARCH: Record<string, { label: string; tags: string[] }> = 
 };
 
 /** The planner documents and their shapes (the API validates every save against these). */
-export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors } as const;
+export const PLANNER_DOCS = { 'party-runsheet': PartyRunsheet, 'day-checklist': DayChecklist, budget: Budget, vendors: Vendors, 'party-setup': PartySetup } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

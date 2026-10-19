@@ -1,4 +1,4 @@
-import { CHECK_TEMPLATE, PARTY_TEMPLATE, type CheckItem, type DayChecklist, type PartyItem, type PartyRunsheet } from '@wp/shared';
+import { CHECK_TEMPLATE, PACK_TEMPLATE, PARTY_TEMPLATE, type CheckItem, type DayChecklist, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
 import { useAdmin, useSectionName } from '../Shell';
@@ -59,7 +59,7 @@ export function Party() {
     if (!d.event) return;
     setSaving(true);
     try {
-      const clean = { ...sheet, items: sheet.items.filter((x) => x.title.trim()) };
+      const clean = { ...sheet, items: sheet.items.filter((x) => x.title.trim()), packing: sheet.packing.filter((x) => x.text.trim()) };
       const r = await plannerApi.saveDoc(wid, 'party-runsheet', d.event, clean, d.runsheet?.version ?? 0);
       setD({ ...d, runsheet: r });
       setSheet(r.data);
@@ -72,14 +72,32 @@ export function Party() {
       setSaving(false);
     }
   };
-  const who = (it: PartyItem) => it.who;
-  // Who an item can be for: everyone, a side, or any role somebody has.
+  const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom' };
+  const sideName = (k: 'p1' | 'p2') => sides[k] || (k === 'p1' ? 'Bride' : 'Groom');
+  // Who an item can be for: everyone, a side, or any role in use (or usual for the day).
   const audiences: [string, string][] = [
     ['party', 'Everyone'],
-    ['p1', `${d.names.p1}'s side`],
-    ['p2', `${d.names.p2}'s side`],
-    ...[...new Set(d.members.map((m) => m.role))].sort().map((r) => [r, r] as [string, string]),
+    ['p1', `${sideName('p1')}'s side`],
+    ['p2', `${sideName('p2')}'s side`],
+    ...[...new Set([...d.members.map((m) => m.role), 'Best man', 'Maid of honour', 'MC'])].sort().map((r) => [r, r] as [string, string]),
   ];
+  /** Toggle who something is for ("Everyone" on its own, or any mix of sides and roles). */
+  const toggleWho = (list: string[], k: string) => {
+    const on = list.includes(k);
+    if (k === 'party') return ['party'];
+    const next = on ? list.filter((w) => w !== k) : [...list.filter((w) => w !== 'party'), k];
+    return next.length ? next : ['party'];
+  };
+  const whoChips = (list: string[], onPick: (next: string[]) => void, label: string) => (
+    <div role="group" aria-label={label} className="flex gap-[6px] flex-wrap">
+      {audiences.map(([k, text]) => (
+        <button key={k} type="button" aria-pressed={list.includes(k)} onClick={() => onPick(toggleWho(list, k))} className={chip(list.includes(k))}>
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+  const setPack = (i: number, patch: Partial<PackItem>) => edit({ ...sheet, packing: sheet.packing.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,7 +109,9 @@ export function Party() {
         </p>
       </header>
 
-      <Members d={d} onChange={(members) => setD({ ...d, members })} />
+      <SideNames d={d} onSaved={(setup) => setD({ ...d, setup })} />
+
+      <Members d={d} sideName={sideName} onChange={(members) => setD({ ...d, members })} />
 
       <section aria-label="Run sheet for the wedding party" className="flex flex-col gap-3">
         <div className="flex justify-between items-end gap-3 flex-wrap">
@@ -140,25 +160,7 @@ export function Party() {
             <input aria-label="Where" placeholder="Where (optional)" value={it.place} onChange={(e) => setItem(i, { place: e.target.value })} className={inputCls} />
             <textarea aria-label="Details" rows={2} placeholder="Details: what to bring, who does what" value={it.detail} onChange={(e) => setItem(i, { detail: e.target.value })} className={`${inputCls} resize-y`} />
             <div className="flex justify-between items-center gap-2 flex-wrap">
-              <div role="group" aria-label="Who it's for" className="flex gap-[6px] flex-wrap">
-                {audiences.map(([k, label]) => {
-                  const on = who(it).includes(k);
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => {
-                        const next = on ? who(it).filter((w) => w !== k) : [...who(it).filter((w) => k !== 'party' && w !== 'party'), k];
-                        setItem(i, { who: k === 'party' && !on ? ['party'] : next.length ? next : ['party'] });
-                      }}
-                      className={chip(on)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
+              {whoChips(it.who, (next) => setItem(i, { who: next }), "Who it's for")}
               <div className="flex gap-1">
                 <button type="button" aria-label="Move up" disabled={!i} onClick={() => edit({ ...sheet, items: sheet.items.map((x, j) => (j === i - 1 ? sheet.items[i]! : j === i ? sheet.items[i - 1]! : x)) })} className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-40">
                   ↑
@@ -184,17 +186,49 @@ export function Party() {
         </Pill>
       </section>
 
-      {d.event && d.checklist && <Checklists wid={wid} scope={d.event} names={d.names} initial={d.checklist} />}
+      <section aria-label="What to pack" className="flex flex-col gap-3">
+        <div className="flex justify-between items-end gap-3 flex-wrap">
+          <div>
+            <H2>What to pack</H2>
+            <div className="text-[13px] text-[#5b6a52]">Each person sees their own list (everyone's things, their side's and their role's) and ticks it off on their phone.</div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {!sheet.packing.length && (
+              <Pill kind="dashed" onClick={() => edit({ ...sheet, packing: PACK_TEMPLATE.map((x) => ({ ...x, who: [...x.who] })) })}>
+                Start with the usual list
+              </Pill>
+            )}
+            <Pill kind="primary" disabled={!dirty || saving} onClick={() => void save()}>
+              {saving ? 'Saving…' : dirty ? 'Save' : 'Saved'}
+            </Pill>
+          </div>
+        </div>
+        {sheet.packing.map((p, i) => (
+          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+            <div className="flex gap-2">
+              <input aria-label="Thing to bring" value={p.text} placeholder="e.g. Phone charger" onChange={(e) => setPack(i, { text: e.target.value })} className={`${inputCls} flex-1 min-w-0`} />
+              <button type="button" aria-label="Remove" onClick={() => edit({ ...sheet, packing: sheet.packing.filter((_, j) => j !== i) })} className="w-9 h-9 flex-none rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37]">
+                ×
+              </button>
+            </div>
+            {whoChips(p.who, (next) => setPack(i, { who: next }), 'Who brings it')}
+          </div>
+        ))}
+        <Pill kind="dashed" className="self-start" onClick={() => edit({ ...sheet, packing: [...sheet.packing, { text: '', who: ['party'] }] })}>
+          + Add a thing to bring
+        </Pill>
+      </section>
+
+      {d.event && d.checklist && <Checklists wid={wid} scope={d.event} names={{ p1: `${sideName('p1')} · ${d.names.p1}`, p2: `${sideName('p2')} · ${d.names.p2}` }} initial={d.checklist} />}
     </div>
   );
 }
 
-function Members({ d, onChange }: { d: PartyData; onChange: (m: PartyMember[]) => void }) {
+/** Who's in the wedding party: the two sides side by side, each with its own roles and "add", then helpers. */
+function Members({ d, onChange, sideName }: { d: PartyData; onChange: (m: PartyMember[]) => void; sideName: (s: 'p1' | 'p2') => string }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const [guests, setGuests] = useState<Guest[] | null>(null);
-  const [q, setQ] = useState('');
-  const [role, setRole] = useState('Bridesmaid');
   useEffect(() => {
     api
       .guests(wid)
@@ -210,39 +244,50 @@ function Members({ d, onChange }: { d: PartyData; onChange: (m: PartyMember[]) =
     }
   };
   const inParty = new Set(d.members.map((m) => m.personId));
-  const needle = q.trim().toLowerCase();
-  const found = useMemo(
-    () => (needle ? (guests ?? []).flatMap((g) => g.people.filter((p) => !inParty.has(p.id) && p.name.toLowerCase().includes(needle)).map((p) => ({ id: p.id, name: p.name }))).slice(0, 8) : []),
-    [guests, needle, d.members], // eslint-disable-line
-  );
-  const groups: [string, PartyMember[]][] = [
-    [`${d.names.p1}'s side`, d.members.filter((m) => m.side === 'p1')],
-    [`${d.names.p2}'s side`, d.members.filter((m) => m.side === 'p2')],
-    ['Also helping', d.members.filter((m) => !m.side)],
+  const people = useMemo(() => (guests ?? []).flatMap((g) => g.people.map((p) => ({ id: p.id, name: p.name }))), [guests]);
+  const columns: { key: 'p1' | 'p2' | ''; title: string; sub: string }[] = [
+    { key: 'p1', title: `${sideName('p1')}'s side`, sub: d.names.p1 },
+    { key: 'p2', title: `${sideName('p2')}'s side`, sub: d.names.p2 },
+    { key: '', title: 'Also helping', sub: 'MC, ushers, readers' },
   ];
   return (
-    <section aria-label="Who's in the wedding party" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Who's in the wedding party" className="flex flex-col gap-3">
       <H2>Who's in it</H2>
-      <datalist id="party-roles">
-        {d.roles.map((r) => (
-          <option key={r.role} value={r.role} />
-        ))}
-      </datalist>
-      {d.members.length ? (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {groups.map(([label, ms]) => (
-            <div key={label} className="flex flex-col gap-2 min-w-0">
-              <div className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">{label}</div>
+      <div className="grid gap-4 lg:grid-cols-3">
+        {columns.map((col) => {
+          const ms = d.members.filter((m) => m.side === col.key);
+          const roles = d.roles.filter((r) => r.side === col.key).map((r) => r.role);
+          return (
+            <div key={col.key || 'help'} className={`flex flex-col gap-2 p-4 rounded-[16px] border ${col.key ? 'border-[#c6b794] bg-[#fbf8f0]' : 'border-[#e2d7bc] bg-[#f6f0e2]'}`}>
+              <div>
+                <div className="font-display text-[24px] leading-tight">{col.title}</div>
+                <div className="text-[12px] tracking-[.12em] uppercase text-[#5b6a52]">
+                  {col.sub} · {ms.length} {ms.length === 1 ? 'person' : 'people'}
+                </div>
+              </div>
               {ms.map((m) => (
                 <div key={m.personId} className="flex flex-col gap-1 p-2 rounded-[10px] bg-white border border-[#e2d7bc]">
                   <span className="font-medium truncate">{m.name}</span>
-                  <input
+                  <select
                     aria-label={`${m.name}'s role`}
-                    list="party-roles"
-                    defaultValue={m.role}
-                    onBlur={(e) => e.target.value.trim() !== m.role && void set(m.personId, e.target.value.trim(), e.target.value.trim() ? 'Role changed' : `${m.name} is no longer in the party`)}
+                    value={roles.includes(m.role) ? m.role : '__other'}
+                    onChange={(e) => e.target.value !== '__other' && void set(m.personId, e.target.value, 'Role changed')}
                     className={`${inputCls} !py-[6px] !text-[14px]`}
-                  />
+                  >
+                    {roles.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                    {!roles.includes(m.role) && <option value="__other">{m.role}</option>}
+                    {d.roles
+                      .filter((r) => r.side !== col.key)
+                      .map((r) => (
+                        <option key={`move-${r.role}`} value={r.role}>
+                          Move: {r.role}
+                        </option>
+                      ))}
+                  </select>
                   <span className="flex gap-3 text-[12px]">
                     {m.token && (
                       <a href={`/w/${d.slug}/party?g=${encodeURIComponent(m.token)}`} target="_blank" rel="noopener" className="!text-[#33402f]">
@@ -256,41 +301,89 @@ function Members({ d, onChange }: { d: PartyData; onChange: (m: PartyMember[]) =
                 </div>
               ))}
               {!ms.length && <span className="text-[13px] text-[#7a7466]">No one yet.</span>}
+              <AddToSide
+                roles={roles.length ? roles : ['MC']}
+                people={people.filter((p) => !inParty.has(p.id))}
+                loading={!guests}
+                label={col.key ? `Add to the ${sideName(col.key).toLowerCase()}'s side` : 'Add a helper'}
+                onAdd={(p, role) => void set(p.id, role, `${p.name} is now ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role.toLowerCase()}`)}
+              />
             </div>
-          ))}
-        </div>
-      ) : (
-        <p className="m-0 text-[14px] text-[#5b6a52]">No one yet. Add your bridesmaids, groomsmen, MC and ushers from your guest list below.</p>
-      )}
-      <div className="flex gap-2 flex-wrap items-end">
-        <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52] flex-1 min-w-[180px]">
-          Add a guest
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a name from your guest list" className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52] w-[180px]">
-          as
-          <input list="party-roles" value={role} onChange={(e) => setRole(e.target.value)} className={inputCls} />
-        </label>
+          );
+        })}
       </div>
-      {found.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          {found.map((p) => (
-            <Pill
-              key={p.id}
-              kind="outline"
-              disabled={!role.trim()}
-              onClick={() => {
-                setQ('');
-                void set(p.id, role.trim(), `${p.name} is now a ${role.trim().toLowerCase()}`);
-              }}
-            >
-              + {p.name}
-            </Pill>
-          ))}
-        </div>
-      )}
-      {needle && guests && !found.length && <span className="text-[13px] text-[#7a7466]">No guest by that name. Add them to your guest list first.</span>}
     </section>
+  );
+}
+
+/** What the two sides are called (Bride and Groom unless you change them). */
+function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: PartySetup; version: number }) => void }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const cur = d.setup?.data ?? { p1: 'Bride', p2: 'Groom' };
+  const save = async (next: PartySetup) => {
+    if (next.p1 === cur.p1 && next.p2 === cur.p2) return;
+    try {
+      onSaved(await plannerApi.saveDoc(wid, 'party-setup', '', next, d.setup?.version ?? 0));
+      toast('Saved');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+  return (
+    <div className="flex items-center gap-2 flex-wrap text-[13px] text-[#5b6a52]">
+      The two sides are called
+      <input aria-label={`${d.names.p1}'s side is called`} defaultValue={cur.p1} maxLength={30} onBlur={(e) => void save({ ...cur, p1: e.target.value.trim() || 'Bride' })} className={`${inputCls} !py-[5px] w-[110px]`} />
+      <span>({d.names.p1}) and</span>
+      <input aria-label={`${d.names.p2}'s side is called`} defaultValue={cur.p2} maxLength={30} onBlur={(e) => void save({ ...cur, p2: e.target.value.trim() || 'Groom' })} className={`${inputCls} !py-[5px] w-[110px]`} />
+      <span>({d.names.p2})</span>
+    </div>
+  );
+}
+
+function AddToSide({ roles, people, loading, label, onAdd }: { roles: string[]; people: { id: string; name: string }[]; loading: boolean; label: string; onAdd: (p: { id: string; name: string }, role: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [role, setRole] = useState(roles[0] ?? '');
+  const needle = q.trim().toLowerCase();
+  const found = needle ? people.filter((p) => p.name.toLowerCase().includes(needle)).slice(0, 6) : [];
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="self-start mt-1 py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer hover:bg-[#efe7d3]">
+        + {label}
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-2 mt-1">
+      <div className="flex gap-2">
+        <select aria-label="Role" value={role} onChange={(e) => setRole(e.target.value)} className={`${inputCls} !py-[6px] !text-[14px]`}>
+          {roles.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+        <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="w-9 h-9 flex-none rounded-full border border-[#c6b794] bg-transparent cursor-pointer">
+          ×
+        </button>
+      </div>
+      <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={loading ? 'Loading your guests…' : 'Type a guest’s name'} aria-label="Guest's name" className={`${inputCls} !py-[7px]`} />
+      {found.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => {
+            onAdd(p, role);
+            setQ('');
+          }}
+          className="text-left py-[6px] px-3 rounded-[8px] border border-[#e2d7bc] bg-white text-[14px] cursor-pointer hover:bg-[#efe7d3]"
+        >
+          + {p.name}
+        </button>
+      ))}
+      {needle && !loading && !found.length && <span className="text-[12px] text-[#7a7466]">No guest by that name. Add them to your guest list first.</span>}
+    </div>
   );
 }
 

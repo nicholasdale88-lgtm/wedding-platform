@@ -1,4 +1,4 @@
-import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, Side, TableShape } from '@wp/shared';
+import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, PartySetup, Side, TableShape } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -385,12 +385,14 @@ export interface PartyData {
   members: PartyMember[];
   runsheet: { data: PartyRunsheet; version: number } | null;
   checklist: { data: DayChecklist; version: number } | null;
+  /** What the two sides are called ("Bride", "Groom" by default). */
+  setup?: { data: PartySetup; version: number };
 }
 /** The planner: wedding party roles, its run sheet, the on-the-day checklists (versioned documents). */
 export const plannerApi = {
   party: (wid: string, event?: string) => request<PartyData>(`${w(wid)}/planner/party${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   setRole: (wid: string, personId: string, role: string) => send<{ ok: true; members: PartyMember[] }>('PUT', `${w(wid)}/planner/people/${personId}/role`, { role }),
-  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist' | 'budget' | 'vendors', scope: string, data: T, version: number) =>
+  saveDoc: <T>(wid: string, kind: 'party-runsheet' | 'day-checklist' | 'budget' | 'vendors' | 'party-setup', scope: string, data: T, version: number) =>
     send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}${scope ? `/${encodeURIComponent(scope)}` : ''}`, data, version),
   ask: (wid: string, question: string, history: { role: 'user' | 'assistant'; text: string }[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/ask`, { question, history }),
   /** File a quote (PDF or photo, up to 1.5 MB). */

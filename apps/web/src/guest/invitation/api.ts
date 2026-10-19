@@ -148,8 +148,17 @@ export interface PartyPayload {
   names: { p1: string; p2: string };
   theme: string;
   me: { name: string; role: string }[];
+  /** What the two sides are called ("Bride", "Groom" by default). */
+  sides?: { p1: string; p2: string };
   party: { name: string; role: string; side: 'p1' | 'p2' | '' }[];
-  events: { key: string; name: string; startsAt: string; note: string; items: { time: string; until: string; title: string; detail: string; place: string; who: string[] }[] }[];
+  events: {
+    key: string;
+    name: string;
+    startsAt: string;
+    note: string;
+    items: { time: string; until: string; title: string; detail: string; place: string; who: string[] }[];
+    packing?: { text: string; who: string[] }[];
+  }[];
 }
 export interface BoardPayload {
   on: boolean;
