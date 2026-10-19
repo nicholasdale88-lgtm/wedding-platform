@@ -5,14 +5,17 @@ const GSM_BASIC =
   '@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&\'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà';
 const GSM_EXT = '^{}\\[~]|€\f';
 
-const SMART_REPLACEMENTS: Record<string, string> = {
-  '‘': "'", '’': "'", '“': '"', '”': '"',
-  '–': '-', '—': '-', '…': '...', ' ': ' ',
-};
+// Built from code points so the source stays plain ASCII:
+// left/right single quote, left/right double quote, en dash, em dash, ellipsis, no-break space.
+const SMART_REPLACEMENTS = new Map<string, string>(
+  ([[0x2018, "'"], [0x2019, "'"], [0x201c, '"'], [0x201d, '"'], [0x2013, '-'], [0x2014, '-'], [0x2026, '...'], [0xa0, ' ']] as const).map(
+    ([code, to]): [string, string] => [String.fromCharCode(code), to],
+  ),
+);
 
 /** Swap curly quotes, dashes and ellipses for GSM equivalents. */
 export function toGsm(text: string): string {
-  return text.replace(/[‘’“”–—… ]/g, (c) => SMART_REPLACEMENTS[c] ?? c);
+  return [...text].map((c) => SMART_REPLACEMENTS.get(c) ?? c).join('');
 }
 
 /** Characters that would force UCS-2 (e.g. emoji). Empty means GSM-safe. */
