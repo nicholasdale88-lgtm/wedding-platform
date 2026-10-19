@@ -129,7 +129,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
   return {
     wedding: {
       id: String(wr.id), slug: String(wr.slug), name1: String(wr.name1), name2: String(wr.name2), timezone: String(wr.timezone),
-      sender: wr.sms_sender, content: json(wr.content, {}), guide: json(wr.guide, {}),
+      sender: wr.sms_sender ?? null, content: json(wr.content, {}), guide: json(wr.guide, {}),
     },
     events: (ev!.results as Record<string, string | number>[]).map((e) => ({
       id: String(e.id), key: String(e.key), name: String(e.name), pendingLabel: String(e.pending_label), startsAt: String(e.starts_at),
