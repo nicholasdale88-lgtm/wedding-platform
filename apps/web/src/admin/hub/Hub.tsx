@@ -31,7 +31,7 @@ function useHubData(wid: string) {
         (r) => r.data,
         () => ({ tasks: [], helpers: [] }) as PlanChecklist,
       ),
-      plannerApi.doc<BudgetDoc>(wid, 'budget').then((r) => r.data, () => ({ total: 0, guests: 0, lines: [] }) as BudgetDoc),
+      plannerApi.doc<BudgetDoc>(wid, 'budget').then((r) => r.data, () => ({ total: 0, guests: 0, lines: [], split: {} }) as BudgetDoc),
       plannerApi.doc<VendorsDoc>(wid, 'vendors').then((r) => r.data.list, () => [] as VendorsDoc['list']),
     ]);
     // Older lists have no status or helpers yet: a task is to do until it's done.
