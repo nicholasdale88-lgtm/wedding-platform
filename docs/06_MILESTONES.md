@@ -43,9 +43,9 @@ Each task is about 1 focused session. "Check" means what the owner should look a
 
 ## M3: Admin (full build. Visual spec = design/RSVP Admin.dc.html; see CHANGES 0g)
 - [ ] M3.0 Admin design system in `apps/web/src/admin/ui`: Shell, PageHeader, Section (2px rule), Row, PillButton (primary/secondary/dashed), Field, StatusPill, Figure, Drawer, Toast, Switch, Sheet (mobile). Build a `/admin/_kitchen-sink` page with every component, and screenshot-compare against the design.
-- [ ] M3.1 Shell: sidebar on desktop, swipeable top tabs under 760 px. Toasts. "Saving… / Saved / Offline" indicator. 409 handling.
-- [ ] M3.2 Overview: answered bar, 4 figures, server-computed **Needs you** list, coming up, latest replies.
-- [ ] M3.3 Guests: list + mobile cards, search/filters, drawer (main contact + people, seats, phone validation, events invited, RSVP override, copy link, WhatsApp share `https://wa.me/61…?text=`, SMS history), soft delete + undo.
+- [x] M3.1 Shell: sidebar on desktop, swipeable top tabs under 760 px. Toasts. "Saving… / Saved / Offline" indicator. 409 handling.
+- [x] M3.2 Overview: answered bar, 4 figures, server-computed **Needs you** list, coming up, latest replies.
+- [ ] M3.3 Guests: list + mobile cards, search/filters, drawer (main contact + people, seats, phone validation, events invited, RSVP override, copy link, WhatsApp share `https://wa.me/61…?text=`, SMS history), soft delete + undo. _List, filters, drawer, RSVP override, remove/undo, send-one done; WhatsApp + copy link done._
 - [ ] M3.4 Excel import (SheetJS) with the rules in README, preview screen ("N new, M updated, K errors"), template download. Export guests.
 - [ ] M3.5 Dietary: per-event lists, serious flags, **per-person Entrée/Main/Dessert**, **venue export** (wedding) and **caterer export** (30th).
 - [ ] M3.6 Seating designer (docs/09 §C, including pinch-zoom, long-press drag on touch, undo/redo, multiple rooms, print/export):
