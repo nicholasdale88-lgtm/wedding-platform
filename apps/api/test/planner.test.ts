@@ -138,6 +138,15 @@ describe('planner: wedding party', () => {
     expect((await call('/compare', { method: 'POST', body: JSON.stringify({ vendorIds: ['v1'] }) })).status).toBe(400);
   });
 
+  it('overdue planning tasks and payments due show in Overview → Needs you, opening the planner', async () => {
+    await call('/doc/checklist', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ tasks: [{ id: 't1', text: 'Lodge the NOI', before: 800, legal: true }] }) });
+    const soon = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    await call('/doc/budget', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ total: 30000, lines: [{ category: 'Cake', item: 'Cake', quote: 900, paid: 200, due: soon }] }) });
+    const ov = (await (await app.request(`/api/a/w/${wid}/overview`, { headers: { cookie } }, env, ctx)).json()) as { needsYou: { kind: string; title: string; detail: string; link: string }[] };
+    expect(ov.needsYou.find((n) => n.kind === 'plan-overdue')).toMatchObject({ title: 'Overdue: Lodge the NOI', link: 'planner?view=checklist' });
+    expect(ov.needsYou.find((n) => n.kind === 'payments-due')).toMatchObject({ detail: 'Cake $700', link: 'planner?view=budget' });
+  });
+
   it('a stale save is refused with the current version (two people never overwrite each other)', async () => {
     await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [{ text: 'Breakfast' }], p2: [] }) });
     const stale = await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [], p2: [] }) });

@@ -8,6 +8,7 @@ import { buildOverview } from '../admin/overview';
 import type { Env } from '../env';
 import { estimate, sendNow, type EngineDeps } from '../sms/engine';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { plannerNeedsYou } from './planner';
 
 /**
  * Per-wedding admin API (/api/a/w/:wid/...). Every route needs a session and membership;
@@ -94,9 +95,16 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const data = await loadWedding(c.env.DB, wid(c));
     if (!data) return err(c, 404, 'not_found', 'Wedding not found.');
     const w = data.wedding;
+    const now = new Date();
+    const ov = buildOverview(data, now, c.req.query('event') || undefined);
+    // The planner lives with the first event: its reminders show in Account and in that event.
+    const first = data.events[0];
+    if (first && (!ov.focus || ov.focus === first.key)) {
+      ov.needsYou.push(...(await plannerNeedsYou(c.env.DB, wid(c), { key: first.key, starts_at: first.startsAt }, now).catch(() => [])));
+    }
     return c.json({
       wedding: { id: w.id, slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone, adminName: (w.content.adminName as string | undefined) ?? '' },
-      ...buildOverview(data, new Date(), c.req.query('event') || undefined),
+      ...ov,
     });
   });
 

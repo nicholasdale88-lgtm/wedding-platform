@@ -44,6 +44,68 @@ async function members(db: D1Database, weddingId: string) {
   return results.map((r) => ({ personId: r.id, invitationId: r.invitation_id, name: r.name, role: r.party_role, side: sideOf(r.party_role) }));
 }
 
+/**
+ * The planner's part of Overview → Needs you: overdue checklist tasks (legal ones first), payments due in
+ * the next fortnight or overdue, quotes about to lapse, new song requests. They open the Wedding planner
+ * in the first event's section.
+ */
+export async function plannerNeedsYou(db: D1Database, weddingId: string, first: { key: string; starts_at: string } | undefined, now: Date) {
+  if (!first) return [];
+  const day = Date.parse(first.starts_at);
+  const [checklist, budget, vendors, songs] = await Promise.all([
+    readDoc(db, weddingId, 'checklist', ''),
+    readDoc(db, weddingId, 'budget', ''),
+    readDoc(db, weddingId, 'vendors', ''),
+    db.prepare(`SELECT COUNT(*) AS n FROM song_request WHERE wedding_id = ? AND status = 'new' AND invitation_id IS NOT NULL AND deleted_at IS NULL`).bind(weddingId).first<{ n: number }>(),
+  ]);
+  const out: { kind: string; title: string; detail: string; cta: string; link: string; event: string }[] = [];
+  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  const today = iso(now.getTime());
+  const soon = iso(now.getTime() + 14 * 86_400_000);
+  const overdue = Number.isNaN(day) ? [] : checklist.data.tasks.filter((t) => !t.done && day - t.before * 86_400_000 < now.getTime());
+  if (overdue.length) {
+    const legal = overdue.find((t) => t.legal);
+    out.push({
+      kind: 'plan-overdue',
+      title: overdue.length === 1 ? `Overdue: ${overdue[0]!.text}` : `${overdue.length} planning tasks overdue`,
+      detail: legal ? `Including a legal one: ${legal.text}` : overdue.slice(0, 2).map((t) => t.text).join('; '),
+      cta: 'Checklist',
+      link: 'planner?view=checklist',
+      event: first.key,
+    });
+  }
+  const named = new Set(budget.data.lines.map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
+  const due = [
+    ...budget.data.lines.filter((l) => l.due && l.due <= soon && (l.quote || l.estimate) > l.paid).map((l) => ({ what: l.item || l.category, due: l.due, amount: (l.quote || l.estimate) - l.paid })),
+    ...vendors.data.list
+      .filter((v) => v.status === 'booked' && v.balanceDue && v.balanceDue <= soon && !named.has(v.name.trim().toLowerCase()))
+      .map((v) => ({ what: v.name, due: v.balanceDue, amount: commitmentOf(v).amount - (v.depositPaid ? commitmentOf(v).deposit : 0) })),
+  ].filter((p) => p.amount > 0);
+  if (due.length) {
+    const late = due.filter((p) => p.due < today);
+    out.push({
+      kind: 'payments-due',
+      title: late.length ? `${late.length} ${late.length === 1 ? 'payment' : 'payments'} overdue` : `${due.length} ${due.length === 1 ? 'payment' : 'payments'} due in the next fortnight`,
+      detail: due
+        .sort((a, b) => a.due.localeCompare(b.due))
+        .slice(0, 3)
+        .map((p) => `${p.what} $${Math.round(p.amount)}`)
+        .join(', '),
+      cta: 'Budget',
+      link: 'planner?view=budget',
+      event: first.key,
+    });
+  }
+  const lapsing = vendors.data.list.flatMap((v) => (v.status === 'booked' ? [] : v.quotes.filter((q) => q.validUntil && q.validUntil >= today && q.validUntil <= soon).map(() => v.name)));
+  if (lapsing.length) {
+    out.push({ kind: 'quotes-lapsing', title: `${lapsing.length === 1 ? 'A quote runs' : `${lapsing.length} quotes run`} out soon`, detail: [...new Set(lapsing)].join(', '), cta: 'Vendors', link: 'planner?view=vendors', event: first.key });
+  }
+  if (songs?.n) {
+    out.push({ kind: 'songs-new', title: `${songs.n} new song ${songs.n === 1 ? 'request' : 'requests'}`, detail: 'Mark them for the DJ: must play, maybe or don’t play.', cta: 'Music', link: 'planner?view=music', event: first.key });
+  }
+  return out;
+}
+
 export function plannerRoutes() {
   const app = new Hono<AdminEnv>();
   app.use('*', jsonWritesOnly, requireUser, requireMember());
