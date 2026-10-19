@@ -2,6 +2,8 @@ import { zonedToUtc } from '@wp/shared';
 import { Miniflare } from 'miniflare';
 import m0001 from '../../migrations/0001_init.sql?raw';
 import m0002 from '../../migrations/0002_weather.sql?raw';
+import m0003 from '../../migrations/0003_table_shapes.sql?raw';
+import m0004 from '../../migrations/0004_seat_publish.sql?raw';
 import { CAMPAIGNS, phoneOf, SENDER, ADMIN } from './fixture';
 import { TZ } from './fakes';
 
@@ -9,7 +11,7 @@ import { TZ } from './fakes';
 export async function testD1() {
   const mf = new Miniflare({ modules: true, script: 'export default {}', d1Databases: { DB: crypto.randomUUID() } });
   const db = (await mf.getD1Database('DB')) as unknown as D1Database;
-  for (const stmt of [m0001, m0002].flatMap(statements)) await db.prepare(stmt).run();
+  for (const stmt of [m0001, m0002, m0003, m0004].flatMap(statements)) await db.prepare(stmt).run();
   return { db, dispose: () => mf.dispose() };
 }
 
@@ -57,4 +59,23 @@ export async function replyD1(db: D1Database, invitationId: string, eventId: str
     .prepare(`INSERT OR REPLACE INTO rsvp (invitation_id, event_id, attending, count, updated_at) VALUES (?, ?, ?, 1, ?)`)
     .bind(invitationId, eventId, attending ? 1 : 0, at.toISOString())
     .run();
+}
+
+/** Publish every event's saved seating, as Admin → Seating → Publish does (only guests who said yes). */
+export async function publishSeating(db: D1Database) {
+  const { results: events } = await db.prepare(`SELECT id FROM event`).all<{ id: string }>();
+  for (const e of events) {
+    const tables = (await db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats FROM seat_table WHERE event_id = ? AND deleted_at IS NULL`).bind(e.id).all()).results;
+    if (!tables.length) continue;
+    const areas = (await db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ?`).bind(e.id).all()).results;
+    const { results: seated } = await db
+      .prepare(
+        `SELECT p.id, p.table_id FROM person p JOIN seat_table t ON t.id = p.table_id AND t.event_id = ?1
+           JOIN rsvp r ON r.invitation_id = p.invitation_id AND r.event_id = ?1 AND r.attending = 1`,
+      )
+      .bind(e.id)
+      .all<{ id: string; table_id: string }>();
+    const snapshot = { aspect: '4 / 3', tables, areas, seats: Object.fromEntries(seated.map((s) => [s.id, s.table_id])) };
+    await db.prepare(`INSERT OR REPLACE INTO seat_publish (event_id, snapshot, published_at) VALUES (?, ?, ?)`).bind(e.id, JSON.stringify(snapshot), new Date().toISOString()).run();
+  }
 }

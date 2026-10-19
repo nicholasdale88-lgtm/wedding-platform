@@ -8,3 +8,4 @@ export * from './content';
 export * from './generated/invScopes';
 export * from './guide';
 export * from './text';
+export * from './seating';

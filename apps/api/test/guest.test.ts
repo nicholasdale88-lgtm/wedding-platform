@@ -6,7 +6,7 @@ import dynamicTexts from '../../../seed/texts.dynamic.json';
 import type { Env } from '../src/env';
 import { createApp } from '../src/index';
 import { buildSeed } from '../src/seed/build';
-import { testD1 } from './support/d1';
+import { publishSeating, testD1 } from './support/d1';
 
 /** M2: the guest pages' API on the real seed. */
 describe('guest API', () => {
@@ -157,6 +157,9 @@ describe('guest API', () => {
   });
 
   it('guide seating: their tables, and names of only their own table mates', async () => {
+    const before = (await (await get(`/guide?g=${await tokenOf('Margaret Bloor')}&event=wedding`)).json()) as Guide;
+    expect(before.seating).toBeNull(); // nothing for guests until the couple publishes
+    await publishSeating(t.db);
     const p = (await (await get(`/guide?g=${await tokenOf('Margaret Bloor')}&event=wedding`)).json()) as Guide;
     const mine = new Set(p.guest.people.map((x) => x.tableId).filter(Boolean));
     expect(p.seating!.tables.length).toBeGreaterThan(1);

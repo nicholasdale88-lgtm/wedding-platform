@@ -272,3 +272,10 @@ export const weatherCache = sqliteTable('weather_cache', {
   json: text('json').notNull(),
   fetchedAt: text('fetched_at').notNull(),
 });
+
+export const seatPublish = sqliteTable('seat_publish', {
+  eventId: text('event_id').primaryKey(),
+  snapshot: text('snapshot').notNull(),
+  publishedAt: text('published_at').notNull(),
+  publishedBy: text('published_by'),
+});

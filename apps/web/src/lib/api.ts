@@ -1,4 +1,4 @@
-import type { GuideContent, InvitationContent } from '@wp/shared';
+import type { GuideContent, InvitationContent, TableShape } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -262,7 +262,7 @@ export const settingsApi = {
 export interface SeatTable {
   id: string;
   name: string;
-  shape: 'round' | 'long';
+  shape: TableShape;
   dir: 'h' | 'v';
   len: number;
   x: number;
@@ -277,6 +277,8 @@ export interface SeatArea {
   h: number;
 }
 export interface SeatingData {
+  /** The plan guests see; null until first published. changes = edits saved since. */
+  published: { at: string; changes: number } | null;
   version: number;
   event: { key: string; name: string };
   events: { key: string; name: string }[];
@@ -284,7 +286,7 @@ export interface SeatingData {
   planImg: string;
   tables: SeatTable[];
   areas: SeatArea[];
-  people: { id: string; invitationId: string; name: string; diet: string; tableId: string | null; coming: boolean }[];
+  people: { id: string; invitationId: string; name: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
 }
 export interface SeatingSave {
   event: string;
@@ -297,6 +299,7 @@ export interface SeatingSave {
 export const seatingApi = {
   get: (wid: string, event?: string) => request<SeatingData>(`${w(wid)}/seating${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   save: (wid: string, version: number, body: SeatingSave) => send<SeatingData>('PUT', `${w(wid)}/seating`, body, version),
+  publish: (wid: string, version: number, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/publish`, { event }, version),
 };
 
 // ---------------------------------------------------------------- Photos

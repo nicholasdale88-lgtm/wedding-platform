@@ -1,8 +1,10 @@
-import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, splitDiet, textsFor } from '@wp/shared';
+import { dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, splitDiet, textsFor, type TableShape } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
+import { unseatIfNotComing } from '../lib/seatingRules';
+import type { Snapshot as SeatSnapshot } from './seating';
 import { imageType } from '../lib/images';
 import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
 import { forecastFor } from '../lib/weather';
@@ -153,37 +155,40 @@ export function guestRoutes() {
     const guide = guidesOf(json(w.guide, {}), events.map((e) => e.key))[ev.key];
     if (!guide) return err(c, 404, 'not_ready', 'The guide for this event is not ready yet.');
 
-    const [people, rsvp, tables, areas, plan] = await db.batch([
-      db.prepare(`SELECT idx, name, diet, meal_entree, meal_main, meal_dessert, table_id FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(inv.id),
+    const [people, rsvp, pub] = await db.batch([
+      db.prepare(`SELECT id, idx, name, diet, meal_entree, meal_main, meal_dessert FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(inv.id),
       db.prepare(`SELECT attending, answers FROM rsvp WHERE invitation_id = ? AND event_id = ?`).bind(inv.id, ev.id),
-      db.prepare(`SELECT id, name, shape, dir, length_pct, x, y, seats FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
-      db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
-      db.prepare(`SELECT image_key, aspect FROM seat_plan WHERE event_id = ?`).bind(ev.id),
+      db.prepare(`SELECT snapshot FROM seat_publish WHERE event_id = ?`).bind(ev.id),
     ]);
-    type Person = { idx: number; name: string; diet: string; meal_entree: string; meal_main: string; meal_dessert: string; table_id: string | null };
-    type Table = { id: string; name: string; shape: 'round' | 'long'; dir: string; length_pct: number; x: number; y: number; seats: number };
+    type Person = { id: string; idx: number; name: string; diet: string; meal_entree: string; meal_main: string; meal_dessert: string };
     const ppl = people!.results as Person[];
-    const tbl = tables!.results as Table[];
-    const tableIds = new Set(tbl.map((t) => t.id));
-    const mine = [...new Set(ppl.map((p) => p.table_id).filter((id): id is string => !!id && tableIds.has(id)))];
+    const r = rsvp!.results[0] as { attending: number | null; answers: string } | undefined;
+    const coming = r?.attending === 1;
 
-    // Table mates: names only, only at their own tables.
+    // Guests only ever see the *published* seating (Admin → Seating → Publish), and only once they've said yes.
+    const pubRow = pub!.results[0] as { snapshot: string } | undefined;
+    const snap = pubRow ? (JSON.parse(pubRow.snapshot) as SeatSnapshot) : null;
+    const tableOf = (personId: string) => (coming && snap?.seats[personId]) || null;
+    const mine = [...new Set(ppl.map((p) => tableOf(p.id)).filter((id): id is string => !!id))];
+
+    // Table mates: names only, only at their own tables, only people still coming.
     const mates: Record<string, string[]> = {};
-    if (mine.length) {
+    const mateIds = snap ? Object.entries(snap.seats).filter(([pid, tid]) => mine.includes(tid) && !ppl.some((p) => p.id === pid)) : [];
+    if (mateIds.length) {
       const { results } = await db
         .prepare(
-          `SELECT p.table_id, p.name FROM person p JOIN invitation i ON i.id = p.invitation_id
-            WHERE p.table_id IN (${mine.map(() => '?').join(',')}) AND p.invitation_id != ? AND p.deleted_at IS NULL AND i.deleted_at IS NULL
+          `SELECT p.id, p.name FROM person p JOIN invitation i ON i.id = p.invitation_id
+             JOIN rsvp rr ON rr.invitation_id = i.id AND rr.event_id = ? AND rr.attending = 1
+            WHERE p.id IN (${mateIds.map(() => '?').join(',')}) AND p.deleted_at IS NULL AND i.deleted_at IS NULL
             ORDER BY p.name`,
         )
-        .bind(...mine, inv.id)
-        .all<{ table_id: string; name: string }>();
-      for (const r of results) (mates[r.table_id] ??= []).push(r.name);
+        .bind(ev.id, ...mateIds.map(([pid]) => pid))
+        .all<{ id: string; name: string }>();
+      const tableFor = new Map(mateIds);
+      for (const m of results) (mates[tableFor.get(m.id)!] ??= []).push(m.name);
     }
 
-    const r = rsvp!.results[0] as { attending: number | null; answers: string } | undefined;
     const base = (c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '');
-    const planRow = plan!.results[0] as { image_key: string | null; aspect: string } | undefined;
     const weather =
       guide.lat !== undefined && guide.lon !== undefined
         ? await forecastFor(db, { eventId: ev.id, lat: guide.lat, lon: guide.lon, timezone: w.timezone, startsAt: ev.starts_at, times: (guide.runsheet ?? []).map((x) => x.t) }).catch(() => null)
@@ -197,16 +202,16 @@ export function guestRoutes() {
       texts: textsFor(GUIDE_PAGE[guide.style], (content.texts as Record<string, string> | undefined) ?? {}, null),
       guest: {
         token,
-        people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: p.table_id && tableIds.has(p.table_id) ? p.table_id : null, meals: { e: p.meal_entree, m: p.meal_main, d: p.meal_dessert } })),
+        people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: tableOf(p.id), meals: { e: p.meal_entree, m: p.meal_main, d: p.meal_dessert } })),
         attending: r ? (r.attending === null ? null : !!r.attending) : null,
         answers: json<Record<string, string>>(r?.answers, {}),
       },
-      seating: tbl.length
+      seating: snap?.tables.length
         ? {
-            aspect: planRow?.aspect ?? '4 / 3',
-            planImg: planRow?.image_key ? `${base}/api/p/${w.slug}/media/${encodeURIComponent(planRow.image_key)}` : '',
-            tables: tbl.map((t) => ({ id: t.id, name: t.name, shape: t.shape, dir: t.dir, len: t.length_pct, x: t.x, y: t.y })),
-            features: areas!.results as { label: string; x: number; y: number; w: number; h: number }[],
+            aspect: snap.aspect,
+            planImg: '', // plan photos arrive with uploads (R2)
+            tables: snap.tables.map((t) => ({ id: t.id, name: t.name, shape: t.shape as TableShape, dir: t.dir as 'h' | 'v', len: t.len, x: t.x, y: t.y })),
+            features: snap.areas,
           }
         : null,
       mates,
@@ -329,6 +334,7 @@ export function guestRoutes() {
       const parts = splitDiet(r.diet, people.map((p) => p.name));
       people.forEach((p, i) => stmts.push(db.prepare(`UPDATE person SET diet = ? WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(parts[i] ?? '', inv.id, p.idx)));
     }
+    stmts.push(unseatIfNotComing(db, inv.id)); // declined: their seat is freed
     // Bump the version so an admin with this guest open sees "updated elsewhere" instead of overwriting the reply.
     stmts.push(db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(now, inv.id));
     await db.batch(stmts);

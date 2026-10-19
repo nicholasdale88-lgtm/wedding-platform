@@ -1,5 +1,5 @@
 /** Guest API: the invitation, the night-before guides and the photo page. */
-import type { DayoutGuide, Forecast, ReceptionGuide } from '@wp/shared';
+import type { DayoutGuide, Forecast, ReceptionGuide, TableShape } from '@wp/shared';
 
 export interface GuestInvitation {
   token: string;
@@ -46,7 +46,7 @@ export interface GuidePayload {
   seating: {
     aspect: string;
     planImg: string;
-    tables: { id: string; name: string; shape: 'round' | 'long'; dir: string; len: number; x: number; y: number }[];
+    tables: { id: string; name: string; shape: TableShape; dir: 'h' | 'v'; len: number; x: number; y: number }[];
     features: { label: string; x: number; y: number; w: number; h: number }[];
   } | null;
   mates: Record<string, string[]>;

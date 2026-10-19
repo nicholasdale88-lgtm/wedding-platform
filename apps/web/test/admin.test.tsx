@@ -360,13 +360,13 @@ describe('SMS setup tab', () => {
 describe('seating tab', () => {
   const T1 = '11111111-1111-4111-8111-111111111111';
   const seating = {
-    version: 4, event: { key: 'wedding', name: 'The wedding' }, events: [{ key: 'wedding', name: 'The wedding' }], aspect: '4 / 3', planImg: '',
+    version: 4, published: null, event: { key: 'wedding', name: 'The wedding' }, events: [{ key: 'wedding', name: 'The wedding' }], aspect: '4 / 3', planImg: '',
     tables: [{ id: T1, name: '1', shape: 'round', dir: 'h', len: 40, x: 30, y: 30, seats: 4 }],
     areas: [{ label: 'Dance floor', x: 50, y: 50, w: 20, h: 15 }],
     people: [
-      { id: 'p1', invitationId: 'g1', name: 'Robin Hart', diet: 'Nut allergy', tableId: T1, coming: true },
-      { id: 'p2', invitationId: 'g1', name: 'Sam Hart', diet: '', tableId: null, coming: true },
-      { id: 'p3', invitationId: 'g2', name: 'Jo Banks', diet: '', tableId: null, coming: false },
+      { id: 'p1', invitationId: 'g1', name: 'Robin Hart', diet: 'Nut allergy', meal: { e: '', m: '', d: '' }, tableId: T1, coming: true },
+      { id: 'p2', invitationId: 'g1', name: 'Sam Hart', diet: '', meal: { e: '', m: '', d: '' }, tableId: null, coming: true },
+      { id: 'p3', invitationId: 'g2', name: 'Jo Banks', diet: '', meal: { e: '', m: '', d: '' }, tableId: null, coming: false },
     ],
   };
 
@@ -390,15 +390,42 @@ describe('seating tab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
     await waitFor(() => expect(saved?.v).toBe('4'));
     expect(saved!.body.seats).toEqual({ p1: T1, p2: T1, p3: null });
-    expect(await screen.findByText('Seating saved. Guides show it now.')).toBeInTheDocument();
+    expect(await screen.findByText('Saved. Publish when you want guests to see it.')).toBeInTheDocument();
   });
 
-  it('Auto-seat keeps invitations together and fills free seats', async () => {
+  it('Auto-seat seats only guests who said yes, keeping invitations together', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
     renderAt('/admin/w1/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
-    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
-    expect(screen.getByText('Everyone has a seat.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument(); // Jo hasn't replied: not seated
+    expect(screen.getByText('Waiting for a reply (1)')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Jo Banks' })).toBeNull(); // can't be seated until she says yes
+  });
+
+  it('undo and redo every change', async () => {
+    mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
+    renderAt('/admin/w1/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Redo' }));
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+  });
+
+  it('the table type menu changes the selected table (and its usual seats); Save sends every table', async () => {
+    let body: { tables: { id: string; shape: string; seats: number }[] } | null = null;
+    mockApi({
+      '/api/a/w/w1/seating': (init) => {
+        if (init?.method === 'PUT') body = JSON.parse(String(init.body));
+        return json(200, seating);
+      },
+    });
+    renderAt('/admin/w1/seating');
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
+    await userEvent.selectOptions(screen.getByLabelText('Table 1 type'), 'long');
+    await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
+    await waitFor(() => expect(body?.tables[0]).toMatchObject({ id: T1, shape: 'long', seats: 4 })); // 4 was set by hand, so kept
   });
 });
 
@@ -421,5 +448,40 @@ describe('photos tab', () => {
     mockApi({ '/api/a/w/w1/photos': () => json(200, { enabled: false, items: [] }) });
     renderAt('/admin/w1/photos');
     expect(await screen.findByText("Photo storage isn't switched on yet.")).toBeInTheDocument();
+  });
+});
+
+describe('seating publish', () => {
+  const T1 = '11111111-1111-4111-8111-111111111111';
+  const base = {
+    version: 4, event: { key: 'wedding', name: 'The wedding' }, events: [{ key: 'wedding', name: 'The wedding' }], aspect: '4 / 3', planImg: '',
+    tables: [{ id: T1, name: '1', shape: 'round', dir: 'h', len: 40, x: 30, y: 30, seats: 4 }], areas: [],
+    people: [{ id: 'p1', invitationId: 'g1', name: 'Robin Hart', diet: '', meal: { e: '', m: '', d: '' }, tableId: T1, coming: true }],
+  };
+
+  it('not published: says so, and Publish sends the version; afterwards it reads Published', async () => {
+    let v: string | null = null;
+    mockApi({
+      '/api/a/w/w1/seating': () => json(200, { ...base, published: null }),
+      '/api/a/w/w1/seating/publish': (init) => {
+        v = new Headers(init!.headers).get('If-Match');
+        return json(200, { ...base, version: 5, published: { at: '2026-10-19T05:00:00.000Z', changes: 0 } });
+      },
+    });
+    renderAt('/admin/w1/seating');
+    expect(await screen.findByText(/Not published yet/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Publish to guests' }));
+    await waitFor(() => expect(v).toBe('4'));
+    expect(await screen.findByRole('button', { name: 'Published' })).toBeDisabled();
+    expect(screen.getByText(/Guests see exactly this plan/)).toBeInTheDocument();
+  });
+
+  it('saved changes since publishing are counted; publishing waits for unsaved edits to be saved', async () => {
+    mockApi({ '/api/a/w/w1/seating': () => json(200, { ...base, published: { at: '2026-10-19T05:00:00.000Z', changes: 2 } }) });
+    renderAt('/admin/w1/seating');
+    expect(await screen.findByText(/2 saved changes are not live yet/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Line up tables' })); // an unsaved edit
+    expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeDisabled();
   });
 });

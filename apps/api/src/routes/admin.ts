@@ -1,4 +1,5 @@
 import { randomToken, splitDiet, toE164 } from '@wp/shared';
+import { unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -253,6 +254,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       );
     }
     if (tableId !== undefined) stmts.push(db.prepare(`UPDATE person SET table_id = ? WHERE invitation_id = ? AND deleted_at IS NULL`).bind(tableId, invId));
+    if (p.invited || tableId !== undefined) stmts.push(unseatIfNotComing(db, invId)); // not invited any more, or declined
     stmts.push(audit(c, 'guest.edit', invId, p));
     await db.batch(stmts);
     return c.json(await guestJson(c, invId));
@@ -303,6 +305,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       const parts = splitDiet(r.diet, people.map((p) => p.name));
       people.forEach((p, i) => stmts.push(db.prepare(`UPDATE person SET diet = ? WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(parts[i] ?? '', invId, p.idx)));
     }
+    stmts.push(unseatIfNotComing(db, invId)); // declined: their seat is freed
     stmts.push(audit(c, 'guest.rsvp', invId, r));
     await db.batch(stmts);
     return c.json(await guestJson(c, invId));

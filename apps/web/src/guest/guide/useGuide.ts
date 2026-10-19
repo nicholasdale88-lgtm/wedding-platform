@@ -1,4 +1,4 @@
-import type { ReceptionGuide } from '@wp/shared';
+import { STRETCHES, tableBox, type ReceptionGuide } from '@wp/shared';
 import qrcode from 'qrcode-generator';
 import { useMemo, useState } from 'react';
 import type { GuidePayload } from '../invitation/api';
@@ -129,16 +129,17 @@ export function useGuide(data: GuidePayload): ViewValues {
     features: (plan?.features ?? []).map((f) => ({ label: (/entr/i.test(f.label) ? '↓ ' : '') + f.label, left: `${f.x}%`, top: `${f.y}%`, w: `${f.w}%`, h: `${f.h}%` })),
     planTables: tables.map((tb) => {
       const mine = myIds.includes(tb.id);
-      const lg = tb.shape === 'long';
-      const vt = tb.dir === 'v';
+      // Same shapes and proportions as the admin's plan; the guest's own table a little larger.
+      const box = tableBox({ shape: tb.shape, dir: tb.dir, len: tb.len || 40 }, plan?.aspect ?? '4 / 3');
+      const grow = mine && !STRETCHES(tb.shape) ? 1.3 : 1;
       return {
-        rad: lg ? '4px' : '50%',
-        ar: lg ? 'auto' : '1',
-        hh: lg ? (vt ? `${tb.len || 40}%` : mine ? '9%' : '7%') : 'auto',
+        rad: box.radius,
+        ar: 'auto',
+        hh: `${box.h * grow}%`,
         name: tb.name,
         left: `${tb.x}%`,
         top: `${tb.y}%`,
-        size: lg ? (vt ? (mine ? '7%' : '5.5%') : `${tb.len || 40}%`) : mine ? '12%' : '8.5%',
+        size: `${box.w * grow}%`,
         mine,
         bg: mine ? '#33402f' : '#fbf8f2',
         fg: mine ? '#f3ecd6' : '#5b6a52',

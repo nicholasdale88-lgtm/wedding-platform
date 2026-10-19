@@ -38,9 +38,14 @@ export class D1SmsStore implements SmsStore {
       q(`SELECT i.id, i.token, i.phone, i.seats_held, i.sms_optout, o.phone IS NOT NULL AS stopped
            FROM invitation i LEFT JOIN opt_out o ON o.phone = i.phone
           WHERE i.wedding_id = ? AND i.deleted_at IS NULL`),
-      q(`SELECT p.invitation_id, p.name, t.name AS table_name FROM person p
-           JOIN invitation i ON i.id = p.invitation_id
-           LEFT JOIN seat_table t ON t.id = p.table_id AND t.deleted_at IS NULL
+      // {table} comes from the *published* seating (first event that has one), never a draft.
+      q(`SELECT p.invitation_id, p.name,
+                (SELECT json_extract(tb.value, '$.name')
+                   FROM seat_publish sp JOIN event e ON e.id = sp.event_id, json_each(sp.snapshot, '$.tables') tb
+                  WHERE e.wedding_id = i.wedding_id
+                    AND json_extract(tb.value, '$.id') = json_extract(sp.snapshot, '$.seats."' || p.id || '"')
+                  ORDER BY e.sort LIMIT 1) AS table_name
+           FROM person p JOIN invitation i ON i.id = p.invitation_id
           WHERE i.wedding_id = ? AND p.deleted_at IS NULL ORDER BY p.invitation_id, p.idx`),
       q(`SELECT ie.invitation_id, e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id
           WHERE e.wedding_id = ? AND e.deleted_at IS NULL`),

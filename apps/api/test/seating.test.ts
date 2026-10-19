@@ -48,7 +48,7 @@ describe('seating API', () => {
     const s = await get();
     const gone = s.tables[0]!;
     const added: Table = { id: crypto.randomUUID(), name: 'Willow', shape: 'long', dir: 'h', len: 40, x: 50, y: 80, seats: 12 };
-    const someone = s.people.find((p) => p.tableId === gone.id) ?? s.people[0]!;
+    const someone = s.people.find((p) => p.tableId === gone.id) ?? s.people.find((p) => p.coming)!;
     const tables = [...s.tables.slice(1).map((x) => ({ ...x, x: 10 })), added];
     const res = await put(s, { tables, seats: { ...Object.fromEntries(s.people.map((p) => [p.id, p.tableId === gone.id ? null : p.tableId])), [someone.id]: added.id }, areas: [{ label: 'Dance floor', x: 50, y: 50, w: 20, h: 15 }] });
     expect(res.status).toBe(200);
@@ -72,6 +72,65 @@ describe('seating API', () => {
     await t.db.prepare(`UPDATE seat_table SET event_id = (SELECT id FROM event WHERE key = '30th') WHERE id = ?`).bind(other!.id).run(); // now belongs to another event
     const s3 = await get();
     expect((await put(s3, { tables: [...s3.tables, { id: other!.id, name: 'Mine now', shape: 'round', dir: 'h', len: 40, x: 1, y: 1, seats: 8 }] })).status).toBe(400);
+  });
+
+  it('seating follows replies: declining (by the guest or the couple) or being un-invited frees the seat', async () => {
+    const seatedInv = await t.db
+      .prepare(
+        `SELECT i.id, i.token FROM invitation i JOIN person p ON p.invitation_id = i.id JOIN seat_table st ON st.id = p.table_id JOIN event e ON e.id = st.event_id
+          WHERE e.key = 'wedding' AND i.deleted_at IS NULL LIMIT 1`,
+      )
+      .first<{ id: string; token: string }>();
+    const seatedCount = async (id: string) => (await t.db.prepare(`SELECT COUNT(*) AS n FROM person WHERE invitation_id = ? AND table_id IS NOT NULL`).bind(id).first<{ n: number }>())!.n;
+    expect(await seatedCount(seatedInv!.id)).toBeGreaterThan(0);
+
+    // The guest declines on their invitation.
+    await app.request('/api/p/sophie-and-nicholas/rsvp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: seatedInv!.token, events: { wedding: { attending: false } } }) }, env, ctx);
+    expect(await seatedCount(seatedInv!.id)).toBe(0);
+
+    // Seat someone else, then the couple records a decline for them.
+    const s = await get();
+    const other = s.people.find((p) => p.tableId)!;
+    const inv = (await t.db.prepare(`SELECT invitation_id AS id, (SELECT version FROM invitation WHERE id = invitation_id) AS v FROM person WHERE id = ?`).bind(other.id).first<{ id: string; v: number }>())!;
+    await call(`/a/w/${wid}/guests/${inv.id}/rsvp`, { method: 'PUT', headers: { 'If-Match': String(inv.v) }, body: JSON.stringify({ events: { wedding: { attending: false } } }) });
+    expect(await seatedCount(inv.id)).toBe(0);
+    expect((await get()).people.some((p) => p.id === other.id)).toBe(false); // declined: not on the seating list at all
+  });
+
+  it('guests see only the published plan; later changes wait for Publish again', async () => {
+    type Pub = Seating & { published: { at: string; changes: number } | null };
+    const guide = async (token: string) =>
+      (await (await app.request(`/api/p/sophie-and-nicholas/guide?g=${token}&event=wedding`, {}, env, ctx)).json()) as { guest: { people: { tableId: string | null }[] }; seating: { tables: { name: string }[] } | null };
+    const s = (await get()) as Pub;
+    expect(s.published).toBeNull();
+    const seated = s.people.find((p) => p.tableId)!;
+    const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id WHERE p.id = ?`).bind(seated.id).first<{ token: string }>())!.token;
+    expect((await guide(tok)).seating).toBeNull(); // draft only
+
+    const publish = (v: number) => call(`/a/w/${wid}/seating/publish`, { method: 'POST', headers: { 'If-Match': String(v) }, body: JSON.stringify({ event: 'wedding' }) });
+    const p1 = (await (await publish(s.version)).json()) as Pub;
+    expect(p1.published).toMatchObject({ changes: 0 });
+    const g1 = await guide(tok);
+    expect(g1.seating!.tables.length).toBe(s.tables.length);
+    expect(g1.guest.people.some((p) => p.tableId === seated.tableId)).toBe(true);
+
+    // A later edit is saved as a draft: guests still see the published plan.
+    const renamed = s.tables.map((x) => (x.id === seated.tableId ? { ...x, name: 'Renamed' } : x));
+    const saved = (await (await put(p1, { tables: renamed })).json()) as Pub;
+    expect(saved.published!.changes).toBe(1);
+    expect((await guide(tok)).seating!.tables.map((x) => x.name)).not.toContain('Renamed');
+    expect((await publish(saved.version - 1)).status).toBe(409); // stale
+    await publish(saved.version);
+    expect((await guide(tok)).seating!.tables.map((x) => x.name)).toContain('Renamed');
+    expect(((await get()) as Pub).published!.changes).toBe(0);
+  });
+
+  it('only guests who said yes can be seated', async () => {
+    const s = await get();
+    const awaiting = s.people.find((p) => !p.coming)!;
+    const res = await put(s, { seats: { ...Object.fromEntries(s.people.map((p) => [p.id, p.tableId])), [awaiting.id]: s.tables[0]!.id } });
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/said yes/);
   });
 
   it('viewers can look but not change the seating', async () => {
