@@ -70,7 +70,9 @@ describe('guest pages API', () => {
     const p = (await (await call()).json()) as Pages;
     expect((await put({ guides: { brunch: { style: 'reception' } } }, p.version)).status).toBe(400);
     expect((await put({ texts: { 'admin.secret': 'x' } }, p.version)).status).toBe(400);
-    expect((await put({ texts: { '__proto__': 'x' } }, p.version)).status).toBe(400);
+    // Sent as raw text: a JS object literal can't even hold a "__proto__" key.
+    const raw = await call({ method: 'PUT', body: '{"texts":{"__proto__":"x"}}', headers: { 'If-Match': String(p.version) } });
+    expect(raw.status).toBe(400);
     expect((await put({ guides: { wedding: { style: 'reception', runsheet: 'nope' } } }, p.version)).status).toBe(400);
     expect((await put({ texts: { 'inv.x': 'y'.repeat(5000) } }, p.version)).status).toBe(400);
     expect((await put({ nope: 1 }, p.version)).status).toBe(400);
