@@ -11,31 +11,87 @@ interface AdminData {
   overview: Overview | null;
   error: string;
   reload: () => Promise<void>;
+  /** The event the admin is looking at (sidebar switcher); tabs show that event only. */
+  event: string;
+  setEvent: (key: string) => void;
 }
-const Ctx = createContext<AdminData>({ wid: '', overview: null, error: '', reload: async () => {} });
+const Ctx = createContext<AdminData>({ wid: '', overview: null, error: '', reload: async () => {}, event: '', setEvent: () => {} });
 export const useAdmin = () => useContext(Ctx);
+
+const EVENT_KEY = (wid: string) => `wp.admin.event.${wid}`;
+const readEvent = (wid: string) => {
+  try {
+    return localStorage.getItem(EVENT_KEY(wid)) ?? '';
+  } catch {
+    return '';
+  }
+};
 
 export function AdminDataProvider({ wid, children, onSignedOut }: { wid: string; children: ReactNode; onSignedOut: () => void }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState('');
+  const [event, setEventState] = useState(() => readEvent(wid));
+  const setEvent = useCallback(
+    (key: string) => {
+      setEventState(key);
+      try {
+        localStorage.setItem(EVENT_KEY(wid), key);
+      } catch {
+        /* remembered for this visit only */
+      }
+    },
+    [wid],
+  );
   const reload = useCallback(async () => {
     try {
-      setOverview(await api.overview(wid));
+      const o = await api.overview(wid, event || undefined);
+      setOverview(o);
       setError('');
+      // A remembered event that was removed (or none yet): look at the first one.
+      if (o.events.length && !o.events.some((e) => e.key === event)) setEvent(o.events[0]!.key);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return onSignedOut();
       setError((e as Error).message);
     }
-  }, [wid, onSignedOut]);
+  }, [wid, event, setEvent, onSignedOut]);
   useEffect(() => {
     void reload();
   }, [reload]);
   useAutoRefresh(reload); // Overview figures and nav badges stay current
-  return <Ctx.Provider value={{ wid, overview, error, reload }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ wid, overview, error, reload, event, setEvent }}>{children}</Ctx.Provider>;
+}
+
+/** Sidebar: which event the admin is looking at. Only shown when there is more than one. */
+function EventSwitch({ mob }: { mob: boolean }) {
+  const { overview: o, event, setEvent } = useAdmin();
+  if (!o || o.events.length < 2) return null;
+  return (
+    <div role="radiogroup" aria-label="Event" className={`flex gap-1 ${mob ? 'flex-row overflow-x-auto [scrollbar-width:none]' : 'flex-col px-[10px]'}`}>
+      {!mob && <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#cfd8bb] mb-1">Showing</span>}
+      {o.events.map((e) => {
+        const on = e.key === event;
+        return (
+          <button
+            key={e.key}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => setEvent(e.key)}
+            className={`flex-none text-left rounded-[8px] border cursor-pointer ${mob ? 'py-[6px] px-3 text-[13px]' : 'py-2 px-3 text-[14px]'} ${
+              on ? 'bg-[#cfd8bb] text-[#33402f] border-[#cfd8bb]' : 'bg-transparent text-[#f3ecd6] border-[rgba(243,236,214,.35)] hover:border-[#f3ecd6]'
+            }`}
+          >
+            {e.name}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export const TABS = [
   { key: 'overview', label: 'Overview' },
+  { key: 'events', label: 'Events' },
   { key: 'guests', label: 'Guests' },
   { key: 'dietary', label: 'Dietary' },
   { key: 'texts', label: 'SMS' }, // messages and setup together
@@ -75,6 +131,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
           <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#cfd8bb]">RSVP admin</div>
         </div>
+        <EventSwitch mob={mob} />
         <nav aria-label="Admin" className={`flex gap-1 flex-none [scrollbar-width:none] ${mob ? 'flex-row overflow-x-auto' : 'flex-col'}`}>
           {TABS.map((t) => (
             <NavLink

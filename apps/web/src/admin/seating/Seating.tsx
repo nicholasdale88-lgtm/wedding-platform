@@ -23,7 +23,7 @@ const AREAS = ['Dance floor', 'DJ', 'Bar', 'Entrance', 'Balcony', 'Fireplace', '
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export function Seating() {
-  const { wid, overview, reload: reloadOverview } = useAdmin();
+  const { wid, overview, reload: reloadOverview, event: chosen, setEvent } = useAdmin();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [s, setS] = useState<SeatingData | null>(null);
@@ -46,12 +46,12 @@ export function Seating() {
   };
   const load = useCallback(async () => {
     try {
-      apply(await seatingApi.get(wid, params.get('event') ?? undefined));
+      apply(await seatingApi.get(wid, params.get('event') ?? (chosen || undefined))); // the sidebar's event unless a link names one
       setError('');
     } catch (e) {
       setError((e as Error).message);
     }
-  }, [wid, params]);
+  }, [wid, params, chosen]);
   useEffect(() => void load(), [load]);
 
   /** Every change goes through here, so it can be undone. */
@@ -297,7 +297,7 @@ export function Seating() {
         </div>
         <div className="flex gap-2 flex-wrap items-center print:hidden">
           {s.events.length > 1 && (
-            <select value={s.event.key} onChange={(e) => setParams({ event: e.target.value })} aria-label="Event" className={`${inputCls} !py-2`}>
+            <select value={s.event.key} onChange={(e) => { setEvent(e.target.value); setParams({}); }} aria-label="Event" className={`${inputCls} !py-2`}>
               {s.events.map((e) => (
                 <option key={e.key} value={e.key}>
                   {shortLabel(e.name)}

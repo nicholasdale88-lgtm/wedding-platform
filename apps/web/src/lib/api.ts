@@ -112,6 +112,8 @@ export interface Overview {
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
   nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
+  /** The event these figures are about (the admin's event switcher), or null for all. */
+  focus?: string | null;
 }
 
 export interface GuestPatch {
@@ -136,7 +138,7 @@ export const api = {
   login: (email: string, passcode: string) => send<Me>('POST', '/a/auth/login', { email, passcode }),
   logout: () => send<{ ok: true }>('POST', '/a/auth/logout'),
 
-  overview: (wid: string) => request<Overview>(`${w(wid)}/overview`),
+  overview: (wid: string, event?: string) => request<Overview>(`${w(wid)}/overview${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   guests: (wid: string) => request<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> }>(`${w(wid)}/guests`),
   guest: (wid: string, id: string) => request<GuestDetail>(`${w(wid)}/guests/${id}`),
   addGuest: (wid: string) => send<GuestDetail>('POST', `${w(wid)}/guests`),
@@ -328,3 +330,42 @@ export interface ImportResult {
   skipped: { row: number; name: string; reason: string }[];
   problems: { row: number; name: string; reason: string }[];
 }
+
+// ---------------------------------------------------------------- Events
+
+export interface EventQuestion {
+  key: string;
+  label: string;
+  type: 'choice' | 'text';
+  options?: string[];
+}
+export interface EventFull {
+  id: string;
+  key: string;
+  name: string;
+  pendingLabel: string;
+  startsAt: string;
+  venue: string;
+  address: string;
+  mapUrl: string;
+  catered: boolean;
+  hasSeating: boolean;
+  questions: EventQuestion[];
+  sort: number;
+  version: number;
+  invited: number;
+  coming: number;
+}
+export type EventFields = Omit<EventFull, 'id' | 'key' | 'version' | 'invited' | 'coming'>;
+export interface EventsData {
+  timezone: string;
+  events: EventFull[];
+}
+
+export const eventsApi = {
+  list: (wid: string) => request<EventsData>(`${w(wid)}/events`),
+  add: (wid: string, body: Partial<EventFields> & { name: string; startsAt: string; inviteEveryone?: boolean }) =>
+    send<{ events: EventFull[]; added: string }>('POST', `${w(wid)}/events`, body),
+  save: (wid: string, id: string, version: number, body: Partial<EventFields>) => send<{ events: EventFull[] }>('PUT', `${w(wid)}/events/${id}`, body, version),
+  remove: (wid: string, id: string, version: number) => send<{ events: EventFull[] }>('DELETE', `${w(wid)}/events/${id}`, {}, version),
+};

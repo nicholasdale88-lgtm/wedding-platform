@@ -7,6 +7,7 @@ import { guestRoutes } from './routes/guest';
 import { hookRoutes } from './routes/hooks';
 import { pagesRoutes } from './routes/pages';
 import { photoRoutes } from './routes/photos';
+import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
 import { settingsRoutes } from './routes/settings';
 import { textRoutes } from './routes/texts';
@@ -25,6 +26,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/settings', settingsRoutes(deps));
   app.route('/a/w/:wid/seating', seatingRoutes());
   app.route('/a/w/:wid/photos', photoRoutes());
+  app.route('/a/w/:wid/events', eventRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
   app.route('/p/:slug', guestRoutes());
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));

@@ -24,7 +24,7 @@ const shortName = (name: string) => name.replace(/^the\s+/i, '').replace(/^\w/, 
 const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s));
 
 export function GuestPages() {
-  const { wid } = useAdmin();
+  const { wid, event: chosen } = useAdmin();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const wide = useMedia('(min-width: 1100px)');
@@ -108,10 +108,12 @@ export function GuestPages() {
   const pages = useMemo(() => {
     if (!data) return [];
     const list: { key: PageKey; label: string }[] = [{ key: 'invitation', label: 'Invitation' }];
-    for (const e of data.events) if (doc?.guides[e.key]) list.push({ key: `guide:${e.key}`, label: `Night before: ${shortName(e.name)}` });
+    // The invitation and photo page are shared; the night-before guide is the sidebar's event's.
+    const one = data.events.some((e) => e.key === chosen);
+    for (const e of data.events) if (doc?.guides[e.key] && (!one || e.key === chosen)) list.push({ key: `guide:${e.key}`, label: `Night before: ${shortName(e.name)}` });
     list.push({ key: 'photos', label: 'Photo page' });
     return list;
-  }, [data, doc]);
+  }, [data, doc, chosen]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? 'invitation') as PageKey;
   const eventKey = page.startsWith('guide:') ? page.slice(6) : null;
 

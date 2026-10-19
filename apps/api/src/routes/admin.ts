@@ -94,7 +94,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const w = data.wedding;
     return c.json({
       wedding: { id: w.id, slug: w.slug, name1: w.name1, name2: w.name2, timezone: w.timezone, adminName: (w.content.adminName as string | undefined) ?? '' },
-      ...buildOverview(data, new Date()),
+      ...buildOverview(data, new Date(), c.req.query('event') || undefined),
     });
   });
 

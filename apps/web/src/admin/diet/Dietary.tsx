@@ -16,7 +16,7 @@ import { Eyebrow, inputCls, Pill, useAutoRefresh, useToast } from '../ui';
 const coming = (g: Guest, e: EventInfo) => g.invited.includes(e.key) && g.rsvp[e.key]?.attending === true;
 
 export function Dietary() {
-  const { wid, overview } = useAdmin();
+  const { wid, overview, event: chosen } = useAdmin();
   const navigate = useNavigate();
   const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[] } | null>(null);
   const [error, setError] = useState('');
@@ -35,28 +35,33 @@ export function Dietary() {
   const slug = overview?.wedding.slug ?? 'wedding';
   const view = useMemo(() => {
     if (!data) return null;
-    const people = data.guests.flatMap((g) => g.people.map((p) => ({ g, p })));
+    // The sidebar's event: only people coming to it, and their messages about it.
+    const focus = data.events.find((e) => e.key === chosen);
+    const people = focus
+      ? data.guests.filter((g) => coming(g, focus)).flatMap((g) => g.people.slice(0, Math.max(1, g.rsvp[focus.key]?.count ?? g.people.length)).map((p) => ({ g, p })))
+      : data.guests.flatMap((g) => g.people.map((p) => ({ g, p })));
     const withDiet = people.filter(({ p }) => p.diet.trim());
     const counts = new Map<string, number>();
     for (const { p } of withDiet) for (const c of dietCategories(p.diet)) counts.set(c, (counts.get(c) ?? 0) + 1);
     const notes = data.guests.flatMap((g) => {
-      const m = Object.values(g.rsvp).map((r) => r.message.trim()).find(Boolean);
+      const m = (focus ? [g.rsvp[focus.key]?.message ?? ''] : Object.values(g.rsvp).map((r) => r.message)).map((x) => x.trim()).find(Boolean);
       return m ? [{ g, m }] : [];
     });
-    return { withDiet, counts, notes };
-  }, [data]);
+    return { withDiet, counts, notes, focus };
+  }, [data, chosen]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!data || !view) return <div aria-busy="true" className="text-[#5b6a52]">Loading dietary needs…</div>;
 
   const open = (g: Guest) => navigate(`/admin/${wid}/guests?g=${g.id}`);
-  const catered = data.events.filter((e) => e.catered);
+  const shown = view.focus ? [view.focus] : data.events;
+  const catered = shown.filter((e) => e.catered);
   const mealEvent = catered.find((e) => e.hasSeating) ?? catered[0];
 
   const exportAll = () =>
     downloadCsv(fileName(slug, 'dietary'), [
-      ['Name', 'Dietary', 'Serious', 'Table', ...data.events.map((e) => `Coming to ${shortLabel(e.name)}`)],
-      ...view.withDiet.map(({ g, p }) => [p.name, p.diet, isSerious(p.diet) ? 'Yes' : '', p.table ?? '', ...data.events.map((e) => (coming(g, e) ? 'Yes' : ''))]),
+      ['Name', 'Dietary', 'Serious', 'Table', ...shown.map((e) => `Coming to ${shortLabel(e.name)}`)],
+      ...view.withDiet.map(({ g, p }) => [p.name, p.diet, isSerious(p.diet) ? 'Yes' : '', p.table ?? '', ...shown.map((e) => (coming(g, e) ? 'Yes' : ''))]),
     ]);
   const exportEvent = (e: EventInfo) =>
     downloadCsv(fileName(slug, `${e.key}-caterer`), [

@@ -20,7 +20,7 @@ function mockApi(extra: Record<string, (init?: RequestInit) => Response> = {}) {
   };
   vi.stubGlobal('fetch', async (path: string, init?: RequestInit) => {
     calls.push({ path, init });
-    const key = Object.keys(routes).find((k) => k === path) ?? '';
+    const key = Object.keys(routes).find((k) => k === path) ?? Object.keys(routes).find((k) => k === path.split('?')[0]) ?? '';
     if (!routes[key]) throw new Error(`unexpected ${path}`);
     return routes[key]!(init);
   });
@@ -205,13 +205,16 @@ describe('guest pages tab', () => {
     ],
   };
 
-  it('lists every guest page and previews the real page in preview mode', async () => {
+  it('lists the guest pages for the event being looked at and previews the real page in preview mode', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
     renderAt('/admin/w1/pages');
     expect(await screen.findByRole('heading', { name: 'What your guests see' })).toBeInTheDocument();
-    for (const name of ['Invitation', 'Night before: Wedding', 'Night before: Recovery brunch', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'The wedding' })).toHaveAttribute('aria-checked', 'true'));
+    for (const name of ['Invitation', 'Night before: Wedding', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Night before: Recovery brunch' })).toBeNull(); // the other event's guide is one flip away
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
-    await userEvent.click(screen.getByRole('button', { name: 'Night before: Recovery brunch' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Recovery brunch' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Night before: Recovery brunch' }));
     // A stand-in guest by default; only guests invited to the brunch can be picked for its guide.
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/tomorrow/brunch?preview=1');
     expect(screen.getByRole('option', { name: 'A sample guest' })).toBeInTheDocument();

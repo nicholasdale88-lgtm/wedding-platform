@@ -74,7 +74,7 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     const texto = c.env.SMS_PROVIDER === 'texto';
     // Texto: guests can only text back to a dedicated number (about $15 a month), kept until the last event is over.
     if (texto) {
-      const last = await c.env.DB.prepare(`SELECT MAX(starts_at) AS at FROM event WHERE wedding_id = ?`).bind(w.id).first<{ at: string | null }>();
+      const last = await c.env.DB.prepare(`SELECT MAX(starts_at) AS at FROM event WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w.id).first<{ at: string | null }>();
       const months = Math.max(1, Math.ceil(((last?.at ? Date.parse(last.at) : Date.now()) - Date.now()) / (30.44 * 86_400_000)) + 1);
       plan.push({ name: 'Reply number (Texto)', detail: `About $15 a month × ${months} ${months === 1 ? 'month' : 'months'}, until after your last event`, costCents: TEXTO_NUMBER_MONTHLY_CENTS * months, auto: true, fixed: true });
     }

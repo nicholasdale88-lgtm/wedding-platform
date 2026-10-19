@@ -29,6 +29,8 @@ export interface Overview {
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
   nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
+  /** The event this overview is about (null: all of them). */
+  focus: string | null;
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -44,15 +46,20 @@ const hasMeal = (p: AdminPerson) => !!(p.meal.entree.trim() || p.meal.main.trim(
 /** "The wedding" -> "wedding", "Alex's 30th" -> "Alex's 30th" (for "N wedding guests not seated"). */
 const shortName = (e: AdminEvent) => e.name.replace(/^the\s+/i, '').replace(/^\w/, (c) => c.toLowerCase());
 
-export function buildOverview(d: WeddingData, now: Date): Overview {
-  const G = d.guests;
+/**
+ * With an event key, everything is about that one event (the admin's event switcher): only guests
+ * invited to it, their replies to it, its dietary list and seating, and the days until it.
+ */
+export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Overview {
+  const focus = d.events.find((e) => e.key === focusKey) ?? null;
+  const G = focus ? d.guests.filter((g) => g.invited.includes(focus.key)) : d.guests;
   const tz = d.wedding.timezone;
-  const awaitingG = G.filter(isAwaiting);
-  const yesInv = G.filter(attendingAny).length;
+  const awaitingG = G.filter(focus ? (g: AdminGuest) => (g.rsvp[focus.key]?.attending ?? null) === null : isAwaiting);
+  const yesInv = G.filter(focus ? (g: AdminGuest) => attends(g, focus.key) : attendingAny).length;
   const replied = G.length - awaitingG.length;
-  const first = d.events[0];
-  const seatedEvent = d.events.find((e) => e.hasSeating) ?? first;
-  const cateredEvent = d.events.find((e) => e.catered) ?? first;
+  const first = focus ?? d.events[0];
+  const seatedEvent = focus ?? d.events.find((e) => e.hasSeating) ?? first;
+  const cateredEvent = focus ? (focus.catered ? focus : undefined) : (d.events.find((e) => e.catered) ?? first);
 
   // Dietary: people coming to the catered (first) event who have a requirement.
   const cateredPeople = cateredEvent ? G.flatMap((g) => comingPeople(g, cateredEvent.key)) : [];
@@ -171,8 +178,9 @@ export function buildOverview(d: WeddingData, now: Date): Overview {
     needsYou,
     nextUp,
     latest,
+    focus: focus?.key ?? null,
     nav: {
-      guests: G.length,
+      guests: d.guests.length,
       dietary: dietPeople.length,
       autopilot: d.campaigns.filter((c) => c.enabled && c.mode !== 'manual').length,
       smsLive: !!d.wedding.sender,

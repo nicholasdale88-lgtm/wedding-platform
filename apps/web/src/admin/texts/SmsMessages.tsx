@@ -11,7 +11,7 @@ import { Eyebrow, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui'
  * Replies from guests are above; what has been sent is at the bottom.
  */
 export function SmsMessages() {
-  const { wid, reload: reloadOverview } = useAdmin();
+  const { wid, reload: reloadOverview, event: chosen } = useAdmin();
   const toast = useToast();
   const [data, setData] = useState<TextsData | null>(null);
   const [error, setError] = useState('');
@@ -123,7 +123,8 @@ export function SmsMessages() {
       </section>
 
       {STAGES.map((stage) => {
-        const list = data.campaigns.filter((c) => stageOf(c) === stage.key);
+        // The sidebar's event: its own messages, plus those that go to everyone.
+        const list = data.campaigns.filter((c) => stageOf(c) === stage.key && forEvent(c, chosen, data.events));
         if (!list.length) return null;
         return (
           <section key={stage.key} className="flex flex-col">
@@ -526,3 +527,10 @@ function InvitesFrom({ data, onChanged }: { data: TextsData; onChanged: () => Pr
     </div>
   );
 }
+
+/** The event a message is aimed at (by who receives it), or null when it goes to guests of every event. */
+export const eventOf = (c: Pick<Campaign, 'audience'>): string | null => c.audience.invitedTo ?? c.audience.attending ?? c.audience.answer?.event ?? null;
+const forEvent = (c: Pick<Campaign, 'audience'>, chosen: string, events: { key: string }[]) => {
+  const e = eventOf(c);
+  return !e || !events.some((x) => x.key === chosen) || e === chosen;
+};

@@ -16,7 +16,7 @@ const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'sort'
 
 /** design/RSVP Admin.dc.html → Guests. Filters live in the address bar, so they survive a reload and can be shared. */
 export function Guests() {
-  const { wid, overview, reload: reloadOverview } = useAdmin();
+  const { wid, overview, reload: reloadOverview, event: chosen } = useAdmin();
   const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
   const toast = useToast();
   const mob = useMedia('(max-width: 759px)');
@@ -51,9 +51,12 @@ export function Guests() {
   };
   const open = params.get('g');
 
-  const events = data?.events ?? [];
-  const guests = data?.guests ?? [];
-  const shown = useMemo(() => (data ? applyFilters(data.guests, data.events, state) : []), [data, params]);
+  // The guest list is joint by default; "just this event" narrows it to the sidebar's event.
+  const focusEv = data?.events.find((e) => e.key === chosen);
+  const one = params.get('show') === 'event' && !!focusEv;
+  const events = one ? [focusEv!] : (data?.events ?? []);
+  const guests = (data?.guests ?? []).filter((g) => !one || g.invited.includes(focusEv!.key));
+  const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]); // eslint-disable-line react-hooks/exhaustive-deps
   const quick = quickFilters(events);
   const drops = dropdowns(events);
   const anyFilter = FILTER_KEYS.some((k) => k !== 'sort' && k !== 'filter' && state[k]) || state.filter !== 'all';
@@ -106,8 +109,38 @@ export function Guests() {
         </div>
       </header>
 
-      {importing && data && <ImportGuests events={events} onClose={() => setImporting(false)} onDone={changed} />}
+      {importing && data && <ImportGuests events={data.events} onClose={() => setImporting(false)} onDone={changed} />}
       {manual && data && <ManualSend guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
+
+      {data && data.events.length > 1 && focusEv && (
+        <div role="radiogroup" aria-label="Guest list" className="flex gap-2 flex-wrap">
+          {(
+            [
+              ['', 'Everyone (all events)'],
+              ['event', `Just ${focusEv.name}`],
+            ] as const
+          ).map(([v, label]) => {
+            const on = (v === 'event') === one;
+            return (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                onClick={() => {
+                  const next = new URLSearchParams(params);
+                  if (v) next.set('show', v);
+                  else next.delete('show');
+                  setParams(next, { replace: true });
+                }}
+                className={`py-2 px-4 rounded-full border text-[14px] cursor-pointer ${on ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex gap-3 flex-wrap items-center">
         <input

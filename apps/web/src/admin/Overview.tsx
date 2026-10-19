@@ -16,10 +16,12 @@ export function Overview() {
   if (error) return <p role="alert" className="text-[#8a5a45]">{error}</p>;
   if (!o) return <div aria-busy="true" className="min-h-[60vh]" />;
   const tz = o.wedding.timezone;
-  const firstEvent = o.events[0];
+  // The event switcher: figures are about the event being looked at.
+  const shown = o.focus ? o.events.filter((e) => e.key === o.focus) : o.events;
+  const firstEvent = shown[0];
 
   const figures = [
-    ...o.events.map((e) => ({ label: shortLabel(e.name), val: e.coming, sub: 'guests coming', link: `guests?filter=attending:${e.key}` })),
+    ...shown.map((e) => ({ label: shortLabel(e.name), val: e.coming, sub: 'guests coming', link: `guests?filter=attending:${e.key}` })),
     { label: 'Awaiting', val: o.awaiting, sub: 'invitations to reply', link: 'guests?filter=awaiting' },
     { label: 'Dietary', val: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, link: 'dietary' },
   ];
