@@ -3,3 +3,4 @@ export * from './tokens';
 export * from './time';
 export * from './sms';
 export * from './templates';
+export * from './diet';

@@ -3,7 +3,7 @@
  * Pure and couple-agnostic: everything specific comes from the JSON.
  * Events: the first event takes the prototype's "W" fields, the second its "B" fields.
  */
-import { randomToken, segments, toE164, zonedToUtc } from '@wp/shared';
+import { attachDiet, randomToken, segments, toE164, zonedToUtc } from '@wp/shared';
 import { z } from 'zod';
 import type { Audience } from '../sms/types';
 
@@ -88,15 +88,6 @@ const TRIGGERS: Record<string, 'invitation_created' | 'rsvp_changed'> = { invite
 
 /** "The wedding" -> "the wedding"; other names are used as written. */
 const pendingLabel = (name: string) => (/^the\s/i.test(name) ? 'the' + name.slice(3) : name);
-
-const firstName = (s: string) => s.trim().split(/\s+/)[0] ?? s;
-
-/** README rule: a dietary note that names someone attaches to them, otherwise to the main contact. */
-function attachDiet(diet: string, people: string[]): number {
-  if (!diet.trim()) return -1;
-  const i = people.findIndex((p) => new RegExp(`\\b${firstName(p).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(diet));
-  return i >= 0 ? i : 0;
-}
 
 export function buildSeed(input: unknown, o: SeedOptions): Statement[] {
   const seed = SeedFile.parse(input);

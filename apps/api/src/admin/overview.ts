@@ -1,0 +1,191 @@
+import { isSerious, localParts } from '@wp/shared';
+import type { AdminEvent, AdminGuest, AdminPerson, WeddingData } from './data';
+
+/**
+ * Overview and "Needs you", computed on the server so it is always right (docs/04).
+ * Wording follows design/RSVP Admin.dc.html; nothing couple-specific is written here.
+ */
+
+export interface NeedsYou {
+  kind: string;
+  title: string;
+  detail: string;
+  cta: string;
+  /** Admin route to open, relative to /admin/:wid/ (e.g. "guests?filter=awaiting"). */
+  link: string;
+}
+
+export interface Overview {
+  total: number;
+  replied: number;
+  awaiting: number;
+  yesInv: number;
+  noInv: number;
+  seatsHeld: number;
+  events: { key: string; name: string; startsAt: string; coming: number }[];
+  diet: { people: number; serious: number; mealsSet: number };
+  daysToGo: number | null;
+  needsYou: NeedsYou[];
+  nextUp: { campaignId: string; name: string; sendAt: string }[];
+  latest: { id: string; name: string; at: string; summary: string; message: string }[];
+  nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export const isAwaiting = (g: AdminGuest) => g.invited.some((k) => (g.rsvp[k]?.attending ?? null) === null);
+export const attendingAny = (g: AdminGuest) => g.invited.some((k) => g.rsvp[k]?.attending === true);
+export const attends = (g: AdminGuest, key: string) => g.invited.includes(key) && g.rsvp[key]?.attending === true;
+/** People coming to an event: the first N on the invitation, N = their reply count. */
+export const comingPeople = (g: AdminGuest, key: string): AdminPerson[] =>
+  attends(g, key) ? g.people.slice(0, Math.max(1, g.rsvp[key]?.count ?? 1)) : [];
+const hasMeal = (p: AdminPerson) => !!(p.meal.entree.trim() || p.meal.main.trim() || p.meal.dessert.trim());
+/** "The wedding" -> "wedding", "Alex's 30th" -> "Alex's 30th" (for "N wedding guests not seated"). */
+const shortName = (e: AdminEvent) => e.name.replace(/^the\s+/i, '').replace(/^\w/, (c) => c.toLowerCase());
+
+export function buildOverview(d: WeddingData, now: Date): Overview {
+  const G = d.guests;
+  const tz = d.wedding.timezone;
+  const awaitingG = G.filter(isAwaiting);
+  const yesInv = G.filter(attendingAny).length;
+  const replied = G.length - awaitingG.length;
+  const first = d.events[0];
+  const seatedEvent = d.events.find((e) => e.hasSeating) ?? first;
+  const cateredEvent = d.events.find((e) => e.catered) ?? first;
+
+  // Dietary: people coming to the catered (first) event who have a requirement.
+  const cateredPeople = cateredEvent ? G.flatMap((g) => comingPeople(g, cateredEvent.key)) : [];
+  const dietPeople = cateredPeople.filter((p) => p.diet.trim());
+  const mealsSet = dietPeople.filter(hasMeal).length;
+
+  const day = (iso: string) => {
+    const p = localParts(new Date(iso), tz);
+    return `${p.day} ${MONTHS[p.month - 1]}`;
+  };
+
+  const needsYou: NeedsYou[] = [];
+  const add = (cond: unknown, item: NeedsYou) => {
+    if (cond) needsYou.push(item);
+  };
+
+  add(!d.wedding.sender, {
+    kind: 'sms-setup', title: 'Texts are not set up yet', detail: 'Add your Mobile Message number so texts really send.', cta: 'Set up', link: 'settings',
+  });
+  add(d.inboxNeedsYou, {
+    kind: 'inbox', title: d.inboxNeedsYou === 1 ? '1 reply needs you' : `${d.inboxNeedsYou} replies need you`,
+    detail: 'Guests texted a question back.', cta: 'Read', link: 'texts',
+  });
+
+  // Upcoming reminder dates: dated, enabled campaigns aimed at guests still to reply.
+  const reminderIds = new Set(d.campaigns.filter((c) => c.enabled && c.mode === 'dates' && /"awaitingAny":true/.test(c.audience)).map((c) => c.id));
+  const reminderDates = d.slots
+    .filter((s) => reminderIds.has(s.campaignId) && s.status === 'pending' && s.sendAt > now.toISOString())
+    .map((s) => s.sendAt)
+    .sort();
+  add(awaitingG.length, {
+    kind: 'awaiting', title: `${plural(awaitingG.length, 'invitation', 'invitations')} still to reply`,
+    detail: reminderDates.length
+      ? `Reminders go out by themselves on ${listJoin(reminderDates.map(day))}.`
+      : 'No reminder texts are scheduled.',
+    cta: 'See who', link: 'guests?filter=awaiting',
+  });
+
+  const noPhone = G.filter((g) => !g.phone).length;
+  add(noPhone, {
+    kind: 'no-mobile', title: `${noPhone} ${noPhone === 1 ? 'invitation has' : 'invitations have'} no mobile`,
+    detail: 'They will not get texts. Add a number or send their link another way.', cta: 'Fix', link: 'guests?mob=none',
+  });
+
+  const byPhone = new Map<string, string[]>();
+  for (const g of G) if (g.phone) byPhone.set(g.phone, [...(byPhone.get(g.phone) ?? []), g.people[0]?.name ?? '']);
+  const shared = [...byPhone.values()].filter((names) => names.length > 1);
+  add(shared.length, {
+    kind: 'shared-mobile', title: `${shared.length} shared ${shared.length === 1 ? 'mobile' : 'mobiles'}`,
+    detail: `${shared.slice(0, 2).map((n) => n.join(' & ')).join(', ')}. They would get the same texts twice.`, cta: 'Check', link: 'guests',
+  });
+
+  if (seatedEvent?.hasSeating) {
+    const unseated = G.flatMap((g) => comingPeople(g, seatedEvent.key)).filter((p) => !p.table).length;
+    add(unseated, {
+      kind: 'unseated', title: `${unseated} ${shortName(seatedEvent)} guests not seated`,
+      detail: 'Everyone sees their table and tablemates on the night-before guide.', cta: 'Seat', link: 'seating',
+    });
+  }
+
+  const noMeal = dietPeople.length - mealsSet;
+  add(noMeal, {
+    kind: 'meals', title: `${noMeal} dietary ${noMeal === 1 ? 'meal' : 'meals'} not set`,
+    detail: 'Tell each guest what the kitchen will serve them.', cta: 'Set meals', link: 'dietary',
+  });
+
+  const menu = (d.wedding.guide.menu as { a?: string; b?: string }[] | undefined) ?? [];
+  add(menu.some((m) => /to be confirmed/i.test(`${m.a ?? ''} ${m.b ?? ''}`)), {
+    kind: 'menu', title: 'Menu still to confirm', detail: 'The night-before guide shows "To be confirmed".', cta: 'Edit', link: 'pages',
+  });
+
+  const failed = d.slots.filter((s) => s.status === 'failed' || s.status === 'cancelled');
+  add(failed.length, {
+    kind: 'sms-failed', title: `${failed.length} scheduled ${failed.length === 1 ? 'text' : 'texts'} did not send`,
+    detail: failed[0]?.lastError ?? 'Open Texts to see why.', cta: 'See texts', link: 'texts',
+  });
+
+  const nextUp = d.campaigns
+    .filter((c) => c.enabled && c.mode === 'dates')
+    .flatMap((c) => {
+      const next = d.slots.filter((s) => s.campaignId === c.id && s.status === 'pending' && s.sendAt > now.toISOString()).map((s) => s.sendAt).sort()[0];
+      return next ? [{ campaignId: c.id, name: c.name, sendAt: next }] : [];
+    })
+    .sort((a, b) => a.sendAt.localeCompare(b.sendAt))
+    .slice(0, 5);
+
+  const reply = (g: AdminGuest, k: string) => {
+    const a = g.rsvp[k]?.attending;
+    return a === true ? 'Attending' : a === false ? 'Declined' : 'Awaiting';
+  };
+  const latest = G.filter((g) => g.repliedAt)
+    .sort((a, b) => b.repliedAt!.localeCompare(a.repliedAt!))
+    .slice(0, 6)
+    .map((g) => {
+      const diet = g.people.map((p) => p.diet.trim()).filter(Boolean).join('; ');
+      const parts = d.events.filter((e) => g.invited.includes(e.key)).map((e) => `${shortLabel(e)}: ${reply(g, e.key)}`);
+      return {
+        id: g.id, name: g.people[0]?.name ?? '', at: g.repliedAt!, summary: [...parts, diet].filter(Boolean).join(' · '),
+        message: Object.values(g.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '',
+      };
+    });
+
+  return {
+    total: G.length,
+    replied,
+    awaiting: awaitingG.length,
+    yesInv,
+    noInv: replied - yesInv,
+    seatsHeld: G.reduce((n, g) => n + g.seatsHeld, 0),
+    events: d.events.map((e) => ({
+      key: e.key, name: e.name, startsAt: e.startsAt,
+      coming: G.reduce((n, g) => n + (attends(g, e.key) ? Math.max(1, g.rsvp[e.key]?.count ?? 1) : 0), 0),
+    })),
+    diet: { people: dietPeople.length, serious: dietPeople.filter((p) => isSerious(p.diet)).length, mealsSet },
+    daysToGo: first ? Math.max(0, Math.ceil((Date.parse(first.startsAt) - now.getTime()) / 86_400_000)) : null,
+    needsYou,
+    nextUp,
+    latest,
+    nav: {
+      guests: G.length,
+      dietary: dietPeople.length,
+      autopilot: d.campaigns.filter((c) => c.enabled && c.mode !== 'manual').length,
+      smsLive: !!d.wedding.sender,
+    },
+  };
+}
+
+/** "Wedding" for "The wedding"; other event names as written. */
+export const shortLabel = (e: { name: string }) => {
+  const n = e.name.replace(/^the\s+/i, '');
+  return n.charAt(0).toUpperCase() + n.slice(1);
+};
+
+function listJoin(xs: string[]): string {
+  return xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`;
+}

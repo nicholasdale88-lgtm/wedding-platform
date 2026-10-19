@@ -66,7 +66,8 @@ export class D1SmsStore implements SmsStore {
       const r = byId.get(x.invitation_id);
       if (!r) continue;
       r.rsvp[x.key] = { attending: x.attending === null ? null : !!x.attending, count: x.count, answers: parseJson(x.answers, {}) };
-      if (!r.rsvpUpdatedAt || x.updated_at > r.rsvpUpdatedAt) r.rsvpUpdatedAt = x.updated_at;
+      // Only real answers count as "replied" (a count or note on an unanswered event must not trigger a thank-you).
+      if (x.attending !== null && (!r.rsvpUpdatedAt || x.updated_at > r.rsvpUpdatedAt)) r.rsvpUpdatedAt = x.updated_at;
     }
     return {
       events: (events!.results as EventRow[]).map((e): EventInfo => ({ id: e.id, key: e.key, name: e.name, pendingLabel: e.pending_label, sort: e.sort })),
