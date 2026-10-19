@@ -7,7 +7,7 @@
 
 import { applyLook, type LookKey } from './looks';
 
-export type FilterKey = 'none' | 'names' | 'seal' | 'frame' | 'number' | 'polaroid' | 'stamp' | 'sprig' | 'hashtag';
+export type FilterKey = 'none' | 'names' | 'seal' | 'frame' | 'number' | 'polaroid' | 'stamp' | 'sprig' | 'hashtag' | 'balloons' | 'confetti' | 'cheers' | 'snapshot' | 'partytag' | 'bdayframe';
 
 export interface FilterInfo {
   /** "The wedding", "Alex's 30th" */
@@ -25,12 +25,45 @@ export interface FilterInfo {
   slot: number;
 }
 
-export const FILTER_LABEL: Record<FilterKey, string> = { none: 'No frame', names: 'Names', seal: 'Wax seal', frame: 'Frame', number: 'Birthday', polaroid: 'Polaroid', stamp: 'Date stamp', sprig: 'Botanical', hashtag: 'Hashtag' };
+export const FILTER_LABEL: Record<FilterKey, string> = {
+  none: 'No frame',
+  names: 'Names',
+  seal: 'Wax seal',
+  frame: 'Frame',
+  number: 'Big number',
+  polaroid: 'Polaroid',
+  stamp: 'Date stamp',
+  sprig: 'Botanical',
+  hashtag: 'Hashtag',
+  balloons: 'Balloons',
+  confetti: 'Confetti',
+  cheers: 'Cheers',
+  snapshot: 'Polaroid',
+  partytag: 'Hashtag',
+  bdayframe: 'Frame',
+};
+/** The birthday's frames (its own, so choosing them never changes the wedding's). */
+export const BIRTHDAY_FRAMES: FilterKey[] = ['number', 'balloons', 'confetti', 'cheers', 'snapshot', 'partytag', 'bdayframe'];
+export const WEDDING_FRAMES: FilterKey[] = ['names', 'polaroid', 'seal', 'sprig', 'frame', 'stamp', 'hashtag'];
+/** A birthday (the second celebration, with an age in its name: "Alex's 30th"). */
+export const isBirthday = (info: Pick<FilterInfo, 'slot' | 'title'>) => info.slot === 1 && /\d/.test(info.title);
+/** "Alex's 30th" → the age ("30th", "30") and whose it is ("Alex"). */
+const age = (title: string) => {
+  const m = /(\d+)(st|nd|rd|th)?/i.exec(title);
+  return { n: m?.[1] ?? '', nth: m ? `${m[1]}${m[2] ?? ''}` : '', who: title.split(/['’]s\b|\s/)[0]?.trim() ?? '' };
+};
+/**
+ * The frames the couple offers for this event: what they chose, or (until they choose any of this
+ * event's frames) all of them.
+ */
+export function framesOn(all: FilterKey[], chosen: string[] | undefined): FilterKey[] {
+  if (!chosen || !all.some((k) => chosen.includes(k))) return all;
+  return all.filter((k) => chosen.includes(k));
+}
 
 /** The filters an event offers, best first. */
 export function filtersFor(info: Pick<FilterInfo, 'slot' | 'title'>): FilterKey[] {
-  const hasNumber = info.slot === 1 && /\d/.test(info.title);
-  return hasNumber ? ['none', 'number', 'names', 'polaroid', 'stamp', 'frame', 'hashtag'] : ['none', 'names', 'polaroid', 'seal', 'sprig', 'frame', 'stamp', 'hashtag'];
+  return ['none', ...(isBirthday(info) ? BIRTHDAY_FRAMES : WEDDING_FRAMES)];
 }
 
 const SCRIPT = '"Pinyon Script", "Snell Roundhand", cursive';
@@ -181,6 +214,132 @@ export function drawFilter(g: CanvasRenderingContext2D, w: number, h: number, ke
     g.fillStyle = info.ink;
     g.textAlign = 'left';
     g.fillText(tag, x + ph / 2, y + ph * 0.68);
+  }
+
+  if (key === 'balloons') {
+    // A bunch of balloons in the corner, strings trailing; the event and date across the foot.
+    const { nth } = age(info.title);
+    const colours = [info.gold, info.ink, '#e8d9b5', '#c9d4e6', info.gold];
+    const spots: [number, number, number][] = [
+      [0.8, 0.13, 0.085],
+      [0.9, 0.2, 0.075],
+      [0.7, 0.21, 0.07],
+      [0.83, 0.3, 0.065],
+      [0.93, 0.07, 0.06],
+    ];
+    spots.forEach(([fx, fy, fr], i) => {
+      const x = w * fx;
+      const y = u * fy + u * 0.03;
+      const r = u * fr;
+      g.strokeStyle = 'rgba(255,255,255,.75)';
+      g.lineWidth = Math.max(1, u * 0.002);
+      g.beginPath();
+      g.moveTo(x, y + r * 1.15);
+      g.quadraticCurveTo(x - r * 0.6, y + r * 2.2, x - r * 0.2, y + r * 3.4);
+      g.stroke();
+      const grad = g.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r * 1.15);
+      grad.addColorStop(0, 'rgba(255,255,255,.85)');
+      grad.addColorStop(0.35, colours[i % colours.length]!);
+      grad.addColorStop(1, colours[i % colours.length]!);
+      g.fillStyle = grad;
+      g.beginPath();
+      g.ellipse(x, y, r * 0.9, r * 1.12, 0, 0, Math.PI * 2);
+      g.fill();
+    });
+    const band = g.createLinearGradient(0, h * 0.72, 0, h);
+    band.addColorStop(0, 'rgba(0,0,0,0)');
+    band.addColorStop(1, 'rgba(0,0,0,.55)');
+    g.fillStyle = band;
+    g.fillRect(0, h * 0.72, w, h * 0.28);
+    g.fillStyle = '#ffffff';
+    fitText(g, `Happy ${nth}!`, (px) => `${px}px ${SCRIPT}`, w * 0.8, Math.round(u * 0.11));
+    g.fillText(`Happy ${nth}!`, w / 2, h - u * 0.11);
+    small(g, `${info.title} · ${info.date}`, w / 2, h - u * 0.045, u, w);
+  }
+
+  if (key === 'confetti') {
+    // Confetti falling across the top and bottom edges, "Happy 30th" across the middle of the foot.
+    const { nth, who } = age(info.title);
+    const colours = [info.gold, '#ffffff', '#c9d4e6', info.ink, '#e8d9b5'];
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 90; i++) {
+      const top = i % 2 === 0;
+      const x = rnd() * w;
+      const y = top ? rnd() * h * 0.22 : h - rnd() * h * 0.12;
+      g.save();
+      g.translate(x, y);
+      g.rotate(rnd() * Math.PI);
+      g.fillStyle = colours[i % colours.length]!;
+      g.globalAlpha = 0.9;
+      if (i % 3 === 0) {
+        g.beginPath();
+        g.arc(0, 0, u * 0.008, 0, Math.PI * 2);
+        g.fill();
+      } else g.fillRect(-u * 0.012, -u * 0.004, u * 0.024, u * 0.008);
+      g.restore();
+    }
+    g.fillStyle = '#ffffff';
+    g.shadowColor = 'rgba(0,0,0,.45)';
+    g.shadowBlur = u * 0.015;
+    fitText(g, `Happy ${nth}${who ? `, ${who}` : ''}`, (px) => `${px}px ${SCRIPT}`, w * 0.86, Math.round(u * 0.1));
+    g.fillText(`Happy ${nth}${who ? `, ${who}` : ''}`, w / 2, h - u * 0.15);
+    g.shadowBlur = 0;
+  }
+
+  if (key === 'cheers') {
+    // "Cheers to 30 years", big, over a dark band, with the date.
+    const { n, who } = age(info.title);
+    const band = g.createLinearGradient(0, h * 0.6, 0, h);
+    band.addColorStop(0, 'rgba(20,24,36,0)');
+    band.addColorStop(1, 'rgba(20,24,36,.75)');
+    g.fillStyle = band;
+    g.fillRect(0, h * 0.6, w, h * 0.4);
+    g.fillStyle = info.gold;
+    small(g, 'CHEERS TO', w / 2, h - u * 0.26, u, w);
+    g.fillStyle = '#ffffff';
+    fitText(g, `${n} years`, (px) => `${px}px ${SCRIPT}`, w * 0.8, Math.round(u * 0.14));
+    g.fillText(`${n} years`, w / 2, h - u * 0.12);
+    g.fillStyle = '#e6d79e';
+    small(g, `${who ? `${who.toUpperCase()} · ` : ''}${info.date}`, w / 2, h - u * 0.05, u, w);
+  }
+
+  if (key === 'snapshot') {
+    // An instant photo with the birthday written on it.
+    const m = u * 0.045;
+    const foot = u * 0.2;
+    g.fillStyle = '#fbfaf6';
+    g.fillRect(0, 0, w, m);
+    g.fillRect(0, 0, m, h);
+    g.fillRect(w - m, 0, m, h);
+    g.fillRect(0, h - foot, w, foot);
+    g.fillStyle = info.ink;
+    fitText(g, info.title, (px) => `${px}px ${SCRIPT}`, w * 0.8, Math.round(foot * 0.5));
+    g.fillText(info.title, w / 2, h - foot * 0.42);
+    g.fillStyle = 'rgba(0,0,0,.55)';
+    fitText(g, info.date, (px) => `italic ${px}px ${SERIF}`, w * 0.8, Math.round(foot * 0.17));
+    g.fillText(info.date, w / 2, h - foot * 0.14);
+  }
+
+  if (key === 'partytag') {
+    const { n, who } = age(info.title);
+    const tag = `#${who.replace(/[^A-Za-z0-9]/g, '')}${n}`;
+    g.font = `600 ${Math.round(u * 0.05)}px ${SERIF}`;
+    const tw = g.measureText(tag).width;
+    const ph = u * 0.08;
+    const x = u * 0.05;
+    const y = h - u * 0.05 - ph;
+    g.fillStyle = info.ink;
+    g.beginPath();
+    g.roundRect(x, y, tw + ph, ph, ph / 2);
+    g.fill();
+    g.fillStyle = '#ffffff';
+    g.textAlign = 'left';
+    g.fillText(tag, x + ph / 2, y + ph * 0.68);
+  }
+
+  if (key === 'bdayframe') {
+    drawFilter(g, w, h, 'frame', info);
   }
 
   if (key === 'number') {

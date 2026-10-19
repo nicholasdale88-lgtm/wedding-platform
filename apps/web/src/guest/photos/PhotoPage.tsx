@@ -8,7 +8,7 @@ import { PhotoUploadView } from '../generated/PhotoUploadView';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, type PhotoEvent, type PhotoPagePayload } from '../invitation/api';
 import { assetOf, setPageClass } from '../guide/common';
-import { FILTER_LABEL, filterFontsReady, filtersFor, renderPhoto, type FilterInfo, type FilterKey } from './filters';
+import { FILTER_LABEL, filterFontsReady, filtersFor, framesOn, renderPhoto, type FilterInfo, type FilterKey } from './filters';
 import { isLook, isVideo, LOOK_KEYS, LOOKS, MAX_VIDEO_MB, type LookKey } from './looks';
 import { SnapCam } from './SnapCam';
 
@@ -145,7 +145,8 @@ export function PhotoPage() {
   }, [page, ev]);
   // The couple's choice of frames (no frame is always there) and looks.
   const offered = page?.looks;
-  const filters = (info ? filtersFor(info) : (['none'] as FilterKey[])).filter((f) => f === 'none' || !offered?.frames || offered.frames.includes(f));
+  // This event's frames (the birthday has its own), as the couple chose them.
+  const filters: FilterKey[] = info ? ['none', ...framesOn(filtersFor(info).filter((f) => f !== 'none'), offered?.frames)] : ['none'];
   const lookKeys = LOOK_KEYS.filter((k) => k === 'original' || !offered?.looks || offered.looks.includes(k));
   const [filter, setFilter] = useState<FilterKey>('none');
   const [look, setLook] = useState<LookKey>('original');
