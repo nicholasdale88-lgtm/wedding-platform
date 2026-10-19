@@ -75,6 +75,8 @@ export interface PhotoPagePayload {
   name: string;
   linked: boolean;
   open: boolean;
+  /** The couple has shared the album (everyone's photos). */
+  album?: boolean;
   texts: Record<string, string>;
 }
 

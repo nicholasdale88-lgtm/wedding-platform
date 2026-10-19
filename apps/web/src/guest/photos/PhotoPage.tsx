@@ -211,6 +211,15 @@ export function PhotoPage() {
       <div className="dz">
         <PhotoUploadView v={v} t={t} />
       </div>
+      {page.album && token && (
+        <a
+          href={`/w/${encodeURIComponent(slug)}/album?g=${encodeURIComponent(token)}`}
+          className="fixed z-40 top-[max(14px,env(safe-area-inset-top))] right-4 py-[9px] px-4 rounded-full text-[16px] no-underline shadow-[0_6px_18px_rgba(30,30,30,.2)]"
+          style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", background: info?.ink ?? '#33402f', color: '#fbf8f2' }}
+        >
+          See everyone’s photos
+        </a>
+      )}
       {/* The camera and the event's filters, over the design's page. */}
       <input
         ref={camRef}

@@ -284,6 +284,8 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       name: who?.name ?? '',
       linked: !!who,
       open: !!who && (await canStore(c.env, w.id)),
+      // The couple has shared the album: guests can see everyone's photos (/w/:slug/album).
+      album: !!who && content.albumShared === true,
       texts: textsFor('ph', (content.texts as Record<string, string> | undefined) ?? {}, null),
     });
   });
