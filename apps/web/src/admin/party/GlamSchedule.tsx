@@ -1,5 +1,30 @@
-import { clockText, glamSchedule, type Glam, type GlamPerson } from '@wp/shared';
+import { clockMinutes, clockText, glamSchedule, type Glam, type GlamPerson } from '@wp/shared';
+import { useState } from 'react';
 import { H2, inputCls, Pill } from '../ui';
+
+/** Minutes, typed freely and kept between 10 and 240 once you leave the box. */
+function Mins({ value, onValue, label, disabled }: { value: number; onValue: (n: number) => void; label: string; disabled: boolean }) {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      aria-label={label}
+      min={10}
+      max={240}
+      step={5}
+      disabled={disabled}
+      value={text ?? String(value)}
+      onFocus={() => setText(String(value))}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        onValue(Math.max(10, Math.min(240, Number(text) || value)));
+        setText(null);
+      }}
+      className={`${inputCls} !py-1 w-[64px]`}
+    />
+  );
+}
 
 const newId = () => crypto.randomUUID().slice(0, 10);
 const span = (x?: [number, number]) => (x ? `${clockText(x[0])}–${clockText(x[1])}` : '—');
@@ -11,6 +36,8 @@ const span = (x?: [number, number]) => (x ? `${clockText(x[0])}–${clockText(x[
  */
 export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: Glam, now?: boolean) => void; names: string[]; star: string }) {
   const s = glamSchedule(glam);
+  // Without a ready-by time there's nothing to count back from: show lengths, not clock times.
+  const timed = clockMinutes(glam.finish) !== null;
   const setP = (id: string, p: Partial<GlamPerson>, now = false) => set({ ...glam, people: glam.people.map((x) => (x.id === id ? { ...x, ...p } : x)) }, now);
   const add = (who: string, last = false) => ({ id: newId(), who, hair: true, makeup: true, hairMins: last ? 60 : 45, makeupMins: last ? 60 : 45, last });
   const missing = [star, ...names].filter((n) => n && !glam.people.some((p) => p.who.toLowerCase() === n.toLowerCase()));
@@ -25,8 +52,15 @@ export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: 
         </div>
         {glam.people.length > 0 && (
           <span className="text-[14px]">
-            Start at <strong className="font-semibold">{clockText(s.start)}</strong>
-            {glam.finish ? '' : ' (set a ready-by time)'}
+            {timed ? (
+              <>
+                Start at <strong className="font-semibold">{clockText(s.start)}</strong>
+              </>
+            ) : (
+              <>
+                About <strong className="font-semibold">{Math.round((s.end - s.start) / 60 * 10) / 10} hours</strong> in all · set a ready-by time for the start times
+              </>
+            )}
           </span>
         )}
       </div>
@@ -66,19 +100,19 @@ export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: 
                     </td>
                     <td className="py-2 pr-2">
                       <label className="flex items-center gap-1">
-                        <input type="checkbox" checked={p.hair} onChange={(e) => setP(p.id, { hair: e.target.checked }, true)} className="accent-[#5d6b47]" />
-                        <input type="number" aria-label={`${p.who} hair minutes`} min={10} max={240} step={5} value={p.hairMins} disabled={!p.hair} onChange={(e) => setP(p.id, { hairMins: Math.max(10, Math.min(240, Number(e.target.value) || 45)) })} className={`${inputCls} !py-1 w-[64px]`} />
+                        <input type="checkbox" aria-label={`${p.who}: hair`} checked={p.hair} onChange={(e) => setP(p.id, { hair: e.target.checked }, true)} className="accent-[#5d6b47]" />
+                        <Mins label={`${p.who} hair minutes`} value={p.hairMins} disabled={!p.hair} onValue={(n) => setP(p.id, { hairMins: n }, true)} />
                         min
                       </label>
-                      <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.hair ? span(r?.hair) : ''}</span>
+                      <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.hair && timed ? span(r?.hair) : ''}</span>
                     </td>
                     <td className="py-2 pr-2">
                       <label className="flex items-center gap-1">
-                        <input type="checkbox" checked={p.makeup} onChange={(e) => setP(p.id, { makeup: e.target.checked }, true)} className="accent-[#5d6b47]" />
-                        <input type="number" aria-label={`${p.who} makeup minutes`} min={10} max={240} step={5} value={p.makeupMins} disabled={!p.makeup} onChange={(e) => setP(p.id, { makeupMins: Math.max(10, Math.min(240, Number(e.target.value) || 45)) })} className={`${inputCls} !py-1 w-[64px]`} />
+                        <input type="checkbox" aria-label={`${p.who}: makeup`} checked={p.makeup} onChange={(e) => setP(p.id, { makeup: e.target.checked }, true)} className="accent-[#5d6b47]" />
+                        <Mins label={`${p.who} makeup minutes`} value={p.makeupMins} disabled={!p.makeup} onValue={(n) => setP(p.id, { makeupMins: n }, true)} />
                         min
                       </label>
-                      <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.makeup ? span(r?.makeup) : ''}</span>
+                      <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.makeup && timed ? span(r?.makeup) : ''}</span>
                     </td>
                     <td className="py-2 pr-2">
                       <input type="checkbox" aria-label={`${p.who} goes last`} checked={p.last} onChange={(e) => setP(p.id, { last: e.target.checked }, true)} className="mt-2 accent-[#b39563]" />

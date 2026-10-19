@@ -14,7 +14,23 @@ import { readDoc } from './planner';
  */
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-const fold = (line: string) => line.match(/.{1,74}/g)?.join('\r\n ') ?? line;
+/** Lines over 75 characters are folded (by whole characters, so nothing is cut in half). */
+const fold = (line: string) => {
+  const rows: string[] = [];
+  let cur = '';
+  let n = 0;
+  for (const ch of line) {
+    if (n === 72) {
+      rows.push(cur);
+      cur = '';
+      n = 0;
+    }
+    cur += ch;
+    n++;
+  }
+  rows.push(cur);
+  return rows.join('\r\n ');
+};
 const ymd = (d: string) => d.replace(/-/g, '');
 const DAY = 86_400_000;
 
@@ -44,8 +60,7 @@ export function plannerCalendarFeed() {
   app.get('/:wid/:file', async (c) => {
     const wid = c.req.param('wid');
     const key = c.req.param('file').replace(/\.ics$/, '');
-    const ip = c.req.header('CF-Connecting-IP') ?? 'local';
-    if (!(await allow(c.env.DB, `cal:${ip}`, 120, 3_600_000))) return c.text('Slow down', 429);
+    if (!(await allow(c.env.DB, `cal:${wid}`, 240, 3_600_000))) return c.text('Slow down', 429);
     const db = c.env.DB;
     const w = await db.prepare(`SELECT name1, name2, timezone, content FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(wid).first<{ name1: string; name2: string; timezone: string; content: string }>();
     const stored = w ? await keyOf(db, wid) : '';

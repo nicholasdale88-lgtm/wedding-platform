@@ -80,6 +80,10 @@ export function photoLinkRoutes() {
   /** Stop copying there. Photos already copied stay in their storage (they're theirs). */
   app.delete('/:id', writer, async (c) => {
     const id = c.req.param('id');
+    // Planning files kept there can only be opened through the link: keep it until they're moved.
+    const files = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM planner_file WHERE wedding_id = ? AND deleted_at IS NULL AND remote LIKE ?`).bind(wid(c), `link:${id}:%`).first<{ n: number }>();
+    if (files?.n) return err(c, 400, 'has_files', `${files.n} planning ${files.n === 1 ? 'file is' : 'files are'} kept there (quotes, contracts). Download ${files.n === 1 ? 'it' : 'them'} from the planner first, or keep the link.`);
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_remove(content, '$.docsLink') WHERE id = ? AND json_valid(content) AND json_extract(content, '$.docsLink') = ?`).bind(wid(c), id).run();
     const res = await c.env.DB.prepare(`UPDATE photo_link SET deleted_at = ? WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(new Date().toISOString(), id, wid(c)).run();
     if (!res.meta.changes) return err(c, 404, 'not_found', 'That link is already gone.');
     await c.env.DB.batch([c.env.DB.prepare(`DELETE FROM photo_copy WHERE link_id = ? AND status != 'done'`).bind(id), audit(c, 'photos.unlink', id)]);

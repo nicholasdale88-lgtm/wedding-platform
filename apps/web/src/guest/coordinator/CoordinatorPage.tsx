@@ -1,5 +1,5 @@
 import { clockMinutes } from '@wp/shared';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
 
@@ -40,6 +40,8 @@ export function CoordinatorPage() {
   const [d, setD] = useState<Data | null>(null);
   const [err, setErr] = useState('');
   const [note, setNote] = useState('');
+  const [problem, setProblem] = useState('');
+  const loaded = useRef(false);
   const [now, setNow] = useState(() => Date.now());
   const load = () =>
     fetch(`/api/p/${encodeURIComponent(slug)}/coordinator?k=${encodeURIComponent(k)}`)
@@ -47,8 +49,14 @@ export function CoordinatorPage() {
         const b = (await r.json()) as Data & { error?: { message: string } };
         if (!r.ok) throw new Error(b.error?.message ?? 'This link isn’t working.');
         setD(b);
+        loaded.current = true;
+        setProblem('');
       })
-      .catch((e: Error) => setErr(e.message));
+      // Once the page is up, a dropped connection is a note, not the end of the page.
+      .catch((e: Error) => {
+        if (loaded.current) setProblem('Can’t reach the site just now: showing what you had.');
+        else setErr(e.message);
+      });
   useEffect(() => {
     void load();
     const t = setInterval(() => {
@@ -65,9 +73,10 @@ export function CoordinatorPage() {
       const r = await fetch(`/api/p/${encodeURIComponent(slug)}/coordinator`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, ...body }) });
       const b = (await r.json()) as { log?: Data['log']; error?: { message: string } };
       if (!r.ok || !b.log) throw new Error(b.error?.message ?? 'That didn’t save.');
-      setD({ ...d, log: b.log });
+      setD((cur) => (cur ? { ...cur, log: b.log! } : cur));
+      setProblem('');
     } catch (e) {
-      setErr((e as Error).message);
+      setProblem((e as Error).message);
     }
   };
   // What's on now: the latest line that has started today.
@@ -95,6 +104,11 @@ export function CoordinatorPage() {
       </header>
 
       <div className="max-w-[720px] mx-auto px-4 flex flex-col gap-6 pt-4">
+        {problem && (
+          <p role="alert" className="m-0 p-3 rounded-[12px] text-[14px]" style={{ background: '#f4dcd2', color: '#7a4a37' }}>
+            {problem}
+          </p>
+        )}
         {d.event && (
           <section className="flex flex-col gap-1">
             <h1 className="m-0 text-[24px] font-semibold">{d.event.name}</h1>

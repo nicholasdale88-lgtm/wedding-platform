@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
-import { openPhoto } from '../photos/store';
+import { mediaResponse, openPhoto } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -79,11 +79,9 @@ export function albumGuestRoutes() {
       .bind(c.req.param('id'), g.w.id)
       .first<{ key: string; content_type: string; event_key: string | null }>();
     if (!row || (row.event_key && !g.events.some((e) => e.key === row.event_key))) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    const res = await openPhoto(c.env, g.w.id, row.key);
+    const res = await openPhoto(c.env, g.w.id, row.key, c.req.header('Range'));
     if (!res?.ok || !res.body) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    return new Response(res.body, {
-      headers: { 'content-type': row.content_type, 'cache-control': 'private, max-age=86400', 'content-security-policy': "default-src 'none'", 'x-content-type-options': 'nosniff' },
-    });
+    return mediaResponse(res, row.content_type);
   });
   return app;
 }

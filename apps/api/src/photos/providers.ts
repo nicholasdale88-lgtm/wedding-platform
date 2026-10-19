@@ -37,7 +37,8 @@ export interface Provider {
   /** Makes (or finds) the folder or album called `name`; returns its id. */
   folder(token: string, name: string, root: string): Promise<string>;
   upload(token: string, u: Upload): Promise<string>;
-  download(token: string, id: string): Promise<Response>;
+  /** The file (or the part asked for with a Range header, for videos). */
+  download(token: string, id: string, range?: string): Promise<Response>;
 }
 
 export class ProviderError extends Error {
@@ -171,7 +172,7 @@ const gdrive: Provider = {
     );
     return r.id;
   },
-  download: async (token, id) => ok(await fetch(`${DRIVE}/files/${encodeURIComponent(id)}?alt=media`, { headers: bearer(token) }), 'Opening the photo'),
+  download: async (token, id, range) => ok(await fetch(`${DRIVE}/files/${encodeURIComponent(id)}?alt=media`, { headers: bearer(token, range ? { range } : {}) }), 'Opening the photo'),
 };
 
 const PHOTOS = 'https://photoslibrary.googleapis.com/v1';
@@ -208,9 +209,10 @@ const gphotos: Provider = {
     if (!item?.mediaItem?.id) throw new ProviderError(502, `Google Photos did not take it: ${item?.status?.message ?? 'no reason given'}`);
     return item.mediaItem.id;
   },
-  async download(token, id) {
-    const item = await json<{ baseUrl: string }>(await fetch(`${PHOTOS}/mediaItems/${encodeURIComponent(id)}`, { headers: bearer(token) }), 'Opening the photo');
-    return ok(await fetch(`${item.baseUrl}=d`), 'Opening the photo');
+  async download(token, id, range) {
+    const item = await json<{ baseUrl: string; mimeType?: string }>(await fetch(`${PHOTOS}/mediaItems/${encodeURIComponent(id)}`, { headers: bearer(token) }), 'Opening the photo');
+    // Photos download with "=d"; videos with "=dv".
+    return ok(await fetch(`${item.baseUrl}=${(item.mimeType ?? '').startsWith('video/') ? 'dv' : 'd'}`, range ? { headers: { range } } : undefined), 'Opening the photo');
   },
 };
 
@@ -257,8 +259,8 @@ const dropbox: Provider = {
     );
     return r.id;
   },
-  download: async (token, id) =>
-    ok(await fetch('https://content.dropboxapi.com/2/files/download', { method: 'POST', headers: bearer(token, { 'Dropbox-API-Arg': dbxArg({ path: id }) }) }), 'Opening the photo'),
+  download: async (token, id, range) =>
+    ok(await fetch('https://content.dropboxapi.com/2/files/download', { method: 'POST', headers: bearer(token, { 'Dropbox-API-Arg': dbxArg({ path: id }), ...(range ? { range } : {}) }) }), 'Opening the photo'),
 };
 
 // ---------------------------------------------------------------- OneDrive (Microsoft Graph)
@@ -302,7 +304,7 @@ const onedrive: Provider = {
     );
     return r.id;
   },
-  download: async (token, id) => ok(await fetch(`${GRAPH}/me/drive/items/${encodeURIComponent(id)}/content`, { headers: bearer(token) }), 'Opening the photo'),
+  download: async (token, id, range) => ok(await fetch(`${GRAPH}/me/drive/items/${encodeURIComponent(id)}/content`, { headers: bearer(token, range ? { range } : {}) }), 'Opening the photo'),
 };
 
 export const PROVIDER: Record<ProviderKey, Provider> = { gdrive, gphotos, dropbox, onedrive };

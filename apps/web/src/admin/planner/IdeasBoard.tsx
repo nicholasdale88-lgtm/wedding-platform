@@ -59,7 +59,7 @@ export function IdeasBoard() {
         setBusy((n) => n - 1);
       }
     }
-    if (added.length) live.set({ ...d, pins: [...added, ...d.pins] }, true);
+    if (added.length) live.update((cur) => ({ ...cur, pins: [...added, ...cur.pins] }), true);
   };
   const theme = paletteOf(overview?.wedding.theme ?? '');
   const palette = d.palette.length ? d.palette : [theme.paper, theme.soft, theme.accent, theme.ink];

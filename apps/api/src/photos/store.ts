@@ -182,22 +182,47 @@ export const linkKey = (key: string) => {
 };
 
 /** The photo itself, from R2 or from the linked storage that holds it. */
-export async function openPhoto(env: Env, weddingId: string, key: string): Promise<Response | null> {
+export async function openPhoto(env: Env, weddingId: string, key: string, range?: string): Promise<Response | null> {
   const lk = linkKey(key);
   if (!lk) {
-    const obj = await env.MEDIA?.get(key);
-    return obj ? new Response(obj.body) : null;
+    const asked = range && /^bytes=\d*-\d*$/.test(range) ? range : undefined;
+    const obj = await env.MEDIA?.get(key, asked ? { range: new Headers({ range: asked }) } : undefined);
+    if (!obj || !('body' in obj)) return null;
+    // A part (for video players), or the whole file.
+    const r = obj.range as { offset?: number; length?: number; suffix?: number } | undefined;
+    if (asked && r && typeof obj.size === 'number') {
+      const start = r.suffix !== undefined ? obj.size - r.suffix : (r.offset ?? 0);
+      const length = r.suffix !== undefined ? r.suffix : (r.length ?? obj.size - start);
+      return new Response(obj.body, { status: 206, headers: { 'content-range': `bytes ${start}-${start + length - 1}/${obj.size}`, 'content-length': String(length) } });
+    }
+    return new Response(obj.body, typeof obj.size === 'number' ? { headers: { 'content-length': String(obj.size) } } : undefined);
   }
   const link = await env.DB.prepare(`SELECT id, wedding_id, provider, account, refresh_enc, folders FROM photo_link WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`)
     .bind(lk.linkId, weddingId)
     .first<LinkRow>();
   if (!link) return null;
   try {
-    return await PROVIDER[link.provider].download(await accessFor(env, link), lk.remoteId);
+    return await PROVIDER[link.provider].download(await accessFor(env, link), lk.remoteId, range);
   } catch (e) {
     if (e instanceof ProviderError && e.status === 401) forget(link);
     return null;
   }
+}
+
+/** A photo or video as the browser should get it: whole or the part asked for, never run as a page. */
+export function mediaResponse(res: Response, type: string): Response {
+  const h: Record<string, string> = {
+    'content-type': type,
+    'accept-ranges': 'bytes',
+    'cache-control': 'private, max-age=86400',
+    'content-security-policy': "default-src 'none'",
+    'x-content-type-options': 'nosniff',
+  };
+  const cr = res.headers.get('content-range');
+  const len = res.headers.get('content-length');
+  if (cr) h['content-range'] = cr;
+  if (len) h['content-length'] = len;
+  return new Response(res.body, { status: res.status === 206 ? 206 : 200, headers: h });
 }
 
 export interface NewPhoto {

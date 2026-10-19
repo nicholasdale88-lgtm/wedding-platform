@@ -106,8 +106,11 @@ export function coordinatorPageRoutes() {
     const ok = await check(c, b.data.k);
     if (!ok) return c.json({ error: { code: 'no_link', message: 'This link isn’t working.' } }, 404);
     if (!(await allow(c.env.DB, `coord-log:${ok.w.id}`, 300, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a minute.' } }, 429);
+    if (b.data.action === 'add' && (await readDoc(c.env.DB, ok.w.id, 'coord-log', '')).data.entries.length >= 200) {
+      return c.json({ error: { code: 'full', message: 'The log is full (200 notes). Tick off or clear some first.' } }, 400);
+    }
     const saved = await changeDoc(c.env.DB, ok.w.id, 'coord-log', '', (d) => {
-      if (b.data.action === 'add' && b.data.text && d.entries.length < 200) d.entries.unshift({ id: crypto.randomUUID().slice(0, 10), at: new Date().toISOString(), text: b.data.text, done: false });
+      if (b.data.action === 'add' && b.data.text) d.entries.unshift({ id: crypto.randomUUID().slice(0, 10), at: new Date().toISOString(), text: b.data.text, done: false });
       else {
         const e = d.entries.find((x) => x.id === b.data.id);
         if (e) e.done = b.data.action === 'done';

@@ -34,8 +34,8 @@ export function insightsRoutes() {
       ).bind(w),
       db.prepare(`SELECT COUNT(*) AS n, SUM(opened_at IS NOT NULL) AS opened FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w),
       db.prepare(
-        `SELECT substr(r.updated_at, 1, 10) AS day, COUNT(*) AS n FROM rsvp r JOIN invitation i ON i.id = r.invitation_id AND i.wedding_id = ? AND i.deleted_at IS NULL
-          WHERE r.attending IS NOT NULL GROUP BY day ORDER BY day`,
+        `SELECT substr(r.updated_at, 1, 10) AS day, COUNT(*) AS n FROM rsvp r JOIN invitation i ON i.id = r.invitation_id AND i.wedding_id = ?1 AND i.deleted_at IS NULL
+          WHERE r.attending IS NOT NULL AND r.event_id = (SELECT id FROM event WHERE wedding_id = ?1 AND deleted_at IS NULL ORDER BY sort LIMIT 1) GROUP BY day ORDER BY day`,
       ).bind(w),
       db.prepare(
         `SELECT CASE WHEN i.party = '' THEN 'No group' ELSE i.party END AS grp, COUNT(DISTINCT i.id) AS invited,

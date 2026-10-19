@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { imageType } from '../lib/images';
 import { z } from 'zod';
 import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
-import { canStore, linkKey, openPhoto, storePhoto } from '../photos/store';
+import { canStore, linkKey, mediaResponse, openPhoto, storePhoto } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -96,11 +96,9 @@ export function photoRoutes() {
       .first<{ key: string; content_type: string }>();
     if (!row) return err(c, 404, 'not_found', 'Photo not found.');
     if (!c.env.MEDIA && !linkKey(row.key)) return err(c, 503, 'closed', 'Photo storage is not switched on yet.');
-    const res = await openPhoto(c.env, wid(c), row.key);
+    const res = await openPhoto(c.env, wid(c), row.key, c.req.header('Range'));
     if (!res?.ok || !res.body) return err(c, 404, 'not_found', 'Photo not found (it may have been moved or removed from the linked storage).');
-    return new Response(res.body, {
-      headers: { 'content-type': row.content_type, 'cache-control': 'private, max-age=86400', 'content-security-policy': "default-src 'none'", 'x-content-type-options': 'nosniff' },
-    });
+    return mediaResponse(res, row.content_type);
   });
 
   app.delete('/:id', requireMember('owner', 'editor'), async (c) => {

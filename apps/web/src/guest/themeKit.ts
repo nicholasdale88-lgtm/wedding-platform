@@ -65,8 +65,8 @@ const darker = (a: string, t: number) => mix(a, '#000000', t);
 export const isHex = (s: string | undefined): s is string => !!s && /^#[0-9a-f]{6}$/i.test(s);
 
 /** Every colour setting the design uses, worked out from a palette (laid over a hand-made base theme). */
-function fromPalette(p: Palette): Record<string, string> {
-  const base = THEMES['Cream & Sage'] ?? {};
+function fromPalette(p: Palette, onto?: Record<string, string>): Record<string, string> {
+  const base = onto ?? THEMES['Cream & Sage'] ?? {};
   const { paper, ink, accent, soft, envelope } = p;
   const v: Record<string, string> = {
     b1: paper,
@@ -135,9 +135,8 @@ export function themeOf(name: string | undefined, custom?: ThemeCustom): Record<
   if (own) {
     const p = paletteOf(n);
     const pick = (k: keyof Palette) => (isHex(custom![k]) ? custom![k]! : p[k]);
-    t = fromPalette({ paper: pick('paper'), ink: pick('ink'), accent: pick('accent'), soft: pick('soft'), envelope: pick('envelope') });
     // A hand-made theme keeps its own images and shapes; only its colours change.
-    if (THEMES[n]) t = { ...THEMES[n], ...t };
+    t = fromPalette({ paper: pick('paper'), ink: pick('ink'), accent: pick('accent'), soft: pick('soft'), envelope: pick('envelope') }, THEMES[n]);
   } else {
     t = THEMES[n] ?? (PRESETS[n] ? fromPalette(PRESETS[n]) : (THEMES['Cream & Sage'] ?? {}));
   }

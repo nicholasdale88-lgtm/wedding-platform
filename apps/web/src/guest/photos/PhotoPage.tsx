@@ -9,7 +9,7 @@ import { GuestMessage } from '../GuestMessage';
 import { guestApi, type PhotoEvent, type PhotoPagePayload } from '../invitation/api';
 import { assetOf, setPageClass } from '../guide/common';
 import { FILTER_LABEL, filterFontsReady, filtersFor, renderPhoto, type FilterInfo, type FilterKey } from './filters';
-import { isVideo, LOOK_KEYS, LOOKS, MAX_VIDEO_MB, type LookKey } from './looks';
+import { isLook, isVideo, LOOK_KEYS, LOOKS, MAX_VIDEO_MB, type LookKey } from './looks';
 import { SnapCam } from './SnapCam';
 
 /**
@@ -151,7 +151,7 @@ export function PhotoPage() {
   const [look, setLook] = useState<LookKey>('original');
   useEffect(() => {
     const d = page?.looks?.def;
-    if (d && d in LOOKS) setLook(d as LookKey);
+    if (isLook(d)) setLook(d);
   }, [page?.looks?.def]);
   // Videos too, from the camera roll (the design's picker asks for photos only).
   useEffect(() => {

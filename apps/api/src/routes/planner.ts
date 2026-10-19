@@ -49,11 +49,12 @@ async function members(db: D1Database, weddingId: string) {
  * Change a planning document on someone's behalf (a party member's tick, an emailed quote): read it, change
  * it, save only if no one saved in between; retried a few times. False when it couldn't be saved.
  */
-export async function changeDoc<K extends PlannerKind>(db: D1Database, weddingId: string, kind: K, scope: string, fn: (d: DocOf<K>) => void): Promise<boolean> {
+export async function changeDoc<K extends PlannerKind>(db: D1Database, weddingId: string, kind: K, scope: string, fn: (d: DocOf<K>) => void | false): Promise<boolean> {
   for (let attempt = 0; attempt < 4; attempt++) {
     const cur = await readDoc(db, weddingId, kind, scope);
     const next = structuredClone(cur.data);
-    fn(next);
+    if (fn(next) === false) return true; // nothing to change
+    if (JSON.stringify(next) === JSON.stringify(cur.data)) return true;
     const parsed = PLANNER_DOCS[kind].safeParse(next);
     if (!parsed.success) return false;
     const data = JSON.stringify(parsed.data);
@@ -68,8 +69,8 @@ export async function changeDoc<K extends PlannerKind>(db: D1Database, weddingId
 }
 
 /** Change one side's document on behalf of a member. */
-function changeSide(db: D1Database, weddingId: string, kind: 'party-p1' | 'party-p2' | 'party-help', fn: (d: PartySide) => void): Promise<boolean> {
-  return changeDoc(db, weddingId, kind, '', fn as (d: DocOf<typeof kind>) => void);
+function changeSide(db: D1Database, weddingId: string, kind: 'party-p1' | 'party-p2' | 'party-help', fn: (d: PartySide) => void | false): Promise<boolean> {
+  return changeDoc(db, weddingId, kind, '', fn as (d: DocOf<typeof kind>) => void | false);
 }
 
 /**
@@ -599,8 +600,9 @@ export function partyGuestRoutes() {
       const packing = doc.data.packing.filter((p) => roles.some((r) => itemsFor([p], r).length) && !packSeen.has(p.text) && !!packSeen.add(p.text));
       // The speaking order (for everyone in the party), and what this member is holding on the day.
       const day = (await readDoc(db, w.id, 'day-roles', e.key)).data;
-      const mineWords = [...mine.map((m) => m.name.toLowerCase()), ...mine.map((m) => m.name.split(' ')[0]!.toLowerCase()), ...roles.map((r) => r.toLowerCase())];
-      const holding = day.holds.filter((h) => h.who && mineWords.some((x) => x && h.who.toLowerCase().includes(x))).map((h) => h.what);
+      const mineWords = [...mine.map((m) => m.name.toLowerCase()), ...mine.map((m) => m.name.split(' ')[0]!.toLowerCase()), ...roles.map((r) => r.toLowerCase())].filter(Boolean);
+      const whole = (hay: string, x: string) => new RegExp(`(^|[^a-z])${x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^a-z])`).test(hay);
+      const holding = day.holds.filter((h) => h.who && mineWords.some((x) => whole(h.who.toLowerCase(), x))).map((h) => h.what);
       const speeches = day.speeches.map((s) => ({ who: s.who, minutes: s.minutes }));
       if (items.length || doc.data.note || packing.length || speeches.length || holding.length) out.push({ key: e.key, name: e.name, startsAt: e.starts_at, note: doc.data.note, items, packing, speeches, holding });
     }

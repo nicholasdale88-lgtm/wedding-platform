@@ -65,6 +65,8 @@ export async function receiveEmail(message: { from: string; to: string; raw: Rea
     .trim()
     .slice(0, 20000);
   const messageId = (mail.messageId ?? message.headers.get('message-id') ?? '').slice(0, 300) || null;
+  // Email Routing can deliver the same email again: nothing is stored (or uploaded) twice.
+  if (messageId && (await db.prepare(`SELECT 1 FROM inbox_email WHERE wedding_id = ? AND message_id = ?`).bind(w.id, messageId).first())) return { stored: false };
   const now = new Date().toISOString();
   const sorted = await sortEmail(db, w.id, fromAddr, fromName, subject);
 
@@ -189,6 +191,11 @@ export function inboxRoutes() {
   app.put('/settings/address', writer, async (c) => {
     const b = z.object({ address: z.union([z.literal(''), z.string().trim().toLowerCase().email().max(200)]) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'That doesn’t look like an email address.');
+    // An address belongs to one wedding (its emails must never land in someone else's).
+    if (b.data.address) {
+      const taken = await c.env.DB.prepare(`SELECT 1 FROM wedding WHERE lower(json_extract(content, '$.inbox.address')) = ? AND id != ? AND deleted_at IS NULL`).bind(b.data.address, wid(c)).first();
+      if (taken) return err(c, 400, 'taken', 'That address is already used by another wedding.');
+    }
     await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.inbox', json(?)) WHERE id = ? AND json_valid(content)`).bind(JSON.stringify({ address: b.data.address }), wid(c)).run();
     return c.json({ address: b.data.address });
   });

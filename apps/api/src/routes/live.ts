@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
-import { openPhoto } from '../photos/store';
+import { mediaResponse, openPhoto } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -95,11 +95,11 @@ export function liveScreenRoutes() {
     const row = await c.env.DB.prepare(`SELECT key, content_type FROM media WHERE id = ? AND wedding_id = ? AND kind IN ('photo', 'video') AND deleted_at IS NULL`)
       .bind(c.req.param('id'), w.id)
       .first<{ key: string; content_type: string }>();
-    const res = row ? await openPhoto(c.env, w.id, row.key) : null;
+    const res = row ? await openPhoto(c.env, w.id, row.key, c.req.header('Range')) : null;
     if (!row || !res?.ok || !res.body) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    return new Response(res.body, {
-      headers: { 'content-type': row.content_type, 'cache-control': 'private, max-age=3600', 'content-security-policy': "default-src 'none'", 'x-content-type-options': 'nosniff', 'cross-origin-resource-policy': 'same-origin' },
-    });
+    const out = mediaResponse(res, row.content_type);
+    out.headers.set('cross-origin-resource-policy', 'same-origin');
+    return out;
   });
   return app;
 }

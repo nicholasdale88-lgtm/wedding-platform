@@ -33,7 +33,7 @@ export const LOOKS: Record<LookKey, Grade> = {
   vintage: { label: 'Vintage', css: 'sepia(.55) contrast(.95) brightness(1.03)', b: 1.03, c: 0.95, s: 0.9, warm: 0.2, mono: 0, sepia: 0.5, fade: 0.3, vignette: 0.35, grain: 0.3 },
 };
 export const LOOK_KEYS = Object.keys(LOOKS) as LookKey[];
-export const isLook = (k: string | null | undefined): k is LookKey => !!k && k in LOOKS;
+export const isLook = (k: string | null | undefined): k is LookKey => !!k && Object.prototype.hasOwnProperty.call(LOOKS, k);
 
 /** Draw a look onto what's on the canvas (pixel by pixel, so it works where canvas filters don't). */
 export function applyLook(g: CanvasRenderingContext2D, w: number, h: number, key: LookKey) {

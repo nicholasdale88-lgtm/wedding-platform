@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { themeOf } from '../themeKit';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
@@ -218,15 +218,21 @@ export function PartyPage() {
   const [now, setNow] = useState(() => Date.now());
   const [mine, setMine] = useState<PartyMine[]>([]);
   const [note, setNote] = useState('');
+  const loaded = useRef(false);
 
   const load = () =>
     guestApi
       .party(slug, token)
       .then((d) => {
         setData(d);
+        loaded.current = true;
         setMine(d.mine ?? []);
       })
-      .catch((e: Error) => setErr(e.message));
+      // Once the page is up, a failed refresh keeps what's showing (with a note).
+      .catch((e: Error) => {
+        if (loaded.current) setNote('Can’t reach the site just now: showing what you had.');
+        else setErr(e.message);
+      });
   useEffect(() => {
     void load();
     const t = setInterval(() => setNow(Date.now()), 60_000);
