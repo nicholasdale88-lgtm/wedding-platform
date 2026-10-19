@@ -55,7 +55,7 @@ export function NightText({ eventKey, data, onChanged: load }: { eventKey: strin
         included automatically.
       </p>
       {mine.map((c) => (
-        <NightCard key={`${c.id}:${c.version}`} c={c} tz={tz} startsAt={ev.startsAt} onChanged={load} />
+        <NightCard sender={data.sender ?? 'Your number'} key={`${c.id}:${c.version}`} c={c} tz={tz} startsAt={ev.startsAt} onChanged={load} />
       ))}
       {!mine.length && (
         <Pill kind="primary" className="self-start" onClick={() => void create()}>
@@ -66,7 +66,7 @@ export function NightText({ eventKey, data, onChanged: load }: { eventKey: strin
   );
 }
 
-function NightCard({ c, tz, startsAt, onChanged }: { c: Campaign; tz: string; startsAt: string; onChanged: () => Promise<void> }) {
+function NightCard({ c, tz, startsAt, onChanged, sender }: { c: Campaign; tz: string; startsAt: string; onChanged: () => Promise<void>; sender: string }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const [body, setBody] = useState(c.body);
@@ -156,7 +156,7 @@ function NightCard({ c, tz, startsAt, onChanged }: { c: Campaign; tz: string; st
       </div>
       <div aria-label="How it arrives" className="flex flex-col gap-2">
         <span className="text-[12px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">How it arrives</span>
-        <SmsPhone sender={data.sender ?? 'Your number'} to="a guest" text={est?.sample ?? body} parts={est && est.count ? Math.round(est.parts / est.count) : null} />
+        <SmsPhone sender={sender} to="a guest" text={est?.sample ?? body} parts={est && est.count ? Math.round(est.parts / est.count) : null} />
         <span className="text-[12px] text-[#7a7466]">{est?.sample ? 'With a real guest’s details. Nothing is sent.' : 'Placeholders fill in for each guest.'}</span>
       </div>
     </section>
