@@ -24,7 +24,10 @@ export interface Overview {
   seatsHeld: number;
   events: { key: string; name: string; startsAt: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
-  daysToGo: number | null;
+  daysToGo: number |  /** The event this overview is about (null: all of them). */
+  focus: string | null;
+  /** Every event side by side (the "Both events" overview). */
+  perEvent: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean }[];
   needsYou: NeedsYou[];
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
@@ -179,6 +182,20 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     nextUp,
     latest,
     focus: focus?.key ?? null,
+    perEvent: d.events.map((e) => {
+      const inv = d.guests.filter((g) => g.invited.includes(e.key));
+      const people = inv.flatMap((g) => comingPeople(g, e.key));
+      return {
+        key: e.key, name: e.name, startsAt: e.startsAt, hasSeating: e.hasSeating,
+        invited: inv.length,
+        yes: inv.filter((g) => g.rsvp[e.key]?.attending === true).length,
+        no: inv.filter((g) => g.rsvp[e.key]?.attending === false).length,
+        awaiting: inv.filter((g) => (g.rsvp[e.key]?.attending ?? null) === null).length,
+        coming: people.length,
+        diet: e.catered ? people.filter((p) => p.diet.trim()).length : 0,
+        seated: people.filter((p) => p.table).length,
+      };
+    }),
     nav: {
       guests: d.guests.length,
       dietary: dietPeople.length,

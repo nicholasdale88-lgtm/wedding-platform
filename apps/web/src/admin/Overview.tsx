@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { fmtDay, fmtWhen, shortLabel } from '../lib/format';
+import { fmtDay, fmtEvent, fmtWhen, shortLabel } from '../lib/format';
 import { useAdmin } from './Shell';
 import { Eyebrow, H2 } from './ui';
 
@@ -10,7 +10,7 @@ const dot = (bg: string, border?: string) => (
 
 /** design/RSVP Admin.dc.html → Overview. */
 export function Overview() {
-  const { wid, overview: o, error } = useAdmin();
+  const { wid, overview: o, error, setEvent } = useAdmin();
   const go = useNavigate();
   const to = (link: string) => go(`/admin/${wid}/${link}`);
   if (error) return <p role="alert" className="text-[#8a5a45]">{error}</p>;
@@ -53,6 +53,53 @@ export function Overview() {
           </button>
         ))}
       </div>
+
+      {!o.focus && (o.perEvent?.length ?? 0) > 1 && (
+        <section aria-label="Events side by side" className="flex flex-col gap-3">
+          <H2>Side by side</H2>
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+            {o.perEvent!.map((e, i) => (
+              <div
+                key={e.key}
+                className={`flex flex-col gap-3 p-5 rounded-[16px] border ${i === 1 ? 'bg-[#eef2f8] border-[#c9d5e8]' : 'bg-[#fbf8f0] border-[#e2d7bc]'}`}
+              >
+                <div>
+                  <Eyebrow>{fmtEvent(e.startsAt, tz)}</Eyebrow>
+                  <h3 className="m-0 mt-1 font-display font-medium text-[26px]">{e.name}</h3>
+                </div>
+                <div className="flex h-[8px] rounded-[99px] overflow-hidden bg-[#e6dcc4]" aria-hidden="true">
+                  <div style={{ width: pc(e.yes, e.invited), background: i === 1 ? '#2f3d5c' : '#5d6b47' }} />
+                  <div style={{ width: pc(e.no, e.invited), background: '#b9a07a' }} />
+                </div>
+                <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-[14px]">
+                  {(
+                    [
+                      ['Invited', `${e.invited} invitations`],
+                      ['Coming', `${e.coming} ${e.coming === 1 ? 'guest' : 'guests'}`],
+                      ['Declined', String(e.no)],
+                      ['Still to reply', String(e.awaiting)],
+                      ['Dietary needs', String(e.diet)],
+                      ...(e.hasSeating ? [['Seated', `${e.seated} of ${e.coming}`]] : []),
+                    ] as [string, string][]
+                  ).map(([k, v]) => (
+                    <div key={k}>
+                      <dt className="text-[12px] text-[#5b6a52]">{k}</dt>
+                      <dd className="m-0 font-semibold">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+                <button
+                  type="button"
+                  onClick={() => setEvent(e.key)}
+                  className="self-start py-2 px-[14px] rounded-full border border-[#33402f] bg-transparent text-[13px] font-medium cursor-pointer hover:bg-[#33402f] hover:text-[#f3ecd6]"
+                >
+                  Open {e.name}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="flex flex-col gap-1" aria-label="Needs you">
         <div className="flex justify-between items-baseline gap-3 mb-[6px]">

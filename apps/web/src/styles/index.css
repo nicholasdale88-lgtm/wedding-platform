@@ -51,11 +51,16 @@
  * back to those defaults so the live pages measure the same as the approved designs; the
  * views' own inline styles and hover classes still apply on top.
  */
+/* SVG is left alone: its shapes (d, cx, r…) are CSS properties now, and reverting them erases every icon. */
 .dz,
-.dz * {
+.dz *:not(svg, svg *) {
   all: revert;
 }
 .dz {
   font: 16px/normal serif;
   color: #000;
+}
+.dz svg {
+  display: revert;
+  vertical-align: revert;
 }

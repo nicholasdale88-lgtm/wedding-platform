@@ -209,8 +209,10 @@ describe('guest pages tab', () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
     renderAt('/admin/w1/pages');
     expect(await screen.findByRole('heading', { name: 'What your guests see' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('radio', { name: 'The wedding' })).toHaveAttribute('aria-checked', 'true'));
-    for (const name of ['Invitation', 'Night before: Wedding', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    // "Both events" first: every guest page; then one event: just its own night-before guide.
+    await waitFor(() => expect(screen.getByRole('radio', { name: 'Both events' })).toHaveAttribute('aria-checked', 'true'));
+    for (const name of ['Invitation', 'Night before: Wedding', 'Night before: Recovery brunch', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('radio', { name: 'The wedding' }));
     expect(screen.queryByRole('button', { name: 'Night before: Recovery brunch' })).toBeNull(); // the other event's guide is one flip away
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
     await userEvent.click(screen.getByRole('radio', { name: 'Recovery brunch' }));

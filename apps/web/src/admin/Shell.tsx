@@ -19,6 +19,8 @@ interface AdminData {
 const Ctx = createContext<AdminData>({ wid: '', overview: null, error: '', reload: async () => {}, event: '', setEvent: () => {} });
 export const useAdmin = () => useContext(Ctx);
 
+/** The switcher's "Both events" overview: every tab shows all events together. */
+export const ALL_EVENTS = 'all';
 const EVENT_KEY = (wid: string) => `wp.admin.event.${wid}`;
 const readEvent = (wid: string) => {
   try {
@@ -31,7 +33,7 @@ const readEvent = (wid: string) => {
 export function AdminDataProvider({ wid, children, onSignedOut }: { wid: string; children: ReactNode; onSignedOut: () => void }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState('');
-  const [event, setEventState] = useState(() => readEvent(wid));
+  const [event, setEventState] = useState(() => readEvent(wid) || ALL_EVENTS);
   const setEvent = useCallback(
     (key: string) => {
       setEventState(key);
@@ -45,11 +47,11 @@ export function AdminDataProvider({ wid, children, onSignedOut }: { wid: string;
   );
   const reload = useCallback(async () => {
     try {
-      const o = await api.overview(wid, event || undefined);
+      const o = await api.overview(wid, event && event !== ALL_EVENTS ? event : undefined);
       setOverview(o);
       setError('');
-      // A remembered event that was removed (or none yet): look at the first one.
-      if (o.events.length && !o.events.some((e) => e.key === event)) setEvent(o.events[0]!.key);
+      // A remembered event that was removed: back to both events.
+      if (event !== ALL_EVENTS && !o.events.some((e) => e.key === event)) setEvent(ALL_EVENTS);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) return onSignedOut();
       setError((e as Error).message);
@@ -69,7 +71,7 @@ function EventSwitch({ mob }: { mob: boolean }) {
   return (
     <div role="radiogroup" aria-label="Event" className={`flex gap-1 ${mob ? 'flex-row overflow-x-auto [scrollbar-width:none]' : 'flex-col px-[10px]'}`}>
       {!mob && <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#cfd8bb] mb-1">Showing</span>}
-      {o.events.map((e) => {
+      {[{ key: ALL_EVENTS, name: 'Both events' }, ...o.events].map((e) => {
         const on = e.key === event;
         return (
           <button

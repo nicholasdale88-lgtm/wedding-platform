@@ -114,6 +114,7 @@ export interface Overview {
   nav: { guests: number; dietary: number; autopilot: number; smsLive: boolean };
   /** The event these figures are about (the admin's event switcher), or null for all. */
   focus?: string | null;
+  perEvent?: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean }[];
 }
 
 export interface GuestPatch {

@@ -5,7 +5,7 @@ import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData }
 import { fileName } from '../../lib/csv';
 import { downloadDressed } from '../exportLook';
 import { fmtWhen, shortLabel } from '../../lib/format';
-import { useAdmin } from '../Shell';
+import { ALL_EVENTS, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
@@ -47,7 +47,7 @@ export function Seating() {
   };
   const load = useCallback(async () => {
     try {
-      apply(await seatingApi.get(wid, params.get('event') ?? (chosen || undefined))); // the sidebar's event unless a link names one
+      apply(await seatingApi.get(wid, params.get('event') ?? (chosen && chosen !== ALL_EVENTS ? chosen : undefined))); // the sidebar's event unless a link names one
       setError('');
     } catch (e) {
       setError((e as Error).message);
