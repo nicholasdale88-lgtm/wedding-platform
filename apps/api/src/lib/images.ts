@@ -16,3 +16,15 @@ export function imageType(b: Uint8Array): { type: string; ext: string } | null {
   }
   return null;
 }
+
+/** A video phones make (MP4, MOV, WebM), from its first bytes. */
+export function videoType(b: Uint8Array): { type: string; ext: string } | null {
+  const ascii = (i: number, s: string) => [...s].every((ch, j) => b[i + j] === ch.charCodeAt(0));
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return { type: 'video/webm', ext: 'webm' };
+  if (ascii(4, 'ftyp')) {
+    const brand = String.fromCharCode(...b.slice(8, 12));
+    if (brand === 'qt  ') return { type: 'video/quicktime', ext: 'mov' };
+    if (/^(isom|iso[2-6]|mp41|mp42|avc1|M4V |M4VP|3gp[4-6]|3g2a|dash|mmp4|MSNV)$/.test(brand)) return { type: 'video/mp4', ext: 'mp4' };
+  }
+  return null;
+}

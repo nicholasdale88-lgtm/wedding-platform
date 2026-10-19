@@ -8,8 +8,8 @@ import { SESSION_COOKIE, sessionId } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import type { Snapshot as SeatSnapshot } from './seating';
-import { imageType } from '../lib/images';
-import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
+import { imageType, videoType } from '../lib/images';
+import { MAX_PHOTO, MAX_VIDEO, readBytes, readJson } from '../lib/security';
 import { forecastFor } from '../lib/weather';
 import { canStore, storePhoto } from '../photos/store';
 
@@ -333,10 +333,15 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       const used = await db.prepare(`SELECT COALESCE(SUM(bytes), 0) AS n FROM media WHERE wedding_id = ? AND deleted_at IS NULL AND key NOT LIKE 'link:%'`).bind(w.id).first<{ n: number }>();
       if ((used?.n ?? 0) > ALBUM_BYTES) return err(c, 503, 'full', 'The album is full for now. Please let the couple know.');
     }
-    const bytes = await readBytes(c.req.raw, MAX_PHOTO);
-    if (!bytes) return err(c, 413, 'too_large', 'That photo is too large.');
-    const kind = imageType(bytes);
-    if (!kind) return err(c, 415, 'not_photo', 'That file is not a photo.');
+    const bytes = await readBytes(c.req.raw, MAX_VIDEO);
+    if (!bytes) return err(c, 413, 'too_large', 'That video is too large. Try a shorter clip (about a minute).');
+    const photo = imageType(bytes);
+    const video = photo ? null : videoType(bytes);
+    const kind = photo ?? video;
+    if (!kind) return err(c, 415, 'not_photo', 'That file is not a photo or a video.');
+    if (photo && bytes.byteLength > MAX_PHOTO) return err(c, 413, 'too_large', 'That photo is too large.');
+    // A video's look (shown when it plays): one of the page's looks, by name.
+    const look = video ? (/^[a-z]{3,12}$/.exec(c.req.header('X-Photo-Look') ?? '')?.[0] ?? '') : '';
     let by = '';
     try {
       by = dropControls(decodeURIComponent(c.req.header('X-Photo-By') ?? '')).trim().slice(0, 120);
@@ -345,7 +350,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     }
     const evKey = c.req.query('event') ?? '';
     const ev = evKey ? (await eventsOf(db, w.id)).find((e) => e.key === evKey) : undefined;
-    const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv.id, eventKey: ev?.key ?? null });
+    const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv.id, eventKey: ev?.key ?? null, media: video ? 'video' : 'photo', look });
     if (!r.ok) return err(c, r.status, 'not_saved', r.message);
     return c.json({ ok: true, id: r.id });
   });

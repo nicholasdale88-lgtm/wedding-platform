@@ -53,12 +53,12 @@ export function photoRoutes() {
 
   app.get('/', async (c) => {
     const { results } = await c.env.DB.prepare(
-      `SELECT m.id, m.uploaded_by, m.created_at, m.bytes, m.content_type, m.event_key,
+      `SELECT m.id, m.uploaded_by, m.created_at, m.bytes, m.content_type, m.event_key, m.edit,
               (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0) AS guest
-         FROM media m WHERE m.wedding_id = ? AND m.kind = 'photo' AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 5000`,
+         FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 5000`,
     )
       .bind(wid(c))
-      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; event_key: string | null; guest: string | null }>();
+      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; event_key: string | null; edit: string | null; guest: string | null }>();
     return c.json({
       enabled: await canStore(c.env, wid(c)),
       siteStorage: !!c.env.MEDIA,
@@ -68,6 +68,7 @@ export function photoRoutes() {
         at: r.created_at,
         bytes: r.bytes,
         type: r.content_type,
+        look: r.edit ?? '',
         event: r.event_key, // which event's album (null: before albums were split)
         url: `/api/a/w/${wid(c)}/photos/${r.id}`,
       })),
@@ -76,7 +77,7 @@ export function photoRoutes() {
 
   /** The photo itself, for members only. Never cached by shared caches. */
   app.get('/:id', async (c) => {
-    const row = await c.env.DB.prepare(`SELECT key, content_type FROM media WHERE id = ? AND wedding_id = ? AND kind = 'photo' AND deleted_at IS NULL`)
+    const row = await c.env.DB.prepare(`SELECT key, content_type FROM media WHERE id = ? AND wedding_id = ? AND kind IN ('photo', 'video') AND deleted_at IS NULL`)
       .bind(c.req.param('id'), wid(c))
       .first<{ key: string; content_type: string }>();
     if (!row) return err(c, 404, 'not_found', 'Photo not found.');
@@ -89,7 +90,7 @@ export function photoRoutes() {
   });
 
   app.delete('/:id', requireMember('owner', 'editor'), async (c) => {
-    const row = await c.env.DB.prepare(`SELECT key FROM media WHERE id = ? AND wedding_id = ? AND kind = 'photo' AND deleted_at IS NULL`)
+    const row = await c.env.DB.prepare(`SELECT key FROM media WHERE id = ? AND wedding_id = ? AND kind IN ('photo', 'video') AND deleted_at IS NULL`)
       .bind(c.req.param('id'), wid(c))
       .first<{ key: string }>();
     if (!row) return err(c, 404, 'not_found', 'Photo not found.');

@@ -11,6 +11,8 @@ export const MAX_BODY = 100 * 1024;
 
 /** Photo uploads (a guest's, or the couple's own): one photo per request. */
 export const MAX_PHOTO = 15 * 1024 * 1024;
+/** A guest's video (about a minute from a phone); sent as it is. */
+export const MAX_VIDEO = 55 * 1024 * 1024;
 const PHOTO_PATH = /^\/api\/(?:p\/[a-z0-9-]+\/photos|a\/w\/[^/]+\/photos\/upload)$/;
 
 /** Guest list imports: up to 1,000 rows. */
@@ -23,7 +25,7 @@ const FILE_PATH = /^\/api\/a\/w\/[^/]+\/planner\/files$/;
 
 /** The body limit for a path. */
 export const bodyLimitFor = (path: string) =>
-  PHOTO_PATH.test(path) ? MAX_PHOTO : IMPORT_PATH.test(path) ? MAX_IMPORT : FILE_PATH.test(path) ? Math.ceil(MAX_PLANNER_FILE * 1.4) + 4096 : MAX_BODY;
+  PHOTO_PATH.test(path) ? MAX_VIDEO : IMPORT_PATH.test(path) ? MAX_IMPORT : FILE_PATH.test(path) ? Math.ceil(MAX_PLANNER_FILE * 1.4) + 4096 : MAX_BODY;
 
 const HEADERS: Record<string, string> = {
   'Cache-Control': 'no-store',

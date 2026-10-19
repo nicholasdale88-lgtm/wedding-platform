@@ -152,6 +152,18 @@ const gdrive: Provider = {
     return made.id;
   },
   async upload(token, u) {
+    if (u.bytes.length > 4_500_000) {
+      // Over 5 MB (a video): Drive wants a resumable upload, started with the details, then the bytes.
+      const start = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id', {
+        method: 'POST',
+        headers: bearer(token, { 'content-type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': u.type, 'X-Upload-Content-Length': String(u.bytes.length) }),
+        body: JSON.stringify({ name: u.name, parents: [u.folder] }),
+      });
+      const at = start.ok ? start.headers.get('location') : null;
+      if (!at) await json(start, 'Starting the Google Drive upload');
+      const r = await json<{ id: string }>(await fetch(at!, { method: 'PUT', headers: { 'content-type': u.type }, body: u.bytes }), 'Saving to Google Drive');
+      return r.id;
+    }
     const m = multipart({ name: u.name, parents: [u.folder] }, u.bytes, u.type);
     const r = await json<{ id: string }>(
       await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: bearer(token, { 'content-type': m.type }), body: m.body }),

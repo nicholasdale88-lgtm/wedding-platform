@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { drawFilter, FILTER_LABEL, filterFontsReady, type FilterInfo, type FilterKey } from './filters';
+import { applyLook, LOOKS, type LookKey } from './looks';
 
 /**
  * Take a photo through the link: the phone's camera full screen, the event's filter live over it,
@@ -15,6 +16,7 @@ export function SnapCam({
   onShot,
   onClose,
   fallback,
+  look = 'original',
 }: {
   info: FilterInfo;
   filters: FilterKey[];
@@ -24,6 +26,8 @@ export function SnapCam({
   onClose: () => void;
   /** Open the phone's own camera app instead (no live camera here). */
   fallback: () => void;
+  /** The colour look: shown live on the camera, drawn into the shot. */
+  look?: LookKey;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
@@ -125,6 +129,7 @@ export function SnapCam({
     }
     g.drawImage(v, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, c.width, c.height);
     g.setTransform(1, 0, 0, 1, 0, 0);
+    applyLook(g, c.width, c.height, look);
     drawFilter(g, c.width, c.height, filter, info);
     setFlash(true);
     setTimeout(() => setFlash(false), 180);
@@ -142,7 +147,7 @@ export function SnapCam({
   return (
     <div role="dialog" aria-modal="true" aria-label="Camera" className="fixed inset-0 z-[60] bg-black text-white flex flex-col select-none">
       <div className="relative flex-1 overflow-hidden">
-        <video ref={video} playsInline muted className={`absolute inset-0 w-full h-full object-cover ${facing === 'user' ? '-scale-x-100' : ''}`} />
+        <video ref={video} playsInline muted style={{ filter: LOOKS[look].css }} className={`absolute inset-0 w-full h-full object-cover ${facing === 'user' ? '-scale-x-100' : ''}`} />
         <canvas ref={overlay} aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" />
         {flash && <div className="absolute inset-0 bg-white/80" />}
         {!ready && !blocked && <div className="absolute inset-0 flex items-center justify-center text-[15px] opacity-80">Opening the camera…</div>}

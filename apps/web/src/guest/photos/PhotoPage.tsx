@@ -9,6 +9,7 @@ import { GuestMessage } from '../GuestMessage';
 import { guestApi, type PhotoEvent, type PhotoPagePayload } from '../invitation/api';
 import { assetOf, setPageClass } from '../guide/common';
 import { FILTER_LABEL, filterFontsReady, filtersFor, renderPhoto, type FilterInfo, type FilterKey } from './filters';
+import { isVideo, LOOK_KEYS, LOOKS, MAX_VIDEO_MB, type LookKey } from './looks';
 import { SnapCam } from './SnapCam';
 
 /**
@@ -27,6 +28,7 @@ interface Item {
   /** Taken with the camera here: the filter is already on it. */
   pre: boolean;
   filter: FilterKey;
+  look: LookKey;
 }
 
 const NAME_KEY = 'wp-photo-name';
@@ -43,6 +45,7 @@ const remembered = () => {
  * photos doesn't run a phone out of memory. Falls back to the original if it can't be drawn.
  */
 async function thumbOf(file: Blob): Promise<Blob> {
+  if (isVideo(file)) return (await videoPoster(file)) ?? file;
   try {
     const bmp = await createImageBitmap(file);
     const k = Math.min(1, 360 / Math.max(bmp.width, bmp.height));
@@ -55,6 +58,35 @@ async function thumbOf(file: Blob): Promise<Blob> {
   } catch {
     return file;
   }
+}
+
+/** A video's first moment as a picture, for its tile. */
+function videoPoster(file: Blob): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const v = document.createElement('video');
+    const u = URL.createObjectURL(file);
+    const done = (b: Blob | null) => {
+      URL.revokeObjectURL(u);
+      resolve(b);
+    };
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = 'metadata';
+    v.onloadeddata = () => {
+      v.currentTime = Math.min(0.5, (v.duration || 1) / 2);
+    };
+    v.onseeked = () => {
+      const k = Math.min(1, 360 / Math.max(v.videoWidth || 1, v.videoHeight || 1));
+      const c = document.createElement('canvas');
+      c.width = Math.round((v.videoWidth || 360) * k);
+      c.height = Math.round((v.videoHeight || 360) * k);
+      c.getContext('2d')?.drawImage(v, 0, 0, c.width, c.height);
+      c.toBlob((b) => done(b), 'image/jpeg', 0.8);
+    };
+    v.onerror = () => done(null);
+    setTimeout(() => done(null), 8000);
+    v.src = u;
+  });
 }
 
 const first = (s: string) => s.trim().split(/\s+/)[0] ?? '';
@@ -113,14 +145,29 @@ export function PhotoPage() {
   }, [page, ev]);
   const filters = info ? filtersFor(info) : (['none'] as FilterKey[]);
   const [filter, setFilter] = useState<FilterKey>('none');
+  const [look, setLook] = useState<LookKey>('original');
+  // Videos too, from the camera roll (the design's picker asks for photos only).
+  useEffect(() => {
+    if (fileRef.current) fileRef.current.accept = 'image/*,video/*';
+  });
   useEffect(() => setFilter(filters[1] ?? 'none'), [info?.title]); // eslint-disable-line
 
   const t = useCallback((k: string) => page?.texts[k] ?? '', [page]);
   const mark = (id: string, st: Status) => setItems((xs) => xs.map((x) => (x.id === id ? { ...x, st } : x)));
   const add = (files: Blob[], pre: boolean) => {
-    const added = files.map((file, i) => ({ id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`, file, url: URL.createObjectURL(file), st: 'wait' as const, pre, filter }));
+    const big = files.filter((f) => isVideo(f) && f.size > MAX_VIDEO_MB * 1024 * 1024);
+    const ok = files.filter((f) => !big.includes(f));
+    const added = ok.map((file, i) => ({ id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`, file, url: URL.createObjectURL(file), st: 'wait' as const, pre, filter, look }));
     setItems((xs) => [...added, ...xs]);
-    setErr('');
+    setErr(big.length ? `${big.length === 1 ? 'That video is' : `${big.length} videos are`} over ${MAX_VIDEO_MB} MB. Try a shorter clip (about a minute).` : '');
+    // A video's tile shows its first moment.
+    for (const it of added.filter((x) => isVideo(x.file))) {
+      void videoPoster(it.file).then((p) => {
+        if (!p) return;
+        const url = URL.createObjectURL(p);
+        setItems((xs) => xs.map((x) => (x.id === it.id && x.st !== 'ok' ? { ...x, url } : x)));
+      });
+    }
   };
 
   const run = useCallback(async () => {
@@ -132,8 +179,13 @@ export function PhotoPage() {
       mark(it.id, 'up');
       itemsRef.current = itemsRef.current.map((x) => (x.id === it.id ? { ...x, st: 'up' } : x));
       try {
-        const photo = it.pre ? it.file : await renderPhoto(it.file, it.filter, info);
-        await guestApi.uploadPhoto(slug, token, by.trim(), photo, ev?.key ?? '');
+        if (isVideo(it.file)) {
+          // A video goes as it is; its look is kept with it and shown when it plays.
+          await guestApi.uploadPhoto(slug, token, by.trim(), it.file, ev?.key ?? '', it.look === 'original' ? '' : it.look);
+        } else {
+          const photo = it.pre ? it.file : await renderPhoto(it.file, it.filter, info, it.look);
+          await guestApi.uploadPhoto(slug, token, by.trim(), photo, ev?.key ?? '');
+        }
         // Sent: swap the full-size original for a small tile copy.
         const small = await thumbOf(it.file);
         const url = URL.createObjectURL(small);
@@ -254,6 +306,23 @@ export function PhotoPage() {
               </button>
             ))}
           </div>
+          <div role="radiogroup" aria-label="Look" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none]">
+            {LOOK_KEYS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={k === look}
+                onClick={() => setLook(k)}
+                className="flex-none flex items-center gap-2 py-[5px] pl-[5px] pr-3 rounded-full border text-[15px] cursor-pointer"
+                style={k === look ? { background: info.ink, color: '#fbf8f2', borderColor: info.ink } : { background: 'transparent', color: info.ink, borderColor: 'rgba(0,0,0,.18)' }}
+              >
+                {/* A swatch of the look: a little sunset, graded. */}
+                <span aria-hidden className="w-[22px] h-[22px] rounded-full" style={{ background: 'linear-gradient(135deg,#f2b880,#c96d6d 55%,#5a6f8f)', filter: LOOKS[k].css }} />
+                {LOOKS[k].label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => ready() && setCam(true)}
@@ -270,13 +339,14 @@ export function PhotoPage() {
           filters={filters}
           filter={filter}
           onFilter={setFilter}
+          look={look}
           onShot={(b) => add([b], true)}
           onClose={() => setCam(false)}
           fallback={() => camRef.current?.click()}
         />
       )}
       {/* Room so the bar never covers the page's last lines. */}
-      {info && <div aria-hidden className="h-[170px]" />}
+      {info && <div aria-hidden className="h-[220px]" />}
     </>
   );
 }

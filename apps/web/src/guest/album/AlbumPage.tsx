@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
+import { isLook, LOOKS } from '../photos/looks';
 
 /**
  * /w/:slug/album?g=<token>: everyone's photos from the events you were at, once the couple shares the
@@ -9,7 +10,7 @@ import { GuestMessage } from '../GuestMessage';
 interface Album {
   couple: string;
   events: { key: string; name: string }[];
-  photos: { id: string; at: string; event: string | null; by: string; url: string }[];
+  photos: { id: string; at: string; event: string | null; by: string; url: string; video?: boolean; look?: string }[];
 }
 
 /** Photos shown at a time (each is a full photo, so a phone isn't asked for 3,000 at once). */
@@ -87,7 +88,14 @@ export function AlbumPage() {
         <div className="grid gap-2 grid-cols-3 sm:grid-cols-4 lg:grid-cols-6">
           {shown.slice(0, upTo).map((p, i) => (
             <button key={p.id} type="button" onClick={() => setOpen(i)} className="aspect-square p-0 border-0 rounded-[8px] overflow-hidden bg-[#e9e2cc] cursor-pointer" aria-label={p.by ? `Photo by ${p.by}` : 'Photo'}>
-              <img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" />
+              {p.video ? (
+                <span className="relative block w-full h-full">
+                  <video src={`${p.url}#t=0.5`} muted playsInline preload="metadata" className="w-full h-full object-cover" style={{ filter: isLook(p.look) ? LOOKS[p.look].css : undefined }} />
+                  <span aria-hidden className="absolute inset-0 flex items-center justify-center text-white text-[28px] drop-shadow">▶</span>
+                </span>
+              ) : (
+                <img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" />
+              )}
             </button>
           ))}
         </div>
@@ -103,7 +111,7 @@ export function AlbumPage() {
           <div className="flex justify-between items-center p-4 text-[#f3ecd6]" onClick={(e) => e.stopPropagation()}>
             <span className="text-[17px] italic">{cur.by ? `Photo by ${cur.by}` : ''}</span>
             <span className="flex gap-3 items-center">
-              <a href={cur.url} download={`photo-${cur.id.slice(0, 8)}.jpg`} className="text-[16px] underline !text-[#f3ecd6]">
+              <a href={cur.url} download={`${cur.video ? 'video' : 'photo'}-${cur.id.slice(0, 8)}.${cur.video ? 'mp4' : 'jpg'}`} className="text-[16px] underline !text-[#f3ecd6]">
                 Save
               </a>
               <button type="button" aria-label="Close" onClick={() => setOpen(null)} className="w-10 h-10 rounded-full border-0 bg-white/15 text-[#f3ecd6] text-[22px] cursor-pointer">
@@ -112,7 +120,11 @@ export function AlbumPage() {
             </span>
           </div>
           <div className="flex-1 min-h-0 flex items-center justify-center px-2 pb-4">
-            <img src={cur.url} alt={cur.by ? `Photo by ${cur.by}` : 'Photo'} className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />
+            {cur.video ? (
+              <video key={cur.id} src={cur.url} controls autoPlay playsInline className="max-w-full max-h-full" style={{ filter: isLook(cur.look) ? LOOKS[cur.look].css : undefined }} onClick={(e) => e.stopPropagation()} />
+            ) : (
+              <img src={cur.url} alt={cur.by ? `Photo by ${cur.by}` : 'Photo'} className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />
+            )}
           </div>
           <div className="flex justify-between px-4 pb-[max(16px,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
             <button type="button" disabled={open === 0} onClick={() => setOpen((i) => (i === null ? i : i - 1))} className="py-2 px-4 rounded-full border-0 bg-white/15 text-[#f3ecd6] text-[16px] cursor-pointer disabled:opacity-30">

@@ -5,6 +5,8 @@
  * offers its own set, in the wedding's colours.
  */
 
+import { applyLook, type LookKey } from './looks';
+
 export type FilterKey = 'none' | 'names' | 'seal' | 'frame' | 'number';
 
 export interface FilterInfo {
@@ -173,7 +175,7 @@ function seal(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, in
  * A photo (from the camera roll or a camera frame) shrunk for upload (longest side 2400px) with the filter
  * drawn on, as a JPEG. A format the browser can't draw (e.g. HEIC on some phones) is sent as it is, unfiltered.
  */
-export function renderPhoto(source: Blob, key: FilterKey, info: FilterInfo | null): Promise<Blob> {
+export function renderPhoto(source: Blob, key: FilterKey, info: FilterInfo | null, look: LookKey = 'original'): Promise<Blob> {
   return new Promise((resolve) => {
     const img = new Image();
     const u = URL.createObjectURL(source);
@@ -185,6 +187,7 @@ export function renderPhoto(source: Blob, key: FilterKey, info: FilterInfo | nul
       const g = c.getContext('2d');
       if (g) {
         g.drawImage(img, 0, 0, c.width, c.height);
+        applyLook(g, c.width, c.height, look); // the colour grade first, then the frame on top
         if (info) drawFilter(g, c.width, c.height, key, info);
       }
       URL.revokeObjectURL(u);

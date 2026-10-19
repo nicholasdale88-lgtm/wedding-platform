@@ -132,10 +132,11 @@ export const guestApi = {
   sendMessage: (slug: string, token: string, body: string, kind: 'message' | 'support' | 'question') =>
     call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/messages`, { method: 'POST', body: JSON.stringify({ token, body, kind }) }),
   /** One photo, into an event's album; the server checks it really is one. */
-  uploadPhoto: async (slug: string, token: string, by: string, photo: Blob, event = '') => {
+  uploadPhoto: async (slug: string, token: string, by: string, photo: Blob, event = '', look = '') => {
     const res = await fetch(`/api/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`, {
       method: 'PUT',
-      headers: { 'content-type': photo.type || 'image/jpeg', 'X-Photo-By': encodeURIComponent(by) },
+      // A video keeps its look as a setting (shown when it plays); a photo has it drawn in already.
+      headers: { 'content-type': photo.type || 'image/jpeg', 'X-Photo-By': encodeURIComponent(by), ...(look ? { 'X-Photo-Look': look } : {}) },
       body: photo,
     });
     if (!res.ok) throw new GuestApiError(res.status, ((await res.json().catch(() => null)) as { error?: { message: string } } | null)?.error?.message ?? 'Upload failed');

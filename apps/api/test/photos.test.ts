@@ -54,6 +54,19 @@ describe('photos (admin)', () => {
     expect(new Uint8Array(await img.arrayBuffer())).toEqual(JPEG);
   });
 
+  it('guests add videos too (checked by their bytes), kept with the look they chose; other files are refused', async () => {
+    const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ivy Scott'`).first<{ token: string }>())!.token;
+    const mp4 = new Uint8Array([0, 0, 0, 0x18, ...new TextEncoder().encode('ftypmp42'), 0, 0, 0, 0, 9, 9, 9, 9]);
+    const up = await app.request(`/api/p/sophie-and-nicholas/photos?g=${tok}`, { method: 'PUT', headers: { 'content-type': 'video/mp4', 'X-Photo-By': 'Ivy', 'X-Photo-Look': 'golden' }, body: mp4 }, env, ctx);
+    expect(up.status).toBe(200);
+    const row = await t.db.prepare(`SELECT kind, content_type, edit FROM media WHERE content_type LIKE 'video/%'`).first<{ kind: string; content_type: string; edit: string }>();
+    expect(row).toEqual({ kind: 'video', content_type: 'video/mp4', edit: 'golden' });
+    const list = (await (await call(`/a/w/${wid}/photos`)).json()) as { items: { type: string; look: string }[] };
+    expect(list.items.find((i) => i.type === 'video/mp4')!.look).toBe('golden');
+    const text = await app.request(`/api/p/sophie-and-nicholas/photos?g=${tok}`, { method: 'PUT', headers: { 'content-type': 'video/mp4' }, body: new TextEncoder().encode('not a video at all') }, env, ctx);
+    expect(text.status).toBe(415);
+  });
+
   it('nobody outside the wedding can list or open photos', async () => {
     const list = (await (await call(`/a/w/${wid}/photos`)).json()) as List;
     expect((await call(list.items[0]!.url.replace('/api', ''), {}, '')).status).toBe(401);

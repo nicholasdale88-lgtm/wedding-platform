@@ -142,7 +142,7 @@ export async function keepDocument(env: Env, weddingId: string, f: { bytes: Uint
   }
 }
 
-const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic', 'image/avif': 'avif' };
+const EXT: Record<string, string> = { 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic', 'image/avif': 'avif' };
 /** "2027-11-18 21-04 Alex.jpg": sorts by time, says who took it. */
 const fileName = (m: MediaRow) => safeName(`${m.created_at.slice(0, 16).replace('T', ' ').replace(':', '-')} ${m.uploaded_by || 'Guest'}`) + `.${EXT[m.content_type] ?? 'jpg'}`;
 
@@ -207,6 +207,9 @@ export interface NewPhoto {
   by: string;
   invitationId: string | null;
   eventKey: string | null;
+  /** A video is kept like a photo (its look is shown when it plays). */
+  media?: 'photo' | 'video';
+  look?: string;
 }
 export type Stored = { ok: true; id: string; duplicate: boolean } | { ok: false; status: 503 | 502; message: string };
 
@@ -216,8 +219,12 @@ export type Stored = { ok: true; id: string; duplicate: boolean } | { ok: false;
  */
 export async function storePhoto(env: Env, later: (p: Promise<unknown>) => void, p: NewPhoto): Promise<Stored> {
   const db = env.DB;
-  const sha = [...new Uint8Array(await crypto.subtle.digest('SHA-256', p.bytes))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
-  const dup = await db.prepare(`SELECT id FROM media WHERE wedding_id = ? AND sha = ? AND kind = 'photo' AND deleted_at IS NULL`).bind(p.weddingId, sha).first<{ id: string }>();
+  // The same file twice is kept once. A big file (a video) is known by its first 2 MB and its size.
+  const big = p.bytes.byteLength > 4_000_000;
+  const sha =
+    [...new Uint8Array(await crypto.subtle.digest('SHA-256', big ? p.bytes.subarray(0, 2_000_000) : p.bytes))].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, big ? 30 : 40) +
+    (big ? `-${p.bytes.byteLength}` : '');
+  const dup = await db.prepare(`SELECT id FROM media WHERE wedding_id = ? AND sha = ? AND kind IN ('photo', 'video') AND deleted_at IS NULL`).bind(p.weddingId, sha).first<{ id: string }>();
   if (dup) return { ok: true, id: dup.id, duplicate: true };
   const links = await activeLinks(db, p.weddingId);
   if (!env.MEDIA && !links.length) return { ok: false, status: 503, message: 'Photo uploads are not open yet.' };
@@ -230,8 +237,8 @@ export async function storePhoto(env: Env, later: (p: Promise<unknown>) => void,
   const save = (others: LinkRow[]) =>
     db.batch([
       db
-        .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key, sha) VALUES (?, ?, 'photo', ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(id, p.weddingId, row.key, p.kind.type, p.bytes.byteLength, row.uploaded_by, p.invitationId, now, p.eventKey, sha),
+        .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key, sha, edit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(id, p.weddingId, p.media ?? 'photo', row.key, p.kind.type, p.bytes.byteLength, row.uploaded_by, p.invitationId, now, p.eventKey, sha, p.look || null),
       ...others.map((l) =>
         db.prepare(`INSERT INTO photo_copy (media_id, link_id, status, attempts, updated_at) VALUES (?, ?, 'pending', 0, ?) ON CONFLICT (media_id, link_id) DO NOTHING`).bind(id, l.id, now),
       ),

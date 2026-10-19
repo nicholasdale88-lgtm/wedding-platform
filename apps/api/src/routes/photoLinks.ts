@@ -114,7 +114,7 @@ export function photoLinkRoutes() {
       c.env.DB.prepare(`UPDATE photo_copy SET status = 'pending', attempts = 0, updated_at = ? WHERE link_id = ? AND status = 'failed'`).bind(old, id),
       c.env.DB.prepare(
         `INSERT OR IGNORE INTO photo_copy (media_id, link_id, status, attempts, updated_at)
-         SELECT m.id, ?, 'pending', 0, ? FROM media m WHERE m.wedding_id = ? AND m.kind = 'photo' AND m.deleted_at IS NULL AND m.key NOT LIKE 'link:' || ? || ':%'`,
+         SELECT m.id, ?, 'pending', 0, ? FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL AND m.key NOT LIKE 'link:' || ? || ':%'`,
       ).bind(id, old, wid(c), id),
       audit(c, 'photos.copy-all', id),
     ]);

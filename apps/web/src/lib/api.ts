@@ -334,7 +334,7 @@ export const seatingApi = {
 
 export interface PhotosData {
   enabled: boolean;
-  items: { id: string; by: string; at: string; bytes: number; type: string; url: string; event?: string | null }[];
+  items: { id: string; by: string; at: string; bytes: number; type: string; url: string; event?: string | null; look?: string }[];
 }
 export interface PhotoLink {
   id: string;
