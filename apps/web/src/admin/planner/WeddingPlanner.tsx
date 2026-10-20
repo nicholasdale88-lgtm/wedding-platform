@@ -27,37 +27,40 @@ import { Vendors } from './Vendors';
  */
 
 type View = 'glance' | 'ideas' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
-/** The planner's pages, in three groups (the menu shows them all, so nothing hides behind "more"). */
-const GROUPS: { title: string; views: [View, string][] }[] = [
+/**
+ * The planner's menu: six sections, so it isn't overwhelming. A section with more than one page shows them
+ * as a small second row (Money: Budget and Payments; The day: Transport, Music, Shot list, Cards & signs).
+ * The assistant isn't in the menu: the Overview and Help open it.
+ */
+const SECTIONS: { label: string; views: [View, string][] }[] = [
+  { label: 'Overview', views: [['glance', 'Overview']] },
+  { label: 'Checklist', views: [['checklist', 'Checklist']] },
   {
-    title: 'Planning',
+    label: 'Money',
     views: [
-      ['glance', 'Overview'],
-      ['checklist', 'Checklist'],
       ['budget', 'Budget'],
       ['payments', 'Payments'],
-      ['vendors', 'Vendors'],
     ],
   },
+  { label: 'Vendors', views: [['vendors', 'Vendors']] },
   {
-    title: 'The day',
+    label: 'The day',
     views: [
       ['transport', 'Transport'],
       ['music', 'Music'],
       ['photos', 'Shot list'],
-      ['print', 'Print cards & signs'],
+      ['print', 'Cards & signs'],
     ],
   },
   {
-    title: 'More',
+    label: 'Ideas & gifts',
     views: [
       ['ideas', 'Ideas'],
       ['gifts', 'Gifts & thank-yous'],
-      ['assistant', 'Ask the assistant'],
     ],
   },
 ];
-const VIEWS = GROUPS.flatMap((g) => g.views);
+const VIEWS: [View, string][] = [...SECTIONS.flatMap((g) => g.views), ['assistant', 'Ask the assistant']];
 /** What most Australian weddings book (a checklist of vendor kinds; matched loosely against yours). */
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 
@@ -73,6 +76,7 @@ export function WeddingPlanner() {
 function Planner() {
   const [params, setParams] = useSearchParams();
   const view = (VIEWS.find(([k]) => k === params.get('view'))?.[0] ?? 'glance') as View;
+  const section = SECTIONS.find((g) => g.views.some(([k]) => k === view));
   const go = (v: View) => {
     if (!confirmLeave()) return; // unsaved budget, transport or run-sheet edits
     const n = new URLSearchParams(params);
@@ -87,12 +91,27 @@ function Planner() {
       </header>
       {/* The same menu as every page's: pills in a soft bar (scrolling sideways on a phone). */}
       <nav aria-label="Wedding planner" className={subNavCls}>
-        {VIEWS.map(([k, l]) => (
-          <button key={k} type="button" aria-current={view === k ? 'page' : undefined} onClick={() => go(k)} className={tabCls(view === k)}>
-            {l}
+        {SECTIONS.map((g) => (
+          <button key={g.label} type="button" aria-current={g === section ? 'page' : undefined} onClick={() => go(g.views[0]![0])} className={tabCls(g === section)}>
+            {g.label}
           </button>
         ))}
       </nav>
+      {section && section.views.length > 1 && (
+        <nav aria-label={section.label} className="flex gap-4 flex-wrap -mt-2 text-[14px]">
+          {section.views.map(([k, l]) => (
+            <button
+              key={k}
+              type="button"
+              aria-current={view === k ? 'page' : undefined}
+              onClick={() => go(k)}
+              className={`p-0 pb-[3px] border-0 border-b-2 bg-transparent cursor-pointer ${view === k ? 'border-[var(--adm-ink,#33402f)] text-[var(--adm-ink,#33402f)] font-semibold' : 'border-transparent text-[#5b6a52] hover:text-[#33402f]'}`}
+            >
+              {l}
+            </button>
+          ))}
+        </nav>
+      )}
       {view === 'glance' ? <Glance go={go} /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );

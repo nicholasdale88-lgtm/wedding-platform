@@ -147,9 +147,9 @@ export const HELP: HelpArticle[] = [
     title: 'Budget and payments',
     group: 'Planning',
     steps: [
-      'Open Wedding planner → Budget. Enter your total and guest count: it splits into the usual categories, per guest.',
+      'Open Wedding planner → Money → Budget. Enter your total and guest count: it splits into the usual categories, per guest.',
       'Link each line to a vendor; booked vendors’ quotes become what you’ve committed.',
-      'Payments shows every deposit and instalment by due date. Tick one when it’s paid; reminders can come by text.',
+      'Money → Payments shows every deposit and instalment by due date. Tick one when it’s paid; reminders can come by text.',
     ],
     also: 'money cost spend deposit instalment due paid owing reminder',
     go: { tab: 'planner', event: true, query: 'view=budget' },
@@ -210,7 +210,7 @@ export const HELP: HelpArticle[] = [
     group: 'On the day',
     steps: [
       'Open Photos → Photo settings, and connect your Google Drive, Dropbox or OneDrive: everything is filed there in folders.',
-      'Print table numbers or Snap & share cards (Wedding planner → Print cards & signs): each has a QR code.',
+      'Print table numbers or Snap & share cards (Wedding planner → The day → Cards & signs): each has a QR code.',
       'Guests scan it, give their name, pick a frame, and take photos straight into your album. No app needed.',
     ],
     also: 'camera qr code album frames filters upload drive dropbox onedrive table cards',
