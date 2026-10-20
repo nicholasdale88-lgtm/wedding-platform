@@ -2,12 +2,13 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, type Feature } from '@wp/shared';
 import { api } from '../lib/api';
 
 /**
  * The front page (/): what the app is, the plans, and signing up (or in). Written plainly, the way a
  * couple would explain it to a friend. The name is in one place (BRAND) so it can change with the domain;
- * the prices are in PLANS.
+ * the prices come from the shared plans (PLAN_INFO), the same ones the app enforces.
  */
 export const BRAND = 'VentralP';
 
@@ -15,25 +16,25 @@ type PlanKey = 'free' | 'essentials' | 'complete';
 const PLANS: { key: PlanKey; name: string; price: string; note: string; items: string[]; pick?: boolean }[] = [
   {
     key: 'free',
-    name: 'Free',
-    price: '$0',
+    name: PLAN_INFO.free.name,
+    price: PLAN_INFO.free.price,
     note: 'To get started',
-    items: ['Your invitation and RSVP page', 'Up to 50 guests', 'Replies, numbers and dietary needs', 'Share the links yourself'],
+    items: ['Your invitation and RSVP page', `Up to ${FREE_GUEST_LIMIT} guests`, 'Replies, numbers and dietary needs', 'Share the links yourself'],
   },
   {
     key: 'essentials',
-    name: 'Essentials',
-    price: '$149',
+    name: PLAN_INFO.essentials.name,
+    price: PLAN_INFO.essentials.price,
     note: 'One payment, for your whole wedding',
     pick: true,
     items: ['As many guests as you like', 'Invitations and reminders by text (texts at cost, about 2c each)', 'Seating plan, with saved versions', 'Budget, payments and checklist', 'Vendors and quote comparisons', 'A guide for every guest the night before'],
   },
   {
     key: 'complete',
-    name: 'Complete',
-    price: '$249',
+    name: PLAN_INFO.complete.name,
+    price: PLAN_INFO.complete.price,
     note: 'One payment, for your whole wedding',
-    items: ['Everything in Essentials', 'Guests’ photos by QR code on each table', 'Live photo wall at the reception', 'Wedding party sign-ins (run sheet, to-dos, speeches)', 'Daily backups to your Google Drive, Dropbox or OneDrive', 'Help from a real person'],
+    items: ['Everything in Essentials', `${EVENTS_INCLUDED.complete} events (a welcome drinks or a recovery brunch too)`, 'Guests’ photos by QR code on each table', 'Live photo wall at the reception', 'Wedding party sign-ins (run sheet, to-dos, speeches)', 'Daily backups to your Google Drive, Dropbox or OneDrive', 'Help from a real person'],
   },
 ];
 
@@ -52,7 +53,12 @@ const WHAT: [string, string][] = [
   ['Your wedding party', 'Bridesmaids and groomsmen get their own sign-in with the run sheet and their jobs, and nothing you haven’t shared.'],
 ];
 
+/** Every feature that differs between plans, for the comparison table (what the server checks, so it can't drift). */
+const COMPARE: Feature[] = ['unlimitedGuests', 'texts', 'seating', 'planner', 'extraEvent', 'photoQr', 'partySignIns', 'dailyBackups'];
+
 const FAQ: [string, string][] = [
+  ['Can we start on Free and upgrade later?', 'Yes. Everything you’ve set up stays: upgrading just switches on the rest.'],
+  ['What do texts cost?', 'Texts are at cost, about 2c each, on top of your plan. Before anything is sent you see how many it goes to and what it costs.'],
   ['Do guests need to download anything?', 'No. They get a text with a link. No app, no account, no password.'],
   ['Is it a subscription?', 'No. You pay once for your wedding, and start free until you’re ready to send invitations.'],
   ['Who can see our guest list?', 'Only the two of you and anyone you invite to help. Each wedding is kept separate, and we never share or sell your data.'],
@@ -181,6 +187,50 @@ export function SalesPage() {
                 </article>
               ))}
             </div>
+            <div className="flex flex-col gap-2 p-5 rounded-[16px] border border-[#e2d7bc] bg-white text-[15px]">
+              <strong className="font-semibold">Add-ons</strong>
+              <span>
+                {EVENT_ADDON.name}: <strong className="font-semibold">{EVENT_ADDON.price}</strong> each, for a welcome drinks, a rehearsal dinner or a recovery brunch beyond what your plan includes.
+              </span>
+              <span>Texts: at cost, about 2c each. You see the cost before anything is sent.</span>
+            </div>
+            <details className="rounded-[16px] border border-[#e2d7bc] bg-white">
+              <summary className="cursor-pointer py-4 px-5 text-[15px] font-semibold">Compare every feature</summary>
+              <div className="overflow-x-auto px-5 pb-5">
+                <table className="w-full text-[14px] border-collapse">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-2 pr-3 font-semibold">Feature</th>
+                      {PLANS.map((p) => (
+                        <th key={p.key} className="py-2 px-2 font-semibold text-center whitespace-nowrap">
+                          {p.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-[#ece3cc]">
+                      <td className="py-2 pr-3">Your invitation, RSVP page and guest list</td>
+                      {PLANS.map((p) => (
+                        <td key={p.key} className="py-2 px-2 text-center" aria-label={`${p.name}: included`}>
+                          ✓
+                        </td>
+                      ))}
+                    </tr>
+                    {COMPARE.map((f) => (
+                      <tr key={f} className="border-t border-[#ece3cc]">
+                        <td className="py-2 pr-3">{FEATURE_LABEL[f]}</td>
+                        {PLANS.map((p) => (
+                          <td key={p.key} className="py-2 px-2 text-center" aria-label={`${p.name}: ${allows(p.key, f) ? 'included' : 'not included'}`} style={{ color: allows(p.key, f) ? INK : '#b9ae94' }}>
+                            {allows(p.key, f) ? '✓' : '–'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           </div>
         </section>
 
