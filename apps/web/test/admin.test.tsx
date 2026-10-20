@@ -85,6 +85,55 @@ describe('addresses', () => {
   });
 });
 
+describe('your account', () => {
+  const profile = {
+    id: 'u1', email: 'owner@example.com', firstName: '', lastName: '', mobile: '', state: '', postcode: '', heardFrom: '',
+    marketing: { optIn: false, at: null }, createdAt: '2026-10-01T00:00:00.000Z', lastLoginAt: '2026-10-19T00:00:00.000Z',
+  };
+
+  it('Settings opens on your details; changes wait for Save and only what changed is sent', async () => {
+    let body: unknown;
+    mockApi({
+      '/api/a/me/profile': (init) => {
+        if (init?.method === 'PUT') {
+          body = JSON.parse(String(init.body));
+          return json(200, { profile: { ...profile, firstName: 'Alex', marketing: { optIn: true, at: '2026-10-20T00:00:00.000Z' } } });
+        }
+        return json(200, { profile, states: ['NSW', 'VIC'], heardFrom: ['Instagram', 'A friend'] });
+      },
+    });
+    renderAt('/admin/w1/account/settings');
+    const first = await screen.findByLabelText('First name');
+    expect(screen.getByDisplayValue('owner@example.com')).toHaveAttribute('readonly');
+    await userEvent.type(first, 'Alex');
+    await userEvent.click(screen.getByLabelText(/wedding-planning tips/));
+    expect(body).toBeUndefined();
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(body).toEqual({ firstName: 'Alex', marketingOptIn: true }));
+    expect(await screen.findByText(/You said yes on/)).toBeInTheDocument();
+  });
+
+  it('an invitation link: a new person sets their name and passcode, and lands in the wedding', async () => {
+    let accepted: unknown;
+    mockApi({
+      '/api/a/invite/TOKEN0123456789abcdefghij': (init) => {
+        if (init?.method === 'POST') {
+          accepted = JSON.parse(String(init.body));
+          return json(200, ME);
+        }
+        return json(200, { email: 'partner@example.com', role: 'owner', couple: 'Alex & Blair', hasAccount: false });
+      },
+    });
+    renderAt('/admin/join?t=TOKEN0123456789abcdefghij');
+    expect(await screen.findByText(/partner@example.com/)).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText('First name'), 'Sam');
+    await userEvent.type(screen.getByPlaceholderText(/Choose a passcode/), 'partner-pass-1');
+    await userEvent.click(screen.getByRole('button', { name: 'Create my sign-in' }));
+    await waitFor(() => expect(accepted).toEqual({ passcode: 'partner-pass-1', firstName: 'Sam', lastName: '', marketingOptIn: false }));
+    await waitFor(() => expect(location).toBe('/admin/w1/account/overview'));
+  });
+});
+
 describe('admin name', () => {
   it('Admin look: the name at the top of the admin saves when you leave the box', async () => {
     let body: unknown;
@@ -439,7 +488,7 @@ describe('SMS setup tab', () => {
         return json(200, settings);
       },
     });
-    renderAt('/admin/w1/settings');
+    renderAt('/admin/w1/account/texts');
     expect(await screen.findByText('Texts are live')).toBeInTheDocument();
     expect(screen.getAllByText('$0.70').length).toBeGreaterThan(0);
     await userEvent.click(screen.getByRole('button', { name: 'Pause all texts' }));

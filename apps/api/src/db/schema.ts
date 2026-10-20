@@ -13,6 +13,17 @@ export const user = sqliteTable('user', {
   name: text('name'),
   passHash: text('pass_hash'),
   createdAt: text('created_at').notNull(),
+  // migration 0024: the customer's details, for their account page and a CRM later
+  firstName: text('first_name'),
+  lastName: text('last_name'),
+  mobile: text('mobile'),
+  state: text('state'),
+  postcode: text('postcode'),
+  heardFrom: text('heard_from'),
+  marketingOptIn: integer('marketing_opt_in', { mode: 'boolean' }).notNull().default(false),
+  marketingOptInAt: text('marketing_opt_in_at'),
+  lastLoginAt: text('last_login_at'),
+  updatedAt: text('updated_at'),
 });
 
 export const session = sqliteTable('session', {
@@ -466,5 +477,28 @@ export const partySession = sqliteTable('party_session', {
   accountId: text('account_id').notNull(),
   weddingId: text('wedding_id').notNull(),
   expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+/** migration 0024: every consent choice as it was made (never changed). */
+export const consentLog = sqliteTable('consent_log', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  kind: text('kind').notNull(),
+  granted: integer('granted', { mode: 'boolean' }).notNull(),
+  source: text('source').notNull(),
+  at: text('at').notNull(),
+});
+
+/** migration 0024: an invitation to help run a wedding (the link's token stored only as a hash). */
+export const memberInvite = sqliteTable('member_invite', {
+  id: text('id').primaryKey(),
+  weddingId: text('wedding_id').notNull(),
+  email: text('email').notNull(),
+  role: text('role').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  invitedBy: text('invited_by').notNull(),
+  expiresAt: text('expires_at').notNull(),
+  acceptedAt: text('accepted_at'),
   createdAt: text('created_at').notNull(),
 });

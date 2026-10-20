@@ -61,7 +61,7 @@ export const requireMember =
     await next();
   };
 
-async function me(env: Env, user: SessionUser) {
+export async function me(env: Env, user: SessionUser) {
   const { results } = await env.DB.prepare(
     `SELECT w.id, w.slug, w.name1, w.name2, m.role FROM membership m JOIN wedding w ON w.id = m.wedding_id
       WHERE m.user_id = ? AND w.deleted_at IS NULL ORDER BY w.created_at`,
@@ -69,6 +69,18 @@ async function me(env: Env, user: SessionUser) {
     .bind(user.id)
     .all<{ id: string; slug: string; name1: string; name2: string; role: Role }>();
   return { user: { id: user.id, email: user.email, superAdmin: user.superAdmin }, weddings: results };
+}
+
+/** Start a session for this user (a cookie with a random token; only its HMAC is stored) and note the sign-in. */
+export async function signIn(c: Context<AdminEnv>, user: { id: string; email: string }) {
+  const token = newSessionToken();
+  const expires = new Date(Date.now() + SESSION_DAYS * 86_400_000);
+  await c.env.DB.batch([
+    c.env.DB.prepare(`INSERT INTO session (id, user_id, expires_at) VALUES (?, ?, ?)`).bind(await sessionId(token, c.env.SESSION_SECRET!), user.id, expires.toISOString()),
+    c.env.DB.prepare(`UPDATE user SET last_login_at = ? WHERE id = ?`).bind(new Date().toISOString(), user.id),
+  ]);
+  setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', expires });
+  return me(c.env, { id: user.id, email: user.email, superAdmin: superAdmins(c.env).has(user.email) });
 }
 
 export function authRoutes() {
@@ -96,13 +108,7 @@ export function authRoutes() {
       return err(c, 401, 'bad_login', "That email and passcode don't match.");
     }
 
-    const token = newSessionToken();
-    const expires = new Date(Date.now() + SESSION_DAYS * 86_400_000);
-    await c.env.DB.prepare(`INSERT INTO session (id, user_id, expires_at) VALUES (?, ?, ?)`)
-      .bind(await sessionId(token, c.env.SESSION_SECRET), user.id, expires.toISOString())
-      .run();
-    setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', expires });
-    return c.json(await me(c.env, { id: user.id, email: user.email, superAdmin: superAdmins(c.env).has(user.email) }));
+    return c.json(await signIn(c, user));
   });
 
   app.post('/auth/logout', async (c) => {

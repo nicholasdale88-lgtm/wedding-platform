@@ -284,6 +284,48 @@ export const settingsApi = {
   changePasscode: (current: string, next: string) => send<{ ok: true }>('POST', '/a/auth/passcode', { current, next }),
 };
 
+// ---------------------------------------------------------------- Your account and the people who run the wedding
+
+/** You, as a customer: what Settings → Your details shows and saves (user.id is the customer id). */
+export interface Profile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  mobile: string;
+  state: string;
+  postcode: string;
+  heardFrom: string;
+  marketing: { optIn: boolean; at: string | null };
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+export type ProfilePut = Partial<Pick<Profile, 'firstName' | 'lastName' | 'mobile' | 'state' | 'postcode' | 'heardFrom'> & { marketingOptIn: boolean }>;
+export interface Member {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  lastLoginAt: string | null;
+}
+export interface Members {
+  you: { id: string; role: Role };
+  members: Member[];
+  invites: { id: string; email: string; role: Role; expiresAt: string }[];
+}
+export const accountApi = {
+  profile: () => request<{ profile: Profile; states: string[]; heardFrom: string[] }>('/a/me/profile'),
+  saveProfile: (body: ProfilePut) => send<{ profile: Profile }>('PUT', '/a/me/profile', body),
+  changeEmail: (email: string, passcode: string) => send<{ ok: true; email: string }>('POST', '/a/me/email', { email, passcode }),
+  members: (wid: string) => request<Members>(`${w(wid)}/members`),
+  invite: (wid: string, email: string, role: Role) => send<{ link: string; expiresAt: string }>('POST', `${w(wid)}/members/invite`, { email, role }),
+  cancelInvite: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/members/invites/${encodeURIComponent(id)}`),
+  setRole: (wid: string, uid: string, role: Role) => send<{ ok: true }>('PATCH', `${w(wid)}/members/${encodeURIComponent(uid)}`, { role }),
+  remove: (wid: string, uid: string) => send<{ ok: true }>('DELETE', `${w(wid)}/members/${encodeURIComponent(uid)}`),
+  inviteInfo: (token: string) => request<{ email: string; role: Role; couple: string; hasAccount: boolean }>(`/a/invite/${encodeURIComponent(token)}`),
+  acceptInvite: (token: string, body: { passcode: string; firstName?: string; lastName?: string; marketingOptIn?: boolean }) => send<Me>('POST', `/a/invite/${encodeURIComponent(token)}`, body),
+};
+
 // ---------------------------------------------------------------- Seating
 
 export interface SeatTable {

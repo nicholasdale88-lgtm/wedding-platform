@@ -3,6 +3,7 @@ import { engineDeps, type Env } from './env';
 import { hardening } from './lib/security';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
+import { accountRoutes, memberRoutes } from './routes/accounts';
 import { guestRoutes } from './routes/guest';
 import { hookRoutes } from './routes/hooks';
 import { pagesRoutes } from './routes/pages';
@@ -40,6 +41,8 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.get('/health', (c) => c.json({ ok: true }));
   app.route('/hooks', hookRoutes(deps));
   app.route('/a', authRoutes());
+  app.route('/a', accountRoutes());
+  app.route('/a/w/:wid/members', memberRoutes());
   app.route('/a/w/:wid/pages', pagesRoutes());
   app.route('/a/w/:wid/texts', textRoutes(deps));
   app.route('/a/w/:wid/messages', messageRoutes(deps));

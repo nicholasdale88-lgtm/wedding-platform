@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
 import { coupleName } from '../lib/remember';
 import { GuestPlanningBar } from './GuestPlanning';
 import { Guests } from './Guests';
+import { Join } from './Join';
 import { Login } from './Login';
 import { Overview } from './Overview';
 import { GuestPages } from './pages/GuestPages';
@@ -24,6 +25,8 @@ type State = { kind: 'loading' } | { kind: 'signed-out' } | { kind: 'signed-in';
 /** /admin: checks the session, shows sign-in when needed, then the wedding's tabs. */
 export function AdminRoot() {
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const { pathname } = useLocation();
+  const go = useNavigate();
   useEffect(() => {
     document.title = 'Admin';
   }, []);
@@ -42,6 +45,18 @@ export function AdminRoot() {
     setState({ kind: 'signed-out' });
   }, []);
 
+  // An invitation to help run a wedding opens its own page, signed in or not.
+  if (pathname.replace(/\/+$/, '') === '/admin/join') {
+    return (
+      <Join
+        onJoined={(me) => {
+          setState({ kind: 'signed-in', me });
+          const w = me.weddings[me.weddings.length - 1];
+          go(w ? `/admin/${w.id}` : '/admin', { replace: true });
+        }}
+      />
+    );
+  }
   if (state.kind === 'loading') return <div className="min-h-screen bg-[#f6f0e2]" aria-busy="true" />;
   if (state.kind === 'signed-out') return <Login onSignedIn={(me) => setState({ kind: 'signed-in', me })} />;
   if (state.kind === 'error') {
@@ -106,7 +121,7 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
   const { search } = useLocation();
   // Account's texting setup and admin look are views of Settings now.
   if (tab === 'look') return <Navigate to={`${path('settings', ALL_EVENTS)}?view=look`} replace />;
-  if (tab === 'texts' && section === ACCOUNT) return <Navigate to={path('settings', ALL_EVENTS)} replace />;
+  if (tab === 'texts' && section === ACCOUNT) return <Navigate to={`${path('settings', ALL_EVENTS)}?view=texting`} replace />;
   // Wedding party sign-ins moved from Setup into the Wedding party page.
   if (tab === 'pages' && new URLSearchParams(search).get('page') === 'party') return <Navigate to={`${path('party')}?view=access`} replace />;
   if (tab === 'events') return <Navigate to={path('overview', ALL_EVENTS)} replace />;
