@@ -1,4 +1,4 @@
-import { BUDGET_SPLIT, dateIn, moneyOf, splitOf, standardLines, withSchedules, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
+import { BUDGET_SPLIT, dateIn, moneyOf, savingsPlan, splitOf, standardLines, withSchedules, type SavingsEntry, type Budget as BudgetDoc, type BudgetLine, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useUnsavedChanges } from '../leave';
@@ -109,6 +109,20 @@ export function Budget() {
       setSaving(false);
     }
   };
+  /** Saves straight away (savings are added one at a time): any other unsaved changes go with it. */
+  const saveWith = async (next: BudgetDoc, done: string) => {
+    setSaving(true);
+    try {
+      setDoc(await plannerApi.saveDoc(wid, 'budget', '', { ...next, lines: next.lines.filter((l) => l.item.trim() || l.estimate || l.quote || l.paid) }, doc.version));
+      setDirty(false);
+      toast(done);
+    } catch (e) {
+      toast(e instanceof ApiError && e.status === 409 ? 'Changed elsewhere: reloaded. Add it again.' : (e as Error).message);
+      if (e instanceof ApiError && e.status === 409) await load();
+    } finally {
+      setSaving(false);
+    }
+  };
   const coming = overview?.perEvent?.[0]?.coming ?? 0;
   // Who's paying for what (lines without a payer are the two of you).
   const payers = [...b.lines.reduce((m, l) => {
@@ -149,6 +163,16 @@ export function Budget() {
           </div>
         ))}
       </section>
+
+      <SavingUp
+        entries={b.savings?.entries ?? []}
+        owing={sums.owing.map((l) => ({ label: l.vendor || l.item || l.category, due: l.due, amount: Math.max(0, cost(l) - l.paid) }))}
+        today={today}
+        weddingDay={overview?.events[0]?.startsAt ? dateIn(overview.wedding.timezone, new Date(overview.events[0].startsAt)) : ''}
+        names={overview ? [overview.wedding.name1.split(' ')[0] ?? '', overview.wedding.name2.split(' ')[0] ?? ''] : []}
+        busy={saving}
+        onChange={(entries, done) => void saveWith({ ...b, savings: { entries } }, done)}
+      />
 
       <Plan
         b={b}
@@ -560,6 +584,145 @@ function Plan({ b, guests, coming, planned, onGuests, onSplit, onStandard }: { b
         )}
         <span className="text-[#7a7466]">The usual split is what Australian couples typically spend; yours can be anything.</span>
       </div>
+    </section>
+  );
+}
+
+/**
+ * Saving up: what you've put away for the wedding against what's still to pay your vendors, how much a
+ * month gets you there by the day, and the first payment your savings won't cover by its date.
+ */
+function SavingUp({
+  entries,
+  owing,
+  today,
+  weddingDay,
+  names,
+  busy,
+  onChange,
+}: {
+  entries: SavingsEntry[];
+  owing: { label: string; due: string; amount: number }[];
+  today: string;
+  weddingDay: string;
+  names: string[];
+  busy: boolean;
+  onChange: (entries: SavingsEntry[], done: string) => void;
+}) {
+  const [amount, setAmount] = useState(0);
+  const [who, setWho] = useState('');
+  const [note, setNote] = useState('');
+  const [out, setOut] = useState(false);
+  const [all, setAll] = useState(false);
+  const p = savingsPlan(entries, owing, today, weddingDay);
+  const pct = p.toPay > 0 ? Math.min(100, Math.round((Math.max(0, p.saved) / p.toPay) * 100)) : 0;
+  const add = () => {
+    if (!amount) return;
+    const e: SavingsEntry = { id: crypto.randomUUID().slice(0, 12), date: today, amount: out ? -Math.abs(amount) : Math.abs(amount), who, note: note.trim().slice(0, 120) };
+    onChange([e, ...entries], out ? `${aud(Math.abs(amount))} taken out` : `${aud(Math.abs(amount))} put away`);
+    setAmount(0);
+    setNote('');
+    setOut(false);
+  };
+  const list = [...entries].sort((a, z) => z.date.localeCompare(a.date));
+  return (
+    <section aria-label="Saving up" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <div className="flex justify-between items-baseline flex-wrap gap-2">
+        <H2>Saving up</H2>
+        <span className="text-[13px] text-[#5b6a52]">What you’ve put away to pay your vendors</span>
+      </div>
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        {[
+          ['Saved', aud(p.saved), undefined],
+          ['Still to pay', aud(p.toPay), undefined],
+          [p.short ? 'Still to save' : 'Covered', p.short ? aud(p.short) : '✓', p.short ? '#7a4a37' : '#3d4a2f'],
+          ['A month to be ready', p.short ? aud(p.perMonth) : '—', undefined],
+        ].map(([k, v, c]) => (
+          <div key={k} className="flex flex-col gap-1">
+            <span className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">{k}</span>
+            <span className="font-display text-[26px] leading-none" style={{ color: c }}>
+              {v}
+            </span>
+          </div>
+        ))}
+      </div>
+      {p.toPay > 0 && (
+        <div className="h-[14px] rounded-full overflow-hidden bg-[#e9e2cc]" role="img" aria-label={`${pct}% of what's still to pay is saved`}>
+          <div className="h-full bg-[#5d6b47]" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+      <p className="m-0 text-[14px] text-[#5b6a52]">
+        {p.toPay === 0
+          ? 'Book vendors (or add what they cost below) and this shows how much to put away each month.'
+          : p.short
+            ? `Put away about ${aud(p.perMonth)} a month for the ${p.months} ${p.months === 1 ? 'month' : 'months'} until the wedding.${p.pace ? ` You’ve averaged ${aud(p.pace)} a month so far.` : ''}`
+            : 'You’ve saved enough for everything still to pay. 🎉'}
+      </p>
+      {p.gap && (
+        <p role="alert" className="m-0 py-2 px-3 rounded-[10px] bg-[#f4dcd2] text-[14px] text-[#7a4a37]">
+          At your pace, you’ll be about {aud(p.gap.by)} short for {p.gap.label} on {new Date(`${p.gap.due}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'long' })}.
+        </p>
+      )}
+      <form
+        className="flex gap-2 flex-wrap items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] w-[140px]">
+          Amount
+          <MoneyInput aria-label="Amount" value={amount} placeholder="0" onValue={setAmount} className={`${inputCls} !pl-5 text-right tabular-nums`} />
+        </label>
+        {names.filter(Boolean).length > 0 && (
+          <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+            Who
+            <select value={who} onChange={(e) => setWho(e.target.value)} className={inputCls}>
+              <option value="">Both of us</option>
+              {names.filter(Boolean).map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+              <option value="Family">Family</option>
+            </select>
+          </label>
+        )}
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] flex-1 min-w-[150px]">
+          Note
+          <input value={note} maxLength={120} onChange={(e) => setNote(e.target.value)} placeholder="e.g. pay day, tax return" className={inputCls} />
+        </label>
+        <label className="flex items-center gap-2 text-[13px] cursor-pointer pb-2">
+          <input type="checkbox" checked={out} onChange={(e) => setOut(e.target.checked)} className="accent-[#5d6b47]" />
+          Taken out
+        </label>
+        <Pill kind="primary" type="submit" disabled={!amount || busy}>
+          {out ? 'Take out' : 'Put away'}
+        </Pill>
+      </form>
+      {list.length > 0 && (
+        <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#ece3cd] text-[14px]">
+          {(all ? list : list.slice(0, 5)).map((e) => (
+            <li key={e.id} className="flex items-center gap-3 py-2">
+              <span className="w-[90px] text-[#5b6a52] tabular-nums">{new Date(`${e.date}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</span>
+              <span className="flex-1 min-w-0 truncate">
+                {[e.who || 'Both of us', e.note].filter(Boolean).join(' · ')}
+              </span>
+              <span className={`tabular-nums ${e.amount < 0 ? 'text-[#7a4a37]' : ''}`}>{e.amount < 0 ? `−${aud(-e.amount)}` : aud(e.amount)}</span>
+              <button type="button" aria-label="Remove" disabled={busy} onClick={() => onChange(entries.filter((x) => x.id !== e.id), 'Removed')} className="p-0 border-0 bg-transparent cursor-pointer text-[#7a7466] text-[18px]">
+                ×
+              </button>
+            </li>
+          ))}
+          {list.length > 5 && (
+            <li className="py-2">
+              <button type="button" onClick={() => setAll(!all)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f] text-[13px]">
+                {all ? 'Show fewer' : `Show all ${list.length}`}
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
     </section>
   );
 }

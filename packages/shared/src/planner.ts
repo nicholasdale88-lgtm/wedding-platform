@@ -493,6 +493,57 @@ export const BudgetLine = z.object({
   perHead: money,
 });
 export type BudgetLine = z.infer<typeof BudgetLine>;
+/** Saving up for the wedding: what you put away (or took out), when, and by whom. */
+export const SavingsEntry = z.object({
+  id: z.string().max(40),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** Put away (or, negative, taken out). */
+  amount: z.number().min(-10_000_000).max(10_000_000),
+  who: s(40),
+  note: s(120),
+});
+export type SavingsEntry = z.infer<typeof SavingsEntry>;
+export const Savings = z.object({ entries: z.array(SavingsEntry).max(1000).default([]) });
+export type Savings = z.infer<typeof Savings>;
+
+/**
+ * How the savings stand against what's still to pay: saved so far, what's left to pay, how much more to
+ * put away, how much a month until the wedding, and the first payment the savings won't cover by its date
+ * (counting what you'd save each month until then at your average so far).
+ */
+export function savingsPlan(entries: SavingsEntry[], owing: { due: string; amount: number; label: string }[], today: string, weddingDay: string) {
+  const saved = entries.reduce((a, e) => a + e.amount, 0);
+  const toPay = owing.reduce((a, o) => a + o.amount, 0);
+  const short = Math.max(0, toPay - saved);
+  const monthsTo = (to: string) => {
+    if (!to || !today) return 0;
+    const [y1, m1, d1] = today.split('-').map(Number) as [number, number, number];
+    const [y2, m2, d2] = to.split('-').map(Number) as [number, number, number];
+    return Math.max(0, (y2 - y1) * 12 + (m2 - m1) + (d2 >= d1 ? 0 : -1));
+  };
+  const months = monthsTo(weddingDay);
+  const perMonth = short > 0 ? (months > 0 ? Math.ceil(short / months) : short) : 0;
+  // Your pace so far: the average a month since your first entry (at least a month).
+  const first = entries.map((e) => e.date).sort()[0];
+  const pace = first ? Math.max(0, saved) / Math.max(1, monthsBetween(first, today)) : 0;
+  let running = 0;
+  let gap: { label: string; due: string; by: number } | null = null;
+  for (const o of [...owing].filter((x) => x.due).sort((a, b) => a.due.localeCompare(b.due))) {
+    running += o.amount;
+    const have = saved + pace * monthsTo(o.due);
+    if (running > have + 0.5) {
+      gap = { label: o.label, due: o.due, by: Math.round(running - have) };
+      break;
+    }
+  }
+  return { saved, toPay, short, months, perMonth, pace: Math.round(pace), gap };
+}
+function monthsBetween(from: string, to: string) {
+  const [y1, m1] = from.split('-').map(Number) as [number, number];
+  const [y2, m2] = to.split('-').map(Number) as [number, number];
+  return Math.max(0, (y2 - y1) * 12 + (m2 - m1));
+}
+
 export const Budget = z.object({
   total: money,
   /** The guest count per-guest lines are priced for (0: the number coming so far). */
@@ -500,6 +551,8 @@ export const Budget = z.object({
   lines: z.array(BudgetLine).max(300).default([]),
   /** Your own split by category (share of the total, 0 to 1); categories not here use the usual split. */
   split: z.record(z.string().max(60), z.number().min(0).max(1)).default({}),
+  /** Saving up: what's been put away for it (none until you start). */
+  savings: Savings.optional(),
 });
 export type Budget = z.infer<typeof Budget>;
 

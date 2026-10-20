@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPayments, compareRfq, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, compareRfq, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -282,5 +282,23 @@ describe('quote requests', () => {
       expect(d.message).toContain('{couple}');
     }
     expect(rfqDraft('florist').message).toMatch(/bouquets/);
+  });
+});
+
+describe('saving up', () => {
+  it('compares savings with what is still to pay, says how much a month, and finds the first payment it will not cover', () => {
+    const entries = [
+      { id: 'a', date: '2026-04-20', amount: 4000, who: '', note: '' },
+      { id: 'b', date: '2026-08-01', amount: 2500, who: '', note: '' },
+      { id: 'c', date: '2026-09-01', amount: -500, who: '', note: 'car' },
+    ];
+    const owing = [
+      { label: 'Photographer', due: '2026-12-01', amount: 4000 },
+      { label: 'Venue', due: '2027-03-01', amount: 10000 },
+    ];
+    const p = savingsPlan(entries, owing, '2026-10-20', '2027-11-18');
+    expect(p).toMatchObject({ saved: 6000, toPay: 14000, short: 8000, months: 12, perMonth: 667, pace: 1000 });
+    expect(p.gap).toEqual({ label: 'Venue', due: '2027-03-01', by: 4000 });
+    expect(savingsPlan([], [], '2026-10-20', '2027-11-18')).toMatchObject({ saved: 0, toPay: 0, short: 0, perMonth: 0, gap: null });
   });
 });
