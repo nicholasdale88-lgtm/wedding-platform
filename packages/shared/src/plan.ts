@@ -1,6 +1,6 @@
 /**
  * Plans: what each wedding can use. New sign-ups start on Free; paying moves them to Essentials or
- * Complete. Weddings made before plans existed (stored as 'trial') and the platform's own wedding have
+ * Deluxe (stored as 'complete'). Weddings made before plans existed (stored as 'trial') and the platform's own wedding have
  * everything. The server enforces this; the admin shows an Upgrade card where a feature is locked.
  */
 export type Plan = 'free' | 'essentials' | 'complete';
@@ -29,8 +29,9 @@ export const FREE_GUEST_LIMIT = 50;
 
 export const PLAN_INFO: Record<Plan, { name: string; price: string }> = {
   free: { name: 'Free', price: '$0' },
-  essentials: { name: 'Essentials', price: '$149' },
-  complete: { name: 'Complete', price: '$249' },
+  essentials: { name: 'Essentials', price: '$28' },
+  // Stored as 'complete'; called Deluxe.
+  complete: { name: 'Deluxe', price: '$35' },
 };
 
 /** What each locked feature is, in a couple's words (for the Upgrade card). */

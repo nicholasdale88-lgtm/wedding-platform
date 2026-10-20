@@ -32,7 +32,7 @@ describe('front page pricing', () => {
     const row = within(table).getByText('Guests’ photos by QR code on each table').closest('tr')!;
     expect(within(row).getByLabelText('Free: not included')).toBeInTheDocument();
     expect(within(row).getByLabelText('Essentials: not included')).toBeInTheDocument();
-    expect(within(row).getByLabelText('Complete: included')).toBeInTheDocument();
+    expect(within(row).getByLabelText('Deluxe: included')).toBeInTheDocument();
     const texts = within(table).getByText('Invitations and reminders by text').closest('tr')!;
     expect(within(texts).getByLabelText('Essentials: included')).toBeInTheDocument();
   });

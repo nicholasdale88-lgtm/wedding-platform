@@ -1,7 +1,7 @@
 import { EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, planFor, planOf, type Feature, type Plan } from '@wp/shared';
 import type { Context } from 'hono';
 
-/** The wedding's plan (Free, Essentials or Complete; older weddings and the platform's own have everything). */
+/** The wedding's plan (Free, Essentials or Deluxe; older weddings and the platform's own have everything). */
 export async function weddingPlan(db: D1Database, weddingId: string): Promise<Plan> {
   const w = await db.prepare(`SELECT plan FROM wedding WHERE id = ?`).bind(weddingId).first<{ plan: string }>();
   return planOf(w?.plan);

@@ -81,8 +81,8 @@ The cheap 1.6¢ rate only applies to credits bought **within 30 days of signing 
 1. Sign up at **stripe.com** and complete **Activate payments**: business details, ABN and bank account.
 2. Stay in **Test mode** (the toggle at the top) until a full test purchase works.
 3. Create the products under **Product catalog → Add product**:
-   - Essentials (one-off)
-   - Complete (one-off)
+   - Essentials (one-off, $28)
+   - Deluxe (one-off, $35)
    - SMS credit packs
 4. For each product, go to **Payment Links → New** and create a link. Claude tells you what to put in the "after payment" settings.
 5. Go to **Developers → Webhooks → Add endpoint**:
