@@ -316,7 +316,7 @@ export function PartyPage() {
         </header>
 
         <PartyWelcome
-          storeKey={`wp-party-welcome-${slug}-${data.me.map((m) => m.personId).join('-')}`}
+          storeKey={`wp-party-welcome-${slug}-${data.me.map((m) => m.name).join('-')}`}
           firstNames={data.me.map((m) => first(m.name)).join(' & ')}
           word={group.word}
           couple={data.couple}
