@@ -127,6 +127,31 @@ describe('phone menu', () => {
   });
 });
 
+describe('the planner in the menus', () => {
+  it('a computer: the sidebar lists "Wedding planner" once', async () => {
+    mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
+    renderAt('/admin/w1/wedding/overview');
+    const nav = await screen.findByRole('navigation', { name: 'Admin' });
+    await waitFor(() => expect(within(nav).getAllByText('Wedding planner')).toHaveLength(1));
+  });
+
+  it("a phone: the wedding chosen from Account shows the planner once; inside the wedding it is only the bar's Planner", async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    mockApi();
+    renderAt('/admin/w1/account/overview');
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'More' })).getByRole('button', { name: 'The wedding' }));
+    expect(within(screen.getByRole('dialog', { name: 'More' })).getAllByText(/planner/i)).toHaveLength(1);
+    expect(within(screen.getByRole('navigation', { name: 'Quick links' })).queryByText(/planner/i)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Wedding planner' }));
+    await waitFor(() => expect(location).toBe('/admin/w1/wedding/planner'));
+    await userEvent.click(screen.getByRole('button', { name: 'More' }));
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    expect(within(sheet).queryByText(/planner/i)).toBeNull(); // it's in the bar below
+    expect(within(screen.getByRole('navigation', { name: 'Quick links' })).getAllByText('Planner')).toHaveLength(1);
+  });
+});
+
 describe('messages', () => {
   const thread = (id: string, name: string, events: string[], unread: number) => ({
     invitationId: id, name, canText: true, last: { body: `Hi from ${name}`, at: '2026-10-19T00:00:00.000Z', from: 'guest' }, unread, kinds: [], events,
