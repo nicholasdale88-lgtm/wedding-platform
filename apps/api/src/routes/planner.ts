@@ -133,7 +133,7 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
       event: first.key,
     });
   }
-  const lapsing = vendors.data.list.flatMap((v) => (v.status === 'booked' ? [] : v.quotes.filter((q) => q.validUntil && q.validUntil >= today && q.validUntil <= soon).map(() => v.name)));
+  const lapsing = vendors.data.list.flatMap((v) => (v.status === 'booked' || v.status === 'declined' ? [] : v.quotes.filter((q) => q.validUntil && q.validUntil >= today && q.validUntil <= soon).map(() => v.name)));
   if (lapsing.length) {
     out.push({ kind: 'quotes-lapsing', title: `${lapsing.length === 1 ? 'A quote runs' : `${lapsing.length} quotes run`} out soon`, detail: [...new Set(lapsing)].join(', '), cta: 'Vendors', link: 'planner?view=vendors', event: first.key });
   }

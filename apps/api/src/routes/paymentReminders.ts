@@ -88,7 +88,8 @@ export async function runPaymentReminders(env: Env, d: EngineDeps) {
     const done = new Set(s.sent);
     const due = allPayments(budget.data.lines, vendors.data.list).filter((p) => !p.paid && p.amount > 0 && p.due && p.due <= until && !done.has(keyOf(p)));
     if (!due.length) continue;
-    const body = reminderText(due, today, `${w.baseUrl.replace(/\/+$/, '')}/admin`);
+    const ev = await env.DB.prepare(`SELECT key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(id).first<{ key: string }>();
+    const body = reminderText(due, today, `${w.baseUrl.replace(/\/+$/, '')}/admin/${id}/${ev?.key ?? 'account'}/planner?view=payments`);
     await d.store.enqueue([{ weddingId: id, invitationId: null, campaignId: null, dedupeKey: `payrem:${id}:${today}:${due.map(keyOf).join(',').slice(0, 300)}`, kind: 'test', to: w.adminMobile, body, parts: segments(body).parts }]);
     await write(env.DB, id, { ...s, sent: [...s.sent, ...due.map(keyOf)].slice(-300) });
     await flush(d, w).catch(() => undefined);

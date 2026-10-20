@@ -631,7 +631,8 @@ export type Vendor = z.infer<typeof Vendor>;
 
 /** A booked vendor's commitment: the accepted quote (or the quote entered by hand). */
 export function commitmentOf(v: Vendor): { amount: number; deposit: number } {
-  const q = v.quotes.find((x) => x.id === v.accepted);
+  // The accepted quote; else the amount entered by hand; else (booked without choosing) the lowest quote in.
+  const q = v.quotes.find((x) => x.id === v.accepted) ?? (v.quote ? undefined : v.quotes.filter((x) => x.amount > 0).sort((a, b) => a.amount - b.amount)[0]);
   return { amount: q?.amount ?? v.quote, deposit: q?.deposit ?? v.deposit };
 }
 /**
@@ -682,8 +683,15 @@ export function bookingTimeline(list: Vendor[], day: number, now: number, venueS
 }
 
 const same = (a: string, b: string) => !!a.trim() && a.trim().toLowerCase() === b.trim().toLowerCase();
-/** The budget line that tracks this vendor (its "vendor" is the vendor's name), if any. */
-export const lineFor = (v: Vendor, lines: BudgetLine[]) => lines.find((l) => same(l.vendor, v.name));
+/** The budget lines that track this vendor (their "vendor" is the vendor's name). */
+export const linesFor = (v: Vendor, lines: BudgetLine[]) => lines.filter((l) => same(l.vendor, v.name));
+/** This vendor's budget, as one line: all its lines together (a venue on both "Venue hire" and "Catering"), if any. */
+export function lineFor(v: Vendor, lines: BudgetLine[]): BudgetLine | undefined {
+  const mine = linesFor(v, lines);
+  if (mine.length <= 1) return mine[0];
+  const due = mine.map((l) => l.due).filter(Boolean).sort()[0] ?? '';
+  return { ...mine[0]!, quote: mine.reduce((a, l) => a + (l.quote || l.estimate), 0), estimate: 0, paid: mine.reduce((a, l) => a + l.paid, 0), due };
+}
 
 /**
  * A vendor's payment schedule: the one you set; or, until then, what's known already (from its budget line:
@@ -715,13 +723,20 @@ export function moneyOf(v: Vendor, line?: BudgetLine) {
   return { total, paid, owing: Math.max(0, total - paid), unscheduled: Math.max(0, contract - scheduled), schedule: sched, next };
 }
 
-/** A budget line with its vendor's schedule applied (once a schedule is set, it says what's paid and when the rest is due). */
+/**
+ * Budget lines with their vendor's schedule applied (once a schedule is set, it says what's paid and when
+ * the rest is due). A vendor on several lines has its schedule shared between them, in proportion.
+ */
 export function withSchedules(lines: BudgetLine[], vendors: Vendor[]): BudgetLine[] {
   return lines.map((l) => {
     const v = vendors.find((x) => x.status === 'booked' && x.payments.length && same(l.vendor, x.name));
     if (!v) return l;
-    const m = moneyOf(v, l);
-    return { ...l, quote: m.total, paid: m.paid, due: m.next?.due ?? '' };
+    const all = linesFor(v, lines);
+    const m = moneyOf(v, lineFor(v, lines));
+    const contract = all.reduce((a, x) => a + (x.quote || x.estimate), 0);
+    const share = contract > 0 ? (l.quote || l.estimate) / contract : 1 / all.length;
+    const round = (n: number) => Math.round(n * 100) / 100;
+    return { ...l, quote: round(m.total * share), paid: round(m.paid * share), due: m.next?.due ?? '' };
   });
 }
 
@@ -738,6 +753,8 @@ export function allPayments(lines: BudgetLine[], vendors: Vendor[]): DuePayment[
   }
   lines.forEach((l, i) => {
     if (booked.some((v) => same(l.vendor, v.name))) return;
+    // Only what's actually agreed: a quote, a payment made, or a due date. An estimate is a plan, not a bill.
+    if (!l.quote && !l.paid && !l.due) return;
     const total = l.quote || l.estimate;
     const who = l.item || l.vendor || l.category;
     if (l.paid > 0) out.push({ key: `line${i}:paid`, vendorId: '', line: i, who, label: 'Paid so far', amount: Math.min(l.paid, total || l.paid), due: '', paid: true, paidOn: '' });

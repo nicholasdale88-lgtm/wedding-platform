@@ -64,7 +64,7 @@ export function Payments() {
     <div className="flex flex-col gap-6">
       <section aria-label="Payments summary" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {[
-          ['All payments', aud(total), `${booked.length} booked ${booked.length === 1 ? 'vendor' : 'vendors'}`],
+          ['All payments', aud(total), `${booked.length} booked ${booked.length === 1 ? 'vendor' : 'vendors'} and agreed budget lines`],
           ['Paid', aud(paidSum), total ? `${Math.round((paidSum / total) * 100)}% of it` : ''],
           ['Still to pay', aud(total - paidSum), `${unpaid.length} ${unpaid.length === 1 ? 'payment' : 'payments'}`],
           ['Next due', next ? aud(next.amount) : '—', next ? `${next.who} · ${when(next.due)}` : 'Nothing owing'],
@@ -119,7 +119,7 @@ export function Payments() {
             <span className="text-[13px] text-[#5b6a52]">Open one to set its deposit and instalments.</span>
           </div>
           {booked.map((v) => (
-            <VendorSchedule key={v.id} v={v} lines={lines} today={today} open={open === v.id} onToggle={() => setOpen(open === v.id ? null : v.id)} edit={(fn) => editSchedule(v.id, fn)} />
+            <VendorSchedule key={v.id} v={v} lines={lines} today={today} wedding={overview?.events[0] ? dateIn(overview.wedding.timezone, new Date(overview.events[0].startsAt)) : ''} open={open === v.id} onToggle={() => setOpen(open === v.id ? null : v.id)} edit={(fn) => editSchedule(v.id, fn)} />
           ))}
         </section>
       )}
@@ -148,7 +148,7 @@ export function Payments() {
 }
 
 /** One vendor: paid against the total, and (opened) its schedule to change. */
-function VendorSchedule({ v, lines, today, open, onToggle, edit }: { v: Vendor; lines: BudgetDoc['lines']; today: string; open: boolean; onToggle: () => void; edit: (fn: (ps: Payment[]) => Payment[]) => void }) {
+function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit }: { v: Vendor; lines: BudgetDoc['lines']; today: string; wedding: string; open: boolean; onToggle: () => void; edit: (fn: (ps: Payment[]) => Payment[]) => void }) {
   const m = moneyOf(v, lineFor(v, lines));
   const pct = m.total ? Math.round((m.paid / m.total) * 100) : 0;
   const set = (i: number, patch: Partial<Payment>) => edit((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
@@ -159,11 +159,19 @@ function VendorSchedule({ v, lines, today, open, onToggle, edit }: { v: Vendor; 
       const rest = m.total - kept.reduce((a, p) => a + p.amount, 0);
       if (rest <= 0) return ps;
       const each = Math.floor((rest / n) * 100) / 100;
-      const start = new Date(`${today}T00:00:00Z`);
+      // A month apart from next month, but all paid by two weeks before the wedding (closer together if need be).
+      const start = Date.parse(`${today}T00:00:00Z`);
+      const lastBy = wedding ? Date.parse(`${wedding}T00:00:00Z`) - 14 * 86_400_000 : Infinity;
+      const monthly = (i: number) => {
+        const t = new Date(start);
+        return Date.UTC(t.getUTCFullYear(), t.getUTCMonth() + i + 1, 1);
+      };
+      const fits = monthly(n - 1) <= lastBy;
+      const step = fits ? 0 : Math.max(86_400_000, (lastBy - start) / n);
       return [
         ...kept,
         ...Array.from({ length: n }, (_, i) => {
-          const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i + 1, 1));
+          const d = new Date(fits ? monthly(i) : start + step * (i + 1));
           return { id: newId(), label: i === n - 1 ? 'Final payment' : `Instalment ${i + 1}`, amount: i === n - 1 ? Math.round((rest - each * (n - 1)) * 100) / 100 : each, due: d.toISOString().slice(0, 10), paid: false, paidOn: '' };
         }),
       ];

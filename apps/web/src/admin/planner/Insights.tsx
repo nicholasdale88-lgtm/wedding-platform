@@ -312,7 +312,8 @@ export function Insights() {
             {[
               data.rsvpClose ? { what: 'Replies close', when: data.rsvpClose } : null,
               ...plan.tasks.filter((t) => t.legal && !t.done && !Number.isNaN(day)).map((t) => ({ what: t.text, when: dateIn(tz, new Date(day - t.before * DAY)) })),
-              ...months.slice(0, 2).map(([m, a]) => ({ what: `Payments ${aud(a)}`, when: `${m}-28` })),
+              // The next two payments, on their real due dates.
+              ...allPayments(budget.lines, vendors.list).filter((p) => !p.paid && p.due && p.due >= today).slice(0, 2).map((p) => ({ what: `Pay ${p.who} ${aud(p.amount)}`, when: p.due })),
               first ? { what: first.name, when: dateIn(tz, new Date(first.startsAt)) } : null,
             ]
               .filter((x): x is { what: string; when: string } => !!x)

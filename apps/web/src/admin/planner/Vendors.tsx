@@ -194,7 +194,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
               v.km !== null ? `${v.km} km from the venue` : '',
               v.quotes.length ? `${v.quotes.length} ${v.quotes.length === 1 ? 'quote' : 'quotes'}` : '',
               c.amount ? (v.status === 'booked' ? `Booked ${aud(c.amount)}` : `From ${aud(Math.min(...v.quotes.map((q) => q.amount || Infinity), c.amount || Infinity))}`) : '',
-              v.balanceDue ? `Balance due ${shortDate(v.balanceDue)}` : '',
+              v.status === 'booked' && moneyOf(v).next ? `Next payment ${moneyOf(v).next!.due ? shortDate(moneyOf(v).next!.due) : '(no date)'}` : '',
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -813,7 +813,7 @@ function QuoteTracker({ list, onPatch, onOpen }: { list: Vendor[]; onPatch: (id:
                         </>
                       )}
                       {stage === 'in' && (
-                        <button type="button" className={btn} onClick={() => onPatch(v.id, { status: 'booked' }, `${v.name} booked`)}>
+                        <button type="button" className={btn} onClick={() => onPatch(v.id, { status: 'booked', ...(v.accepted ? {} : { accepted: [...v.quotes].filter((x) => x.amount > 0).sort((a, b) => a.amount - b.amount)[0]?.id ?? '' }) }, `${v.name} booked`)}>
                           Book them
                         </button>
                       )}

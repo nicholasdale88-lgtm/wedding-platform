@@ -10,7 +10,15 @@ export const ownSchedule = (v: Vendor, lines: BudgetLine[]): Payment[] => (v.pay
  * booked vendor (paid in full). Returns the vendor list and budget lines as they should now be.
  */
 export function markPaid(p: DuePayment, on: boolean, vendors: Vendor[], lines: BudgetLine[], today: string): { vendors: Vendor[]; lines: BudgetLine[] } {
-  if (!p.vendorId) return { vendors, lines: lines.map((l, i) => (i === p.line ? { ...l, paid: on ? l.quote || l.estimate : 0 } : l)) };
+  if (!p.vendorId) {
+    // A budget line: "the rest" paid makes it paid in full; un-ticking takes off only that payment.
+    const total = (l: BudgetLine) => l.quote || l.estimate;
+    const rest = p.key.endsWith(':rest');
+    return {
+      vendors,
+      lines: lines.map((l, i) => (i !== p.line ? l : { ...l, paid: on ? (rest ? total(l) : l.paid) : Math.max(0, Math.round((l.paid - p.amount) * 100) / 100) })),
+    };
+  }
   const v = vendors.find((x) => x.id === p.vendorId);
   if (!v) return { vendors, lines };
   // Payments worked out (not yet kept) are found by their place in the schedule.

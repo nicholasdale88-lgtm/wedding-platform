@@ -54,8 +54,10 @@ export function Budget() {
   const headcount = doc?.data.guests || overview?.perEvent?.[0]?.coming || 0;
   const b = useMemo(() => {
     const d = doc?.data;
-    return d && { ...d, split: d.split ?? {}, lines: withSchedules(d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)), vendors) };
-  }, [doc, headcount, vendors]);
+    return d && { ...d, split: d.split ?? {}, lines: d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)) };
+  }, [doc, headcount]);
+  // What each line shows: a booked vendor's payment schedule applied (for showing only: saved lines keep what you typed).
+  const shown = useMemo(() => (b ? withSchedules(b.lines, vendors) : []), [b, vendors]);
   // Lines whose vendor has a payment schedule: the quote, paid and due come from Payments.
   const scheduled = (l: BudgetLine) => vendors.some((v) => v.status === 'booked' && v.payments.length && !!l.vendor.trim() && v.name.trim().toLowerCase() === l.vendor.trim().toLowerCase());
   // Booked vendors not already on a budget line, as lines of their own (read-only here; edit in Vendors).
@@ -69,7 +71,7 @@ export function Budget() {
       });
   }, [b, vendors]);
   const sums = useMemo(() => {
-    const lines = [...(b?.lines ?? []), ...commitments.map((x) => x.line)];
+    const lines = [...shown, ...commitments.map((x) => x.line)];
     const byCat = new Map<string, { cost: number; paid: number }>();
     for (const l of lines) {
       const x = byCat.get(l.category) ?? { cost: 0, paid: 0 };
@@ -79,9 +81,10 @@ export function Budget() {
     }
     const committed = lines.reduce((a, l) => a + cost(l), 0);
     const paid = lines.reduce((a, l) => a + l.paid, 0);
-    const owing = lines.filter((l) => cost(l) > l.paid).sort((a, z) => (a.due || '9999').localeCompare(z.due || '9999'));
+    // Still owing: what's agreed (a quote, a payment or a due date), not plans.
+    const owing = lines.filter((l) => (l.quote || l.paid || l.due) && cost(l) > l.paid).sort((a, z) => (a.due || '9999').localeCompare(z.due || '9999'));
     return { byCat: [...byCat.entries()].sort((a, z) => z[1].cost - a[1].cost), committed, paid, owing };
-  }, [b, commitments]);
+  }, [shown, commitments]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!doc || !b) return <div aria-busy="true" className="text-[#5b6a52]">Loading your budget…</div>;
@@ -232,6 +235,32 @@ export function Budget() {
                 <strong className="font-semibold">{aud(l.quote)}</strong>
                 {l.quote > l.paid && <span className="block text-[12px] text-[#7a7466]">{aud(l.quote - l.paid)} to pay</span>}
               </span>
+              {b.lines.some((x) => !x.vendor.trim()) && (
+                <label className="col-span-2 flex items-center gap-2 text-[12px] text-[#5b6a52]">
+                  Already planned for in the budget?
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const at = Number(e.target.value);
+                      if (Number.isNaN(at)) return;
+                      setLine(at, { vendor: v.name });
+                      toast(`${v.name} is on "${b.lines[at]?.item || b.lines[at]?.category}": counted once`);
+                    }}
+                    className="py-[4px] px-2 border border-[#d3c6a4] rounded-[8px] bg-white text-[13px] max-w-[60%]"
+                  >
+                    <option value="">Link to a line…</option>
+                    {b.lines
+                      .map((x, at) => ({ x, at }))
+                      .filter(({ x }) => !x.vendor.trim())
+                      .sort((p, q) => Number(q.x.category === l.category) - Number(p.x.category === l.category))
+                      .map(({ x, at }) => (
+                        <option key={at} value={at}>
+                          {x.item || x.category} · {aud(x.quote || x.estimate)}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
             </div>
           ))}
         </section>
@@ -280,7 +309,7 @@ export function Budget() {
           ))}
         </datalist>
         {b.lines.map((l, i) => (
-          <div key={i} className="grid gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] grid-cols-2 md:grid-cols-[1.1fr_1.3fr_.8fr_.7fr_.8fr_.8fr_1fr_.9fr_auto] items-end">
+          <div key={i} className="grid gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] grid-cols-2 md:grid-cols-[1fr_1.2fr_.8fr_.7fr_.8fr_.8fr_1fr_1fr_.8fr_auto] items-end">
             <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
               Category
               <input list="budget-cats" value={l.category} onChange={(e) => setLine(i, { category: e.target.value })} className={inputCls} />
@@ -305,15 +334,15 @@ export function Budget() {
               <>
                 <span className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
                   Quote
-                  <span className={`${inputCls} text-right tabular-nums bg-[#f3ecd6]`}>{aud(l.quote)}</span>
+                  <span className={`${inputCls} text-right tabular-nums bg-[#f3ecd6]`}>{aud(shown[i]?.quote ?? l.quote)}</span>
                 </span>
                 <span className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
                   Paid
-                  <span className={`${inputCls} text-right tabular-nums bg-[#f3ecd6]`}>{aud(l.paid)}</span>
+                  <span className={`${inputCls} text-right tabular-nums bg-[#f3ecd6]`}>{aud(shown[i]?.paid ?? l.paid)}</span>
                 </span>
                 <span className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
                   Next due (from Payments)
-                  <span className={`${inputCls} bg-[#f3ecd6]`}>{l.due ? new Date(`${l.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'}</span>
+                  <span className={`${inputCls} bg-[#f3ecd6]`}>{shown[i]?.due ? new Date(`${shown[i]!.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'}</span>
                 </span>
               </>
             ) : (
@@ -332,7 +361,21 @@ export function Budget() {
                 </label>
               </>
             )}
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] col-span-2 md:col-span-1">
+            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              Vendor
+              <select value={vendors.find((v) => v.name.trim().toLowerCase() === l.vendor.trim().toLowerCase())?.name ?? ''} onChange={(e) => setLine(i, { vendor: e.target.value })} className={inputCls}>
+                <option value="">None yet</option>
+                {vendors
+                  .filter((v) => v.status !== 'declined')
+                  .map((v) => (
+                    <option key={v.id} value={v.name}>
+                      {v.name}
+                      {v.status === 'booked' ? ' (booked)' : ''}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
               Paid by
               <input list="budget-payers" placeholder="Us" value={l.payer} onChange={(e) => setLine(i, { payer: e.target.value })} className={inputCls} />
             </label>

@@ -151,7 +151,7 @@ function Glance({ go }: { go: (v: View) => void }) {
     .map((p) => ({ what: p.label === 'Payment' ? p.who : `${p.who} · ${p.label.toLowerCase()}`, due: p.due, amount: p.amount }))
     .slice(0, 6);
   const expiring = vendors
-    .flatMap((v) => v.quotes.filter((q) => v.status !== 'booked' && q.validUntil && q.validUntil >= today).map((q) => ({ v, q })))
+    .flatMap((v) => v.quotes.filter((q) => v.status !== 'booked' && v.status !== 'declined' && q.validUntil && q.validUntil >= today).map((q) => ({ v, q })))
     .sort((a, b) => a.q.validUntil.localeCompare(b.q.validUntil))
     .slice(0, 4);
   const pct = budget.total ? Math.min(100, Math.round((committed / budget.total) * 100)) : 0;
