@@ -99,7 +99,7 @@ export const chipCls = (on: boolean) =>
  */
 export function SaveBar({ onDiscard, onSave, busy, label = 'Save changes', note = 'You have changes that are not saved.' }: { onDiscard: () => void; onSave: () => void; busy?: boolean; label?: string; note?: string }) {
   return (
-    <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
+    <div className="sticky bottom-[calc(12px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
       <span className="text-[14px] text-[#5b6a52]">{note}</span>
       <span className="flex gap-2">
         <Pill onClick={onDiscard} disabled={busy}>

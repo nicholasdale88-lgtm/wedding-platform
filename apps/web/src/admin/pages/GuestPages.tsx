@@ -291,7 +291,7 @@ export function GuestPages() {
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="sticky bottom-[calc(72px+env(safe-area-inset-bottom))] z-[12] self-end flex items-center gap-2 py-3 px-5 min-h-[48px] rounded-full border-0 bg-[var(--adm-accent,#5d6b47)] text-[#fbf8f2] text-[15px] font-medium shadow-[0_8px_20px_rgba(51,64,47,.3)] cursor-pointer"
+            className="sticky bottom-[calc(16px+env(safe-area-inset-bottom))] z-[12] self-end flex items-center gap-2 py-3 px-5 min-h-[48px] rounded-full border-0 bg-[var(--adm-accent,#5d6b47)] text-[#fbf8f2] text-[15px] font-medium shadow-[0_8px_20px_rgba(51,64,47,.3)] cursor-pointer"
           >
             Preview <span aria-hidden>↗</span>
           </button>

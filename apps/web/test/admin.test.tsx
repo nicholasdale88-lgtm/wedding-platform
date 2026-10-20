@@ -87,43 +87,45 @@ describe('addresses', () => {
 
 describe('phone menu', () => {
   const phone = () => vi.stubGlobal('matchMedia', (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
-  const bar = () => within(screen.getByRole('navigation', { name: 'Quick links' }));
+  const openMenu = async () => {
+    await userEvent.click(await screen.findByRole('button', { name: /^Menu/ }));
+    return screen.getByRole('dialog', { name: 'Menu' });
+  };
 
-  it("the bottom bar belongs to the section you're in, and there's no second menu at the top", async () => {
+  it('one menu, at the top: no bar at the bottom and no page strip', async () => {
     phone();
     mockApi();
     renderAt('/admin/w1/account/overview');
-    await screen.findByRole('navigation', { name: 'Quick links' });
-    expect(bar().getAllByRole('link').map((a) => a.textContent)).toEqual(['Home', 'Messages', 'Settings', 'Help']);
-    expect(screen.queryByRole('navigation', { name: 'Admin' })).toBeNull(); // no page strip at the top
-    expect(screen.getAllByRole('link', { name: 'Help' })).toHaveLength(2); // the ? in the top row, and the bar
+    await screen.findByRole('button', { name: /^Menu: Account/ });
+    expect(screen.queryByRole('navigation', { name: 'Quick links' })).toBeNull();
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Help' })).toBeInTheDocument();
   });
 
-  it('More: sections at the top; tapping one keeps More open and shows only that section, without repeating the bar', async () => {
+  it('the menu: Account on its own, then Events; tapping one shows only its pages, each once', async () => {
     phone();
     mockApi();
     renderAt('/admin/w1/account/overview');
-    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
-    const sheet = screen.getByRole('dialog', { name: 'More' });
-    // Account: everything is already in the bar.
-    expect(within(sheet).getByText('Everything in Account is in the bar below.')).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: 'Photos' })).toBeNull();
-    // The second event: its own pages only (no planner, no wedding party); More stays open.
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Recovery brunch' }));
-    expect(screen.getByRole('dialog', { name: 'More' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Texts' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Party checklist' })).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: 'Wedding planner' })).toBeNull();
-    expect(within(sheet).queryByRole('button', { name: 'Wedding party' })).toBeNull();
-    // The wedding: its pages, including the planner and the wedding party (no planner tool grid).
-    await userEvent.click(within(sheet).getByRole('button', { name: 'The wedding' }));
-    expect(within(sheet).getByRole('button', { name: 'Wedding planner' })).toBeInTheDocument();
-    expect(within(sheet).getByRole('button', { name: 'Wedding party' })).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: 'Budget' })).toBeNull();
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Texts' }));
+    const menu = await openMenu();
+    expect(within(menu).getByRole('group', { name: 'Account' })).toBeInTheDocument();
+    expect(within(within(menu).getByRole('group', { name: 'Events' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['The wedding', 'Recovery brunch']);
+    // Account: its own pages.
+    for (const name of ['Overview', 'Messages', 'Settings', 'Help']) expect(within(menu).getAllByRole('button', { name })).toHaveLength(1);
+    expect(within(menu).queryByRole('button', { name: 'Photos' })).toBeNull();
+    // The second event: its own pages only.
+    await userEvent.click(within(menu).getByRole('button', { name: 'Recovery brunch' }));
+    expect(screen.getByRole('dialog', { name: 'Menu' })).toBeInTheDocument(); // stays open
+    expect(within(menu).getByRole('button', { name: 'Party checklist' })).toBeInTheDocument();
+    expect(within(menu).queryByRole('button', { name: 'Wedding planner' })).toBeNull();
+    expect(within(menu).queryByRole('button', { name: 'Settings' })).toBeNull();
+    // The wedding: its pages, the planner once.
+    await userEvent.click(within(menu).getByRole('button', { name: 'The wedding' }));
+    expect(within(menu).getAllByText(/planner/i)).toHaveLength(1);
+    expect(within(menu).getByRole('button', { name: 'Wedding party' })).toBeInTheDocument();
+    await userEvent.click(within(menu).getByRole('button', { name: 'Texts' }));
     expect(location).toBe('/admin/w1/wedding/texts');
-    // Now in the wedding: its own bar.
-    await waitFor(() => expect(bar().getAllByRole('link').map((a) => a.textContent)).toEqual(['Overview', 'Guests', 'Messages', 'Planner']));
+    expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Menu: The wedding/ })).toBeInTheDocument();
   });
 });
 
@@ -133,22 +135,6 @@ describe('the planner in the menus', () => {
     renderAt('/admin/w1/wedding/overview');
     const nav = await screen.findByRole('navigation', { name: 'Admin' });
     await waitFor(() => expect(within(nav).getAllByText('Wedding planner')).toHaveLength(1));
-  });
-
-  it("a phone: the wedding chosen from Account shows the planner once; inside the wedding it is only the bar's Planner", async () => {
-    vi.stubGlobal('matchMedia', (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
-    mockApi();
-    renderAt('/admin/w1/account/overview');
-    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
-    await userEvent.click(within(screen.getByRole('dialog', { name: 'More' })).getByRole('button', { name: 'The wedding' }));
-    expect(within(screen.getByRole('dialog', { name: 'More' })).getAllByText(/planner/i)).toHaveLength(1);
-    expect(within(screen.getByRole('navigation', { name: 'Quick links' })).queryByText(/planner/i)).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Wedding planner' }));
-    await waitFor(() => expect(location).toBe('/admin/w1/wedding/planner'));
-    await userEvent.click(screen.getByRole('button', { name: 'More' }));
-    const sheet = screen.getByRole('dialog', { name: 'More' });
-    expect(within(sheet).queryByText(/planner/i)).toBeNull(); // it's in the bar below
-    expect(within(screen.getByRole('navigation', { name: 'Quick links' })).getAllByText('Planner')).toHaveLength(1);
   });
 });
 

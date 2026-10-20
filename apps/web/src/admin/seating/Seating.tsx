@@ -567,7 +567,7 @@ function SeatingPlan() {
             <div
               className={
                 mob
-                  ? 'fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-[17] max-h-[58vh] overflow-y-auto flex flex-col gap-3 p-4 rounded-t-[20px] border-t border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_-8px_24px_rgba(51,64,47,.18)]'
+                  ? 'fixed inset-x-0 bottom-0 pb-[calc(16px+env(safe-area-inset-bottom))] z-[17] max-h-[58vh] overflow-y-auto flex flex-col gap-3 p-4 rounded-t-[20px] border-t border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_-8px_24px_rgba(51,64,47,.18)]'
                   : 'flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]'
               }
             >

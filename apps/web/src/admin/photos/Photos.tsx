@@ -139,7 +139,7 @@ export function Photos() {
 
       {/* Tap ✓ on photos to choose some; what you can do with them stays in view at the bottom. */}
       {sel.size > 0 && (
-        <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
+        <div className="sticky bottom-[calc(12px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
           <span className="text-[14px] font-medium">{sel.size} chosen</span>
           <span className="flex gap-2 flex-wrap">
             <Pill kind="primary" disabled={zipping} onClick={() => void zip([...sel])}>

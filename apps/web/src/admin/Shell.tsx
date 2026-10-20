@@ -287,14 +287,15 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   };
   const [more, setMore] = useState(false);
   const sectionName = o?.events.find((e) => e.key === event)?.name ?? 'Account';
+  const unread = o?.nav.messages ?? 0;
 
   if (mob) {
-    // Phones: one slim row (your names, Help, and the section you're in, which opens the section switcher);
-    // the section's four most-used pages sit in a bar at the bottom, and More has the rest.
+    // Phones: one menu, at the top. A slim row with your names, Help (?), and Menu: it opens the sections
+    // (Account, then the events) and the chosen section's pages. Nothing at the bottom, nothing twice.
     return (
       <div style={looks(o, event)} className="adm min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300">
         <LeaveGuard />
-        {/* One slim row at the top (the bottom bar and More do the navigating, so nothing is shown twice). */}
+        {/* The only menu on a phone. */}
         <header className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
           <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate flex-1">{name}</div>
           <Link
@@ -306,16 +307,18 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           </Link>
           <button
             type="button"
-            onClick={() => setMore(true)}
-            aria-label={`Section: ${sectionName}. Change section`}
-            className="flex-none max-w-[48%] flex items-center gap-1 py-[6px] px-3 min-h-[36px] rounded-full border border-[rgba(243,236,214,.35)] bg-[rgba(243,236,214,.1)] text-[#f3ecd6] text-[13px] font-semibold cursor-pointer"
+            onClick={() => setMore((x) => !x)}
+            aria-expanded={more}
+            aria-label={`Menu: ${sectionName}${unread ? `, ${unread} unread messages` : ''}`}
+            className="relative flex-none max-w-[52%] flex items-center gap-1 py-[6px] px-3 min-h-[40px] rounded-full border border-[rgba(243,236,214,.35)] bg-[rgba(243,236,214,.1)] text-[#f3ecd6] text-[13px] font-semibold cursor-pointer"
           >
+            <span aria-hidden className="text-[15px] leading-none">☰</span>
             <span className="truncate">{sectionName}</span>
-            <span aria-hidden>▾</span>
+            <span aria-hidden>{more ? '▴' : '▾'}</span>
+            {unread > 0 && <span aria-hidden className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[11px] leading-[18px] text-center">{unread}</span>}
           </button>
         </header>
-        <main className="min-w-0 pt-5 px-4 pb-[calc(88px+env(safe-area-inset-bottom))]">{children}</main>
-        <BottomBar onMore={() => setMore(true)} moreOpen={more} />
+        <main className="min-w-0 pt-5 px-4 pb-[calc(40px+env(safe-area-inset-bottom))]">{children}</main>
         {more && <MoreSheet onClose={() => setMore(false)} onSignOut={signOut} />}
       </div>
     );
@@ -346,55 +349,6 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         <div className="max-w-[1180px] mx-auto">{children}</div>
       </main>
     </div>
-  );
-}
-
-/**
- * Phones: the bottom bar is the section's own four most-used pages, so it never jumps somewhere else.
- * Account: Home, Messages, Settings, Help. The wedding: Overview, Guests, Messages, Planner. Any other
- * event: Overview, Guests, Messages, Texts. More holds the rest of the section (and the other sections).
- */
-export const barKeys = (section: string, first: string | undefined): string[] =>
-  section === ALL_EVENTS ? ['overview', 'messages', 'settings', 'help'] : section === first ? ['overview', 'guests', 'messages', 'planner'] : ['overview', 'guests', 'messages', 'texts'];
-const BAR_LABEL: Record<string, string> = { overview: 'Overview', guests: 'Guests', messages: 'Messages', planner: 'Planner', texts: 'Texts', settings: 'Settings', help: 'Help' };
-
-function BottomBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
-  const { overview: o, event, path } = useAdmin();
-  const { tab = 'overview' } = useParams();
-  const keys = barKeys(event, o?.events[0]?.key);
-  const unread = o?.nav.messages ?? 0;
-  const cls = (on: boolean) => `relative flex-1 flex flex-col items-center justify-center gap-[2px] min-h-[56px] text-[11px] no-underline ${on ? 'font-semibold !text-[var(--adm-ink,#33402f)]' : '!text-[#6b6558]'}`;
-  const svg = (icon: ReactNode) => (
-    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {icon}
-    </svg>
-  );
-  return (
-    <nav aria-label="Quick links" className="fixed bottom-0 inset-x-0 z-[16] flex bg-[#fbf8f2] border-t border-[#e2d7bc] pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(51,64,47,.08)]">
-      {keys.map((k) => {
-        const on = navKey(tab) === k;
-        const badge = k === 'messages' ? unread : 0;
-        return (
-          <Link key={k} to={path(k)} aria-current={on ? 'page' : undefined} className={cls(on)}>
-            {svg(ICON[k] ?? ICON.list)}
-            {event === ALL_EVENTS && k === 'overview' ? 'Home' : BAR_LABEL[k]}
-            {!!badge && (
-              <span className="absolute top-[6px] left-1/2 ml-[6px] min-w-[18px] h-[18px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[11px] font-semibold leading-[18px] text-center">{badge > 99 ? '99+' : badge}</span>
-            )}
-          </Link>
-        );
-      })}
-      <button type="button" onClick={onMore} aria-expanded={moreOpen} className={`${cls(moreOpen)} border-0 bg-transparent cursor-pointer`}>
-        {svg(
-          <>
-            <circle cx="5" cy="12" r="1.4" />
-            <circle cx="12" cy="12" r="1.4" />
-            <circle cx="19" cy="12" r="1.4" />
-          </>,
-        )}
-        More
-      </button>
-    </nav>
   );
 }
 
@@ -456,11 +410,11 @@ const ICON: Record<string, ReactNode> = {
 };
 
 /**
- * Phones: More. The sections at the top (Account and each event); tapping one shows only that section's
- * pages as tiles with icons (the wedding's include its planner tools). Opens on the section you're in.
+ * Phones: the menu. Account on its own, then the events; tapping one shows only that section's pages as
+ * tiles with icons. Opens on the section you're in; Sign out at the end.
  */
 function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
-  const { path, overview: o } = useAdmin();
+  const { path } = useAdmin();
   const { groups, current, tab } = useSections();
   const go = useNavigate();
   const [picked, setPicked] = useState(current.key);
@@ -496,15 +450,17 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
   );
   const heading = (text: string) => <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52]">{text}</span>;
   const grid = 'grid grid-cols-3 gap-2';
-  const first = o?.events[0]?.key;
-  // The section you're in: its pages that aren't already in the bottom bar. Another section: all its pages.
-  const inBar = here ? barKeys(shown.key, first) : [];
-  const rest = shown.tabs.filter((t) => !inBar.includes(t.key));
+  const rest = shown.tabs;
   return (
-    <div className="fixed inset-0 z-[30] flex flex-col justify-end">
+    <div className="fixed inset-0 z-[30] flex flex-col justify-start">
       <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.35)]" />
-      <div role="dialog" aria-modal="true" aria-label="More" className="relative max-h-[88vh] overflow-y-auto rounded-t-[22px] bg-[#f6f0e2] px-4 pt-3 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-5">
-        <span aria-hidden className="self-center w-10 h-[5px] rounded-full bg-[#d3c6a4]" />
+      <div role="dialog" aria-modal="true" aria-label="Menu" className="relative max-h-[92vh] overflow-y-auto rounded-b-[22px] bg-[#f6f0e2] px-4 pt-[max(14px,env(safe-area-inset-top))] pb-5 flex flex-col gap-5 shadow-[0_12px_32px_rgba(51,64,47,.25)]">
+        <div className="flex items-center justify-between">
+          <span className="font-display text-[24px]">Menu</span>
+          <button type="button" aria-label="Close menu" onClick={onClose} className="w-10 h-10 rounded-full border border-[#c6b794] bg-[#fbf8f0] text-[20px] cursor-pointer">
+            ×
+          </button>
+        </div>
         {/* Account on its own, then the events under their own heading: Account is not an event. */}
         {(() => {
           const btn = (g: Group) => {
@@ -544,7 +500,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
           {rest.length ? (
             <div className={grid}>{rest.map((t) => tile(`${shown.key}-${t.key}`, t.label, path(t.key, shown.key), t.key, here && navKey(tab) === t.key))}</div>
           ) : (
-            <p className="m-0 text-[14px] text-[#5b6a52]">Everything in {shown.name} is in the bar below.</p>
+            <p className="m-0 text-[14px] text-[#5b6a52]">Nothing here yet.</p>
           )}
         </div>
         <Pill onClick={onSignOut} className="self-stretch">
