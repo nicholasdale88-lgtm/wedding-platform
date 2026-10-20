@@ -23,8 +23,6 @@ type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts'
 type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
-const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s));
-
 export function GuestPages() {
   const { wid, event: chosen, reload: reloadOverview } = useAdmin();
   const toast = useToast();
@@ -568,8 +566,8 @@ function PlaceFields<G extends ReceptionGuide | DayoutGuide>({ g, set }: { g: G;
       <TextField label="Map link" value={g.mapUrl ?? ''} placeholder="https://maps.google.com/…" onChange={(mapUrl) => set({ ...g, mapUrl })} />
       <TextField label="Weather link (Bureau of Meteorology)" value={g.bomUrl ?? ''} placeholder="https://www.bom.gov.au/places/…" onChange={(bomUrl) => set({ ...g, bomUrl })} />
       <div className="grid grid-cols-2 gap-[14px]">
-        <TextField label="Latitude" value={g.lat === undefined ? '' : String(g.lat)} placeholder="-33.37" onChange={(v) => set({ ...g, lat: num(v) })} hint="For the live forecast." />
-        <TextField label="Longitude" value={g.lon === undefined ? '' : String(g.lon)} placeholder="151.19" onChange={(v) => set({ ...g, lon: num(v) })} hint="Right-click the venue in Google Maps." />
+        <CoordField label="Latitude" value={g.lat} placeholder="-33.37" onChange={(lat) => set({ ...g, lat })} hint="For the live forecast." />
+        <CoordField label="Longitude" value={g.lon} placeholder="151.19" onChange={(lon) => set({ ...g, lon })} hint="Right-click the venue in Google Maps." />
       </div>
       <TextField
         label="Wet-weather plan"
@@ -751,5 +749,24 @@ function SharePreview({ data, onChange }: { data: PagesData; onChange: (d: Pages
         </Pill>
       )}
     </section>
+  );
+}
+
+/** A latitude or longitude: typed as you like ("-", "-33.", "-33.37"), saved once it's a number. */
+function CoordField({ label, value, placeholder, hint, onChange }: { label: string; value: number | undefined; placeholder: string; hint: string; onChange: (n: number | undefined) => void }) {
+  const [text, setText] = useState(value === undefined ? '' : String(value));
+  return (
+    <TextField
+      label={label}
+      value={text}
+      placeholder={placeholder}
+      hint={hint}
+      onChange={(v) => {
+        const t = v.replace(/[^\d.-]/g, '');
+        setText(t);
+        if (t.trim() === '') onChange(undefined);
+        else if (/^-?\d+(\.\d+)?$/.test(t)) onChange(Number(t));
+      }}
+    />
   );
 }
