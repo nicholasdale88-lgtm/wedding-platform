@@ -99,8 +99,8 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
             {items.length ? 'Open the run sheet' : 'Build the run sheet'}
           </Pill>
         </section>
-        <section aria-label="Your checklists" className={card}>
-          <H2>Your checklists</H2>
+        <section aria-label="Our to-dos on the day" className={card}>
+          <H2>Our to-dos on the day</H2>
           <div className="flex gap-5 flex-wrap">
             {(['p1', 'p2', 'both'] as const).map((w) => {
               const p = progressOf(lists?.[w] ?? []);

@@ -86,29 +86,44 @@ describe('addresses', () => {
 });
 
 describe('phone menu', () => {
-  it("More shows the sections first, and tapping one shows only that section's pages", async () => {
-    // A phone-sized screen.
-    vi.stubGlobal('matchMedia', (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+  const phone = () => vi.stubGlobal('matchMedia', (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+  const bar = () => within(screen.getByRole('navigation', { name: 'Quick links' }));
+
+  it("the bottom bar belongs to the section you're in, and there's no second menu at the top", async () => {
+    phone();
+    mockApi();
+    renderAt('/admin/w1/account/overview');
+    await screen.findByRole('navigation', { name: 'Quick links' });
+    expect(bar().getAllByRole('link').map((a) => a.textContent)).toEqual(['Home', 'Messages', 'Settings', 'Help']);
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).toBeNull(); // no page strip at the top
+    expect(screen.getAllByRole('link', { name: 'Help' })).toHaveLength(2); // the ? in the top row, and the bar
+  });
+
+  it('More: sections at the top; tapping one keeps More open and shows only that section, without repeating the bar', async () => {
+    phone();
     mockApi();
     renderAt('/admin/w1/account/overview');
     await userEvent.click(await screen.findByRole('button', { name: 'More' }));
     const sheet = screen.getByRole('dialog', { name: 'More' });
-    // Account: its own pages, no event or planner pages.
-    expect(within(sheet).getByRole('button', { name: 'Settings' })).toBeInTheDocument();
-    expect(within(sheet).queryByRole('button', { name: 'Budget' })).toBeNull();
+    // Account: everything is already in the bar.
+    expect(within(sheet).getByText('Everything in Account is in the bar below.')).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Photos' })).toBeNull();
-    // The second event: its pages only (no planner, no wedding party).
+    // The second event: its own pages only (no planner, no wedding party); More stays open.
     await userEvent.click(within(sheet).getByRole('button', { name: 'Recovery brunch' }));
+    expect(screen.getByRole('dialog', { name: 'More' })).toBeInTheDocument();
     expect(within(sheet).getByRole('button', { name: 'Texts' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Party checklist' })).toBeInTheDocument();
     expect(within(sheet).queryByRole('button', { name: 'Wedding planner' })).toBeNull();
-    expect(within(sheet).queryByRole('button', { name: 'Budget' })).toBeNull();
-    expect(within(sheet).queryByRole('button', { name: 'Settings' })).toBeNull();
-    // The wedding: its pages and the planner's tools.
+    expect(within(sheet).queryByRole('button', { name: 'Wedding party' })).toBeNull();
+    // The wedding: its pages, including the planner and the wedding party (no planner tool grid).
     await userEvent.click(within(sheet).getByRole('button', { name: 'The wedding' }));
-    expect(within(sheet).getByRole('button', { name: 'Budget' })).toBeInTheDocument();
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Recovery brunch' }));
+    expect(within(sheet).getByRole('button', { name: 'Wedding planner' })).toBeInTheDocument();
+    expect(within(sheet).getByRole('button', { name: 'Wedding party' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Budget' })).toBeNull();
     await userEvent.click(within(sheet).getByRole('button', { name: 'Texts' }));
-    expect(location).toBe('/admin/w1/brunch/texts');
+    expect(location).toBe('/admin/w1/wedding/texts');
+    // Now in the wedding: its own bar.
+    await waitFor(() => expect(bar().getAllByRole('link').map((a) => a.textContent)).toEqual(['Overview', 'Guests', 'Messages', 'Planner']));
   });
 });
 
@@ -126,14 +141,15 @@ describe('messages', () => {
     expect(screen.queryByRole('tab', { name: 'Email' })).toBeNull(); // email and the board are in Account
   });
 
-  it('Account → Messages: unread and the latest conversations per event, each opening that event', async () => {
+  it('Account → Messages is one inbox for every event, each conversation tagged with its events', async () => {
     mockApi({ '/api/a/w/w1/messages': () => json(200, { threads }) });
     renderAt('/admin/w1/account/messages');
-    const wedding = await screen.findByRole('region', { name: 'The wedding messages' });
-    expect(within(wedding).getByText('3 unread')).toBeInTheDocument();
-    expect(within(screen.getByRole('region', { name: 'Recovery brunch messages' })).getByText('1 unread')).toBeInTheDocument();
-    await userEvent.click(within(wedding).getByRole('link', { name: /Jo Banks/ }));
-    expect(location).toBe('/admin/w1/wedding/messages?c=g2');
+    const robin = (await screen.findByText('Robin Hart')).closest('button')!;
+    expect(robin).toHaveTextContent(/The wedding.*Recovery brunch/);
+    expect(screen.getByText('Jo Banks').closest('button')).toHaveTextContent('The wedding');
+    expect(screen.getByRole('tab', { name: 'Email' })).toBeInTheDocument();
+    await userEvent.click(robin);
+    expect(location).toBe('/admin/w1/account/messages?c=g1');
   });
 });
 
@@ -206,7 +222,7 @@ describe('admin name', () => {
 });
 
 describe('Overview', () => {
-  it('Account overview is the hub: tasks, who has them, payments and budget, each with its chart', async () => {
+  it("the wedding's overview has the planning dashboard: tasks, who has them, payments and budget, each with its chart", async () => {
     const doc = (data: unknown) => () => json(200, { data, version: 1 });
     mockApi({
       '/api/a/w/w1/planner/doc/checklist': doc({
@@ -218,8 +234,9 @@ describe('Overview', () => {
       }),
       '/api/a/w/w1/planner/doc/budget': doc({ total: 30000, guests: 0, lines: [{ category: 'Venue', item: 'Venue hire', estimate: 10000, quote: 12000, paid: 5000, due: '2027-01-10', vendor: '', note: '', payer: '', perHead: 0 }] }),
       '/api/a/w/w1/planner/doc/vendors': doc({ list: [] }),
+      '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }),
     });
-    renderAt('/admin/w1/account/overview');
+    renderAt('/admin/w1/wedding/overview');
     // On a phone (and in tests) the dashboard opens with one tap.
     await userEvent.click(await screen.findByRole('button', { name: /Planning dashboard/ }));
     const tasks = await screen.findByRole('region', { name: 'Planning tasks' });

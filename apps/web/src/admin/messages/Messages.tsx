@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EmailInbox } from './EmailInbox';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { messagesApi, type Conversation, type MessageThread, type ThreadMessage } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
 import { useOpenParam } from '../openParam';
@@ -27,8 +27,9 @@ const eventsOf = (t: MessageThread) => (t as MessageThread & { events?: string[]
 const VIA: Record<ThreadMessage['via'], string> = { page: '', rsvp: 'With their RSVP', sms: 'By text', reply: '' };
 
 export function Messages() {
-  const { wid, overview, reload: reloadNav, event, path } = useAdmin();
+  const { wid, overview, reload: reloadNav, event } = useAdmin();
   const inEvent = event !== ALL_EVENTS;
+  const eventNames = new Map((overview?.events ?? []).map((e) => [e.key, e.name]));
   const eventName = overview?.events.find((e) => e.key === event)?.name ?? '';
   const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
   const wide = useMedia('(min-width: 900px)');
@@ -66,12 +67,12 @@ export function Messages() {
     if (v !== 'overview') n.set('view', v);
     setParams(n, { replace: true });
   };
-  // Account: the overview of every event's messages, and the wedding-wide email and board.
+  // Account: every event's messages in one inbox (each tagged with its events), and the wedding-wide email and board.
   const tabs = inEvent ? null : (
     <Tabs
       label="Messages"
       items={[
-        { key: 'overview', label: 'Overview' },
+        { key: 'overview', label: 'All messages' },
         { key: 'email', label: 'Email' },
         { key: 'board', label: 'Message board' },
       ]}
@@ -106,45 +107,6 @@ export function Messages() {
   if (error) return <ErrorState message={error} onRetry={() => void load()} />;
   if (!threads) return <Loading />;
   const unread = threads.reduce((n, t) => n + t.unread, 0);
-  if (!inEvent) {
-    return (
-      <div className="flex flex-col gap-5">
-        <header>
-          <Eyebrow>Account · Messages{unread ? ` · ${unread} unread` : ''}</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Messages from guests</h1>
-        </header>
-        {tabs}
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-4">
-          {(overview?.events ?? []).map((e) => {
-            const mine = threads.filter((t) => eventsOf(t).includes(e.key));
-            const n = mine.reduce((a, t) => a + t.unread, 0);
-            return (
-              <section key={e.key} aria-label={`${e.name} messages`} className="flex flex-col gap-2 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-                <div className="flex justify-between items-baseline gap-3">
-                  <h2 className="m-0 font-display font-medium text-[24px]">{e.name}</h2>
-                  <span className={`text-[13px] whitespace-nowrap ${n ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}`}>{n ? `${n} unread` : `${mine.length} ${mine.length === 1 ? 'conversation' : 'conversations'}`}</span>
-                </div>
-                {mine.slice(0, 3).map((t) => (
-                  <Link key={t.invitationId} to={`${path('messages', e.key)}?c=${encodeURIComponent(t.invitationId)}`} className="flex flex-col gap-[2px] py-2 border-t border-[#ece3cc] no-underline !text-[var(--adm-ink,#33402f)]">
-                    <span className={`truncate ${t.unread ? 'font-semibold' : ''}`}>{t.name}</span>
-                    <span className="truncate text-[13px] text-[#5b6a52]">
-                      {t.last.from === 'couple' ? 'You: ' : ''}
-                      {t.last.body}
-                    </span>
-                  </Link>
-                ))}
-                {!mine.length && <p className="m-0 py-2 border-t border-[#ece3cc] text-[13px] text-[#5b6a52]">No messages yet.</p>}
-                <Link to={path('messages', e.key)} className="self-start mt-1 py-2 px-[14px] min-h-[40px] rounded-full border border-[var(--adm-ink,#33402f)] text-[13px] font-medium no-underline !text-[var(--adm-ink,#33402f)]">
-                  Open {e.name} messages
-                </Link>
-              </section>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
   const list = (
     <div className="flex flex-col min-w-0">
       <div role="radiogroup" aria-label="Show" className="flex gap-2 flex-wrap pb-3">
@@ -174,6 +136,15 @@ export function Messages() {
           </span>
           <span className="min-w-0">
             <span className={`block truncate ${t.unread ? 'font-semibold' : ''}`}>{t.name}</span>
+            {!inEvent && eventsOf(t).length > 0 && (
+              <span className="flex gap-1 flex-wrap my-[2px]">
+                {eventsOf(t).map((k) => (
+                  <span key={k} className="py-[1px] px-[7px] rounded-full bg-[#efe7d3] text-[11px] text-[#5b6a52]">
+                    {eventNames.get(k) ?? k}
+                  </span>
+                ))}
+              </span>
+            )}
             <span className="block truncate text-[13px] text-[#5b6a52]">
               {t.last.from === 'couple' ? 'You: ' : ''}
               {t.last.body}
@@ -196,10 +167,13 @@ export function Messages() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <Eyebrow>{eventName} · Messages{unread ? ` · ${unread} unread` : ''}</Eyebrow>
+        <Eyebrow>{inEvent ? eventName : 'Account'} · Messages{unread ? ` · ${unread} unread` : ''}</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Messages from guests</h1>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">From guests invited to {eventName}. Email and the message board are in Account → Messages.</p>
+        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">
+          {inEvent ? `From guests invited to ${eventName}. Email and the message board are in Account → Messages.` : 'Every event’s messages in one place; each shows which event the guest is invited to.'}
+        </p>
       </header>
+      {tabs}
       {wide ? (
         <div className="grid grid-cols-[minmax(260px,360px)_minmax(0,1fr)] gap-6 items-start">
           {list}

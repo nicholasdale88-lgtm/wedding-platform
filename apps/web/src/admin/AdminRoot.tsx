@@ -137,7 +137,7 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
   if (o && o.events[0] && section !== ACCOUNT) {
     const isWedding = section === o.events[0].key;
     if (tab === 'party' && !isWedding) return <Navigate to={path('day')} replace />;
-    if (tab === 'day' && isWedding) return <Navigate to={`${path('party')}?view=couple`} replace />;
+    if (tab === 'day' && isWedding) return <Navigate to={`${path('planner')}?view=checklist`} replace />;
   }
   if (section !== ACCOUNT && ACCOUNT_ONLY.has(tab)) return <Navigate to={path(tab, ALL_EVENTS) + search} replace />;
   if (o && section !== ACCOUNT && !o.events.some((e) => e.key === section)) return <Navigate to={path('overview', ALL_EVENTS)} replace />;

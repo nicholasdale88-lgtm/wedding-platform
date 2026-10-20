@@ -67,7 +67,8 @@ export function Overview() {
         ))}
       </div>
 
-      {!o.focus && <Today o={o} to={to} />}
+      {/* Quick actions belong to an event: its guests, its messages, its texts. */}
+      {o.focus && <Today o={o} to={to} event={o.focus} />}
 
       <section className="flex flex-col gap-1" aria-label="Needs you">
         <div className="flex justify-between items-baseline gap-3 mb-[6px]">
@@ -123,7 +124,8 @@ export function Overview() {
         </section>
       </div>
 
-      {!o.focus && (
+      {/* The planning dashboard (tasks, payments, budget) is the wedding's: it sits in the wedding's overview. */}
+      {o.focus && o.focus === o.events[0]?.key && (
         <Dashboard>
           <Hub wid={wid} o={o} to={to} />
         </Dashboard>
@@ -138,9 +140,8 @@ export function Overview() {
  * Account → Overview: the things you do most, one tap each. Add a guest, answer messages, send a text,
  * share the invitation (the phone's share sheet, or copy the link).
  */
-function Today({ o, to }: { o: NonNullable<ReturnType<typeof useAdmin>['overview']>; to: (link: string, event?: string) => void }) {
+function Today({ o, to, event }: { o: NonNullable<ReturnType<typeof useAdmin>['overview']>; to: (link: string, event?: string) => void; event: string }) {
   const toast = useToast();
-  const first = o.events[0]?.key;
   const unread = o.nav.messages ?? 0;
   const share = async () => {
     const url = `${window.location.origin}/w/${o.wedding.slug}/`;
@@ -155,9 +156,9 @@ function Today({ o, to }: { o: NonNullable<ReturnType<typeof useAdmin>['overview
     }
   };
   const actions: { label: string; run: () => void; badge?: number }[] = [
-    { label: '+ Add a guest', run: () => to('guests?add=1', first) },
-    { label: unread ? 'Reply to messages' : 'Messages', run: () => to('messages', 'all'), badge: unread },
-    { label: 'Send a text', run: () => to('texts', o.nav.smsLive ? first : 'all') },
+    { label: '+ Add a guest', run: () => to('guests?add=1', event) },
+    { label: unread ? 'Reply to messages' : 'Messages', run: () => to('messages', event), badge: unread },
+    { label: 'Send a text', run: () => to('texts', o.nav.smsLive ? event : 'all') },
     { label: 'Share the invitation', run: () => void share() },
   ];
   return (

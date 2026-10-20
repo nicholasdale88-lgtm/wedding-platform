@@ -24,7 +24,7 @@ export type PartyView = 'overview' | 'p1' | 'p2' | 'runsheet' | 'couple' | 'acce
 export const PARTY_VIEWS: PartyView[] = ['overview', 'p1', 'p2', 'runsheet', 'couple', 'access'];
 /** The menu's name for each view ("Bride's side" uses what the sides are called). */
 export const partyViewLabel = (v: PartyView, sides: { p1: string; p2: string }) =>
-  v === 'overview' ? 'Overview' : v === 'p1' ? `${sides.p1 || 'Bride'}’s side` : v === 'p2' ? `${sides.p2 || 'Groom'}’s side` : v === 'runsheet' ? 'Run sheet' : v === 'access' ? 'Links & sign-ins' : 'Your checklists';
+  v === 'overview' ? 'Overview' : v === 'p1' ? `${sides.p1 || 'Bride'}’s side` : v === 'p2' ? `${sides.p2 || 'Groom'}’s side` : v === 'runsheet' ? 'Run sheet' : v === 'access' ? 'Links & sign-ins' : 'Our to-dos on the day';
 export type SideName = (s: 'p1' | 'p2') => string;
 
 const chip = (on: boolean) =>
@@ -91,11 +91,6 @@ export function Party() {
           {view === 'p1' || view === 'p2' ? `${d.names[view]}’s side. ` : ''}
           {INTRO[view]}
         </p>
-        {view !== 'access' && (
-          <button type="button" onClick={() => go('access')} className="inline-flex items-center min-h-[40px] p-0 border-0 bg-transparent cursor-pointer text-[14px] font-medium text-[#33402f] underline">
-            Links &amp; sign-ins for the wedding party →
-          </button>
-        )}
       </header>
       <PartyBar view={view} go={go} sides={sides} />
       {view === 'overview' && <PartyOverview d={d} setD={setD} sideName={sideName} go={go} />}

@@ -2,12 +2,13 @@ import { useSearchParams } from 'react-router-dom';
 import { AdminLook } from '../AdminLook';
 import { confirmLeave } from '../leave';
 import { PageHeader, Tabs } from '../ui';
-import { ChangeEmail, TheWedding, YourDetails } from './Account';
+import { ChangeEmail, PlanAndBilling, TheWedding, YourDetails } from './Account';
 import { Backup, Passcode, SmsSetup } from './SmsSetup';
 
 const VIEWS = [
   { key: 'details', label: 'Your details' },
-  { key: 'wedding', label: 'People & plan' },
+  { key: 'people', label: 'Who can sign in' },
+  { key: 'plan', label: 'Plan & billing' },
   { key: 'texting', label: 'Texting' },
   { key: 'signin', label: 'Sign-in' },
   { key: 'backup', label: 'Backup' },
@@ -33,8 +34,10 @@ export function Settings() {
       <Tabs label="Settings" items={VIEWS} value={view} onChange={choose} />
       {view === 'details' ? (
         <YourDetails />
-      ) : view === 'wedding' ? (
+      ) : view === 'people' ? (
         <TheWedding />
+      ) : view === 'plan' ? (
+        <PlanAndBilling />
       ) : view === 'texting' ? (
         <SmsSetup />
       ) : view === 'signin' ? (

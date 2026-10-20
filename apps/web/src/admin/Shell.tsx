@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { themeOf } from '../guest/themeKit';
-import { Link, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
 import { coupleName } from '../lib/remember';
 import { DEFAULT_LOOK, lookVars } from './AdminLook';
@@ -93,7 +93,7 @@ export const EVENT_TABS = [
   { key: 'guests', label: 'Guests' }, // guest list, dietary and seating together (GuestPlanningBar)
   { key: 'messages', label: 'Messages' }, // this event's guests' messages (Account has the overview)
   { key: 'party', label: 'Wedding party' }, // the first event's section only (its views open under it)
-  { key: 'day', label: 'Day checklist' }, // every other event (a birthday has no wedding party)
+  { key: 'day', label: 'Party checklist' }, // every other event (a birthday has no wedding party)
   { key: 'texts', label: 'Texts' },
   { key: 'photos', label: 'Photos' },
   { key: 'pages', label: 'Setup' },
@@ -147,22 +147,9 @@ function useSections() {
 }
 
 function SideNav({ mob }: { mob: boolean }) {
-  const go = useNavigate();
   const { wid, overview: o, path } = useAdmin();
   const { groups, current, open, tab } = useSections();
-  const { search } = useLocation();
-  const partyView = tab === 'party' ? (new URLSearchParams(search).get('view') ?? 'overview') : '';
-  const sides = { p1: o?.partySides?.p1 || 'Bride', p2: o?.partySides?.p2 || 'Groom' };
-  /** Wedding party opens into its views: Overview, each side, the run sheet, your checklists. */
-  const partyLinks = [
-    ['overview', 'Overview'],
-    ['p1', `${sides.p1}’s side`],
-    ['p2', `${sides.p2}’s side`],
-    ['runsheet', 'Run sheet'],
-    ['couple', 'Your checklists'],
-    ['access', 'Links & sign-ins'],
-  ] as const;
-  // Sections you've expanded stay expanded (remembered on this device); the one you're in is always open.
+  // Sections you've expanded or collapsed stay that way (remembered on this device); the one you're in starts open.
   const [openSet, setOpenSet] = useState<Set<string>>(() => {
     try {
       return new Set(JSON.parse(localStorage.getItem(`wp.admin.open.${wid}`) ?? '[]') as string[]);
@@ -170,6 +157,7 @@ function SideNav({ mob }: { mob: boolean }) {
       return new Set();
     }
   });
+  const [shut, setShut] = useState<Set<string>>(new Set());
   const toggle = (key: string, show: boolean) => {
     setOpenSet((s) => {
       const n = new Set(s);
@@ -182,30 +170,15 @@ function SideNav({ mob }: { mob: boolean }) {
       }
       return n;
     });
-    // Minimising the section you're in moves you to Account, so it can actually close.
-    if (!show && key === current.key && key !== ALL_EVENTS) go(path('overview', ALL_EVENTS));
+    setShut((s) => {
+      const n = new Set(s);
+      if (show) n.delete(key);
+      else n.add(key);
+      return n;
+    });
   };
   const ring = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f3ecd6]';
-  const tabLink = (t: { key: TabKey; label: string }) =>
-    t.key === 'party' && partyView && !mob ? (
-      <div key={t.key} className="flex flex-col gap-[2px]">
-        {navLink(t)}
-        <div role="group" aria-label="Wedding party" className="flex flex-col gap-[2px] ml-3 pl-2 border-l border-[rgba(243,236,214,.3)]">
-          {partyLinks.map(([v, label]) => (
-            <Link
-              key={v}
-              to={`${path('party')}${v === 'overview' ? '' : `?view=${v}`}`}
-              aria-current={partyView === v ? 'page' : undefined}
-              className={`rounded-[8px] py-[6px] px-3 text-[14px] no-underline ${ring} ${partyView === v ? 'bg-[rgba(243,236,214,.16)] !text-[#f3ecd6] font-semibold' : '!text-[#f3ecd6] opacity-75 hover:opacity-100'}`}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-      </div>
-    ) : (
-      navLink(t)
-    );
+  const tabLink = (t: { key: TabKey; label: string }) => navLink(t);
   const navLink = (t: { key: TabKey; label: string }) => (
     <NavLink
       key={t.key}
@@ -250,7 +223,7 @@ function SideNav({ mob }: { mob: boolean }) {
   return (
     <nav aria-label="Admin" className="flex flex-col gap-2 flex-none overflow-y-auto [scrollbar-width:none]">
       {groups.map((g) => {
-        const isOpen = openSet.has(g.key) || g.key === current.key;
+        const isOpen = !shut.has(g.key) && (openSet.has(g.key) || g.key === current.key);
         return (
           <div key={g.key} className="flex flex-col gap-1">
             <div className="flex items-stretch gap-1">
@@ -304,7 +277,7 @@ function MobileTabs({ tab, section, children }: { tab: string; section: string; 
 
 /** design/RSVP Admin.dc.html shell: 236px sidebar #33402f; under 760px a sticky top bar with scrolling nav pills. */
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
-  const { overview: o, event } = useAdmin();
+  const { overview: o, event, path } = useAdmin();
   const mob = useMedia('(max-width: 759px)');
   const name = o ? o.wedding.adminName.trim() || coupleName(o.wedding) : '';
   const signOut = () => {
@@ -314,14 +287,21 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   const sectionName = o?.events.find((e) => e.key === event)?.name ?? 'Account';
 
   if (mob) {
-    // Phones: a slim row with your names and the section you're in; the things you reach for most (Home,
-    // Guests, Messages, Planner) sit in a bar at the bottom, and More has the section's other pages.
+    // Phones: one slim row (your names, Help, and the section you're in, which opens the section switcher);
+    // the section's four most-used pages sit in a bar at the bottom, and More has the rest.
     return (
       <div style={looks(o, event)} className="adm min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300">
         <LeaveGuard />
         {/* One slim row at the top (the bottom bar and More do the navigating, so nothing is shown twice). */}
         <header className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
-          <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate">{name}</div>
+          <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate flex-1">{name}</div>
+          <Link
+            to={path('help', ALL_EVENTS)}
+            aria-label="Help"
+            className="flex-none w-9 h-9 rounded-full border border-[rgba(243,236,214,.35)] flex items-center justify-center text-[16px] font-semibold no-underline !text-[#f3ecd6]"
+          >
+            ?
+          </Link>
           <button
             type="button"
             onClick={() => setMore(true)}
@@ -350,9 +330,14 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         <SideNav mob={false} />
         <div className="mt-auto flex flex-col gap-[14px] py-4 px-3 border-t border-[rgba(243,236,214,.18)]">
           {o?.daysToGo !== null && o?.daysToGo !== undefined && <div className="font-display text-[22px] italic">{o.daysToGo} days to go</div>}
-          <button onClick={signOut} className="self-start p-0 border-0 bg-transparent text-[#cfd8bb] text-[12px] underline cursor-pointer">
-            Sign out
-          </button>
+          <div className="flex items-center gap-4">
+            <Link to={path('help', ALL_EVENTS)} className="text-[12px] underline !text-[#cfd8bb]">
+              Help
+            </Link>
+            <button onClick={signOut} className="p-0 border-0 bg-transparent text-[#cfd8bb] text-[12px] underline cursor-pointer">
+              Sign out
+            </button>
+          </div>
         </div>
       </aside>
       <main className="min-w-0 pt-9 px-[clamp(20px,4vw,48px)] pb-[60px]">
@@ -362,45 +347,20 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   );
 }
 
-/** Phones: the bottom bar. Home (Account overview), Guests, Messages (unread count), the Wedding planner, More. */
+/**
+ * Phones: the bottom bar is the section's own four most-used pages, so it never jumps somewhere else.
+ * Account: Home, Messages, Settings, Help. The wedding: Overview, Guests, Messages, Planner. Any other
+ * event: Overview, Guests, Messages, Texts. More holds the rest of the section (and the other sections).
+ */
+export const barKeys = (section: string, first: string | undefined): string[] =>
+  section === ALL_EVENTS ? ['overview', 'messages', 'settings', 'help'] : section === first ? ['overview', 'guests', 'messages', 'planner'] : ['overview', 'guests', 'messages', 'texts'];
+const BAR_LABEL: Record<string, string> = { overview: 'Overview', guests: 'Guests', messages: 'Messages', planner: 'Planner', texts: 'Texts', settings: 'Settings', help: 'Help' };
+
 function BottomBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
   const { overview: o, event, path } = useAdmin();
   const { tab = 'overview' } = useParams();
-  const first = o?.events[0]?.key;
-  const inEvent = event !== ALL_EVENTS;
+  const keys = barKeys(event, o?.events[0]?.key);
   const unread = o?.nav.messages ?? 0;
-  const items: { key: string; label: string; to: string; on: boolean; icon: ReactNode; badge?: number }[] = [
-    { key: 'home', label: 'Home', to: path('overview', ALL_EVENTS), on: !inEvent && tab === 'overview', icon: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" /> },
-    {
-      key: 'guests',
-      label: 'Guests',
-      to: path('guests', inEvent ? event : first),
-      on: tab === 'guests' || tab === 'dietary' || tab === 'seating',
-      icon: (
-        <>
-          <circle cx="9" cy="8" r="3.5" />
-          <path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18.5 14.8c1.7.8 2.8 2.5 3 5.2" />
-        </>
-      ),
-    },
-    { key: 'messages', label: 'Messages', to: path('messages', inEvent ? event : ALL_EVENTS), on: tab === 'messages', badge: unread, icon: <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" /> },
-    ...(first
-      ? [
-          {
-            key: 'planner',
-            label: 'Planner',
-            to: path('planner', first),
-            on: tab === 'planner',
-            icon: (
-              <>
-                <rect x="4" y="4" width="16" height="17" rx="2" />
-                <path d="M8 2.5v3M16 2.5v3M8 11l2 2 4-4M8 17h8" />
-              </>
-            ),
-          },
-        ]
-      : []),
-  ];
   const cls = (on: boolean) => `relative flex-1 flex flex-col items-center justify-center gap-[2px] min-h-[56px] text-[11px] no-underline ${on ? 'font-semibold !text-[var(--adm-ink,#33402f)]' : '!text-[#6b6558]'}`;
   const svg = (icon: ReactNode) => (
     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -409,15 +369,19 @@ function BottomBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean
   );
   return (
     <nav aria-label="Quick links" className="fixed bottom-0 inset-x-0 z-[16] flex bg-[#fbf8f2] border-t border-[#e2d7bc] pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(51,64,47,.08)]">
-      {items.map((i) => (
-        <Link key={i.key} to={i.to} aria-current={i.on ? 'page' : undefined} className={cls(i.on)}>
-          {svg(i.icon)}
-          {i.label}
-          {!!i.badge && (
-            <span className="absolute top-[6px] left-1/2 ml-[6px] min-w-[18px] h-[18px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[11px] font-semibold leading-[18px] text-center">{i.badge > 99 ? '99+' : i.badge}</span>
-          )}
-        </Link>
-      ))}
+      {keys.map((k) => {
+        const on = navKey(tab) === k;
+        const badge = k === 'messages' ? unread : 0;
+        return (
+          <Link key={k} to={path(k)} aria-current={on ? 'page' : undefined} className={cls(on)}>
+            {svg(ICON[k] ?? ICON.list)}
+            {event === ALL_EVENTS && k === 'overview' ? 'Home' : BAR_LABEL[k]}
+            {!!badge && (
+              <span className="absolute top-[6px] left-1/2 ml-[6px] min-w-[18px] h-[18px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[11px] font-semibold leading-[18px] text-center">{badge > 99 ? '99+' : badge}</span>
+            )}
+          </Link>
+        );
+      })}
       <button type="button" onClick={onMore} aria-expanded={moreOpen} className={`${cls(moreOpen)} border-0 bg-transparent cursor-pointer`}>
         {svg(
           <>
@@ -488,20 +452,6 @@ const ICON: Record<string, ReactNode> = {
   ),
   look: <path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-1.5 2-1.5h2a4 4 0 0 0 4-4c0-4.4-4-8-9-8zM7.5 11h.01M10 7h.01M15 7.5h.01" />,
 };
-const PLANNER_TOOLS: { view: string; label: string; icon: string }[] = [
-  { view: 'checklist', label: 'Checklist', icon: 'list' },
-  { view: 'budget', label: 'Budget', icon: 'money' },
-  { view: 'payments', label: 'Payments', icon: 'money' },
-  { view: 'vendors', label: 'Vendors', icon: 'store' },
-  { view: 'insights', label: 'Insights', icon: 'chart' },
-  { view: 'ideas', label: 'Ideas', icon: 'idea' },
-  { view: 'transport', label: 'Transport', icon: 'car' },
-  { view: 'music', label: 'Music', icon: 'music' },
-  { view: 'photos', label: 'Photo list', icon: 'photos' },
-  { view: 'print', label: 'Print', icon: 'print' },
-  { view: 'gifts', label: 'Gifts', icon: 'gift' },
-  { view: 'assistant', label: 'Assistant', icon: 'spark' },
-];
 
 /**
  * Phones: More. The sections at the top (Account and each event); tapping one shows only that section's
@@ -514,7 +464,6 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
   const [picked, setPicked] = useState(current.key);
   const shown = groups.find((g) => g.key === picked) ?? current;
   const here = shown.key === current.key;
-  const { search } = useLocation();
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', key);
@@ -546,7 +495,9 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
   const heading = (text: string) => <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52]">{text}</span>;
   const grid = 'grid grid-cols-3 gap-2';
   const first = o?.events[0]?.key;
-  const plannerView = tab === 'planner' ? (new URLSearchParams(search).get('view') ?? '') : null;
+  // The section you're in: its pages that aren't already in the bottom bar. Another section: all its pages.
+  const inBar = here ? barKeys(shown.key, first) : [];
+  const rest = shown.tabs.filter((t) => !inBar.includes(t.key));
   return (
     <div className="fixed inset-0 z-[30] flex flex-col justify-end">
       <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.35)]" />
@@ -574,14 +525,12 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
         </div>
         <div className="flex flex-col gap-2">
           {heading(shown.name)}
-          <div className={grid}>{shown.tabs.map((t) => tile(`${shown.key}-${t.key}`, t.label, path(t.key, shown.key), t.key, here && navKey(tab) === t.key))}</div>
+          {rest.length ? (
+            <div className={grid}>{rest.map((t) => tile(`${shown.key}-${t.key}`, t.label, path(t.key, shown.key), t.key, here && navKey(tab) === t.key))}</div>
+          ) : (
+            <p className="m-0 text-[14px] text-[#5b6a52]">Everything in {shown.name} is in the bar below.</p>
+          )}
         </div>
-        {first && shown.key === first && (
-          <div className="flex flex-col gap-2">
-            {heading('Wedding planner')}
-            <div className={grid}>{PLANNER_TOOLS.map((t) => tile(`planner-${t.view}`, t.label, `${path('planner', first)}?view=${t.view}`, t.icon, plannerView === t.view))}</div>
-          </div>
-        )}
         <Pill onClick={onSignOut} className="self-stretch">
           Sign out
         </Pill>

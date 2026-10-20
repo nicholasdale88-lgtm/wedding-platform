@@ -108,7 +108,23 @@ export function YourDetails() {
   );
 }
 
-/** Settings → The wedding: its names, date and plan, and the people who can sign in to run it. */
+/** Settings → Your plan & billing: the plan this wedding is on (Free for now; paid plans and invoices later). */
+export function PlanAndBilling() {
+  return (
+    <div className="flex flex-col gap-4 max-w-[720px]">
+      <section aria-label="Your plan" className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <span className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Your plan</span>
+          <span className="font-display text-[28px] leading-tight">Free</span>
+        </span>
+        <span className="text-[14px] text-[#5b6a52] max-w-[420px]">Everything in the admin, for as many guests and helpers as you need. Texts are paid to your SMS provider, not to us.</span>
+      </section>
+      <p className="m-0 text-[14px] text-[#5b6a52]">No payment details are needed, and there are no invoices yet.</p>
+    </div>
+  );
+}
+
+/** Settings → Who can sign in: the people who run this wedding, and inviting your partner or a planner. */
 export function TheWedding() {
   const { wid } = useAdmin();
   const toast = useToast();
@@ -160,15 +176,6 @@ export function TheWedding() {
   const owner = m?.you.role === 'owner';
   return (
     <div className="flex flex-col gap-8 max-w-[860px]">
-      {/* Account is about you as a customer: your plan here; the events themselves live in their own sections. */}
-      <section aria-label="Your plan" className="flex items-center justify-between gap-4 flex-wrap p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-        <span className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Your plan</span>
-          <span className="font-display text-[24px] leading-tight">Free</span>
-        </span>
-        <span className="text-[13px] text-[#5b6a52] max-w-[420px]">Everything you see here, for as many guests and helpers as you need.</span>
-      </section>
-
       <section aria-label="People" className="flex flex-col gap-3">
         <H2>People who run this wedding</H2>
         {error && <ErrorState message={error} onRetry={() => void load()} />}
