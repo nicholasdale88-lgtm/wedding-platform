@@ -1,6 +1,6 @@
 import { defaultInvitesFrom, guidesOf } from '@wp/shared';
 import type { EventFacts } from '../sms/smart';
-import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
+import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import type { SmsStore } from '../sms/store';
 import {
   Audience, type Campaign, type EventInfo, type InboundRow, type Iso, type NewOutbox, type OutboxKind, type OutboxResult,
@@ -340,6 +340,7 @@ export class D1SmsStore implements SmsStore {
       // Same rules as replies on the invitation: a seat needs a yes; declining everything clears dietary.
       unseatIfNotComing(this.db, invitationId),
       releaseShuttlesIfDeclined(this.db, invitationId),
+      clearMealsIfDeclined(this.db, invitationId),
       clearDietIfDeclinedAll(this.db, invitationId),
       this.db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(at, invitationId),
     ]);

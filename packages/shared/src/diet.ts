@@ -18,7 +18,7 @@ export function attachDiet(diet: string, people: string[]): number {
 
 /** The kitchen's headings for a dietary note (a note can be in more than one). */
 const CATEGORIES: [string, RegExp][] = [
-  ['Vegan', /\bvegan/i],
+  ['Vegan', /\bvegan|plant.?based/i],
   ['Vegetarian', /vegetarian|\bveg\b|no meat/i],
   ['Gluten free', /gluten|coeliac|celiac|\bgf\b/i],
   ['Dairy free', /dairy|lactose|\bdf\b/i],
@@ -28,6 +28,25 @@ const CATEGORIES: [string, RegExp][] = [
   ['Halal or kosher', /halal|kosher/i],
   ['Pregnant', /pregnan/i],
 ];
+/**
+ * The needs in a note that a menu can be safe for (the kitchen's headings, without "Other" or "Pregnant").
+ * Used both ways: what a guest needs, and what a menu is marked as suiting.
+ */
+export function dietNeeds(text: string | null | undefined): string[] {
+  return dietCategories(text).filter((c) => c !== 'Other' && c !== 'Pregnant');
+}
+/** A vegan dish is also vegetarian, dairy free and egg free. */
+const IMPLIES: Record<string, string[]> = { Vegan: ['Vegetarian', 'Dairy free', 'Egg'] };
+/** What a menu marked with these words is safe for, including what that implies. */
+export function safeFor(text: string | null | undefined): Set<string> {
+  const out = new Set<string>();
+  for (const n of dietNeeds(text)) {
+    out.add(n);
+    for (const x of IMPLIES[n] ?? []) out.add(x);
+  }
+  return out;
+}
+
 export function dietCategories(diet: string | null | undefined): string[] {
   const d = (diet ?? '').trim();
   if (!d) return [];

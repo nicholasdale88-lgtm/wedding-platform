@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dietNeeds, isSerious, safeFor } from './diet';
 
 /**
  * The planner: the wedding party (roles on guests), the party's own run sheet (more detailed than the
@@ -1383,18 +1384,75 @@ export const Menus = z.object({
 });
 export type Menus = z.infer<typeof Menus>;
 
-/** The special menu that suits what a guest told you (the first whose words appear in it), if any. */
+/** The words a menu was marked with also appear in what the guest wrote ("no onion" on a "no onion" menu). */
+const wordsMatch = (diet: string, suits: string) => {
+  const d = diet.toLowerCase().replace(/-/g, ' ');
+  return suits
+    .toLowerCase()
+    .replace(/-/g, ' ')
+    .split(/[,;/]|\band\b/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 2)
+    .some((w) => d.includes(w));
+};
+const marks = (m: Pick<Menu, 'name' | 'suits'>) => safeFor(`${m.suits}, ${m.name}`);
+
+/**
+ * How a menu fits what a guest told you: their needs (vegan, gluten free, nut allergy…) and the ones the
+ * menu isn't marked as safe for. A menu fits when nothing is missing. `menu` undefined: nothing is marked.
+ */
+export function menuFit(diet: string, menu: Pick<Menu, 'name' | 'suits'> | undefined): { needs: string[]; missing: string[] } {
+  const needs = dietNeeds(diet);
+  const safe = menu ? marks(menu) : new Set<string>();
+  return { needs, missing: needs.filter((n) => !safe.has(n)) };
+}
+
+/**
+ * The special menu that suits what a guest told you: one safe for every need they have (vegan and gluten
+ * free needs a menu marked with both), the most specific first. A note with no kitchen heading ("no
+ * onion") matches a menu marked with the same words. Undefined when no single menu covers them all.
+ */
 export function suggestMenu(diet: string, special: Menu[]): Menu | undefined {
-  const d = diet.toLowerCase();
-  if (!d.trim()) return undefined;
-  return special.find((m) =>
-    m.suits
-      .toLowerCase()
-      .split(/[,;/]|\band\b/)
-      .map((w) => w.trim())
-      .filter((w) => w.length > 2)
-      .some((w) => d.includes(w) || d.includes(w.replace(/-/g, ' ')) || d.replace(/-/g, ' ').includes(w)),
-  );
+  if (!diet.trim()) return undefined;
+  const { needs } = menuFit(diet, undefined);
+  if (!needs.length) return special.find((m) => wordsMatch(diet, m.suits));
+  const fits = special.filter((m) => !menuFit(diet, m).missing.length);
+  return fits.sort((a, b) => marks(a).size - marks(b).size)[0];
+}
+
+/** What a guest is given at one event: a special menu (by id; '' is the set menu) and any course changed just for them. */
+export const MealChoice = z.object({ menu: s(40), entree: s(200), main: s(200), dessert: s(200) });
+export type MealChoice = z.infer<typeof MealChoice>;
+export const NO_MEAL: MealChoice = { menu: '', entree: '', main: '', dessert: '' };
+
+/**
+ * What the kitchen serves them, course by course: a course changed for them, else their menu's, else the
+ * set menu's, so editing a menu reaches everyone given it. `menu` names it ("Set menu", "Vegan"), or
+ * "Their own" when the courses were written for them.
+ */
+export function servedMeal(choice: MealChoice | undefined, menus: Menus | undefined) {
+  const c = choice ?? NO_MEAL;
+  const menu = c.menu ? menus?.special.find((m) => m.id === c.menu) : undefined;
+  const set = menus?.set;
+  const course = (k: 'entree' | 'main' | 'dessert') => c[k] || menu?.[k] || set?.[k] || '';
+  const own = !menu && !!(c.entree || c.main || c.dessert);
+  return { menu: menu?.name || (own ? 'Their own' : 'Set menu'), menuId: menu?.id ?? '', entree: course('entree'), main: course('main'), dessert: course('dessert') };
+}
+
+const needWord = (n: string) => (n === 'Nut allergy' ? 'nut free' : n === 'Seafood' ? 'seafood free' : n === 'Egg' ? 'egg free' : n === 'Halal or kosher' ? 'halal or kosher' : n.toLowerCase());
+
+/**
+ * Anything to check: a need their meal isn't marked safe for ("The set menu isn't marked nut free: check
+ * with the caterer" for a serious one). '' when fine, or when their courses were written for them.
+ * The set menu counts as safe for whatever it's marked with (Menus.set.suits).
+ */
+export function mealWarning(diet: string, choice: MealChoice | undefined, menus: Menus | undefined): string {
+  const c = choice ?? NO_MEAL;
+  const menu = c.menu ? menus?.special.find((m) => m.id === c.menu) : undefined;
+  if (!menu && (c.entree || c.main || c.dessert)) return '';
+  const { needs, missing } = menuFit(diet, menu ?? menus?.set);
+  if (!needs.length || !missing.length) return '';
+  return `${menu ? menu.name : 'The set menu'} isn’t marked ${missing.map(needWord).join(', ')}${isSerious(diet) ? ': check with the caterer' : ''}`;
 }
 
 export const PLANNER_DOCS = {

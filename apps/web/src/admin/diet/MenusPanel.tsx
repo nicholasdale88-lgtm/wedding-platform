@@ -1,4 +1,4 @@
-import type { Menu, Menus } from '@wp/shared';
+import { safeFor, type Menu, type Menus } from '@wp/shared';
 import { useRef, useState } from 'react';
 import { plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -17,7 +17,7 @@ const STARTERS: [string, string][] = [
   ['Vegan', 'vegan, plant based'],
   ['Gluten free', 'gluten, coeliac, celiac'],
   ['Dairy free', 'dairy, lactose'],
-  ['Nut free', 'nut, peanut, tree nut'],
+  ['Nut free', 'nut free, peanut free'],
   ['Kids', 'kid, child'],
 ];
 
@@ -41,6 +41,23 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
       ))}
     </div>
   );
+  /** What a menu counts as safe for when guests are matched to it (from its name and "suits" words). */
+  const safeChips = (m: Menu) => {
+    const safe = [...safeFor(`${m.suits}, ${m.name}`)];
+    return (
+      <span className="flex gap-1 flex-wrap text-[12px]">
+        {safe.length ? (
+          safe.map((x) => (
+            <span key={x} className="py-[2px] px-2 rounded-full bg-[#dfe5cc] text-[#3d4a2f]">
+              {x === 'Nut allergy' ? 'Nut free' : x === 'Seafood' ? 'Seafood free' : x === 'Egg' ? 'Egg free' : x}
+            </span>
+          ))
+        ) : (
+          <span className="text-[#7a7466]">Not marked safe for any dietary need yet</span>
+        )}
+      </span>
+    );
+  };
   const unused = STARTERS.filter(([n]) => !menus.special.some((m) => m.name.toLowerCase() === n.toLowerCase()));
 
   return (
@@ -52,6 +69,18 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
       <div className="flex flex-col gap-2 p-4 rounded-[12px] bg-white border border-[#e2d7bc]">
         <strong className="font-semibold">Set menu</strong>
         {courses(menus.set, (p) => set({ ...menus, set: { ...menus.set, ...p, name: 'Set menu' } }), 'Set menu')}
+        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          The set menu is already (if the caterer says so)
+          <input
+            aria-label="Set menu: safe for"
+            placeholder="e.g. nut free, halal"
+            value={menus.set.suits}
+            maxLength={200}
+            onChange={(e) => set({ ...menus, set: { ...menus.set, suits: e.target.value, name: 'Set menu' } })}
+            className={`${inputCls} !py-2`}
+          />
+        </label>
+        {safeChips(menus.set)}
       </div>
       {menus.special.map((m) => (
         <div key={m.id} className="flex flex-col gap-2 p-4 rounded-[12px] bg-white border border-[#e2d7bc]">
@@ -68,6 +97,7 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
               Remove
             </button>
           </div>
+          {safeChips(m)}
           {courses(m, (p) => setSpecial(m.id, p), m.name || 'Special menu')}
         </div>
       ))}

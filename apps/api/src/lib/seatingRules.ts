@@ -44,6 +44,15 @@ export const clearDietIfDeclinedAll = (db: D1Database, invitationId: string): D1
     )
     .bind(invitationId);
 
+/** A guest who says they can't come to an event has no meal there any more (it would only end up on the caterer's list). */
+export const clearMealsIfDeclined = (db: D1Database, invitationId: string): D1PreparedStatement =>
+  db
+    .prepare(
+      `DELETE FROM meal_choice WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?1)
+         AND event_id IN (SELECT event_id FROM rsvp WHERE invitation_id = ?1 AND attending = 0)`,
+    )
+    .bind(invitationId);
+
 /** A guest who says they can't come to an event gives back their seats on its shuttles (in the RSVP's own batch). */
 export const releaseShuttlesIfDeclined = (db: D1Database, invitationId: string): D1PreparedStatement =>
   db

@@ -586,3 +586,18 @@ export const vendorEnquiry = sqliteTable('vendor_enquiry', {
   read: integer('read').notNull(),
   createdAt: text('created_at').notNull(),
 });
+
+/** migration 0029: a person's meal at one event (a special menu by id, and courses changed just for them). */
+export const mealChoice = sqliteTable(
+  'meal_choice',
+  {
+    personId: text('person_id').notNull(),
+    eventId: text('event_id').notNull(),
+    menuId: text('menu_id').notNull().default(''),
+    entree: text('entree').notNull().default(''),
+    main: text('main').notNull().default(''),
+    dessert: text('dessert').notNull().default(''),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.personId, t.eventId] }) }),
+);

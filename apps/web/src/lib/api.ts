@@ -68,6 +68,8 @@ export interface Person {
   diet: string;
   table: string | null;
   meal: { entree: string; main: string; dessert: string };
+  /** Their meal at each event: a special menu's id ('' the set menu) and any course changed just for them. */
+  meals?: Record<string, { menu: string; entree: string; main: string; dessert: string }>;
   /** Their wedding party role ('' when they aren't in it). */
   role?: string;
 }
@@ -173,7 +175,8 @@ export const api = {
   importGuests: (wid: string, rows: unknown[], dry: boolean) => send<ImportResult>('POST', `${w(wid)}/guests/import${dry ? '?dry=1' : ''}`, { rows }),
   setAdminLook: (wid: string, look: { palette: string; eventColours: boolean; large: boolean }) => send<{ ok: true }>('PUT', `${w(wid)}/look`, look),
   setAdminName: (wid: string, name: string) => send<{ ok: true; name: string }>('PUT', `${w(wid)}/admin-name`, { name }),
-  setMeal: (wid: string, personId: string, meal: { entree: string; main: string; dessert: string }) => send<{ ok: true }>('PUT', `${w(wid)}/people/${personId}/meal`, meal),
+  /** A person's meal at an event: a special menu (id, '' the set menu) and courses changed just for them. */
+  setMeal: (wid: string, personId: string, meal: { event?: string; menu?: string; entree: string; main: string; dessert: string }) => send<{ ok: true }>('PUT', `${w(wid)}/people/${personId}/meal`, meal),
   sendOne: (wid: string, id: string, campaignId: string) =>
     send<{ queued: number; sent: number; failed: number; stopped?: { reason: string; error: string } }>('POST', `${w(wid)}/guests/${id}/send`, { campaignId }),
 };

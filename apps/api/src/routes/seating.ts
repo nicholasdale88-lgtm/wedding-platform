@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { readJson, safeJson } from '../lib/security';
 import { unseatEveryoneNotComing } from '../lib/seatingRules';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { servedAt } from '../lib/meals';
 
 /**
  * Admin → Seating (/api/a/w/:wid/seating?event=<key>): the floor plan for one event. Tables and areas
@@ -65,7 +66,7 @@ export function seatingRoutes() {
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
       db.prepare(
         `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, (SELECT s.table_id FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS tableId,
-                p.meal_entree AS e, p.meal_main AS m, p.meal_dessert AS d, i.party,
+                i.party,
                 ie.event_id IS NOT NULL AS invited, r.attending
            FROM person p JOIN invitation i ON i.id = p.invitation_id
            LEFT JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
@@ -97,6 +98,7 @@ export function seatingRoutes() {
       return { id: x.id, name: x.name, at: x.created_at, tables: snap.tables.length, seated: Object.keys(snap.seats).length };
     });
     const published = pubRow ? { at: pubRow.published_at, changes: changesBetween(safeJson<Snapshot>(pubRow.snapshot, { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot), draft) } : null;
+    const served = await servedAt(db, w.id, ev);
     return {
       eventId: ev.id,
       draft,
@@ -112,9 +114,9 @@ export function seatingRoutes() {
         planImg: '', // plan photos arrive with uploads (R2)
         tables: tables!.results as { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number }[],
         areas: areas!.results,
-        people: (people!.results as { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; e: string; m: string; d: string; party: string; invited: number; attending: number | null }[])
+        people: (people!.results as { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; invited: number; attending: number | null }[])
           .filter((x) => x.invited && x.attending !== 0)
-          .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, diet: x.diet, meal: { e: x.e, m: x.m, d: x.d }, tableId: x.attending === 1 && x.tableId && tableIds.has(x.tableId) ? x.tableId : null, coming: x.attending === 1 })),
+          .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: x.attending === 1 && x.tableId && tableIds.has(x.tableId) ? x.tableId : null, coming: x.attending === 1 })),
       },
     };
   }

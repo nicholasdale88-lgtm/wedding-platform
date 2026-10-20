@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { mealWarning, menuFit, servedMeal } from '../src/planner';
 import { allPayments, compareRfq, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
@@ -62,6 +63,84 @@ describe('menus', () => {
     expect(suggestMenu('gluten-free', special)?.id).toBe('g');
     expect(suggestMenu('No onion', special)).toBeUndefined();
     expect(suggestMenu('', special)).toBeUndefined();
+  });
+  it('a guest with several needs gets a menu that covers them all, or none', () => {
+    const menus = [
+      { id: 'veg', name: 'Vegetarian', suits: 'vegetarian', entree: '', main: '', dessert: '' },
+      { id: 'vegan', name: 'Vegan', suits: 'vegan', entree: '', main: '', dessert: '' },
+      { id: 'gf', name: 'Gluten free', suits: 'gluten free', entree: '', main: '', dessert: '' },
+      { id: 'vgf', name: 'Vegan and gluten free', suits: 'vegan, gluten free, nut free', entree: '', main: '', dessert: '' },
+      { id: 'onion', name: 'No onion', suits: 'no onion', entree: '', main: '', dessert: '' },
+    ];
+    expect(suggestMenu('Vegan and coeliac', menus)?.id).toBe('vgf');
+    // Vegan is also vegetarian, dairy free and egg free; the most specific menu that fits wins.
+    expect(suggestMenu('Vegetarian', menus)?.id).toBe('veg');
+    expect(suggestMenu('Dairy free', menus)?.id).toBe('vegan');
+    expect(suggestMenu('Gluten free, nut allergy', menus)?.id).toBe('vgf');
+    expect(suggestMenu('Halal', menus)).toBeUndefined(); // nothing covers it: they need their own plate
+    expect(suggestMenu('No onion please', menus)?.id).toBe('onion');
+    expect(suggestMenu('Plant based', menus)?.id).toBe('vegan');
+  });
+  it('what the kitchen serves: their changes, else their menu, else the set menu; edits to a menu reach everyone on it', () => {
+    const menus = {
+      set: { id: '', name: 'Set menu', suits: '', entree: 'Burrata', main: 'Lamb', dessert: 'Pavlova' },
+      special: [{ id: 'v', name: 'Vegan', suits: 'vegan', entree: 'Tomato', main: 'Risotto', dessert: '' }],
+      files: [],
+    };
+    expect(servedMeal(undefined, menus)).toMatchObject({ menu: 'Set menu', entree: 'Burrata', main: 'Lamb', dessert: 'Pavlova' });
+    expect(servedMeal({ menu: 'v', entree: '', main: '', dessert: '' }, menus)).toMatchObject({ menu: 'Vegan', entree: 'Tomato', main: 'Risotto', dessert: 'Pavlova' });
+    expect(servedMeal({ menu: 'v', entree: '', main: 'Mushroom pie', dessert: '' }, menus)).toMatchObject({ menu: 'Vegan', main: 'Mushroom pie' });
+    expect(servedMeal({ menu: '', entree: '', main: 'Fish', dessert: '' }, menus)).toMatchObject({ menu: 'Their own', entree: 'Burrata', main: 'Fish' });
+    menus.special[0]!.main = 'Gnocchi';
+    expect(servedMeal({ menu: 'v', entree: '', main: '', dessert: '' }, menus).main).toBe('Gnocchi');
+    // A menu that was removed: back to the set menu, never a blank plate.
+    expect(servedMeal({ menu: 'gone', entree: '', main: '', dessert: '' }, menus)).toMatchObject({ menu: 'Set menu', main: 'Lamb' });
+  });
+  it('warns when a meal is not marked safe for a need, louder for a serious one', () => {
+    const menus = { set: { id: '', name: 'Set menu', suits: 'nut free', entree: '', main: '', dessert: '' }, special: [{ id: 'v', name: 'Vegan', suits: 'vegan', entree: '', main: '', dessert: '' }], files: [] };
+    expect(mealWarning('Nut allergy', undefined, menus)).toBe(''); // the set menu is marked nut free
+    expect(mealWarning('Coeliac', undefined, menus)).toBe('The set menu isn’t marked gluten free: check with the caterer');
+    expect(mealWarning('Vegan, nut allergy', { menu: 'v', entree: '', main: '', dessert: '' }, menus)).toBe('Vegan isn’t marked nut free: check with the caterer');
+    expect(mealWarning('Vegetarian', { menu: 'v', entree: '', main: '', dessert: '' }, menus)).toBe('');
+    expect(mealWarning('Vegetarian', undefined, menus)).toBe('The set menu isn’t marked vegetarian');
+    expect(mealWarning('Coeliac', { menu: '', entree: 'GF bread', main: '', dessert: '' }, menus)).toBe(''); // written for them
+    expect(mealWarning('No coriander', undefined, menus)).toBe(''); // not a kitchen heading
+  });
+  it('stress: 2,000 mixed dietary notes; a suggested menu is always safe for everything they wrote', () => {
+    const notes = ['Vegan', 'vegetarian', 'Coeliac', 'gluten free', 'nut allergy', 'peanut allergy', 'dairy free', 'lactose intolerant', 'Halal', 'shellfish allergy', 'egg allergy', 'plant-based', 'pescatarian', 'no coriander', 'pregnant'];
+    const menus = {
+      set: { id: '', name: 'Set menu', suits: 'nut free', entree: 'Burrata', main: 'Lamb', dessert: 'Pavlova' },
+      special: [
+        { id: 'veg', name: 'Vegetarian', suits: 'vegetarian, nut free', entree: '', main: 'Risotto', dessert: '' },
+        { id: 'vegan', name: 'Vegan', suits: 'vegan, nut free', entree: '', main: 'Curry', dessert: 'Sorbet' },
+        { id: 'gf', name: 'Gluten free', suits: 'gluten free', entree: '', main: 'Fish', dessert: '' },
+        { id: 'vgf', name: 'Vegan and gluten free', suits: 'vegan, gluten free, nut free, peanut free', entree: '', main: 'Bowl', dessert: '' },
+        { id: 'halal', name: 'Halal', suits: 'halal', entree: '', main: 'Chicken', dessert: '' },
+      ],
+      files: [],
+    };
+    let seed = 7;
+    const rnd = (n: number) => ((seed = (seed * 1103515245 + 12345) % 2147483648), seed % n);
+    let suggested = 0;
+    let none = 0;
+    for (let i = 0; i < 2000; i++) {
+      const diet = Array.from({ length: 1 + rnd(3) }, () => notes[rnd(notes.length)]!).join(rnd(2) ? ', ' : ' and ');
+      const m = suggestMenu(diet, menus.special);
+      if (m) {
+        suggested++;
+        const choice = { menu: m.id, entree: '', main: '', dessert: '' };
+        expect(mealWarning(diet, choice, menus), diet).toBe('');
+        expect(servedMeal(choice, menus).main, diet).toBe(m.main); // every course is filled: theirs or the set menu's
+        expect(servedMeal(choice, menus).dessert, diet).not.toBe('');
+      } else {
+        none++;
+        // No menu fits: either nothing to cater for, or one of them really is missing from every menu.
+        const needs = menuFit(diet, undefined).needs;
+        for (const sp of menus.special) expect(needs.length === 0 || menuFit(diet, sp).missing.length > 0, `${diet} / ${sp.id}`).toBe(true);
+      }
+    }
+    expect(suggested).toBeGreaterThan(500);
+    expect(none).toBeGreaterThan(50);
   });
   it('the couple-side templates are valid', () => {
     expect(PLANNER_DOCS['event-checklist'].safeParse(PARTY_CHECK_TEMPLATE).success).toBe(true);

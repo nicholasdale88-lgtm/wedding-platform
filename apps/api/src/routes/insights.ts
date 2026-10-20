@@ -1,5 +1,6 @@
 import { dateIn, dietCategories, InvitationContent, Shuttles, taskTotals } from '@wp/shared';
 import { Hono, type Context } from 'hono';
+import { servedAt } from '../lib/meals';
 import { safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { readDoc } from './planner';
@@ -64,7 +65,7 @@ export function insightsRoutes() {
     const extra = firstEv
       ? await db.batch([
           db.prepare(
-            `SELECT p.diet, p.meal_main AS main FROM person p JOIN invitation i ON i.id = p.invitation_id AND i.wedding_id = ? AND i.deleted_at IS NULL
+            `SELECT p.id, p.diet FROM person p JOIN invitation i ON i.id = p.invitation_id AND i.wedding_id = ? AND i.deleted_at IS NULL
                JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ? AND r.attending = 1 WHERE p.deleted_at IS NULL`,
           ).bind(w, firstEv.id),
           db.prepare(`SELECT COUNT(*) AS tables, COALESCE(SUM(seats), 0) AS seats FROM seat_table WHERE event_id = ? AND deleted_at IS NULL`).bind(firstEv.id),
@@ -83,7 +84,9 @@ export function insightsRoutes() {
           ).bind(firstEv.id, w),
         ])
       : null;
-    const coming = (extra?.[0]?.results ?? []) as { diet: string; main: string }[];
+    // Mains by what each person is served at the first event (their menu's main, or one written for them).
+    const served = firstEv ? await servedAt(db, w, firstEv) : () => ({ e: '', m: '', d: '', menu: '' });
+    const coming = ((extra?.[0]?.results ?? []) as { id: string; diet: string }[]).map((p) => ({ diet: p.diet, main: served(p.id).m }));
     const dietCounts = new Map<string, number>();
     for (const p of coming) for (const k of dietCategories(p.diet)) dietCounts.set(k, (dietCounts.get(k) ?? 0) + 1);
     const mains = new Map<string, number>();

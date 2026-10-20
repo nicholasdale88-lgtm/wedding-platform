@@ -1,7 +1,7 @@
-import { dietCategories, isSerious, suggestMenu, type Menu, type Menus } from '@wp/shared';
+import { dietCategories, isSerious, mealWarning, menuFit, NO_MEAL, servedMeal, suggestMenu, type MealChoice, type Menu, type Menus } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, type EventInfo, type Guest, type Person } from '../../lib/api';
+import { api, plannerApi, type EventInfo, type Guest, type Person } from '../../lib/api';
 import { fileName } from '../../lib/csv';
 import { fmtWeekday, shortLabel } from '../../lib/format';
 import { downloadDressed } from '../exportLook';
@@ -37,6 +37,12 @@ export function Dietary() {
   useAutoRefresh(load);
 
   const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
+  // Each catered event's menus, for the caterer export (the Meals panel keeps its own, live).
+  const [menusFor, setMenusFor] = useState<Record<string, Menus | undefined>>({});
+  useEffect(() => {
+    for (const e of data?.events.filter((x) => x.catered) ?? [])
+      plannerApi.docFor<Menus>(wid, 'menus', e.key).then((r) => setMenusFor((m) => ({ ...m, [e.key]: r.data })), () => undefined);
+  }, [wid, data?.events.length]); // eslint-disable-line
   const slug = overview?.wedding.slug ?? 'wedding';
   const view = useMemo(() => {
     if (!data) return null;
@@ -70,11 +76,15 @@ export function Dietary() {
     ] }], shown.map((e) => e.key));
   const exportEvent = (e: EventInfo) =>
     void downloadDressed(wid, overview, fileName(slug, `${e.key}-caterer`, 'xlsx'), `For the caterer`, [{ name: shortLabel(e.name), rows: [
-      ['Name', 'Table', 'Dietary', 'Serious', 'Entrée', 'Main', 'Dessert'],
+      ['Name', 'Table', 'Dietary', 'Serious', 'Menu', 'Entrée', 'Main', 'Dessert', 'Check'],
       ...data.guests
         .filter((g) => coming(g, e))
         .flatMap((g) => g.people.slice(0, Math.max(1, g.rsvp[e.key]?.count ?? g.people.length)))
-        .map((p) => [p.name, p.table ?? '', p.diet, isSerious(p.diet) ? 'Yes' : '', p.meal.entree, p.meal.main, p.meal.dessert]),
+        .map((p) => {
+          const c = p.meals?.[e.key];
+          const m = servedMeal(c, menusFor[e.key]);
+          return [p.name, p.table ?? '', p.diet, isSerious(p.diet) ? 'Yes' : '', m.menu, m.entree, m.main, m.dessert, p.diet.trim() ? mealWarning(p.diet, c, menusFor[e.key]) : ''];
+        }),
     ] }], [e.key]);
 
   return (
@@ -148,7 +158,15 @@ export function Dietary() {
 
 const SeriousTag = () => <span className="py-[2px] px-2 rounded-full bg-[#f1e1d6] text-[#7a4a37] text-[11px] font-semibold uppercase tracking-[.08em]">Serious</span>;
 
-/** What the kitchen serves each person with a dietary need, course by course. Saves as you leave each box. */
+/** Their meal at this event (nothing chosen yet: the set menu). */
+const choiceOf = (p: Person, eventKey: string): MealChoice => p.meals?.[eventKey] ?? NO_MEAL;
+const isChosen = (c: MealChoice) => !!(c.menu || c.entree || c.main || c.dessert);
+
+/**
+ * What the kitchen serves each person with a dietary need at this event. Give them a special menu (edits to
+ * the menu reach them), or change a course just for them. Anything to check is flagged: a need their meal
+ * isn't marked safe for, or needs no single menu covers.
+ */
 function Meals({ event, guests, onSaved }: { event: EventInfo; guests: Guest[]; onSaved: () => Promise<void> }) {
   const { wid } = useAdmin();
   const toast = useToast();
@@ -159,139 +177,183 @@ function Meals({ event, guests, onSaved }: { event: EventInfo; guests: Guest[]; 
   // Everyone invited who hasn't declined: meals get planned before every reply is in.
   const people = guests.filter((g) => g.invited.includes(event.key) && g.rsvp[event.key]?.attending !== false).flatMap((g) => g.people);
   const withDiet = people.filter((p) => p.diet.trim());
-  const set = people.length - withDiet.length;
-  const unmatched = menus ? withDiet.filter((p) => !p.meal.entree && !p.meal.main && !p.meal.dessert && suggestMenu(p.diet, menus.special)) : [];
-  /** Everyone with a need and no meals yet gets the special menu that suits what they wrote. */
+  const special = menus?.special ?? [];
+  const rows = withDiet.map((p) => {
+    const choice = choiceOf(p, event.key);
+    return { p, choice, warning: mealWarning(p.diet, choice, menus), suggested: suggestMenu(p.diet, special), needs: menuFit(p.diet, undefined).needs };
+  });
+  const toGive = rows.filter((r) => !isChosen(r.choice) && r.suggested);
+  const ownPlate = rows.filter((r) => !isChosen(r.choice) && !r.suggested && r.needs.length > 0);
+  const toCheck = rows.filter((r) => r.warning);
+  const done = rows.filter((r) => isChosen(r.choice) && !r.warning).length;
+  /** Everyone with a need and nothing chosen gets the special menu that covers all they wrote. */
   const giveSuggested = async () => {
-    if (!menus) return;
     setGiving(true);
     let n = 0;
     try {
-      for (const p of unmatched) {
-        const m = suggestMenu(p.diet, menus.special)!;
-        await api.setMeal(wid, p.id, { entree: m.entree, main: m.main, dessert: m.dessert });
+      for (const r of toGive) {
+        await api.setMeal(wid, r.p.id, { event: event.key, menu: r.suggested!.id, entree: '', main: '', dessert: '' });
         n++;
       }
       toast(`${n} ${n === 1 ? 'guest has' : 'guests have'} their menu`);
     } catch (e) {
-      toast((e as Error).message);
+      toast(`${n} given; then: ${(e as Error).message}`);
     } finally {
       setGiving(false);
       await onSaved();
     }
   };
+  const where = shortLabel(event.name).toLowerCase() === 'wedding' ? 'the wedding' : shortLabel(event.name);
   return (
     <>
-    {menus && <MenusPanel menus={menus} set={live.set} />}
-    <section className="flex flex-col gap-3 p-5 rounded-[14px] bg-[#efe7d3]">
-      <div className="flex justify-between items-baseline gap-3 flex-wrap">
-        <h2 className="m-0 font-display font-medium text-[26px]">Meals for {shortLabel(event.name).toLowerCase() === 'wedding' ? 'the wedding' : shortLabel(event.name)}</h2>
-        <span className="text-[13px] text-[#5b6a52]">
-          {withDiet.filter((p) => p.meal.entree || p.meal.main || p.meal.dessert).length} of {withDiet.length} set
-        </span>
-      </div>
-      <p className="m-0 text-[14px] text-[#5b6a52]">
-        Give each person a special menu, or write what the kitchen serves them course by course. A blank course means the set menu dish. It shows on their night-before place card and in the caterer export.
-      </p>
-      {unmatched.length > 0 && (
-        <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[#fbf8f0] text-[14px]">
-          <span>
-            {unmatched.length} {unmatched.length === 1 ? 'guest has' : 'guests have'} a special menu that suits them.
+      {menus && <MenusPanel menus={menus} set={live.set} />}
+      <section aria-label={`Meals for ${where}`} className="flex flex-col gap-3 p-5 rounded-[14px] bg-[#efe7d3]">
+        <div className="flex justify-between items-baseline gap-3 flex-wrap">
+          <h2 className="m-0 font-display font-medium text-[26px]">Meals for {where}</h2>
+          <span className="text-[13px] text-[#5b6a52]">
+            {done} of {rows.length} sorted
           </span>
-          <Pill kind="primary" disabled={giving} onClick={() => void giveSuggested()}>
-            {giving ? 'Giving…' : 'Give them their menus'}
-          </Pill>
         </div>
-      )}
-      {withDiet.map((p) => (
-        <MealRow key={`${p.id}:${p.meal.entree}|${p.meal.main}|${p.meal.dessert}`} wid={wid} p={p} onSaved={onSaved} menus={menus} />
-      ))}
-      <div className="flex justify-between gap-3 pt-3 border-t border-[#e2d7bc] text-[14px]">
-        <span>
-          <strong className="font-semibold">{set} guests</strong> · no dietary requirements
-        </span>
-        <span>Set menu</span>
-      </div>
-      {!withDiet.length && <div className="text-[14px] text-[#5b6a52]">No dietary requirements, so everyone is on the set menu. Nothing to do here.</div>}
-    </section>
+        <p className="m-0 text-[14px] text-[#5b6a52]">
+          Give each person with a dietary need a menu that suits them, or change a course just for them. It shows on their night-before place card and in the
+          caterer export. Everyone else has the set menu.
+        </p>
+        {toGive.length > 0 && (
+          <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[#fbf8f0] text-[14px]">
+            <span>
+              {toGive.length} {toGive.length === 1 ? 'guest has a menu' : 'guests have menus'} that suit{toGive.length === 1 ? 's' : ''} everything they wrote.
+            </span>
+            <Pill kind="primary" disabled={giving} onClick={() => void giveSuggested()}>
+              {giving ? 'Giving…' : 'Give them their menus'}
+            </Pill>
+          </div>
+        )}
+        {(toCheck.length > 0 || ownPlate.length > 0) && (
+          <div role="status" className="flex flex-col gap-1 py-2 px-4 rounded-[12px] bg-[#f1e1d6] text-[14px] text-[#7a4a37]">
+            {toCheck.length > 0 && <span>{toCheck.length} to check with the caterer: their meal isn’t marked safe for something they need.</span>}
+            {ownPlate.length > 0 && <span>{ownPlate.length} need their own plate: no menu covers everything they wrote. Add a menu, or write their courses.</span>}
+          </div>
+        )}
+        {rows.map(({ p, choice, warning, suggested, needs }) => (
+          <MealRow
+            key={`${p.id}:${choice.menu}|${choice.entree}|${choice.main}|${choice.dessert}`}
+            wid={wid}
+            eventKey={event.key}
+            p={p}
+            choice={choice}
+            menus={menus}
+            warning={warning}
+            suggested={suggested}
+            ownPlate={!isChosen(choice) && !suggested && needs.length > 0}
+            onSaved={onSaved}
+          />
+        ))}
+        <div className="flex justify-between gap-3 pt-3 border-t border-[#e2d7bc] text-[14px]">
+          <span>
+            <strong className="font-semibold">{people.length - withDiet.length} guests</strong> · no dietary requirements
+          </span>
+          <span>Set menu</span>
+        </div>
+        {!withDiet.length && <div className="text-[14px] text-[#5b6a52]">No dietary requirements, so everyone is on the set menu. Nothing to do here.</div>}
+      </section>
     </>
   );
 }
 
-const same = (a: { entree: string; main: string; dessert: string }, b: { entree: string; main: string; dessert: string }) => a.entree === b.entree && a.main === b.main && a.dessert === b.dessert;
-
-function MealRow({ wid, p, onSaved, menus }: { wid: string; p: Person; onSaved: () => Promise<void>; menus?: Menus }) {
+function MealRow({
+  wid,
+  eventKey,
+  p,
+  choice,
+  menus,
+  warning,
+  suggested,
+  ownPlate,
+  onSaved,
+}: {
+  wid: string;
+  eventKey: string;
+  p: Person;
+  choice: MealChoice;
+  menus?: Menus;
+  warning: string;
+  suggested?: Menu;
+  ownPlate: boolean;
+  onSaved: () => Promise<void>;
+}) {
   const toast = useToast();
-  const [m, setM] = useState(p.meal);
-  const saved = useRef(p.meal);
-  const save = async () => {
-    if (m.entree === saved.current.entree && m.main === saved.current.main && m.dessert === saved.current.dessert) return;
-    try {
-      await api.setMeal(wid, p.id, m);
-      saved.current = m;
-      toast(`Saved ${p.name.split(' ')[0]}'s meals`);
-      void onSaved();
-    } catch (e) {
-      toast((e as Error).message);
-    }
-  };
+  const [c, setC] = useState(choice);
+  const saved = useRef(choice);
   const special = menus?.special ?? [];
-  const chosen = special.find((x) => (x.entree || x.main || x.dessert) && same(x, m));
-  const suggested = suggestMenu(p.diet, special);
-  /** Picking a menu fills in its courses and saves straight away. */
-  const pick = async (menu: Menu | null) => {
-    const next = menu ? { entree: menu.entree, main: menu.main, dessert: menu.dessert } : { entree: '', main: '', dessert: '' };
-    setM(next);
+  const served = servedMeal(c, menus);
+  const first = p.name.split(' ')[0];
+  const save = async (next: MealChoice, msg: string) => {
+    if (next.menu === saved.current.menu && next.entree === saved.current.entree && next.main === saved.current.main && next.dessert === saved.current.dessert) return;
     try {
-      await api.setMeal(wid, p.id, next);
+      await api.setMeal(wid, p.id, { event: eventKey, ...next });
       saved.current = next;
-      toast(menu ? `${p.name.split(' ')[0]}: ${menu.name}` : `${p.name.split(' ')[0]}: set menu`);
+      toast(msg);
       void onSaved();
     } catch (e) {
       toast((e as Error).message);
+      setC(saved.current);
     }
   };
-  const field = (k: keyof Person['meal'], label: string, ph: string) => (
+  /** Picking a menu saves straight away (courses changed for them are kept). */
+  const pick = (menu: string) => {
+    const next = { ...c, menu };
+    setC(next);
+    void save(next, `${first}: ${special.find((x) => x.id === menu)?.name ?? 'set menu'}`);
+  };
+  const menuCourse = (k: 'entree' | 'main' | 'dessert') => servedMeal({ ...c, [k]: '' }, menus)[k];
+  const field = (k: 'entree' | 'main' | 'dessert', label: string) => (
     <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
       {label}
-      <input value={m[k]} placeholder={ph} onChange={(e) => setM({ ...m, [k]: e.target.value })} onBlur={() => void save()} aria-label={`${label} for ${p.name}`} className={`${inputCls} !py-2 !text-[14px]`} />
+      <input
+        value={c[k]}
+        placeholder={menuCourse(k) || 'As the set menu'}
+        onChange={(e) => setC({ ...c, [k]: e.target.value })}
+        onBlur={() => void save(c, `Saved ${first}'s meal`)}
+        aria-label={`${label} for ${p.name}`}
+        className={`${inputCls} !py-2 !text-[14px]`}
+      />
     </label>
   );
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-3 pt-3 border-t border-[#e2d7bc]">
+    <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-3 pt-3 border-t border-[#e2d7bc]">
       <div className="flex flex-col gap-1">
         <span className="font-medium">
           {p.name} <span className="text-[13px] font-normal text-[#7a7466]">{p.table ? `· Table ${p.table}` : ''}</span>
         </span>
-        <span className="flex gap-2 items-center text-[14px]">
+        <span className="flex gap-2 items-center flex-wrap text-[14px]">
           {p.diet} {isSerious(p.diet) && <SeriousTag />}
         </span>
-        {special.length > 0 && (
-          <select
-            aria-label={`Menu for ${p.name}`}
-            value={chosen?.id ?? (m.entree || m.main || m.dessert ? 'custom' : 'set')}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === 'set') void pick(null);
-              else if (v !== 'custom') void pick(special.find((x) => x.id === v) ?? null);
-            }}
-            className={`${inputCls} !py-[6px] !text-[13px] mt-1`}
-          >
-            <option value="set">Set menu</option>
-            {special.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.name}
-                {suggested?.id === x.id ? ' (suits them)' : ''}
-              </option>
-            ))}
-            <option value="custom">Their own (written below)</option>
-          </select>
+        <select aria-label={`Menu for ${p.name}`} value={special.some((x) => x.id === c.menu) ? c.menu : ''} onChange={(e) => pick(e.target.value)} className={`${inputCls} !py-[6px] !text-[13px] mt-1`}>
+          <option value="">Set menu</option>
+          {special.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name}
+              {suggested?.id === x.id ? ' (suits them)' : ''}
+            </option>
+          ))}
+        </select>
+        {warning && (
+          <span role="alert" className="text-[13px] font-semibold text-[#a4553c]">
+            ⚠ {warning}
+          </span>
         )}
+        {!warning && ownPlate && <span className="text-[13px] font-semibold text-[#a4553c]">No menu covers all of this: write their courses, or add a menu.</span>}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-        {field('entree', 'Entrée', 'e.g. Tomato, no burrata')}
-        {field('main', 'Main', 'e.g. Mushroom risotto')}
-        {field('dessert', 'Dessert', 'e.g. Sorbet and berries')}
+      <div className="flex flex-col gap-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {field('entree', 'Entrée')}
+          {field('main', 'Main')}
+          {field('dessert', 'Dessert')}
+        </div>
+        <span className="text-[12px] text-[#7a7466]">
+          {served.menu}
+          {served.main ? `: ${[served.entree, served.main, served.dessert].filter(Boolean).join(' · ')}` : ''}. Write in a box only to change that course for them.
+        </span>
       </div>
     </div>
   );

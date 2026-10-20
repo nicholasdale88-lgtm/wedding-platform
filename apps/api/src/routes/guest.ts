@@ -6,7 +6,8 @@ import { engineDeps, type Env } from '../env';
 import { sendReply, type EngineDeps } from '../sms/engine';
 import { SESSION_COOKIE, sessionId } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
-import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
+import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
+import { servedAt } from '../lib/meals';
 import type { Snapshot as SeatSnapshot } from './seating';
 import { imageType, videoType } from '../lib/images';
 import { MAX_PHOTO, MAX_VIDEO, readBytes, readJson } from '../lib/security';
@@ -250,14 +251,14 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     if (!guide) return err(c, 404, 'not_ready', 'The guide for this event is not ready yet.');
 
     const [people, rsvp, pub] = await db.batch([
-      db.prepare(`SELECT id, idx, name, diet, meal_entree, meal_main, meal_dessert FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(inv.id),
+      db.prepare(`SELECT id, idx, name, diet FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(inv.id),
       db.prepare(`SELECT attending, answers FROM rsvp WHERE invitation_id = ? AND event_id = ?`).bind(inv.id, ev.id),
       db.prepare(`SELECT snapshot FROM seat_publish WHERE event_id = ?`).bind(ev.id),
     ]);
-    type Person = { id: string; idx: number; name: string; diet: string; meal_entree: string; meal_main: string; meal_dessert: string };
-    const ppl = couple
-      ? [{ id: '', idx: 0, name: 'Your guest', diet: '', meal_entree: '', meal_main: '', meal_dessert: '' }]
-      : (people!.results as Person[]);
+    type Person = { id: string; idx: number; name: string; diet: string };
+    const ppl = couple ? [{ id: '', idx: 0, name: 'Your guest', diet: '' }] : (people!.results as Person[]);
+    // What each of them is served at this event (their menu's courses, or ones written for them).
+    const served = await servedAt(db, w.id, ev);
     const r = couple ? { attending: 1, answers: '{}' } : (rsvp!.results[0] as { attending: number | null; answers: string } | undefined);
     const coming = r?.attending === 1;
 
@@ -299,7 +300,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       texts: textsFor(GUIDE_PAGE[guide.style], (content.texts as Record<string, string> | undefined) ?? {}, null),
       guest: {
         token,
-        people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: tableOf(p.id), meals: { e: p.meal_entree, m: p.meal_main, d: p.meal_dessert } })),
+        people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: tableOf(p.id), meals: (({ e, m, d }) => ({ e, m, d }))(served(p.id)) })),
         attending: r ? (r.attending === null ? null : !!r.attending) : null,
         answers: json<Record<string, string>>(r?.answers, {}),
       },
@@ -560,6 +561,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     }
     stmts.push(unseatIfNotComing(db, inv.id)); // declined: their seat is freed
     stmts.push(releaseShuttlesIfDeclined(db, inv.id)); // and their shuttle seats
+    stmts.push(clearMealsIfDeclined(db, inv.id)); // and their meals at the events they said no to
     stmts.push(clearDietIfDeclinedAll(db, inv.id)); // not coming to anything: no dietary on any list
     // Bump the version so an admin with this guest open sees "updated elsewhere" instead of overwriting the reply.
     stmts.push(db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(now, inv.id));

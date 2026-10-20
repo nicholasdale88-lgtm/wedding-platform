@@ -46,7 +46,11 @@ export const attends = (g: AdminGuest, key: string) => g.invited.includes(key) &
 /** People coming to an event: the first N on the invitation, N = their reply count. */
 export const comingPeople = (g: AdminGuest, key: string): AdminPerson[] =>
   attends(g, key) ? g.people.slice(0, Math.max(1, g.rsvp[key]?.count ?? 1)) : [];
-const hasMeal = (p: AdminPerson) => !!(p.meal.entree.trim() || p.meal.main.trim() || p.meal.dessert.trim());
+/** Given a menu, or courses written for them, at this event. */
+const hasMeal = (p: AdminPerson, key: string) => {
+  const c = p.meals[key];
+  return !!c && !!(c.menu || c.entree.trim() || c.main.trim() || c.dessert.trim());
+};
 /** "The wedding" -> "wedding", "Alex's 30th" -> "Alex's 30th" (for "N wedding guests not seated"). */
 const shortName = (e: AdminEvent) => e.name.replace(/^the\s+/i, '').replace(/^\w/, (c) => c.toLowerCase());
 
@@ -76,7 +80,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
   // Dietary: people coming to the catered (first) event who have a requirement.
   const cateredPeople = cateredEvent ? G.flatMap((g) => comingPeople(g, cateredEvent.key)) : [];
   const dietPeople = cateredPeople.filter((p) => p.diet.trim());
-  const mealsSet = dietPeople.filter(hasMeal).length;
+  const mealsSet = cateredEvent ? dietPeople.filter((p) => hasMeal(p, cateredEvent.key)).length : 0;
 
   const day = (iso: string) => {
     const p = localParts(new Date(iso), tz);

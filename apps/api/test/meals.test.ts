@@ -43,6 +43,80 @@ describe('meals API', () => {
     expect((await call(`/a/w/${wid}/people/x/meal`, { method: 'PUT', body: JSON.stringify({ entree: '', main: '', dessert: '' }) })).status).toBe(403);
   });
 
+  /** Someone invited to both events (the guide works for each). */
+  const both = async () =>
+    (await t.db
+      .prepare(
+        `SELECT p.id, i.id AS inv, i.token, i.version FROM person p JOIN invitation i ON i.id = p.invitation_id
+          WHERE p.idx = 0 AND p.deleted_at IS NULL AND (SELECT COUNT(*) FROM invite_event ie WHERE ie.invitation_id = i.id) >= 2 LIMIT 1`,
+      )
+      .first<{ id: string; inv: string; token: string; version: number }>())!;
+  const guideMeals = async (token: string, event: string) =>
+    ((await (await call(`/p/sophie-and-nicholas/guide?g=${token}&event=${event}`)).json()) as { guest?: { people: { meals: { e: string; m: string; d: string } }[] } }).guest?.people[0]?.meals;
+  const setMenus = (event: string, menus: unknown) =>
+    t.db
+      .prepare(`INSERT INTO planner_doc (wedding_id, kind, scope, data, version, updated_at) VALUES (?, 'menus', ?, ?, 1, 'now') ON CONFLICT (wedding_id, kind, scope) DO UPDATE SET data = excluded.data`)
+      .bind(wid, event, JSON.stringify(menus))
+      .run();
+  const menus = (main: string) => ({
+    set: { id: '', name: 'Set menu', suits: '', entree: 'Burrata', main: 'Lamb', dessert: 'Pavlova' },
+    special: [{ id: 'vegan', name: 'Vegan', suits: 'vegan', entree: 'Tomato', main, dessert: '' }],
+    files: [],
+  });
+
+  it('meals are per event: someone at both can have a different meal at each', async () => {
+    const p = await both();
+    await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', entree: '', main: 'Fish', dessert: '' }) });
+    await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: '30th', entree: '', main: 'Pizza', dessert: '' }) });
+    expect((await guideMeals(p.token, 'wedding'))?.m).toBe('Fish');
+    expect((await guideMeals(p.token, '30th'))?.m).toBe('Pizza');
+    const g = (await (await call(`/a/w/${wid}/guests/${p.inv}`)).json()) as { guest: { people: { id: string; meals: Record<string, { main: string }> }[] } };
+    expect(g.guest.people.find((x) => x.id === p.id)!.meals).toMatchObject({ wedding: { main: 'Fish' }, '30th': { main: 'Pizza' } });
+  });
+
+  it('a guest given a special menu gets its courses, and editing the menu reaches them; a course changed for them stays', async () => {
+    const p = await both();
+    await setMenus('wedding', menus('Risotto'));
+    await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', menu: 'vegan', entree: '', main: '', dessert: '' }) });
+    expect(await guideMeals(p.token, 'wedding')).toEqual({ e: 'Tomato', m: 'Risotto', d: 'Pavlova' }); // the menu has no dessert: the set one
+    await setMenus('wedding', menus('Gnocchi'));
+    expect((await guideMeals(p.token, 'wedding'))?.m).toBe('Gnocchi');
+    await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', menu: 'vegan', entree: '', main: '', dessert: 'Sorbet' }) });
+    expect(await guideMeals(p.token, 'wedding')).toEqual({ e: 'Tomato', m: 'Gnocchi', d: 'Sorbet' });
+    // The menu is removed: back to the set menu, never a blank plate.
+    await setMenus('wedding', { ...menus('x'), special: [] });
+    expect(await guideMeals(p.token, 'wedding')).toEqual({ e: 'Burrata', m: 'Lamb', d: 'Sorbet' });
+  });
+
+  it('saying no to an event clears their meal there (the caterer never counts them), and keeps the other event', async () => {
+    const p = await both();
+    await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', entree: '', main: 'Fish', dessert: '' }) });
+    await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: '30th', entree: '', main: 'Pizza', dessert: '' }) });
+    const res = await call(`/a/w/${wid}/guests/${p.inv}/rsvp`, { method: 'PUT', headers: { 'If-Match': String(p.version) }, body: JSON.stringify({ events: { '30th': { attending: false } } }) });
+    expect(res.status).toBe(200);
+    const left = await t.db.prepare(`SELECT e.key, m.main FROM meal_choice m JOIN event e ON e.id = m.event_id WHERE m.person_id = ?`).bind(p.id).all<{ key: string; main: string }>();
+    expect(left.results).toEqual([{ key: 'wedding', main: 'Fish' }]);
+  });
+
+  it('a stress run: 120 meals saved at once all land, each exactly once', async () => {
+    const { results: ppl } = await t.db
+      .prepare(`SELECT p.id FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ? AND p.deleted_at IS NULL LIMIT 120`)
+      .bind(wid)
+      .all<{ id: string }>();
+    const codes = await Promise.all(ppl.map((x, i) => call(`/a/w/${wid}/people/${x.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', menu: i % 2 ? 'vegan' : '', entree: '', main: `Dish ${i}`, dessert: '' }) }).then((r) => r.status)));
+    expect(codes.filter((c) => c !== 200)).toEqual([]);
+    const n = await t.db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT person_id) AS people FROM meal_choice m JOIN event e ON e.id = m.event_id AND e.key = 'wedding'`).first<{ n: number; people: number }>();
+    expect(n).toEqual({ n: ppl.length, people: ppl.length });
+  });
+
+  it('bad input never lands: an unknown event, a too-long menu id, extra fields', async () => {
+    const p = await both();
+    expect((await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'no-such-event', entree: '', main: '', dessert: '' }) })).status).toBe(404);
+    expect((await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', menu: 'x'.repeat(41), entree: '', main: '', dessert: '' }) })).status).toBe(400);
+    expect((await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', entree: '', main: '', dessert: '', price: 5 }) })).status).toBe(400);
+    expect((await call(`/a/w/${wid}/people/${p.id}/meal`, { method: 'PUT', body: 'not json' })).status).toBe(400);
+  });
+
   it('sorts dietary notes into kitchen headings', () => {
     expect(dietCategories('Vegetarian, nut allergy')).toEqual(['Vegetarian', 'Nut allergy']);
     expect(dietCategories('Coeliac')).toEqual(['Gluten free']);

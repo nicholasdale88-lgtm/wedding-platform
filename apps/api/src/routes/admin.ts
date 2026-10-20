@@ -1,5 +1,5 @@
 import { PartySetup, randomToken, splitDiet, toE164 } from '@wp/shared';
-import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
+import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
@@ -440,6 +440,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     }
     stmts.push(unseatIfNotComing(db, invId)); // declined: their seat is freed
     stmts.push(releaseShuttlesIfDeclined(db, invId)); // and their shuttle seats
+    stmts.push(clearMealsIfDeclined(db, invId)); // and their meals at the events they said no to
     stmts.push(clearDietIfDeclinedAll(db, invId)); // not coming to anything: no dietary on any list
     stmts.push(audit(c, 'guest.rsvp', invId, r));
     await db.batch(stmts);
@@ -473,21 +474,40 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
   });
 
   /** Dietary → meals: what the kitchen serves this person, course by course (blank = set menu). */
+  /**
+   * A person's meal at one event: a special menu (by id; '' is the set menu) and any course changed just for
+   * them. `event` is the event's key (the first event when left out, as before meals were per event).
+   */
   app.put('/people/:pid/meal', writer, async (c) => {
     const body = z
-      .object({ entree: z.string().trim().max(200), main: z.string().trim().max(200), dessert: z.string().trim().max(200) })
+      .object({
+        event: z.string().max(40).optional(),
+        menu: z.string().max(40).default(''),
+        entree: z.string().trim().max(200),
+        main: z.string().trim().max(200),
+        dessert: z.string().trim().max(200),
+      })
       .strict()
       .safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Keep each course under 200 characters.');
     const pid = c.req.param('pid');
-    const r = await c.env.DB.prepare(
-      `UPDATE person SET meal_entree = ?, meal_main = ?, meal_dessert = ?, version = version + 1
-        WHERE id = ? AND deleted_at IS NULL AND invitation_id IN (SELECT id FROM invitation WHERE wedding_id = ?)`,
+    const b = body.data;
+    const row = await c.env.DB.prepare(
+      `SELECT p.id AS pid, (SELECT e.id FROM event e WHERE e.wedding_id = ?1 AND e.deleted_at IS NULL AND (?3 IS NULL OR e.key = ?3) ORDER BY e.sort LIMIT 1) AS eid
+         FROM person p JOIN invitation i ON i.id = p.invitation_id AND i.wedding_id = ?1 AND i.deleted_at IS NULL
+        WHERE p.id = ?2 AND p.deleted_at IS NULL`,
     )
-      .bind(body.data.entree, body.data.main, body.data.dessert, pid, wid(c))
-      .run();
-    if (!r.meta.changes) return err(c, 404, 'not_found', 'Guest not found.');
-    await audit(c, 'meal.set', pid, body.data).run();
+      .bind(wid(c), pid, b.event ?? null)
+      .first<{ pid: string; eid: string | null }>();
+    if (!row) return err(c, 404, 'not_found', 'Guest not found.');
+    if (!row.eid) return err(c, 404, 'not_found', 'That event no longer exists.');
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        `INSERT INTO meal_choice (person_id, event_id, menu_id, entree, main, dessert, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (person_id, event_id) DO UPDATE SET menu_id = excluded.menu_id, entree = excluded.entree, main = excluded.main, dessert = excluded.dessert, updated_at = excluded.updated_at`,
+      ).bind(pid, row.eid, b.menu, b.entree, b.main, b.dessert, now()),
+      audit(c, 'meal.set', pid, b),
+    ]);
     return c.json({ ok: true });
   });
 
