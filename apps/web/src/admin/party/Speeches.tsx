@@ -13,7 +13,17 @@ const STATUS_STYLE: Record<Speech['status'], string> = { 'not started': 'bg-[#f1
  * Wedding party → Run sheet → Speeches and Who holds what: who speaks, in what order, for how long and how
  * ready they are (the MC sees the order on their page); and who has the rings, the envelopes, the paperwork.
  */
-export function Speeches({ event, names }: { event: string; names: string[] }) {
+/** For a party that isn't the wedding (a birthday): what someone usually looks after. */
+const PARTY_HOLDS = [
+  { what: 'The cake, candles and a lighter', who: '' },
+  { what: 'The cake knife and serviettes', who: '' },
+  { what: 'Gifts and cards (and a bag to take them home)', who: '' },
+  { what: 'The speaker and the playlist', who: '' },
+  { what: 'The bar tab card', who: '' },
+];
+
+/** Speeches (or toasts, for a party) in order, and who looks after what on the day. */
+export function Speeches({ event, names, party = false }: { event: string; names: string[]; party?: boolean }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const live = useLiveDoc<DayRoles>(wid, 'day-roles', event, toast);
@@ -41,7 +51,7 @@ export function Speeches({ event, names }: { event: string; names: string[] }) {
       <section aria-label="Speeches" className="flex flex-col gap-3">
         <div className="flex justify-between items-end gap-3">
           <div>
-            <H2>Speeches</H2>
+            <H2>{party ? 'Speeches and toasts' : 'Speeches'}</H2>
             <div className="text-[13px] text-[#5b6a52]">In speaking order{d.speeches.length ? ` · about ${total} minutes in all` : ''}. The MC sees this on their page.</div>
           </div>
         </div>
@@ -93,7 +103,7 @@ export function Speeches({ event, names }: { event: string; names: string[] }) {
             setWho('');
           }}
         >
-          <input aria-label="Who speaks" list="party-names" placeholder="Who speaks (e.g. Father of the bride)" value={who} maxLength={80} onChange={(e) => setWho(e.target.value)} className={`${inputCls} flex-1 min-w-0 !py-2`} />
+          <input aria-label="Who speaks" list="party-names" placeholder={party ? 'Who speaks (e.g. Best mate, Mum)' : 'Who speaks (e.g. Father of the bride)'} value={who} maxLength={80} onChange={(e) => setWho(e.target.value)} className={`${inputCls} flex-1 min-w-0 !py-2`} />
           <Pill type="submit" kind="outline">
             Add
           </Pill>
@@ -107,7 +117,7 @@ export function Speeches({ event, names }: { event: string; names: string[] }) {
             <div className="text-[13px] text-[#5b6a52]">The precious things, and who has them on the day.</div>
           </div>
           {!d.holds.length && (
-            <Pill kind="dashed" onClick={() => live.set({ ...d, holds: HOLD_TEMPLATE.map((h) => ({ ...h, id: newId() })) }, true)}>
+            <Pill kind="dashed" onClick={() => live.set({ ...d, holds: (party ? PARTY_HOLDS : HOLD_TEMPLATE).map((h) => ({ ...h, id: newId() })) }, true)}>
               Start with the usual
             </Pill>
           )}

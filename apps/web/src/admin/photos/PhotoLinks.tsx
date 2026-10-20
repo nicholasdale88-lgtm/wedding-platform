@@ -37,7 +37,7 @@ function Steps({ p, redirect }: { p: PhotoLink['provider']; redirect: string }) 
   const list =
     p === 'dropbox'
       ? [
-          <>Open the Dropbox App Console (dropbox.com/developers/apps) and choose <em>Create app</em> → <em>Scoped access</em> → <em>App folder</em>. Name it after your wedding.</>,
+          <>Open the Dropbox App Console (dropbox.com/developers/apps) and choose <em>Create app</em> → <em>Scoped access</em> → <em>App folder</em>. Name it after your celebration.</>,
           <>On <em>Permissions</em>, tick <em>files.content.write</em>, <em>files.content.read</em> and <em>account_info.read</em>, then Submit.</>,
           <>On <em>Settings</em>, add this redirect URI: {uri}</>,
           <>Copy the <em>App key</em> and <em>App secret</em>. {secrets('DROPBOX_APP_KEY', 'DROPBOX_APP_SECRET')}</>,
@@ -121,7 +121,7 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
         <strong className="font-semibold text-[15px]">Where photos are saved</strong>
         <p className="m-0 mt-1 text-[13px] text-[#5b6a52]">
           {d.siteStorage ? 'Photos are kept here on your site. ' : ''}
-          Link your own Google Drive, Google Photos, Dropbox or OneDrive and everything is filed there for you, in one folder for your wedding: Photos (a folder for each event), Planning files, Signs and print, and a Backup every day.
+          Link your own Google Drive, Google Photos, Dropbox or OneDrive and everything is filed there for you, in one folder for your celebrations: Photos (a folder for each event), Planning files, Signs and print, and a Backup every day.
           {!d.siteStorage && ' With nothing linked, guests can’t add photos yet.'}
         </p>
       </div>

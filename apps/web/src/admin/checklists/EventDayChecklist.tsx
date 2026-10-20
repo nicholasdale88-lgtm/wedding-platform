@@ -6,10 +6,12 @@ import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, Pill, useToast } from '../ui';
 import { phaseNow, PhasedChecklist, Ring } from './PhasedChecklist';
 import { useHelpers } from './useHelpers';
+import { Speeches } from '../party/Speeches';
 
 /**
- * An event that isn't the wedding (a birthday) → Day checklist: the host's things to do, from a month out
- * to the clean-up, with the moment you're in now opened. No wedding party: just what needs doing.
+ * An event that isn't the wedding (a birthday) → Party checklist: the host's things to do, from a month out
+ * to the clean-up, with the moment you're in now opened, each handed to someone if you like; then the
+ * speeches and toasts in order, and who looks after what (the cake, the gifts, the playlist).
  */
 export function EventDayChecklist() {
   const { wid, event, overview } = useAdmin();
@@ -21,8 +23,8 @@ export function EventDayChecklist() {
   const ev = overview?.events.find((e) => e.key === event);
   const header = (
     <header>
-      <Eyebrow>{section} · Day checklist</Eyebrow>
-      <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Day checklist</h1>
+      <Eyebrow>{section} · Party checklist</Eyebrow>
+      <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Party checklist</h1>
       <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">Everything to do for {ev?.name ?? 'the day'}, from a month out to the clean-up. Tick things off on your phone.</p>
     </header>
   );
@@ -67,6 +69,7 @@ export function EventDayChecklist() {
         </>
       )}
       <p className="m-0 text-[12px] text-[#7a7466]">{live.pending ? 'Saving…' : 'Saved as you go.'}</p>
+      <Speeches event={event} names={helpers.people.map((p) => p.name)} party />
     </div>
   );
 }

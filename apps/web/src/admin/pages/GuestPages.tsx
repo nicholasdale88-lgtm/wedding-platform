@@ -578,7 +578,7 @@ function ReceptionEditor({ g, n, set }: { g: ReceptionGuide; n: () => number; se
           onChange={(menu) => set({ ...g, menu })}
         />
       </Section>
-      <Section n={n()} title="Contacts on the day" hint="Who guests call on the day, such as the couple, the venue and the local taxi company.">
+      <Section n={n()} title="Contacts on the day" hint="Who guests call on the day, such as you, the venue and the local taxi company.">
         <Rows rows={(g.contacts ?? []).map((c) => ({ name: c.name, role: c.role ?? '', phone: c.phone }))} cols={[...CONTACT.cols]} blank={{ ...CONTACT.blank }} addLabel="+ Add contact" onChange={(contacts) => set({ ...g, contacts })} />
       </Section>
       <Section n={n()} title="Quick answers" hint="The questions guests ask the night before.">

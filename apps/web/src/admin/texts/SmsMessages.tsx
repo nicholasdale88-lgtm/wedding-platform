@@ -481,7 +481,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
             + Date
           </Pill>
           <span className="basis-full text-[12px] text-[#7a7466]">
-            Times are your wedding's time zone. Texts never go out between {data.quiet.end % 12 || 12}pm and {data.quiet.start}am; they wait for the morning.
+            Times are in your events' time zone. Texts never go out between {data.quiet.end % 12 || 12}pm and {data.quiet.start}am; they wait for the morning.
           </span>
         </div>
       )}

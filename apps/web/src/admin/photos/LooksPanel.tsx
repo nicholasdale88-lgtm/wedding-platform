@@ -52,7 +52,7 @@ export function LooksPanel() {
   const ev = overview.events[Math.min(pick, overview.events.length - 1)];
   const th = themeOf(overview.wedding.theme);
   const info: FilterInfo = {
-    title: ev?.name ?? 'The wedding',
+    title: ev?.name ?? overview.events[0]?.name ?? 'The wedding',
     date: ev ? new Date(ev.startsAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
     couple: `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}`,
     monogram: overview.wedding.monogram?.trim() || `${overview.wedding.name1.charAt(0)}&${overview.wedding.name2.charAt(0)}`,
