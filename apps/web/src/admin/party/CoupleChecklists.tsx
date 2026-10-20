@@ -1,11 +1,11 @@
-import { CHECK_TEMPLATE, daysUntil, progressOf, WEDDING_PHASES, type CheckItem, type DayChecklist } from '@wp/shared';
+import { CHECK_TEMPLATE, daysUntil, progressOf, WEDDING_PHASES, type CheckItem, type DayChecklist, type PartySide, type Phase } from '@wp/shared';
 import { useState } from 'react';
-import type { PartyData } from '../../lib/api';
+import { ApiError, plannerApi, type PartyData } from '../../lib/api';
 import { phaseNow, PhasedChecklist, Ring } from '../checklists/PhasedChecklist';
 import { useUnsavedChanges } from '../leave';
 import { useLiveDoc } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
-import { Pill, useToast } from '../ui';
+import { inputCls, Pill, useToast } from '../ui';
 import type { SideName } from './Party';
 
 type Who = 'p1' | 'p2' | 'both';
@@ -80,10 +80,88 @@ export function CoupleChecklists({ d, sideName }: { d: PartyData; sideName: Side
               </button>
             </div>
           )}
+          {who !== 'both' && (
+            <HandOver
+              d={d}
+              side={who}
+              items={list}
+              startsAt={ev?.startsAt ?? ''}
+              onHanded={(i) => live.set({ ...data, [who]: list.filter((_, j) => j !== i) }, true)}
+              sideName={sideName}
+            />
+          )}
           <PhasedChecklist key={who} items={list} onChange={(items) => live.set({ ...data, [who]: items })} labels={WEDDING_PHASES} now={now} who={label(who)} />
         </>
       )}
       <p className="m-0 text-[12px] text-[#7a7466]">{live.pending ? 'Saving…' : 'Saved. Open this on your phone on the day: the list you’re on now is opened for you.'}</p>
     </div>
+  );
+}
+
+/** When a checklist moment falls, from the wedding day (for the job's date). */
+const PHASE_DAYS: Record<Phase, number> = { month: -30, week: -7, eve: -1, morning: 0, ceremony: 0, reception: 0, after: 1 };
+
+/**
+ * Hand some of your list to your side of the wedding party (the groom's to his groomsmen, the bride's to
+ * her bridesmaids): it becomes their job, on their own page and phone calendar, and leaves your list.
+ */
+function HandOver({ d, side, items, startsAt, onHanded, sideName }: { d: PartyData; side: 'p1' | 'p2'; items: CheckItem[]; startsAt: string; onHanded: (i: number) => void; sideName: SideName }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const people = d.members.filter((m) => m.side === side);
+  const [pick, setPick] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState<number | null>(null);
+  if (!people.length) return null;
+  const open = items.map((x, i) => ({ x, i })).filter(({ x }) => !x.done);
+  const dueOf = (phase: Phase) => {
+    if (!startsAt) return '';
+    return new Date(Date.parse(startsAt) + PHASE_DAYS[phase] * 86_400_000).toISOString().slice(0, 10);
+  };
+  const hand = async (i: number) => {
+    const m = people.find((p) => p.personId === pick[i]);
+    const item = items[i];
+    if (!m || !item) return;
+    setBusy(i);
+    try {
+      const kind = side === 'p1' ? 'party-p1' : 'party-p2';
+      for (let tries = 0; ; tries++) {
+        const cur = await plannerApi.doc<PartySide>(wid, kind);
+        try {
+          await plannerApi.saveDoc<PartySide>(wid, kind, '', { ...cur.data, tasks: [...cur.data.tasks, { id: crypto.randomUUID().slice(0, 12), text: item.text.slice(0, 200), person: m.personId, due: dueOf(item.phase), done: false }] }, cur.version);
+          break;
+        } catch (e) {
+          if (!(e instanceof ApiError && e.status === 409) || tries >= 2) throw e;
+        }
+      }
+      onHanded(i);
+      toast(`${m.name.split(' ')[0]} has “${item.text}” now: it’s on their page and phone calendar`);
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <details className="rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <summary className="cursor-pointer py-3 px-4 text-[15px] font-semibold">Hand some of these to {sideName(side).toLowerCase()}’s side ({people.map((p) => p.name.split(' ')[0]).join(', ')})</summary>
+      <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#ece3cd]">
+        {open.map(({ x, i }) => (
+          <li key={i} className="flex items-center gap-2 flex-wrap py-2 px-4 text-[14px]">
+            <span className="flex-1 min-w-[180px]">{x.text}</span>
+            <select aria-label={`Who takes ${x.text}`} value={pick[i] ?? ''} onChange={(e) => setPick({ ...pick, [i]: e.target.value })} className={`${inputCls} !py-[6px] !text-[14px] max-w-[200px]`}>
+              <option value="">Give to…</option>
+              {people.map((m) => (
+                <option key={m.personId} value={m.personId}>
+                  {m.name} ({m.role})
+                </option>
+              ))}
+            </select>
+            <Pill size="sm" disabled={!pick[i] || busy !== null} onClick={() => void hand(i)}>
+              {busy === i ? 'Handing…' : 'Hand over'}
+            </Pill>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
