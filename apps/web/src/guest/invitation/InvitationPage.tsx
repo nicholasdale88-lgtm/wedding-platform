@@ -9,6 +9,7 @@ import { guestApi, type InvitePayload } from './api';
 import { useInvitation } from './useInvitation';
 import { MessageUs } from '../MessageUs';
 import { EnvelopeExtras } from './EnvelopeExtras';
+import { BirthdayHero, sealFor, SOLO_HIDDEN } from './BirthdayHero';
 
 /**
  * /w/:slug/?g=<token>: the invitation. The design view is generated (guest/generated/InvitationView);
@@ -35,10 +36,13 @@ export function InvitationPage() {
 }
 
 function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; preview: boolean }) {
-  const { v, t, phase, guestToken, inParty } = useInvitation(slug, data, preview);
+  const { v: base, t, phase, guestToken, inParty } = useInvitation(slug, data, preview);
+  // Invited only to the second event (the birthday): its own invitation, without the wedding's sections.
+  const solo = data.invitation && !data.events.some((e) => e.slot === 0) ? data.events.find((e) => e.slot === 1) : undefined;
+  const v = solo ? { ...base, hide: (label: string) => SOLO_HIDDEN.has(label) || base.hide(label), initialsFull: sealFor(solo.name) } : base;
   useEffect(() => {
-    document.title = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
-  }, [data.wedding]);
+    document.title = solo ? solo.name : `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
+  }, [data.wedding, solo]);
   const token = !preview && guestToken;
   const th = themeOf(data.wedding.theme, data.content.custom);
   // Their names, as the envelope is addressed ("Ella & James"); none on the public page.
@@ -49,6 +53,15 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
       <div className="dz">
         <InvitationView v={v} t={t} />
       </div>
+      {solo && (
+        <BirthdayHero
+          name={solo.name}
+          startsAt={solo.startsAt}
+          timezone={data.wedding.timezone}
+          greet={String(base.greet ?? '')}
+          colours={{ bg: 'var(--bdbg,var(--bdtx,#2f3d5c))', ink: 'var(--bdtx,var(--btx,#f3ecd6))', accent: 'var(--bdac,#9fb6d9)' }}
+        />
+      )}
       <EnvelopeExtras
         phase={phase}
         opts={data.content.envelope ?? {}}

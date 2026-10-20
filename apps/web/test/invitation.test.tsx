@@ -77,6 +77,26 @@ describe('invitation page', () => {
     expect(await screen.findByText('We have your reply and cannot wait to celebrate with you.')).toBeInTheDocument();
   });
 
+  it('someone invited only to the birthday gets its own invitation: no wedding sections, and they reply to it alone', async () => {
+    let sent: unknown;
+    const only = payload({
+      events: [payload().events[1]!],
+      invitation: { ...payload().invitation!, invited: ['party'] },
+    });
+    renderAt(`/w/alex-and-blair?g=${TOKEN}`, only, (b) => (sent = b));
+    expect(await screen.findByRole('heading', { name: 'The party' })).toBeInTheDocument();
+    expect(screen.getByText('You’re invited to')).toBeInTheDocument();
+    for (const label of ['01 Welcome', '02 The Wedding', '03 Timeline', '08 Accommodation', '09 Gift Registry']) expect(document.querySelector(`[data-screen-label="${label}"]`)).toBeNull();
+    expect(document.querySelector('[data-screen-label="05 Birthday & Horse Riding"]')).not.toBeNull();
+    expect(document.title).toBe('The party');
+    fireEvent.click(screen.getAllByText("Yes, I'll be there")[1]!); // the birthday's (the wedding's is hidden)
+    await act(async () => {
+      fireEvent.click(screen.getByText('Send RSVP'));
+    });
+    expect(sent).toMatchObject({ token: TOKEN, events: { party: { attending: true } } });
+    expect(Object.keys((sent as { events: object }).events)).toEqual(['party']);
+  });
+
   it('asks for an answer to every event first', async () => {
     let sent: unknown;
     renderAt(`/w/alex-and-blair?g=${TOKEN}`, payload(), (b) => (sent = b));
