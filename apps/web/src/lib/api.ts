@@ -153,6 +153,9 @@ export const api = {
   me: () => request<Me>('/a/me'),
   login: (email: string, passcode: string) => send<Me>('POST', '/a/auth/login', { email, passcode }),
   logout: () => send<{ ok: true }>('POST', '/a/auth/logout'),
+  /** Forgot your passcode: emailed: false when the site can't send email yet. */
+  forgot: (email: string) => send<{ ok: true; emailed: boolean }>('POST', '/a/auth/forgot', { email }),
+  reset: (token: string, passcode: string) => send<Me>('POST', '/a/auth/reset', { token, passcode }),
   /** Private: the wedding's pages open only with each guest's own link. */
   setPrivate: (wid: string, on: boolean) => send<{ ok: true; private: boolean }>('PUT', `${w(wid)}/privacy`, { private: on }),
   /** Ask to upgrade (the platform owner sends a payment link). */

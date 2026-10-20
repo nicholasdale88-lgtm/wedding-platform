@@ -25,6 +25,7 @@ function fresh<T>(load: Promise<T>): Promise<T> {
 
 // Guests and the couple download separate code: a guest opening their invitation never loads the admin.
 const AdminRoot = lazy(() => fresh(import('./admin/AdminRoot')).then((m) => ({ default: m.AdminRoot })));
+const ResetPasscode = lazy(() => fresh(import('./admin/ResetPasscode')).then((m) => ({ default: m.ResetPasscode })));
 const InvitationPage = lazy(() => fresh(import('./guest/invitation/InvitationPage')).then((m) => ({ default: m.InvitationPage })));
 const GuidePage = lazy(() => fresh(import('./guest/guide/GuidePage')).then((m) => ({ default: m.GuidePage })));
 const PhotoPage = lazy(() => fresh(import('./guest/photos/PhotoPage')).then((m) => ({ default: m.PhotoPage })));
@@ -50,6 +51,7 @@ function Pages() {
   return (
     <Suspense fallback={<div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />}>
       <Routes>
+        <Route path="/admin/reset" element={<ResetPasscode />} />
         <Route path="/admin/*" element={<AdminRoot />} />
         <Route path="/w/:slug" element={<InvitationPage />} />
         <Route path="/w/:slug/tomorrow" element={<GuidePage />} />

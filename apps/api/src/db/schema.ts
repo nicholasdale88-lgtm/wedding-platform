@@ -601,3 +601,11 @@ export const mealChoice = sqliteTable(
   },
   (t) => ({ pk: primaryKey({ columns: [t.personId, t.eventId] }) }),
 );
+
+// migration 0030: forgot your passcode (a one-hour emailed link, kept only as a hash)
+export const passcodeReset = sqliteTable('passcode_reset', {
+  hash: text('hash').primaryKey(),
+  userId: text('user_id').notNull(),
+  expiresAt: text('expires_at').notNull(),
+  usedAt: text('used_at'),
+});

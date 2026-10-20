@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
+import { buttonEmail, emailReady, sendEmail } from '../lib/email';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface SessionUser {
@@ -121,6 +122,62 @@ export function authRoutes() {
   });
 
   app.get('/me', requireUser, async (c) => c.json(await me(c.env, c.get('user'))));
+
+  /**
+   * Forgot your passcode: a link to set a new one is emailed to the account (works once, for an hour).
+   * The answer is the same whether or not there's an account with that email.
+   */
+  app.post('/auth/forgot', async (c) => {
+    const body = z.object({ email: z.string().trim().toLowerCase().email().max(200) }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Enter the email you sign in with.');
+    if (!c.env.SESSION_SECRET) return err(c, 500, 'not_configured', 'Sign-in is not set up yet.');
+    const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+    const email = body.data.email;
+    if (!(await allow(c.env.DB, `forgot:ip:${ip}`, 10, 60 * 60_000)) || !(await allow(c.env.DB, `forgot:${email}`, 3, 60 * 60_000))) {
+      return err(c, 429, 'slow_down', 'Too many tries. Wait an hour and try again.');
+    }
+    if (!emailReady(c.env)) return c.json({ ok: true, emailed: false });
+    const user = await c.env.DB.prepare(`SELECT id FROM user WHERE email = ?`).bind(email).first<{ id: string }>();
+    if (user) {
+      const token = newSessionToken();
+      await c.env.DB.prepare(`INSERT INTO passcode_reset (hash, user_id, expires_at) VALUES (?, ?, ?)`)
+        .bind(await sessionId(`reset:${token}`, c.env.SESSION_SECRET), user.id, new Date(Date.now() + 3_600_000).toISOString())
+        .run();
+      const link = `${(c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '')}/admin/reset?t=${token}`;
+      const m = buttonEmail({
+        heading: 'Set a new passcode',
+        lines: ['Someone (hopefully you) asked to reset the passcode for your wedding admin.', 'The button works once, for the next hour.'],
+        button: 'Set a new passcode',
+        link,
+        footer: 'Didn’t ask? You can ignore this: your passcode hasn’t changed.',
+      });
+      await sendEmail(c.env, { to: email, subject: 'Set a new passcode', ...m });
+    }
+    return c.json({ ok: true, emailed: true });
+  });
+
+  /** The emailed link: set the new passcode, sign out everywhere else, and sign in here. */
+  app.post('/auth/reset', async (c) => {
+    const body = z.object({ token: z.string().min(20).max(200), passcode: z.string().max(200) }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success || !c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'This link isn’t working. Ask for a new one.');
+    const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+    if (!(await allow(c.env.DB, `reset:ip:${ip}`, 20, 60 * 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Wait an hour and try again.');
+    const problem = passcodeProblem(body.data.passcode);
+    if (problem) return err(c, 400, 'weak', problem);
+    const hash = await sessionId(`reset:${body.data.token}`, c.env.SESSION_SECRET);
+    const now = new Date().toISOString();
+    // Used up as it's checked, so the same link can't set the passcode twice.
+    const used = await c.env.DB.prepare(`UPDATE passcode_reset SET used_at = ? WHERE hash = ? AND used_at IS NULL AND expires_at > ?`).bind(now, hash, now).run();
+    if (!used.meta.changes) return err(c, 400, 'expired', 'This link has expired or was already used. Ask for a new one.');
+    const row = await c.env.DB.prepare(`SELECT u.id, u.email FROM passcode_reset r JOIN user u ON u.id = r.user_id WHERE r.hash = ?`).bind(hash).first<{ id: string; email: string }>();
+    if (!row) return err(c, 400, 'expired', 'This link has expired or was already used. Ask for a new one.');
+    await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE user SET pass_hash = ? WHERE id = ?`).bind(await hashPasscode(body.data.passcode), row.id),
+      c.env.DB.prepare(`DELETE FROM session WHERE user_id = ?`).bind(row.id),
+      c.env.DB.prepare(`UPDATE passcode_reset SET used_at = ? WHERE user_id = ? AND used_at IS NULL`).bind(now, row.id),
+    ]);
+    return c.json(await signIn(c, row));
+  });
 
   /** Change your passcode: needs the current one; every other signed-in device is signed out. */
   app.post('/auth/passcode', requireUser, async (c) => {

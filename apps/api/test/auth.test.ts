@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../src/env';
 import { createApp } from '../src/index';
 import { hashPasscode, passcodeProblem, verifyPasscode } from '../src/lib/auth';
@@ -109,6 +109,38 @@ describe('admin sign-in', () => {
     const form = await app.request('/api/a/auth/login', { method: 'POST', body: 'email=a&passcode=b', headers: { 'content-type': 'application/x-www-form-urlencoded' } }, env, ctx);
     expect(form.status).toBe(415);
     expect((await call('/api/a/auth/login', { method: 'POST', body: '{"email":"not-an-email"}' })).status).toBe(400);
+  });
+
+  it('forgot your passcode: an emailed link sets a new one once, signs out everywhere else, and says nothing about who has an account', async () => {
+    const forgot = (email: string, ip = '7.7.7.7') => call('/api/a/auth/forgot', { method: 'POST', body: JSON.stringify({ email }), headers: { 'CF-Connecting-IP': ip } });
+    // Without email set up for the site, it says so (nothing to send).
+    expect(await (await forgot('owner@example.com')).json()).toEqual({ ok: true, emailed: false });
+    env = { ...env, RESEND_API_KEY: 're_test', EMAIL_FROM: 'Weddings <hello@example.com>' };
+    const sent: { to: string[]; text: string }[] = [];
+    vi.stubGlobal('fetch', async (_u: string, init?: RequestInit) => {
+      sent.push(JSON.parse(String(init?.body)) as { to: string[]; text: string });
+      return new Response('{}', { status: 200 });
+    });
+    try {
+      const oldSession = cookieOf(await login('owner@example.com', 'valley-2027'));
+      expect(await (await forgot('nobody@example.com', '7.7.7.8')).json()).toEqual({ ok: true, emailed: true }); // same answer
+      expect(sent).toHaveLength(0);
+      expect(await (await forgot('Owner@Example.com', '7.7.7.9')).json()).toEqual({ ok: true, emailed: true });
+      expect(sent[0]!.to).toEqual(['owner@example.com']);
+      const token = /\/admin\/reset\?t=([\w-]+)/.exec(sent[0]!.text)![1]!;
+      const reset = (passcode: string, tok = token) => call('/api/a/auth/reset', { method: 'POST', body: JSON.stringify({ token: tok, passcode }) });
+      expect((await reset('short')).status).toBe(400);
+      const ok = await reset('new-valley-2028');
+      expect(ok.status).toBe(200);
+      expect(cookieOf(ok)).toMatch(/=/);
+      expect((await reset('another-one-2029')).status).toBe(400); // once only
+      expect((await call('/api/a/me', {}, oldSession)).status).toBe(401); // signed out everywhere else
+      expect((await login('owner@example.com', 'valley-2027', '2.2.2.2')).status).toBe(401);
+      expect((await login('owner@example.com', 'new-valley-2028', '2.2.2.3')).status).toBe(200);
+      expect((await reset('new-valley-2030', 'x'.repeat(43))).status).toBe(400); // a made-up link
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('refuses to sign anyone in when SESSION_SECRET is missing', async () => {
