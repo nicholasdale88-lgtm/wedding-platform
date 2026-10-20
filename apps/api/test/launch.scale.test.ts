@@ -55,6 +55,8 @@ describe('launch scale: every feature pushed hard', () => {
   let slug = '';
   /** Every status any route returned in this test: none may be a 500. */
   const seen: number[] = [];
+  // What the server logged for a 500 (its console.error), so a failure says why.
+  const faults: string[] = [];
   const app = createApp();
   const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
   const record = async (p: Response | Promise<Response>) => {
@@ -101,6 +103,8 @@ describe('launch scale: every feature pushed hard', () => {
 
   beforeEach(async () => {
     seen.length = 0;
+    faults.length = 0;
+    vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => void faults.push(a.map((x) => (x instanceof Error ? `${x.name}: ${x.message}` : String(x))).join(' ').slice(0, 400)));
     t = await testD1();
     const stmts = buildSeed(seedJson, { ownerEmail: OWNER, ownerPassHash: await hashPasscode(PASS), sampleGuests: false });
     await t.db.batch(stmts.map((s) => t.db.prepare(s.sql).bind(...s.params)));
@@ -114,7 +118,8 @@ describe('launch scale: every feature pushed hard', () => {
   afterEach(async () => {
     const crashed = seen.filter((s) => s >= 500 && s !== 503); // 503 is "busy, try again", not a fault
     await t.dispose();
-    expect(crashed).toEqual([]);
+    vi.restoreAllMocks();
+    expect(crashed, faults.slice(0, 5).join(' | ')).toEqual([]);
   });
 
   // ------------------------------------------------------------------------------------------------ 1
@@ -179,7 +184,7 @@ describe('launch scale: every feature pushed hard', () => {
       rsvp(p.g.token, { events: p.events, count: p.count, ...(p.diet !== undefined ? { diet: p.diet } : {}), ...(p.message ? { message: p.message } : {}) }, p.ip);
     const r1 = await inWaves(first, 25, send);
     const r2 = await inWaves(second, 25, send);
-    expect([...r1, ...r2].map((r) => r.status).filter((s) => s !== 200)).toEqual([]);
+    expect([...r1, ...r2].map((r) => r.status).filter((s) => s !== 200), faults.slice(0, 5).join(' | ')).toEqual([]);
 
     // The stored replies are exactly the last answer each guest gave (count held to the seats they have).
     const last = new Map<string, Plan>();
