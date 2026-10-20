@@ -1,9 +1,9 @@
 import { dateIn, progressOf, type DayChecklist, type PartySide } from '@wp/shared';
 import { useEffect, useState } from 'react';
-import { plannerApi, type PartyData } from '../../lib/api';
+import { ApiError, plannerApi, type PartyData, type PartyMember } from '../../lib/api';
 import { Ring } from '../checklists/PhasedChecklist';
 import { useAdmin } from '../Shell';
-import { H2, Pill } from '../ui';
+import { H2, inputCls, Pill, useToast } from '../ui';
 import { Members, SideNames, type PartyView, type SideName } from './Party';
 
 const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]';
@@ -79,6 +79,8 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
         })}
       </div>
 
+      <Jobs d={d} sides={sides} setSides={setSides} today={today} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         <section aria-label="The run sheet" className={card}>
           <div className="flex justify-between items-start gap-3">
@@ -125,5 +127,130 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
         <SideNames d={d} onSaved={(setup) => setD({ ...d, setup })} />
       </section>
     </div>
+  );
+}
+
+/** The jobs people usually take on (tap one to fill it in). */
+const USUAL_JOBS = ['Hold the rings', 'Look after the vendor envelopes', 'Hold the bouquet at the ceremony', 'Look after the guest book', 'Give a speech', 'Collect the suits', 'Bring the emergency kit', 'Help with the dress and veil'];
+type Sides = Record<'p1' | 'p2', PartySide>;
+
+/**
+ * Give someone a job: one place to hand the wedding party their jobs (the rings, the envelopes, a speech).
+ * Each lands on that person's own page as their to-do, and shows here with who has it.
+ */
+function Jobs({ d, sides, setSides, today }: { d: PartyData; sides: Sides; setSides: (f: (s: Sides) => Sides) => void; today: string }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const people = d.members.filter((m) => m.side === 'p1' || m.side === 'p2');
+  const [text, setText] = useState('');
+  const [who, setWho] = useState('');
+  const [due, setDue] = useState('');
+  const [busy, setBusy] = useState(false);
+  /** Changes one side's document from what's saved now (someone may have just ticked something). */
+  const change = async (side: 'p1' | 'p2', fn: (doc: PartySide) => PartySide) => {
+    const kind = side === 'p1' ? 'party-p1' : 'party-p2';
+    for (let i = 0; i < 3; i++) {
+      const cur = await plannerApi.doc<PartySide>(wid, kind);
+      try {
+        const r = await plannerApi.saveDoc<PartySide>(wid, kind, '', fn(cur.data), cur.version);
+        setSides((x) => ({ ...x, [side]: r.data }));
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 409) || i === 2) throw e;
+      }
+    }
+  };
+  const give = async () => {
+    const m = people.find((x) => x.personId === who);
+    if (!m || !text.trim()) return toast('Write the job and choose who it is for.');
+    setBusy(true);
+    try {
+      await change(m.side as 'p1' | 'p2', (doc) => ({ ...doc, tasks: [...doc.tasks, { id: crypto.randomUUID().slice(0, 12), text: text.trim().slice(0, 200), person: m.personId, due, done: false }] }));
+      toast(`${m.name.split(' ')[0]} has it: it is on their page`);
+      setText('');
+      setDue('');
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const jobs = (['p1', 'p2'] as const).flatMap((side) =>
+    sides[side].tasks
+      .map((t) => ({ t, side, m: people.find((x) => x.personId === t.person) }))
+      .filter((x): x is { t: PartySide['tasks'][number]; side: 'p1' | 'p2'; m: PartyMember } => !!x.m),
+  );
+  const tick = (side: 'p1' | 'p2', id: string, on: boolean) =>
+    void change(side, (doc) => ({ ...doc, tasks: doc.tasks.map((t) => (t.id === id ? { ...t, done: on } : t)) })).catch((e: Error) => toast(e.message));
+  const remove = (side: 'p1' | 'p2', id: string) => void change(side, (doc) => ({ ...doc, tasks: doc.tasks.filter((t) => t.id !== id) })).catch((e: Error) => toast(e.message));
+  return (
+    <section aria-label="Jobs for the wedding party" className={card}>
+      <div>
+        <H2>Jobs for the wedding party</H2>
+        <div className="text-[13px] text-[#5b6a52]">Give bridesmaids and groomsmen their jobs. Each one shows on that person&rsquo;s own page, and they tick it off.</div>
+      </div>
+      {people.length ? (
+        <>
+          <div className="flex gap-[6px] flex-wrap" aria-label="Usual jobs">
+            {USUAL_JOBS.map((j) => (
+              <button key={j} type="button" onClick={() => setText(j)} className="py-[4px] px-3 rounded-full border border-[#d3c6a4] bg-white text-[12px] cursor-pointer text-[#33402f]">
+                {j}
+              </button>
+            ))}
+          </div>
+          <form
+            className="flex gap-2 flex-wrap items-end"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void give();
+            }}
+          >
+            <label className="flex flex-col gap-1 text-[13px] flex-1 min-w-[200px]">
+              The job
+              <input value={text} maxLength={200} onChange={(e) => setText(e.target.value)} placeholder="e.g. Hold the rings" className={inputCls} />
+            </label>
+            <label className="flex flex-col gap-1 text-[13px] min-w-[170px]">
+              Who
+              <select value={who} onChange={(e) => setWho(e.target.value)} className={inputCls}>
+                <option value="">Choose…</option>
+                {people.map((m) => (
+                  <option key={m.personId} value={m.personId}>
+                    {m.name} ({m.role})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-[13px]">
+              By (optional)
+              <input type="date" value={due} min={today} onChange={(e) => setDue(e.target.value)} className={inputCls} />
+            </label>
+            <Pill kind="primary" type="submit" disabled={busy}>
+              {busy ? 'Giving…' : 'Give the job'}
+            </Pill>
+          </form>
+          {jobs.length > 0 && (
+            <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#ece3cd] rounded-[12px] border border-[#e2d7bc] bg-white">
+              {jobs.map(({ t, side, m }) => (
+                <li key={t.id} className="flex items-center gap-3 py-2 px-3 text-[14px]">
+                  <input type="checkbox" checked={t.done} onChange={(e) => tick(side, t.id, e.target.checked)} aria-label={`${t.text} done`} className="w-[16px] h-[16px] accent-[#5d6b47]" />
+                  <span className={`flex-1 min-w-0 ${t.done ? 'line-through text-[#7a7466]' : ''}`}>
+                    {t.text}
+                    <span className="text-[#5b6a52]">
+                      {' '}
+                      · {m.name.split(' ')[0]} ({m.role}){t.due ? ` · by ${new Date(`${t.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
+                    </span>
+                  </span>
+                  <button type="button" aria-label={`Remove ${t.text}`} onClick={() => remove(side, t.id)} className="p-0 border-0 bg-transparent cursor-pointer text-[#7a7466] text-[18px]">
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <p className="m-0 text-[14px] text-[#7a7466]">Add bridesmaids and groomsmen to the wedding party first (on each side&rsquo;s page), then give them jobs here.</p>
+      )}
+    </section>
   );
 }
