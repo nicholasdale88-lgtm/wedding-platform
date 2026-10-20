@@ -2,6 +2,7 @@ import { Enquiry, ListingFields, ListingJoin, regionOf, REGIONS, type Listing, t
 import { Hono, type Context } from 'hono';
 import { hashPasscode, passcodeProblem } from '../lib/auth';
 import { cellOf, kmBetween } from '../lib/directory';
+import { buttonEmail, sendEmail } from '../lib/email';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { jsonWritesOnly, requireUser, signIn, type AdminEnv } from './auth';
@@ -130,12 +131,21 @@ export function directoryRoutes() {
     const b = Enquiry.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the form.');
     if (b.data.company) return c.json({ ok: true }); // a bot
-    const l = await c.env.DB.prepare(`SELECT id FROM vendor_listing WHERE slug = ? AND hidden = 0`).bind(c.req.param('slug')).first<{ id: string }>();
+    const l = await c.env.DB.prepare(`SELECT id, name, email FROM vendor_listing WHERE slug = ? AND hidden = 0`).bind(c.req.param('slug')).first<{ id: string; name: string; email: string }>();
     if (!l) return err(c, 404, 'not_found', 'That vendor isn’t listed any more.');
     const e = b.data;
     await c.env.DB.prepare(`INSERT INTO vendor_enquiry (id, listing_id, name, email, phone, date, guests, message, read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`)
       .bind(crypto.randomUUID(), l.id, e.name, e.email, e.phone, e.date, e.guests, e.message, new Date().toISOString())
       .run();
+    // Straight to the vendor's inbox (when the site's email is switched on); it's in their listing either way.
+    const when = e.date ? new Date(`${e.date}T00:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '';
+    const m = buttonEmail({
+      heading: `A new enquiry for ${l.name}`,
+      lines: [`${e.name}${when ? `, marrying ${when}` : ''}${e.guests ? `, about ${e.guests} guests` : ''}:`, e.message.slice(0, 600), `Reply to them at ${e.email}${e.phone ? ` or ${e.phone}` : ''}.`],
+      button: 'See it in your listing',
+      link: `${c.env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/vendors/me`,
+    });
+    await sendEmail(c.env, { to: l.email, subject: `New enquiry from ${e.name}`, ...m });
     return c.json({ ok: true });
   });
 

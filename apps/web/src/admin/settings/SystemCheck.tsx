@@ -13,6 +13,11 @@ export function SystemCheck() {
   const [items, setItems] = useState<CheckItem[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
+  // The daily summary email (about 6pm, only when there's news).
+  const [digest, setDigest] = useState<{ on: boolean; email: boolean } | null>(null);
+  useEffect(() => {
+    backupsApi.digest(wid).then(setDigest, () => setDigest(null));
+  }, [wid]);
   const run = useCallback(async () => {
     setBusy(true);
     setProblem('');
@@ -41,6 +46,22 @@ export function SystemCheck() {
         <p role="alert" className="m-0 text-[14px] text-[#7a4a37]">
           {problem}
         </p>
+      )}
+      {digest && (
+        <label className="flex items-start gap-3 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] cursor-pointer">
+          <input
+            type="checkbox"
+            checked={digest.on}
+            onChange={(e) => void backupsApi.setDigest(wid, e.target.checked).then(setDigest, (err: Error) => setProblem(err.message))}
+            className="mt-1 w-[18px] h-[18px] accent-[#5d6b47]"
+          />
+          <span className="flex flex-col gap-1">
+            <strong className="text-[15px] font-semibold">A daily summary by email</strong>
+            <span className="text-[14px] text-[#5b6a52]">
+              About 6pm, only when there’s news: who replied, messages waiting for you, and payments due this week.{!digest.email && ' (It starts once email is switched on for the site.)'}
+            </span>
+          </span>
+        </label>
       )}
       <ul className="list-none m-0 p-0 flex flex-col gap-2">
         {items?.map((i) => (

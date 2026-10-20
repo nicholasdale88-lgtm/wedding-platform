@@ -472,6 +472,9 @@ export interface CheckItem {
 }
 export const backupsApi = {
   check: (wid: string) => request<{ at: string; items: CheckItem[] }>(`${w(wid)}/settings/check`),
+  /** The daily summary email (about 6pm, only with news). */
+  digest: (wid: string) => request<{ on: boolean; email: boolean }>(`${w(wid)}/settings/digest`),
+  setDigest: (wid: string, on: boolean) => send<{ on: boolean; email: boolean }>('PUT', `${w(wid)}/settings/digest`, { on }),
   get: (wid: string) => request<BackupStatus>(`${w(wid)}/settings/backups`),
   now: (wid: string) => send<{ ok: true; at: string; where: string }>('POST', `${w(wid)}/settings/backups/now`),
   auto: (wid: string, on: boolean) => send<{ ok: true; auto: boolean }>('PUT', `${w(wid)}/settings/backups/auto`, { on }),

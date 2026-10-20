@@ -6,6 +6,7 @@ import { readJson, safeJson } from '../lib/security';
 import { allow } from '../lib/rateLimit';
 import { backUpNow, backupLink, weddingBackup } from '../lib/backup';
 import { activeLinks, setUpFolders } from '../photos/store';
+import { emailReady } from '../lib/email';
 import { estimateAll, type EngineDeps, type Estimate } from '../sms/engine';
 import { DEFAULT_REPLIES } from '../sms/inbound';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -238,6 +239,14 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
       fix: !bl ? 'Link storage in Photos → Photo settings.' : b?.off ? 'Switch them on in Settings → Backup.' : fresh && !b?.error ? '' : 'Tap Back up now in Settings → Backup.',
     });
 
+    const off = await env.DB.prepare(`SELECT COALESCE(json_extract(content, '$.digestOff'), 0) AS off FROM wedding WHERE id = ? AND json_valid(content)`).bind(wid(c)).first<{ off: number }>();
+    items.push({
+      key: 'email',
+      name: 'Email (passcode resets, your daily summary, vendor enquiries)',
+      state: emailReady(env) ? 'ok' : 'off',
+      detail: emailReady(env) ? `Switched on. Your daily summary at about 6pm is ${off?.off ? 'off' : 'on'}.` : 'Not switched on for the site yet, so nothing is emailed.',
+      fix: emailReady(env) ? '' : 'The site owner adds the Resend key (RESEND_API_KEY and EMAIL_FROM).',
+    });
     items.push({
       key: 'assistant',
       name: 'Planning assistant and reading quotes',
@@ -260,6 +269,17 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
       fix: env.SESSION_SECRET ? '' : 'The site owner sets SESSION_SECRET.',
     });
     return c.json({ at: new Date().toISOString(), items });
+  });
+
+  /** The daily summary email on or off. */
+  app.get('/digest', requireMember('owner'), async (c) => {
+    const r = await c.env.DB.prepare(`SELECT COALESCE(json_extract(content, '$.digestOff'), 0) AS off FROM wedding WHERE id = ? AND json_valid(content)`).bind(wid(c)).first<{ off: number }>();
+    return c.json({ on: !r?.off, email: emailReady(c.env) });
+  });
+  app.put('/digest', requireMember('owner'), async (c) => {
+    const on = ((await readJson(c.req.raw)) as { on?: unknown } | null)?.on !== false;
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.digestOff', ?) WHERE id = ? AND json_valid(content)`).bind(on ? 0 : 1, wid(c)).run();
+    return c.json({ on, email: emailReady(c.env) });
   });
 
   /** Daily automatic backups on or off. */
