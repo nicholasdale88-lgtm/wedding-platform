@@ -140,7 +140,20 @@ export const SideParty = z.object({
   notes: s(1000),
 });
 /** What the side wears: one look, where it's from, roughly what it costs each. */
-export const SideAttire = z.object({ what: s(120), colour: s(60), where: s(160), each: money0(), orderBy: s(10), notes: s(600) });
+/**
+ * What one side wears: bought, hired or their own (how), the look and colour, where from, about what each
+ * costs, when to order (or pick up) by, and for hire, when it goes back.
+ */
+export const SideAttire = z.object({
+  how: z.enum(['', 'buy', 'hire', 'own']).default(''),
+  what: s(120),
+  colour: s(60),
+  where: s(160),
+  each: money0(),
+  orderBy: s(10),
+  returnBy: s(10),
+  notes: s(600),
+});
 /** One person in the hair and makeup chairs: what they're having and how long each takes. */
 export const GlamPerson = z.object({
   id: z.string().max(40),
@@ -448,30 +461,63 @@ export const PARTY_CHECK_TEMPLATE: EventChecklist = {
 };
 
 const tk = (text: string): SideTask => ({ id: '', text, person: '', due: '', done: false });
-/** What each side usually does before the day. */
+/** What each side usually does, from asking them to after the day, in the order it comes up. */
 export const SIDE_TEMPLATE: Record<'p1' | 'p2', SideTask[]> = {
   p1: [
-    tk('Choose the bridesmaids’ dresses (order 4–6 months before)'),
+    tk('Ask your bridesmaids and maid of honour (in person, or a little gift box)'),
+    tk('Share the date, the colour palette and the plan in a group chat'),
+    tk('Agree who pays for what: dresses, shoes, hair and makeup'),
+    tk('Choose the bridesmaids’ dresses: buy or hire (order 4–6 months before)'),
     tk('Everyone’s measurements in; fittings booked'),
     tk('Shoes and accessories chosen'),
-    tk('Plan the hens: date, place, who organises'),
+    tk('Jewellery and hair pieces chosen'),
+    tk('Plan the hens: date, place, who organises, the budget'),
     tk('Bridal shower or kitchen tea (if you’re having one)'),
+    tk('Hair and makeup trial booked'),
     tk('Hair and makeup booked for everyone, with start times'),
-    tk('Maid of honour: speech written'),
-    tk('Maid of honour: emergency kit packed'),
-    tk('At the ceremony: hold the bouquet, fix the dress and veil'),
-    tk('Bridesmaids’ gifts (from the couple)'),
+    tk('Final dress fittings (about a month before)'),
+    tk('Pick up the dresses, steamed and ready'),
+    tk('Maid of honour: speech written and timed'),
+    tk('Maid of honour: emergency kit packed (pins, tape, painkillers, stain pen, snacks)'),
+    tk('Getting-ready place booked, with breakfast and drinks'),
+    tk('Robes or matching shirts for getting ready (optional)'),
+    tk('Bouquets: who collects them, and when'),
+    tk('Know the run sheet: where to be and when'),
+    tk('Rehearsal: who walks in with whom, and in what order'),
+    tk('At the ceremony: hold the bouquet, fix the dress and veil, check the rings are there'),
+    tk('Phone off during the ceremony; someone keeps the bride’s phone'),
+    tk('Photos: the order of the group shots, and who rounds everyone up'),
+    tk('Reception: who looks after the gifts and cards table'),
+    tk('Bridesmaids’ thank-you gifts (from the couple)'),
+    tk('After: return anything hired, and take the dress home safely'),
+    tk('Thank-you messages to the bridal party'),
   ],
   p2: [
-    tk('Choose the suits: hire or buy, colour and fit'),
-    tk('Everyone’s measurements sent to the suit hire'),
+    tk('Ask your best man and groomsmen'),
+    tk('Share the date and the plan in a group chat'),
+    tk('Agree who pays for what: suits, shoes, the bucks'),
+    tk('Choose the suits: buy or hire, colour and fit'),
+    tk('Everyone’s measurements sent to the shop or hire company'),
     tk('Shoes, ties, socks and cufflinks matched'),
-    tk('Plan the bucks: date, place, who organises'),
-    tk('Best man: speech written'),
-    tk('Best man: holds the rings and the vendor envelopes on the day'),
-    tk('Ushers: who seats which family'),
-    tk('Collect the hire suits, and return them after'),
-    tk('Groomsmen’s gifts (from the couple)'),
+    tk('Buttonholes ordered (with the florist)'),
+    tk('Plan the bucks: date, place, who organises, the budget'),
+    tk('Haircuts booked for the week before'),
+    tk('Suit fittings (about a month before)'),
+    tk('Collect the suits; check every piece is there'),
+    tk('Best man: speech written and timed'),
+    tk('Best man: holds the rings, and the vendor envelopes on the day'),
+    tk('Ushers: who seats which family, and the reserved rows'),
+    tk('Getting-ready place, with breakfast, and an emergency kit (sewing kit, phone charger)'),
+    tk('Know the run sheet: where to be and when'),
+    tk('Rehearsal: who stands where, and the walk in'),
+    tk('Transport: who drives whom to the ceremony'),
+    tk('At the ceremony: the rings, the pocket handkerchief, phones off'),
+    tk('Photos: the order of the group shots, and who rounds everyone up'),
+    tk('Reception: help with the speeches, and keep the dance floor going'),
+    tk('End of night: the gifts and cards safely home, and someone sober to drive'),
+    tk('Groomsmen’s thank-you gifts (from the couple)'),
+    tk('After: return the hire suits on time (late fees add up)'),
+    tk('Thank-you messages to the groomsmen'),
   ],
 };
 

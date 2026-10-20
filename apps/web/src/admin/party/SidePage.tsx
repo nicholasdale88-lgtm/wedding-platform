@@ -6,7 +6,7 @@ import { useUnsavedChanges } from '../leave';
 import { MoneyInput } from '../planner/MoneyInput';
 import { useLiveDoc } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
-import { H2, inputCls, Pill, useToast } from '../ui';
+import { H2, inputCls, Label, Pill, useToast } from '../ui';
 import { GlamSchedule } from './GlamSchedule';
 import { Members, type PartyView, type SideName } from './Party';
 
@@ -143,21 +143,43 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
       <div className="grid gap-4 lg:grid-cols-2">
         <section aria-label="What they wear" className={card}>
           <H2>What they wear</H2>
+          <Label text={side === 'p1' ? 'The dresses: are you buying or hiring them?' : 'The suits: are you buying or hiring them?'}>
+            <select aria-label="Buying or hiring" value={doc.attire.how} onChange={(e) => set({ attire: { ...doc.attire, how: e.target.value as typeof doc.attire.how } }, true)} className={inputCls}>
+              <option value="">Choose…</option>
+              <option value="buy">Buying them</option>
+              <option value="hire">Hiring them</option>
+              <option value="own">They’re wearing their own</option>
+            </select>
+          </Label>
+          {doc.attire.how && (
           <div className="grid gap-2 sm:grid-cols-2">
             <input aria-label="The look" placeholder={side === 'p1' ? 'The look, e.g. Floor-length satin' : 'The look, e.g. Three-piece suit'} value={doc.attire.what} maxLength={120} onChange={(e) => set({ attire: { ...doc.attire, what: e.target.value } })} className={inputCls} />
             <input aria-label="Colour" placeholder="Colour" value={doc.attire.colour} maxLength={60} onChange={(e) => set({ attire: { ...doc.attire, colour: e.target.value } })} className={inputCls} />
-            <input aria-label="From" placeholder="Shop or hire company" value={doc.attire.where} maxLength={160} onChange={(e) => set({ attire: { ...doc.attire, where: e.target.value } })} className={inputCls} />
-            <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
-              About $
-              <MoneyInput aria-label="Cost each" placeholder="each" value={doc.attire.each} onValue={(n) => set({ attire: { ...doc.attire, each: n } })} className={`${inputCls} w-full`} />
-              each
-            </label>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] sm:col-span-2">
-              Order by
-              <input type="date" value={doc.attire.orderBy} onChange={(e) => set({ attire: { ...doc.attire, orderBy: e.target.value } }, true)} className={inputCls} />
-            </label>
+            {doc.attire.how !== 'own' && (
+              <>
+                <input aria-label="From" placeholder={doc.attire.how === 'hire' ? 'Hire company' : 'Shop'} value={doc.attire.where} maxLength={160} onChange={(e) => set({ attire: { ...doc.attire, where: e.target.value } })} className={inputCls} />
+                <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
+                  About $
+                  <MoneyInput aria-label={doc.attire.how === 'hire' ? 'Hire cost each' : 'Cost each'} placeholder="each" value={doc.attire.each} onValue={(n) => set({ attire: { ...doc.attire, each: n } })} className={`${inputCls} w-full`} />
+                  each
+                </label>
+                <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  {doc.attire.how === 'hire' ? 'Pick up by' : 'Order by'}
+                  <input type="date" value={doc.attire.orderBy} onChange={(e) => set({ attire: { ...doc.attire, orderBy: e.target.value } }, true)} className={inputCls} />
+                </label>
+                {doc.attire.how === 'hire' && (
+                  <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                    Return by
+                    <input type="date" value={doc.attire.returnBy} onChange={(e) => set({ attire: { ...doc.attire, returnBy: e.target.value } }, true)} className={inputCls} />
+                  </label>
+                )}
+              </>
+            )}
+            {doc.attire.how === 'own' && <p className="m-0 text-[13px] text-[#5b6a52] sm:col-span-2">Give them the look and colour; each person’s size and fitting stay with them above.</p>}
           </div>
-          {doc.attire.orderBy && doc.attire.orderBy < today && ready < people.length && <p className="m-0 text-[13px] text-[#7a4a37]">The order-by date has passed and not everyone has their outfit.</p>}
+          )}
+          {doc.attire.orderBy && doc.attire.how !== 'own' && doc.attire.orderBy < today && ready < people.length && <p className="m-0 text-[13px] text-[#7a4a37]">The {doc.attire.how === 'hire' ? 'pick-up' : 'order-by'} date has passed and not everyone has their outfit.</p>}
+          {doc.attire.how === 'hire' && doc.attire.returnBy && <p className="m-0 text-[13px] text-[#5b6a52]">Hired outfits go back by {new Date(`${doc.attire.returnBy}T12:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}: put someone in charge of returning them.</p>}
         </section>
 
         <section aria-label={partyTitle} className={card}>
@@ -185,11 +207,17 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
             <H2>To-dos</H2>
             <div className="text-[13px] text-[#5b6a52]">For the whole side or one person, with a date if it has one.</div>
           </div>
-          {!doc.tasks.length && (
-            <Pill kind="dashed" onClick={() => set({ tasks: SIDE_TEMPLATE[side].map((t) => ({ ...t, id: newId() })) }, true)}>
-              Start with the usual {SIDE_TEMPLATE[side].length}
-            </Pill>
-          )}
+          {(() => {
+            // The usual to-dos they don't have yet (by their words), so a list can be started or topped up.
+            const have = new Set(doc.tasks.map((t) => t.text.trim().toLowerCase()));
+            const missing = SIDE_TEMPLATE[side].filter((t) => !have.has(t.text.trim().toLowerCase()));
+            if (!missing.length) return null;
+            return (
+              <Pill kind="dashed" onClick={() => set({ tasks: [...doc.tasks, ...missing.map((t) => ({ ...t, id: newId() }))] }, true)}>
+                {doc.tasks.length ? `Add the usual ${missing.length} you don’t have yet` : `Start with the usual ${missing.length}`}
+              </Pill>
+            );
+          })()}
         </div>
         <ul className="list-none m-0 p-0 flex flex-col rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
           {tasks.map((t) => {

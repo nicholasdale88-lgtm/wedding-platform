@@ -162,7 +162,7 @@ export function Vendors() {
               void save([...list, v]);
             }}
           >
-            + Add one yourself
+            + Add a vendor yourself
           </Pill>
           </span>
         </div>
@@ -257,7 +257,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
               <strong className="text-[14px] font-semibold">Quotes</strong>
               {!adding && (
                 <button type="button" onClick={() => setAdding(true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
-                  + File a quote
+                  + Add a quote (type it in, or upload it)
                 </button>
               )}
             </div>
