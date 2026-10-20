@@ -10,7 +10,7 @@ import { api } from '../lib/api';
  * couple would explain it to a friend. The name is in one place (BRAND) so it can change with the domain;
  * the prices come from the shared plans (PLAN_INFO), the same ones the app enforces.
  */
-export const BRAND = 'VentralP';
+export const BRAND = 'The Yes List';
 
 type PlanKey = 'free' | 'essentials' | 'complete';
 const PLANS: { key: PlanKey; name: string; price: string; note: string; items: string[]; pick?: boolean }[] = [

@@ -474,6 +474,8 @@ describe('guest pages tab', () => {
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/tomorrow/brunch?preview=1');
     expect(screen.getByRole('option', { name: 'A sample guest' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Jo Banks' })).toBeNull();
+    // Each part of the guide is rolled up with what's in it; Change opens it.
+    await userEvent.click(screen.getByRole('button', { name: /What to bring\s*Hat/ }));
     expect(screen.getByDisplayValue('Hat')).toBeInTheDocument();
   });
 
@@ -515,11 +517,17 @@ describe('guest pages tab', () => {
   it('every word: grouped by section; a changed sentence shows what it was, and Reset brings it back', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, { ...pages, texts: { 'inv.dyn.greetAnon': 'Hello friend' } }) });
     renderAt('/admin/w1/wedding/pages');
-    expect(await screen.findByDisplayValue('Hello friend')).toBeInTheDocument();
-    expect(screen.getAllByText(/sentences · 1 changed$/)).toHaveLength(2); // the page's total and its section's
+    // Rolled up, it says what's changed; opened, the wording reads as guests see it.
+    await userEvent.click(await screen.findByRole('button', { name: /Every word guests read\s*1 changed · \d+ sentences/ }));
+    await userEvent.click(screen.getByLabelText(/Changed only \(1\)/));
+    expect(await screen.findByText('Hello friend')).toBeInTheDocument();
     expect(screen.getByText(/^Was: /)).toBeInTheDocument(); // the original shows only once changed
+    // Tap the sentence to change it.
+    await userEvent.click(screen.getByRole('button', { name: 'Change: Hello friend' }));
+    expect(screen.getByDisplayValue('Hello friend')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }));
     await userEvent.click(screen.getByRole('button', { name: 'Reset' }));
-    expect(screen.queryByDisplayValue('Hello friend')).toBeNull();
+    expect(screen.queryByText('Hello friend')).toBeNull();
   });
 });
 
