@@ -118,6 +118,17 @@ export function SmsMessages() {
           </Pill>
         </div>
       </header>
+      {(data.upcoming ?? []).length > 0 && (
+        <section role="alert" aria-label="Texts that won't go as planned" className="flex flex-col gap-2 p-4 rounded-[14px] border border-[#c98a70] bg-[#f6e6dd] text-[#7a4a37]">
+          <strong className="text-[15px] font-semibold">Fix before it’s due: {data.upcoming!.length === 1 ? 'a text' : `${data.upcoming!.length} texts`} won’t go as planned</strong>
+          {data.upcoming!.map((u) => (
+            <span key={u.slotId} className="text-[14px]">
+              “{u.campaign}”, due {fmtWhen(u.sendAt, tz)}: {u.problems.join('; ')}.
+            </span>
+          ))}
+          <span className="text-[13px]">They go out from our servers, whether or not your phone or computer is on. We also text you about this, once, so you can sort it while you have reception.</span>
+        </section>
+      )}
 
       {!has('texts') && <Upgrade feature="texts" compact />}
       {lastCall && (

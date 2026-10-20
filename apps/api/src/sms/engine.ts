@@ -58,6 +58,7 @@ export async function runAutopilot(d: EngineDeps): Promise<RunReport> {
   for (const w of await d.store.weddings()) {
     report.weddings++;
     try {
+      await preflight(d, w).catch(() => []); // a check that fails never stops the sending
       report.sent += await runWedding(d, w);
     } catch (e) {
       report.errors.push({ weddingId: w.id, error: (e as Error).message });
@@ -130,6 +131,66 @@ async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
   // 3. Send whatever is queued (manual sends waiting for the morning, retries, etc.).
   sent += (await flush(d, w)).sent;
   return sent;
+}
+
+// ---------------------------------------------------------------- pre-flight
+
+/** How far ahead texts are checked: time to fix anything while the couple still has reception. */
+export const PREFLIGHT_MS = 48 * 3_600_000;
+
+export interface PreflightIssue {
+  slotId: string;
+  campaign: string;
+  sendAt: Iso;
+  problems: string[];
+  /** One word per problem (plan, paused, sender, quiet, cap, credits): the couple is told once per set. */
+  codes: string[];
+}
+
+/**
+ * Before a dated text goes (the night-before guide, a last call), check now that it can: texts aren't
+ * paused, there's a sender number, it isn't due inside quiet hours, the daily limit and the credits cover
+ * it. (No one to send it to isn't a problem: nobody has said yes yet.) Anything wrong is texted to the couple's mobile once, up to two days
+ * ahead, so it can be fixed before they're somewhere without reception. Returns what it found.
+ */
+export async function preflight(d: EngineDeps, w: WeddingCtx, opts: { notify?: boolean } = {}): Promise<PreflightIssue[]> {
+  const now = d.now();
+  const slots = await d.store.upcomingSlots(w.id, now.toISOString(), new Date(now.getTime() + PREFLIGHT_MS).toISOString());
+  if (!slots.length) return [];
+  const byId = new Map((await d.store.campaigns(w.id)).map((c) => [c.id, c]));
+  const { events, recipients } = await d.store.audience(w.id);
+  const invitedBefore = await d.store.invitedIds(w.id);
+  const hour = (h: number) => `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`;
+  const issues: PreflightIssue[] = [];
+  let credits = w.walletCredits;
+  for (const s of slots) {
+    const c = byId.get(s.campaignId);
+    if (!c) continue;
+    const list = recipientsFor(c, recipients, invitedBefore);
+    const parts = list.reduce((n, r) => n + renderFor(c.body, w, events, r, { footer: true }).parts, 0);
+    const found: [string, string][] = [];
+    if (w.plan === 'free') found.push(['plan', 'your plan doesn’t include texts']);
+    if (w.paused) found.push(['paused', 'all texts are paused']);
+    if (!w.sender) found.push(['sender', 'there’s no number to send from yet']);
+    if (inQuietHours(new Date(s.sendAt), w.timezone, w.quietStart, w.quietEnd)) found.push(['quiet', `it’s due inside your quiet hours, so it would wait until ${hour(w.quietStart)}`]);
+    if (list.length > w.dailyCap) found.push(['cap', `it goes to ${list.length} but your daily limit is ${w.dailyCap}`]);
+    if (credits !== null && credits < parts) found.push(['credits', `it needs about ${parts} credits and you have ${credits}`]);
+    if (credits !== null) credits -= parts;
+    if (found.length) issues.push({ slotId: s.id, campaign: c.name, sendAt: s.sendAt, problems: found.map((f) => f[1]), codes: found.map((f) => f[0]) });
+  }
+  // Tell the couple, once per problem, by text (not in the middle of the night: then at 8am).
+  if (opts.notify !== false && issues.length && w.adminMobile && w.sender && !w.paused && w.plan !== 'free' && !inQuietHours(now, w.timezone, w.quietStart, w.quietEnd)) {
+    const to = toE164(w.adminMobile);
+    if (to) {
+      const rows: NewOutbox[] = issues.map((i) => {
+        const when = localParts(new Date(i.sendAt), w.timezone);
+        const body = `Heads up: “${i.campaign}” is due ${when.day}/${when.month} at ${hour(when.hour)}${when.minute ? `:${String(when.minute).padStart(2, '0')}` : ''}, but ${i.problems.join('; ')}. Fix it in Settings → Texting.`;
+        return { weddingId: w.id, invitationId: null, campaignId: null, dedupeKey: `preflight:${i.slotId}:${i.codes.join('|')}`, kind: 'test', to, body, parts: segments(body).parts };
+      });
+      await d.store.enqueue(rows);
+    }
+  }
+  return issues;
 }
 
 /** Shared with inbound confirmations so a YES by text doesn't also get the thank-you. */

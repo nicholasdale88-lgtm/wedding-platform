@@ -100,6 +100,16 @@ export class D1SmsStore implements SmsStore {
 
   // ---------------------------------------------------------------- slots
 
+  async upcomingSlots(weddingId: string, from: Iso, to: Iso) {
+    const rows = await this.all<SlotRow>(
+      `SELECT * FROM campaign_slot WHERE send_at > ?1 AND send_at <= ?2 AND status IN ('pending', 'failed')
+          AND campaign_id IN (SELECT id FROM campaign WHERE wedding_id = ?3 AND enabled = 1 AND mode = 'dates' AND deleted_at IS NULL)
+        ORDER BY send_at`,
+      from, to, weddingId,
+    );
+    return rows.map((s): Slot => ({ id: s.id, campaignId: s.campaign_id, sendAt: s.send_at, status: s.status, attempts: s.attempts, lastError: s.last_error }));
+  }
+
   async claimDueSlots(weddingId: string, now: Iso, maxAttempts: number) {
     const stale = new Date(Date.parse(now) - 10 * 60_000).toISOString();
     const rows = await this.all<SlotRow>(

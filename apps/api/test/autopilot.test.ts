@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { estimate, runAutopilot, sendNow } from '../src/sms/engine';
+import { estimate, preflight, runAutopilot, sendNow } from '../src/sms/engine';
 import { deps } from './support/fakes';
-import { reply, seedWedding, W } from './support/fixture';
+import { ADMIN, reply, seedWedding, W } from './support/fixture';
 
 /** docs/05 "Must-pass tests" on a fake clock, 75 invitations. */
 describe('SMS autopilot', () => {
@@ -245,6 +245,56 @@ describe('SMS autopilot', () => {
     at('2027-11-18T08:00');
     await run();
     expect(sent('rain')).toHaveLength(est.count);
+  });
+
+  describe('pre-flight: the night before texts are checked two days ahead, from the server', () => {
+    /** Everyone says yes to everything, so every dated text has people to go to. */
+    const allYes = async () => {
+      await sendInvites();
+      for (let i = 0; i < 75; i++) reply(t.store, `i${i}`, t.clock.now(), Object.fromEntries(t.store.recipient(`i${i}`).invited.map((k) => [k, true])));
+    };
+    const warnings = () => t.store.outbox.filter((o) => o.dedupeKey.startsWith('preflight:'));
+
+    it('nothing to say when it will all go: no text to the couple', async () => {
+      await allYes();
+      at('2027-11-16T09:00'); // the wedding's night-before text is due 17 Nov, 5pm
+      expect(await preflight(t.d, t.store.weddingList[0]!, { notify: false })).toEqual([]);
+      await run();
+      expect(warnings()).toEqual([]);
+    });
+
+    it('credits short, the daily limit too low and quiet hours: found, and the couple is texted once (not every 15 minutes)', async () => {
+      await allYes();
+      const w = t.store.weddingList[0]!;
+      w.walletCredits = 3;
+      w.dailyCap = 5;
+      w.quietEnd = 17; // texts stop at 5pm: the night-before text at 5pm would wait until morning
+      at('2027-11-16T09:00');
+      const found = await preflight(t.d, w, { notify: false });
+      const night = found.find((f) => f.campaign === t.store.campaignList.find((c) => c.key === 'nightW')!.name)!;
+      expect(night.codes).toEqual(['quiet', 'cap', 'credits']);
+      expect(night.problems.join(' ')).toMatch(/wait until 8am/);
+      await run();
+      await run();
+      at('2027-11-16T09:15');
+      w.walletCredits = 2; // a different count is still the same problem: no second text
+      await run();
+      const texts = warnings();
+      expect(texts.length).toBe(found.length);
+      expect(texts.every((o) => o.to === ADMIN && o.kind === 'test')).toBe(true);
+      expect(texts.find((o) => o.body.includes('17/11 at 5pm'))?.body).toMatch(/Heads up: .* Fix it in Settings → Texting\./);
+    });
+
+    it('found in the middle of the night: the couple is texted at 8am, not woken', async () => {
+      await allYes();
+      t.store.weddingList[0]!.dailyCap = 5;
+      at('2027-11-16T02:00');
+      await run();
+      expect(warnings()).toEqual([]);
+      at('2027-11-16T08:00');
+      await run();
+      expect(warnings().length).toBeGreaterThan(0);
+    });
   });
 
   it('never sends a message with an unfilled placeholder', async () => {

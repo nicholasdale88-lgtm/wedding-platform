@@ -4,7 +4,7 @@ import type { Env } from '../env';
 import { readJson, safeJson } from '../lib/security';
 import { needsUpgrade, weddingPlan } from '../lib/plan';
 import { allows } from '@wp/shared';
-import { estimate, sendNow, sendTest, type EngineDeps } from '../sms/engine';
+import { estimate, preflight, sendNow, sendTest, type EngineDeps } from '../sms/engine';
 import { recipientsFor } from '../sms/audience';
 import { Audience } from '../sms/types';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -94,6 +94,8 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
       invitesFrom: w.invitesFrom ?? null,
       invitesFromCustom: !!w.invitesFromCustom,
       quiet: { start: w.quietStart, end: w.quietEnd },
+      // Texts due in the next two days that won't go as planned, and why (the couple is also texted about each, once).
+      upcoming: await preflight(d, w, { notify: false }).catch(() => []),
       events: evs,
       audiences: groups,
       presets,

@@ -35,6 +35,11 @@ export class MemoryStore implements SmsStore {
   async campaigns(weddingId: string) { return this.clone(this.campaignList.filter((c) => c.weddingId === weddingId)); }
 
   slotClaims = new Map<string, string>();
+  async upcomingSlots(weddingId: string, from: string, to: string) {
+    const ok = new Set(this.campaignList.filter((c) => c.weddingId === weddingId && c.enabled && c.mode === 'dates').map((c) => c.id));
+    return this.clone(this.slots.filter((s) => ok.has(s.campaignId) && s.sendAt > from && s.sendAt <= to && (s.status === 'pending' || s.status === 'failed')).sort((a, b) => a.sendAt.localeCompare(b.sendAt)));
+  }
+
   async claimDueSlots(weddingId: string, now: string, maxAttempts: number) {
     const stale = new Date(Date.parse(now) - 10 * 60_000).toISOString();
     const ok = new Set(this.campaignList.filter((c) => c.weddingId === weddingId && c.enabled && c.mode === 'dates').map((c) => c.id));

@@ -20,6 +20,8 @@ export interface SmsStore {
 
   /** Due slots of enabled 'dates' campaigns: pending|failed, send_at <= now, attempts < max. Also reclaims slots left 'claimed' for over 10 minutes by a crashed run. */
   claimDueSlots(weddingId: string, now: Iso, maxAttempts: number): Promise<Slot[]>;
+  /** Slots of enabled 'dates' campaigns still to go, due between from and to (for the pre-flight check). */
+  upcomingSlots(weddingId: string, from: Iso, to: Iso): Promise<Slot[]>;
   /** Hand a claimed slot back untouched (quiet hours): pending, attempt not counted. */
   releaseSlot(slotId: string): Promise<void>;
   finishSlot(slotId: string, status: 'done' | 'failed' | 'cancelled', error?: string): Promise<void>;

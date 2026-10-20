@@ -232,6 +232,8 @@ export interface Campaign {
 }
 export interface TextsData {
   live: boolean;
+  /** Texts due in the next two days that won't go as planned, and why. */
+  upcoming?: { slotId: string; campaign: string; sendAt: string; problems: string[]; codes: string[] }[];
   sender: string | null;
   paused: boolean;
   adminMobile: string | null;
