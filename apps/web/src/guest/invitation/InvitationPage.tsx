@@ -41,7 +41,6 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
   }, [data.wedding]);
   const token = !preview && guestToken;
   const th = themeOf(data.wedding.theme, data.content.custom);
-  const first = data.events[0];
   // Their names, as the envelope is addressed ("Ella & James"); none on the public page.
   const people = data.invitation?.people ?? [];
   const guestName = people.length > 2 ? `${people[0]!.name} & family` : people.map((p) => (people.length > 1 ? p.name.split(' ')[0] : p.name)).join(' & ');
@@ -55,9 +54,6 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
         opts={data.content.envelope ?? {}}
         colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: th.e1 ?? '#e6dcc4' }}
         guestName={guestName}
-        date={first ? new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: data.wedding.timezone }).format(new Date(first.startsAt)).toUpperCase() : ''}
-        place={first?.name.toUpperCase() ?? ''}
-        initials={data.content.initials || data.wedding.monogram || ''}
       />
       {/* Once the envelope is open: a guest with their own link can write to the couple (Account → Messages), and
           the wedding party has a link to their own run sheet. */}

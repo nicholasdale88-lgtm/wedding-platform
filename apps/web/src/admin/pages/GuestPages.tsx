@@ -217,7 +217,7 @@ export function GuestPages() {
   const preview = (
     <div className={`flex flex-col gap-3 ${wide ? 'sticky top-6' : ''}`}>
       <DevicePicker device={device} onChange={setDevice} />
-      <DevicePreview device={device} src={previewUrl} url={shareUrl.replace(/^https?:\/\//, '')} title="Guest page preview" frameKey={`${previewUrl}#${previewKey}`} />
+      <DevicePreview device={device} src={previewUrl} url={shareUrl.replace(/^https?:\/\//, '')} title="Guest page preview" frameKey={`${previewUrl}#${previewKey}`} stay={previewKey > 0} />
       <div className="flex gap-2 flex-wrap justify-center">
         <a href={previewUrl} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-[#c6b794] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]">
           Open full screen
@@ -343,7 +343,7 @@ function InvitationEditor({
   const inv = doc.invitation;
   return (
     <>
-      <Section n={n()} title="Look and feel" hint="The colour theme, the envelope (wax seal, liner, ribbon, stamp, their name) and the photo on the invitation.">
+      <Section n={n()} title="Look and feel" hint="The colour theme, the envelope (wax seal, liner, gold sprig, ribbon, their name) and the photo on the invitation.">
         <Grid>
           <div className="sm:col-span-2">
             <ThemeGallery theme={doc.theme} custom={inv.custom ?? {}} onTheme={(t) => {
@@ -387,12 +387,12 @@ function InvitationEditor({
             {(
               [
                 ['name', 'Their name on the envelope'],
-                ['stamp', 'Stamp and postmark'],
+                ['sprig', 'Gold leaves above the seal'],
                 ['shimmer', 'Gold shimmer'],
               ] as const
             ).map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={inv.envelope?.[k] !== false} onChange={(e) => setInv({ envelope: { ...inv.envelope, ...(k === 'name' ? { name: e.target.checked } : k === 'stamp' ? { stamp: e.target.checked } : { shimmer: e.target.checked }) } })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                <input type="checkbox" checked={inv.envelope?.[k] !== false} onChange={(e) => setInv({ envelope: { ...inv.envelope, ...(k === 'name' ? { name: e.target.checked } : k === 'sprig' ? { sprig: e.target.checked } : { shimmer: e.target.checked }) } })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
                 {l}
               </label>
             ))}

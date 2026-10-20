@@ -49,12 +49,14 @@ export const InvitationContent = z
     /** The last day replies can be changed online ("2027-08-01"); after it, guests are asked to email. */
     rsvpClose: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
     seal: z.enum(['Sandstone', 'Dusty rose', 'Daphne blue']),
-    /** The envelope's finishing touches: the liner inside the flap, the guest's name, a stamp and postmark, a ribbon, a shimmer. */
+    /** The envelope's finishing touches: the liner inside the flap, the guest's name, gold leaves above the seal, a ribbon, a shimmer. */
     envelope: z
       .object({
         liner: z.enum(['none', 'floral', 'eucalyptus', 'stripes', 'confetti', 'foil']),
         name: z.boolean(),
+        /** No longer drawn (the stamp was retired); kept so saved invitations still load. */
         stamp: z.boolean(),
+        sprig: z.boolean(),
         ribbon: z.enum(['none', 'silk', 'twine']),
         shimmer: z.boolean(),
       })

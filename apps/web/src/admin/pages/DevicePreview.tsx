@@ -95,10 +95,18 @@ function BrowserBar({ url }: { url: string }) {
   );
 }
 
-export function DevicePreview({ src, url, device, title, frameKey }: { src: string; url: string; device: Device; title: string; frameKey: string }) {
+export function DevicePreview({ src, url, device, title, frameKey, stay = false }: { src: string; url: string; device: Device; title: string; frameKey: string; stay?: boolean }) {
   const [ref, avail] = useWidth();
   const size = SIZE[device];
-  const frame = <iframe key={frameKey} src={src} title={title} allow="autoplay; encrypted-media; fullscreen" className="block w-full flex-1 border-0 bg-white" />;
+  // After a save the preview reloads where it was (stay); Replay opens the envelope again from the start.
+  const [replay, setReplay] = useState(0);
+  const at = stay && !replay ? `${src}${src.includes('?') ? '&' : '?'}stay=1` : src;
+  const frame = <iframe key={`${frameKey}#${replay}`} src={at} title={title} allow="autoplay; encrypted-media; fullscreen" className="block w-full flex-1 border-0 bg-white" />;
+  const again = (
+    <button type="button" onClick={() => setReplay((n) => n + 1)} className="block mx-auto mt-2 py-[6px] px-[14px] rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer text-[#33402f]">
+      ↺ Replay the envelope
+    </button>
+  );
 
   if (device === 'phone') {
     const outer = { w: size.w + 24, h: size.h + 24 };
@@ -124,6 +132,7 @@ export function DevicePreview({ src, url, device, title, frameKey }: { src: stri
             </div>
           </div>
         </div>
+        {again}
       </div>
     );
   }
@@ -157,6 +166,7 @@ export function DevicePreview({ src, url, device, title, frameKey }: { src: stri
           <div aria-hidden className="rounded-[10px] bg-gradient-to-b from-[#d4d5d7] to-[#a9abae]" style={{ width: 360 * k + 80, height: Math.max(8, 16 * k) }} />
         </>
       )}
+      {again}
     </div>
   );
 }

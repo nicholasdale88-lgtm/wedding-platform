@@ -153,9 +153,10 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   // ---------------------------------------------------------------- never show the envelope twice
   useEffect(() => {
     if (preview) {
-      // The admin's preview reloads after every save: once opened, it stays open (and where it was) for this visit.
+      // The admin's preview reloads after every save (&stay=1): then it stays open, where it was. Opened
+      // afresh (or Replay), the envelope plays every time.
       try {
-        if (sessionStorage.getItem(`wp-preview-open-${slug}`)) {
+        if (new URLSearchParams(window.location.search).get('stay') === '1' && sessionStorage.getItem(`wp-preview-open-${slug}`)) {
           setP(4);
           setMuted(true); // opened already, so no tap has started the music: the button starts it
           setTimeout(() => {

@@ -4,14 +4,15 @@ import type { CSSProperties } from 'react';
  * The envelope's finishing touches, drawn over the design's envelope and moving with it:
  * - a patterned liner on the underside of the flap, seen as it swings open (floral, eucalyptus, gold
  *   stripes, confetti, gold foil);
- * - the guest's name written across the front, a postage stamp and a round postmark with the date;
+ * - the guest's name written across the front, and a gold-foil sprig above the seal;
  * - a silk ribbon or twine around it (with a gap for the seal), and a slow gold shimmer across the paper.
  * Phases are the envelope's: 0 closed, 1 tapped, 2 opening, 3 card out, 4 gone.
  */
 export interface EnvelopeOptions {
   liner?: 'none' | 'floral' | 'eucalyptus' | 'stripes' | 'confetti' | 'foil';
   name?: boolean;
-  stamp?: boolean;
+  /** Gold-foil leaves above the seal (on unless switched off). */
+  sprig?: boolean;
   ribbon?: 'none' | 'silk' | 'twine';
   shimmer?: boolean;
 }
@@ -65,15 +66,13 @@ const lightOn = (hex: string) => {
   return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 140;
 };
 
-export function EnvelopeExtras({ phase, opts, colours, guestName, date, place, initials }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string; date: string; place: string; initials: string }) {
+export function EnvelopeExtras({ phase, opts, colours, guestName }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string }) {
   if (phase >= 4) return null;
   const closed = phase < 2;
   const front: CSSProperties = { opacity: closed ? 1 : 0, transition: 'opacity .6s ease' };
   const writing = lightOn(colours.envelope) ? '#fbf6ea' : colours.ink;
   const liner = opts.liner ?? 'floral';
   const ribbon = opts.ribbon ?? 'none';
-  // The stamp has room for initials: "Alex & Sam" → "A&S".
-  const short = initials.length <= 7 ? initials : initials.split(/\s*&\s*|\s+and\s+/i).map((w) => w.trim().charAt(0).toUpperCase()).filter(Boolean).join('&');
   // The seal's size in the design (a gap is left for it in the ribbon).
   const seal = 'clamp(96px,24vmin,150px)';
   return (
@@ -132,48 +131,44 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, date, place, i
         </div>
       )}
 
-      {/* A postage stamp and postmark in the top right. */}
-      {opts.stamp !== false && (
-        <div className="absolute" style={{ ...front, top: 'max(18px, 4vmin)', right: 'max(18px, 4vmin)', width: 'clamp(96px,24vmin,150px)' }}>
-          <svg viewBox="0 0 120 100" className="w-full h-auto overflow-visible">
-            {/* Postmark: a ring with the date and place, and wavy lines. */}
-            <g transform="translate(-34 30)" opacity=".78" fill="none" stroke={writing} strokeWidth="1.4">
-              <circle cx="40" cy="30" r="24" />
-              <circle cx="40" cy="30" r="17" strokeDasharray="2 2" />
-              {[0, 7, 14].map((dy) => (
-                <path key={dy} d={`M66 ${20 + dy} q10 -5 20 0 t20 0 t20 0`} />
-              ))}
-              <text x="40" y="28" textAnchor="middle" fontSize="7.5" fill={writing} stroke="none" fontFamily="'Cormorant Garamond', Georgia, serif" fontWeight="600" letterSpacing="1">
-                {date}
-              </text>
-              <text x="40" y="38" textAnchor="middle" fontSize="5.5" fill={writing} stroke="none" fontFamily="'Cormorant Garamond', Georgia, serif" letterSpacing="1">
-                {place}
-              </text>
-            </g>
-            {/* The stamp: perforated edge, a little artwork with their initials. */}
-            <g transform="translate(46 0) rotate(4 37 46)">
-              <rect x="0" y="0" width="74" height="92" fill="#fbf8f0" />
-              {Array.from({ length: 10 }, (_, i) => (
-                <g key={i} fill={colours.envelope}>
-                  <circle cx={(i + 0.5) * 7.4} cy="0" r="2.4" />
-                  <circle cx={(i + 0.5) * 7.4} cy="92" r="2.4" />
+      {/* A gold-foil sprig pressed into the flap above the seal. */}
+      {opts.sprig !== false && (
+        <div className="absolute left-1/2" style={{ ...front, top: `calc(56% - ${seal} / 2 - clamp(78px,19vmin,126px))`, width: 'clamp(150px,36vmin,240px)', transform: 'translateX(-50%)' }}>
+          <svg viewBox="0 0 200 100" className="w-full h-auto" style={{ filter: 'drop-shadow(0 1px 0 rgba(255,255,255,.25)) drop-shadow(0 -1px 0 rgba(0,0,0,.25))' }}>
+            <defs>
+              <linearGradient id="envFoil" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#a77b2c" />
+                <stop offset=".3" stopColor="#f3dc9a" />
+                <stop offset=".5" stopColor="#b98a36" />
+                <stop offset=".72" stopColor="#f8e7b4" />
+                <stop offset="1" stopColor="#9c7128" />
+              </linearGradient>
+            </defs>
+            <g fill="url(#envFoil)" stroke="url(#envFoil)">
+              {/* Two stems curving out from the centre, leaves along each, a small bloom where they meet. */}
+              {([1, -1] as const).map((d) => (
+                <g key={d} transform={d === 1 ? undefined : 'translate(200 0) scale(-1 1)'}>
+                  <path d="M100 92 C 120 70, 150 52, 190 44" fill="none" strokeWidth="1.6" strokeLinecap="round" />
+                  {[
+                    [116, 76, -35],
+                    [132, 63, -25],
+                    [150, 54, -18],
+                    [168, 48, -12],
+                    [124, 80, 30],
+                    [142, 68, 32],
+                    [160, 59, 34],
+                    [180, 51, 36],
+                  ].map(([x, y, r]) => (
+                    <ellipse key={`${x}-${y}`} cx={x} cy={y} rx="8" ry="3.2" transform={`rotate(${r} ${x} ${y})`} stroke="none" />
+                  ))}
+                  <circle cx="190" cy="44" r="2.4" stroke="none" />
                 </g>
               ))}
-              {Array.from({ length: 12 }, (_, i) => (
-                <g key={`s${i}`} fill={colours.envelope}>
-                  <circle cx="0" cy={(i + 0.5) * 7.66} r="2.4" />
-                  <circle cx="74" cy={(i + 0.5) * 7.66} r="2.4" />
-                </g>
-              ))}
-              <rect x="7" y="7" width="60" height="78" fill={colours.soft} />
-              <circle cx="37" cy="38" r="18" fill={colours.paper} opacity=".9" />
-              <path d="M37 30 c-4 -7 -14 -3 -10 5 c2 4 10 9 10 9 s8 -5 10 -9 c4 -8 -6 -12 -10 -5z" fill={colours.accent} />
-              <text x="37" y="72" textAnchor="middle" fontSize="11" fill={colours.ink} fontFamily="'Pinyon Script', cursive">
-                {short}
-              </text>
-              <text x="62" y="18" textAnchor="end" fontSize="8" fill={colours.ink} fontFamily="'Cormorant Garamond', Georgia, serif" fontWeight="600">
-                $1
-              </text>
+              {Array.from({ length: 6 }, (_, i) => {
+                const a = (i * 60 * Math.PI) / 180;
+                return <ellipse key={i} cx={100 + Math.cos(a) * 6} cy={88 + Math.sin(a) * 6} rx="5" ry="3" transform={`rotate(${i * 60} ${100 + Math.cos(a) * 6} ${88 + Math.sin(a) * 6})`} stroke="none" />;
+              })}
+              <circle cx="100" cy="88" r="3" fill="#fff4d2" stroke="none" />
             </g>
           </svg>
         </div>
