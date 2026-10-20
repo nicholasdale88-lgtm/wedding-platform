@@ -1,6 +1,6 @@
-import { joinDiet } from '@wp/shared';
+import { joinDiet, PARTY_ROLES } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
+import { api, ApiError, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { groupSuggestions } from './groups';
 import { canShareNative, fallbackMessage, sendMessenger, sendWhatsApp, shareNative } from './share';
@@ -243,6 +243,45 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
           </div>
         ))}
         <Pill kind="dashed" className="self-start" onClick={() => setNames([...names, ''])}>+ Add person</Pill>
+        {/* The wedding party: a role here puts them in it (and Wedding party → add puts new people here). */}
+        {g.people.some((p) => p.name.trim()) && (
+          <details className="rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]" open={g.people.some((p) => p.role)}>
+            <summary className="cursor-pointer py-2 px-3 text-[14px] font-medium">
+              Wedding party{g.people.some((p) => p.role) ? `: ${g.people.filter((p) => p.role).map((p) => `${p.name.split(' ')[0]} (${p.role})`).join(', ')}` : ''}
+            </summary>
+            <div className="flex flex-col gap-2 px-3 pb-3">
+              {g.people
+                .filter((p) => p.name.trim())
+                .map((p) => (
+                  <label key={p.id} className="flex items-center justify-between gap-3 text-[14px]">
+                    <span className="truncate">{p.name}</span>
+                    <select
+                      aria-label={`${p.name}'s wedding party role`}
+                      value={p.role ?? ''}
+                      onChange={async (e) => {
+                        try {
+                          await plannerApi.setRole(wid, p.id, e.target.value);
+                          await load();
+                          await onChanged();
+                          toast(e.target.value ? `${p.name} is in the wedding party` : `${p.name} is no longer in the wedding party`);
+                        } catch (err) {
+                          toast((err as Error).message);
+                        }
+                      }}
+                      className={`${inputCls} !py-[6px] !text-[14px] w-auto`}
+                    >
+                      <option value="">Not in the wedding party</option>
+                      {[...PARTY_ROLES.map((r) => r.role), ...(p.role && !PARTY_ROLES.some((r) => r.role === p.role) ? [p.role] : [])].map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+            </div>
+          </details>
+        )}
         <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-3">
           <Label text="Main contact's mobile">
             <input value={phone} inputMode="tel" placeholder="04xx xxx xxx" onChange={(e) => setPhone(e.target.value)} onBlur={() => phone !== g.phoneDisplay && void patch({ phone: phone.trim() || null })} className={inputCls} />

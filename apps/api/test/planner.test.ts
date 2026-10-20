@@ -58,6 +58,28 @@ describe('planner: wedding party', () => {
     expect(JSON.stringify(mc)).not.toMatch(/token|phone/); // names and roles only
   });
 
+  it('someone added straight into the wedding party joins the guest list, and a role set on a guest puts them in the party', async () => {
+    const guestsApi = (path: string, init: RequestInit = {}) => app.request(`/api/a/w/${wid}${path}`, { ...init, headers: { 'content-type': 'application/json', cookie, ...init.headers } }, env, ctx);
+    const res = await call('/people', { method: 'POST', body: JSON.stringify({ name: 'Riley Groomsman', mobile: '0412 345 678', role: 'Groomsman' }) });
+    expect(res.status).toBe(201);
+    const { personId, members } = (await res.json()) as { personId: string; members: { personId: string; role: string; side: string }[] };
+    expect(members.find((m) => m.personId === personId)).toMatchObject({ role: 'Groomsman', side: 'p2' });
+    // On the guest list: their own invitation, in the Wedding party group, invited to the wedding only, with their mobile.
+    const list = (await (await guestsApi('/guests')).json()) as { guests: { id: string; party: string; phone: string | null; invited: string[]; people: { id: string; name: string; role?: string }[] }[] };
+    const g = list.guests.find((x) => x.people.some((p) => p.id === personId))!;
+    expect(g).toMatchObject({ party: 'Wedding party', phone: '+61412345678' });
+    expect(g.invited).toHaveLength(1);
+    expect(g.people[0]).toMatchObject({ name: 'Riley Groomsman', role: 'Groomsman' });
+    // The other way: a role on a guest puts them in the party; taking it away takes them out.
+    const other = list.guests.find((x) => x.id !== g.id && x.people[0] && !x.people[0].role)!.people[0]!;
+    expect(((await (await call(`/people/${other.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) })).json()) as { members: { personId: string }[] }).members.some((m) => m.personId === other.id)).toBe(true);
+    const after = (await (await guestsApi('/guests')).json()) as { guests: { people: { id: string; role?: string }[] }[] };
+    expect(after.guests.flatMap((x) => x.people).find((p) => p.id === other.id)?.role).toBe('Bridesmaid');
+    // Checks: a name and role are needed, and the mobile must be Australian.
+    expect((await call('/people', { method: 'POST', body: JSON.stringify({ name: '', role: 'MC' }) })).status).toBe(400);
+    expect((await call('/people', { method: 'POST', body: JSON.stringify({ name: 'Sam', mobile: '12', role: 'MC' }) })).status).toBe(400);
+  });
+
   it('a party member subscribes to their own calendar: their jobs with a reminder, and their moments on the day', async () => {
     const ella = await personOf('Ella Thompson');
     await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });

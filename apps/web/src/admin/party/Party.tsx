@@ -533,6 +533,19 @@ export function Members({ d, onChange, sideName, only }: { d: PartyData; onChang
                 loading={!guests}
                 label={col.key ? `Add to the ${sideName(col.key).toLowerCase()}'s side` : 'Add a helper'}
                 onAdd={(p, role) => void set(p.id, role, `${p.name} is now ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role.toLowerCase()}`)}
+                onNew={async (name, mobile, role) => {
+                  try {
+                    const r = await plannerApi.addMember(wid, name, mobile, role);
+                    onChange(r.members.map((m) => ({ ...m, token: d.members.find((x) => x.personId === m.personId)?.token ?? null })));
+                    setGuests(null);
+                    void api.guests(wid).then((g) => setGuests(g.guests));
+                    toast(`${name} is in the wedding party and on your guest list`);
+                    return true;
+                  } catch (e) {
+                    toast((e as Error).message);
+                    return false;
+                  }
+                }}
               />
             </div>
           );
@@ -571,9 +584,26 @@ export function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: P
   );
 }
 
-function AddToSide({ roles, people, loading, label, onAdd }: { roles: string[]; people: { id: string; name: string }[]; loading: boolean; label: string; onAdd: (p: { id: string; name: string }, role: string) => void }) {
+function AddToSide({
+  roles,
+  people,
+  loading,
+  label,
+  onAdd,
+  onNew,
+}: {
+  roles: string[];
+  people: { id: string; name: string }[];
+  loading: boolean;
+  label: string;
+  onAdd: (p: { id: string; name: string }, role: string) => void;
+  /** Someone not on the guest list yet: added to both. */
+  onNew: (name: string, mobile: string, role: string) => Promise<boolean>;
+}) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [adding, setAdding] = useState(false);
   const [role, setRole] = useState(roles[0] ?? '');
   const needle = q.trim().toLowerCase();
   const found = needle ? people.filter((p) => p.name.toLowerCase().includes(needle)).slice(0, 6) : [];
@@ -612,7 +642,27 @@ function AddToSide({ roles, people, loading, label, onAdd }: { roles: string[]; 
           + {p.name}
         </button>
       ))}
-      {needle && !loading && !found.length && <span className="text-[12px] text-[#7a7466]">No guest by that name. Add them to your guest list first.</span>}
+      {needle && !loading && (
+        <div className="flex flex-col gap-2 p-2 rounded-[10px] border border-dashed border-[#c6b794]">
+          <span className="text-[12px] text-[#5b6a52]">{found.length ? 'Someone else?' : 'Not on your guest list yet.'} Add “{q.trim()}” as a new guest:</span>
+          <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" placeholder="Their mobile (optional, for their texts and sign-in)" aria-label="Their mobile" className={`${inputCls} !py-[6px] !text-[14px]`} />
+          <Pill
+            kind="outline"
+            className="self-start"
+            disabled={adding}
+            onClick={async () => {
+              setAdding(true);
+              if (await onNew(q.trim(), mobile.trim(), role)) {
+                setQ('');
+                setMobile('');
+              }
+              setAdding(false);
+            }}
+          >
+            {adding ? 'Adding…' : `+ Add ${q.trim()} as ${/^[aeiou]/i.test(role) ? 'an' : 'a'} ${role.toLowerCase()}`}
+          </Pill>
+        </div>
+      )}
     </div>
   );
 }

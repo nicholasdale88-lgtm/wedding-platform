@@ -24,6 +24,8 @@ export interface AdminPerson {
   /** Their seat at each event: { eventKey: table name }. */
   tables: Record<string, string>;
   meal: { entree: string; main: string; dessert: string };
+  /** Their wedding party role ('' when they aren't in it). */
+  role: string;
 }
 
 export interface EventReply {
@@ -90,7 +92,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
     q(`SELECT id, key, name, pending_label, starts_at, sort, has_seating, catered, venue, questions FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
     q(`SELECT id, phone, seats_held, party, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
     // Each person's seat at each event ({ eventKey: table name }); "table" is their first event's.
-    q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.meal_entree, p.meal_main, p.meal_dessert,
+    q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.meal_entree, p.meal_main, p.meal_dessert, p.party_role,
               (SELECT json_group_object(e.key, t.name) FROM seat s JOIN seat_table t ON t.id = s.table_id AND t.deleted_at IS NULL
                  JOIN event e ON e.id = s.event_id AND e.deleted_at IS NULL WHERE s.person_id = p.id) AS seats,
               (SELECT t.name FROM seat s JOIN seat_table t ON t.id = s.table_id AND t.deleted_at IS NULL
@@ -127,6 +129,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
       id: String(p.id), idx: Number(p.idx), name: String(p.name), diet: String(p.diet ?? ''), table: (p.table_name as string | null) ?? null,
       tables: json<Record<string, string>>(p.seats as string | null, {}),
       meal: { entree: String(p.meal_entree ?? ''), main: String(p.meal_main ?? ''), dessert: String(p.meal_dessert ?? '') },
+      role: String(p.party_role ?? ''),
     });
   }
   for (const x of ie!.results as { invitation_id: string; key: string }[]) guests.get(x.invitation_id)?.invited.push(x.key);

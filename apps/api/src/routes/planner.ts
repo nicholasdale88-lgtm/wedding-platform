@@ -1,4 +1,4 @@
-import { allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
+import { randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -10,6 +10,7 @@ import { partyCalKey } from './partyCalendar';
 import { vendorHubKey } from './vendorHub';
 import { recordUse, searchDirectory } from '../lib/directory';
 import { listedNear } from './vendorListings';
+import { needsUpgrade, roomFor } from '../lib/plan';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -218,6 +219,35 @@ export function plannerRoutes() {
       setup: await readDoc(db, wid(c), 'party-setup', ''),
       checklist: ev ? await readDoc(db, wid(c), 'day-checklist', ev.key) : null,
     });
+  });
+
+  /**
+   * Add someone new straight into the wedding party: they join the guest list as their own invitation (in
+   * the "Wedding party" group, invited to the wedding), with their role. Adding them from the guest list
+   * works the other way (a role on a person there puts them in the party).
+   */
+  app.post('/people', writer, async (c) => {
+    const body = z
+      .object({ name: z.string().trim().min(1).max(120), mobile: z.string().max(40).default(''), role: z.string().trim().min(1).max(40) })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Add their name and role.');
+    const db = c.env.DB;
+    const phone = body.data.mobile.trim() ? toE164(body.data.mobile) : null;
+    if (body.data.mobile.trim() && !phone) return err(c, 400, 'invalid', 'That mobile doesn’t look Australian.');
+    if (!(await roomFor(db, wid(c), 1))) return needsUpgrade(c, 'unlimitedGuests');
+    const first = await db.prepare(`SELECT id FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(wid(c)).first<{ id: string }>();
+    if (!first) return err(c, 400, 'invalid', 'Add your wedding as an event first.');
+    const invId = crypto.randomUUID();
+    const pid = crypto.randomUUID();
+    const t = new Date().toISOString();
+    await db.batch([
+      db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, seats_held, party, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 'Wedding party', ?, ?)`).bind(invId, wid(c), randomToken(), phone, t, t),
+      db.prepare(`INSERT INTO person (id, invitation_id, idx, name, party_role) VALUES (?, ?, 0, ?, ?)`).bind(pid, invId, body.data.name, body.data.role),
+      db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, first.id),
+      audit(c, 'party.add', pid),
+    ]);
+    return c.json({ ok: true, personId: pid, members: await members(db, wid(c)) }, 201);
   });
 
   /** Give someone a wedding party role (or '' to take it away). */

@@ -68,6 +68,8 @@ export interface Person {
   diet: string;
   table: string | null;
   meal: { entree: string; main: string; dessert: string };
+  /** Their wedding party role ('' when they aren't in it). */
+  role?: string;
 }
 
 export interface Reply {
@@ -515,6 +517,9 @@ export interface PartyData {
 export const plannerApi = {
   party: (wid: string, event?: string) => request<PartyData>(`${w(wid)}/planner/party${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   setRole: (wid: string, personId: string, role: string) => send<{ ok: true; members: PartyMember[] }>('PUT', `${w(wid)}/planner/people/${personId}/role`, { role }),
+  /** Someone new in the wedding party: they join the guest list too (invited to the wedding). */
+  addMember: (wid: string, name: string, mobile: string, role: string) =>
+    send<{ ok: true; personId: string; members: PartyMember[] }>('POST', `${w(wid)}/planner/people`, { name, mobile, role }),
   saveDoc: <T>(wid: string, kind: PlannerKind, scope: string, data: T, version: number) =>
     send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}${scope ? `/${encodeURIComponent(scope)}` : ''}`, data, version),
   aiStatus: (wid: string) => request<{ on: boolean; readsFiles: boolean }>(`${w(wid)}/planner/ask`),
