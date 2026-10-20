@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { accountApi, type Members, type Profile, type ProfilePut, type Role } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
+import { PLAN_INFO } from '@wp/shared';
 import { useUnsavedChanges } from '../leave';
+import { Upgrade, usePlan } from '../Upgrade';
 import { useAdmin } from '../Shell';
 import { ErrorState, H2, inputCls, Label, Loading, Pill, SaveBar, useToast } from '../ui';
 
@@ -108,18 +110,23 @@ export function YourDetails() {
   );
 }
 
-/** Settings → Your plan & billing: the plan this wedding is on (Free for now; paid plans and invoices later). */
+/** Settings → Your plan: the plan this wedding is on, and what upgrading would add. */
 export function PlanAndBilling() {
+  const { plan } = usePlan();
+  const info = PLAN_INFO[plan];
   return (
     <div className="flex flex-col gap-4 max-w-[720px]">
       <section aria-label="Your plan" className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
         <span className="flex flex-col gap-1">
           <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Your plan</span>
-          <span className="font-display text-[28px] leading-tight">Free</span>
+          <span className="font-display text-[28px] leading-tight">{info.name}</span>
         </span>
-        <span className="text-[14px] text-[#5b6a52] max-w-[420px]">Everything in the admin, for as many guests and helpers as you need. Texts are paid to your SMS provider, not to us.</span>
+        <span className="text-[14px] text-[#5b6a52] max-w-[420px]">
+          {plan === 'complete' ? 'Everything is included.' : `${info.price === '$0' ? 'Free' : info.price}. Texts are paid to your SMS provider, not to us.`}
+        </span>
       </section>
-      <p className="m-0 text-[14px] text-[#5b6a52]">No payment details are needed, and there are no invoices yet.</p>
+      {plan === 'free' && <Upgrade feature="planner" compact />}
+      {plan !== 'complete' && <Upgrade feature="photoQr" compact />}
     </div>
   );
 }

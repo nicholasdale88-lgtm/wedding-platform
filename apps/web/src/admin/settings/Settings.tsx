@@ -3,12 +3,14 @@ import { AdminLook } from '../AdminLook';
 import { confirmLeave } from '../leave';
 import { PageHeader, Tabs } from '../ui';
 import { ChangeEmail, PlanAndBilling, TheWedding, YourDetails } from './Account';
+import { Privacy } from './Privacy';
 import { Backup, Passcode, SmsSetup } from './SmsSetup';
 
 const VIEWS = [
   { key: 'details', label: 'Your details' },
   { key: 'people', label: 'Who can sign in' },
-  { key: 'plan', label: 'Plan & billing' },
+  { key: 'privacy', label: 'Privacy' },
+  { key: 'plan', label: 'Your plan' },
   { key: 'texting', label: 'Texting' },
   { key: 'signin', label: 'Sign-in' },
   { key: 'backup', label: 'Backup' },
@@ -36,6 +38,8 @@ export function Settings() {
         <YourDetails />
       ) : view === 'people' ? (
         <TheWedding />
+      ) : view === 'privacy' ? (
+        <Privacy />
       ) : view === 'plan' ? (
         <PlanAndBilling />
       ) : view === 'texting' ? (
