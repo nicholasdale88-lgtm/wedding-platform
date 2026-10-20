@@ -1,10 +1,10 @@
 import type { DayoutGuide, GuideContent, InvitationContent, ReceptionGuide } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Label, Pill, subNavCls, tabCls, useMedia, useToast } from '../ui';
+import { Eyebrow, inputCls, Label, Pill, Rollup, subNavCls, tabCls, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
 import { Events } from '../events/Events';
@@ -365,23 +365,6 @@ const LINERS = [
 const field = (key: string) => INV_FIELDS.find((f) => f.key === key)!;
 const shortUrl = (u: string) => u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40);
 
-/** One optional extra: closed, it shows what's set now; tap to change it. */
-function Fold({ title, now, children }: { title: string; now: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((x) => !x)} className="w-full flex justify-between items-center gap-3 py-3 px-4 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-text,#33402f)]">
-        <span className="flex flex-col min-w-0">
-          <span className="text-[15px] font-semibold">{title}</span>
-          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{now}</span>
-        </span>
-        <span className="text-[13px] underline shrink-0">{open ? 'Done' : 'Change'}</span>
-      </button>
-      {open && <div className="flex flex-col gap-[14px] px-4 pb-4">{children}</div>}
-    </div>
-  );
-}
-
 function InvitationEditor({
   doc,
   n,
@@ -433,7 +416,7 @@ function InvitationEditor({
 
       <Section n={n()} title="Extras" hint="Each shows what’s set now. Tap Change to make it yours; anything you leave keeps the design’s own.">
         <div className="flex flex-col gap-2">
-          <Fold title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
+          <Rollup title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
             <Grid>
               <Label text="Wax seal">
                 <select value={inv.seal ?? 'Sandstone'} onChange={(e) => setInv({ seal: e.target.value as InvitationContent['seal'] })} className={inputCls}>
@@ -474,26 +457,26 @@ function InvitationEditor({
                 </label>
               ))}
             </div>
-          </Fold>
+          </Rollup>
 
-          <Fold title="Photo" now={set(inv.images?.lookout) ? `Your photo: ${shortUrl(inv.images!.lookout!)}` : 'The design’s photo'}>
+          <Rollup title="Photo" now={set(inv.images?.lookout) ? `Your photo: ${shortUrl(inv.images!.lookout!)}` : 'The design’s photo'}>
             <TextField label="Photo (link)" value={inv.images?.lookout ?? ''} placeholder="/seed-media/lookout.jpg" onChange={(v) => setInv({ images: { ...inv.images, lookout: v } })} hint="A link to your photo. Leave it empty for the design’s own." />
-          </Fold>
+          </Rollup>
 
-          <Fold title="Music" now={set(inv.audioUrl) ? `Plays when they open it: ${shortUrl(inv.audioUrl!)}` : 'No music'}>
+          <Rollup title="Music" now={set(inv.audioUrl) ? `Plays when they open it: ${shortUrl(inv.audioUrl!)}` : 'No music'}>
             {text('audioUrl')}
             {inv.audioUrl?.trim() ? <MusicCheck src={inv.audioUrl.trim()} /> : null}
-          </Fold>
+          </Rollup>
 
-          <Fold title="Gifts and registry" now={[set(inv.registryUrl) && `Registry: ${shortUrl(inv.registryUrl!)}`, set(inv.giftAccount) && (inv.giftAccountLabel?.trim() || 'Gift account')].filter(Boolean).join(' · ') || 'Nothing added'}>
+          <Rollup title="Gifts and registry" now={[set(inv.registryUrl) && `Registry: ${shortUrl(inv.registryUrl!)}`, set(inv.giftAccount) && (inv.giftAccountLabel?.trim() || 'Gift account')].filter(Boolean).join(' · ') || 'Nothing added'}>
             <Grid>
               {text('registryUrl')}
               {text('giftAccountLabel')}
               {text('giftAccount')}
             </Grid>
-          </Fold>
+          </Rollup>
 
-          <Fold
+          <Rollup
             title="Directions, email and extra details"
             now={[set(inv.directionsUrl) && 'Directions link', set(inv.rsvpEmail) && inv.rsvpEmail, set(inv.rideTime) && `Activity at ${inv.rideTime}`, doc.names?.monogram && `Monogram ${doc.names.monogram}`].filter(Boolean).join(' · ') || 'Nothing added'}
           >
@@ -503,9 +486,9 @@ function InvitationEditor({
               {text('rideTime')}
               {doc.names && <TextField label="Monogram" value={doc.names.monogram} placeholder="A&B" onChange={(v) => setNames({ ...doc.names!, monogram: v.slice(0, 12) })} />}
             </Grid>
-          </Fold>
+          </Rollup>
 
-          <Fold title="Which parts guests see" now={shown === sections.length ? `All ${sections.length} parts shown` : `${shown} of ${sections.length} parts shown`}>
+          <Rollup title="Which parts guests see" now={shown === sections.length ? `All ${sections.length} parts shown` : `${shown} of ${sections.length} parts shown`}>
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Switch off any part you don’t need. Your wording is kept if you switch it back on.</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
               {sections.map((s) => {
@@ -518,9 +501,9 @@ function InvitationEditor({
                 );
               })}
             </div>
-          </Fold>
+          </Rollup>
 
-          <Fold title="Questions and answers" now={ownLists ? `Your own questions in ${ownLists} ${ownLists === 1 ? 'list' : 'lists'}` : 'The design’s questions'}>
+          <Rollup title="Questions and answers" now={ownLists ? `Your own questions in ${ownLists} ${ownLists === 1 ? 'list' : 'lists'}` : 'The design’s questions'}>
             {INV_LISTS.map((l, i) => {
               const own = inv.lists?.[l.key];
               const label = `${sectionName(l.section)}${INV_LISTS.filter((x) => x.section === l.section).length > 1 ? `, list ${INV_LISTS.filter((x) => x.section === l.section).indexOf(l) + 1}` : ''}`;
@@ -561,7 +544,7 @@ function InvitationEditor({
                 </div>
               );
             })}
-          </Fold>
+          </Rollup>
         </div>
       </Section>
     </>

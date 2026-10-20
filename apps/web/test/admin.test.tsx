@@ -625,7 +625,7 @@ describe('SMS setup tab', () => {
     });
     renderAt('/admin/w1/account/texts');
     expect(await screen.findByText('Texts are live')).toBeInTheDocument();
-    expect(screen.getAllByText('$0.70').length).toBeGreaterThan(0);
+    expect(screen.getByText(/about \$0\.70 for everything planned/)).toBeInTheDocument(); // each step says what's set
     await userEvent.click(screen.getByRole('button', { name: 'Pause all texts' }));
     await waitFor(() => expect(put).toEqual({ body: { paused: true }, v: '7' }));
     expect(await screen.findByText('All texts are paused')).toBeInTheDocument();
@@ -640,7 +640,8 @@ describe('SMS setup tab', () => {
       },
     });
     renderAt('/admin/w1/account/texts');
-    const yes = await screen.findByLabelText('When they reply YES');
+    await userEvent.click(await screen.findByRole('button', { name: /Automatic replies/ })); // the step opens on Change
+    const yes = screen.getByLabelText('When they reply YES');
     await userEvent.clear(yes);
     await userEvent.type(yes, 'Hooray');
     expect(body).toBeUndefined();

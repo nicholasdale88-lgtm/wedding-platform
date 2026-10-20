@@ -3,7 +3,7 @@ import { ApiError, backupsApi, settingsApi, textsApi, type BackupStatus, type Se
 import { fmtWhen } from '../../lib/format';
 import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
-import { inputCls, Label, Pill, SaveBar, useToast } from '../ui';
+import { inputCls, Label, Pill, Rollup, SaveBar, useToast } from '../ui';
 
 /**
  * Account → Texting setup (design: isSettings). Set once and left alone: your sender number and mobile,
@@ -80,15 +80,23 @@ export function SmsSetup() {
         )}
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
-        <section className="flex flex-col gap-[14px]">
-          <h2 className="m-0 font-display font-medium text-[26px]">Connection</h2>
+      <div className="flex flex-col gap-2">
+        <Rollup
+          step={1}
+          start={!s.live}
+          title="Your numbers"
+          now={s.live ? `Guests text ${s.sender} · replies that need you go to ${s.adminMobile || 'nobody yet'}` : 'Add your number and your mobile to start (then send yourself a test)'}
+        >
           <Label text={`Your ${s.provider} number (guests see this and reply to it)`}>
             <input value={val('sender')} onChange={(e) => edit({ sender: e.target.value })} placeholder="04xx xxx xxx" className={inputCls} />
           </Label>
           <Label text="Your mobile (replies that need you are forwarded here; tests go here)">
             <input value={val('adminMobile')} onChange={(e) => edit({ adminMobile: e.target.value })} placeholder="04xx xxx xxx" className={inputCls} />
           </Label>
+          <TestSend wid={wid} hasMobile={!!s.adminMobile} />
+        </Rollup>
+
+        <Rollup step={2} title="When texts go out" now={`${hourLabel(s.quietStart)} to ${hourLabel(s.quietEnd)} your time · up to ${s.dailyCap} a day · with the opt-out line`}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Label text="Send from">
               <select value={val('quietStart')} onChange={(e) => edit({ quietStart: Number(e.target.value) })} className={inputCls}>
@@ -115,11 +123,9 @@ export function SmsSetup() {
           <Label text="Opt-out line added to every text (required by the Spam Act)">
             <input value={val('optOutFooter')} onChange={(e) => edit({ optOutFooter: e.target.value })} className={inputCls} />
           </Label>
-          <TestSend wid={wid} hasMobile={!!s.adminMobile} />
-        </section>
+        </Rollup>
 
-        <section className="flex flex-col gap-[14px]">
-          <h2 className="m-0 font-display font-medium text-[26px]">What it will cost</h2>
+        <Rollup step={3} title="What it will cost" now={`${(s.rateX100 / 100).toFixed(2)}¢ a text · about ${money(s.planTotalCents)} for everything planned`}>
           <Label text="Price per text, in cents incl. GST">
             <input type="number" step="0.01" min="0" value={val('rateX100') / 100} onChange={(e) => edit({ rateX100: Math.round(Number(e.target.value) * 100) })} className={inputCls} />
           </Label>
@@ -141,24 +147,23 @@ export function SmsSetup() {
               <span>{money(s.planTotalCents)}</span>
             </div>
           </div>
-        </section>
-      </div>
+        </Rollup>
 
-      <section className="flex flex-col gap-[14px]">
-        <h2 className="m-0 font-display font-medium text-[26px]">Automatic replies</h2>
-        <p className="m-0 text-[14px] text-[#5b6a52]">Sent when a guest texts back. {'{first}'}, {'{event}'} and {'{link}'} are filled in for each guest. STOP always unsubscribes them, whatever you write here.</p>
-        {(
-          [
-            ['yes', 'When they reply YES'],
-            ['no', 'When they reply NO'],
-            ['multi', 'When they are invited to more than one event'],
-          ] as const
-        ).map(([k, label]) => (
-          <Label key={k} text={label}>
-            <textarea rows={2} value={draft.replies?.[k] ?? s.replies[k]} onChange={(e) => edit({ replies: { [k]: e.target.value } })} className={`${inputCls} resize-y`} />
-          </Label>
-        ))}
-      </section>
+        <Rollup step={4} title="Automatic replies" now={`When they reply YES: “${s.replies.yes.slice(0, 60)}${s.replies.yes.length > 60 ? '…' : ''}”`}>
+          <p className="m-0 text-[14px] text-[#5b6a52]">Sent when a guest texts back. {'{first}'}, {'{event}'} and {'{link}'} are filled in for each guest. STOP always unsubscribes them, whatever you write here.</p>
+          {(
+            [
+              ['yes', 'When they reply YES'],
+              ['no', 'When they reply NO'],
+              ['multi', 'When they are invited to more than one event'],
+            ] as const
+          ).map(([k, label]) => (
+            <Label key={k} text={label}>
+              <textarea rows={2} value={draft.replies?.[k] ?? s.replies[k]} onChange={(e) => edit({ replies: { [k]: e.target.value } })} className={`${inputCls} resize-y`} />
+            </Label>
+          ))}
+        </Rollup>
+      </div>
 
       {dirty && <SaveBar busy={busy} onDiscard={() => setDraft({})} onSave={() => void save(draft)} />}
     </div>

@@ -304,3 +304,26 @@ export function useAutoRefresh(refresh: () => unknown, ms = 30_000, enabled = tr
     };
   }, [ms, enabled]);
 }
+
+/**
+ * A roll-up: one setting (or a step of a setup) that shows what's set now, and opens on Change. Steps
+ * get their number; `start` opens it to begin with (a step still to do).
+ */
+export function Rollup({ title, now, step, start = false, children }: { title: string; now: string; step?: number; start?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(start);
+  return (
+    <div className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((x) => !x)} className="w-full flex justify-between items-center gap-3 py-3 px-4 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-text,#33402f)]">
+        <span className="flex items-center gap-3 min-w-0">
+          {step !== undefined && <span className="w-[26px] h-[26px] rounded-full bg-[var(--adm-text,#33402f)] text-[#f3ecd6] text-[13px] font-semibold flex items-center justify-center shrink-0">{step}</span>}
+          <span className="flex flex-col min-w-0">
+            <span className="text-[15px] font-semibold">{title}</span>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{now}</span>
+          </span>
+        </span>
+        <span className="text-[13px] underline shrink-0">{open ? 'Done' : 'Change'}</span>
+      </button>
+      {open && <div className="flex flex-col gap-[14px] px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
