@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
-import { chipCls, Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
+import { Eyebrow, inputCls, Label, Pill, subNavCls, tabCls, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
 import { Events } from '../events/Events';
@@ -254,19 +254,19 @@ export function GuestPages() {
       )}
 
       <div className="flex gap-2 flex-wrap items-center">
-        <div className={wide ? 'flex gap-2 flex-wrap' : 'flex gap-2 overflow-x-auto [scrollbar-width:none] -mx-4 px-4 w-[calc(100%+32px)]'}>
+        <nav aria-label="Setup" className={subNavCls}>
           {pages.map((p) => (
             <button
               key={p.key}
               type="button"
               aria-pressed={p.key === page}
               onClick={() => setParam('page', p.key === pages[0]?.key ? '' : p.key)}
-              className={chipCls(p.key === page)}
+              className={tabCls(p.key === page)}
             >
               {p.label}
             </button>
           ))}
-        </div>
+        </nav>
         <Label text="Preview as" className="!flex-row items-center gap-2 ml-auto">
           <select value={sample?.token ?? ''} onChange={(e) => setParam('as', e.target.value)} className={`${inputCls} !py-2`}>
             <option value="">{page === 'invitation' ? 'Someone without their link' : 'A sample guest'}</option>

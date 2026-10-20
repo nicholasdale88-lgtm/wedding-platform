@@ -61,7 +61,7 @@ export function Pill({ kind = 'secondary', size, className = '', ...props }: But
 /** One row of underlined tabs (Guest planning, Setup pages…): each is a button or a link the caller renders. */
 export function Tabs<K extends string>({ label, items, value, onChange }: { label: string; items: readonly { key: K; label: ReactNode }[]; value: K; onChange: (k: K) => void }) {
   return (
-    <div role="tablist" aria-label={label} className="flex gap-6 border-b border-[#e2d7bc] overflow-x-auto [scrollbar-width:none]">
+    <div role="tablist" aria-label={label} className={subNavCls}>
       {items.map((t) => (
         <button key={t.key} type="button" role="tab" aria-selected={t.key === value} onClick={() => onChange(t.key)} className={tabCls(t.key === value)}>
           {t.label}
@@ -70,10 +70,14 @@ export function Tabs<K extends string>({ label, items, value, onChange }: { labe
     </div>
   );
 }
-/** The look of one tab, for tabs that are links (NavLink) rather than buttons. */
+/**
+ * Every page's own menu looks like the Wedding party's: pills in a soft rounded bar, the page you're on
+ * filled. On a phone the bar scrolls sideways; wider, it wraps. `subNavCls` is the bar, `tabCls` each pill.
+ */
+export const subNavCls = 'flex gap-1 overflow-x-auto [scrollbar-width:none] p-1 rounded-[22px] bg-[#efe7d3] self-start max-w-full min-[760px]:flex-wrap';
 export const tabCls = (on: boolean) =>
-  `flex-none py-2 px-0 bg-transparent border-0 border-b-2 border-solid no-underline text-[15px] -mb-px cursor-pointer whitespace-nowrap ${
-    on ? 'border-[var(--adm-ink,#33402f)] font-semibold !text-[var(--adm-ink,#33402f)]' : 'border-transparent !text-[#5b6a52] hover:!text-[var(--adm-ink,#33402f)]'
+  `flex-none whitespace-nowrap py-[7px] px-4 rounded-full border-0 text-[14px] no-underline cursor-pointer ${
+    on ? 'bg-[var(--adm-ink,#33402f)] !text-[#f3ecd6] font-medium' : 'bg-transparent !text-[var(--adm-ink,#33402f)] hover:bg-[#e2d7bc]'
   }`;
 
 /** Filter chips: one choice from a few (quick filters, the photo album's people, the device preview…). */

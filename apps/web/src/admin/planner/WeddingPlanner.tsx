@@ -5,7 +5,7 @@ import { plannerApi } from '../../lib/api';
 import { confirmLeave } from '../leave';
 import { InstallApp } from '../../lib/InstallApp';
 import { useAdmin } from '../Shell';
-import { H2, useMedia } from '../ui';
+import { H2, subNavCls, tabCls } from '../ui';
 import { Gate } from '../Upgrade';
 import { Assistant } from './Assistant';
 import { Budget } from './Budget';
@@ -74,11 +74,7 @@ export function WeddingPlanner() {
 function Planner() {
   const [params, setParams] = useSearchParams();
   const view = (VIEWS.find(([k]) => k === params.get('view'))?.[0] ?? 'glance') as View;
-  const [more, setMore] = useState(false);
-  const mob = useMedia('(max-width: 759px)');
-  const label = VIEWS.find(([k]) => k === view)?.[1] ?? 'Overview';
   const go = (v: View) => {
-    setMore(false);
     if (!confirmLeave()) return; // unsaved budget, transport or run-sheet edits
     const n = new URLSearchParams(params);
     if (v === 'glance') n.delete('view');
@@ -90,62 +86,14 @@ function Planner() {
       <header>
         <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Wedding planner</h1>
       </header>
-      {/* Phones: one button with the page you're on, opening every page in its group. Wider: all of them, wrapping to fit. */}
-      {mob ? (
-        <nav aria-label="Wedding planner" className="relative">
-          <button
-            type="button"
-            aria-expanded={more}
-            onClick={() => setMore(!more)}
-            className="w-full flex justify-between items-center py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f0] text-[16px] font-semibold text-[#33402f] cursor-pointer"
-          >
-            {label}
-            <span aria-hidden className="text-[13px] font-normal text-[#5b6a52]">
-              {more ? 'Close ▴' : 'All planner pages ▾'}
-            </span>
+      {/* The same menu as every page's: pills in a soft bar (scrolling sideways on a phone). */}
+      <nav aria-label="Wedding planner" className={subNavCls}>
+        {VIEWS.map(([k, l]) => (
+          <button key={k} type="button" aria-current={view === k ? 'page' : undefined} onClick={() => go(k)} className={tabCls(view === k)}>
+            {l}
           </button>
-          {more && (
-            <div className="mt-2 flex flex-col gap-3 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] shadow-[0_10px_30px_rgba(51,64,47,.12)]">
-              {GROUPS.map((g) => (
-                <div key={g.title} className="flex flex-col gap-1">
-                  <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{g.title}</span>
-                  <div className="grid grid-cols-2 gap-1">
-                    {g.views.map(([k, l]) => (
-                      <button
-                        key={k}
-                        type="button"
-                        aria-current={view === k ? 'page' : undefined}
-                        onClick={() => go(k)}
-                        className={`text-left py-2 px-3 rounded-[10px] border text-[14px] cursor-pointer ${view === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f0] font-semibold' : 'border-[#e2d7bc] bg-white text-[#33402f]'}`}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </nav>
-      ) : (
-        <nav aria-label="Wedding planner" className="flex flex-wrap items-center gap-x-5 gap-y-2 pb-3 border-b border-[#e2d7bc]">
-          {GROUPS.map((g, gi) => (
-            <div key={g.title} role="group" aria-label={g.title} className={`flex flex-wrap items-center gap-1 ${gi ? 'pl-5 border-l border-[#e2d7bc]' : ''}`}>
-              {g.views.map(([k, l]) => (
-                <button
-                  key={k}
-                  type="button"
-                  aria-current={view === k ? 'page' : undefined}
-                  onClick={() => go(k)}
-                  className={`py-[6px] px-3 rounded-full border text-[14px] cursor-pointer whitespace-nowrap ${view === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f0] font-semibold' : 'border-transparent bg-transparent text-[#33402f] hover:border-[#d3c6a4]'}`}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-          ))}
-        </nav>
-      )}
+        ))}
+      </nav>
       {view === 'glance' ? <Glance go={go} /> : view === 'insights' ? <Insights /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );

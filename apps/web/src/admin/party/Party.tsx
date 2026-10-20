@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
 import { confirmLeave, useUnsavedChanges } from '../leave';
 import { useAdmin, useSectionName } from '../Shell';
-import { Eyebrow, H2, inputCls, Pill, useToast } from '../ui';
+import { Eyebrow, H2, inputCls, Pill, subNavCls, tabCls, useToast } from '../ui';
 import { CoupleChecklists } from './CoupleChecklists';
 import { PartyAccess } from './PartyAccess';
 import { PartyOverview } from './PartyOverview';
@@ -105,14 +105,14 @@ export function Party() {
 /** The five views as a switcher at the top (on a phone it scrolls sideways). */
 function PartyBar({ view, go, sides }: { view: PartyView; go: (v: PartyView) => void; sides: { p1: string; p2: string } }) {
   return (
-    <nav aria-label="Wedding party" className="flex gap-1 overflow-x-auto [scrollbar-width:none] p-1 rounded-full bg-[#efe7d3] self-start max-w-full">
+    <nav aria-label="Wedding party" className={subNavCls}>
       {PARTY_VIEWS.map((v) => (
         <button
           key={v}
           type="button"
           aria-current={v === view ? 'page' : undefined}
           onClick={() => go(v)}
-          className={`flex-none whitespace-nowrap py-[7px] px-4 rounded-full border-0 text-[14px] cursor-pointer ${v === view ? 'bg-[#33402f] text-[#f3ecd6] font-medium' : 'bg-transparent text-[#33402f] hover:bg-[#e2d7bc]'}`}
+          className={tabCls(v === view)}
         >
           {partyViewLabel(v, sides)}
         </button>

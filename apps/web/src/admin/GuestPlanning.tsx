@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAdmin } from './Shell';
-import { tabCls } from './ui';
+import { subNavCls, tabCls } from './ui';
 
 /**
  * Guest planning: the guest list, dietary needs and seating are one piece of work, so they share one
@@ -15,7 +15,7 @@ export function GuestPlanningBar() {
     { key: 'seating', label: 'Seating' },
   ];
   return (
-    <nav aria-label="Guest planning" className="flex gap-6 border-b border-[#e2d7bc] -mt-1 overflow-x-auto [scrollbar-width:none]">
+    <nav aria-label="Guest planning" className={subNavCls}>
       {tabs.map((t) => (
         <NavLink
           key={t.key}
