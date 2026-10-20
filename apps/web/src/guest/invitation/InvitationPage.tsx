@@ -20,6 +20,8 @@ export function InvitationPage() {
   const [params] = useSearchParams();
   const token = params.get('g');
   const preview = params.get('preview') === '1';
+  // Straight after signing up: their own invitation first, then "Make it yours".
+  const welcome = preview && params.get('welcome') === '1';
   const [data, setData] = useState<InvitePayload | null>(null);
   const [error, setError] = useState('');
 
@@ -32,10 +34,10 @@ export function InvitationPage() {
 
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
-  return <Loaded slug={slug} data={data} preview={preview} />;
+  return <Loaded slug={slug} data={data} preview={preview} welcome={welcome} />;
 }
 
-function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; preview: boolean }) {
+function Loaded({ slug, data, preview, welcome = false }: { slug: string; data: InvitePayload; preview: boolean; welcome?: boolean }) {
   const { v: base, t, phase, guestToken, inParty } = useInvitation(slug, data, preview);
   // Invited only to the second event (the birthday): its own invitation, without the wedding's sections.
   const solo = data.invitation && !data.events.some((e) => e.slot === 0) ? data.events.find((e) => e.slot === 1) : undefined;
@@ -71,6 +73,16 @@ function Loaded({ slug, data, preview }: { slug: string; data: InvitePayload; pr
       />
       {/* Once the envelope is open: a guest with their own link can write to the couple (Account → Messages), and
           the wedding party has a link to their own run sheet. */}
+      {welcome && phase >= 3 && (
+        <div role="status" className="fixed z-50 inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] mx-auto max-w-[520px] flex items-center gap-3 p-4 rounded-[18px] bg-[#33402f] text-[#fbf8f2] shadow-[0_12px_30px_rgba(0,0,0,.3)]">
+          <span className="flex-1 text-[15px] leading-snug">
+            This is your invitation, as a guest will see it. Change the words, colours, photos and music any time.
+          </span>
+          <a href="/admin" className="flex-none py-[10px] px-4 rounded-full bg-[#e9c97c] !text-[#1d211b] no-underline font-semibold text-[15px]">
+            Make it yours
+          </a>
+        </div>
+      )}
       {token && phase >= 3 && <MessageUs slug={slug} token={token} ink={themeOf(data.wedding.theme, data.content.custom).dg} />}
       {token && phase >= 3 && inParty && (
         <a

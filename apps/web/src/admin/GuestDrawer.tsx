@@ -157,12 +157,13 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
   }
 
   async function remove() {
-    if (!d || !window.confirm(`Remove ${g.people[0]?.name || 'this guest'}?`)) return;
+    // No "are you sure?": Undo on the note that follows brings them straight back.
+    if (!d) return;
     try {
       await api.removeGuest(wid, g.id);
       onClose();
       await onChanged();
-      toast('Guest removed', {
+      toast(`${g.people[0]?.name || 'Guest'} removed`, {
         label: 'Undo',
         run: () => void api.restoreGuest(wid, g.id).then(onChanged, (e: Error) => toast(e.message)),
       });

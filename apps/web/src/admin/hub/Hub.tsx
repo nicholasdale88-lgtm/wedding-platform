@@ -252,7 +252,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
         <Card title="Everything else">
           <div className="grid grid-cols-2 gap-2">
             <Tile label="Unread messages" value={o.nav.messages ?? 0} go={() => to('messages', 'all')} warn={(o.nav.messages ?? 0) > 0} />
-            <Tile label="Texts on autopilot" value={o.nav.smsLive ? o.nav.autopilot : 'Off'} go={() => to('texts', o.nav.smsLive ? first?.key : 'all')} warn={!o.nav.smsLive} />
+            <Tile label="Texts sending automatically" value={o.nav.smsLive ? o.nav.autopilot : 'Off'} go={() => to('texts', o.nav.smsLive ? first?.key : 'all')} warn={!o.nav.smsLive} />
             {ins && <Tile label="Texts sent" value={ins.texts.sent} sub={ins.texts.failed ? `${ins.texts.failed} failed` : undefined} go={() => to('texts', first?.key)} warn={ins.texts.failed > 0} />}
             {ins && ins.seating.seats > 0 && <Tile label="Seated" value={`${ins.seating.seated}/${ins.seating.seats}`} go={() => to('seating', first?.key)} />}
             {ins && <Tile label="Guest photos" value={ins.guests.photos} go={() => to('photos', first?.key)} />}

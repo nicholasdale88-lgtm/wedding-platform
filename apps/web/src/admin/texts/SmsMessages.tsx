@@ -55,7 +55,7 @@ export function SmsMessages() {
   const toggle = async (c: Campaign) => {
     try {
       await textsApi.patch(wid, c, { enabled: !c.enabled });
-      toast(c.enabled ? `${c.name} switched off` : `${c.name} is on autopilot`);
+      toast(c.enabled ? `${c.name} switched off` : `${c.name} will send automatically`);
       await load();
       void reloadOverview();
     } catch (e) {
@@ -293,7 +293,7 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
             type="button"
             role="switch"
             aria-checked={c.enabled}
-            aria-label={`Autopilot: ${c.name}`}
+            aria-label={`Send automatically: ${c.name}`}
             onClick={onToggle}
             className={`relative w-[44px] h-[26px] rounded-full border-0 cursor-pointer transition-colors ${c.enabled ? 'bg-[var(--adm-accent,#5d6b47)]' : 'bg-[#d3c6a4]'}`}
           >
