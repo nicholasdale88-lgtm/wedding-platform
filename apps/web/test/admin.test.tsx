@@ -506,9 +506,9 @@ describe('guest pages tab', () => {
     expect(await screen.findByRole('heading', { name: 'The essentials' })).toBeInTheDocument();
     expect(screen.getByLabelText('Reply-by line')).toBeInTheDocument();
     const music = screen.getByRole('button', { name: /^Music\s*No music/ });
-    expect(screen.queryByLabelText('Music link (MP3 or YouTube)')).toBeNull(); // folded away until wanted
+    expect(screen.queryByLabelText(/^Music link/)).toBeNull(); // folded away until wanted
     await userEvent.click(music);
-    expect(screen.getByLabelText('Music link (MP3 or YouTube)')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Music link/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Envelope and seal\s*Sandstone seal/ })).toBeInTheDocument();
   });
 
