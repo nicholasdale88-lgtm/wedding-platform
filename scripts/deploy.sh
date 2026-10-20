@@ -96,8 +96,13 @@ echo "::endgroup::"
 
 echo "::group::4. Website address"
 cf "/pages/projects/$PROJECT" >/dev/null 2>&1 || json_post /pages/projects "{\"name\":\"$PROJECT\",\"production_branch\":\"main\"}" >/dev/null
-SITE="https://$(cf "/pages/projects/$PROJECT" | jq -r '.result.subdomain')"
-echo "Site: $SITE"
+PAGES_SITE="https://$(cf "/pages/projects/$PROJECT" | jq -r '.result.subdomain')"
+# Your own domain, once bought: set the SITE_URL repository variable (e.g. https://ventralp.com.au). New links
+# use it; the pages.dev address keeps working, so every link already texted still opens. The data is in the
+# database (found by its name above), never tied to an address, so changing this never touches it.
+SITE="${SITE_URL:-$PAGES_SITE}"
+SITE="${SITE%/}"
+echo "Site: $SITE (also $PAGES_SITE)"
 echo "::endgroup::"
 
 echo "::group::5. API Worker"
@@ -124,7 +129,8 @@ echo "::endgroup::"
 
 echo "::group::7. Health check"
 for i in $(seq 1 20); do
-  if curl -fsS "$SITE/api/health" | grep -q '"ok":true'; then
+  # Checked on the pages.dev address, which always answers (your own domain may still be waiting for DNS).
+  if curl -fsS "$PAGES_SITE/api/health" | grep -q '"ok":true'; then
     echo "Live: $SITE"
     {
       echo "### Live site"

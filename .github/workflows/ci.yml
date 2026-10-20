@@ -117,6 +117,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL }}
           SEED_OWNER_EMAIL: ${{ secrets.SEED_OWNER_EMAIL }}
           SEED_OWNER_PASSCODE: ${{ secrets.SEED_OWNER_PASSCODE }}
           SUPER_ADMINS: ${{ secrets.SEED_OWNER_EMAIL }}

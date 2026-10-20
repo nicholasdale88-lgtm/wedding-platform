@@ -152,3 +152,25 @@ Add each provider's keys as GitHub repository secrets. The next deploy switches 
 | OneDrive (Azure app registration) | `MS_CLIENT_ID`, `MS_CLIENT_SECRET` |
 
 Refresh tokens are stored sealed (AES-GCM, with a key derived from `SESSION_SECRET`), so rotating `SESSION_SECRET` means linking again. Each link reaches only the folder the site creates (Drive `drive.file`; the Dropbox and OneDrive app folders; Google Photos append-only).
+
+## Moving to your own domain (nothing is lost)
+
+Guests, replies, plans, photos and settings live in the D1 database `wedding-db`, which the deploy finds by
+its name. The website's address isn't part of it, so changing the address can't wipe or reset anything.
+The deploy only ever adds what's missing, and seeds only an empty database.
+
+1. Buy the domain (Cloudflare Registrar is simplest) and add it to the Pages project `wedding-platform-nd`
+   as a custom domain (Pages → Custom domains). Wait until it shows Active.
+2. In GitHub: repository → Settings → Secrets and variables → Actions → **Variables** → add `SITE_URL`,
+   for example `https://ventralp.com.au` (no slash at the end). The next deploy uses it for every new link.
+3. Keep the `pages.dev` address: it keeps working, so every link already texted or emailed still opens.
+4. Never change `SESSION_SECRET`. Linked Google Drive, Dropbox and OneDrive connections and wedding party
+   sign-in links are sealed with it.
+5. Add the new address's redirect URI (`https://<your domain>/api/oauth/callback`) in Google Cloud,
+   Dropbox and Azure, beside the old one. Connections already made keep working either way.
+6. Update the Mobile Message (or Texto) webhook URLs to the new domain, or leave them on `pages.dev`.
+   Both work.
+7. Everyone signs in again once on the new address (sign-ins are per address). No data changes.
+
+Before any change, Cloudflare D1 Time Travel can put the database back to any minute of the last 30 days,
+and each deploy prints a restore point first. There's also the daily backup to your own storage.
