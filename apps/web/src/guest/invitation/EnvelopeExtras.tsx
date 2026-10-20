@@ -72,6 +72,8 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, date, place, i
   const writing = lightOn(colours.envelope) ? '#fbf6ea' : colours.ink;
   const liner = opts.liner ?? 'floral';
   const ribbon = opts.ribbon ?? 'none';
+  // The stamp has room for initials: "Alex & Sam" → "A&S".
+  const short = initials.length <= 7 ? initials : initials.split(/\s*&\s*|\s+and\s+/i).map((w) => w.trim().charAt(0).toUpperCase()).filter(Boolean).join('&');
   // The seal's size in the design (a gap is left for it in the ribbon).
   const seal = 'clamp(96px,24vmin,150px)';
   return (
@@ -132,10 +134,10 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, date, place, i
 
       {/* A postage stamp and postmark in the top right. */}
       {opts.stamp !== false && (
-        <div className="absolute" style={{ ...front, top: 'max(18px, 4vmin)', right: 'max(18px, 4vmin)', width: 'clamp(64px,14vmin,104px)' }}>
+        <div className="absolute" style={{ ...front, top: 'max(18px, 4vmin)', right: 'max(18px, 4vmin)', width: 'clamp(96px,24vmin,150px)' }}>
           <svg viewBox="0 0 120 100" className="w-full h-auto overflow-visible">
             {/* Postmark: a ring with the date and place, and wavy lines. */}
-            <g transform="translate(-34 30)" opacity=".62" fill="none" stroke={writing} strokeWidth="1.4">
+            <g transform="translate(-34 30)" opacity=".78" fill="none" stroke={writing} strokeWidth="1.4">
               <circle cx="40" cy="30" r="24" />
               <circle cx="40" cy="30" r="17" strokeDasharray="2 2" />
               {[0, 7, 14].map((dy) => (
@@ -167,7 +169,7 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, date, place, i
               <circle cx="37" cy="38" r="18" fill={colours.paper} opacity=".9" />
               <path d="M37 30 c-4 -7 -14 -3 -10 5 c2 4 10 9 10 9 s8 -5 10 -9 c4 -8 -6 -12 -10 -5z" fill={colours.accent} />
               <text x="37" y="72" textAnchor="middle" fontSize="11" fill={colours.ink} fontFamily="'Pinyon Script', cursive">
-                {initials}
+                {short}
               </text>
               <text x="62" y="18" textAnchor="end" fontSize="8" fill={colours.ink} fontFamily="'Cormorant Garamond', Georgia, serif" fontWeight="600">
                 $1
