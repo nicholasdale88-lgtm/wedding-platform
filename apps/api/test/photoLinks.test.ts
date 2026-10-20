@@ -50,6 +50,7 @@ describe('photo links', () => {
       if (url.includes('get_current_account')) return ok({ email: 'couple@example.com' });
       if (url.includes('/files/upload')) return dropboxDown ? new Response('busy', { status: 503 }) : ok({ id: `id:${sent.length}` });
       if (url.includes('/files/download')) return new Response(JPEG, { status: 200 });
+      if (url.includes('/files/create_folder_v2')) return dropboxDown ? new Response('busy', { status: 503 }) : ok({ metadata: { path_display: JSON.parse(String(init?.body ?? '{}')).path } });
       return new Response('unexpected', { status: 500 });
     });
   });
@@ -92,7 +93,7 @@ describe('photo links', () => {
     expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM photo_link`).first<{ n: number }>())!.n).toBe(1);
   });
 
-  it('with no site storage, a guest photo is saved in Dropbox (in its event folder) and the couple can open it', async () => {
+  it('with no site storage, a guest photo is saved in Dropbox (filed in Photos, in its event folder) and the couple can open it', async () => {
     const g = await guestToken();
     // Nothing linked: closed.
     expect((await call(`/p/sophie-and-nicholas/photos?g=${g}&event=wedding`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: JPEG })).status).toBe(503);
@@ -100,7 +101,7 @@ describe('photo links', () => {
     const up = await call(`/p/sophie-and-nicholas/photos?g=${g}&event=wedding`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-By': 'Ella' }, body: JPEG });
     expect(up.status).toBe(200);
     const arg = JSON.parse(sent.find((s) => s.url.includes('/files/upload'))!.arg!) as { path: string };
-    expect(arg.path).toMatch(/^\/[^/]+\/\d{4}-\d\d-\d\d \d\d-\d\d Ella\.jpg$/);
+    expect(arg.path).toMatch(/^\/[^/]+ wedding\/Photos\/[^/]+\/\d{4}-\d\d-\d\d \d\d-\d\d Ella\.jpg$/);
     const list = (await (await call(`/a/w/${wid}/photos`)).json()) as { enabled: boolean; items: { url: string }[] };
     expect(list.enabled).toBe(true);
     const img = await call(list.items[0]!.url.replace('/api', ''));
@@ -151,8 +152,29 @@ describe('photo links', () => {
     expect(row!.remote).toMatch(/^link:/);
     expect(row!.n).toBe(0); // nothing kept on the site
     const arg = JSON.parse(sent.filter((s) => s.url.includes('/files/upload')).pop()!.arg!) as { path: string };
-    expect(arg.path).toMatch(/wedding planning\/Florist quote\.pdf$/);
+    expect(arg.path).toMatch(/ wedding\/Planning files\/Florist quote\.pdf$/);
     expect((await call(`/a/w/${wid}/planner/files/${id}`)).status).toBe(200);
+  });
+
+  it('a new link is filed straight away (Photos per event, Planning files, Signs and print, Backups), and a backup goes to Backups', async () => {
+    await link();
+    const { links } = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { id: string; filed: boolean }[] };
+    const made = (await (await call(`/a/w/${wid}/photo-links/${links[0]!.id}/folders`, { method: 'POST', body: '{}' })).json()) as { folders: string[] };
+    expect(made.folders).toEqual(expect.arrayContaining(['Photos', 'Planning files', 'Signs and print', 'Backups']));
+    expect(made.folders[0]).toMatch(/ wedding$/);
+    const folders = sent.filter((x) => x.url.includes('create_folder_v2')).length;
+    expect(folders).toBeGreaterThanOrEqual(5);
+    expect(((await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { filed: boolean }[] }).links[0]!.filed).toBe(true);
+    const st = (await (await call(`/a/w/${wid}/settings/backups`)).json()) as { linked: string | null };
+    expect(st.linked).toBe('Dropbox');
+    const now = await call(`/a/w/${wid}/settings/backups/now`, { method: 'POST', body: '{}' });
+    expect(now.status).toBe(200);
+    const arg = JSON.parse(sent.filter((x) => x.url.includes('/files/upload')).pop()!.arg!) as { path: string };
+    expect(arg.path).toMatch(/ wedding\/Backups\/\d{4}-\d\d-\d\d sophie-and-nicholas backup\.json$/);
+    expect(((await (await call(`/a/w/${wid}/settings/backups`)).json()) as { last: string | null }).last).not.toBeNull();
+    // The cron doesn't back up again the same day.
+    const { runBackups } = await import('../src/lib/backup');
+    expect(await runBackups(env)).toEqual({ due: 0, done: 0 });
   });
 
   it('a token sealed under another secret is useless', async () => {
