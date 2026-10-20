@@ -90,7 +90,7 @@ export const ACCOUNT_TABS = [
 export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'planner', label: 'Wedding planner' }, // the first event's section only (budget, vendors, assistant…)
-  { key: 'guests', label: 'Guests' }, // guest list, dietary and seating together (GuestPlanningBar)
+  { key: 'guests', label: 'Guest list' }, // guest list, dietary and seating together (GuestPlanningBar)
   { key: 'messages', label: 'Messages' }, // this event's guests' messages (Account has the overview)
   { key: 'party', label: 'Wedding party' }, // the first event's section only (its views open under it)
   { key: 'day', label: 'Party checklist' }, // every other event (a birthday has no wedding party)
