@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
-import { readJson } from '../lib/security';
+import { readJson, safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { changeDoc, readDoc } from './planner';
 
@@ -31,7 +31,7 @@ export function coordinatorAdminRoutes() {
   app.get('/', async (c) => {
     const w = await coordOf(c.env.DB, 'id = ?', c.req.param('wid')!);
     if (!w) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    return c.json(out(c, w.slug, w.c ? (JSON.parse(w.c) as Coord) : null));
+    return c.json(out(c, w.slug, w.c ? safeJson<Coord | null>(w.c, null) : null));
   });
   /** On (with their name; "new link" makes a fresh one), or off. */
   app.put('/', requireMember('owner', 'editor'), async (c) => {
@@ -39,7 +39,7 @@ export function coordinatorAdminRoutes() {
     if (!b.success) return c.json({ error: { code: 'invalid', message: 'That didn’t save.' } }, 400);
     const w = await coordOf(c.env.DB, 'id = ?', c.req.param('wid')!);
     if (!w) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    const cur = w.c ? (JSON.parse(w.c) as Coord) : null;
+    const cur = w.c ? safeJson<Coord | null>(w.c, null) : null;
     const next: Coord | null = b.data.on ? { key: !cur?.key || b.data.fresh ? randomToken(24) : cur.key, name: b.data.name ?? cur?.name ?? '' } : null;
     await c.env.DB.prepare(next ? `UPDATE wedding SET content = json_set(content, '$.coordinator', json(?)) WHERE id = ?` : `UPDATE wedding SET content = json_remove(content, '$.coordinator') WHERE id = ?`)
       .bind(...(next ? [JSON.stringify(next), w.id] : [w.id]))
@@ -53,7 +53,7 @@ export function coordinatorPageRoutes() {
   const app = new Hono<{ Bindings: Env }>();
   const check = async (c: Context<{ Bindings: Env }>, k: string) => {
     const w = await coordOf(c.env.DB, 'slug = ?', c.req.param('slug') ?? '');
-    const co = w?.c ? (JSON.parse(w.c) as Coord) : null;
+    const co = w?.c ? safeJson<Coord | null>(w.c, null) : null;
     return w && co?.key && k.length >= 20 && k === co.key ? { w, co } : null;
   };
 

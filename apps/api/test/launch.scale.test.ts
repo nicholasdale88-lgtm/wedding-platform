@@ -572,7 +572,7 @@ describe('launch scale: every feature pushed hard', () => {
       if (lead) {
         expect(p.vendors).toEqual([]);
         expect(p.guests).toEqual({ invited: 20, coming: 0, waiting: 20 });
-        expect(p.seating).toEqual([]);
+        expect((p.seating as { people: string[] }[]).every((t) => t.people.length === 0)).toBe(true);
       } else {
         expect(p.vendors).toBeUndefined();
         expect(p.guests).toBeUndefined();

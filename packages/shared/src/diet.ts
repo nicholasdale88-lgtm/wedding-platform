@@ -65,7 +65,8 @@ export function splitDiet(diet: string, people: string[]): string[] {
     const lead = tidy(clause.slice(0, hits[0]!.index));
     if (lead) out[current]!.push(lead);
     hits.forEach((h, i) => {
-      current = who(h[1]!);
+      const found = who(h[1]!);
+      if (found >= 0) current = found;
       const part = tidy(clause.slice(h.index, hits[i + 1]?.index ?? clause.length), h[1]);
       if (part) out[current]!.push(part);
     });

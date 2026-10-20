@@ -2,7 +2,7 @@ import { dropControls } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { imageType } from '../lib/images';
 import { z } from 'zod';
-import { MAX_PHOTO, readBytes, readJson } from '../lib/security';
+import { MAX_PHOTO, readBytes, readJson, safeJson } from '../lib/security';
 import { canStore, linkKey, mediaResponse, openPhoto, storePhoto, thumbResponse } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -24,7 +24,7 @@ export function photoRoutes() {
   /** Photos → Frames and looks: which ones guests are offered, and the look they start on. */
   app.get('/looks', async (c) => {
     const r = await c.env.DB.prepare(`SELECT json_extract(content, '$.photoLooks') AS l FROM wedding WHERE id = ?`).bind(c.req.param('wid')).first<{ l: string | null }>();
-    return c.json(r?.l ? JSON.parse(r.l) : {});
+    return c.json(r?.l ? safeJson<Record<string, unknown>>(r.l, {}) : {});
   });
   app.put('/looks', requireMember('owner', 'editor'), async (c) => {
     const key = z.string().regex(/^[a-z]{3,12}$/);

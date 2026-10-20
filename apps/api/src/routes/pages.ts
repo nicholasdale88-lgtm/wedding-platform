@@ -80,7 +80,7 @@ export function pagesRoutes() {
       invitation: inv.success ? inv.data : {},
       guides: guidesOf(parse(w.guide, {}), evs.map((e) => e.key)),
       // The secret preview code (Setup → Share a preview), admins only.
-      share: typeof content.previewShare === 'string' ? content.previewShare : null,
+      share: c.get('role') !== 'viewer' && typeof content.previewShare === 'string' ? content.previewShare : null,
       texts: (content.texts as Record<string, string> | undefined) ?? {},
       // Previewing as a real guest uses their link: owners and editors only.
       samples: (c.get('role') === 'viewer' ? [] : (people!.results as { token: string; names: string; invited: string | null }[])).map((r) => ({

@@ -2,7 +2,7 @@ import { allPayments, dateIn, randomToken } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
-import { readJson } from '../lib/security';
+import { readJson, safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { readDoc } from './planner';
 
@@ -61,11 +61,11 @@ export function plannerCalendarFeed() {
   app.get('/:wid/:file', async (c) => {
     const wid = c.req.param('wid');
     const key = c.req.param('file').replace(/\.ics$/, '');
-    if (!(await allow(c.env.DB, `cal:${wid}`, 240, 3_600_000))) return c.text('Slow down', 429);
+    if (!(await allow(c.env.DB, `cal:${wid}:${c.req.header('CF-Connecting-IP') ?? 'local'}`, 240, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Slow down' } }, 429);
     const db = c.env.DB;
     const w = await db.prepare(`SELECT name1, name2, timezone, content FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(wid).first<{ name1: string; name2: string; timezone: string; content: string }>();
     const stored = w ? await keyOf(db, wid) : '';
-    if (!w || !stored || key.length < 20 || key !== stored) return c.text('Not found', 404);
+    if (!w || !stored || key.length < 20 || key !== stored) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
     const { results: events } = await db.prepare(`SELECT key, name, starts_at FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(wid).all<{ key: string; name: string; starts_at: string }>();
     const tz = w.timezone;
     const first = events[0];
@@ -96,7 +96,7 @@ export function plannerCalendarFeed() {
       for (const t of doc.data.tasks.filter((x) => x.due && !x.done)) items.push({ id: `side-${t.id}`, date: t.due, title: t.text });
       for (const [pid, p] of Object.entries(doc.data.people)) if (p.fitting) items.push({ id: `fit-${pid}`, date: p.fitting, title: `Fitting${p.outfit ? `: ${p.outfit}` : ''}` });
     }
-    const close = (JSON.parse(w.content || '{}') as { invitation?: { rsvpClose?: string } }).invitation?.rsvpClose;
+    const close = safeJson<{ invitation?: { rsvpClose?: string } }>(w.content, {}).invitation?.rsvpClose;
     if (close) items.push({ id: 'rsvp-close', date: close, title: 'Replies close' });
 
     const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');

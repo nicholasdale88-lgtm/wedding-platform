@@ -129,7 +129,12 @@ export function eventRoutes() {
         db.prepare(`INSERT INTO invite_event (invitation_id, event_id) SELECT id, ? FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`).bind(eventId, wid(c)),
       );
     }
-    await db.batch(stmts);
+    try {
+      await db.batch(stmts);
+    } catch (e) {
+      if (/UNIQUE/i.test(String(e))) return err(c, 409, 'exists', 'That event was just added. Reload to see it.');
+      throw e;
+    }
     return c.json({ events: await list(c), added: key }, 201);
   });
 

@@ -25,7 +25,10 @@ const DAYS = 30;
 const INVITE_DAYS = 14;
 const RESET_HOURS = 48;
 const now = () => new Date().toISOString();
-const secret = (env: Env) => env.SESSION_SECRET ?? 'dev-only-party-secret';
+const secret = (env: Env) => {
+  if (!env.SESSION_SECRET) throw new Error('SESSION_SECRET is not set: the party portal is off until it is.');
+  return env.SESSION_SECRET;
+};
 const hashOf = (env: Env, token: string) => sessionId(token, secret(env));
 const err = (c: Context, status: 400 | 401 | 403 | 404 | 409 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
@@ -304,7 +307,10 @@ export function partyAccountRoutes() {
     if (cur) {
       await c.env.DB.prepare(`UPDATE party_account SET invite_hash = ?, invite_expires = ?, email = COALESCE(?, email), updated_at = ? WHERE id = ?`).bind(h, expires, email, now(), cur.id).run();
     } else {
-      await c.env.DB.prepare(`INSERT INTO party_account (id, wedding_id, person_id, email, perms, invite_hash, invite_expires, failed, created_at, updated_at) VALUES (?, ?, ?, ?, '{}', ?, ?, 0, ?, ?)`)
+      await c.env.DB.prepare(
+        `INSERT INTO party_account (id, wedding_id, person_id, email, perms, invite_hash, invite_expires, failed, created_at, updated_at) VALUES (?, ?, ?, ?, '{}', ?, ?, 0, ?, ?)
+           ON CONFLICT (wedding_id, person_id) WHERE deleted_at IS NULL DO UPDATE SET invite_hash = excluded.invite_hash, invite_expires = excluded.invite_expires, email = COALESCE(excluded.email, party_account.email), updated_at = excluded.updated_at`,
+      )
         .bind(crypto.randomUUID(), wid(c), p.id, email, h, expires, now(), now())
         .run();
     }
@@ -321,7 +327,10 @@ export function partyAccountRoutes() {
     const cur = await accountOf(c.env.DB, 'wedding_id = ? AND person_id = ?', wid(c), p.id);
     if (cur) await c.env.DB.prepare(`UPDATE party_account SET perms = ?, updated_at = ? WHERE id = ?`).bind(JSON.stringify(perms), now(), cur.id).run();
     else
-      await c.env.DB.prepare(`INSERT INTO party_account (id, wedding_id, person_id, perms, failed, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)`)
+      await c.env.DB.prepare(
+        `INSERT INTO party_account (id, wedding_id, person_id, perms, failed, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)
+           ON CONFLICT (wedding_id, person_id) WHERE deleted_at IS NULL DO UPDATE SET perms = excluded.perms, updated_at = excluded.updated_at`,
+      )
         .bind(crypto.randomUUID(), wid(c), p.id, JSON.stringify(perms), now(), now())
         .run();
     return c.json({ perms });

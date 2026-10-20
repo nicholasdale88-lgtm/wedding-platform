@@ -236,7 +236,8 @@ export function plannerRoutes() {
    * latitude and longitude from Setup → Night-before page), nearest first.
    */
   app.get('/vendors/search', async (c) => {
-    const cat = VENDOR_SEARCH[c.req.query('category') ?? ''];
+    const asked = c.req.query('category') ?? '';
+    const cat = Object.hasOwn(VENDOR_SEARCH, asked) ? VENDOR_SEARCH[asked] : undefined;
     const km = Math.min(100, Math.max(1, Number(c.req.query('km')) || 25));
     if (!cat) return err(c, 400, 'invalid', 'Choose what to look for.');
     if (!(await allow(c.env.DB, `vendors:${wid(c)}`, 40, 3_600_000))) return err(c, 429, 'slow_down', 'That is a lot of searches. Try again in a little while.');
@@ -565,6 +566,7 @@ export function plannerRoutes() {
     const parsed = PLANNER_DOCS[kind].safeParse((await readJson(c.req.raw, MAX_PLANNER_DOC)) ?? undefined);
     if (!parsed.success) return err(c, 400, 'invalid', 'Some of it is too long or missing. Check and try again.');
     const v = Number(c.req.header('If-Match') ?? '0');
+    if (!Number.isInteger(v) || v < 0) return err(c, 400, 'invalid', 'Reload the page and try again.');
     const now = new Date().toISOString();
     const data = JSON.stringify(parsed.data);
     // Version 0 = it didn't exist yet: insert (losing if someone else made it first); else bump only from v.
