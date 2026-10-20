@@ -152,7 +152,7 @@ export const api = {
   /** Private: the wedding's pages open only with each guest's own link. */
   setPrivate: (wid: string, on: boolean) => send<{ ok: true; private: boolean }>('PUT', `${w(wid)}/privacy`, { private: on }),
   /** Ask to upgrade (the platform owner sends a payment link). */
-  requestPlan: (wid: string, plan: 'essentials' | 'complete') => send<{ ok: true; requested: string }>('POST', `${w(wid)}/plan/request`, { plan }),
+  requestPlan: (wid: string, plan: 'essentials' | 'complete' | 'event') => send<{ ok: true; requested: string }>('POST', `${w(wid)}/plan/request`, { plan }),
   /** From the front page: a new account and wedding, signed in. */
   signup: (b: { firstName: string; partnerName: string; email: string; passcode: string; date: string; plan: 'free' | 'essentials' | 'complete'; marketing: boolean; website: string }) =>
     send<Me & { weddingId: string }>('POST', '/a/signup', b),

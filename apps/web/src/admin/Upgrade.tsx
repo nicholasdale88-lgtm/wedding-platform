@@ -1,4 +1,4 @@
-import { allows, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature } from '@wp/shared';
+import { allows, EVENT_ADDON, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature } from '@wp/shared';
 import { useState, type ReactNode } from 'react';
 import { api } from '../lib/api';
 import { useAdmin } from './Shell';
@@ -20,8 +20,10 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   const { requested } = usePlan();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const need = planFor(feature) === 'complete' ? 'complete' : 'essentials';
-  const info = PLAN_INFO[need];
+  // Another event is an add-on of its own; everything else comes with a plan.
+  const addon = feature === 'extraEvent';
+  const need = addon ? 'event' : planFor(feature) === 'complete' ? 'complete' : 'essentials';
+  const info = addon ? EVENT_ADDON : PLAN_INFO[need as 'essentials' | 'complete'];
   const asked = requested === need || (requested === 'complete' && need === 'essentials');
   const ask = async () => {
     setBusy(true);
@@ -37,14 +39,14 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   };
   return (
     <section aria-label="Upgrade" className={`flex flex-col gap-2 ${compact ? 'p-4' : 'p-6'} rounded-[16px] border border-[#d3c6a4] bg-[#fbf8f0]`}>
-      <strong className={compact ? 'text-[15px]' : 'text-[18px]'}>{FEATURE_LABEL[feature]} comes with {info.name}</strong>
+      <strong className={compact ? 'text-[15px]' : 'text-[18px]'}>{addon ? `${FEATURE_LABEL[feature]} is an add-on` : `${FEATURE_LABEL[feature]} comes with ${info.name}`}</strong>
       <span className="text-[14px] text-[#5b6a52]">
-        {info.name} is {info.price}, paid once for your whole wedding.{' '}
+        {addon ? `Each extra event is ${info.price}, paid once.` : `${info.name} is ${info.price}, paid once for your whole wedding.`}{' '}
         {asked ? "You've asked to upgrade: we'll email you a link to pay, and it switches on as soon as it's paid." : 'Everything you’ve added so far stays as it is.'}
       </span>
       {!asked && (
         <Pill kind="primary" className="self-start" disabled={busy} onClick={() => void ask()}>
-          {busy ? 'Asking…' : `Upgrade to ${info.name}`}
+          {busy ? 'Asking…' : addon ? `Add an event (${info.price})` : `Upgrade to ${info.name}`}
         </Pill>
       )}
     </section>

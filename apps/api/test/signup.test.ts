@@ -112,4 +112,20 @@ describe('sign-up and plans', () => {
     expect((await page('/invite')).status).toBe(200);
     expect((await page('/calendar/wedding.ics')).status).toBe(200);
   });
+
+  it('another event is an add-on: refused (402) until the platform owner grants it', async () => {
+    const res = await signup({ email: 'events@example.com' }, '7.7.7.7');
+    const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
+    const { weddingId: wid } = (await res.json()) as { weddingId: string };
+    const add = () => call(`/a/w/${wid}/events`, { method: 'POST', body: JSON.stringify({ name: 'Recovery brunch', startsAt: '2027-03-15T00:00:00.000Z' }) }, cookie);
+    const no = await add();
+    expect(no.status).toBe(402);
+    expect(((await no.json()) as { error: { feature: string } }).error.feature).toBe('extraEvent');
+    expect((await call(`/a/w/${wid}/plan/request`, { method: 'POST', body: JSON.stringify({ plan: 'event' }) }, cookie)).status).toBe(200);
+    const owner = await app.request('/api/a/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'owner@example.com', passcode: 'valley-2027' }) }, env, ctx);
+    const ownerCookie = (owner.headers.get('set-cookie') ?? '').split(';')[0]!;
+    expect((await call('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: 'alex-and-sam', extraEvents: 1 }) }, ownerCookie)).status).toBe(200);
+    expect((await add()).status).toBe(201);
+    expect((await add()).status).toBe(402); // that was the one add-on
+  });
 });

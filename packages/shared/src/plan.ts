@@ -4,7 +4,7 @@
  * everything. The server enforces this; the admin shows an Upgrade card where a feature is locked.
  */
 export type Plan = 'free' | 'essentials' | 'complete';
-export type Feature = 'unlimitedGuests' | 'texts' | 'seating' | 'planner' | 'photoQr' | 'partySignIns' | 'dailyBackups';
+export type Feature = 'unlimitedGuests' | 'texts' | 'seating' | 'planner' | 'photoQr' | 'partySignIns' | 'dailyBackups' | 'extraEvent';
 
 /** The plan a stored value means: anything that isn't free or essentials has everything. */
 export const planOf = (stored: string | null | undefined): Plan => (stored === 'free' ? 'free' : stored === 'essentials' ? 'essentials' : 'complete');
@@ -17,6 +17,7 @@ const NEEDS: Record<Feature, Plan> = {
   photoQr: 'complete',
   partySignIns: 'complete',
   dailyBackups: 'complete',
+  extraEvent: 'complete',
 };
 const RANK: Record<Plan, number> = { free: 0, essentials: 1, complete: 2 };
 
@@ -41,4 +42,9 @@ export const FEATURE_LABEL: Record<Feature, string> = {
   photoQr: 'Guests’ photos by QR code on each table',
   partySignIns: 'Wedding party sign-ins',
   dailyBackups: 'Daily backups to your own storage',
+  extraEvent: 'Another event (welcome drinks, a recovery brunch…)',
 };
+
+/** Events each plan includes; more are an add-on each (EVENT_ADDON). */
+export const EVENTS_INCLUDED: Record<Plan, number> = { free: 1, essentials: 1, complete: 2 };
+export const EVENT_ADDON = { name: 'Extra event', price: '$39' };

@@ -1,4 +1,4 @@
-import { FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, planFor, planOf, type Feature, type Plan } from '@wp/shared';
+import { EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, planFor, planOf, type Feature, type Plan } from '@wp/shared';
 import type { Context } from 'hono';
 
 /** The wedding's plan (Free, Essentials or Complete; older weddings and the platform's own have everything). */
@@ -9,7 +9,36 @@ export async function weddingPlan(db: D1Database, weddingId: string): Promise<Pl
 
 /** "That's in Essentials": the answer when a plan doesn't include something (402, with which feature). */
 export const needsUpgrade = (c: Context, f: Feature) =>
-  c.json({ error: { code: 'upgrade', feature: f, message: `${FEATURE_LABEL[f]} comes with ${PLAN_INFO[planFor(f)].name}. Upgrade in Account → Settings → Your plan.` } }, 402);
+  c.json(
+    {
+      error: {
+        code: 'upgrade',
+        feature: f,
+        message:
+          f === 'extraEvent'
+            ? `Your plan includes the events you have. Another event is an add-on (${EVENT_ADDON.price}): ask for it in Account → Settings → Your plan.`
+            : `${FEATURE_LABEL[f]} comes with ${PLAN_INFO[planFor(f)].name}. Upgrade in Account → Settings → Your plan.`,
+      },
+    },
+    402,
+  );
+
+/**
+ * Room for another event: the plan's events plus any add-ons bought (content.extraEvents). Weddings from
+ * before plans ('trial') aren't limited.
+ */
+export async function eventRoom(db: D1Database, weddingId: string): Promise<boolean> {
+  const w = await db
+    .prepare(
+      `SELECT plan, CASE WHEN json_valid(content) THEN COALESCE(json_extract(content, '$.extraEvents'), 0) ELSE 0 END AS extra,
+              (SELECT COUNT(*) FROM event e WHERE e.wedding_id = wedding.id AND e.deleted_at IS NULL) AS n
+         FROM wedding WHERE id = ?`,
+    )
+    .bind(weddingId)
+    .first<{ plan: string; extra: number; n: number }>();
+  if (!w || w.plan === 'trial') return true;
+  return w.n < EVENTS_INCLUDED[planOf(w.plan)] + Number(w.extra || 0);
+}
 
 /** How many guests (people) a wedding has. */
 export async function peopleCount(db: D1Database, weddingId: string): Promise<number> {

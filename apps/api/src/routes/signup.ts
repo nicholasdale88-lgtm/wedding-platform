@@ -110,7 +110,7 @@ export function planRoutes() {
     if (c.get('user').id !== (await mainAccountOf(c.env.DB, c.req.param('wid')))) {
       return c.json({ error: { code: 'main_account', message: 'Only the main account (payments) can change the plan. Ask them, or see Settings → Who can sign in.' } }, 403);
     }
-    const b = z.object({ plan: z.enum(['essentials', 'complete']) }).strict().safeParse(await readJson(c.req.raw));
+    const b = z.object({ plan: z.enum(['essentials', 'complete', 'event']) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return c.json({ error: { code: 'invalid', message: 'Choose a plan.' } }, 400);
     const at = new Date().toISOString();
     await c.env.DB.batch([
@@ -131,10 +131,15 @@ export function planRoutes() {
   /** Super admins only: set a wedding's plan (after payment), by its address. */
   app.put('/super/plan', requireUser, async (c) => {
     if (!c.get('user').superAdmin) return c.json({ error: { code: 'forbidden', message: 'Not allowed.' } }, 403);
-    const b = z.object({ slug: z.string().max(80), plan: z.enum(PLANS) }).strict().safeParse(await readJson(c.req.raw));
-    if (!b.success) return c.json({ error: { code: 'invalid', message: 'A wedding address and a plan, please.' } }, 400);
-    const r = await c.env.DB.prepare(`UPDATE wedding SET plan = ?, content = json_remove(content, '$.planRequested', '$.planRequestedAt'), updated_at = ? WHERE slug = ? AND deleted_at IS NULL AND json_valid(content)`)
-      .bind(b.data.plan, new Date().toISOString(), b.data.slug)
+    const b = z.object({ slug: z.string().max(80), plan: z.enum(PLANS).optional(), extraEvents: z.number().int().min(0).max(20).optional() }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success || (b.data.plan === undefined && b.data.extraEvents === undefined)) return c.json({ error: { code: 'invalid', message: 'A wedding address and a plan (or extra events), please.' } }, 400);
+    const r = await c.env.DB.prepare(
+      `UPDATE wedding SET plan = COALESCE(?1, plan),
+              content = json_remove(CASE WHEN ?2 IS NULL THEN content ELSE json_set(content, '$.extraEvents', ?2) END, '$.planRequested', '$.planRequestedAt'),
+              updated_at = ?3
+        WHERE slug = ?4 AND deleted_at IS NULL AND json_valid(content)`,
+    )
+      .bind(b.data.plan ?? null, b.data.extraEvents ?? null, new Date().toISOString(), b.data.slug)
       .run();
     if (!r.meta.changes) return c.json({ error: { code: 'not_found', message: 'No wedding at that address.' } }, 404);
     return c.json({ ok: true });
