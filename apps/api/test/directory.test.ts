@@ -69,12 +69,12 @@ describe('vendor directory', () => {
   });
 
   it('refuses bad listings, ignores bots, and limits joining from one place', async () => {
-    expect((await join({ region: 'atlantis' })).status).toBe(400);
-    expect((await join({ category: 'astrologer' })).status).toBe(400);
-    expect((await join({ website: 'javascript:alert(1)' })).status).toBe(400);
-    expect((await join({ photos: ['http://insecure.example/a.jpg'] })).status).toBe(400);
-    expect((await join({ passcode: 'short' })).status).toBe(400);
-    expect((await join({ company: 'Spam Co', email: 'bot@example.com' })).status).toBe(200);
+    expect((await join({ region: 'atlantis' }, '4.0.0.1')).status).toBe(400);
+    expect((await join({ category: 'astrologer' }, '4.0.0.2')).status).toBe(400);
+    expect((await join({ website: 'javascript:alert(1)' }, '4.0.0.3')).status).toBe(400);
+    expect((await join({ photos: ['http://insecure.example/a.jpg'] }, '4.0.0.4')).status).toBe(400);
+    expect((await join({ passcode: 'short' }, '4.0.0.5')).status).toBe(400);
+    expect((await join({ company: 'Spam Co', email: 'bot@example.com' }, '4.0.0.6')).status).toBe(200);
     expect(await t.db.prepare(`SELECT 1 FROM user WHERE email = 'bot@example.com'`).first()).toBeNull();
     for (let i = 0; i < 5; i++) await join({ email: `n${i}@example.com` }, '9.9.9.9');
     expect((await join({ email: 'n9@example.com' }, '9.9.9.9')).status).toBe(429);
