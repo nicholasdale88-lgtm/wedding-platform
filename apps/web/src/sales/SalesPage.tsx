@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, type Feature } from '@wp/shared';
 import { api } from '../lib/api';
+import { DriveArt, FEATURE_ICONS, Wordmark } from './Art';
 
 /**
  * The front page (/): what the app is, the plans, and signing up (or in). Written plainly, the way a
@@ -107,8 +108,8 @@ export function SalesPage() {
   return (
     <div className="min-h-screen bg-[#f6f0e2]" style={{ color: INK, fontFamily: sans }}>
       <header className="max-w-[1100px] mx-auto px-4 py-4 flex justify-between items-center gap-3">
-        <span className="text-[26px]" style={{ fontFamily: serif }}>
-          {BRAND}
+        <span aria-label={BRAND}>
+          <Wordmark size={24} />
         </span>
         <nav className="flex items-center gap-4 text-[15px]">
           <a href="#pricing" className="no-underline hidden sm:inline" style={{ color: INK }}>
@@ -179,12 +180,15 @@ export function SalesPage() {
               </p>
             </div>
             <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
-              {WHAT.map(([t, d]) => (
-                <div key={t} className="flex flex-col gap-1 pl-4" style={{ borderLeft: '3px solid #c8a46a' }}>
+              {WHAT.map(([t, d], i) => (
+                <div key={t} className="flex gap-4 items-start">
+                  <span className="shrink-0">{FEATURE_ICONS[i]}</span>
+                  <div className="flex flex-col gap-1">
                   <h3 className="m-0 text-[20px] font-semibold">{t}</h3>
                   <p className="m-0 text-[15px] leading-[1.6]" style={{ color: SOFT }}>
                     {d}
                   </p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -287,6 +291,9 @@ export function SalesPage() {
               <p className="m-0 text-[16px] max-w-[680px] mx-auto" style={{ color: SOFT }}>
                 Nothing hidden. Most couples spend nothing extra on storage and under $15 on texts for the whole wedding.
               </p>
+            </div>
+            <div className="flex justify-center">
+              <DriveArt />
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               {BYO.map((b) => (
