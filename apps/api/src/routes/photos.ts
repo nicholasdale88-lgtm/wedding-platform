@@ -75,11 +75,12 @@ export function photoRoutes() {
   app.get('/', async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT m.id, m.uploaded_by, m.created_at, m.bytes, m.content_type, m.event_key, m.edit, EXISTS (SELECT 1 FROM photo_thumb t WHERE t.media_id = m.id) AS thumb,
-              (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0) AS guest
-         FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 5000`,
+              (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0) AS guest,
+              (SELECT r.id FROM media r WHERE r.raw_of = m.id AND r.deleted_at IS NULL LIMIT 1) AS raw
+         FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.raw_of IS NULL AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 5000`,
     )
       .bind(wid(c))
-      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; event_key: string | null; edit: string | null; thumb: number; guest: string | null }>();
+      .all<{ id: string; uploaded_by: string | null; created_at: string; bytes: number; content_type: string; event_key: string | null; edit: string | null; thumb: number; guest: string | null; raw: string | null }>();
     return c.json({
       enabled: await canStore(c.env, wid(c)),
       siteStorage: !!c.env.MEDIA,
@@ -93,6 +94,8 @@ export function photoRoutes() {
         thumb: r.thumb ? `/api/a/w/${wid(c)}/photos/${r.id}/thumb` : null,
         event: r.event_key, // which event's album (null: before albums were split)
         url: `/api/a/w/${wid(c)}/photos/${r.id}`,
+        // The original without the frame (photos sent since originals were kept).
+        original: r.raw ? `/api/a/w/${wid(c)}/photos/${r.raw}` : null,
       })),
     });
   });
@@ -117,6 +120,12 @@ export function photoRoutes() {
       .first<{ key: string }>();
     if (!row) return err(c, 404, 'not_found', 'Photo not found.');
     await c.env.DB.prepare(`UPDATE media SET deleted_at = ? WHERE id = ?`).bind(new Date().toISOString(), c.req.param('id')).run();
+    // Its original goes with it.
+    const raw = await c.env.DB.prepare(`SELECT id, key FROM media WHERE raw_of = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(c.req.param('id'), wid(c)).first<{ id: string; key: string }>();
+    if (raw) {
+      await c.env.DB.prepare(`UPDATE media SET deleted_at = ? WHERE id = ?`).bind(new Date().toISOString(), raw.id).run();
+      if (!linkKey(raw.key)) await c.env.MEDIA?.delete(raw.key);
+    }
     // From the site's own storage; a copy in the couple's linked storage is theirs to keep.
     if (!linkKey(row.key)) await c.env.MEDIA?.delete(row.key);
     await c.env.DB.prepare(`DELETE FROM photo_copy WHERE media_id = ? AND status != 'done'`).bind(c.req.param('id')).run();

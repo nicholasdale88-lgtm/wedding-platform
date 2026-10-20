@@ -55,7 +55,7 @@ export function albumGuestRoutes() {
     const keys = g.events.map((e) => e.key);
     const { results } = await c.env.DB.prepare(
       `SELECT m.id, m.created_at, m.event_key, m.content_type, m.edit, EXISTS (SELECT 1 FROM photo_thumb t WHERE t.media_id = m.id) AS thumb, COALESCE(m.uploaded_by, (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0), '') AS by
-         FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL ORDER BY m.created_at LIMIT 3000`,
+         FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.raw_of IS NULL AND m.deleted_at IS NULL ORDER BY m.created_at LIMIT 3000`,
     )
       .bind(g.w.id)
       .all<{ id: string; created_at: string; event_key: string | null; content_type: string | null; edit: string | null; thumb: number; by: string }>();

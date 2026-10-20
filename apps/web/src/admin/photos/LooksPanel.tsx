@@ -31,7 +31,7 @@ function FramePreview({ img, k, info }: { img: HTMLImageElement | null; k: Filte
  * the ones guests are offered and choose the look they start on.
  */
 export function LooksPanel() {
-  const { wid, overview } = useAdmin();
+  const { wid, overview, event: chosen } = useAdmin();
   const toast = useToast();
   const [cfg, setCfg] = useState<PhotoLooksCfg | null>(null);
   const [img, setImg] = useState<HTMLImageElement | null>(null);
@@ -46,16 +46,19 @@ export function LooksPanel() {
   }, [wid]);
   if (!cfg || !overview) return null;
   // Each event has its own frames (the birthday's are birthday frames): previewed with that event's details.
-  const ev = overview.events[Math.min(at, overview.events.length - 1)];
+  // Inside an event's section, only that event's frames (the wedding never shows the birthday's).
+  const here = overview.events.findIndex((e) => e.key === chosen);
+  const pick = here >= 0 ? here : at;
+  const ev = overview.events[Math.min(pick, overview.events.length - 1)];
   const th = themeOf(overview.wedding.theme);
   const info: FilterInfo = {
     title: ev?.name ?? 'The wedding',
     date: ev ? new Date(ev.startsAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
     couple: `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}`,
     monogram: overview.wedding.monogram?.trim() || `${overview.wedding.name1.charAt(0)}&${overview.wedding.name2.charAt(0)}`,
-    ink: at === 1 ? (th.bdtx ?? '#2f3d5c') : (th.dg ?? '#33402f'),
+    ink: pick === 1 ? (th.bdtx ?? '#2f3d5c') : (th.dg ?? '#33402f'),
     gold: th.acc ?? '#c8a46a',
-    slot: Math.min(at, 1),
+    slot: Math.min(pick, 1),
   };
   const frames: FilterKey[] = filtersFor(info).filter((f) => f !== 'none');
   const shown = framesOn(frames, cfg.frames);
@@ -80,7 +83,7 @@ export function LooksPanel() {
         <div>
           <strong className="font-semibold text-[15px]">Frames and looks</strong>
           <p className="m-0 mt-1 text-[13px] text-[#5b6a52]">
-            Guests choose a frame and a look (golden hour, film, black and white…) for each photo or video. Each event has its own frames{overview.events.length > 1 ? ' (the birthday’s are birthday frames)' : ''}. {shown.length} frames for {info.title} and {onLooks.length} looks on offer.
+            Guests choose a frame and a look (golden hour, film, black and white…) for each photo or video. {shown.length} frames for {info.title} and {onLooks.length} looks on offer.
           </p>
         </div>
         <Pill kind={open ? 'secondary' : 'outline'} onClick={() => setOpen(!open)}>
@@ -89,7 +92,7 @@ export function LooksPanel() {
       </div>
       {open && (
         <>
-          {overview.events.length > 1 && (
+          {overview.events.length > 1 && here < 0 && (
             <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Frames for">
               {overview.events.slice(0, 2).map((e, i) => (
                 <button

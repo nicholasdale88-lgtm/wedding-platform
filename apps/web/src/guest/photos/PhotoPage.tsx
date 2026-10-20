@@ -32,6 +32,8 @@ interface Item {
   pre: boolean;
   filter: FilterKey;
   look: LookKey;
+  /** From the camera here: the photo before its frame and look. */
+  original?: Blob;
 }
 
 const NAME_KEY = 'wp-photo-name';
@@ -172,10 +174,10 @@ export function PhotoPage() {
 
   const t = useCallback((k: string) => page?.texts[k] ?? '', [page]);
   const mark = (id: string, st: Status) => setItems((xs) => xs.map((x) => (x.id === id ? { ...x, st } : x)));
-  const add = (files: Blob[], pre: boolean) => {
+  const add = (files: Blob[], pre: boolean, original?: Blob) => {
     const big = files.filter((f) => isVideo(f) && f.size > MAX_VIDEO_MB * 1024 * 1024);
     const ok = files.filter((f) => !big.includes(f));
-    const added = ok.map((file, i) => ({ id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`, file, url: URL.createObjectURL(file), st: 'wait' as const, pre, filter, look }));
+    const added = ok.map((file, i) => ({ id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`, file, url: URL.createObjectURL(file), st: 'wait' as const, pre, filter, look, ...(original && files.length === 1 ? { original } : {}) }));
     setItems((xs) => [...added, ...xs]);
     setErr(big.length ? `${big.length === 1 ? 'That video is' : `${big.length} videos are`} over ${MAX_VIDEO_MB} MB. Try a shorter clip (about a minute).` : '');
     // A video's tile shows its first moment.
@@ -208,6 +210,11 @@ export function PhotoPage() {
         } else {
           sent = it.pre ? it.file : await renderPhoto(it.file, it.filter, info, it.look);
           id = await guestApi.uploadPhoto(slug, token, by.trim(), sent, ev?.key ?? '', '', code);
+          // With a frame or look on it: the original goes too, so the couple can have it without (best effort).
+          if (id && (it.filter !== 'none' || it.look !== 'original')) {
+            const plain = it.pre ? it.original : await renderPhoto(it.file, 'none', info, 'original').catch(() => undefined);
+            if (plain) await guestApi.uploadPhoto(slug, token, by.trim(), plain, ev?.key ?? '', '', code, id).catch(() => undefined);
+          }
         }
         // Sent: swap the full-size original for a small tile copy (and give the album the same small copy).
         const small = await thumbOf(sent);
@@ -425,7 +432,7 @@ export function PhotoPage() {
           filter={filter}
           onFilter={setFilter}
           look={look}
-          onShot={(b) => add([b], true)}
+          onShot={(b, o) => add([b], true, o)}
           onClose={() => setCam(false)}
           fallback={() => camRef.current?.click()}
         />

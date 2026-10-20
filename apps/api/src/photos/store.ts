@@ -315,6 +315,8 @@ export interface NewPhoto {
   /** A video is kept like a photo (its look is shown when it plays). */
   media?: 'photo' | 'video';
   look?: string;
+  /** The original (no frame or look) of this photo id. */
+  rawOf?: string | null;
 }
 export type Stored = { ok: true; id: string; duplicate: boolean } | { ok: false; status: 503 | 502; message: string };
 
@@ -342,8 +344,8 @@ export async function storePhoto(env: Env, later: (p: Promise<unknown>) => void,
   const save = (others: LinkRow[]) =>
     db.batch([
       db
-        .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key, sha, edit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .bind(id, p.weddingId, p.media ?? 'photo', row.key, p.kind.type, p.bytes.byteLength, row.uploaded_by, p.invitationId, now, p.eventKey, sha, p.look || null),
+        .prepare(`INSERT INTO media (id, wedding_id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, event_key, sha, edit, raw_of) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .bind(id, p.weddingId, p.media ?? 'photo', row.key, p.kind.type, p.bytes.byteLength, row.uploaded_by, p.invitationId, now, p.eventKey, sha, p.look || null, p.rawOf ?? null),
       ...others.map((l) =>
         db.prepare(`INSERT INTO photo_copy (media_id, link_id, status, attempts, updated_at) VALUES (?, ?, 'pending', 0, ?) ON CONFLICT (media_id, link_id) DO NOTHING`).bind(id, l.id, now),
       ),

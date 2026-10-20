@@ -45,7 +45,7 @@ export function insightsRoutes() {
           WHERE i.wedding_id = ? AND i.deleted_at IS NULL GROUP BY grp ORDER BY invited DESC LIMIT 30`,
       ).bind(w),
       db.prepare(`SELECT COUNT(*) AS texts, COALESCE(SUM(parts), 0) AS parts, SUM(status = 'failed') AS failed FROM sms_out WHERE wedding_id = ? AND status IN ('sent', 'delivered', 'failed')`).bind(w),
-      db.prepare(`SELECT COUNT(*) AS n FROM media WHERE wedding_id = ? AND kind IN ('photo', 'video') AND deleted_at IS NULL`).bind(w),
+      db.prepare(`SELECT COUNT(*) AS n FROM media WHERE wedding_id = ? AND kind IN ('photo', 'video') AND raw_of IS NULL AND deleted_at IS NULL`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n FROM board_post WHERE wedding_id = ? AND status = 'shown'`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n FROM song_request WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n, SUM(kind = 'vendor') AS vendors, SUM(kind = 'guest') AS guests FROM inbox_email WHERE wedding_id = ?`).bind(w),

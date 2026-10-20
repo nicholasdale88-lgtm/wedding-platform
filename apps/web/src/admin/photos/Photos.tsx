@@ -62,19 +62,20 @@ export function Photos() {
   const shown = data.items.filter((p) => !by || p.by === by);
   const now = Date.now();
 
-  const zip = async (ids: string[]) => {
+  /** Download as one zip; `plain`: without the frames (the originals, where kept). */
+  const zip = async (ids: string[], plain = false) => {
     setZipping(true);
     try {
       const files: Record<string, Uint8Array> = {};
       for (const [i, p] of data.items.filter((x) => ids.includes(x.id)).entries()) {
-        const res = await fetch(p.url, { credentials: 'same-origin' });
+        const res = await fetch(plain && p.original ? p.original : p.url, { credentials: 'same-origin' });
         if (!res.ok) continue;
         files[`${String(i + 1).padStart(3, '0')}-${p.by.replace(/[^\w -]/g, '').trim() || 'guest'}.${ext(p.type)}`] = new Uint8Array(await res.arrayBuffer());
       }
       const blob = new Blob([zipSync(files, { level: 0 })], { type: 'application/zip' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${slug}-photos-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.download = `${slug}-photos${plain ? '-without-frames' : ''}-${new Date().toISOString().slice(0, 10)}.zip`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     } catch (e) {
@@ -113,6 +114,11 @@ export function Photos() {
           <Pill kind="primary" disabled={!data.items.length || zipping} onClick={() => void zip(data.items.map((p) => p.id))}>
             {zipping ? 'Preparing…' : 'Download all'}
           </Pill>
+          {data.items.some((p) => p.original) && (
+            <Pill disabled={zipping} onClick={() => void zip(data.items.map((p) => p.id), true)}>
+              Download all without frames
+            </Pill>
+          )}
         </div>
       </header>
 
@@ -145,6 +151,11 @@ export function Photos() {
             <Pill kind="primary" disabled={zipping} onClick={() => void zip([...sel])}>
               Download {sel.size}
             </Pill>
+            {data.items.some((p) => sel.has(p.id) && p.original) && (
+              <Pill disabled={zipping} onClick={() => void zip([...sel], true)}>
+                Without frames
+              </Pill>
+            )}
             <Pill kind="danger" onClick={() => void removeChosen()}>
               Remove
             </Pill>
@@ -181,9 +192,16 @@ export function Photos() {
                 <span className="truncate">
                   {p.by} · {fmtWhen(p.at, tz)}
                 </span>
-                <a href={p.url} download={`photo-${p.id.slice(0, 8)}.${ext(p.type)}`} aria-label={`Save photo by ${p.by}`} className="shrink-0 !text-[var(--adm-ink,#33402f)]">
-                  Save
-                </a>
+                <span className="shrink-0 flex gap-2">
+                  <a href={p.url} download={`photo-${p.id.slice(0, 8)}.${ext(p.type)}`} aria-label={`Save photo by ${p.by}`} className="!text-[var(--adm-ink,#33402f)]">
+                    Save
+                  </a>
+                  {p.original && (
+                    <a href={p.original} download={`photo-${p.id.slice(0, 8)}-original.jpg`} aria-label={`Save photo by ${p.by} without its frame`} className="!text-[var(--adm-ink,#33402f)]">
+                      No frame
+                    </a>
+                  )}
+                </span>
               </figcaption>
             </figure>
           );

@@ -70,7 +70,7 @@ export function liveScreenRoutes() {
       db
         .prepare(
           `SELECT m.id, m.created_at, m.kind, m.edit, COALESCE(m.uploaded_by, (SELECT p.name FROM person p WHERE p.invitation_id = m.invitation_id AND p.idx = 0), '') AS by
-             FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 80`,
+             FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.raw_of IS NULL AND m.deleted_at IS NULL ORDER BY m.created_at DESC LIMIT 80`,
         )
         .bind(w.id),
       db.prepare(`SELECT id, author, body, created_at FROM board_post WHERE wedding_id = ? AND status = 'shown' AND parent_id IS NULL ORDER BY created_at DESC LIMIT 30`).bind(w.id),

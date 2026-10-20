@@ -68,6 +68,24 @@ describe('photos (admin)', () => {
     expect(list.items.map((x) => x.by)).toContain('Table 4');
   });
 
+  it("keeps a photo's original without its frame beside it: listed with the photo, never on its own, gone with it", async () => {
+    const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ivy Scott'`).first<{ token: string }>())!.token;
+    const other = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name != 'Ivy Scott' LIMIT 1`).first<{ token: string }>())!.token;
+    const put = (q: string, bytes: Uint8Array) => app.request(`/api/p/sophie-and-nicholas/photos?${q}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-By': 'Ivy' }, body: bytes }, env, ctx);
+    const framed = (await (await put(`g=${tok}`, new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 5, 5, 5]))).json()) as { id: string };
+    expect((await put(`g=${other}&raw=${framed.id}`, new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 6, 6, 6]))).status).toBe(404); // not their photo
+    expect((await put(`g=${tok}&raw=${framed.id}`, new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 6, 6, 6]))).status).toBe(200);
+    expect((await put(`g=${tok}&raw=${framed.id}`, new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7, 7, 7]))).status).toBe(404); // one original each
+    const list = (await (await call(`/a/w/${wid}/photos`)).json()) as { items: { id: string; original: string | null }[] };
+    expect(list.items).toHaveLength(2); // the beforeEach photo and the framed one: the original isn't listed on its own
+    const item = list.items.find((x) => x.id === framed.id)!;
+    expect(item.original).toMatch(/\/photos\/[\w-]+$/);
+    const img = await call(item.original!.replace('/api', ''));
+    expect(new Uint8Array(await img.arrayBuffer())).toEqual(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 6, 6, 6]));
+    expect((await call(`/a/w/${wid}/photos/${framed.id}`, { method: 'DELETE' })).status).toBe(200);
+    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM media WHERE raw_of = ? AND deleted_at IS NULL`).bind(framed.id).first<{ n: number }>())!.n).toBe(0);
+  });
+
   it('guests add videos too (checked by their bytes), kept with the look they chose; other files are refused', async () => {
     const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ivy Scott'`).first<{ token: string }>())!.token;
     const mp4 = new Uint8Array([0, 0, 0, 0x18, ...new TextEncoder().encode('ftypmp42'), 0, 0, 0, 0, 9, 9, 9, 9]);

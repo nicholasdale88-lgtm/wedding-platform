@@ -399,7 +399,19 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     }
     const evKey = c.req.query('event') ?? '';
     const ev = evKey ? (await eventsOf(db, w.id)).find((e) => e.key === evKey) : undefined;
-    const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv?.id ?? null, eventKey: ev?.key ?? null, media: video ? 'video' : 'photo', look });
+    // The original of a photo this phone just sent (no frame or look): kept beside it, never listed on its own.
+    let rawOf: string | null = null;
+    if (c.req.query('raw')) {
+      if (!photo) return err(c, 415, 'not_photo', 'Originals are photos.');
+      const since = new Date(Date.now() - 30 * 60_000).toISOString();
+      const framed = await db
+        .prepare(`SELECT id FROM media WHERE id = ? AND wedding_id = ? AND raw_of IS NULL AND deleted_at IS NULL AND created_at > ? AND invitation_id IS ? AND NOT EXISTS (SELECT 1 FROM media r WHERE r.raw_of = media.id)`)
+        .bind(c.req.query('raw'), w.id, since, inv?.id ?? null)
+        .first<{ id: string }>();
+      if (!framed) return err(c, 404, 'not_found', 'That photo isn’t yours.');
+      rawOf = framed.id;
+    }
+    const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv?.id ?? null, eventKey: ev?.key ?? null, media: video ? 'video' : 'photo', look, rawOf });
     if (!r.ok) return err(c, r.status, 'not_saved', r.message);
     return c.json({ ok: true, id: r.id });
   });

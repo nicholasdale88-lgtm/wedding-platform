@@ -22,7 +22,8 @@ export function SnapCam({
   filters: FilterKey[];
   filter: FilterKey;
   onFilter: (f: FilterKey) => void;
-  onShot: (photo: Blob) => void;
+  /** The photo as taken (frame and look on it), and its original without them. */
+  onShot: (photo: Blob, original?: Blob) => void;
   onClose: () => void;
   /** Open the phone's own camera app instead (no live camera here). */
   fallback: () => void;
@@ -129,6 +130,11 @@ export function SnapCam({
     }
     g.drawImage(v, (vw - sw) / 2, (vh - sh) / 2, sw, sh, 0, 0, c.width, c.height);
     g.setTransform(1, 0, 0, 1, 0, 0);
+    // The original, before the look and frame go on (kept for the couple).
+    const plain = document.createElement('canvas');
+    plain.width = c.width;
+    plain.height = c.height;
+    plain.getContext('2d')?.drawImage(c, 0, 0);
     applyLook(g, c.width, c.height, look);
     drawFilter(g, c.width, c.height, filter, info);
     setFlash(true);
@@ -136,7 +142,7 @@ export function SnapCam({
     c.toBlob(
       (b) => {
         if (!b) return;
-        onShot(b);
+        plain.toBlob((o) => onShot(b, o ?? undefined), 'image/jpeg', 0.9);
         setShots((n) => n + 1);
       },
       'image/jpeg',

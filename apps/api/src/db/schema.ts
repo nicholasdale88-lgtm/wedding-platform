@@ -259,6 +259,7 @@ export const seatPlan = sqliteTable('seat_plan', {
 });
 
 export const media = sqliteTable('media', {
+  rawOf: text('raw_of'), // migration 0027: the framed photo this is the original of
   id: id(),
   weddingId: text('wedding_id').notNull(),
   kind: text('kind', { enum: ['photo', 'video', 'music', 'hero', 'plan'] }).notNull(),
