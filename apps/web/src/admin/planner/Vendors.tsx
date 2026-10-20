@@ -235,6 +235,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
       </button>
       {open && (
         <div className="flex flex-col gap-4 px-4 pb-4">
+          {v.status === 'booked' && <TheirPage v={v} />}
           <div role="radiogroup" aria-label="Status" className="flex gap-2 flex-wrap">
             {VENDOR_STATUS.map((s) => (
               <button
@@ -877,5 +878,63 @@ function QuoteTracker({ list, onPatch, onOpen }: { list: Vendor[]; onPatch: (id:
         })}
       </div>
     </section>
+  );
+}
+
+/**
+ * A booked vendor's own page: the day, the venue, when to arrive, the timeline, guest numbers and dietary
+ * needs, their payments and who to call, always up to date. Share its link once; it never goes stale.
+ */
+function TheirPage({ v }: { v: Vendor }) {
+  const { wid, overview } = useAdmin();
+  const toast = useToast();
+  const [url, setUrl] = useState('');
+  const get = async () => {
+    try {
+      const u = url || (await plannerApi.vendorHub(wid, v.id)).url;
+      setUrl(u);
+      return u;
+    } catch (e) {
+      toast((e as Error).message);
+      return '';
+    }
+  };
+  const couple = overview ? `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}` : 'us';
+  const msg = (u: string) => `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''}, here are all the details for ${couple}'s wedding, kept up to date (times, guest numbers, dietary needs, who to call on the day): ${u}`;
+  return (
+    <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[13px]">
+      <span className="flex-1 min-w-[200px] text-[#5b6a52]">Their page: the day, the timeline, guest numbers and dietary needs, their payments and who to call, always up to date.</span>
+      {v.email && (
+        <button type="button" onClick={async () => { const u = await get(); if (u) window.location.href = `mailto:${encodeURIComponent(v.email)}?subject=${encodeURIComponent(`${couple}'s wedding: your details`)}&body=${encodeURIComponent(msg(u))}`; }} className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[12px] cursor-pointer text-[#33402f]">
+          Email it
+        </button>
+      )}
+      {v.phone && (
+        <button type="button" onClick={async () => { const u = await get(); if (u) window.location.href = `sms:${v.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(msg(u))}`; }} className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[12px] cursor-pointer text-[#33402f]">
+          Text it
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={async () => {
+          const u = await get();
+          if (!u) return;
+          try {
+            await navigator.clipboard.writeText(u);
+            toast('Link copied');
+          } catch {
+            window.prompt('Copy this link', u);
+          }
+        }}
+        className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[12px] cursor-pointer text-[#33402f]"
+      >
+        Copy link
+      </button>
+      {url && (
+        <a href={url} target="_blank" rel="noopener" className="!text-[#33402f] text-[12px]">
+          Open it
+        </a>
+      )}
+    </div>
   );
 }

@@ -39,6 +39,7 @@ const ShuttlePage = lazy(() => fresh(import('./guest/shuttle/ShuttlePage')).then
 const AlbumPage = lazy(() => fresh(import('./guest/album/AlbumPage')).then((m) => ({ default: m.AlbumPage })));
 const QuotePage = lazy(() => fresh(import('./guest/quote/QuotePage')).then((m) => ({ default: m.QuotePage })));
 const SalesPage = lazy(() => fresh(import('./sales/SalesPage')).then((m) => ({ default: m.SalesPage })));
+const VendorPage = lazy(() => fresh(import('./guest/vendor/VendorPage')).then((m) => ({ default: m.VendorPage })));
 
 function Pages() {
   return (
@@ -61,6 +62,7 @@ function Pages() {
         <Route path="/w/:slug/shuttle" element={<ShuttlePage />} />
         <Route path="/w/:slug/album" element={<AlbumPage />} />
         <Route path="/w/:slug/quote" element={<QuotePage />} />
+        <Route path="/w/:slug/vendor" element={<VendorPage />} />
         <Route path="/" element={<SalesPage />} />
         {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
         <Route path="*" element={<GuestNotFound />} />

@@ -7,6 +7,7 @@ import { MAX_PLANNER_FILE, readJson, MAX_PLANNER_DOC } from '../lib/security';
 import { keepDocument, openPhoto } from '../photos/store';
 import { portalWho } from './partyPortal';
 import { partyCalKey } from './partyCalendar';
+import { vendorHubKey } from './vendorHub';
 import { recordUse, searchDirectory } from '../lib/directory';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -237,6 +238,16 @@ export function plannerRoutes() {
    * Find vendors near the venue: OpenStreetMap (free, no key) within `km` of the event's venue (its
    * latitude and longitude from Setup → Night-before page), nearest first.
    */
+  /** A vendor's own page link (owners and editors): the details they need, always up to date. */
+  app.get('/vendors/:vid/hub', writer, async (c) => {
+    if (!c.env.SESSION_SECRET) return err(c, 404, 'not_found', 'Not set up yet.');
+    const v = (await readDoc(c.env.DB, wid(c), 'vendors', '')).data.list.find((x) => x.id === c.req.param('vid'));
+    if (!v) return err(c, 404, 'not_found', 'That vendor is gone.');
+    const w = await c.env.DB.prepare(`SELECT slug FROM wedding WHERE id = ?`).bind(wid(c)).first<{ slug: string }>();
+    const key = await vendorHubKey(c.env.SESSION_SECRET, wid(c), v.id);
+    return c.json({ url: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/w/${w?.slug ?? ''}/vendor?v=${encodeURIComponent(v.id)}&k=${key}` });
+  });
+
   app.get('/vendors/search', async (c) => {
     const asked = c.req.query('category') ?? '';
     const cat = Object.hasOwn(VENDOR_SEARCH, asked) ? VENDOR_SEARCH[asked] : undefined;

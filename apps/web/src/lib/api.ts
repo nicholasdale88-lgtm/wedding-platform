@@ -514,6 +514,8 @@ export const plannerApi = {
   /** A per-event planning document (e.g. that event's shuttles). */
   docFor: <T>(wid: string, kind: PlannerKind, scope: string) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`),
   doc: <T>(wid: string, kind: PlannerKind) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
+  /** A vendor's own page (the details they need, always up to date). */
+  vendorHub: (wid: string, vendorId: string) => request<{ url: string }>(`${w(wid)}/planner/vendors/${encodeURIComponent(vendorId)}/hub`),
   searchVendors: (wid: string, category: string, km: number) =>
     request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[]; price?: { low: number; typical: number; high: number; weddings: number } | null }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
 };

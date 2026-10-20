@@ -240,6 +240,26 @@ describe('planner: wedding party', () => {
     expect((await pub('', { method: 'POST', body: JSON.stringify(answer) })).status).toBe(409);
   });
 
+  it('a booked vendor has their own page: the day, numbers and dietary counts, never guests by name; it closes when they are declined', async () => {
+    const list = [{ id: 'cel', name: 'Celebrant Co', category: 'Celebrant', status: 'booked', arrival: '1:30pm' }];
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ list }) })).status).toBe(200);
+    const { url } = (await (await call('/vendors/cel/hub')).json()) as { url: string };
+    const u = new URL(url);
+    const api = `/api/p/sophie-and-nicholas/vendor/${u.searchParams.get('v')}/${u.searchParams.get('k')}`;
+    const res = await app.request(api, {}, env, ctx);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    const page = JSON.parse(text) as { vendor: { name: string; arrival: string }; guests: { coming: number } | null; event: { name: string } | null };
+    expect(page.vendor).toMatchObject({ name: 'Celebrant Co', arrival: '1:30pm' });
+    expect(page.event).not.toBeNull();
+    expect(page.guests).not.toBeNull();
+    expect(text).not.toContain('Ella Thompson'); // counts only
+    expect((await app.request(api.replace(/[^/]+$/, 'x'.repeat(24)), {}, env, ctx)).status).toBe(404);
+    const doc = (await (await call('/doc/vendors')).json()) as { version: number };
+    await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': String(doc.version) }, body: JSON.stringify({ list: [{ ...list[0], status: 'declined' }] }) });
+    expect((await app.request(api, {}, env, ctx)).status).toBe(404);
+  });
+
   it("the assistant answers from the wedding's own facts, and says when it is off", async () => {
     expect(((await (await call('/ask', { method: 'POST', body: JSON.stringify({ question: 'What next?' }) })).json()) as { error: { code: string } }).error.code).toBe('off');
     const seen: { input?: { messages: { role: string; content: string }[] } } = {};
