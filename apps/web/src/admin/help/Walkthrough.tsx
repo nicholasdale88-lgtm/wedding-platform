@@ -6,14 +6,31 @@ import { Link } from 'react-router-dom';
  * Help's video walkthroughs. A recorded video plays when a guide has one (`video`); otherwise an animated
  * walkthrough plays like a short video. For each step the phone shows that step's own screen (HELP_SCENES):
  * the menu item and page tab lit up, what's on the page, the fields being typed into, the button being
- * tapped and what happens. The step is the caption, with a progress bar per step and an optional voice (the
- * most natural one the device has, free). At the end: Take me there. Several guides in a row make the tour.
+ * tapped and what happens. The step is the caption, with a progress bar per step, narrated (the most natural
+ * voice the device has, free; on unless turned off). At the end: Take me there. Several guides in a row make the tour.
  */
 export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[]; where: (a: HelpArticle) => string; onClose: () => void }) {
   const scenes = guides.flatMap((a) => [{ a, step: -1 }, ...a.steps.map((_, step) => ({ a, step }))]);
   const [at, setAt] = useState(0);
   const [playing, setPlaying] = useState(true);
-  const [voice, setVoice] = useState(false);
+  // Narrated by default (the device's most natural voice), unless they turned it off before. A device with
+  // no voice plays it silent, moving on by itself.
+  const [voice, setVoiceState] = useState(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
+    try {
+      return localStorage.getItem('wp-help-voice') !== 'off';
+    } catch {
+      return true;
+    }
+  });
+  const setVoice = (on: boolean) => {
+    setVoiceState(on);
+    try {
+      localStorage.setItem('wp-help-voice', on ? 'on' : 'off');
+    } catch {
+      /* private browsing: just this time */
+    }
+  };
   const [left, setLeft] = useState(1); // share of this scene still to play
   const closeRef = useRef<HTMLButtonElement>(null);
   const done = at >= scenes.length;
