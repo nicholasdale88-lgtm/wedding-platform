@@ -497,8 +497,8 @@ const PLANNER_TOOLS: { view: string; label: string; icon: string }[] = [
 ];
 
 /**
- * Phones: More. Everything that isn't in the bottom bar, as tiles with icons: this section's pages, every
- * Wedding planner tool, the other sections, then Settings, the admin's look and Sign out.
+ * Phones: More. The sections at the top (Account and each event), then everything that isn't in the bottom
+ * bar as tiles with icons: this section's pages, every Wedding planner tool, Settings, the look and Sign out.
  */
 function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
   const { path, overview: o } = useAdmin();
@@ -542,6 +542,29 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.35)]" />
       <div role="dialog" aria-modal="true" aria-label="More" className="relative max-h-[88vh] overflow-y-auto rounded-t-[22px] bg-[#f6f0e2] px-4 pt-3 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-5">
         <span aria-hidden className="self-center w-10 h-[5px] rounded-full bg-[#d3c6a4]" />
+        {/* Sections first: which part of the admin you're in (Account, then each event). */}
+        <div role="group" aria-label="Sections" className="flex flex-col gap-2">
+          {heading('Sections')}
+          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(groups.length, 3)}, minmax(0, 1fr))` }}>
+            {groups.map((g) => {
+              const on = g.key === current.key;
+              return (
+                <button
+                  key={g.key}
+                  type="button"
+                  aria-current={on ? 'true' : undefined}
+                  onClick={() => {
+                    onClose();
+                    if (!on) open(g);
+                  }}
+                  className={`min-h-[52px] py-2 px-3 rounded-[14px] border text-center font-display text-[18px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
+                >
+                  {g.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="flex flex-col gap-2">
           {heading(current.name)}
           <div className={grid}>{current.tabs.map((t) => tile(t.key, t.label, path(t.key), t.key, navKey(tab) === t.key))}</div>
@@ -552,31 +575,6 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
             <div className={grid}>{PLANNER_TOOLS.map((t) => tile(`planner-${t.view}`, t.label, `${path('planner', first)}?view=${t.view}`, t.icon, plannerView === t.view))}</div>
           </div>
         )}
-        <div className="flex flex-col gap-2">
-          {heading('Other sections')}
-          {groups
-            .filter((g) => g.key !== current.key)
-            .map((g) => {
-              const ev = o?.events.find((e) => e.key === g.key);
-              return (
-                <button
-                  key={g.key}
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    open(g);
-                  }}
-                  className="w-full flex items-center justify-between gap-3 py-3 px-4 min-h-[56px] rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer text-[var(--adm-ink,#33402f)]"
-                >
-                  <span className="flex flex-col gap-[2px] min-w-0">
-                    <span className="font-display text-[22px] leading-tight truncate">{g.name}</span>
-                    <span className="text-[12px] text-[#5b6a52]">{ev ? `${ev.coming} coming` : 'Overview, messages and settings'}</span>
-                  </span>
-                  <span aria-hidden className="text-[#8a9670] text-[20px]">›</span>
-                </button>
-              );
-            })}
-        </div>
         <div className={grid}>
           {current.key !== ALL_EVENTS && tile('settings', 'Settings', path('settings', ALL_EVENTS), 'settings')}
           {tile('look', 'Look & name', `${path('settings', ALL_EVENTS)}?view=look`, 'look')}
