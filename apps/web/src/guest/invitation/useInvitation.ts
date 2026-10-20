@@ -1,7 +1,7 @@
 import { andList, eventSlotOfPart, fillTags, joinDiet } from '@wp/shared';
 import { themeOf } from '../themeKit';
 import { playerFor } from '../audio';
-import { createElement, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
+import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { SECTION_PARTS } from '../generated/InvitationView.meta';
 import type { ViewValues } from '../types';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
@@ -130,7 +130,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   const openKey = `wp-inv-opened-${guest?.token ?? 'anon'}`;
 
   // ---------------------------------------------------------------- theme
-  useEffect(() => {
+  // Before the first paint: otherwise the design's own (green) colours flash up, every time the preview reloads.
+  useLayoutEffect(() => {
     const th = themeOf(data.wedding.theme, data.content.custom);
     const st = document.documentElement.style;
     Object.entries(th).forEach(([k, val]) => st.setProperty(`--${k}`, val));

@@ -5,7 +5,8 @@ import type { CSSProperties } from 'react';
  * - a patterned liner on the underside of the flap, seen as it swings open (floral, eucalyptus, gold
  *   stripes, confetti, gold foil);
  * - the guest's name written across the front, and a gold-foil sprig above the seal;
- * - a silk ribbon or twine around it (with a gap for the seal), and a slow gold shimmer across the paper.
+ * - a silk ribbon or twine around it (with a gap for the seal), and a slow gold shimmer across the paper;
+ * - depth: the flaps' soft shadows and lit edges, the seal's contact shadow, light and shade, paper grain.
  * Phases are the envelope's: 0 closed, 1 tapped, 2 opening, 3 card out, 4 gone.
  */
 export interface EnvelopeOptions {
@@ -66,7 +67,7 @@ const lightOn = (hex: string) => {
   return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 140;
 };
 
-export function EnvelopeExtras({ phase, opts, colours, guestName }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string }) {
+export function EnvelopeExtras({ phase, opts, colours, guestName, music = false }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string; music?: boolean }) {
   if (phase >= 4) return null;
   const closed = phase < 2;
   const front: CSSProperties = { opacity: closed ? 1 : 0, transition: 'opacity .6s ease' };
@@ -75,8 +76,63 @@ export function EnvelopeExtras({ phase, opts, colours, guestName }: { phase: num
   const ribbon = opts.ribbon ?? 'none';
   // The seal's size in the design (a gap is left for it in the ribbon).
   const seal = 'clamp(96px,24vmin,150px)';
+  const hole = `radial-gradient(circle at 50% 56%, transparent calc(${seal} / 2 + 2px), #000 calc(${seal} / 2 + 4px))`;
   return (
     <div aria-hidden className="fixed inset-0 z-[1] pointer-events-none overflow-hidden" style={{ perspective: 1100 }}>
+      {/* Depth while it's closed: the flaps' overlaps cast soft shadows, their folded edges catch the
+          light, the seal sits on the paper with a shadow under it, light falls from the top left, and the
+          paper has a fine grain. */}
+      <div className="absolute inset-0" style={{ opacity: closed ? 1 : 0, transition: 'opacity .5s ease' }}>
+        <svg
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          className="absolute inset-0 w-full h-full"
+          // The seal sits on top of the flap: no fold shadow across it.
+          style={{ WebkitMaskImage: hole, maskImage: hole }}
+        >
+          <defs>
+            <filter id="envSoft" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation=".45" />
+            </filter>
+            <filter id="envSofter" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="1.4" />
+            </filter>
+          </defs>
+          {/* The top flap lies over everything: its shadow falls just below its edges. */}
+          <g style={{ mixBlendMode: 'multiply' }}>
+            <path d="M0 0.5 L50 56.9 L100 0.5" fill="none" stroke="rgba(0,0,0,.2)" strokeWidth=".7" filter="url(#envSoft)" />
+            <path d="M0 1.4 L50 58.2 L100 1.4" fill="none" stroke="rgba(0,0,0,.09)" strokeWidth="2.2" filter="url(#envSofter)" />
+            {/* The bottom panel overlaps the sides: a softer shadow just above its edges. */}
+            <path d="M0 99.4 L50 46.4 L100 99.4" fill="none" stroke="rgba(0,0,0,.12)" strokeWidth=".6" filter="url(#envSoft)" />
+          </g>
+          {/* Folded paper edges catch the light. */}
+          <g style={{ mixBlendMode: 'screen' }}>
+            <path d="M0 0 L50 56 L100 0" fill="none" stroke="rgba(255,248,230,.5)" strokeWidth=".35" vectorEffect="non-scaling-stroke" />
+            <path d="M0 100 L50 47 L100 100" fill="none" stroke="rgba(255,248,230,.28)" strokeWidth=".3" vectorEffect="non-scaling-stroke" />
+          </g>
+        </svg>
+        {/* The seal pressed onto the paper: a contact shadow just below its rim. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            mixBlendMode: 'multiply',
+            background: `radial-gradient(circle at 50% calc(56% + 7px), transparent calc(${seal} / 2 - 4px), rgba(0,0,0,.24) calc(${seal} / 2 + 1px), rgba(0,0,0,.07) calc(${seal} / 2 + 8px), transparent calc(${seal} / 2 + 20px))`,
+          }}
+        />
+        {/* Light from the top left, and the corners falling into shade. */}
+        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', background: 'linear-gradient(135deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.28) 100%)' }} />
+        <div className="absolute inset-0" style={{ mixBlendMode: 'multiply', background: 'radial-gradient(120% 95% at 50% 46%, transparent 60%, rgba(0,0,0,.22) 100%)' }} />
+        {/* Paper grain. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            mixBlendMode: 'multiply',
+            opacity: 0.35,
+            background: svg("<filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='3'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .38 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/>", 180, 180),
+          }}
+        />
+      </div>
+
       {/* The liner: on the underside of the flap, it swings up into view as the envelope opens. */}
       {liner !== 'none' && (
         <div
@@ -171,6 +227,25 @@ export function EnvelopeExtras({ phase, opts, colours, guestName }: { phase: num
               <circle cx="100" cy="88" r="3" fill="#fff4d2" stroke="none" />
             </g>
           </svg>
+        </div>
+      )}
+
+      {/* The invitation has music: a gentle reminder to turn the sound up before tapping. */}
+      {music && phase === 0 && (
+        <div
+          className="absolute left-1/2 flex items-center gap-2 py-[7px] px-4 rounded-full"
+          style={{
+            top: 'max(18px, env(safe-area-inset-top))',
+            transform: 'translateX(-50%)',
+            background: 'rgba(251,248,242,.88)',
+            color: '#33402f',
+            boxShadow: '0 4px 14px rgba(0,0,0,.18)',
+            fontFamily: "'Cormorant Garamond', Georgia, serif",
+            fontSize: 'clamp(15px,4vmin,18px)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span aria-hidden>🔊</span> Turn your sound up, then tap to open
         </div>
       )}
 
