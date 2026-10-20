@@ -117,6 +117,26 @@ describe('customer accounts', () => {
     expect((await call('/api/a/w/w1/members', {}, other)).status).toBe(404);
   });
 
+  it('the main account (the first owner) keeps the plan and billing; a partner owner does everything else', async () => {
+    const owner = await login('owner@example.com', 'valley-2027');
+    const { link } = (await (await call('/api/a/w/w1/members/invite', json('POST', { email: 'partner@example.com', role: 'owner' }), owner)).json()) as { link: string };
+    const token = new URL(link).searchParams.get('t')!;
+    const joined = await call(`/api/a/invite/${token}`, json('POST', { passcode: 'partner-pass-1', firstName: 'Sam' }));
+    expect(joined.status).toBe(200);
+    const partner = cookieOf(joined); // their own sign-in
+    const list = (await (await call('/api/a/w/w1/members', {}, partner)).json()) as { main: string; you: { main: boolean } };
+    expect(list.main).toBe('u1');
+    expect(list.you.main).toBe(false);
+    // The partner can't remove or demote the main account, or change the plan.
+    expect((await call('/api/a/w/w1/members/u1', { method: 'DELETE' }, partner)).status).toBe(403);
+    expect((await call('/api/a/w/w1/members/u1', json('PATCH', { role: 'viewer' }), partner)).status).toBe(403);
+    expect((await call('/api/a/w/w1/plan/request', json('POST', { plan: 'complete' }), partner)).status).toBe(403);
+    // ...but can invite and manage everyone else.
+    expect((await call('/api/a/w/w1/members/invite', json('POST', { email: 'planner@example.com', role: 'editor' }), partner)).status).toBe(200);
+    // The main account can.
+    expect((await call('/api/a/w/w1/plan/request', json('POST', { plan: 'complete' }), owner)).status).toBe(200);
+  });
+
   it('a stranger or a made-up link learns nothing', async () => {
     expect((await call('/api/a/invite/not-a-real-token-at-all-000')).status).toBe(410);
     expect((await call('/api/a/w/w1/members')).status).toBe(401);

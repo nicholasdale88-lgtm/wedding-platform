@@ -72,6 +72,23 @@ const consent = (c: C, userId: string, granted: boolean, source: string) =>
 const inviteHash = (c: C, token: string) => sessionId(`invite:${token}`, c.env.SESSION_SECRET!);
 const base = (c: C) => (c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '');
 
+/**
+ * The wedding's main account: the person who signed up (content.mainAccount), or for older weddings the
+ * first owner to join. Only they see and change the plan and billing, and no one else can remove them.
+ */
+export async function mainAccountOf(db: D1Database, weddingId: string): Promise<string | null> {
+  const row = await db
+    .prepare(
+      `SELECT COALESCE(
+         (SELECT m.user_id FROM membership m WHERE m.wedding_id = w.id AND m.user_id = json_extract(w.content, '$.mainAccount')),
+         (SELECT m.user_id FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = w.id AND m.role = 'owner' ORDER BY u.created_at, u.id LIMIT 1)
+       ) AS main FROM wedding w WHERE w.id = ? AND json_valid(w.content)`,
+    )
+    .bind(weddingId)
+    .first<{ main: string | null }>();
+  return row?.main ?? null;
+}
+
 /** /api/a/me/... and /api/a/invite/... */
 export function accountRoutes() {
   const app = new Hono<AdminEnv>();
@@ -218,6 +235,7 @@ export function memberRoutes() {
       .all<{ id: string; email: string; first_name: string | null; last_name: string | null; name: string | null; last_login_at: string | null; role: Role }>();
     const self = c.get('user').id;
     const isOwner = c.get('role') === 'owner';
+    const main = await mainAccountOf(c.env.DB, wid(c));
     const invites = isOwner
       ? (
           await c.env.DB.prepare(`SELECT id, email, role, expires_at FROM member_invite WHERE wedding_id = ? AND accepted_at IS NULL AND expires_at > ? ORDER BY created_at DESC`)
@@ -226,7 +244,8 @@ export function memberRoutes() {
         ).results.map((i) => ({ id: i.id, email: i.email, role: i.role, expiresAt: i.expires_at }))
       : [];
     return c.json({
-      you: { id: self, role: c.get('role') },
+      you: { id: self, role: c.get('role'), main: self === main },
+      main,
       members: members.map((m) => ({
         id: m.id,
         // A viewer sees who's who, not everyone's email.
@@ -275,6 +294,7 @@ export function memberRoutes() {
     const body = z.object({ role: z.enum(['owner', 'editor', 'viewer']) }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose what they can do.');
     const uid = c.req.param('uid');
+    if (uid === (await mainAccountOf(c.env.DB, wid(c))) && uid !== c.get('user').id) return err(c, 403, 'main_account', 'The main account (payments) stays an owner.');
     if (body.data.role !== 'owner' && (await lastOwner(c, uid))) return err(c, 409, 'last_owner', 'Someone else must be an owner first.');
     const r = await c.env.DB.prepare(`UPDATE membership SET role = ? WHERE wedding_id = ? AND user_id = ?`).bind(body.data.role, wid(c), uid).run();
     return r.meta.changes ? c.json({ ok: true }) : err(c, 404, 'not_found', 'They aren’t part of this wedding.');
@@ -284,6 +304,7 @@ export function memberRoutes() {
   app.delete('/:uid', async (c) => {
     const uid = c.req.param('uid');
     if (uid !== c.get('user').id && c.get('role') !== 'owner') return err(c, 403, 'forbidden', "Your role can't do that.");
+    if (uid !== c.get('user').id && uid === (await mainAccountOf(c.env.DB, wid(c)))) return err(c, 403, 'main_account', 'The main account (payments) can’t be removed.');
     if (await lastOwner(c, uid)) return err(c, 409, 'last_owner', 'Someone else must be an owner first.');
     const r = await c.env.DB.prepare(`DELETE FROM membership WHERE wedding_id = ? AND user_id = ?`).bind(wid(c), uid).run();
     return r.meta.changes ? c.json({ ok: true }) : err(c, 404, 'not_found', 'They aren’t part of this wedding.');

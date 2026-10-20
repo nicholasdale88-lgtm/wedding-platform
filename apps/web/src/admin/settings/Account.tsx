@@ -113,8 +113,17 @@ export function YourDetails() {
 
 /** Settings → Your plan: the plan this wedding is on, and what upgrading would add. */
 export function PlanAndBilling() {
+  const { wid } = useAdmin();
   const { plan } = usePlan();
   const info = PLAN_INFO[plan];
+  // Only the main account (who signed up) changes the plan and pays; everyone else sees it.
+  const [main, setMain] = useState<{ me: boolean; name: string } | null>(null);
+  useEffect(() => {
+    accountApi.members(wid).then(
+      (m) => setMain({ me: !!m.you.main, name: m.members.find((x) => x.id === m.main)?.name || 'the main account' }),
+      () => setMain({ me: true, name: '' }),
+    );
+  }, [wid]);
   return (
     <div className="flex flex-col gap-4 max-w-[720px]">
       <section aria-label="Your plan" className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
@@ -126,8 +135,14 @@ export function PlanAndBilling() {
           {plan === 'complete' ? 'Everything is included.' : `${info.price === '$0' ? 'Free' : info.price}. Texts are paid to your SMS provider, not to us.`}
         </span>
       </section>
-      {plan === 'free' && <Upgrade feature="planner" compact />}
-      {plan !== 'complete' && <Upgrade feature="photoQr" compact />}
+      {main && !main.me ? (
+        <p className="m-0 text-[14px] text-[#5b6a52]">The plan and payments are looked after by {main.name}, the main account. Ask them to change it.</p>
+      ) : (
+        <>
+          {plan === 'free' && <Upgrade feature="planner" compact />}
+          {plan !== 'complete' && <Upgrade feature="photoQr" compact />}
+        </>
+      )}
     </div>
   );
 }
@@ -206,13 +221,14 @@ export function TheWedding() {
                 <span className="block font-semibold truncate">
                   {x.name || x.email || 'Someone'}
                   {you ? ' (you)' : ''}
+                  {x.id === m.main && <span className="ml-2 align-middle py-[2px] px-2 rounded-full bg-[#efe7d3] text-[11px] font-sans font-semibold text-[#5b6a52]">Main account (payments)</span>}
                 </span>
                 <span className="block text-[13px] text-[#5b6a52] truncate">
                   {[x.email && x.name ? x.email : '', ROLE[x.role].what, x.lastLoginAt ? `last in ${fmtWhen(x.lastLoginAt, 'Australia/Sydney')}` : ''].filter(Boolean).join(' · ')}
                 </span>
               </span>
               <span className="flex items-center gap-2">
-                {owner && !you ? (
+                {owner && !you && x.id !== m.main ? (
                   <select aria-label={`What ${x.name || x.email} can do`} value={x.role} onChange={(e) => void run(() => accountApi.setRole(wid, x.id, e.target.value as Role), 'Saved')} className={`${inputCls} !py-2`}>
                     {(Object.keys(ROLE) as Role[]).map((r) => (
                       <option key={r} value={r}>
@@ -223,7 +239,7 @@ export function TheWedding() {
                 ) : (
                   <span className="text-[13px] font-medium">{ROLE[x.role].label}</span>
                 )}
-                {(owner || you) && (
+                {(you ? x.id !== m.main || m.members.filter((y) => y.role === 'owner').length > 1 : owner && x.id !== m.main) && (
                   <Pill
                     size="sm"
                     kind="danger"

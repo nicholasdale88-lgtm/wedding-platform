@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { hashPasscode, passcodeProblem } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
+import { mainAccountOf } from './accounts';
 import { jsonWritesOnly, requireMember, requireUser, signIn, type AdminEnv } from './auth';
 
 /**
@@ -69,7 +70,8 @@ export function signupRoutes() {
     const startsAt = b.date ? zonedToUtc(`${b.date}T15:00`, tz).toISOString() : zonedToUtc(`${new Date().getUTCFullYear() + 1}-01-01T15:00`, tz).toISOString();
     const monogram = `${b.firstName.charAt(0).toUpperCase()}&${b.partnerName.charAt(0).toUpperCase()}`;
     // Private from the start: their pages open only with each guest's own link.
-    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, ...(b.date ? {} : { dateToBeSet: true }) });
+    // The person signing up is the main account: the plan and billing are theirs (partners join as owners).
+    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, ...(b.date ? {} : { dateToBeSet: true }) });
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
@@ -105,6 +107,9 @@ export function planRoutes() {
   app.use('/super/*', jsonWritesOnly);
   app.use('/w/:wid/privacy', jsonWritesOnly);
   app.post('/w/:wid/plan/request', requireUser, requireMember('owner'), async (c) => {
+    if (c.get('user').id !== (await mainAccountOf(c.env.DB, c.req.param('wid')))) {
+      return c.json({ error: { code: 'main_account', message: 'Only the main account (payments) can change the plan. Ask them, or see Settings → Who can sign in.' } }, 403);
+    }
     const b = z.object({ plan: z.enum(['essentials', 'complete']) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return c.json({ error: { code: 'invalid', message: 'Choose a plan.' } }, 400);
     const at = new Date().toISOString();

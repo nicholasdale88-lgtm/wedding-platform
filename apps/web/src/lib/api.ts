@@ -326,7 +326,10 @@ export interface Member {
   lastLoginAt: string | null;
 }
 export interface Members {
-  you: { id: string; role: Role };
+  /** `main`: you're the main account (the plan and billing are yours). */
+  you: { id: string; role: Role; main?: boolean };
+  /** The main account's user id: the person who signed up (payments). */
+  main?: string | null;
   members: Member[];
   invites: { id: string; email: string; role: Role; expiresAt: string }[];
 }
