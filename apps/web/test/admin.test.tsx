@@ -99,7 +99,9 @@ describe('phone menu', () => {
     await screen.findByRole('button', { name: /^Menu: Account/ });
     expect(screen.queryByRole('navigation', { name: 'Quick links' })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Admin' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Help' })).toBeInTheDocument();
+    // Help sits to the right of the menu button.
+    const help = screen.getByRole('link', { name: 'Help' });
+    expect(screen.getByRole('button', { name: /^Menu/ }).compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('the menu: Account on its own, then Events; tapping one shows only its pages, each once', async () => {

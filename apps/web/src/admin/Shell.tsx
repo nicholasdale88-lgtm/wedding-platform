@@ -298,13 +298,6 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         {/* The only menu on a phone. */}
         <header className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
           <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate flex-1">{name}</div>
-          <Link
-            to={path('help', ALL_EVENTS)}
-            aria-label="Help"
-            className="flex-none w-9 h-9 rounded-full border border-[rgba(243,236,214,.35)] flex items-center justify-center text-[16px] font-semibold no-underline !text-[#f3ecd6]"
-          >
-            ?
-          </Link>
           <button
             type="button"
             onClick={() => setMore((x) => !x)}
@@ -317,6 +310,13 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
             <span aria-hidden>{more ? '▴' : '▾'}</span>
             {unread > 0 && <span aria-hidden className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[11px] leading-[18px] text-center">{unread}</span>}
           </button>
+          <Link
+            to={path('help', ALL_EVENTS)}
+            aria-label="Help"
+            className="flex-none w-10 h-10 rounded-full border border-[rgba(243,236,214,.35)] flex items-center justify-center text-[16px] font-semibold no-underline !text-[#f3ecd6]"
+          >
+            ?
+          </Link>
         </header>
         <main className="min-w-0 pt-5 px-4 pb-[calc(40px+env(safe-area-inset-bottom))]">{children}</main>
         {more && <MoreSheet onClose={() => setMore(false)} onSignOut={signOut} />}
