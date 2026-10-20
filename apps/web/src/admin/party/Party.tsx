@@ -1,7 +1,7 @@
-import { PACK_TEMPLATE, PARTY_TEMPLATE, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup } from '@wp/shared';
+import { clockText, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_TEMPLATE, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup, type PartySide, type Shuttles } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, ApiError, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
+import { api, ApiError, pagesApi, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
 import { confirmLeave, useUnsavedChanges } from '../leave';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Pill, subNavCls, tabCls, useToast } from '../ui';
@@ -129,10 +129,76 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
   const [dirty, setDirty] = useState(false);
   useUnsavedChanges(dirty);
   const [saving, setSaving] = useState(false);
+  // Lines show as one row each; tap one to change it (new lines open ready to type).
+  const [open, setOpen] = useState<Set<number>>(new Set());
+  // "See it as": the run sheet exactly as one member (or role) sees it on their own link.
+  const [asWho, setAsWho] = useState('');
+  const [bringing, setBringing] = useState('');
 
   const edit = (next: PartyRunsheet) => {
     setSheet(next);
     setDirty(true);
+  };
+  const toggle = (i: number) =>
+    setOpen((s) => {
+      const n = new Set(s);
+      if (n.has(i)) n.delete(i);
+      else n.add(i);
+      return n;
+    });
+  /** Lines in time order (a line without a clock time stays just after the line before it). */
+  const byTime = (items: PartyItem[]) => {
+    let last = -1;
+    return items
+      .map((x, i) => {
+        last = minutes(x.time) ?? last;
+        return { x, i, m: last };
+      })
+      .sort((a, b) => a.m - b.m || a.i - b.i)
+      .map((k) => k.x);
+  };
+  /** Bring in times already planned elsewhere, without doubling up lines that are already there. */
+  const bringIn = async (from: 'timeline' | 'glam' | 'transport') => {
+    if (!d.event) return;
+    setBringing(from);
+    try {
+      let lines: PartyItem[] = [];
+      if (from === 'timeline') {
+        const p = await pagesApi.get(wid);
+        const first = p.events[0]?.key === d.event;
+        const tl = (first ? p.invitation.timeline : p.invitation.timelines?.[d.event]) ?? [];
+        lines = tl.filter((t) => t.title.trim()).map((t) => ({ time: t.time, until: t.until, title: t.title, detail: t.note, place: t.where ?? '', who: ['party'] }));
+      } else if (from === 'glam') {
+        for (const side of ['p1', 'p2'] as const) {
+          const doc = await plannerApi.doc<PartySide>(wid, side === 'p1' ? 'party-p1' : 'party-p2').catch(() => null);
+          const g = doc?.data.glam;
+          if (!g?.finish || !g.people.length) continue;
+          for (const r of glamSchedule(g).rows) {
+            const slots: ['Hair' | 'Make-up', [number, number] | undefined][] = [
+              ['Hair', r.hair],
+              ['Make-up', r.makeup],
+            ];
+            for (const [what, span] of slots) if (span) lines.push({ time: clockText(span[0]), until: clockText(span[1]), title: `${what}: ${r.who}`, detail: '', place: '', who: [side] });
+          }
+        }
+      } else {
+        const doc = await plannerApi.docFor<Shuttles>(wid, 'shuttles', d.event).catch(() => null);
+        lines = (doc?.data.list ?? []).map((s) => ({ time: s.time, until: '', title: `Shuttle: ${s.from} → ${s.to}`, detail: s.note, place: s.from, who: ['party'] }));
+      }
+      const have = new Set(sheet.items.map((x) => `${x.time.trim().toLowerCase()}|${x.title.trim().toLowerCase()}`));
+      const fresh = lines.filter((x) => !have.has(`${x.time.trim().toLowerCase()}|${x.title.trim().toLowerCase()}`));
+      if (!fresh.length) {
+        toast(from === 'timeline' ? 'Nothing new in the guests’ timeline (Setup → Invitation).' : from === 'glam' ? 'Nothing new: set a finish time in each side’s Hair & make-up first.' : 'Nothing new: add shuttles in Wedding planner → Transport first.');
+        return;
+      }
+      edit({ ...sheet, items: byTime([...sheet.items, ...fresh]) });
+      setOpen(new Set());
+      toast(`${fresh.length} line${fresh.length === 1 ? '' : 's'} added in time order: check who each is for, then save.`);
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBringing('');
+    }
   };
   const setItem = (i: number, patch: Partial<PartyItem>) => edit({ ...sheet, items: sheet.items.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
   const save = async () => {
@@ -195,13 +261,8 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
               <Pill
                 kind="dashed"
                 onClick={() => {
-                  // A line without a clock time stays just after the line before it.
-                  let last = -1;
-                  const keyed = sheet.items.map((x, i) => {
-                    last = minutes(x.time) ?? last;
-                    return { x, i, m: last };
-                  });
-                  edit({ ...sheet, items: keyed.sort((a, b) => a.m - b.m || a.i - b.i).map((k) => k.x) });
+                  edit({ ...sheet, items: byTime(sheet.items) });
+                  setOpen(new Set());
                 }}
               >
                 Sort by time
@@ -216,8 +277,82 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
           A note at the top (dress, where to meet, who to call)
           <textarea rows={2} value={sheet.note} maxLength={1500} onChange={(e) => edit({ ...sheet, note: e.target.value })} className={`${inputCls} resize-y`} />
         </label>
-        {sheet.items.map((it, i) => (
-          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <div className="flex gap-2 flex-wrap items-center text-[13px] text-[#5b6a52]">
+          <span>Bring in times from:</span>
+          {(
+            [
+              ['timeline', 'The guests’ timeline'],
+              ['glam', 'Hair & make-up'],
+              ['transport', 'Transport'],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} type="button" disabled={!!bringing} onClick={() => void bringIn(k)} className={chip(false)}>
+              {bringing === k ? 'Adding…' : `+ ${label}`}
+            </button>
+          ))}
+        </div>
+        {sheet.items.length > 0 && (
+          <label className="flex items-center gap-2 flex-wrap text-[13px] text-[#5b6a52]">
+            See it as
+            <select value={asWho} onChange={(e) => setAsWho(e.target.value)} className={`${inputCls} !py-[6px] !text-[13px] w-auto`}>
+              <option value="">(editing: every line)</option>
+              {d.members
+                .filter((m) => m.role)
+                .map((m) => (
+                  <option key={m.personId} value={m.role}>
+                    {m.name} · {m.role}
+                  </option>
+                ))}
+              {audiences
+                .filter(([k]) => k !== 'party' && k !== 'p1' && k !== 'p2' && !d.members.some((m) => m.role === k))
+                .map(([k]) => (
+                  <option key={k} value={k}>
+                    Any {k}
+                  </option>
+                ))}
+            </select>
+          </label>
+        )}
+        {asWho ? (
+          <ol aria-label={`The run sheet as ${asWho} sees it`} className="m-0 p-4 list-none flex flex-col gap-3 rounded-[14px] border border-dashed border-[#c6b794] bg-white">
+            {itemsFor(sheet.items, asWho).map((it, i) => (
+              <li key={i} className="grid grid-cols-[92px_minmax(0,1fr)] gap-3">
+                <span className="text-[14px] font-semibold tabular-nums text-[#5b6a52]">
+                  {it.time}
+                  {it.until ? `–${it.until}` : ''}
+                </span>
+                <span className="flex flex-col">
+                  <span className="text-[15px]">{it.title}</span>
+                  {it.place && <span className="text-[13px] text-[#7a7466]">{it.place}</span>}
+                  {it.detail && <span className="text-[13px] text-[#5b6a52]">{it.detail}</span>}
+                </span>
+              </li>
+            ))}
+            {!itemsFor(sheet.items, asWho).length && <li className="text-[14px] text-[#7a7466]">Nothing for them yet: give them lines with “Who it’s for”.</li>}
+            <li className="text-[12px] text-[#7a7466]">This is what their own link shows{dirty ? ' once you save' : ''}.</li>
+          </ol>
+        ) : (
+          sheet.items.map((it, i) =>
+            !open.has(i) && it.title.trim() ? (
+              <button key={i} type="button" onClick={() => toggle(i)} aria-label={`Change: ${it.title}`} className="grid grid-cols-[92px_minmax(0,1fr)_auto] max-[520px]:grid-cols-[72px_minmax(0,1fr)] items-baseline gap-3 py-[10px] px-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:border-[#b39563] text-[#33402f]">
+                <span className="text-[14px] font-semibold tabular-nums text-[#5b6a52]">
+                  {it.time || '–'}
+                  {it.until ? `–${it.until}` : ''}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] truncate">{it.title}</span>
+                  {(it.place || it.detail) && <span className="block text-[12px] text-[#7a7466] truncate">{[it.place, it.detail].filter(Boolean).join(' · ')}</span>}
+                </span>
+                <span className="flex gap-1 flex-wrap justify-end max-[520px]:col-span-2 max-[520px]:justify-start">
+                  {it.who.map((w) => (
+                    <span key={w} className="py-[1px] px-2 rounded-full bg-[#efe6d3] text-[11px] text-[#5b6a52]">
+                      {audiences.find(([k]) => k === w)?.[1] ?? w}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            ) : (
+          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#b39563] bg-[#fbf8f0]">
             <div className="grid grid-cols-[90px_90px_minmax(0,1fr)] gap-2 max-[520px]:grid-cols-2">
               <input aria-label="Time" placeholder="9:30am" value={it.time} onChange={(e) => setItem(i, { time: e.target.value })} className={inputCls} />
               <input aria-label="Until" placeholder="until" value={it.until} onChange={(e) => setItem(i, { until: e.target.value })} className={inputCls} />
@@ -240,16 +375,40 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
                 >
                   ↓
                 </button>
-                <button type="button" aria-label="Remove line" onClick={() => edit({ ...sheet, items: sheet.items.filter((_, j) => j !== i) })} className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37]">
+                <button
+                  type="button"
+                  aria-label="Remove line"
+                  onClick={() => {
+                    edit({ ...sheet, items: sheet.items.filter((_, j) => j !== i) });
+                    setOpen(new Set());
+                  }}
+                  className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37]"
+                >
                   ×
                 </button>
+                {it.title.trim() && (
+                  <button type="button" onClick={() => toggle(i)} className="h-9 px-3 rounded-full border border-[#33402f] bg-[#33402f] text-[#fbf8f2] text-[13px] cursor-pointer">
+                    Done
+                  </button>
+                )}
               </div>
             </div>
           </div>
-        ))}
-        <Pill kind="dashed" className="self-start" onClick={() => edit({ ...sheet, items: [...sheet.items, { ...BLANK }] })}>
-          + Add a line
-        </Pill>
+            ),
+          )
+        )}
+        {!asWho && (
+          <Pill
+            kind="dashed"
+            className="self-start"
+            onClick={() => {
+              setOpen((s) => new Set(s).add(sheet.items.length));
+              edit({ ...sheet, items: [...sheet.items, { ...BLANK }] });
+            }}
+          >
+            + Add a line
+          </Pill>
+        )}
       </section>
 
       <section aria-label="What to pack" className="flex flex-col gap-3">
