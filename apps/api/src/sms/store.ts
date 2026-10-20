@@ -2,6 +2,7 @@ import type {
   Campaign, EventInfo, InboundRow, Iso, NewOutbox, OutboxKind, OutboxResult, OutboxRow, PhoneMatch, Recipient,
   Slot, WeddingCtx,
 } from './types';
+import type { EventFacts } from './smart';
 
 /**
  * Everything the SMS engine needs from storage. The D1 implementation lives in
@@ -59,6 +60,10 @@ export interface SmsStore {
   /** Platform-wide STOP: every invitation with this number, in every wedding. */
   optOut(phone: string, source: string): Promise<void>;
   setRsvp(invitationId: string, eventKey: string, rsvp: { attending: boolean; count: number }, at: Iso): Promise<void>;
+  /** Adds dietary needs to these people on an invitation (by name), kept with what they already have. */
+  addDiet(invitationId: string, names: string[], diets: string[], at: Iso): Promise<void>;
+  /** What the wedding already says about each event: time, place, and the guide's arrival, parking, dress and FAQ. */
+  eventFacts(weddingId: string): Promise<EventFacts[]>;
 
   // Delivery receipts
   markDelivery(providerId: string, status: 'delivered' | 'failed'): Promise<void>;

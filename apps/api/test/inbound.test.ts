@@ -51,6 +51,32 @@ describe('inbound replies', () => {
     expect(toPhone(ADMIN).at(-1)!.message).toBe('Reply from Guest2 Jones: What time should we arrive?');
   });
 
+  it('a dietary need is noted on that person (with a yes, or on its own); when it is unclear whose, the couple are asked', async () => {
+    expect(await text(phoneOf(3), "I'm coeliac")).toBe('Dietary noted');
+    expect(t.store.diets.get('i3')).toEqual({ 'Guest3 Jones': 'Coeliac (gluten free)' });
+    expect(toPhone(phoneOf(3)).at(-1)!.message).toContain("We've noted coeliac (gluten free) for Guest3.");
+    expect(await text(phoneOf(0), 'Yes! Partner0 is vegan')).toBe('RSVP set to yes');
+    expect(t.store.diets.get('i0')).toEqual({ 'Partner0 Smith': 'Vegan' });
+    expect(toPhone(phoneOf(0)).at(-1)!.message).toContain("We've noted vegan for Partner0.");
+    t.clock.set('2026-10-21T11:00');
+    expect(await text(phoneOf(4), 'One of us is vegetarian')).toBe('Needs you');
+    expect(t.store.diets.get('i4')).toBeUndefined();
+  });
+
+  it("a question the wedding already answers is answered at once, for the guest's own events; others go to the couple", async () => {
+    t.store.facts.set(t.store.weddingList[0]!.id, [
+      { eventKey: 'wedding', name: 'The wedding', startsAt: '2027-11-18T03:00:00.000Z', venue: 'The Lookout', address: '1 Valley Rd', arrive: '', parking: 'Free parking by the stables.', dress: '', faq: [] },
+      { eventKey: '30th', name: 'The 30th', startsAt: '2027-11-20T00:00:00.000Z', venue: 'The River', address: '', arrive: '', parking: 'Park by the gate.', dress: '', faq: [] },
+    ]);
+    // i3 is invited to the wedding only: only its parking.
+    expect(await text(phoneOf(3), 'Is there parking?')).toBe('Answered');
+    const msg = toPhone(phoneOf(3)).at(-1)!.message;
+    expect(msg).toContain('Free parking by the stables.');
+    expect(msg).not.toContain('gate');
+    expect(msg).toContain(`?g=${t.store.recipient('i3').token}`);
+    expect(await text(phoneOf(3), 'Can I bring my dog?')).toBe('Needs you');
+  });
+
   it('an unknown number is forwarded', async () => {
     expect(await text('0499 111 222', 'Who is this?')).toBe('Unknown number');
     expect(toPhone(ADMIN).at(-1)!.message).toBe('Reply from +61499111222: Who is this?');

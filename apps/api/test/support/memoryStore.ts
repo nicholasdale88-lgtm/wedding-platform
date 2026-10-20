@@ -1,4 +1,5 @@
 import type { SmsStore } from '../../src/sms/store';
+import type { EventFacts } from '../../src/sms/smart';
 import type {
   Campaign, EventInfo, InboundRow, NewOutbox, OutboxRow, Recipient, Slot, WeddingCtx,
 } from '../../src/sms/types';
@@ -13,6 +14,9 @@ export class MemoryStore implements SmsStore {
   outbox: OutboxRow[] = [];
   inbound: InboundRow[] = [];
   stopList = new Set<string>();
+  /** Dietary needs by invitation, then person name. */
+  diets = new Map<string, Record<string, string>>();
+  facts = new Map<string, EventFacts[]>();
   private seq = 0;
 
   private clone = <T>(x: T): T => structuredClone(x);
@@ -149,6 +153,15 @@ export class MemoryStore implements SmsStore {
     r.rsvp[eventKey] = { attending: v.attending, count: v.count, answers: r.rsvp[eventKey]?.answers ?? {} };
     r.rsvpUpdatedAt = at;
   }
+  async addDiet(invitationId: string, names: string[], diets: string[]) {
+    const now = this.diets.get(invitationId) ?? {};
+    for (const n of names) {
+      const have = (now[n] ?? '').split(/;\s*/).filter(Boolean);
+      now[n] = [...have, ...diets.filter((d) => !have.includes(d))].join('; ');
+    }
+    this.diets.set(invitationId, now);
+  }
+  async eventFacts(weddingId: string) { return this.clone(this.facts.get(weddingId) ?? []); }
   async markDelivery(providerId: string, status: 'delivered' | 'failed') {
     const o = this.outbox.find((x) => x.providerId === providerId);
     if (o && (o.status === 'sent' || status === 'failed')) o.status = status;

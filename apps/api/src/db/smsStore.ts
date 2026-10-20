@@ -1,4 +1,5 @@
-import { defaultInvitesFrom } from '@wp/shared';
+import { defaultInvitesFrom, guidesOf } from '@wp/shared';
+import type { EventFacts } from '../sms/smart';
 import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import type { SmsStore } from '../sms/store';
 import {
@@ -283,6 +284,45 @@ export class D1SmsStore implements SmsStore {
       this.db.prepare(`INSERT OR IGNORE INTO opt_out (phone, source, created_at) VALUES (?, ?, ?)`).bind(phone, source, now),
       this.db.prepare(`UPDATE invitation SET sms_optout = 1, updated_at = ?, version = version + 1 WHERE phone = ?`).bind(now, phone),
     ]);
+  }
+
+  async addDiet(invitationId: string, names: string[], diets: string[], at: Iso) {
+    const rows = await this.all<{ id: string; name: string; diet: string }>(`SELECT id, name, diet FROM person WHERE invitation_id = ? AND deleted_at IS NULL`, invitationId);
+    const stmts = rows
+      .filter((p) => names.includes(p.name))
+      .map((p) => {
+        const have = p.diet.split(/;\s*/).filter(Boolean);
+        const next = [...have, ...diets.filter((d) => !have.some((h) => h.toLowerCase() === d.toLowerCase()))].join('; ').slice(0, 500);
+        return this.db.prepare(`UPDATE person SET diet = ? WHERE id = ?`).bind(next, p.id);
+      });
+    if (!stmts.length) return;
+    // Bump the version so an admin editing this invitation gets "updated elsewhere" instead of overwriting it.
+    stmts.push(this.db.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ?`).bind(at, invitationId));
+    await this.db.batch(stmts);
+  }
+
+  async eventFacts(weddingId: string): Promise<EventFacts[]> {
+    const [w] = await this.all<{ guide: string | null }>(`SELECT guide FROM wedding WHERE id = ?`, weddingId);
+    const events = await this.all<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null }>(
+      `SELECT key, name, starts_at, venue, address FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`,
+      weddingId,
+    );
+    const guides = guidesOf(parseJson(w?.guide ?? null, {}), events.map((e) => e.key));
+    return events.map((e) => {
+      const g = guides[e.key] as Record<string, unknown> | undefined;
+      const str = (k: string) => (typeof g?.[k] === 'string' ? (g[k] as string).trim() : '');
+      return {
+        eventKey: e.key,
+        name: e.name,
+        startsAt: e.starts_at,
+        venue: e.venue ?? '',
+        address: e.address || str('address'),
+        arrive: str('arrive') ? `Arrive from ${str('arrive')}` : str('arriveBy') ? `Be there by ${str('arriveBy')}` : '',
+        parking: [str('parking'), str('parkDirections')].filter(Boolean).join(' '),
+        dress: str('dress'),
+        faq: Array.isArray(g?.faq) ? (g.faq as { q: string; a: string }[]) : [],
+      };
+    });
   }
 
   async setRsvp(invitationId: string, eventKey: string, v: { attending: boolean; count: number }, at: Iso) {

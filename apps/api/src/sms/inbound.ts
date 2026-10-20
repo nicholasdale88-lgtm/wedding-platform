@@ -2,6 +2,7 @@ import { segments, toE164 } from '@wp/shared';
 import { flush, thanksKey, type EngineDeps } from './engine';
 import { renderFor } from './render';
 import type { InboundRow, Iso, NewOutbox, PhoneMatch, WeddingCtx } from './types';
+import { answerFrom, dietsIn, whoseDiet } from './smart';
 
 export interface InboundSms {
   from: string;
@@ -49,6 +50,8 @@ export type InboundAction =
   | 'RSVP set to yes'
   | 'RSVP set to no'
   | 'Sent link'
+  | 'Dietary noted'
+  | 'Answered'
   | 'Needs you';
 
 /**
@@ -137,6 +140,30 @@ export async function processInbound(d: EngineDeps, row: InboundRow): Promise<In
     const m = renderFor(replies.multi, w, events, r);
     reply = toRow(w, r.id, `reply:${id}`, 'reply', r.phone!, m.body);
     action = 'Sent link';
+  }
+
+  // A dietary need in the message (with or without a yes): noted on that person, when it's clear who.
+  const diets = shared ? [] : dietsIn(text);
+  const whose = diets.length ? whoseDiet(text, r.people) : null;
+  let noted = '';
+  if (diets.length && whose) {
+    await d.store.addDiet(r.id, whose, diets, at);
+    noted = `We've noted ${diets.join(', ').toLowerCase()} for ${whose.length === r.people.length && whose.length > 1 ? 'everyone' : whose.map((p) => p.split(' ')[0]).join(' and ')}.`;
+  }
+  if (reply && noted) reply = { ...reply, body: `${reply.body} ${noted}`.slice(0, 600), parts: segments(`${reply.body} ${noted}`.slice(0, 600)).parts };
+  else if (!reply && noted) {
+    const m = renderFor(`Thanks {first}! ${noted} You can change it any time: {link}`, w, events, r);
+    reply = toRow(w, r.id, `reply:${id}`, 'reply', r.phone!, m.body);
+    action = 'Dietary noted';
+  } else if (!reply && !shared && !diets.length) {
+    // A question the wedding already answers (for their own events): answered now.
+    const facts = (await d.store.eventFacts(w.id)).filter((f) => r.invited.includes(f.eventKey));
+    const answer = answerFrom(text, facts, w.timezone);
+    if (answer) {
+      const m = renderFor(`Hi {first}! ${answer.replaceAll('{', '(').replaceAll('}', ')')} Everything's on your page: {link}`, w, events, r);
+      reply = toRow(w, r.id, `reply:${id}`, 'reply', r.phone!, m.body);
+      action = 'Answered';
+    }
   }
 
   if (reply && !r.optOut) await d.store.enqueue([reply]);
