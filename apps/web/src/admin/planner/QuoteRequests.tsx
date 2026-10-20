@@ -544,7 +544,7 @@ function Comparison({ rfq, cmp, onBook, onChange }: { rfq: Rfq; cmp: ReturnType<
                 </td>
                 {r.prices.map((p, i) => {
                   const q = cmp.cols[i]!.q;
-                  const v = r.variance[i];
+                  const v = r.variance[i] ?? null;
                   const style =
                     p !== null && p === r.low
                       ? { background: '#e6ecd8', fontWeight: 600 }
