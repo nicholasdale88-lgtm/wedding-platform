@@ -5,7 +5,7 @@ import { plannerApi } from '../../lib/api';
 import { confirmLeave } from '../leave';
 import { InstallApp } from '../../lib/InstallApp';
 import { useAdmin } from '../Shell';
-import { H2 } from '../ui';
+import { H2, useMedia } from '../ui';
 import { Gate } from '../Upgrade';
 import { Assistant } from './Assistant';
 import { Budget } from './Budget';
@@ -21,32 +21,44 @@ import { Transport } from './Transport';
 import { Vendors } from './Vendors';
 
 /**
- * The wedding's own section → Wedding planner: everything for planning the day in one place. At a glance
+ * The wedding's own section → Wedding planner: everything for planning the day in one place. Overview
  * (days to go, money, who's booked, what's still to book, payments coming up), Budget, Vendors (quotes,
  * comparisons, the finder near the venue) and the planning assistant. ?view= picks the page.
  */
 
 type View = 'glance' | 'insights' | 'ideas' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
-/** The everyday pages, always in view. */
-const MAIN: [View, string][] = [
-  ['glance', 'At a glance'],
-  ['checklist', 'Planning checklist'],
-  ['budget', 'Budget'],
-  ['payments', 'Payments'],
-  ['vendors', 'Vendors'],
-  ['insights', 'Progress'],
+/** The planner's pages, in three groups (the menu shows them all, so nothing hides behind "more"). */
+const GROUPS: { title: string; views: [View, string][] }[] = [
+  {
+    title: 'Planning',
+    views: [
+      ['glance', 'Overview'],
+      ['checklist', 'Checklist'],
+      ['budget', 'Budget'],
+      ['payments', 'Payments'],
+      ['vendors', 'Vendors'],
+    ],
+  },
+  {
+    title: 'The day',
+    views: [
+      ['transport', 'Transport'],
+      ['music', 'Music'],
+      ['photos', 'Shot list'],
+      ['print', 'Print cards & signs'],
+    ],
+  },
+  {
+    title: 'More',
+    views: [
+      ['ideas', 'Ideas'],
+      ['gifts', 'Gifts & thank-yous'],
+      ['insights', 'Progress'],
+      ['assistant', 'Ask the assistant'],
+    ],
+  },
 ];
-/** Everything else, a tap away under More. */
-const MORE: [View, string][] = [
-  ['ideas', 'Ideas'],
-  ['transport', 'Transport'],
-  ['music', 'Music'],
-  ['photos', 'Shot list'],
-  ['print', 'Print cards & signs'],
-  ['gifts', 'Gifts & thank-yous'],
-  ['assistant', 'Ask the assistant'],
-];
-const VIEWS = [...MAIN, ...MORE];
+const VIEWS = GROUPS.flatMap((g) => g.views);
 /** What most Australian weddings book (a checklist of vendor kinds; matched loosely against yours). */
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 
@@ -63,7 +75,8 @@ function Planner() {
   const [params, setParams] = useSearchParams();
   const view = (VIEWS.find(([k]) => k === params.get('view'))?.[0] ?? 'glance') as View;
   const [more, setMore] = useState(false);
-  const inMore = MORE.find(([k]) => k === view);
+  const mob = useMedia('(max-width: 759px)');
+  const label = VIEWS.find(([k]) => k === view)?.[1] ?? 'Overview';
   const go = (v: View) => {
     setMore(false);
     if (!confirmLeave()) return; // unsaved budget, transport or run-sheet edits
@@ -77,46 +90,62 @@ function Planner() {
       <header>
         <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Wedding planner</h1>
       </header>
-      <nav aria-label="Wedding planner" className="relative flex gap-5 border-b border-[#e2d7bc]">
-        <div className="flex gap-5 overflow-x-auto [scrollbar-width:none] min-w-0">
-          {MAIN.map(([k, label]) => (
-            <button
-              key={k}
-              type="button"
-              aria-current={view === k ? 'page' : undefined}
-              onClick={() => go(k)}
-              className={`py-2 px-0 border-0 border-b-2 border-solid bg-transparent text-[15px] cursor-pointer -mb-px whitespace-nowrap ${view === k ? 'border-[#33402f] font-semibold text-[#33402f]' : 'border-transparent text-[#5b6a52]'}`}
-            >
-              {label}
-            </button>
+      {/* Phones: one button with the page you're on, opening every page in its group. Wider: all of them, wrapping to fit. */}
+      {mob ? (
+        <nav aria-label="Wedding planner" className="relative">
+          <button
+            type="button"
+            aria-expanded={more}
+            onClick={() => setMore(!more)}
+            className="w-full flex justify-between items-center py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f0] text-[16px] font-semibold text-[#33402f] cursor-pointer"
+          >
+            {label}
+            <span aria-hidden className="text-[13px] font-normal text-[#5b6a52]">
+              {more ? 'Close ▴' : 'All planner pages ▾'}
+            </span>
+          </button>
+          {more && (
+            <div className="mt-2 flex flex-col gap-3 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] shadow-[0_10px_30px_rgba(51,64,47,.12)]">
+              {GROUPS.map((g) => (
+                <div key={g.title} className="flex flex-col gap-1">
+                  <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{g.title}</span>
+                  <div className="grid grid-cols-2 gap-1">
+                    {g.views.map(([k, l]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        aria-current={view === k ? 'page' : undefined}
+                        onClick={() => go(k)}
+                        className={`text-left py-2 px-3 rounded-[10px] border text-[14px] cursor-pointer ${view === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f0] font-semibold' : 'border-[#e2d7bc] bg-white text-[#33402f]'}`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </nav>
+      ) : (
+        <nav aria-label="Wedding planner" className="flex flex-wrap items-center gap-x-5 gap-y-2 pb-3 border-b border-[#e2d7bc]">
+          {GROUPS.map((g, gi) => (
+            <div key={g.title} role="group" aria-label={g.title} className={`flex flex-wrap items-center gap-1 ${gi ? 'pl-5 border-l border-[#e2d7bc]' : ''}`}>
+              {g.views.map(([k, l]) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-current={view === k ? 'page' : undefined}
+                  onClick={() => go(k)}
+                  className={`py-[6px] px-3 rounded-full border text-[14px] cursor-pointer whitespace-nowrap ${view === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f0] font-semibold' : 'border-transparent bg-transparent text-[#33402f] hover:border-[#d3c6a4]'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
           ))}
-        </div>
-        <button
-          type="button"
-          aria-expanded={more}
-          aria-haspopup="true"
-          aria-current={inMore ? 'page' : undefined}
-          onClick={() => setMore(!more)}
-          className={`flex-none py-2 px-0 border-0 border-b-2 border-solid bg-transparent text-[15px] cursor-pointer -mb-px whitespace-nowrap ${inMore ? 'border-[#33402f] font-semibold text-[#33402f]' : 'border-transparent text-[#5b6a52]'}`}
-        >
-          {inMore ? inMore[1] : 'Other tools'} ▾
-        </button>
-        {more && (
-          <div role="menu" className="absolute right-0 top-full mt-1 z-20 flex flex-col min-w-[190px] p-1 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] shadow-[0_10px_30px_rgba(51,64,47,.15)]">
-            {MORE.map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                role="menuitem"
-                onClick={() => go(k)}
-                className={`text-left py-2 px-3 rounded-[8px] border-0 bg-transparent cursor-pointer text-[14px] hover:bg-[#f3ecd6] ${view === k ? 'font-semibold text-[#33402f]' : 'text-[#5b6a52]'}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        )}
-      </nav>
+        </nav>
+      )}
       {view === 'glance' ? <Glance go={go} /> : view === 'insights' ? <Insights /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );
@@ -168,7 +197,7 @@ function Glance({ go }: { go: (v: View) => void }) {
   return (
     <div className="flex flex-col gap-5">
       <InstallApp what="your wedding admin" />
-      <section aria-label="At a glance" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Where things stand" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
           <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Days to go</span>
           <span className="font-display text-[34px] leading-none">{days === null ? '–' : Math.max(0, days)}</span>

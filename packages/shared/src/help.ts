@@ -130,7 +130,7 @@ export const HELP: HelpArticle[] = [
     title: 'Checklist and helpers',
     group: 'Planning',
     steps: [
-      'Open Wedding planner → Planning checklist: the usual Australian plan counted back from your date, including the Notice of Intended Marriage.',
+      'Open Wedding planner → Checklist: the usual Australian plan counted back from your date, including the Notice of Intended Marriage.',
       'Give a task to a family member or friend: they get a private link to their own list and can mark it done.',
     ],
     also: 'to do todo tasks timeline helpers family jobs notice of intended marriage',
@@ -154,7 +154,7 @@ export const HELP: HelpArticle[] = [
     group: 'On the day',
     steps: [
       'Open Photos → Photo settings, and connect your Google Drive, Dropbox or OneDrive: everything is filed there in folders.',
-      'Print table numbers or Snap & share cards (Wedding planner → Other tools → Print cards & signs): each has a QR code.',
+      'Print table numbers or Snap & share cards (Wedding planner → Print cards & signs): each has a QR code.',
       'Guests scan it, give their name, pick a frame, and take photos straight into your album. No app needed.',
     ],
     also: 'camera qr code album frames filters upload drive dropbox onedrive table cards',
@@ -178,7 +178,7 @@ export const HELP: HelpArticle[] = [
     group: 'On the day',
     steps: [
       'Guests tap “All my events, kept up to date” on their invitation: their events go into their phone’s calendar and update themselves.',
-      'In Wedding planner → Planning checklist, switch on your planning calendar: due tasks and payments appear in your own calendar.',
+      'In Wedding planner → Checklist, switch on your planning calendar: due tasks and payments appear in your own calendar.',
       'Install the admin on your phone: in your browser’s menu, choose Add to Home Screen.',
     ],
     also: 'calendar ical apple google outlook android iphone app install home screen',
