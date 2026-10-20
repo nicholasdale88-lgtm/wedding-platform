@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtWhen, shortLabel } from '../lib/format';
 import { Events } from './events/Events';
 import { Hub } from './hub/Hub';
-import { useAdmin, useSectionOverview } from './Shell';
+import { accountApi } from '../lib/api';
+import { ALL_EVENTS, useAdmin, useSectionOverview } from './Shell';
 import { ErrorState, Eyebrow, H2, Loading, Pill, useMedia, useToast } from './ui';
 
 const pc = (n: number, total: number) => `${total ? ((n / total) * 100).toFixed(1) : 0}%`;
@@ -41,6 +42,7 @@ export function Overview() {
   return (
     <div className="flex flex-col gap-[34px]">
       {!o.focus && <GettingStarted o={o} to={to} />}
+      {!o.focus && <AddPartner />}
       <header className="flex flex-col gap-[14px]">
         {firstEvent && o.daysToGo !== null && <Eyebrow>{o.focus ? `${o.daysToGo} days to ${firstEvent.name.replace(/^the\s+/i, 'the ')}` : `${o.daysToGo} days until the big day`}</Eyebrow>}
         <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance]">
@@ -195,6 +197,38 @@ function Dashboard({ children }: { children: ReactNode }) {
         <span className="text-[13px] text-[#5b6a52]">{shown ? 'Hide' : 'Tasks, payments, budget'} <span aria-hidden>{shown ? '▴' : '▾'}</span></span>
       </button>
       {shown && children}
+    </section>
+  );
+}
+
+/**
+ * Account → Overview, while only one person can sign in: a card to add your partner (or a helper) as an
+ * admin. It opens Settings → Who can sign in with the email box ready. Owners only; gone once someone joins.
+ */
+function AddPartner() {
+  const { wid, path } = useAdmin();
+  const go = useNavigate();
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    let live = true;
+    accountApi.members(wid).then(
+      (m) => live && setShow(m.you.role === 'owner' && m.members.length === 1 && m.invites.length === 0),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [wid]);
+  if (!show) return null;
+  return (
+    <section aria-label="Add your partner" className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <span className="flex flex-col gap-1 min-w-0">
+        <H2>Run it together</H2>
+        <span className="text-[14px] text-[#5b6a52]">Only you can sign in. Add your partner (or a planner or helper) so they can see and change everything too.</span>
+      </span>
+      <Pill kind="primary" onClick={() => go(`${path('settings', ALL_EVENTS)}?view=people&invite=1`)}>
+        Add your partner or a helper
+      </Pill>
     </section>
   );
 }

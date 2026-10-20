@@ -215,6 +215,18 @@ describe('your account', () => {
   });
 });
 
+describe('add your partner', () => {
+  it('while only you can sign in, Account shows a card that opens the invite with the email box ready', async () => {
+    const members = { you: { id: 'u1', role: 'owner' }, members: [{ id: 'u1', email: 'owner@example.com', name: 'Alex Smith', role: 'owner', lastLoginAt: null }], invites: [] };
+    mockApi({ '/api/a/w/w1/members': () => json(200, members) });
+    renderAt('/admin/w1/account/overview');
+    await userEvent.click(await screen.findByRole('button', { name: 'Add your partner or a helper' }));
+    expect(location).toBe('/admin/w1/account/settings?view=people&invite=1');
+    await waitFor(() => expect(screen.getByLabelText('Their email')).toHaveFocus());
+    expect(screen.getByLabelText('They can')).toHaveValue('owner');
+  });
+});
+
 describe('admin name', () => {
   it('Admin look: the name at the top of the admin saves when you leave the box', async () => {
     let body: unknown;
