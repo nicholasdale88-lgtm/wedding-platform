@@ -6,7 +6,7 @@ export const SOLO_HIDDEN = new Set(['01 Welcome', '01b Countdown', '02 The Weddi
 const SECTION = '[data-screen-label="05 Birthday & Horse Riding"]';
 const FAQ = '[data-screen-label="11 FAQ"]';
 
-/** "Nicholas's 30th" -> "30"; otherwise the event's first letter. */
+/** "Alex's 30th" -> "30"; otherwise the event's first letter. */
 export const sealFor = (name: string) => name.match(/\d+/)?.[0] ?? (name.trim()[0] ?? '').toUpperCase();
 
 const p2 = (n: number) => String(n).padStart(2, '0');
