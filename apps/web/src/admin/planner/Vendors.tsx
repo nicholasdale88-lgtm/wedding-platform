@@ -2,6 +2,7 @@ import { commitmentOf, dateIn, moneyOf, QUOTE_STAGES, quoteStatus, VENDOR_SEARCH
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type VendorHit } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
+import { saveContacts } from '../../lib/vcard';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
 import { useDocSave } from './useDocSave';
@@ -138,6 +139,21 @@ export function Vendors() {
       <section aria-label="Your vendors" className="flex flex-col gap-3">
         <div className="flex justify-between items-end gap-3 flex-wrap">
           <H2>Your vendors</H2>
+          <span className="flex gap-2 flex-wrap">
+          {list.some((v) => v.phone || v.email) && (
+            <Pill
+              onClick={() => {
+                const which = booked.some((v) => v.phone || v.email) ? booked : list;
+                saveContacts(
+                  which.map((v) => ({ name: v.contact ? `${v.contact} (${v.name})` : v.name, org: v.name, title: v.category, phone: v.phone, email: v.email, website: v.website, address: v.address, note: v.arrival ? `Arrives on the day: ${v.arrival}` : '' })),
+                  'wedding-vendors',
+                );
+                toast(`${which.length} ${which === booked ? 'booked ' : ''}vendors ready to add to your phone's contacts`);
+              }}
+            >
+              Save to phone contacts
+            </Pill>
+          )}
           <Pill
             kind="dashed"
             onClick={() => {
@@ -148,6 +164,7 @@ export function Vendors() {
           >
             + Add one yourself
           </Pill>
+          </span>
         </div>
         {VENDOR_STATUS.slice()
           .reverse()
