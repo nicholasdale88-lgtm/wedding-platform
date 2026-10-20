@@ -99,6 +99,8 @@ async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
     sent += res.sent;
     if (res.stopped) {
       await d.store.finishSlot(slot.id, 'failed', res.stopped.error);
+      // Out of tries: its texts still waiting are given up too, so none goes out days later.
+      if (slot.attempts >= LIMITS.slotAttempts) await d.store.cancelQueued(prefix, new Set());
       return sent;
     }
     await d.store.finishSlot(slot.id, 'done');
@@ -252,11 +254,7 @@ export async function flush(d: EngineDeps, w: WeddingCtx): Promise<FlushResult> 
       .filter(expired)
       .map((r) => ({ id: r.id, status: 'failed' as const, error: 'Not confirmed by the provider within 23 hours. Check before resending.' })),
   ]);
-  // A dated text (the night before, a reminder) still waiting more than a day after it was due never goes:
-  // late is worse than not at all.
-  const late = (r: OutboxRow) => r.batchKey === null && r.dedupeKey.startsWith('slot:') && now.getTime() - Date.parse(r.createdAt) > LIMITS.slotGraceMs;
-  await d.store.markResults(rows.filter((r) => !blocked(r) && !expired(r) && late(r)).map((r) => ({ id: r.id, status: 'cancelled' as const, error: 'Too late: it was due over a day ago' })));
-  rows = rows.filter((r) => !blocked(r) && !expired(r) && !late(r));
+  rows = rows.filter((r) => !blocked(r) && !expired(r));
 
   // Dated texts held over (cap, credits) are re-checked: a guest who has replied since is not reminded.
   const stale = await noLongerQualifies(d, w, rows.filter((r) => r.batchKey === null && r.dedupeKey.startsWith('slot:')));
