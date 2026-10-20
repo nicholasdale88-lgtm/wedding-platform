@@ -79,6 +79,12 @@ function calendarLinks(data: InvitePayload, ev: InvitePayload['events'][number])
     details: `${window.location.origin}/w/${data.wedding.slug}`,
   }).toString()}`;
   const link = { color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
+  // With their own link: all their events in their phone's calendar, kept up to date (a change of time or
+  // place reaches it by itself). iPhone and Outlook subscribe to webcal; Android through Google Calendar.
+  const token = data.invitation?.token;
+  const feed = token ? `webcal://${window.location.host}/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/mine.ics?g=${encodeURIComponent(token)}` : '';
+  const android = /android/i.test(navigator.userAgent);
+  const subscribe = feed ? (android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed) : '';
   return createElement(
     'div',
     { style: { fontSize: 15, opacity: 0.85, textAlign: 'center' as const, fontFamily: "'Cormorant Garamond', Georgia, serif" } },
@@ -86,6 +92,7 @@ function calendarLinks(data: InvitePayload, ev: InvitePayload['events'][number])
     createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics`, style: link }, 'Apple / Outlook'),
     ' · ',
     createElement('a', { href: google, target: '_blank', rel: 'noopener noreferrer', style: link }, 'Google'),
+    ...(subscribe ? [' · ', createElement('a', { href: subscribe, ...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {}), style: link }, 'All my events, kept up to date')] : []),
   );
 }
 

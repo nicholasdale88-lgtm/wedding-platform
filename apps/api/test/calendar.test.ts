@@ -31,4 +31,27 @@ describe('calendar file', () => {
     expect(body.split('\r\n').every((l) => l.length <= 75)).toBe(true);
     expect((await app.request('/api/p/sophie-and-nicholas/calendar/nope.ics', {}, env, ctx)).status).toBe(404);
   });
+
+  it("a guest's own calendar: every event they're invited to (not ones they said no to), kept up to date, with reminders", async () => {
+    const inv = (await t.db.prepare(`SELECT i.id, i.token FROM invitation i WHERE (SELECT COUNT(*) FROM invite_event ie WHERE ie.invitation_id = i.id) > 1 LIMIT 1`).first<{ id: string; token: string }>())!;
+    const feed = () => app.request(`/api/p/sophie-and-nicholas/calendar/mine.ics?g=${inv.token}`, {}, env, ctx);
+    const count = async () => ((await (await feed()).text()).match(/BEGIN:VEVENT/g) ?? []).length;
+    const invited = (await t.db.prepare(`SELECT COUNT(*) AS n FROM invite_event WHERE invitation_id = ?`).bind(inv.id).first<{ n: number }>())!.n;
+    await t.db.prepare(`DELETE FROM rsvp WHERE invitation_id = ?`).bind(inv.id).run();
+    const res = await feed();
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toMatch(/^private/);
+    const body = await res.text();
+    expect(body).toContain('REFRESH-INTERVAL;VALUE=DURATION:PT12H');
+    expect(body).toContain('TRIGGER:-PT2H');
+    expect(body.split('\r\n').every((l) => l.length <= 75)).toBe(true);
+    expect(await count()).toBe(invited);
+    // Said no to one: it leaves their calendar.
+    const ev = (await t.db.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ? LIMIT 1`).bind(inv.id).first<{ event_id: string }>())!.event_id;
+    await t.db.prepare(`INSERT INTO rsvp (invitation_id, event_id, attending, updated_at) VALUES (?, ?, 0, '2027-01-01')`).bind(inv.id, ev).run();
+    expect(await count()).toBe(invited - 1);
+    // No link, or another wedding's: nothing.
+    expect((await app.request('/api/p/sophie-and-nicholas/calendar/mine.ics', {}, env, ctx)).status).toBe(404);
+    expect((await app.request(`/api/p/sophie-and-nicholas/calendar/mine.ics?g=${'a'.repeat(22)}`, {}, env, ctx)).status).toBe(404);
+  });
 });
