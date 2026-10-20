@@ -1,5 +1,5 @@
 import type { DayoutGuide, GuideContent, InvitationContent, ReceptionGuide } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
@@ -354,6 +354,34 @@ const INV_FIELDS: { key: keyof InvitationContent & string; label: string; ph?: s
   { key: 'rideTime', label: 'Activity time (if your second event has one)', ph: '10:00am' },
 ];
 
+const LINERS = [
+  ['floral', 'Floral'],
+  ['eucalyptus', 'Eucalyptus'],
+  ['stripes', 'Gold stripes'],
+  ['confetti', 'Confetti'],
+  ['foil', 'Gold foil'],
+  ['none', 'Plain'],
+] as const;
+const field = (key: string) => INV_FIELDS.find((f) => f.key === key)!;
+const shortUrl = (u: string) => u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40);
+
+/** One optional extra: closed, it shows what's set now; tap to change it. */
+function Fold({ title, now, children }: { title: string; now: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((x) => !x)} className="w-full flex justify-between items-center gap-3 py-3 px-4 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-text,#33402f)]">
+        <span className="flex flex-col min-w-0">
+          <span className="text-[15px] font-semibold">{title}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{now}</span>
+        </span>
+        <span className="text-[13px] underline shrink-0">{open ? 'Done' : 'Change'}</span>
+      </button>
+      {open && <div className="flex flex-col gap-[14px] px-4 pb-4">{children}</div>}
+    </div>
+  );
+}
+
 function InvitationEditor({
   doc,
   n,
@@ -368,141 +396,173 @@ function InvitationEditor({
   setTheme: (t: string) => void;
 }) {
   const inv = doc.invitation;
+  const text = (key: string) => {
+    const f = field(key);
+    return <TextField key={f.key} label={f.label} value={String(inv[f.key] ?? '')} placeholder={f.ph} hint={f.hint} type={f.type} onChange={(v) => setInv({ [f.key]: v })} />;
+  };
+  const sections = INV_SECTIONS.filter((s) => !ALWAYS_ON.test(s));
+  const shown = sections.filter((s) => !inv.hidden?.[s]).length;
+  const ownLists = INV_LISTS.filter((l) => inv.lists?.[l.key]).length;
+  const liner = LINERS.find(([k]) => k === (inv.envelope?.liner ?? 'floral'))?.[1] ?? 'Floral';
+  const ribbon = inv.envelope?.ribbon && inv.envelope.ribbon !== 'none' ? (inv.envelope.ribbon === 'silk' ? ' · silk ribbon' : ' · twine') : '';
+  const set = (s?: string) => !!s?.trim();
   return (
     <>
-      <Section n={n()} title="Look and feel" hint="The colour theme, the envelope (wax seal, liner, gold sprig, ribbon, their name) and the photo on the invitation.">
-        <Grid>
-          <div className="sm:col-span-2">
-            <ThemeGallery theme={doc.theme} custom={inv.custom ?? {}} onTheme={(t) => {
-              setTheme(t);
-              if (inv.custom && (inv.custom.paper || inv.custom.ink || inv.custom.accent || inv.custom.soft || inv.custom.envelope)) setInv({ custom: { names: inv.custom.names } }); // a new theme starts from its own colours
-            }} onCustom={(custom) => setInv({ custom })} />
-          </div>
-          <Label text="Wax seal">
-            <select value={inv.seal ?? 'Sandstone'} onChange={(e) => setInv({ seal: e.target.value as InvitationContent['seal'] })} className={inputCls}>
-              {['Sandstone', 'Dusty rose', 'Daphne blue'].map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </select>
-          </Label>
-          <Label text="Envelope liner">
-            <select value={inv.envelope?.liner ?? 'floral'} onChange={(e) => setInv({ envelope: { ...inv.envelope, liner: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['liner']> } })} className={inputCls}>
-              {(
-                [
-                  ['floral', 'Floral'],
-                  ['eucalyptus', 'Eucalyptus'],
-                  ['stripes', 'Gold stripes'],
-                  ['confetti', 'Confetti'],
-                  ['foil', 'Gold foil'],
-                  ['none', 'Plain'],
-                ] as const
-              ).map(([k, l]) => (
-                <option key={k} value={k}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </Label>
-          <Label text="Ribbon">
-            <select value={inv.envelope?.ribbon ?? 'none'} onChange={(e) => setInv({ envelope: { ...inv.envelope, ribbon: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['ribbon']> } })} className={inputCls}>
-              <option value="none">None</option>
-              <option value="silk">Silk ribbon</option>
-              <option value="twine">Twine</option>
-            </select>
-          </Label>
-          <div className="sm:col-span-2 flex gap-5 flex-wrap text-[14px]">
-            {(
-              [
-                ['name', 'Their name on the envelope'],
-                ['sprig', 'Gold leaves above the seal'],
-                ['shimmer', 'Gold shimmer'],
-              ] as const
-            ).map(([k, l]) => (
-              <label key={k} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={inv.envelope?.[k] !== false} onChange={(e) => setInv({ envelope: { ...inv.envelope, ...(k === 'name' ? { name: e.target.checked } : k === 'sprig' ? { sprig: e.target.checked } : { shimmer: e.target.checked }) } })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-                {l}
-              </label>
-            ))}
-          </div>
-          <TextField label="Photo (link)" value={inv.images?.lookout ?? ''} placeholder="/seed-media/lookout.jpg" onChange={(v) => setInv({ images: { ...inv.images, lookout: v } })} hint="Photo uploads arrive with the Photos tab." />
-        </Grid>
-      </Section>
-      <Section n={n()} title="Names, date and links" hint="Fill in what you have; anything left empty keeps the design's default. Event names, dates and times come from your events.">
+      <Section n={n()} title="The essentials" hint="Pick a look, add your names and when replies close. That’s all your invitation needs: everything under Extras is optional.">
+        <ThemeGallery
+          theme={doc.theme}
+          custom={inv.custom ?? {}}
+          onTheme={(t) => {
+            setTheme(t);
+            if (inv.custom && (inv.custom.paper || inv.custom.ink || inv.custom.accent || inv.custom.soft || inv.custom.envelope)) setInv({ custom: { names: inv.custom.names } }); // a new theme starts from its own colours
+          }}
+          onCustom={(custom) => setInv({ custom })}
+        />
         {doc.names && (
           <Grid>
             <TextField label="Your name" value={doc.names.name1} onChange={(v) => setNames({ ...doc.names!, name1: v })} hint="As on the invitation. The admin and texts use these too." />
             <TextField label="Your partner's name" value={doc.names.name2} onChange={(v) => setNames({ ...doc.names!, name2: v })} />
-            <TextField label="Monogram" value={doc.names.monogram} placeholder="A&B" onChange={(v) => setNames({ ...doc.names!, monogram: v.slice(0, 12) })} />
           </Grid>
         )}
         <Grid>
-          {INV_FIELDS.map((f) => (
-            <TextField key={f.key} label={f.label} value={String(inv[f.key] ?? '')} placeholder={f.ph} hint={f.hint} type={f.type} onChange={(v) => setInv({ [f.key]: v })} />
-          ))}
+          {text('rsvpBy')}
+          {text('rsvpClose')}
         </Grid>
-        {inv.audioUrl?.trim() ? <MusicCheck src={inv.audioUrl.trim()} /> : null}
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Event names, dates, times and venues come from each event’s Details.</span>
       </Section>
-      <Section n={n()} title="Sections" hint="Switch off any part of the invitation you don't need. Guests won't see it; your wording is kept if you switch it back on.">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-          {INV_SECTIONS.filter((s) => !ALWAYS_ON.test(s)).map((s) => {
-            const on = !inv.hidden?.[s];
-            return (
-              <label key={s} className="flex items-center justify-between gap-3 py-2 border-b border-[#ece3cc] text-[15px] cursor-pointer">
-                <span>{sectionName(s)}</span>
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={on}
-                  aria-label={`Show ${sectionName(s)}`}
-                  onChange={() => setInv({ hidden: { ...inv.hidden, [s]: on } })}
-                  className="w-[20px] h-[20px] accent-[#5d6b47]"
-                />
-              </label>
-            );
-          })}
-        </div>
-      </Section>
-      <Section n={n()} title="Questions & answers" hint="Write your own questions for any of the invitation's question lists, or keep the design's. One answer point per line.">
-        {INV_LISTS.map((l, i) => {
-          const own = inv.lists?.[l.key];
-          const label = `${sectionName(l.section)}${INV_LISTS.filter((x) => x.section === l.section).length > 1 ? `, list ${INV_LISTS.filter((x) => x.section === l.section).indexOf(l) + 1}` : ''}`;
-          const setList = (rows: { q: string; a: string[] }[] | null) => {
-            const next = { ...inv.lists };
-            if (rows) next[l.key] = rows;
-            else delete next[l.key];
-            setInv({ lists: next });
-          };
-          const fromDesign = () =>
-            l.defaults.map((d) => ({
-              q: d.q.map((k) => doc.texts[k] ?? ORIGINAL[k] ?? '').join('').trim(),
-              a: d.a.map((line) => line.map((k) => doc.texts[k] ?? ORIGINAL[k] ?? '').join('').trim()).filter(Boolean),
-            }));
-          return (
-            <div key={l.key} className={`flex flex-col gap-2 ${i ? 'pt-4 border-t border-[#ece3cc]' : ''}`}>
-              <div className="flex justify-between items-center gap-3 flex-wrap">
-                <strong className="font-semibold text-[15px]">{label}</strong>
-                <label className="flex items-center gap-2 text-[14px] cursor-pointer">
-                  <input type="checkbox" role="switch" checked={!!own} onChange={() => setList(own ? null : fromDesign())} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-                  Use my own questions
+
+      <Section n={n()} title="Extras" hint="Each shows what’s set now. Tap Change to make it yours; anything you leave keeps the design’s own.">
+        <div className="flex flex-col gap-2">
+          <Fold title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
+            <Grid>
+              <Label text="Wax seal">
+                <select value={inv.seal ?? 'Sandstone'} onChange={(e) => setInv({ seal: e.target.value as InvitationContent['seal'] })} className={inputCls}>
+                  {['Sandstone', 'Dusty rose', 'Daphne blue'].map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </Label>
+              <Label text="Envelope liner">
+                <select value={inv.envelope?.liner ?? 'floral'} onChange={(e) => setInv({ envelope: { ...inv.envelope, liner: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['liner']> } })} className={inputCls}>
+                  {LINERS.map(([k, l]) => (
+                    <option key={k} value={k}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Label>
+              <Label text="Ribbon">
+                <select value={inv.envelope?.ribbon ?? 'none'} onChange={(e) => setInv({ envelope: { ...inv.envelope, ribbon: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['ribbon']> } })} className={inputCls}>
+                  <option value="none">None</option>
+                  <option value="silk">Silk ribbon</option>
+                  <option value="twine">Twine</option>
+                </select>
+              </Label>
+              {text('initials')}
+            </Grid>
+            <div className="flex gap-5 flex-wrap text-[14px]">
+              {(
+                [
+                  ['name', 'Their name on the envelope'],
+                  ['sprig', 'Gold leaves above the seal'],
+                  ['shimmer', 'Gold shimmer'],
+                ] as const
+              ).map(([k, l]) => (
+                <label key={k} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={inv.envelope?.[k] !== false} onChange={(e) => setInv({ envelope: { ...inv.envelope, ...(k === 'name' ? { name: e.target.checked } : k === 'sprig' ? { sprig: e.target.checked } : { shimmer: e.target.checked }) } })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                  {l}
                 </label>
-              </div>
-              {own ? (
-                <Rows
-                  rows={own.map((r) => ({ q: r.q, a: r.a.join('\n') }))}
-                  cols={[
-                    { key: 'q', label: 'Question' },
-                    { key: 'a', label: 'Answer (one point per line)', long: true },
-                  ]}
-                  blank={{ q: '', a: '' }}
-                  addLabel="+ Add a question"
-                  onChange={(rows) => setList(rows.map((r) => ({ q: r.q, a: r.a.split('\n') })))} // kept as typed; the invitation skips blanks
-                />
-              ) : (
-                <span className="text-[13px] text-[#7a7466]">Showing the design's {l.defaults.length} questions. Edit their words under "Every word", or switch on to write your own.</span>
-              )}
+              ))}
             </div>
-          );
-        })}
+          </Fold>
+
+          <Fold title="Photo" now={set(inv.images?.lookout) ? `Your photo: ${shortUrl(inv.images!.lookout!)}` : 'The design’s photo'}>
+            <TextField label="Photo (link)" value={inv.images?.lookout ?? ''} placeholder="/seed-media/lookout.jpg" onChange={(v) => setInv({ images: { ...inv.images, lookout: v } })} hint="A link to your photo. Leave it empty for the design’s own." />
+          </Fold>
+
+          <Fold title="Music" now={set(inv.audioUrl) ? `Plays when they open it: ${shortUrl(inv.audioUrl!)}` : 'No music'}>
+            {text('audioUrl')}
+            {inv.audioUrl?.trim() ? <MusicCheck src={inv.audioUrl.trim()} /> : null}
+          </Fold>
+
+          <Fold title="Gifts and registry" now={[set(inv.registryUrl) && `Registry: ${shortUrl(inv.registryUrl!)}`, set(inv.giftAccount) && (inv.giftAccountLabel?.trim() || 'Gift account')].filter(Boolean).join(' · ') || 'Nothing added'}>
+            <Grid>
+              {text('registryUrl')}
+              {text('giftAccountLabel')}
+              {text('giftAccount')}
+            </Grid>
+          </Fold>
+
+          <Fold
+            title="Directions, email and extra details"
+            now={[set(inv.directionsUrl) && 'Directions link', set(inv.rsvpEmail) && inv.rsvpEmail, set(inv.rideTime) && `Activity at ${inv.rideTime}`, doc.names?.monogram && `Monogram ${doc.names.monogram}`].filter(Boolean).join(' · ') || 'Nothing added'}
+          >
+            <Grid>
+              {text('directionsUrl')}
+              {text('rsvpEmail')}
+              {text('rideTime')}
+              {doc.names && <TextField label="Monogram" value={doc.names.monogram} placeholder="A&B" onChange={(v) => setNames({ ...doc.names!, monogram: v.slice(0, 12) })} />}
+            </Grid>
+          </Fold>
+
+          <Fold title="Which parts guests see" now={shown === sections.length ? `All ${sections.length} parts shown` : `${shown} of ${sections.length} parts shown`}>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Switch off any part you don’t need. Your wording is kept if you switch it back on.</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+              {sections.map((s) => {
+                const on = !inv.hidden?.[s];
+                return (
+                  <label key={s} className="flex items-center justify-between gap-3 py-2 border-b border-[var(--adm-line,#ece3cc)] text-[15px] cursor-pointer">
+                    <span>{sectionName(s)}</span>
+                    <input type="checkbox" role="switch" checked={on} aria-label={`Show ${sectionName(s)}`} onChange={() => setInv({ hidden: { ...inv.hidden, [s]: on } })} className="w-[20px] h-[20px] accent-[#5d6b47]" />
+                  </label>
+                );
+              })}
+            </div>
+          </Fold>
+
+          <Fold title="Questions and answers" now={ownLists ? `Your own questions in ${ownLists} ${ownLists === 1 ? 'list' : 'lists'}` : 'The design’s questions'}>
+            {INV_LISTS.map((l, i) => {
+              const own = inv.lists?.[l.key];
+              const label = `${sectionName(l.section)}${INV_LISTS.filter((x) => x.section === l.section).length > 1 ? `, list ${INV_LISTS.filter((x) => x.section === l.section).indexOf(l) + 1}` : ''}`;
+              const setList = (rows: { q: string; a: string[] }[] | null) => {
+                const next = { ...inv.lists };
+                if (rows) next[l.key] = rows;
+                else delete next[l.key];
+                setInv({ lists: next });
+              };
+              const fromDesign = () =>
+                l.defaults.map((d) => ({
+                  q: d.q.map((k) => doc.texts[k] ?? ORIGINAL[k] ?? '').join('').trim(),
+                  a: d.a.map((line) => line.map((k) => doc.texts[k] ?? ORIGINAL[k] ?? '').join('').trim()).filter(Boolean),
+                }));
+              return (
+                <div key={l.key} className={`flex flex-col gap-2 ${i ? 'pt-4 border-t border-[var(--adm-line,#ece3cc)]' : ''}`}>
+                  <div className="flex justify-between items-center gap-3 flex-wrap">
+                    <strong className="font-semibold text-[15px]">{label}</strong>
+                    <label className="flex items-center gap-2 text-[14px] cursor-pointer">
+                      <input type="checkbox" role="switch" checked={!!own} onChange={() => setList(own ? null : fromDesign())} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                      Use my own questions
+                    </label>
+                  </div>
+                  {own ? (
+                    <Rows
+                      rows={own.map((r) => ({ q: r.q, a: r.a.join('\n') }))}
+                      cols={[
+                        { key: 'q', label: 'Question' },
+                        { key: 'a', label: 'Answer (one point per line)', long: true },
+                      ]}
+                      blank={{ q: '', a: '' }}
+                      addLabel="+ Add a question"
+                      onChange={(rows) => setList(rows.map((r) => ({ q: r.q, a: r.a.split('\n') })))} // kept as typed; the invitation skips blanks
+                    />
+                  ) : (
+                    <span className="text-[13px] text-[#7a7466]">Showing the design's {l.defaults.length} questions. Edit their words under "Every word", or switch on to write your own.</span>
+                  )}
+                </div>
+              );
+            })}
+          </Fold>
+        </div>
       </Section>
     </>
   );

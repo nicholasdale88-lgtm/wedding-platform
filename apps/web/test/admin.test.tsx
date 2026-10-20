@@ -500,6 +500,18 @@ describe('guest pages tab', () => {
     expect(await screen.findByText('All changes saved')).toBeInTheDocument();
   });
 
+  it('the invitation: the essentials up front; each extra shows what is set now, and opens on Change', async () => {
+    mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
+    renderAt('/admin/w1/wedding/pages');
+    expect(await screen.findByRole('heading', { name: 'The essentials' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Reply-by line')).toBeInTheDocument();
+    const music = screen.getByRole('button', { name: /^Music\s*No music/ });
+    expect(screen.queryByLabelText('Music link (MP3 or YouTube)')).toBeNull(); // folded away until wanted
+    await userEvent.click(music);
+    expect(screen.getByLabelText('Music link (MP3 or YouTube)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Envelope and seal\s*Sandstone seal/ })).toBeInTheDocument();
+  });
+
   it('every word: grouped by section; a changed sentence shows what it was, and Reset brings it back', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, { ...pages, texts: { 'inv.dyn.greetAnon': 'Hello friend' } }) });
     renderAt('/admin/w1/wedding/pages');
