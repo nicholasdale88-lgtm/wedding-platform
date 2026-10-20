@@ -199,7 +199,7 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
         </section>
       </div>
 
-      <GlamSchedule glam={doc.glam} set={(glam, now) => set({ glam }, now)} names={people.map((m) => m.name.split(' ')[0] ?? m.name)} star={d.names[side]} />
+      <GlamSchedule glam={doc.glam} set={(glam, now) => set({ glam }, now)} names={people.map((m) => m.name.split(' ')[0] ?? m.name)} star={d.names[side]} makeup={!/groom/i.test(sideName(side))} />
 
       <section aria-label="To-dos" className="flex flex-col gap-3">
         <div className="flex justify-between items-end gap-3 flex-wrap">

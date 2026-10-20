@@ -1,5 +1,5 @@
 import { clockMinutes, clockText, glamSchedule, type Glam, type GlamPerson } from '@wp/shared';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { H2, inputCls, Pill } from '../ui';
 
 /** Minutes, typed freely and kept between 10 and 240 once you leave the box. */
@@ -32,22 +32,28 @@ const span = (x?: [number, number]) => (x ? `${clockText(x[0])}–${clockText(x[
 /**
  * A side's page → Hair and makeup: who's in the chairs, what each is having and for how long, how many
  * artists, and when everyone must be ready. The times work themselves out (the one marked last, usually
- * the bride, goes after everyone else so they're freshest for the photos).
+ * the bride, goes after everyone else so they're freshest for the photos). The groom's side has no makeup
+ * (`makeup` off): it's Hair and grooming, and any makeup ticked there before is cleared.
  */
-export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: Glam, now?: boolean) => void; names: string[]; star: string }) {
-  const s = glamSchedule(glam);
+export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: Glam; set: (g: Glam, now?: boolean) => void; names: string[]; star: string; makeup?: boolean }) {
+  const stray = !makeup && glam.people.some((p) => p.makeup);
+  useEffect(() => {
+    if (stray) set({ ...glam, people: glam.people.map((p) => ({ ...p, makeup: false })) }, true);
+  }, [stray]); // eslint-disable-line
+  const s = glamSchedule(stray ? { ...glam, people: glam.people.map((p) => ({ ...p, makeup: false })) } : glam);
+  const title = makeup ? 'Hair and makeup' : 'Hair and grooming';
   // Without a ready-by time there's nothing to count back from: show lengths, not clock times.
   const timed = clockMinutes(glam.finish) !== null;
   const setP = (id: string, p: Partial<GlamPerson>, now = false) => set({ ...glam, people: glam.people.map((x) => (x.id === id ? { ...x, ...p } : x)) }, now);
-  const add = (who: string, last = false) => ({ id: newId(), who, hair: true, makeup: true, hairMins: last ? 60 : 45, makeupMins: last ? 60 : 45, last });
+  const add = (who: string, last = false) => ({ id: newId(), who, hair: true, makeup, hairMins: last ? 60 : 45, makeupMins: last ? 60 : 45, last });
   const missing = [star, ...names].filter((n) => n && !glam.people.some((p) => p.who.toLowerCase() === n.toLowerCase()));
   const byId = new Map(s.rows.map((r) => [r.id, r]));
 
   return (
-    <section aria-label="Hair and makeup" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label={title} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
-          <H2>Hair and makeup</H2>
+          <H2>{title}</H2>
           <div className="text-[13px] text-[#5b6a52]">Who’s in the chairs and for how long; the start times work themselves out.</div>
         </div>
         {glam.people.length > 0 && (
@@ -70,22 +76,24 @@ export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: 
           <input aria-label="Ready by" placeholder="12:30pm" value={glam.finish} maxLength={20} onChange={(e) => set({ ...glam, finish: e.target.value })} className={`${inputCls} !py-2 w-[110px]`} />
         </label>
         <label className="flex flex-col gap-1">
-          Hair artists
+          {makeup ? 'Hair artists' : 'Hairdressers or barbers'}
           <input type="number" min={1} max={6} value={glam.hairArtists} onChange={(e) => set({ ...glam, hairArtists: Math.max(1, Math.min(6, Number(e.target.value) || 1)) })} className={`${inputCls} !py-2 w-[80px]`} />
         </label>
+        {makeup && (
         <label className="flex flex-col gap-1">
           Makeup artists
           <input type="number" min={1} max={6} value={glam.makeupArtists} onChange={(e) => set({ ...glam, makeupArtists: Math.max(1, Math.min(6, Number(e.target.value) || 1)) })} className={`${inputCls} !py-2 w-[80px]`} />
         </label>
+        )}
       </div>
       {glam.people.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[14px] min-w-[620px]">
+          <table className={`w-full border-collapse text-[14px] ${makeup ? "min-w-[620px]" : "min-w-[440px]"}`}>
             <thead>
               <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[#5b6a52]">
                 <th className="py-1 font-semibold">Who</th>
                 <th className="py-1 font-semibold">Hair</th>
-                <th className="py-1 font-semibold">Makeup</th>
+                {makeup && <th className="py-1 font-semibold">Makeup</th>}
                 <th className="py-1 font-semibold">Last</th>
                 <th />
               </tr>
@@ -106,6 +114,7 @@ export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: 
                       </label>
                       <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.hair && timed ? span(r?.hair) : ''}</span>
                     </td>
+                    {makeup && (
                     <td className="py-2 pr-2">
                       <label className="flex items-center gap-1">
                         <input type="checkbox" aria-label={`${p.who}: makeup`} checked={p.makeup} onChange={(e) => setP(p.id, { makeup: e.target.checked }, true)} className="accent-[#5d6b47]" />
@@ -114,6 +123,7 @@ export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: 
                       </label>
                       <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.makeup && timed ? span(r?.makeup) : ''}</span>
                     </td>
+                    )}
                     <td className="py-2 pr-2">
                       <input type="checkbox" aria-label={`${p.who} goes last`} checked={p.last} onChange={(e) => setP(p.id, { last: e.target.checked }, true)} className="mt-2 accent-[#b39563]" />
                     </td>
@@ -136,7 +146,7 @@ export function GlamSchedule({ glam, set, names, star }: { glam: Glam; set: (g: 
           </Pill>
         )}
         <Pill kind="dashed" onClick={() => set({ ...glam, people: [...glam.people, add('Someone')] }, true)}>
-          + Someone else (mums, flower girls)
+          {makeup ? '+ Someone else (mums, flower girls)' : '+ Someone else (dads, page boys)'}
         </Pill>
       </div>
     </section>
