@@ -1,11 +1,12 @@
 import { PACK_TEMPLATE, PARTY_TEMPLATE, type PackItem, type PartyItem, type PartyRunsheet, type PartySetup } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, plannerApi, type Guest, type PartyData, type PartyMember } from '../../lib/api';
 import { confirmLeave, useUnsavedChanges } from '../leave';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Pill, useToast } from '../ui';
 import { CoupleChecklists } from './CoupleChecklists';
+import { PartyAccess } from './PartyAccess';
 import { PartyOverview } from './PartyOverview';
 import { SidePage } from './SidePage';
 import { Speeches } from './Speeches';
@@ -19,11 +20,11 @@ import { Speeches } from './Speeches';
  * Each member opens their part from their own link: /w/<slug>/party?g=…
  */
 
-export type PartyView = 'overview' | 'p1' | 'p2' | 'runsheet' | 'couple';
-export const PARTY_VIEWS: PartyView[] = ['overview', 'p1', 'p2', 'runsheet', 'couple'];
+export type PartyView = 'overview' | 'p1' | 'p2' | 'runsheet' | 'couple' | 'access';
+export const PARTY_VIEWS: PartyView[] = ['overview', 'p1', 'p2', 'runsheet', 'couple', 'access'];
 /** The menu's name for each view ("Bride's side" uses what the sides are called). */
 export const partyViewLabel = (v: PartyView, sides: { p1: string; p2: string }) =>
-  v === 'overview' ? 'Overview' : v === 'p1' ? `${sides.p1 || 'Bride'}’s side` : v === 'p2' ? `${sides.p2 || 'Groom'}’s side` : v === 'runsheet' ? 'Run sheet' : 'Your checklists';
+  v === 'overview' ? 'Overview' : v === 'p1' ? `${sides.p1 || 'Bride'}’s side` : v === 'p2' ? `${sides.p2 || 'Groom'}’s side` : v === 'runsheet' ? 'Run sheet' : v === 'access' ? 'Links & sign-ins' : 'Your checklists';
 export type SideName = (s: 'p1' | 'p2') => string;
 
 const chip = (on: boolean) =>
@@ -45,10 +46,11 @@ const INTRO: Record<PartyView, string> = {
   p2: 'Their people, what they wear, the celebration before the day, and their to-dos.',
   runsheet: 'The party’s own day, in more detail than the guests’. Each member sees just their lines on their own link.',
   couple: 'Each of yours from a month out to after the day, and the things you do together. Tick them off on your phone.',
+  access: 'How each member gets in: their own sign-in (and what they can see and do), or their private link. And the day-of coordinator’s link.',
 };
 
 export function Party() {
-  const { wid, event, path } = useAdmin();
+  const { wid, event } = useAdmin();
   const section = useSectionName();
   const [params, setParams] = useSearchParams();
   const asked = params.get('view') as PartyView | null;
@@ -89,15 +91,18 @@ export function Party() {
           {view === 'p1' || view === 'p2' ? `${d.names[view]}’s side. ` : ''}
           {INTRO[view]}
         </p>
-        <Link to={path('pages?page=party')} className="inline-block mt-2 text-[14px] font-medium !text-[#33402f]">
-          Sign-ins and permissions for the wedding party →
-        </Link>
+        {view !== 'access' && (
+          <button type="button" onClick={() => go('access')} className="inline-flex items-center min-h-[40px] p-0 border-0 bg-transparent cursor-pointer text-[14px] font-medium text-[#33402f] underline">
+            Links &amp; sign-ins for the wedding party →
+          </button>
+        )}
       </header>
       <PartyBar view={view} go={go} sides={sides} />
       {view === 'overview' && <PartyOverview d={d} setD={setD} sideName={sideName} go={go} />}
       {(view === 'p1' || view === 'p2') && <SidePage key={view} side={view} d={d} setD={setD} sideName={sideName} go={go} />}
       {view === 'runsheet' && <RunSheet key={d.runsheet?.version ?? 0} d={d} setD={setD} reload={load} sideName={sideName} />}
       {view === 'couple' && <CoupleChecklists d={d} sideName={sideName} />}
+      {view === 'access' && <PartyAccess />}
     </div>
   );
 }

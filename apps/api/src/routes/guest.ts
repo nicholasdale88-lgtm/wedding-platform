@@ -312,20 +312,22 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     const token = c.req.query('g') ?? '';
     const who = isToken(token)
       ? await c.env.DB.prepare(
-          `SELECT p.name FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 AND p.deleted_at IS NULL
+          `SELECT p.name, i.id AS inv FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 AND p.deleted_at IS NULL
             WHERE i.token = ? AND i.wedding_id = ? AND i.deleted_at IS NULL`,
         )
           .bind(token, w.id)
-          .first<{ name: string }>()
+          .first<{ name: string; inv: string }>()
       : null;
-    // Each event has its own album; the page offers the events this guest is invited to.
-    const events = await eventsOf(c.env.DB, w.id);
+    // Each event has its own album; the page offers the events this guest is invited to (all, on the public page).
+    const all = await eventsOf(c.env.DB, w.id);
+    const mine = who ? new Set((await c.env.DB.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(who.inv).all<{ event_id: string }>()).results.map((r) => r.event_id)) : null;
+    const events = mine ? all.filter((e) => mine.has(e.id)) : all;
     const ev = events.find((e) => e.key === c.req.query('event')) ?? null;
     const content = json<Record<string, unknown>>(w.content, {});
     return c.json({
       wedding: { slug: w.slug, name1: w.name1, name2: w.name2, theme: w.theme, monogram: w.monogram, timezone: w.timezone },
-      events: events.map((e, i) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: i })),
-      event: ev ? { key: ev.key, name: ev.name, startsAt: ev.starts_at, slot: events.indexOf(ev) } : null,
+      events: events.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: all.indexOf(e) })),
+      event: ev ? { key: ev.key, name: ev.name, startsAt: ev.starts_at, slot: all.indexOf(ev) } : null,
       images: imagesOf(content),
       name: who?.name ?? '',
       linked: !!who,

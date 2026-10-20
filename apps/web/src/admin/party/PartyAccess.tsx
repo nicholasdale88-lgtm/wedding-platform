@@ -50,7 +50,7 @@ export function PartyAccess() {
 
   return (
     <section aria-label="Wedding party access" className="flex flex-col gap-6">
-      <PortalAccounts couple={couple} />
+      <PortalAccounts couple={couple} onChanged={() => void load()} />
       <div>
         <H2>Private links</H2>
         <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[720px]">
@@ -62,7 +62,10 @@ export function PartyAccess() {
         <span className="py-1 px-3 rounded-full bg-[#eef1e4]">{on.length} can sign in</span>
         {d.members.length > on.length && <span className="py-1 px-3 rounded-full bg-[#f4e6d8]">{d.members.length - on.length} paused</span>}
       </div>
-      {!d.members.length && <p className="m-0 text-[14px] text-[#7a7466]">No one in the wedding party yet. Add people in Wedding party first.</p>}
+      {!d.members.length && <p className="m-0 text-[14px] text-[#7a7466]">No one in the wedding party yet: add them in Overview or either side above.</p>}
+      {setup.signIn && d.members.length > 0 && (
+        <p className="m-0 p-3 rounded-[12px] bg-[#f4e6d8] text-[14px] text-[#7a4a37]">Sign-in is needed, so private links alone no longer open the page: send each member their sign-in invite above instead.</p>
+      )}
       <ul className="list-none m-0 p-0 flex flex-col rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
         {d.members.map((m) => {
           const allowed = setup.access[m.personId] !== false;
@@ -82,7 +85,7 @@ export function PartyAccess() {
                   <input type="checkbox" role="switch" checked={allowed} onChange={(e) => void setAccess(m.personId, e.target.checked)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
                   {allowed ? 'Can sign in' : 'Paused'}
                 </label>
-                {link && allowed && (
+                {link && allowed && !setup.signIn && (
                   <>
                     <Pill kind="outline" onClick={() => void navigator.clipboard?.writeText(link).then(() => toast(`${m.name.split(' ')[0]}’s link copied`))}>
                       Copy link

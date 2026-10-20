@@ -10,7 +10,7 @@ import { H2, inputCls, Pill, useToast } from '../ui';
  * what they can see and do, reset a password, sign them out everywhere, or remove their sign-in. Switch
  * on "sign-in needed" and their private links alone no longer open the portal.
  */
-export function PortalAccounts({ couple }: { couple: string }) {
+export function PortalAccounts({ couple, onChanged }: { couple: string; onChanged?: () => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const [d, setD] = useState<{ signIn: boolean; members: PortalMember[] } | null>(null);
@@ -34,6 +34,7 @@ export function PortalAccounts({ couple }: { couple: string }) {
       await fn();
       toast(done);
       await load();
+      onChanged?.();
     } catch (e) {
       toast((e as Error).message);
     }

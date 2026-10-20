@@ -143,7 +143,22 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
 
   // ---------------------------------------------------------------- never show the envelope twice
   useEffect(() => {
-    if (preview) return;
+    if (preview) {
+      // The admin's preview reloads after every save: once opened, it stays open (and where it was) for this visit.
+      try {
+        if (sessionStorage.getItem(`wp-preview-open-${slug}`)) {
+          setP(4);
+          setTimeout(() => {
+            const el = document.getElementById('inv-scroll');
+            const y = Number(sessionStorage.getItem(`${openKey}-y`) ?? 0);
+            if (el && y) el.scrollTop = y;
+          }, 120);
+        }
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     try {
       const o = JSON.parse(store.get(openKey) ?? 'null') as { at: number } | null;
       if (o && Date.now() - o.at < 90 * 864e5) {
@@ -238,10 +253,17 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     if (phase.current > 0) return;
     phase.current = 1;
     if (!preview) store.set(openKey, JSON.stringify({ at: Date.now() }));
+    else {
+      try {
+        sessionStorage.setItem(`wp-preview-open-${slug}`, '1');
+      } catch {
+        /* this time only */
+      }
+    }
     audio.current?.play(); // inside the tap, so iOS allows it
     setP(1);
     timers.current.push(setTimeout(() => setP(2), 1500), setTimeout(() => setP(3), 2700), setTimeout(() => setP(4), 4600));
-  }, [openKey, preview]);
+  }, [openKey, preview, slug]);
 
   async function findGuest() {
     const q = lookup.trim();

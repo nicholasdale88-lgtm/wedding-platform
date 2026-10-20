@@ -41,6 +41,7 @@ export function TasksPage() {
   if (!d) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
 
   const set = async (id: string, status: Status) => {
+    const before = d;
     setD((cur) => (cur ? { ...cur, tasks: cur.tasks.map((t) => (t.id === id ? { ...t, status } : t)) } : cur));
     try {
       const r = await fetch(`/api/p/${encodeURIComponent(slug)}/tasks`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, id, status }) });
@@ -49,6 +50,7 @@ export function TasksPage() {
       setD(b);
       setProblem('');
     } catch (e) {
+      setD(before);
       setProblem((e as Error).message);
     }
   };
@@ -101,9 +103,11 @@ export function TasksPage() {
         {done.length > 0 && (
           <details className="flex flex-col gap-2">
             <summary className="cursor-pointer text-[13px] text-[#5b6a52]">Done · {done.length}</summary>
-            {done.map((t) => (
-              <Task key={t.id} t={t} late={false} onSet={(s) => void set(t.id, s)} />
-            ))}
+            <div className="flex flex-col gap-2 mt-2">
+              {done.map((t) => (
+                <Task key={t.id} t={t} late={false} onSet={(s) => void set(t.id, s)} />
+              ))}
+            </div>
           </details>
         )}
         <InstallApp what="your list" tone="guest" />

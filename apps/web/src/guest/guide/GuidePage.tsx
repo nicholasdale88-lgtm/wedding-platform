@@ -10,6 +10,7 @@ import { setPageClass } from './common';
 import { useGuide } from './useGuide';
 import { useGuide30 } from './useGuide30';
 import { MessageUs } from '../MessageUs';
+import { BackToInvitation } from '../BackToInvitation';
 import { GuideExtras } from './GuideExtras';
 
 /**
@@ -58,7 +59,7 @@ export function GuidePage() {
 
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
-  return data.guide.style === 'dayout' ? <Dayout data={data} /> : <Reception data={data} />;
+  return data.guide.style === 'dayout' ? <Dayout data={data} preview={preview} /> : <Reception data={data} preview={preview} />;
 }
 
 function usePage(page: string, data: GuidePayload) {
@@ -68,7 +69,7 @@ function usePage(page: string, data: GuidePayload) {
   }, [data.event.name]);
 }
 
-function Reception({ data }: { data: GuidePayload }) {
+function Reception({ data, preview }: { data: GuidePayload; preview: boolean }) {
   usePage('gd', data);
   const v = useGuide(data);
   return (
@@ -78,12 +79,13 @@ function Reception({ data }: { data: GuidePayload }) {
     </div>
     {/* The guide's design has its own fixed palette: buttons match it, not the invitation's theme. */}
     <GuideExtras data={data} ink="#33402f" />
-    {data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink="#33402f" side="right" />}
+    {!preview && data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink="#33402f" side="right" />}
+    {!preview && <BackToInvitation slug={data.wedding.slug} token={data.guest.token ?? ''} />}
     </>
   );
 }
 
-function Dayout({ data }: { data: GuidePayload }) {
+function Dayout({ data, preview }: { data: GuidePayload; preview: boolean }) {
   usePage('g30', data);
   const v = useGuide30(data);
   return (
@@ -92,7 +94,8 @@ function Dayout({ data }: { data: GuidePayload }) {
       <Guide30View v={v} t={(k) => data.texts[k] ?? ''} />
     </div>
     <GuideExtras data={data} ink="#2f3d5c" />
-    {data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink="#2f3d5c" side="right" />}
+    {!preview && data.guest.token && <MessageUs slug={data.wedding.slug} token={data.guest.token} ink="#2f3d5c" side="right" />}
+    {!preview && <BackToInvitation slug={data.wedding.slug} token={data.guest.token ?? ''} ink="#2f3d5c" />}
     </>
   );
 }

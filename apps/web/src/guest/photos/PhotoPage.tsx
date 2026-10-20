@@ -8,6 +8,7 @@ import { PhotoUploadView } from '../generated/PhotoUploadView';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, type PhotoEvent, type PhotoPagePayload } from '../invitation/api';
 import { assetOf, setPageClass } from '../guide/common';
+import { BackToInvitation } from '../BackToInvitation';
 import { FILTER_LABEL, filterFontsReady, filtersFor, framesOn, renderPhoto, type FilterInfo, type FilterKey } from './filters';
 import { isLook, isVideo, LOOK_KEYS, LOOKS, MAX_VIDEO_MB, type LookKey } from './looks';
 import { SnapCam } from './SnapCam';
@@ -102,6 +103,8 @@ export function PhotoPage() {
   const { slug = '', event = '' } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
+  // The couple's preview (Setup): try everything, send nothing.
+  const preview = params.get('preview') === '1';
   const [page, setPage] = useState<PhotoPagePayload | null>(null);
   const [by, setBy] = useState(remembered);
   const [items, setItems] = useState<Item[]>([]);
@@ -189,7 +192,10 @@ export function PhotoPage() {
       try {
         let id = '';
         let sent: Blob = it.file;
-        if (isVideo(it.file)) {
+        if (preview) {
+          // A preview: shown as sent, never uploaded.
+          if (!isVideo(it.file)) sent = it.pre ? it.file : await renderPhoto(it.file, it.filter, info, it.look);
+        } else if (isVideo(it.file)) {
           // A video goes as it is; its look is kept with it and shown when it plays.
           id = await guestApi.uploadPhoto(slug, token, by.trim(), it.file, ev?.key ?? '', it.look === 'original' ? '' : it.look);
         } else {
@@ -210,7 +216,7 @@ export function PhotoPage() {
       }
     }
     running.current = false;
-  }, [slug, token, by, info, ev]);
+  }, [slug, token, by, info, ev, preview]);
 
   useEffect(() => {
     if (items.some((x) => x.st === 'wait')) void run();
@@ -274,7 +280,8 @@ export function PhotoPage() {
       <div className="dz">
         <PhotoUploadView v={v} t={t} />
       </div>
-      {page.album && token && (
+      {!preview && <BackToInvitation slug={slug} token={token} ink={info?.ink} />}
+      {page.album && token && !preview && (
         <a
           href={`/w/${encodeURIComponent(slug)}/album?g=${encodeURIComponent(token)}`}
           className="fixed z-40 top-[max(14px,env(safe-area-inset-top))] right-4 py-[9px] px-4 rounded-full text-[16px] no-underline shadow-[0_6px_18px_rgba(30,30,30,.2)]"
