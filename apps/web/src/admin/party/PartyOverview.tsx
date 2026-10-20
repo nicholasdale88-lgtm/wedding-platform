@@ -1,4 +1,5 @@
-import { dateIn, progressOf, type DayChecklist, type PartySide } from '@wp/shared';
+import { dateIn, progressOf, type PartySide } from '@wp/shared';
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { ApiError, plannerApi, type PartyData, type PartyMember } from '../../lib/api';
 import { Ring } from '../checklists/PhasedChecklist';
@@ -12,9 +13,8 @@ const longDate = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('
 
 /** Wedding party → Overview: each side as a card (people, progress, what's next), helpers, the day, your lists. */
 export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (d: PartyData) => void; sideName: SideName; go: (v: PartyView) => void }) {
-  const { wid, overview } = useAdmin();
+  const { wid, overview, path } = useAdmin();
   const [sides, setSides] = useState<Record<'p1' | 'p2', PartySide>>({ p1: EMPTY, p2: EMPTY });
-  const [lists, setLists] = useState<DayChecklist | null>(null);
   useEffect(() => {
     plannerApi
       .doc<PartySide>(wid, 'party-p1')
@@ -24,12 +24,7 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
       .doc<PartySide>(wid, 'party-p2')
       .then((r) => setSides((s) => ({ ...s, p2: r.data })))
       .catch(() => undefined);
-    if (d.event)
-      plannerApi
-        .docFor<DayChecklist>(wid, 'day-checklist', d.event)
-        .then((r) => setLists(r.data))
-        .catch(() => setLists(null));
-  }, [wid, d.event]);
+  }, [wid]);
   const today = dateIn(overview?.wedding.timezone);
   const items = d.runsheet?.data.items ?? [];
   const helpers = d.members.filter((m) => !m.side);
@@ -101,22 +96,12 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
             {items.length ? 'Open the run sheet' : 'Build the run sheet'}
           </Pill>
         </section>
-        <section aria-label="Our to-dos on the day" className={card}>
-          <H2>Our to-dos on the day</H2>
-          <div className="flex gap-5 flex-wrap">
-            {(['p1', 'p2', 'both'] as const).map((w) => {
-              const p = progressOf(lists?.[w] ?? []);
-              return (
-                <span key={w} className="flex items-center gap-2">
-                  <Ring done={p.done} total={p.total} size={52} />
-                  <span className="text-[14px]">{w === 'both' ? 'Together' : d.names[w]}</span>
-                </span>
-              );
-            })}
-          </div>
-          <Pill kind="outline" className="self-start" onClick={() => go('couple')}>
-            Open your checklists
-          </Pill>
+        <section aria-label="Our to-dos" className={card}>
+          <H2>Our to-dos</H2>
+          <p className="m-0 text-[14px] text-[#5b6a52]">Everything you two have to do, from now to the day after, is in one checklist: each thing says whose it is, and you can hand any of it to a helper.</p>
+          <Link to={`${path('planner', d.event ?? undefined)}?view=checklist`} className="self-start py-[7px] px-4 rounded-full border border-[#33402f] text-[14px] no-underline !text-[#33402f]">
+            Open the checklist
+          </Link>
         </section>
       </div>
 

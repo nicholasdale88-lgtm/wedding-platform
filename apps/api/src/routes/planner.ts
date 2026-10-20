@@ -1,4 +1,4 @@
-import { randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
+import { PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -38,6 +38,49 @@ export async function readDoc<K extends PlannerKind>(db: D1Database, weddingId: 
   const schema = PLANNER_DOCS[kind];
   const parsed = schema.safeParse(json(row?.data, {}));
   return { data: (parsed.success ? parsed.data : schema.parse({})) as DocOf<K>, version: row?.version ?? 0 };
+}
+
+/** Days before the wedding each moment of the old day lists falls on (after the wedding: the day after). */
+const DAY_LIST_BEFORE: Record<string, number> = { month: 30, week: 7, eve: 1, morning: 0, ceremony: 0, reception: 0, after: -1 };
+
+/**
+ * The couple's own day lists (Wedding party → Your checklists: each partner's and the shared one, a month
+ * out to after the day) now live in the one planning checklist. Moved across once, the first time it's
+ * read: each thing keeps whose it is, who it's handed to, whether it's done, and its time and tip (in the
+ * note); nothing already there is added twice. Then the old lists are emptied, so helpers see it once.
+ */
+export async function absorbDayLists(db: D1Database, weddingId: string) {
+  const ev = await db.prepare(`SELECT key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(weddingId).first<{ key: string }>();
+  if (!ev) return;
+  const day = await readDoc(db, weddingId, 'day-checklist', ev.key);
+  const items = (['p1', 'p2', 'both'] as const).flatMap((owner) => day.data[owner].map((it) => ({ it, owner })));
+  if (!items.length) return;
+  const moved = await changeDoc(db, weddingId, 'checklist', '', (d) => {
+    const have = new Set(d.tasks.map((t) => `${t.owner}|${t.text.trim().toLowerCase()}`));
+    for (const { it, owner } of items) {
+      const key = `${owner}|${it.text.trim().toLowerCase()}`;
+      if (!it.text.trim() || have.has(key) || d.tasks.length >= 300) continue;
+      have.add(key);
+      d.tasks.push(
+        PlanTask.parse({
+          id: it.id || crypto.randomUUID().slice(0, 12),
+          text: it.text.trim(),
+          before: DAY_LIST_BEFORE[it.phase] ?? 0,
+          done: it.done,
+          status: it.done ? 'done' : 'todo',
+          note: [it.time, it.note].filter((x) => x?.trim()).join(' · ').slice(0, 600),
+          owner,
+          helper: it.helper ?? '',
+        }),
+      );
+    }
+  });
+  if (moved)
+    await changeDoc(db, weddingId, 'day-checklist', ev.key, (d) => {
+      d.p1 = [];
+      d.p2 = [];
+      d.both = [];
+    });
 }
 
 export async function members(db: D1Database, weddingId: string) {
@@ -561,6 +604,7 @@ export function plannerRoutes() {
   app.get('/doc/:kind/:scope?', async (c) => {
     const kind = c.req.param('kind');
     if (!isKind(kind)) return err(c, 404, 'not_found', 'Unknown document.');
+    if (kind === 'checklist') await absorbDayLists(c.env.DB, wid(c)).catch((e) => console.error('absorb day lists', e));
     const doc = await readDoc(c.env.DB, wid(c), kind, c.req.param('scope') ?? '');
     // Helpers' private list keys are for the people who send them, not viewers.
     if (kind === 'checklist' && c.get('role') === 'viewer') {

@@ -342,6 +342,26 @@ describe('planner: wedding party', () => {
     expect(ov.needsYou.find((n) => n.kind === 'payments-due')).toMatchObject({ detail: 'Cake $700', link: 'planner?view=payments' });
   });
 
+  it('the couple’s day lists move into the one planning checklist, once: whose, done, time and tip kept, nothing twice', async () => {
+    await call('/doc/checklist', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ tasks: [{ id: 'a', text: 'Collect the rings', before: 0, owner: 'p1' }] }) });
+    const day = {
+      p1: [{ text: 'Collect the rings', phase: 'morning' }, { text: 'Final dress fitting', phase: 'month', done: true }],
+      p2: [{ text: 'Pick up the suits', phase: 'eve', time: '3:00pm', note: 'Bring the receipt', id: 'h1', helper: 'jess' }],
+      both: [{ text: 'Thank the venue', phase: 'after' }],
+    };
+    expect((await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify(day) })).status).toBe(200);
+    const read = async () => ((await (await call('/doc/checklist')).json()) as { data: { tasks: { text: string; before: number; owner: string; helper: string; done: boolean; note: string }[] } }).data.tasks;
+    const tasks = await read();
+    expect(tasks.filter((t) => t.text === 'Collect the rings')).toHaveLength(1); // already there: not added twice
+    expect(tasks.find((t) => t.text === 'Final dress fitting')).toMatchObject({ before: 30, owner: 'p1', done: true });
+    expect(tasks.find((t) => t.text === 'Pick up the suits')).toMatchObject({ before: 1, owner: 'p2', helper: 'jess', note: '3:00pm · Bring the receipt' });
+    expect(tasks.find((t) => t.text === 'Thank the venue')).toMatchObject({ before: -1, owner: 'both' });
+    // The old lists are emptied, and reading again adds nothing.
+    const old = ((await (await call('/doc/day-checklist/wedding')).json()) as { data: { p1: unknown[]; p2: unknown[]; both: unknown[] } }).data;
+    expect([old.p1.length, old.p2.length, old.both.length]).toEqual([0, 0, 0]);
+    expect((await read()).length).toBe(tasks.length);
+  });
+
   it('a stale save is refused with the current version (two people never overwrite each other)', async () => {
     await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [{ text: 'Breakfast' }], p2: [] }) });
     const stale = await call('/doc/day-checklist/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ p1: [], p2: [] }) });

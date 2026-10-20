@@ -5,7 +5,6 @@ import { api, ApiError, pagesApi, plannerApi, type Guest, type PartyData, type P
 import { confirmLeave, useUnsavedChanges } from '../leave';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Pill, subNavCls, tabCls, useToast } from '../ui';
-import { CoupleChecklists } from './CoupleChecklists';
 import { PartyAccess } from './PartyAccess';
 import { PartyOverview } from './PartyOverview';
 import { SidePage } from './SidePage';
@@ -16,12 +15,12 @@ import { Speeches } from './Speeches';
  * - Overview: both sides at a glance, helpers, the run sheet and your checklists.
  * - Each side (the bride's, the groom's): its people, what they wear, the hens or bucks, its to-dos.
  * - Run sheet: the party's own day, more detailed than the guests', each line for everyone, a side or a role.
- * - Your checklists: each partner's own list from a month out to after the day, and the shared one.
+ * (The couple's own lists from a month out to after the day are in Wedding planner → Checklist.)
  * Each member opens their part from their own link: /w/<slug>/party?g=…
  */
 
 export type PartyView = 'overview' | 'p1' | 'p2' | 'runsheet' | 'couple' | 'access';
-export const PARTY_VIEWS: PartyView[] = ['overview', 'p1', 'p2', 'runsheet', 'couple', 'access'];
+export const PARTY_VIEWS: PartyView[] = ['overview', 'p1', 'p2', 'runsheet', 'access'];
 /** The menu's name for each view ("Bride's side" uses what the sides are called). */
 export const partyViewLabel = (v: PartyView, sides: { p1: string; p2: string }) =>
   v === 'overview' ? 'Overview' : v === 'p1' ? `${sides.p1 || 'Bride'}’s side` : v === 'p2' ? `${sides.p2 || 'Groom'}’s side` : v === 'runsheet' ? 'Run sheet' : v === 'access' ? 'Links & sign-ins' : 'Our to-dos on the day';
@@ -96,7 +95,6 @@ export function Party() {
       {view === 'overview' && <PartyOverview d={d} setD={setD} sideName={sideName} go={go} />}
       {(view === 'p1' || view === 'p2') && <SidePage key={view} side={view} d={d} setD={setD} sideName={sideName} go={go} />}
       {view === 'runsheet' && <RunSheet key={d.runsheet?.version ?? 0} d={d} setD={setD} reload={load} sideName={sideName} />}
-      {view === 'couple' && <CoupleChecklists d={d} sideName={sideName} />}
       {view === 'access' && <PartyAccess />}
     </div>
   );

@@ -271,13 +271,17 @@ export function Checklist() {
                 ) : (
                   <input type="checkbox" checked={a.done} aria-label={a.text} onChange={() => tickVendor(a)} className="mt-[3px] w-[18px] h-[18px] flex-none accent-[#5d6b47]" />
                 )}
-                <div className={`flex-1 min-w-0 text-[15px] ${a.done ? 'line-through text-[#7a7466]' : ''}`}>
-                  <span className="mr-2 py-[1px] px-2 rounded-full bg-[#e6ecdc] text-[#3d4a2f] text-[11px] font-semibold align-middle">{a.kind === 'payment' ? 'Payment' : a.kind === 'chase' ? 'Quote' : 'Vendor'}</span>
-                  {a.text}
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <div className={`text-[16px] leading-[1.35] ${a.done ? 'line-through text-[#7a7466]' : ''}`}>
+                    <span className="mr-2 py-[1px] px-2 rounded-full bg-[#e6ecdc] text-[#3d4a2f] text-[11px] font-semibold align-middle">{a.kind === 'payment' ? 'Payment' : a.kind === 'chase' ? 'Quote' : 'Vendor'}</span>
+                    {a.text}
+                  </div>
+                  {a.due && (
+                    <span className={`text-[13px] ${late ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>
+                      {`${late ? 'Overdue · ' : ''}${fmt(new Date(`${a.due}T00:00`))}`}
+                    </span>
+                  )}
                 </div>
-                <span className={`text-[12px] whitespace-nowrap ${late ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>
-                  {a.due ? `${late ? 'Overdue · ' : ''}${fmt(new Date(`${a.due}T00:00`))}` : ''}
-                </span>
               </div>
             );
           })}
@@ -294,20 +298,21 @@ export function Checklist() {
                   onChange={() => setTask(t.id, (x) => withStatus(x, x.done ? 'todo' : 'done', todayIs))}
                   className="mt-[3px] w-[18px] h-[18px] flex-none accent-[#5d6b47]"
                 />
-                <div className="flex-1 min-w-0">
-                  <div className={`text-[15px] ${t.done ? 'line-through text-[#7a7466]' : ''}`}>
+                {/* The thing to do across the full width, and its status, who and date on a line under it (readable on a phone). */}
+                <div className="flex-1 min-w-0 flex flex-col gap-[6px]">
+                  <div className={`text-[16px] leading-[1.35] ${t.done ? 'line-through text-[#7a7466]' : ''}`}>
                     {t.legal && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#f1e1d6] text-[#7a4a37] text-[11px] font-semibold align-middle">Legal</span>}
                     {custom(t) && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#efe7d3] text-[#5b6a52] text-[11px] font-semibold align-middle">Yours</span>}
                     {t.text}
                   </div>
                   {t.note && <div className="text-[13px] text-[#5b6a52]">{t.note}</div>}
-                </div>
+                  <div className="flex items-center gap-2 flex-wrap">
                 <StatusPill status={statusOf(t)} onChange={(s) => setTask(t.id, (x) => withStatus(x, s, todayIs))} />
                 <select
                   aria-label={`Who: ${nameOf(assigneeOf(t))}`}
                   value={assigneeOf(t)}
                   onChange={(e) => setTask(t.id, (x) => assign(x, e.target.value), e.target.value ? `Given to ${nameOf(e.target.value)}` : undefined)}
-                  className={`flex-none max-w-[120px] py-[2px] px-2 rounded-full border text-[11px] cursor-pointer ${assigneeOf(t) ? 'bg-[#efe7d3] border-[#e2d7bc] text-[#33402f]' : 'bg-transparent border-dashed border-[#c6b794] text-[#7a7466]'}`}
+                  className={`flex-none max-w-[160px] py-[4px] px-2 rounded-full border text-[13px] cursor-pointer ${assigneeOf(t) ? 'bg-[#efe7d3] border-[#e2d7bc] text-[#33402f]' : 'bg-transparent border-dashed border-[#c6b794] text-[#7a7466]'}`}
                 >
                   <option value="">Who?</option>
                   <option value="p1">{n1}</option>
@@ -319,12 +324,14 @@ export function Checklist() {
                     </option>
                   ))}
                 </select>
-                <span className={`text-[12px] whitespace-nowrap ${late ? 'text-[#7a4a37] font-semibold' : soon ? 'text-[#8a6d2f] font-semibold' : 'text-[#7a7466]'}`}>
+                <span className={`text-[13px] whitespace-nowrap ${late ? 'text-[#7a4a37] font-semibold' : soon ? 'text-[#8a6d2f] font-semibold' : 'text-[#7a7466]'}`}>
                   {due ? `${late ? 'Overdue · ' : soon ? 'Soon · ' : ''}${fmt(due)}` : ''}
                 </span>
-                <button type="button" aria-label={`Remove ${t.text}`} onClick={() => void save(doc.data.tasks.filter((x) => x.id !== t.id))} className="p-0 border-0 bg-transparent cursor-pointer text-[#7a7466]">
+                <button type="button" aria-label={`Remove ${t.text}`} onClick={() => void save(doc.data.tasks.filter((x) => x.id !== t.id))} className="ml-auto w-8 h-8 p-0 border-0 bg-transparent cursor-pointer text-[#7a7466] text-[18px]">
                   ×
                 </button>
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -367,7 +374,7 @@ const NEXT_STATUS: Record<PlanTask['status'], PlanTask['status']> = { todo: 'doi
 function StatusPill({ status, onChange }: { status: PlanTask['status']; onChange: (s: PlanTask['status']) => void }) {
   const [label, bg, fg] = STATUS[status];
   return (
-    <button type="button" aria-label={`Status: ${label}. Tap to change.`} onClick={() => onChange(NEXT_STATUS[status])} className="flex-none w-[56px] py-[2px] rounded-full border-0 text-[11px] font-semibold cursor-pointer" style={{ background: bg, color: fg }}>
+    <button type="button" aria-label={`Status: ${label}. Tap to change.`} onClick={() => onChange(NEXT_STATUS[status])} className="flex-none w-[64px] py-[4px] rounded-full border-0 text-[12px] font-semibold cursor-pointer" style={{ background: bg, color: fg }}>
       {label}
     </button>
   );

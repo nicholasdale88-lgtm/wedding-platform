@@ -216,7 +216,7 @@ export const HELP: HelpArticle[] = [
     steps: [
       'Open Wedding planner → Checklist: the usual Australian plan counted back from your date, including the Notice of Intended Marriage.',
       'Give a task to a family member or friend: they get a private link to their own list and can mark it done.',
-      'On the day checklists too (Wedding party → Your checklists, or another event’s Party checklist): tap a thing, then “Who’s doing it” to hand it to someone, or add someone new right there.',
+      'The last month and the day itself are in the same checklist (another event has its own Party checklist): tap a thing, then “Who’s doing it” to hand it to someone, or add someone new right there.',
       'On their page, “Add my jobs to my calendar” puts everything that’s theirs in their phone’s calendar, with reminders, and keeps it up to date.',
     ],
     also: 'to do todo tasks timeline helpers family jobs notice of intended marriage allocate assign hand over delegate day checklist calendar reminder',
@@ -370,7 +370,7 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
   checklist: [
     { at: ['Wedding planner', 'Checklist'], rows: ['Book the venue · 12 months', 'Notice of Intended Marriage ⚠ by 14 Feb', 'Send invitations · 3 months'], then: 'Counted back from your date' },
     { at: ['Wedding planner', 'Checklist'], fields: [['Who?', 'Mum']], rows: ['Order the cake'], tap: 'Copy their link', then: 'Mum ticks it off on her phone' },
-    { at: ['Wedding party', 'Your checklists'], rows: ['Collect the rings · 10:30am'], fields: [['Who’s doing it', 'Jess (best man)']], tap: 'Send them their link', then: 'On Jess’s list and calendar ✓' },
+    { at: ['Wedding planner', 'Checklist'], rows: ['Collect the rings · 10:30am'], fields: [['Who’s doing it', 'Jess (best man)']], tap: 'Send them their link', then: 'On Jess’s list and calendar ✓' },
     { at: ['Their page'], rows: ['Collect the rings · 10:30am', 'Order the cake · 2 weeks before'], tap: 'Add my jobs to my calendar', then: 'In their calendar, with reminders ✓' },
   ],
   party: [
