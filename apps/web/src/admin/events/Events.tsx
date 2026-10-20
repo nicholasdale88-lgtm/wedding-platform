@@ -1,10 +1,11 @@
-import { zonedToUtc } from '@wp/shared';
+import { EVENTS_INCLUDED, zonedToUtc } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, eventsApi, type EventFull, type EventQuestion, type EventsData } from '../../lib/api';
 import { fmtEvent, toLocalInput } from '../../lib/format';
 import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
+import { Upgrade, usePlan } from '../Upgrade';
 import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
 
 /**
@@ -44,6 +45,9 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
   const toast = useToast();
   const [data, setData] = useState<EventsData | null>(null);
   const [error, setError] = useState('');
+  // The plan's events are used up: adding another is a paid add-on (the Upgrade card asks for it).
+  const [needsAddon, setNeedsAddon] = useState(false);
+  const { plan } = usePlan();
 
   const load = useCallback(async () => {
     try {
@@ -130,12 +134,22 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
             go(path('overview', r.added)); // straight into the new event's own section
             return true;
           } catch (err) {
+            if (err instanceof ApiError && err.status === 402) {
+              setNeedsAddon(true);
+              return false;
+            }
             await fail(err);
             return false;
           }
         }}
       />
       )}
+      {!only && (
+        <p className="m-0 text-[13px] text-[#5b6a52]">
+          Your plan includes {EVENTS_INCLUDED[plan]} {EVENTS_INCLUDED[plan] === 1 ? 'event' : 'events'}; each extra one (welcome drinks, a recovery brunch…) is an add-on.
+        </p>
+      )}
+      {needsAddon && <Upgrade feature="extraEvent" compact />}
     </div>
   );
 }

@@ -302,6 +302,21 @@ describe('Overview', () => {
     expect(location).toBe('/admin/w1/brunch/overview');
   });
 
+  it('adding an event beyond the plan offers the add-on instead of an error', async () => {
+    mockApi({
+      '/api/a/w/w1/events': (init) =>
+        init?.method === 'POST'
+          ? json(402, { error: { code: 'upgrade', feature: 'extraEvent', message: 'Your plan includes 2 events.' } })
+          : json(200, { timezone: 'Australia/Sydney', events: [] }),
+    });
+    renderAt('/admin/w1/account/overview');
+    await userEvent.click(await screen.findByRole('button', { name: '+ Add an event' }));
+    await userEvent.type(await screen.findByPlaceholderText('Recovery brunch'), 'Welcome drinks');
+    await userEvent.click(screen.getByRole('button', { name: 'Add event' }));
+    expect(await screen.findByText(/Another event/)).toBeInTheDocument();
+    expect(screen.queryByText('Your plan includes 2 events.')).toBeNull(); // the card, not an error message
+  });
+
   it('Needs you buttons go straight to the fix', async () => {
     mockApi();
     renderAt('/admin/w1/account/overview');
