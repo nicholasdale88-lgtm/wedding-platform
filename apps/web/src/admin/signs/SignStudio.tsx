@@ -261,7 +261,7 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
           <fieldset className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] m-0">
             <legend className="px-1 text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">Words, top to bottom</legend>
             <p className="m-0 text-[12px] text-[#7a7466]">
-              Filled in for you: {'{name1}'} {'{name2}'} {'{couple}'} {'{date}'} {'{venue}'} {'{website}'}
+              Filled in for you: {'{name1}'} {'{name2}'} {'{couple}'} {'{date}'} {'{venue}'} {'{website}'} {'{photos}'} (the photo QR link)
               {tpl?.perTable ? ' {table}' : ''} {'{timeline}'}
             </p>
             {design.blocks.map((x, i) => (

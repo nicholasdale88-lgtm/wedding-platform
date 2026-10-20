@@ -4,6 +4,7 @@ import { imageType } from '../lib/images';
 import { z } from 'zod';
 import { MAX_PHOTO, readBytes, readJson, safeJson } from '../lib/security';
 import { canStore, linkKey, mediaResponse, openPhoto, storePhoto, thumbResponse } from '../photos/store';
+import { photoCode } from '../lib/photoQr';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -63,6 +64,12 @@ export function photoRoutes() {
         .run();
     }
     return c.json({ ok: true, id: r.id, duplicate: r.duplicate });
+  });
+
+  /** The table-card QR code's link part (for signs and table cards): opens the photo page without a guest's own link. */
+  app.get('/qr', async (c) => {
+    if (!c.env.SESSION_SECRET) return err(c, 404, 'not_found', 'Not set up yet.');
+    return c.json({ code: await photoCode(c.env.SESSION_SECRET, wid(c)) });
   });
 
   app.get('/', async (c) => {

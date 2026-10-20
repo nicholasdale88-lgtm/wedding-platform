@@ -12,6 +12,7 @@ import { imageType, videoType } from '../lib/images';
 import { MAX_PHOTO, MAX_VIDEO, readBytes, readJson } from '../lib/security';
 import { forecastFor } from '../lib/weather';
 import { canStore, storePhoto } from '../photos/store';
+import { isPhotoCode } from '../lib/photoQr';
 
 /** The site's own photo storage per wedding: inside R2's free 10 GB. */
 const ALBUM_BYTES = 9 * 1024 ** 3;
@@ -318,6 +319,8 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
           .bind(token, w.id)
           .first<{ name: string; inv: string }>()
       : null;
+    // The table-card QR code: anyone at the tables can add photos, giving their name.
+    const qr = !who && (await isPhotoCode(c.env.SESSION_SECRET, w.id, c.req.query('t') ?? ''));
     // Each event has its own album; the page offers the events this guest is invited to (all, on the public page).
     const all = await eventsOf(c.env.DB, w.id);
     const mine = who ? new Set((await c.env.DB.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(who.inv).all<{ event_id: string }>()).results.map((r) => r.event_id)) : null;
@@ -331,7 +334,8 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       images: imagesOf(content),
       name: who?.name ?? '',
       linked: !!who,
-      open: !!who && (await canStore(c.env, w.id)),
+      qr,
+      open: (!!who || qr) && (await canStore(c.env, w.id)),
       // The couple has shared the album: guests can see everyone's photos (/w/:slug/album).
       album: !!who && content.albumShared === true,
       // The frames and looks the couple offers (all of them until they choose), and the look to start on.
@@ -347,12 +351,15 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
   app.put('/photos', async (c) => {
     const w = await wedding(c);
     const token = c.req.query('g') ?? '';
-    if (!w || !isToken(token)) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    if (!w) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
     const db = c.env.DB;
-    const inv = await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>();
-    if (!inv) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    const inv = isToken(token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>() : null;
+    // Or the table-card QR code: limited per phone (network) and per wedding instead of per invitation.
+    const qr = !inv && (await isPhotoCode(c.env.SESSION_SECRET, w.id, c.req.query('t') ?? ''));
+    if (!inv && !qr) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
+    const who = inv ? inv.id : `qr:${w.id}:${c.req.header('CF-Connecting-IP') ?? 'local'}`;
     if (!(await canStore(c.env, w.id))) return err(c, 503, 'closed', 'Photo uploads are not open yet.');
-    if (!(await allow(db, `photo:${inv.id}`, 150, 3_600_000)) || !(await allow(db, `photo-day:${inv.id}`, 600, 86_400_000))) {
+    if (!(await allow(db, `photo:${who}`, qr ? 80 : 150, 3_600_000)) || !(await allow(db, `photo-day:${who}`, qr ? 300 : 600, 86_400_000)) || (qr && !(await allow(db, `photo-qr-day:${w.id}`, 5000, 86_400_000)))) {
       return err(c, 429, 'slow_down', 'That is a lot of photos at once. Please wait a little and try again.');
     }
     // The site's own storage stays inside its free 10 GB (photos kept in the couple's linked storage don't count).
@@ -371,7 +378,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     const asked = c.req.header('X-Photo-Look') ?? '';
     const look = video && ['golden', 'film', 'classic', 'blush', 'moody', 'airy', 'vintage', 'disposable', 'cinematic', 'glow', 'noir'].includes(asked) ? asked : '';
     // A video is big: twenty a day each, so one phone can't fill the album or the couple's Drive.
-    if (video && !(await allow(db, `video-day:${inv.id}`, 20, 86_400_000))) return err(c, 429, 'slow_down', 'That’s a lot of videos today. Please try again tomorrow.');
+    if (video && !(await allow(db, `video-day:${who}`, qr ? 10 : 20, 86_400_000))) return err(c, 429, 'slow_down', 'That’s a lot of videos today. Please try again tomorrow.');
     let by = '';
     try {
       by = dropControls(decodeURIComponent(c.req.header('X-Photo-By') ?? '')).trim().slice(0, 120);
@@ -380,7 +387,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     }
     const evKey = c.req.query('event') ?? '';
     const ev = evKey ? (await eventsOf(db, w.id)).find((e) => e.key === evKey) : undefined;
-    const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv.id, eventKey: ev?.key ?? null, media: video ? 'video' : 'photo', look });
+    const r = await storePhoto(c.env, (p) => c.executionCtx.waitUntil(p), { weddingId: w.id, bytes, kind, by, invitationId: inv?.id ?? null, eventKey: ev?.key ?? null, media: video ? 'video' : 'photo', look });
     if (!r.ok) return err(c, r.status, 'not_saved', r.message);
     return c.json({ ok: true, id: r.id });
   });

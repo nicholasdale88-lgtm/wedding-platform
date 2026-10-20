@@ -54,6 +54,20 @@ describe('photos (admin)', () => {
     expect(new Uint8Array(await img.arrayBuffer())).toEqual(JPEG);
   });
 
+  it('the table-card QR code opens the photo page without a guest link; a wrong code or no code adds nothing', async () => {
+    const { code } = (await (await call(`/a/w/${wid}/photos/qr`)).json()) as { code: string };
+    expect(code).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    const page = (await (await app.request(`/api/p/sophie-and-nicholas/photos?t=${code}`, {}, env, ctx)).json()) as { open: boolean; qr: boolean; linked: boolean };
+    expect(page).toMatchObject({ open: true, qr: true, linked: false });
+    const put = (q: string) => app.request(`/api/p/sophie-and-nicholas/photos?${q}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-By': 'Table 4' }, body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 9, 9]) }, env, ctx);
+    expect((await put(`t=${code}`)).status).toBe(200);
+    expect((await put(`t=${code.slice(0, 15)}x`)).status).toBe(404);
+    expect((await put('')).status).toBe(404);
+    expect(((await (await app.request(`/api/p/sophie-and-nicholas/photos?t=nope`, {}, env, ctx)).json()) as { open: boolean }).open).toBe(false);
+    const list = (await (await call(`/a/w/${wid}/photos`)).json()) as List;
+    expect(list.items.map((x) => x.by)).toContain('Table 4');
+  });
+
   it('guests add videos too (checked by their bytes), kept with the look they chose; other files are refused', async () => {
     const tok = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = 'Ivy Scott'`).first<{ token: string }>())!.token;
     const mp4 = new Uint8Array([0, 0, 0, 0x18, ...new TextEncoder().encode('ftypmp42'), 0, 0, 0, 0, 9, 9, 9, 9]);

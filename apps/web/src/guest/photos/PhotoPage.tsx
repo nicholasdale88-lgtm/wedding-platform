@@ -18,6 +18,8 @@ import { SnapCam } from './SnapCam';
  * from the camera roll or by taking them right here, with the event's filters (names, wax seal, frame,
  * the birthday's number). Each photo is shrunk on the phone (longest side 2400px, JPEG) with its filter
  * drawn on, then sent one at a time; failures can be retried. A link without an event asks which one.
+ * Step by step: 1 your name, 2 a frame and a look, 3 take photos (the camera) or choose them.
+ * From a table card's QR code (?t=<code>) there's no guest link: anyone at the tables adds photos, by name.
  */
 
 type Status = 'wait' | 'up' | 'ok' | 'err';
@@ -103,6 +105,7 @@ export function PhotoPage() {
   const { slug = '', event = '' } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
+  const code = params.get('t') ?? '';
   // The couple's preview (Setup): try everything, send nothing.
   const preview = params.get('preview') === '1';
   const [page, setPage] = useState<PhotoPagePayload | null>(null);
@@ -110,6 +113,7 @@ export function PhotoPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [err, setErr] = useState('');
   const [cam, setCam] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(() => (remembered().trim() ? 2 : 1));
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
   const running = useRef(false);
@@ -120,13 +124,16 @@ export function PhotoPage() {
   useEffect(() => {
     setPage(null);
     guestApi
-      .photos(slug, token, event)
+      .photos(slug, token, event, code)
       .then((p) => {
         setPage(p);
-        if (p.name) setBy((cur) => cur || p.name);
+        if (p.name) {
+          setBy((cur) => cur || p.name);
+          setStep((st) => (st === 1 ? 2 : st));
+        }
       })
       .catch((e: Error) => setErr(e.message));
-  }, [slug, token, event]);
+  }, [slug, token, event, code]);
   useEffect(() => () => itemsRef.current.forEach((it) => URL.revokeObjectURL(it.url)), []);
   useEffect(() => void filterFontsReady(), []);
 
@@ -197,14 +204,14 @@ export function PhotoPage() {
           if (!isVideo(it.file)) sent = it.pre ? it.file : await renderPhoto(it.file, it.filter, info, it.look);
         } else if (isVideo(it.file)) {
           // A video goes as it is; its look is kept with it and shown when it plays.
-          id = await guestApi.uploadPhoto(slug, token, by.trim(), it.file, ev?.key ?? '', it.look === 'original' ? '' : it.look);
+          id = await guestApi.uploadPhoto(slug, token, by.trim(), it.file, ev?.key ?? '', it.look === 'original' ? '' : it.look, code);
         } else {
           sent = it.pre ? it.file : await renderPhoto(it.file, it.filter, info, it.look);
-          id = await guestApi.uploadPhoto(slug, token, by.trim(), sent, ev?.key ?? '');
+          id = await guestApi.uploadPhoto(slug, token, by.trim(), sent, ev?.key ?? '', '', code);
         }
         // Sent: swap the full-size original for a small tile copy (and give the album the same small copy).
         const small = await thumbOf(sent);
-        if (id && small.type === 'image/jpeg' && small.size <= 120_000) void guestApi.uploadThumb(slug, token, id, small);
+        if (id && token && small.type === 'image/jpeg' && small.size <= 120_000) void guestApi.uploadThumb(slug, token, id, small);
         const url = URL.createObjectURL(small);
         URL.revokeObjectURL(it.url);
         setItems((xs) => xs.map((x) => (x.id === it.id ? { ...x, st: 'ok', file: small, url } : x)));
@@ -216,14 +223,14 @@ export function PhotoPage() {
       }
     }
     running.current = false;
-  }, [slug, token, by, info, ev, preview]);
+  }, [slug, token, code, by, info, ev, preview]);
 
   useEffect(() => {
     if (items.some((x) => x.st === 'wait')) void run();
   }, [items, run]);
 
   if (!page) return err ? <GuestMessage message={err} /> : <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
-  if (!ev && (page.events?.length ?? 0) > 1) return <ChooseEvent page={page} slug={slug} token={token} />;
+  if (!ev && (page.events?.length ?? 0) > 1) return <ChooseEvent page={page} slug={slug} token={token} code={code} />;
 
   const ok = items.filter((x) => x.st === 'ok').length;
   const left = items.filter((x) => x.st === 'wait' || x.st === 'up').length;
@@ -308,7 +315,41 @@ export function PhotoPage() {
           className="fixed left-0 right-0 bottom-0 z-40 flex flex-col gap-2 items-center pt-3 px-4 pb-[max(14px,env(safe-area-inset-bottom))] bg-[rgba(251,248,242,.96)] border-t border-[#e2d7bc] shadow-[0_-8px_24px_rgba(51,64,47,.12)]"
           style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", color: info.ink }}
         >
-          <div className="text-[13px] tracking-[.18em] uppercase font-semibold opacity-80">{ev?.name} album</div>
+          <div className="flex items-center gap-3 text-[13px] tracking-[.18em] uppercase font-semibold opacity-80">
+            <span>{ev?.name} album</span>
+            <span aria-label={`Step ${step} of 3`} className="flex gap-1">
+              {[1, 2, 3].map((n) => (
+                <span key={n} aria-hidden className="w-[22px] h-[4px] rounded-full" style={{ background: info.ink, opacity: n <= step ? 0.9 : 0.2 }} />
+              ))}
+            </span>
+          </div>
+          {step === 1 && (
+            <form
+              className="w-full max-w-[420px] flex flex-col gap-2 items-stretch"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (by.trim()) setStep(2);
+                else setErr(t('ph.dyn.needName') || 'Please add your name first.');
+              }}
+            >
+              <label className="text-[19px] text-center">
+                1. Who&rsquo;s sharing?
+                <input
+                  value={by}
+                  onChange={v.setBy}
+                  autoComplete="name"
+                  placeholder="Your name"
+                  className="mt-2 block w-full py-3 px-4 rounded-full border text-[18px] bg-white"
+                  style={{ borderColor: 'rgba(0,0,0,.18)', fontFamily: 'inherit', color: info.ink }}
+                />
+              </label>
+              <button type="submit" className="py-3 rounded-full border-0 text-[19px] cursor-pointer" style={{ background: info.ink, color: '#fbf8f2' }}>
+                Next: pick a frame
+              </button>
+            </form>
+          )}
+          {step === 2 && <div className="text-[19px]">2. Pick a frame and a look</div>}
+          {step === 2 && (
           <div role="radiogroup" aria-label="Filter" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none]">
             {filters.map((f) => (
               <button
@@ -324,6 +365,8 @@ export function PhotoPage() {
               </button>
             ))}
           </div>
+          )}
+          {step === 2 && (
           <div role="radiogroup" aria-label="Look" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none]">
             {lookKeys.length > 1 && lookKeys.map((k) => (
               <button
@@ -341,14 +384,38 @@ export function PhotoPage() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => ready() && setCam(true)}
-            className="w-full max-w-[420px] py-3 rounded-full border-0 text-[19px] cursor-pointer"
-            style={{ background: info.ink, color: '#fbf8f2' }}
-          >
-            Take a photo
-          </button>
+          )}
+          {step === 2 && (
+            <div className="w-full max-w-[420px] flex gap-2">
+              <button type="button" onClick={() => setStep(1)} className="py-3 px-5 rounded-full border text-[17px] cursor-pointer bg-transparent" style={{ borderColor: 'rgba(0,0,0,.18)', color: info.ink }}>
+                Back
+              </button>
+              <button type="button" onClick={() => setStep(3)} className="flex-1 py-3 rounded-full border-0 text-[19px] cursor-pointer" style={{ background: info.ink, color: '#fbf8f2' }}>
+                Next: take photos
+              </button>
+            </div>
+          )}
+          {step === 3 && (
+            <>
+              <div className="text-[19px]">3. {FILTER_LABEL[filter]}{lookKeys.length > 1 ? ` · ${LOOKS[look].label}` : ''}: take or choose photos</div>
+              <button
+                type="button"
+                onClick={() => ready() && setCam(true)}
+                className="w-full max-w-[420px] py-3 rounded-full border-0 text-[19px] cursor-pointer"
+                style={{ background: info.ink, color: '#fbf8f2' }}
+              >
+                Open the camera
+              </button>
+              <div className="w-full max-w-[420px] flex gap-2">
+                <button type="button" onClick={() => setStep(2)} className="py-3 px-5 rounded-full border text-[17px] cursor-pointer bg-transparent" style={{ borderColor: 'rgba(0,0,0,.18)', color: info.ink }}>
+                  Change frame
+                </button>
+                <button type="button" onClick={v.choose} className="flex-1 py-3 rounded-full border text-[17px] cursor-pointer bg-transparent" style={{ borderColor: info.ink, color: info.ink }}>
+                  Choose from your phone
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
       {cam && info && (
@@ -370,7 +437,7 @@ export function PhotoPage() {
 }
 
 /** A link that doesn't name an event: each event has its own album, so ask which. */
-function ChooseEvent({ page, slug, token }: { page: PhotoPagePayload; slug: string; token: string }) {
+function ChooseEvent({ page, slug, token, code }: { page: PhotoPagePayload; slug: string; token: string; code: string }) {
   const theme: Record<string, string | undefined> = themeOf(page.wedding.theme);
   return (
     <main
@@ -385,7 +452,7 @@ function ChooseEvent({ page, slug, token }: { page: PhotoPagePayload; slug: stri
         {(page.events ?? []).map((e) => (
           <Link
             key={e.key}
-            to={`/w/${encodeURIComponent(slug)}/photos/${encodeURIComponent(e.key)}${token ? `?g=${encodeURIComponent(token)}` : ''}`}
+            to={`/w/${encodeURIComponent(slug)}/photos/${encodeURIComponent(e.key)}${token ? `?g=${encodeURIComponent(token)}` : code ? `?t=${encodeURIComponent(code)}` : ''}`}
             className="py-4 px-5 rounded-[14px] no-underline text-[22px] border"
             style={e.slot === 1 ? { background: theme.bdtx ?? '#2f3d5c', color: '#f3ecd6', borderColor: 'transparent' } : { background: '#fbf8f2', color: theme.dg ?? '#33402f', borderColor: theme.gcap ?? '#d3c6a4' }}
           >

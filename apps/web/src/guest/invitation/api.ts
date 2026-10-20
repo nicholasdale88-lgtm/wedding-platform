@@ -79,6 +79,8 @@ export interface PhotoPagePayload {
   images: Record<string, string>;
   name: string;
   linked: boolean;
+  /** Opened from the table-card QR code (anyone at the tables, giving their name). */
+  qr?: boolean;
   open: boolean;
   /** The couple has shared the album (everyone's photos). */
   album?: boolean;
@@ -110,8 +112,8 @@ export const guestApi = {
     call<GuidePayload>(
       `/p/${encodeURIComponent(slug)}/guide?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${preview ? '&preview=1' : ''}${share ? `&share=${encodeURIComponent(share)}` : ''}`,
     ),
-  photos: (slug: string, token: string, event = '') =>
-    call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`),
+  photos: (slug: string, token: string, event = '', code = '') =>
+    call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${code ? `&t=${encodeURIComponent(code)}` : ''}`),
   /** Their conversation with the couple (needs their own link). */
   messages: (slug: string, token: string) =>
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
@@ -145,8 +147,8 @@ export const guestApi = {
   sendMessage: (slug: string, token: string, body: string, kind: 'message' | 'support' | 'question') =>
     call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/messages`, { method: 'POST', body: JSON.stringify({ token, body, kind }) }),
   /** One photo, into an event's album; the server checks it really is one. */
-  uploadPhoto: async (slug: string, token: string, by: string, photo: Blob, event = '', look = '') => {
-    const res = await fetch(`/api/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}`, {
+  uploadPhoto: async (slug: string, token: string, by: string, photo: Blob, event = '', look = '', code = '') => {
+    const res = await fetch(`/api/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${code ? `&t=${encodeURIComponent(code)}` : ''}`, {
       method: 'PUT',
       // A video keeps its look as a setting (shown when it plays); a photo has it drawn in already.
       headers: { 'content-type': photo.type || 'image/jpeg', 'X-Photo-By': encodeURIComponent(by), ...(look ? { 'X-Photo-Look': look } : {}) },

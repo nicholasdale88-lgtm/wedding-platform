@@ -530,6 +530,8 @@ export interface PhotoLooksCfg {
 }
 export const photosApi = {
   list: (wid: string) => request<PhotosData>(`${w(wid)}/photos`),
+  /** The table-card QR code for the photo page (/w/:slug/photos?t=<code>). */
+  qr: (wid: string) => request<{ code: string }>(`${w(wid)}/photos/qr`),
   looks: (wid: string) => request<PhotoLooksCfg>(`${w(wid)}/photos/looks`),
   setLooks: (wid: string, cfg: Required<PhotoLooksCfg>) => send<PhotoLooksCfg>('PUT', `${w(wid)}/photos/looks`, cfg),
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photos/${id}`),

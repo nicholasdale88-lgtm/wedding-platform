@@ -1,7 +1,7 @@
 import { lineFor, moneyOf, type Budget as BudgetDoc, type ReceptionGuide, type Vendors as VendorsDoc } from '@wp/shared';
 import qrcode from 'qrcode-generator';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { pagesApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
+import { pagesApi, photosApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
 import { themeOf } from '../../guest/themeKit';
 import { SignStudio } from '../signs/SignStudio';
 import { useAdmin } from '../Shell';
@@ -34,6 +34,7 @@ export function Print() {
   const [party, setParty] = useState<PartyData | null>(null);
   const [vendors, setVendors] = useState<VendorsDoc['list']>([]);
   const [budgetLines, setBudgetLines] = useState<BudgetDoc['lines']>([]);
+  const [photoCode, setPhotoCode] = useState('');
   const first = overview?.events[0];
   useEffect(() => {
     pagesApi
@@ -56,6 +57,10 @@ export function Print() {
       .doc<BudgetDoc>(wid, 'budget')
       .then((r) => setBudgetLines(r.data.lines))
       .catch(() => setBudgetLines([]));
+    photosApi
+      .qr(wid)
+      .then((r) => setPhotoCode(r.code))
+      .catch(() => setPhotoCode(''));
   }, [wid, first?.key]);
 
   const names = pages?.names ?? { name1: overview?.wedding.name1 ?? '', name2: overview?.wedding.name2 ?? '', monogram: '' };
@@ -105,6 +110,8 @@ export function Print() {
     date,
     venue: overview?.events[0]?.venue ?? '',
     website: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}`,
+    // The photo page from a table card: no guest link needed (they give their name).
+    photos: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/photos${photoCode ? `?t=${photoCode}` : ''}`,
     timeline: items.map((x) => `${x.time}  ${x.title}`).join('\n') || '2:00pm  Ceremony\n3:00pm  Canapés\n5:30pm  Reception\n10:30pm  Farewell',
   };
 
