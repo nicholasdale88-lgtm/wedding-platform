@@ -1,4 +1,4 @@
-import { compareRfq, dateIn, RFQ_LINES, rfqDraft, searchKeyOf, Vendor, VENDOR_SEARCH, type Rfq, type RfqLine } from '@wp/shared';
+import { dateIn, RFQ_LINES, rfqDraft, searchKeyOf, tenderAnalysis, tenderRows, TENDER_RATINGS, TENDER_WEIGHTS, Vendor, VENDOR_SEARCH, type Rfq, type RfqLine, type TenderRating } from '@wp/shared';
 import { useState } from 'react';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Label, Pill, useToast } from '../ui';
@@ -22,7 +22,7 @@ const plusDays = (ymd: string, n: number) => new Date(Date.parse(`${ymd}T00:00:0
 const longDay = (ymd: string) => (ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) : '');
 const SERVICES = Object.entries(VENDOR_SEARCH).filter(([k]) => k !== 'jewellery');
 /** A vendor's place on a request: their own private link, nothing sent yet. */
-const askOf = (vendorId: string) => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '' });
+const askOf = (vendorId: string) => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '', scores: {} });
 
 export function QuoteRequests({ list, rfqs, onSave, onOpen }: { list: Vendor[]; rfqs: Rfq[]; onSave: (list: Vendor[], rfqs: Rfq[], done?: string) => void; onOpen: (vendorId: string) => void }) {
   const { overview } = useAdmin();
@@ -115,6 +115,7 @@ function NewRequest({ list, today, onCancel, onMake }: { list: Vendor[]; today: 
         vendors: [...picked].map(askOf),
         createdOn: today,
         closed: false,
+        budget: 0,
       },
       extra.filter((v) => picked.has(v.id)),
     );
@@ -352,7 +353,7 @@ function RequestCard({
       list.map((v): Vendor => (v.id === vendorId ? { ...v, status: v.status === 'idea' || v.status === 'contacted' ? 'requested' : v.status, askedOn: v.askedOn || today, quoteBy: v.quoteBy || rfq.due } : v)),
     );
   };
-  const cmp = compareRfq(rfq, list);
+  const cmp = tenderAnalysis(rfq, list);
   const book = (vendorId: string) => {
     const col = cmp.cols.find((c) => c.v.id === vendorId);
     if (!col?.q) return;
@@ -439,7 +440,7 @@ function RequestCard({
               onPick={(v) => onChange({ ...rfq, vendors: [...rfq.vendors, askOf(v.id)] }, undefined, `${v.name} added: send them the request`)}
             />
           )}
-          {cmp.cols.some((c) => c.q) ? <Comparison rfq={rfq} cmp={cmp} onBook={book} /> : <p className="m-0 text-[13px] text-[#5b6a52]">Quotes appear here side by side as vendors answer.</p>}
+          {cmp.cols.some((c) => c.q) ? <Comparison rfq={rfq} cmp={cmp} onBook={book} onChange={(next, msg) => onChange(next, undefined, msg)} /> : <p className="m-0 text-[13px] text-[#5b6a52]">Quotes appear here side by side as vendors answer.</p>}
           <div className="flex gap-3 text-[13px] pt-1">
             {!rfq.closed && (
               <button type="button" onClick={() => onChange({ ...rfq, closed: true }, undefined, 'Request closed: vendors can no longer change their quotes')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
@@ -456,95 +457,243 @@ function RequestCard({
   );
 }
 
-/** The side-by-side table: a column per vendor, a row per line, the lowest price per line marked. */
-function Comparison({ rfq, cmp, onBook }: { rfq: Rfq; cmp: ReturnType<typeof compareRfq>; onBook: (vendorId: string) => void }) {
+/**
+ * The tender comparison: a column per vendor, a row per line with its low, median and high, and every price
+ * coloured by how far it sits from the median (green lowest, amber 15%+ over, red 40%+ over). Then the
+ * totals, like for like, how far each is from the best and from your budget, your own ratings and the
+ * weighted score with a rank, a one-line recommendation, and an export.
+ */
+function Comparison({ rfq, cmp, onBook, onChange }: { rfq: Rfq; cmp: ReturnType<typeof tenderAnalysis>; onBook: (vendorId: string) => void; onChange: (next: Rfq, msg?: string) => void }) {
   const cell = 'py-2 px-3 border-b border-[#efe6d0] text-right whitespace-nowrap';
+  const label = 'py-2 px-3 border-b border-[#efe6d0] sticky left-0 bg-white text-left';
+  const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${aud(Math.abs(n))}`;
+  const quoted = cmp.vendors.filter((_, i) => cmp.cols[i]!.q).length;
+  const rate = (vendorId: string, k: TenderRating, v: number) =>
+    onChange({ ...rfq, vendors: rfq.vendors.map((rv) => (rv.vendorId === vendorId ? { ...rv, scores: { ...rv.scores, [k]: v || undefined } } : rv)) });
+  const exportCsv = () => {
+    const rows = tenderRows(cmp);
+    const csv = rows.map((r) => r.map((x) => (typeof x === 'number' ? String(x) : `"${String(x).replace(/"/g, '""')}"`)).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `${(rfq.title || 'quotes').replace(/[^\w ]+/g, '').trim() || 'quotes'} comparison.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  const best = cmp.bestValue;
+  const top = cmp.topScore;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-[13px]">
-        <thead>
-          <tr>
-            <th className="py-2 px-3 text-left font-semibold border-b border-[#d3c6a4] sticky left-0 bg-white">What</th>
-            {cmp.cols.map((c) => (
-              <th key={c.v.id} className="py-2 px-3 text-right font-semibold border-b border-[#d3c6a4]">
-                {c.v.name}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {cmp.rows.map((r) => (
-            <tr key={r.line.id}>
-              <td className="py-2 px-3 border-b border-[#efe6d0] sticky left-0 bg-white">{r.line.label}</td>
-              {r.prices.map((p, i) => {
-                const q = cmp.cols[i]!.q;
-                return (
-                  <td key={i} className={cell} style={p !== null && p === r.low ? { background: '#e6ecd8', fontWeight: 600 } : !q ? { color: '#9a9284' } : p === null ? { color: '#8a5a1f', background: '#f7eedb' } : undefined}>
-                    {!q ? '—' : p === null ? 'Not included' : aud(p)}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-          <tr>
-            <td className="py-2 px-3 font-semibold sticky left-0 bg-white">Their total</td>
-            {cmp.totals.map((t, i) => (
-              <td key={i} className={`${cell} font-semibold`}>
-                {t.quoted === null ? '—' : aud(t.quoted)}
-              </td>
-            ))}
-          </tr>
-          <tr>
-            <td className="py-2 px-3 sticky left-0 bg-white" title="A line someone left out counts at the middle price of the others">
-              Like for like
-            </td>
-            {cmp.totals.map((t, i) => (
-              <td key={i} className={cell} style={t.levelled !== null && t.levelled === cmp.best ? { background: '#e6ecd8', fontWeight: 700 } : undefined}>
-                {t.levelled === null ? '—' : aud(t.levelled)}
-                {t.levelled !== null && t.missing > 0 && <span className="block text-[11px] text-[#8a5a1f] font-normal">{t.missing} not included</span>}
-              </td>
-            ))}
-          </tr>
-          <tr>
-            <td className="py-2 px-3 sticky left-0 bg-white">Deposit</td>
-            {cmp.cols.map((c, i) => (
-              <td key={i} className={cell}>
-                {c.q ? aud(c.q.deposit) : '—'}
-              </td>
-            ))}
-          </tr>
-          <tr>
-            <td className="py-2 px-3 sticky left-0 bg-white">Price holds until</td>
-            {cmp.cols.map((c, i) => (
-              <td key={i} className={cell}>
-                {c.q?.validUntil ? longDay(c.q.validUntil) : '—'}
-              </td>
-            ))}
-          </tr>
-          <tr>
-            <td className="py-2 px-3 sticky left-0 bg-white align-top">Included / not</td>
-            {cmp.cols.map((c, i) => (
-              <td key={i} className="py-2 px-3 border-b border-[#efe6d0] text-left align-top min-w-[160px] whitespace-pre-wrap text-[12px]">
-                {c.q ? [c.q.includes && `✓ ${c.q.includes}`, c.q.excludes && `✗ ${c.q.excludes}`, c.q.notes].filter(Boolean).join('\n\n') || '—' : '—'}
-              </td>
-            ))}
-          </tr>
-          {!rfq.closed && (
+    <div className="flex flex-col gap-3">
+      {quoted > 0 && (
+        <div className="flex flex-col gap-1 p-3 rounded-[12px] bg-[#eef1e4] text-[14px] text-[#3d4a2f]">
+          {best && (
+            <span>
+              <strong className="font-semibold">Best value: {best.name}</strong>, {aud(cmp.best!)} like for like
+              {cmp.vendors.filter((v) => v.vsBest !== null && v.vsBest > 0).length
+                ? `, ${aud(Math.min(...cmp.vendors.filter((v) => v.vsBest !== null && v.vsBest > 0).map((v) => v.vsBest!)))} less than the next`
+                : ''}
+              .
+            </span>
+          )}
+          {top && top.id !== best?.id && (
+            <span>
+              <strong className="font-semibold">Highest score: {top.name}</strong> ({top.score}/10), when your ratings count too.
+            </span>
+          )}
+          {quoted < cmp.cols.length && <span className="text-[13px]">Still waiting on {cmp.cols.length - quoted} of {cmp.cols.length}.</span>}
+        </div>
+      )}
+      <div className="flex gap-3 items-end flex-wrap">
+        <Label text="Your budget for this">
+          <input
+            type="number"
+            min={0}
+            step={50}
+            value={rfq.budget || ''}
+            placeholder="e.g. 3500"
+            onChange={(e) => onChange({ ...rfq, budget: Math.max(0, Number(e.target.value) || 0) })}
+            className={`${inputCls} max-w-[160px]`}
+          />
+        </Label>
+        <Pill size="sm" onClick={exportCsv}>
+          Export the comparison
+        </Pill>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[13px]">
+          <thead>
             <tr>
-              <td className="sticky left-0 bg-white" />
+              <th className="py-2 px-3 text-left font-semibold border-b border-[#d3c6a4] sticky left-0 bg-white">What</th>
               {cmp.cols.map((c, i) => (
-                <td key={i} className="py-2 px-3 text-right">
-                  {c.q && (
-                    <Pill size="sm" kind={cmp.totals[i]!.levelled === cmp.best ? 'primary' : 'secondary'} onClick={() => onBook(c.v.id)}>
-                      Book them
-                    </Pill>
+                <th key={c.v.id} className="py-2 px-3 text-right font-semibold border-b border-[#d3c6a4]">
+                  {c.v.name}
+                  {cmp.vendors[i]!.rank > 0 && <span className="block text-[11px] font-normal text-[#5b6a52]">#{cmp.vendors[i]!.rank}</span>}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cmp.rows.map((r) => (
+              <tr key={r.line.id}>
+                <td className={label}>
+                  {r.line.label}
+                  {r.lo !== null && r.hi !== null && r.lo !== r.hi && (
+                    <span className="block text-[11px] text-[#7a7466]">
+                      {aud(r.lo)} to {aud(r.hi)} · middle {aud(r.mid)}
+                    </span>
                   )}
+                </td>
+                {r.prices.map((p, i) => {
+                  const q = cmp.cols[i]!.q;
+                  const v = r.variance[i];
+                  const style =
+                    p !== null && p === r.low
+                      ? { background: '#e6ecd8', fontWeight: 600 }
+                      : !q
+                        ? { color: '#9a9284' }
+                        : p === null
+                          ? { color: '#8a5a1f', background: '#f7eedb' }
+                          : v !== null && v >= 40
+                            ? { background: '#f6e2db', color: '#8a3f2b' }
+                            : v !== null && v >= 15
+                              ? { background: '#fbf0dc', color: '#7a5a1f' }
+                              : undefined;
+                  return (
+                    <td key={i} className={cell} style={style}>
+                      {!q ? '—' : p === null ? 'Not included' : aud(p)}
+                      {q && p !== null && v !== null && v !== 0 && r.prices.filter((x) => x !== null).length > 1 && (
+                        <span className="block text-[11px] font-normal opacity-80">
+                          {v > 0 ? '+' : ''}
+                          {v}%
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+            <tr>
+              <td className={`${label} font-semibold`}>Their total</td>
+              {cmp.totals.map((t, i) => (
+                <td key={i} className={`${cell} font-semibold`}>
+                  {t.quoted === null ? '—' : aud(t.quoted)}
                 </td>
               ))}
             </tr>
-          )}
-        </tbody>
-      </table>
+            <tr>
+              <td className={label} title="A line someone left out counts at the middle price of the others">
+                Like for like
+              </td>
+              {cmp.totals.map((t, i) => (
+                <td key={i} className={cell} style={t.levelled !== null && t.levelled === cmp.best ? { background: '#e6ecd8', fontWeight: 700 } : undefined}>
+                  {t.levelled === null ? '—' : aud(t.levelled)}
+                  {t.levelled !== null && t.missing > 0 && <span className="block text-[11px] text-[#8a5a1f] font-normal">{t.missing} not included</span>}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className={label}>Above the best</td>
+              {cmp.vendors.map((v, i) => (
+                <td key={i} className={cell}>
+                  {v.vsBest === null ? '—' : v.vsBest === 0 ? 'Best' : `${signed(v.vsBest)} (${v.vsBestPct}%)`}
+                </td>
+              ))}
+            </tr>
+            {rfq.budget > 0 && (
+              <tr>
+                <td className={label}>Against your budget</td>
+                {cmp.vendors.map((v, i) => (
+                  <td key={i} className={cell} style={v.vsBudget !== null ? { color: v.vsBudget > 0 ? '#8a3f2b' : '#3d4a2f' } : undefined}>
+                    {v.vsBudget === null ? '—' : v.vsBudget > 0 ? `${aud(v.vsBudget)} over` : `${aud(-v.vsBudget)} under`}
+                  </td>
+                ))}
+              </tr>
+            )}
+            <tr>
+              <td className={label}>Cheapest on</td>
+              {cmp.vendors.map((v, i) => (
+                <td key={i} className={cell}>
+                  {cmp.cols[i]!.q ? `${v.lowestOn} of ${cmp.rows.length} lines` : '—'}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className={label}>Deposit</td>
+              {cmp.cols.map((c, i) => (
+                <td key={i} className={cell}>
+                  {c.q ? aud(c.q.deposit) : '—'}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className={label}>Price holds until</td>
+              {cmp.cols.map((c, i) => (
+                <td key={i} className={cell}>
+                  {c.q?.validUntil ? longDay(c.q.validUntil) : '—'}
+                </td>
+              ))}
+            </tr>
+            {TENDER_RATINGS.map((k) => (
+              <tr key={k.key}>
+                <td className={label} title={k.hint}>
+                  Your rating: {k.label.toLowerCase()}
+                  <span className="block text-[11px] text-[#7a7466]">{k.hint}</span>
+                </td>
+                {cmp.cols.map((c) => (
+                  <td key={c.v.id} className={cell}>
+                    <select
+                      aria-label={`${k.label} for ${c.v.name}`}
+                      value={c.rv.scores?.[k.key] ?? 0}
+                      disabled={rfq.closed}
+                      onChange={(e) => rate(c.v.id, k.key, Number(e.target.value))}
+                      className="py-1 px-2 rounded-[8px] border border-[#d3c6a4] bg-white text-[13px]"
+                    >
+                      <option value={0}>–</option>
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <option key={n} value={n}>
+                          {'★'.repeat(n)}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                ))}
+              </tr>
+            ))}
+            <tr>
+              <td className={`${label} font-semibold`} title={`Price ${TENDER_WEIGHTS.price}%, quality, service and feel ${TENDER_WEIGHTS.quality}% each (a rating left out doesn't count)`}>
+                Score
+                <span className="block text-[11px] font-normal text-[#7a7466]">Price {TENDER_WEIGHTS.price}%, your ratings {100 - TENDER_WEIGHTS.price}%</span>
+              </td>
+              {cmp.vendors.map((v, i) => (
+                <td key={i} className={`${cell} font-semibold`} style={v.rank === 1 ? { background: '#e6ecd8' } : undefined}>
+                  {v.score === null ? '—' : `${v.score}/10`}
+                </td>
+              ))}
+            </tr>
+            <tr>
+              <td className="py-2 px-3 sticky left-0 bg-white align-top">Included / not</td>
+              {cmp.cols.map((c, i) => (
+                <td key={i} className="py-2 px-3 border-b border-[#efe6d0] text-left align-top min-w-[160px] whitespace-pre-wrap text-[12px]">
+                  {c.q ? [c.q.includes && `✓ ${c.q.includes}`, c.q.excludes && `✗ ${c.q.excludes}`, c.q.notes].filter(Boolean).join('\n\n') || '—' : '—'}
+                </td>
+              ))}
+            </tr>
+            {!rfq.closed && (
+              <tr>
+                <td className="sticky left-0 bg-white" />
+                {cmp.cols.map((c, i) => (
+                  <td key={i} className="py-2 px-3 text-right">
+                    {c.q && (
+                      <Pill size="sm" kind={cmp.vendors[i]!.rank === 1 || (cmp.vendors.every((v) => v.rank === 0) && cmp.totals[i]!.levelled === cmp.best) ? 'primary' : 'secondary'} onClick={() => onBook(c.v.id)}>
+                        Book them
+                      </Pill>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealWarning, menuFit, servedMeal } from '../src/planner';
-import { allPayments, compareRfq, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -352,6 +352,34 @@ describe('quote requests', () => {
     expect(c.totals[1]).toEqual({ quoted: 2600, levelled: 3400, missing: 1 });
     expect(c.totals[2]).toEqual({ quoted: null, levelled: null, missing: 3 });
     expect(c.best).toBe(3400);
+  });
+
+  it('levels them like a tender: line spread and variance, lowest-on counts, vs best and budget, a weighted score and a rank', () => {
+    const rfq = Rfq.parse({
+      id: 'r',
+      budget: 3000,
+      lines: [{ id: 'a', label: 'Coverage' }, { id: 'b', label: 'Album' }, { id: 'c', label: 'Travel' }],
+      vendors: [{ vendorId: 'x', quoteId: 'qx', scores: { quality: 5, service: 5, fit: 5 } }, { vendorId: 'y', quoteId: 'qy', scores: { quality: 2 } }, { vendorId: 'z' }],
+    });
+    const q = (id: string, lines: [string, number | null][]) => ({ id, rfq: 'r', amount: lines.reduce((a, [, n]) => a + (n ?? 0), 0), lines: lines.map(([lid, amount]) => ({ id: lid, amount })) });
+    const list = [
+      Vendor.parse({ id: 'x', name: 'X', quotes: [q('qx', [['a', 3000], ['b', 800], ['c', 200]])] }),
+      Vendor.parse({ id: 'y', name: 'Y', quotes: [q('qy', [['a', 2500], ['b', null], ['c', 100]])] }),
+      Vendor.parse({ id: 'z', name: 'Z' }),
+    ];
+    const t = tenderAnalysis(rfq, list);
+    expect(t.rows[0]).toMatchObject({ lo: 2500, hi: 3000, mid: 2750, spread: 20, variance: [9, -9, null] });
+    const [x, y, z] = t.vendors;
+    expect(x).toMatchObject({ lowestOn: 0, vsBest: 600, vsBestPct: 18, vsBudget: 1000, score: 9.4, rank: 1 }); // dearer, but rated highly
+    expect(y).toMatchObject({ lowestOn: 2, vsBest: 0, vsBudget: 400, score: 8, rank: 2 }); // cheapest like for like
+    expect(z).toMatchObject({ score: null, rank: 0 }); // no quote yet
+    expect(t.bestValue?.name).toBe('Y');
+    expect(t.topScore?.name).toBe('X');
+    const csv = tenderRows(t);
+    expect(csv[0]).toEqual(['What', 'X', 'Y', 'Z', 'Low', 'Median', 'High']);
+    expect(csv[2]).toEqual(['Album', 800, 'Not included', '', 800, 800, 800]);
+    // Older requests (no budget, no ratings) still load.
+    expect(Rfq.parse({ id: 'old', vendors: [{ vendorId: 'x' }] })).toMatchObject({ budget: 0, vendors: [{ scores: {} }] });
   });
 
   it('has a standard email for each service, with the link to price it', () => {

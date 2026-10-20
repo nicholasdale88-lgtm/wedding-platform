@@ -906,6 +906,8 @@ export const RfqVendor = z.object({
   openedOn: s(10),
   answeredOn: s(10),
   quoteId: s(40),
+  /** The couple's own ratings, 1 to 5 (unset: not rated), for the weighted score. */
+  scores: z.object({ quality: z.number().int().min(1).max(5), service: z.number().int().min(1).max(5), fit: z.number().int().min(1).max(5) }).partial().default({}),
 });
 export const Rfq = z.object({
   id: z.string().max(40),
@@ -913,6 +915,8 @@ export const Rfq = z.object({
   /** A key of VENDOR_SEARCH (florist, photographer...), or '' for anything else. */
   service: s(40),
   lines: z.array(RfqLine).max(40).default([]),
+  /** What the couple has to spend on this (0: not set), to compare each quote with. */
+  budget: z.number().min(0).max(100_000_000).default(0),
   /** Quotes wanted by (yyyy-mm-dd). */
   due: s(10),
   /** The email (or text) that goes with the link, as you wrote it. */
@@ -1023,6 +1027,79 @@ export function compareRfq(rfq: Rfq, list: Vendor[]) {
   const done = totals.map((t) => t.levelled).filter((x): x is number => x !== null);
   const best = done.length > 1 ? Math.min(...done) : null;
   return { cols, rows, totals, best };
+}
+
+/** How the weighted score is made up (out of 100): the price, and the couple's own ratings. */
+export const TENDER_WEIGHTS = { price: 40, quality: 20, service: 20, fit: 20 } as const;
+export type TenderRating = 'quality' | 'service' | 'fit';
+export const TENDER_RATINGS: { key: TenderRating; label: string; hint: string }[] = [
+  { key: 'quality', label: 'Quality', hint: 'Their work: portfolio, reviews, what you’ve seen' },
+  { key: 'service', label: 'Service', hint: 'How quickly and clearly they’ve answered' },
+  { key: 'fit', label: 'Feel', hint: 'How much you liked them, and your style' },
+];
+
+/**
+ * A tender comparison, the way builders level bids: each line's low, median and high and how far every
+ * price sits from the median; for each vendor, how many lines they're lowest on, how far their like-for-like
+ * total is from the best and from the budget, and a weighted score out of 10 (price 40%, and the couple's
+ * ratings for quality, service and feel 20% each; a rating left out doesn't count). Ranked by score.
+ */
+export function tenderAnalysis(rfq: Rfq, list: Vendor[]) {
+  const cmp = compareRfq(rfq, list);
+  const rows = cmp.rows.map((row) => {
+    const given = row.prices.filter((p): p is number => p !== null);
+    const lo = given.length ? Math.min(...given) : null;
+    const hi = given.length ? Math.max(...given) : null;
+    const variance = row.prices.map((p) => (p === null || !row.mid ? null : Math.round(((p - row.mid) / row.mid) * 100)));
+    return { ...row, lo, hi, variance, spread: lo && hi && given.length > 1 ? Math.round(((hi - lo) / lo) * 100) : null };
+  });
+  const levelled = cmp.totals.map((t) => t.levelled).filter((x): x is number => x !== null && x > 0);
+  const cheapest = levelled.length ? Math.min(...levelled) : null;
+  const vendors = cmp.cols.map((c, i) => {
+    const t = cmp.totals[i]!;
+    const lowestOn = rows.filter((row) => row.low !== null && row.prices[i] === row.low).length;
+    const vsBest = t.levelled !== null && cmp.best !== null ? t.levelled - cmp.best : null;
+    const vsBestPct = vsBest !== null && cmp.best ? Math.round((vsBest / cmp.best) * 100) : null;
+    const vsBudget = t.levelled !== null && rfq.budget > 0 ? t.levelled - rfq.budget : null;
+    const priceScore = t.levelled !== null && t.levelled > 0 && cheapest ? (cheapest / t.levelled) * 10 : null;
+    const sc = c.rv.scores ?? {};
+    let num = 0;
+    let den = 0;
+    if (priceScore !== null) {
+      num += priceScore * TENDER_WEIGHTS.price;
+      den += TENDER_WEIGHTS.price;
+    }
+    for (const k of ['quality', 'service', 'fit'] as const) {
+      const v = sc[k];
+      if (v) {
+        num += v * 2 * TENDER_WEIGHTS[k];
+        den += TENDER_WEIGHTS[k];
+      }
+    }
+    const score = priceScore === null || !den ? null : Math.round((num / den) * 10) / 10;
+    return { id: c.v.id, name: c.v.name, lowestOn, vsBest, vsBestPct, vsBudget, priceScore, score, rank: 0 };
+  });
+  const ranked = vendors.filter((v) => v.score !== null).sort((a, b) => b.score! - a.score!);
+  ranked.forEach((v, k) => {
+    v.rank = k + 1;
+  });
+  const bestValue = vendors.find((v, i) => cmp.totals[i]!.levelled !== null && cmp.totals[i]!.levelled === cmp.best) ?? null;
+  return { ...cmp, rows, vendors, bestValue, topScore: ranked[0] ?? null };
+}
+
+/** "What" plus a column per vendor: every line, the totals and the scores, as CSV rows. */
+export function tenderRows(t: ReturnType<typeof tenderAnalysis>): (string | number)[][] {
+  const money = (n: number | null) => (n === null ? '' : Math.round(n));
+  return [
+    ['What', ...t.cols.map((c) => c.v.name), 'Low', 'Median', 'High'],
+    ...t.rows.map((row) => [row.line.label, ...row.prices.map((p, i) => (!t.cols[i]!.q ? '' : p === null ? 'Not included' : Math.round(p))), money(row.lo), money(row.mid), money(row.hi)]),
+    ['Their total', ...t.totals.map((x) => money(x.quoted))],
+    ['Like for like', ...t.totals.map((x) => money(x.levelled))],
+    ['Lowest on (lines)', ...t.vendors.map((v) => v.lowestOn)],
+    ['Above the best', ...t.vendors.map((v) => money(v.vsBest))],
+    ['Score (out of 10)', ...t.vendors.map((v) => (v.score === null ? '' : v.score))],
+    ['Rank', ...t.vendors.map((v) => v.rank || '')],
+  ];
 }
 
 /** What "Find vendors" can search for near the venue (OpenStreetMap tags). */
