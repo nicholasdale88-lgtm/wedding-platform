@@ -8,7 +8,6 @@ import { chipCls, Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
 import { Events } from '../events/Events';
-import { PartyAccess } from '../party/PartyAccess';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
 import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
@@ -20,7 +19,7 @@ import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
  */
 
 type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts'>;
-type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | 'party' | `guide:${string}`;
+type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
 const num = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s));
@@ -280,9 +279,7 @@ export function GuestPages() {
         </Label>
       </div>
 
-      {page === 'party' ? (
-        <PartyAccess />
-      ) : wide ? (
+      {wide ? (
         <div className={`grid ${device === 'phone' ? 'grid-cols-[minmax(0,1fr)_420px]' : 'grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]'} gap-8 items-start`}>
           {editor}
           {preview}

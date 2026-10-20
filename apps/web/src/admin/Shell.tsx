@@ -158,6 +158,7 @@ function SideNav({ mob }: { mob: boolean }) {
     ['p2', `${sides.p2}’s side`],
     ['runsheet', 'Run sheet'],
     ['couple', 'Your checklists'],
+    ['access', 'Links & sign-ins'],
   ] as const;
   // Sections you've expanded stay expanded (remembered on this device); the one you're in is always open.
   const [openSet, setOpenSet] = useState<Set<string>>(() => {
