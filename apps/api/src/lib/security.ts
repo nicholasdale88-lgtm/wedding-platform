@@ -123,5 +123,5 @@ export async function readBytes(req: Request, max = MAX_BODY): Promise<Uint8Arra
 
 /** A database error that only means "busy for a moment" (try again), not a bug. */
 export function isBusy(e: unknown): boolean {
-  return /SQLITE_BUSY|database is locked|D1_ERROR.*(busy|overloaded|reset|timed? ?out)|Network connection lost|storage operation exceeded timeout/i.test(String((e as Error)?.message ?? e));
+  return /SQLITE_BUSY|database is locked|D1_ERROR.*(busy|overloaded|reset|timed? ?out)|Network connection lost|storage operation exceeded timeout|fetch failed|other side closed|UND_ERR_SOCKET/i.test(String((e as Error)?.message ?? e));
 }

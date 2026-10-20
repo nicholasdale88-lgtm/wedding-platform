@@ -68,7 +68,15 @@ describe('launch scale: every feature pushed hard', () => {
     record(app.request(`/api/a/w/${wid}${path}`, { ...init, headers: { 'content-type': 'application/json', cookie, ...init.headers } }, env, ctx));
   const pub = (path: string, init: RequestInit = {}, ip = 'local') =>
     record(app.request(`/api/p/${slug}${path}`, { ...init, headers: { 'content-type': 'application/json', 'CF-Connecting-IP': ip, ...init.headers } }, env, ctx));
-  const rsvp = (token: string, body: Record<string, unknown>, ip: string) => pub('/rsvp', { method: 'POST', body: JSON.stringify({ token, ...body }) }, ip);
+  // A guest's page tries again when the server says it's busy (503), as the real page does.
+  const rsvp = async (token: string, body: Record<string, unknown>, ip: string) => {
+    let r = await pub('/rsvp', { method: 'POST', body: JSON.stringify({ token, ...body }) }, ip);
+    for (let i = 0; i < 4 && r.status === 503; i++) {
+      await new Promise((ok) => setTimeout(ok, 200 * (i + 1)));
+      r = await pub('/rsvp', { method: 'POST', body: JSON.stringify({ token, ...body }) }, ip);
+    }
+    return r;
+  };
   const put = (path: string, version: number, data: unknown) => api(path, { method: 'PUT', headers: { 'If-Match': String(version) }, body: JSON.stringify(data) });
   /** Send in waves of `size` at once (all of a wave concurrently). */
   const inWaves = async <T>(items: T[], size: number, fn: (x: T) => Promise<Response>) => {

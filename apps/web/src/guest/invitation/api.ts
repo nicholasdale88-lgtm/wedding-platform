@@ -96,7 +96,13 @@ export class GuestApiError extends Error {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, { ...init, headers: init?.body ? { 'content-type': 'application/json' } : undefined });
+  const go = () => fetch(`/api${path}`, { ...init, headers: init?.body ? { 'content-type': 'application/json' } : undefined });
+  let res = await go();
+  // Briefly busy (503): nothing was saved, so try again quietly before saying anything.
+  for (let i = 0; i < 3 && res.status === 503; i++) {
+    await new Promise((ok) => setTimeout(ok, 400 * (i + 1)));
+    res = await go();
+  }
   const body = (await res.json().catch(() => null)) as (T & { error?: { message: string } }) | null;
   if (!res.ok) throw new GuestApiError(res.status, body?.error?.message ?? 'Something went wrong.');
   return body as T;
