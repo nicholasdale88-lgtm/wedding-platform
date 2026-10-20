@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
+import { InstallApp } from '../../lib/InstallApp';
 
 /**
  * /w/:slug/tasks?k=<key>: a helper's own wedding jobs (a parent, a bridesmaid, a friend). What the couple
@@ -105,6 +106,7 @@ export function TasksPage() {
             ))}
           </details>
         )}
+        <InstallApp what="your list" tone="guest" />
       </div>
     </main>
   );

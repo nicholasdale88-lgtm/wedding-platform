@@ -15,6 +15,7 @@ import './styles/index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { setUpInstall } from './lib/install';
 
 // The guest page designs ask for 'DM Sans'; the package registers it as 'DM Sans Variable'. Same file, both names.
 if (typeof FontFace !== 'undefined' && document.fonts) {
@@ -23,6 +24,9 @@ if (typeof FontFace !== 'undefined' && document.fonts) {
     .then((f) => document.fonts.add(f))
     .catch(() => undefined);
 }
+
+// The right home-screen app for this page (the admin, or the wedding for its guests).
+setUpInstall();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

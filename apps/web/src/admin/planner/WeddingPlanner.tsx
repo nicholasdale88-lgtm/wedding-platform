@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { plannerApi } from '../../lib/api';
 import { confirmLeave } from '../leave';
+import { InstallApp } from '../../lib/InstallApp';
 import { useAdmin } from '../Shell';
 import { Eyebrow, H2 } from '../ui';
 import { Assistant } from './Assistant';
@@ -157,6 +158,7 @@ function Glance({ go }: { go: (v: View) => void }) {
 
   return (
     <div className="flex flex-col gap-5">
+      <InstallApp what="your wedding admin" />
       <section aria-label="At a glance" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
           <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Days to go</span>

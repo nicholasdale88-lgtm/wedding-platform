@@ -27,6 +27,7 @@ import { coordinatorAdminRoutes, coordinatorPageRoutes } from './routes/coordina
 import { plannerCalendarAdminRoutes, plannerCalendarFeed } from './routes/plannerCalendar';
 import { paymentReminderRoutes, runPaymentReminders } from './routes/paymentReminders';
 import { myTaskRoutes } from './routes/myTasks';
+import { manifestRoutes } from './routes/manifest';
 import { partyAccountRoutes, partyPortalRoutes } from './routes/partyPortal';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
 import { runAutopilot, type EngineDeps } from './sms/engine';
@@ -65,6 +66,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/p/:slug/board', boardGuestRoutes());
   app.route('/p/:slug/party', partyGuestRoutes());
   app.route('/p/:slug/portal', partyPortalRoutes());
+  app.route('/p/:slug/manifest', manifestRoutes());
   app.route('/p/:slug/coordinator', coordinatorPageRoutes());
   app.route('/p/:slug/tasks', myTaskRoutes());
   app.route('/p/:slug/live', liveScreenRoutes());

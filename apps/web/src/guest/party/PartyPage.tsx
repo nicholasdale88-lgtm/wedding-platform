@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, GuestApiError, type PartyAct, type PartyMine, type PartyPayload } from '../invitation/api';
 import { AccountBar, PartySignIn } from './PartyAuth';
+import { InstallApp } from '../../lib/InstallApp';
 
 /**
  * /w/:slug/party (signed in to the portal) or ?g=<token> (their private link): a wedding party member's own page.
@@ -410,6 +411,7 @@ export function PartyPage() {
           </div>
         </section>
         <Extras data={data} gold={gold} />
+        <InstallApp what="your wedding party page" tone="guest" />
       </div>
     </main>
   );

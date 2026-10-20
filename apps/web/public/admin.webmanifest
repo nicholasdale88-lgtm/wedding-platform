@@ -1,0 +1,15 @@
+{
+  "name": "Wedding admin",
+  "short_name": "Wedding",
+  "description": "Your guests, replies, texts and the whole wedding plan.",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#f6f0e2",
+  "theme_color": "#33402f",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
