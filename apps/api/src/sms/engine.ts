@@ -141,7 +141,7 @@ export const PREFLIGHT_MS = 48 * 3_600_000;
 export interface PreflightIssue {
   slotId: string;
   campaign: string;
-  sendAt: Iso;
+  sendAt: string;
   problems: string[];
   /** One word per problem (plan, paused, sender, quiet, cap, credits): the couple is told once per set. */
   codes: string[];
