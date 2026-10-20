@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HELP, HELP_PLACES, HELP_TOUR, searchHelp, videoEmbed } from '../src/help';
+import { HELP, HELP_PLACES, HELP_SCENES, HELP_TOUR, searchHelp, videoEmbed } from '../src/help';
 
 /** Help: the guides answer what people ask, in their words. */
 describe('help', () => {
@@ -20,6 +20,8 @@ describe('help', () => {
       expect(a.go.tab).toMatch(/^[a-z]+$/);
       // The animated walkthrough names the place in the menu.
       expect(HELP_PLACES[a.go.tab], a.id).toBeTruthy();
+      // Every step has its own scene on the walkthrough's phone.
+      expect(HELP_SCENES[a.id]?.length, a.id).toBe(a.steps.length);
     }
     for (const id of HELP_TOUR) expect(ids.has(id), id).toBe(true);
   });

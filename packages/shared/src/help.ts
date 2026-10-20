@@ -16,6 +16,18 @@ export interface HelpArticle {
   video?: string;
 }
 
+/**
+ * What the walkthrough's phone shows for one step: the menu item lit up and the page's own tab (`at`), a
+ * few rows of the page, fields being typed into, the button tapped, and what happens then.
+ */
+export interface HelpScene {
+  at: string[];
+  rows?: string[];
+  fields?: [string, string][];
+  tap?: string;
+  then?: string;
+}
+
 /** Where the admin's menu calls each place, for the animated walkthrough. */
 export const HELP_PLACES: Record<string, string> = {
   pages: 'Setup',
@@ -197,7 +209,7 @@ export const HELP: HelpArticle[] = [
     title: 'Your wedding party',
     group: 'Planning',
     steps: [
-      'Open Wedding party. Give guests a role (bridesmaid, best man, MC…).',
+      'Open Wedding party. Under each side, tap + Add, choose their role and type their name: pick them from your guest list, or add someone new (they join the guest list too). In the guest list, a person’s “Wedding party” choice does the same.',
       'Links & sign-ins: send each their own sign-in, and choose what they can see (run sheet, to-dos, packing, speeches, guests).',
       'Write the run sheet and packing list once; each person sees only their part.',
     ],
@@ -264,6 +276,92 @@ export const HELP: HelpArticle[] = [
     go: { tab: 'settings', query: 'view=wedding' },
   },
 ];
+
+/** One scene per step of each guide (same order as its steps), for the walkthroughs. */
+export const HELP_SCENES: Record<string, HelpScene[]> = {
+  start: [
+    { at: ['Overview', 'Your events'], rows: ['The wedding · Sat 14 Mar'], fields: [['Event', 'Welcome drinks'], ['Date', 'Fri 13 Mar, 6:00pm'], ['Venue', 'The Boathouse']], tap: '+ Add an event', then: 'Welcome drinks added ✓' },
+    { at: ['Setup', 'Invitation'], fields: [['Your names', 'Alex & Sam'], ['Reply by', '1 February']], tap: 'Save', then: 'Saved: guests see it now ✓' },
+    { at: ['Setup', 'Look and feel'], rows: ['Classic Ivory & Gold', 'Rustic Eucalyptus ✓', 'Navy & Gold'], tap: 'Preview', then: 'The envelope opens, just as guests see it' },
+    { at: ['Guest list'], rows: ['Jordan & Casey · 2', 'The Nguyens · 4', 'Priya · 1'], tap: 'Texts', then: 'Invitations go out on autopilot' },
+  ],
+  guests: [
+    { at: ['Guest list'], fields: [['Main contact', 'Jordan Lee'], ['Their mobile', '0412 345 678'], ['Also on the invitation', 'Casey Lee']], tap: '+ Add guest', then: 'Jordan & Casey added ✓' },
+    { at: ['Guest list'], rows: ['guests.xlsx · 86 rows', '84 to add · 2 already on your list'], tap: 'Import a spreadsheet', then: '84 invitations added ✓' },
+    { at: ['Guest list'], fields: [['Group', 'Alex’s side']], rows: ['Jordan & Casey', 'The Nguyens'], tap: 'Save', then: 'Seating and reminders can use the group' },
+  ],
+  invitations: [
+    { at: ['Texts'], rows: ['The invitation · on autopilot', 'Goes to 112 with a mobile', 'Not sent yet: 112'], tap: 'Switch on', then: 'Sending from 9am tomorrow ✓' },
+    { at: ['Texts'], rows: ['Still to reply: 38'], fields: [['Reminder', 'Just a gentle nudge to reply by 1 Feb…']], tap: '+ Last call before RSVPs close', then: 'Scheduled for 25 January ✓' },
+    { at: ['Texts'], rows: ['Goes to 38 people', 'Costs about $1.90'], tap: 'Send me a test', then: 'Sent to your mobile ✓' },
+  ],
+  replies: [
+    { at: ['Guest list'], rows: ['Jordan & Casey · Coming ✓ 2', 'The Nguyens · Can’t make it', 'Priya · Awaiting reply'], then: 'Replies are recorded straight away' },
+    { at: ['Messages'], rows: ['Priya: “Sam is vegan”', '→ Dietary noted on Sam ✓', 'Ben: “What time does it start?”', '→ Answered from your guide ✓'], then: 'Answered for you, automatically' },
+    { at: ['Messages'], rows: ['Lou: “Can I bring my baby?” · unread'], fields: [['Your reply', 'Of course! We’ll add a high chair.']], tap: 'Send', then: 'Sent ✓' },
+  ],
+  dietary: [
+    { at: ['Guest list', 'Dietary'], rows: ['Sam · Vegan', 'Ben · Coeliac ⚠ serious', 'Lou · No seafood'], then: 'Serious allergies are flagged' },
+    { at: ['Guest list', 'Seating'], rows: ['Table 1 · 2 vegan, 1 coeliac', 'Table 2 · 1 no seafood'], tap: 'Table list for the caterer', then: 'Downloaded ✓' },
+  ],
+  seating: [
+    { at: ['Guest list', 'Seating'], rows: ['Room plan'], tap: '+ Add tables', then: 'Tap the plan to drop each table' },
+    { at: ['Guest list', 'Seating'], rows: ['Table 3 · 6 of 10', 'Jordan & Casey', 'The Nguyens'], tap: 'Auto-seat the rest', then: 'Everyone seated, households together ✓' },
+    { at: ['Guest list', 'Seating'], fields: [['Version name', 'Family draft']], tap: 'Save as a version', then: 'Kept: make it current any time ✓' },
+    { at: ['Guest list', 'Seating'], rows: ['Final · current'], tap: 'Publish', then: 'Guests see their table in their guide ✓' },
+  ],
+  budget: [
+    { at: ['Wedding planner', 'Money'], fields: [['Your budget', '$35,000'], ['Guests', '110']], tap: 'Save', then: 'Split into the usual categories, per guest ✓' },
+    { at: ['Wedding planner', 'Money'], rows: ['Venue · $14,000 · Linked to The Boathouse', 'Flowers · $3,500'], tap: 'Link a vendor', then: 'Booked quotes count as committed' },
+    { at: ['Wedding planner', 'Money'], rows: ['Venue deposit · $4,000 · due 1 Mar', 'Florist balance · $1,750 · due 1 Oct'], tap: 'Paid', then: 'Marked paid ✓' },
+  ],
+  vendors: [
+    { at: ['Wedding planner', 'Vendors'], fields: [['Looking for', 'Florists'], ['Within', '25 km']], tap: 'Search', then: '6 listed florists near your venue' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower Studio · Quoted $2,800', 'Petal Co · Asked 3 days ago', 'Bloom House · Chase them'], then: 'Who to chase, at a glance' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['5 booked vendors'], tap: 'Save to phone contacts', then: 'In your phone’s contacts ✓' },
+  ],
+  quotes: [
+    { at: ['Wedding planner', 'Vendors'], fields: [['Service', 'Florist']], rows: ['Bridal bouquet', 'Table centres × 12', 'Arbour flowers'], tap: '+ Request quotes', then: 'Usual items filled in' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['☑ Wildflower Studio', '☑ Petal Co', '☐ Bloom House'], tap: 'Check the email', then: 'A standard email, ready to change' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower Studio · their own link', 'Petal Co · their own link'], tap: 'Send', then: 'Each prices every item on their link' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower $2,800 · cheapest bouquet', 'Petal Co $3,150'], tap: 'Book them', then: 'Booked, and the request closes ✓' },
+  ],
+  checklist: [
+    { at: ['Wedding planner', 'Checklist'], rows: ['Book the venue · 12 months', 'Notice of Intended Marriage ⚠ by 14 Feb', 'Send invitations · 3 months'], then: 'Counted back from your date' },
+    { at: ['Wedding planner', 'Checklist'], fields: [['Who?', 'Mum']], rows: ['Order the cake'], tap: 'Copy their link', then: 'Mum ticks it off on her phone' },
+    { at: ['Wedding party', 'Your checklists'], rows: ['Collect the rings · 10:30am'], fields: [['Who’s doing it', 'Jess (best man)']], tap: 'Send them their link', then: 'On Jess’s list and calendar ✓' },
+    { at: ['Their page'], rows: ['Collect the rings · 10:30am', 'Order the cake · 2 weeks before'], tap: 'Add my jobs to my calendar', then: 'In their calendar, with reminders ✓' },
+  ],
+  party: [
+    { at: ['Wedding party', 'Overview'], fields: [['Role', 'Groomsman'], ['Name', 'Riley Chen'], ['Mobile', '0423 456 789']], tap: '+ Add Riley Chen as a groomsman', then: 'In the party and on your guest list ✓' },
+    { at: ['Wedding party', 'Links & sign-ins'], rows: ['☑ Run sheet', '☑ Their to-dos', '☑ Packing', '☐ The guest list'], tap: 'Text their sign-in', then: 'Riley has their own sign-in ✓' },
+    { at: ['Wedding party', 'Run sheet'], rows: ['8:00am · Breakfast together · Everyone', '1:30pm · Photos · Groom’s side', '3:00pm · Ceremony · Everyone'], tap: 'See it as: Riley', then: 'Exactly what Riley sees' },
+  ],
+  photos: [
+    { at: ['Photos', 'Photo settings'], rows: ['Google Drive', 'Dropbox', 'OneDrive'], tap: 'Connect Google Drive', then: '“Alex & Sam wedding” folder made ✓' },
+    { at: ['Wedding planner', 'The day'], rows: ['Table numbers · with QR code', 'Snap & share cards'], tap: 'Print', then: 'Each card has your QR code' },
+    { at: ['Guest’s phone'], fields: [['Your name', 'Priya']], rows: ['Frame: Polaroid'], tap: 'Take a photo', then: 'In your album and your Drive ✓' },
+  ],
+  guide: [
+    { at: ['Setup', 'Night-before'], fields: [['Arrive by', '2:30pm'], ['Parking', 'Free, beside the lawn']], rows: ['Run sheet', 'Menu', 'Your FAQ'], tap: 'Save', then: 'Saved ✓' },
+    { at: ['Texts'], rows: ['The night before · 6:00pm', 'Goes to everyone coming: 96'], then: 'Each gets their table, the menu and the map' },
+    { at: ['Setup', 'Night-before'], fields: [['Question', 'What should I wear?'], ['Answer', 'Cocktail: flats suit the grass']], tap: 'Save', then: 'Texted questions answered from this ✓' },
+  ],
+  calendar: [
+    { at: ['Guest’s invitation'], rows: ['Add to calendar'], tap: 'All my events, kept up to date', then: 'In their calendar, updating itself ✓' },
+    { at: ['Wedding planner', 'Checklist'], rows: ['Due tasks and payments'], tap: 'Switch on my planning calendar', then: 'In your calendar ✓' },
+    { at: ['Your browser’s menu'], rows: ['Share', 'Add to Home Screen'], tap: 'Add to Home Screen', then: 'Opens like an app ✓' },
+  ],
+  backup: [
+    { at: ['Photos', 'Photo settings'], tap: 'Connect Dropbox', then: 'A backup goes to Backups every day ✓' },
+    { at: ['Settings', 'Backup'], rows: ['Last backup: today, 3:02am'], tap: 'Back up now', then: 'Backed up ✓' },
+    { at: ['Settings', 'System check'], rows: ['✓ Texts', '✓ Dropbox', '✓ Daily backups'], tap: 'Check again', then: 'Everything working ✓' },
+  ],
+  helpers: [
+    { at: ['Settings', 'Who can sign in'], fields: [['Their email', 'sam@example.com'], ['They can', 'Change things (editor)']], tap: 'Invite', then: 'Invite sent ✓' },
+    { at: ['Settings', 'Who can sign in'], rows: ['Sam · editor', 'Planner Kate · viewer'], tap: 'Remove', then: 'Signed out at once ✓' },
+  ],
+};
 
 /** Words that say nothing about what someone wants to do. */
 const FILLER = new Set(['how', 'what', 'where', 'when', 'who', 'why', 'can', 'are', 'our', 'the', 'and', 'for', 'you', 'your', 'with', 'does', 'did', 'get', 'want', 'need', 'from', 'this', 'that', 'there', 'into', 'have', 'has', 'all', 'any', 'out']);

@@ -162,14 +162,8 @@ async function folderFor(env: Env, link: LinkRow, token: string, eventKey: strin
   const top = safeName(`${(w?.name1 ?? '').split(' ')[0]} & ${(w?.name2 ?? '').split(' ')[0]} photos`);
   const ev = eventKey ? await env.DB.prepare(`SELECT name FROM event WHERE wedding_id = ? AND key = ?`).bind(link.wedding_id, eventKey).first<{ name: string }>() : null;
   const name = safeName(ev?.name ?? 'All photos');
-  const p = PROVIDER[link.provider];
-  let id: string;
-  if (link.provider === 'gdrive') {
-    folders[''] = folders[''] || (await p.folder(token, top, ''));
-    id = eventKey ? await p.folder(token, name, folders['']) : folders[''];
-  } else {
-    id = await p.folder(token, name, top);
-  }
+  // Google Photos: an album per event ("<A & B> photos · <event>").
+  const id = await PROVIDER[link.provider].folder(token, name, top);
   folders[k] = id;
   // Saved only if no one else saved first (two guests' first photos at once): otherwise theirs wins, so
   // every photo for the event lands in one folder or album.
