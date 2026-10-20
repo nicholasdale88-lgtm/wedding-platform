@@ -326,7 +326,7 @@ function InvitationEditor({
   const inv = doc.invitation;
   return (
     <>
-      <Section n={n()} title="Look and feel" hint="The colour theme, wax seal and the photo on the invitation.">
+      <Section n={n()} title="Look and feel" hint="The colour theme, the envelope (wax seal, liner, ribbon, stamp, their name) and the photo on the invitation.">
         <Grid>
           <div className="sm:col-span-2">
             <ThemeGallery theme={doc.theme} custom={inv.custom ?? {}} onTheme={(t) => {
@@ -341,6 +341,45 @@ function InvitationEditor({
               ))}
             </select>
           </Label>
+          <Label text="Envelope liner">
+            <select value={inv.envelope?.liner ?? 'floral'} onChange={(e) => setInv({ envelope: { ...inv.envelope, liner: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['liner']> } })} className={inputCls}>
+              {(
+                [
+                  ['floral', 'Floral'],
+                  ['eucalyptus', 'Eucalyptus'],
+                  ['stripes', 'Gold stripes'],
+                  ['confetti', 'Confetti'],
+                  ['foil', 'Gold foil'],
+                  ['none', 'Plain'],
+                ] as const
+              ).map(([k, l]) => (
+                <option key={k} value={k}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </Label>
+          <Label text="Ribbon">
+            <select value={inv.envelope?.ribbon ?? 'none'} onChange={(e) => setInv({ envelope: { ...inv.envelope, ribbon: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['ribbon']> } })} className={inputCls}>
+              <option value="none">None</option>
+              <option value="silk">Silk ribbon</option>
+              <option value="twine">Twine</option>
+            </select>
+          </Label>
+          <div className="sm:col-span-2 flex gap-5 flex-wrap text-[14px]">
+            {(
+              [
+                ['name', 'Their name on the envelope'],
+                ['stamp', 'Stamp and postmark'],
+                ['shimmer', 'Gold shimmer'],
+              ] as const
+            ).map(([k, l]) => (
+              <label key={k} className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={inv.envelope?.[k] !== false} onChange={(e) => setInv({ envelope: { ...inv.envelope, ...(k === 'name' ? { name: e.target.checked } : k === 'stamp' ? { stamp: e.target.checked } : { shimmer: e.target.checked }) } })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                {l}
+              </label>
+            ))}
+          </div>
           <TextField label="Photo (link)" value={inv.images?.lookout ?? ''} placeholder="/seed-media/lookout.jpg" onChange={(v) => setInv({ images: { ...inv.images, lookout: v } })} hint="Photo uploads arrive with the Photos tab." />
         </Grid>
       </Section>

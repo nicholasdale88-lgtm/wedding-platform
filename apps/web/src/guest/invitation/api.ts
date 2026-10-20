@@ -1,3 +1,4 @@
+import type { EnvelopeOptions } from './EnvelopeExtras';
 /** Guest API: the invitation, the night-before guides and the photo page. */
 import type { DayoutGuide, Forecast, ReceptionGuide, TableShape, TimelineItem } from '@wp/shared';
 
@@ -18,6 +19,7 @@ export interface InvitePayload {
   content: {
     initials?: string; rsvpBy?: string; rideTime?: string; directionsUrl?: string; registryUrl?: string; giftAccount?: string;
     giftAccountLabel?: string; audioUrl?: string; rsvpEmail?: string; seal?: 'Sandstone' | 'Dusty rose' | 'Daphne blue';
+    envelope?: EnvelopeOptions;
     custom?: { paper?: string; ink?: string; accent?: string; soft?: string; envelope?: string; names?: 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair' };
     images?: Record<string, string>;
     hidden?: Record<string, boolean>;
