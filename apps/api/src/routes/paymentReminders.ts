@@ -18,7 +18,7 @@ const DEFAULT: Setting = { on: false, days: 3, sent: [] };
 const settingOf = (raw: string | null): Setting => {
   try {
     const s = raw ? (JSON.parse(raw) as Partial<Setting>) : {};
-    return { on: s.on === true, days: Math.max(1, Math.min(30, Number(s.days) || 3)), sent: Array.isArray(s.sent) ? s.sent.filter((x): x is string => typeof x === 'string').slice(-300) : [] };
+    return { on: s.on === true, days: Math.max(1, Math.min(30, Number(s.days) || 3)), sent: Array.isArray(s.sent) ? s.sent.filter((x): x is string => typeof x === 'string').slice(-5000) : [] };
   } catch {
     return DEFAULT;
   }
@@ -27,6 +27,12 @@ const read = async (db: D1Database, wid: string) =>
   db.prepare(`SELECT admin_mobile, sms_rate_cents_x100 AS rate, json_extract(content, '$.payReminders') AS s FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(wid).first<{ admin_mobile: string | null; rate: number; s: string | null }>();
 const write = (db: D1Database, wid: string, s: Setting) => db.prepare(`UPDATE wedding SET content = json_set(content, '$.payReminders', json(?)) WHERE id = ? AND json_valid(content)`).bind(JSON.stringify(s), wid).run();
 
+/** A short, stable fingerprint of a list of keys (for a text's dedupe key). */
+const hashOf = (s: string) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return `${(h >>> 0).toString(36)}${s.length.toString(36)}`;
+};
 /** A payment's reminder key: the payment and its due date (a new date is a new reminder). */
 const keyOf = (p: DuePayment) => `${p.key}@${p.due}`;
 const money = (n: number) => `$${String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -90,8 +96,10 @@ export async function runPaymentReminders(env: Env, d: EngineDeps) {
     if (!due.length) continue;
     const ev = await env.DB.prepare(`SELECT key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(id).first<{ key: string }>();
     const body = reminderText(due, today, `${w.baseUrl.replace(/\/+$/, '')}/admin/${id}/${ev?.key ?? 'account'}/planner?view=payments`);
-    await d.store.enqueue([{ weddingId: id, invitationId: null, campaignId: null, dedupeKey: `payrem:${id}:${today}:${due.map(keyOf).join(',').slice(0, 300)}`, kind: 'test', to: w.adminMobile, body, parts: segments(body).parts }]);
-    await write(env.DB, id, { ...s, sent: [...s.sent, ...due.map(keyOf)].slice(-300) });
+    await d.store.enqueue([{ weddingId: id, invitationId: null, campaignId: null, dedupeKey: `payrem:${id}:${today}:${hashOf(due.map(keyOf).join(','))}`, kind: 'test', to: w.adminMobile, body, parts: segments(body).parts }]);
+    // Forget payments that are paid or long past (so the memory stays small), keep the rest.
+    const live = new Set(allPayments(budget.data.lines, vendors.data.list).filter((p) => !p.paid).map(keyOf));
+    await write(env.DB, id, { ...s, sent: [...s.sent.filter((k) => live.has(k)), ...due.map(keyOf)].slice(-5000) });
     await flush(d, w).catch(() => undefined);
     sent++;
   }

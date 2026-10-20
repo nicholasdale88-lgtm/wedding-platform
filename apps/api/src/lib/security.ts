@@ -21,11 +21,14 @@ const IMPORT_PATH = /^\/api\/a\/w\/[^/]+\/guests\/import$/;
 
 /** Planning files (a quote PDF or photo), sent as base64 in JSON: 1.5 MB of file. */
 export const MAX_PLANNER_FILE = 1_500_000;
+/** A planner document (200 vendors with quotes and payments is big): under the database's 2 MB per value. */
+export const MAX_PLANNER_DOC = 1_900_000;
 const FILE_PATH = /^\/api\/a\/w\/[^/]+\/planner\/files$/;
+const DOC_PATH = /^\/api\/a\/w\/[^/]+\/planner\/doc\//;
 
 /** The body limit for a path. */
 export const bodyLimitFor = (path: string) =>
-  PHOTO_PATH.test(path) ? MAX_VIDEO : IMPORT_PATH.test(path) ? MAX_IMPORT : FILE_PATH.test(path) ? Math.ceil(MAX_PLANNER_FILE * 1.4) + 4096 : MAX_BODY;
+  PHOTO_PATH.test(path) ? MAX_VIDEO : IMPORT_PATH.test(path) ? MAX_IMPORT : FILE_PATH.test(path) ? Math.ceil(MAX_PLANNER_FILE * 1.4) + 4096 : DOC_PATH.test(path) ? MAX_PLANNER_DOC : MAX_BODY;
 
 const HEADERS: Record<string, string> = {
   'Cache-Control': 'no-store',

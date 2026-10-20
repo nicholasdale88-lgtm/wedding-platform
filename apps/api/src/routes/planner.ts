@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
-import { MAX_PLANNER_FILE, readJson } from '../lib/security';
+import { MAX_PLANNER_FILE, readJson, MAX_PLANNER_DOC } from '../lib/security';
 import { keepDocument, openPhoto } from '../photos/store';
 import { portalWho } from './partyPortal';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -562,7 +562,7 @@ export function plannerRoutes() {
       const ev = await c.env.DB.prepare(`SELECT 1 FROM event WHERE wedding_id = ? AND key = ? AND deleted_at IS NULL`).bind(wid(c), scope).first();
       if (!ev) return err(c, 404, 'not_found', 'That event no longer exists.');
     }
-    const parsed = PLANNER_DOCS[kind].safeParse((await readJson(c.req.raw)) ?? undefined);
+    const parsed = PLANNER_DOCS[kind].safeParse((await readJson(c.req.raw, MAX_PLANNER_DOC)) ?? undefined);
     if (!parsed.success) return err(c, 400, 'invalid', 'Some of it is too long or missing. Check and try again.');
     const v = Number(c.req.header('If-Match') ?? '0');
     const now = new Date().toISOString();

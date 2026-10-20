@@ -86,7 +86,7 @@ export function plannerCalendarFeed() {
       if (!p.paid && p.due && p.amount > 0) items.push({ id: `pay-${p.key}-${p.due}`, alarm: true, date: p.due, title: `Pay ${p.who}${p.label === 'Payment' ? '' : ` (${p.label.toLowerCase()})`} ($${Math.round(p.amount)})` });
     }
     for (const v of vendors.data.list) {
-      if (v.status !== 'booked' && v.status !== 'declined') for (const q of v.quotes.filter((x) => x.validUntil)) items.push({ id: `quote-${q.id}`, date: q.validUntil, title: `${v.name}'s quote runs out` });
+      if (v.status !== 'booked' && v.status !== 'declined') for (const q of v.quotes.filter((x) => x.validUntil)) items.push({ id: `quote-${v.id}-${q.id}`, date: q.validUntil, title: `${v.name}'s quote runs out` });
     }
     for (const [side, doc] of [
       ['p1', p1],

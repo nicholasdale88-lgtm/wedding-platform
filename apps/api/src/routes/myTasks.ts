@@ -56,7 +56,7 @@ export function myTaskRoutes() {
     if (!b.success) return c.json({ error: { code: 'invalid', message: 'That didn’t save.' } }, 400);
     const found = await helperOf(c, b.data.k);
     if (!found) return c.json({ error: { code: 'no_link', message: 'This link isn’t working.' } }, 404);
-    if (!(await allow(c.env.DB, `mytasks-save:${found.w.id}`, 300, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a minute.' } }, 429);
+    if (!(await allow(c.env.DB, `mytasks-save:${found.w.id}:${found.helper.id}`, 300, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a minute.' } }, 429);
     const today = dateIn(found.w.timezone);
     const found_ = { theirs: false };
     const saved = await changeDoc(c.env.DB, found.w.id, 'checklist', '', (d) => {
