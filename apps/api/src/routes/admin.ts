@@ -130,6 +130,8 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         // What this wedding's plan includes (the admin shows Upgrade where it doesn't).
         plan: await weddingPlan(c.env.DB, w.id),
         planRequested: (w.content.planRequested as string | undefined) ?? '',
+        // Private: its pages open only with each guest's own link.
+        private: w.content.private === true,
       },
       ...ov,
       partySides: { p1: setup.p1, p2: setup.p2 },

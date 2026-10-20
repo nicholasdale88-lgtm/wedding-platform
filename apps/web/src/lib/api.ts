@@ -105,7 +105,7 @@ export interface GuestDetail {
 }
 
 export interface Overview {
-  wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string; adminLook?: { palette?: string; eventColours?: boolean; large?: boolean }; plan?: 'free' | 'essentials' | 'complete'; planRequested?: string };
+  wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string; adminLook?: { palette?: string; eventColours?: boolean; large?: boolean }; plan?: 'free' | 'essentials' | 'complete'; planRequested?: string; private?: boolean };
   total: number;
   replied: number;
   awaiting: number;
@@ -147,6 +147,8 @@ export const api = {
   me: () => request<Me>('/a/me'),
   login: (email: string, passcode: string) => send<Me>('POST', '/a/auth/login', { email, passcode }),
   logout: () => send<{ ok: true }>('POST', '/a/auth/logout'),
+  /** Private: the wedding's pages open only with each guest's own link. */
+  setPrivate: (wid: string, on: boolean) => send<{ ok: true; private: boolean }>('PUT', `${w(wid)}/privacy`, { private: on }),
   /** Ask to upgrade (the platform owner sends a payment link). */
   requestPlan: (wid: string, plan: 'essentials' | 'complete') => send<{ ok: true; requested: string }>('POST', `${w(wid)}/plan/request`, { plan }),
   /** From the front page: a new account and wedding, signed in. */

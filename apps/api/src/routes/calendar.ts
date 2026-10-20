@@ -78,13 +78,15 @@ export function calendarRoutes() {
   app.get('/:file', async (c) => {
     const key = c.req.param('file').replace(/\.ics$/, '');
     const row = await c.env.DB.prepare(
-      `SELECT e.key, e.name, e.starts_at, e.venue, e.address, w.name1, w.name2, w.slug
+      `SELECT e.key, e.name, e.starts_at, e.venue, e.address, w.name1, w.name2, w.slug,
+              CASE WHEN json_valid(w.content) THEN json_extract(w.content, '$.private') ELSE 0 END AS private
          FROM event e JOIN wedding w ON w.id = e.wedding_id
         WHERE w.slug = ? AND w.deleted_at IS NULL AND e.key = ? AND e.deleted_at IS NULL`,
     )
       .bind(c.req.param('slug'), key)
-      .first<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null; name1: string; name2: string; slug: string }>();
-    if (!row) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+      .first<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null; name1: string; name2: string; slug: string; private: number | null }>();
+    // A private wedding's times and places only go to its guests (their own calendar, mine.ics).
+    if (!row || row.private === 1) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
     const start = new Date(row.starts_at);
     if (Number.isNaN(start.getTime())) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
     const end = new Date(start.getTime() + 6 * 3_600_000); // a sensible length; the invitation has the details

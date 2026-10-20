@@ -90,4 +90,26 @@ describe('sign-up and plans', () => {
     const ov = (await (await call(`/a/w/${wid}/overview`, {}, cookie)).json()) as { wedding: { plan: string } };
     expect(ov.wedding.plan).toBe('complete');
   });
+
+  it('a new wedding is private: its pages only open with a guest link or for the couple; switching it off opens them', async () => {
+    const res = await signup();
+    const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
+    const { weddingId: wid } = (await res.json()) as { weddingId: string };
+    const page = (path: string, ck = '') => call(`/p/alex-and-sam${path}`, {}, ck);
+    const shut = await page('/invite');
+    expect(shut.status).toBe(404);
+    expect(((await shut.json()) as { error: { code: string } }).error.code).toBe('private');
+    expect((await page('/save-the-date')).status).toBe(404);
+    expect((await page('/photos')).status).toBe(404);
+    expect((await page('/calendar/wedding.ics')).status).toBe(404);
+    expect((await page('/invite', cookie)).status).toBe(200); // the couple previewing
+    // A guest with their own link.
+    await call(`/a/w/${wid}/guests`, { method: 'POST', body: '{}' }, cookie);
+    const tok = (await t.db.prepare(`SELECT token FROM invitation WHERE wedding_id = ?`).bind(wid).first<{ token: string }>())!.token;
+    expect((await page(`/invite?g=${tok}`)).status).toBe(200);
+    // Switched off: open to anyone with the address.
+    expect((await call(`/a/w/${wid}/privacy`, { method: 'PUT', body: JSON.stringify({ private: false }) }, cookie)).status).toBe(200);
+    expect((await page('/invite')).status).toBe(200);
+    expect((await page('/calendar/wedding.ics')).status).toBe(200);
+  });
 });

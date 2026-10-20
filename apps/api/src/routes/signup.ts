@@ -68,7 +68,8 @@ export function signupRoutes() {
     // The wedding day at 3pm where they are (they set the real time in Setup).
     const startsAt = b.date ? zonedToUtc(`${b.date}T15:00`, tz).toISOString() : zonedToUtc(`${new Date().getUTCFullYear() + 1}-01-01T15:00`, tz).toISOString();
     const monogram = `${b.firstName.charAt(0).toUpperCase()}&${b.partnerName.charAt(0).toUpperCase()}`;
-    const content = JSON.stringify({ planChosen: b.plan, planChosenAt: now, ...(b.date ? {} : { dateToBeSet: true }) });
+    // Private from the start: their pages open only with each guest's own link.
+    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, ...(b.date ? {} : { dateToBeSet: true }) });
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
@@ -102,6 +103,7 @@ export function planRoutes() {
   const app = new Hono<AdminEnv>();
   app.use('/w/:wid/plan/*', jsonWritesOnly);
   app.use('/super/*', jsonWritesOnly);
+  app.use('/w/:wid/privacy', jsonWritesOnly);
   app.post('/w/:wid/plan/request', requireUser, requireMember('owner'), async (c) => {
     const b = z.object({ plan: z.enum(['essentials', 'complete']) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return c.json({ error: { code: 'invalid', message: 'Choose a plan.' } }, 400);
@@ -111,6 +113,14 @@ export function planRoutes() {
       c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'plan.request', ?, ?, ?)`).bind(crypto.randomUUID(), c.req.param('wid'), c.get('user').id, c.req.param('wid'), JSON.stringify({ plan: b.data.plan }), at),
     ]);
     return c.json({ ok: true, requested: b.data.plan });
+  });
+
+  /** Private (pages only with a guest's own link) or not. */
+  app.put('/w/:wid/privacy', requireUser, requireMember('owner'), async (c) => {
+    const b = z.object({ private: z.boolean() }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return c.json({ error: { code: 'invalid', message: 'On or off?' } }, 400);
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.private', json(?)) WHERE id = ? AND json_valid(content)`).bind(b.data.private ? 'true' : 'false', c.req.param('wid')).run();
+    return c.json({ ok: true, private: b.data.private });
   });
 
   /** Super admins only: set a wedding's plan (after payment), by its address. */

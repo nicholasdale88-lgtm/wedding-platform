@@ -52,6 +52,10 @@ async function isAdminOf(c: C, weddingId: string): Promise<boolean> {
   return !!row;
 }
 
+/** A private wedding: its pages open only with a guest's own link (or for the couple, signed in). */
+const isPrivate = (w: { content: string }) => json<Record<string, unknown>>(w.content, {}).private === true;
+const PRIVATE = (c: C) => c.json({ error: { code: 'private', message: 'This invitation is private. Please open it from the link in your text.' } }, 404);
+
 interface WeddingRow {
   id: string; slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string; content: string; guide: string; music_key: string | null;
 }
@@ -178,6 +182,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
           .bind(token, w.id)
           .first<{ name: string }>()
       : null;
+    if (!who && isPrivate(w) && !(await isAdminOf(c, w.id))) return PRIVATE(c);
     const first = await c.env.DB.prepare(`SELECT key, name, starts_at, venue, address FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(w.id).first<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null }>();
     const content = json<Record<string, unknown>>(w.content, {});
     const inv = InvitationContent.safeParse(content.invitation ?? {});
@@ -203,6 +208,11 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       if (row && !c.req.query('preview')) {
         await c.env.DB.prepare(`UPDATE invitation SET opened_at = COALESCE(opened_at, ?) WHERE id = ?`).bind(new Date().toISOString(), row.id).run();
       }
+    }
+    // Private: no page without a guest's own link (the couple, signed in, still see it to preview).
+    if (!invId && isPrivate(w) && !(await isAdminOf(c, w.id))) {
+      const share = json<Record<string, unknown>>(w.content, {}).previewShare as string | undefined;
+      if (!(share && share.length >= 20 && c.req.query('share') === share)) return PRIVATE(c);
     }
     return c.json(await invitePayload(c, w, invId));
   });
@@ -322,6 +332,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       : null;
     // The table-card QR code: anyone at the tables can add photos, giving their name.
     const qr = !who && (await isPhotoCode(c.env.SESSION_SECRET, w.id, c.req.query('t') ?? '')) && allows(await weddingPlan(c.env.DB, w.id), 'photoQr');
+    if (!who && !qr && isPrivate(w) && !(await isAdminOf(c, w.id))) return PRIVATE(c);
     // Each event has its own album; the page offers the events this guest is invited to (all, on the public page).
     const all = await eventsOf(c.env.DB, w.id);
     const mine = who ? new Set((await c.env.DB.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(who.inv).all<{ event_id: string }>()).results.map((r) => r.event_id)) : null;
