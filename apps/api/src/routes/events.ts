@@ -107,8 +107,8 @@ export function eventRoutes() {
     if (!body.success) return err(c, 400, 'invalid', 'Check the event details: it needs a name and a date and time.');
     const b = body.data;
     const db = c.env.DB;
-    const all = await db.prepare(`SELECT key, sort FROM event WHERE wedding_id = ?`).bind(wid(c)).all<{ key: string; sort: number }>();
-    if (all.results.length >= 20) return err(c, 400, 'too_many', 'Up to 20 events per celebration.');
+    const all = await db.prepare(`SELECT key, sort, deleted_at FROM event WHERE wedding_id = ?`).bind(wid(c)).all<{ key: string; sort: number; deleted_at: string | null }>();
+    if (all.results.filter((r) => !r.deleted_at).length >= 20) return err(c, 400, 'too_many', 'Up to 20 events per celebration.');
     if (!(await eventRoom(db, wid(c)))) return needsUpgrade(c, 'extraEvent');
     const taken = new Set(all.results.map((r) => r.key)); // removed events keep their key, so old links never point at a new event
     const base = slug(b.name);

@@ -117,7 +117,7 @@ export function SmsSetup() {
               </select>
             </Label>
             <Label text="Most per day">
-              <input type="number" min={0} max={5000} value={val('dailyCap')} onChange={(e) => edit({ dailyCap: Number(e.target.value) })} className={inputCls} />
+              <input type="number" min={1} max={5000} value={val('dailyCap')} onChange={(e) => e.target.value !== '' && edit({ dailyCap: Math.max(1, Math.min(5000, Math.round(Number(e.target.value)) || 1)) })} className={inputCls} />
             </Label>
           </div>
           <Label text="Opt-out line added to every text (required by the Spam Act)">

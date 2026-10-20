@@ -10,17 +10,17 @@ type Kind = Parameters<typeof plannerApi.saveDoc>[1];
  */
 export function useDocSave<T>(wid: string, kind: Kind, scope: string, version: number | undefined) {
   const key = `${wid}|${kind}|${scope}`;
-  const state = useRef({ key, ver: 0 });
-  // Another document (another event, say) starts from its own version.
-  if (state.current.key !== key) state.current = { key, ver: 0 };
-  state.current.ver = Math.max(state.current.ver, version ?? 0);
+  // Each document keeps its own version (another event's, say): a save still on its way for the document
+  // just left is sent with that document's version, never the new one's.
+  const vers = useRef(new Map<string, number>());
+  vers.current.set(key, Math.max(vers.current.get(key) ?? 0, version ?? 0));
   const chain = useRef<Promise<unknown>>(Promise.resolve());
 
   return useCallback(
     (data: T) => {
       const run = chain.current.then(async () => {
-        const r = await plannerApi.saveDoc<T>(wid, kind, scope, data, state.current.ver);
-        if (state.current.key === key) state.current.ver = Math.max(state.current.ver, r.version);
+        const r = await plannerApi.saveDoc<T>(wid, kind, scope, data, vers.current.get(key) ?? 0);
+        vers.current.set(key, Math.max(vers.current.get(key) ?? 0, r.version));
         return r;
       });
       chain.current = run.catch(() => undefined);

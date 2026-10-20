@@ -1,4 +1,4 @@
-import { PartySetup, randomToken, splitDiet, toE164 } from '@wp/shared';
+import { allows, PartySetup, randomToken, splitDiet, toE164 } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
@@ -356,6 +356,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         ),
       );
       stmts.push(db.prepare(`UPDATE person SET deleted_at = ? WHERE invitation_id = ? AND idx >= ? AND deleted_at IS NULL`).bind(now(), invId, names.length));
+      // Their seats and meals go with them (no empty chair counted as taken, no plate for the caterer).
+      stmts.push(db.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ? AND idx >= ?)`).bind(invId, names.length));
+      stmts.push(db.prepare(`DELETE FROM meal_choice WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ? AND idx >= ?)`).bind(invId, names.length));
     }
     if (p.invited) {
       stmts.push(db.prepare(`DELETE FROM invite_event WHERE invitation_id = ?`).bind(invId));
@@ -515,6 +518,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
   app.post('/guests/:id/send', writer, async (c) => {
     const body = z.object({ campaignId: z.string() }).safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose a message.');
+    if (!c.req.query('dry') && !allows(await weddingPlan(c.env.DB, wid(c)), 'texts')) return needsUpgrade(c, 'texts');
     const d = deps(c.env);
     const invId = c.req.param('id');
     try {

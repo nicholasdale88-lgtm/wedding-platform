@@ -31,7 +31,7 @@ export function SystemCheck() {
     <section className="flex flex-col gap-4 max-w-[720px]">
       <div className="flex justify-between items-center gap-3 flex-wrap">
         <p className="m-0 text-[15px] text-[#5b6a52]">
-          {!items ? 'Checking each service…' : bad ? `${bad} ${bad === 1 ? 'thing needs' : 'things need'} attention.` : 'Everything that’s set up is working.'}
+          {!items ? (problem ? 'The check couldn’t finish.' : 'Checking each service…') : bad ? `${bad} ${bad === 1 ? 'thing needs' : 'things need'} attention.` : 'Everything that’s set up is working.'}
         </p>
         <Pill kind="outline" disabled={busy} onClick={() => void run()}>
           {busy ? 'Checking…' : 'Check again'}

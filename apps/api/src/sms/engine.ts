@@ -81,7 +81,9 @@ async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
   for (const slot of await d.store.claimDueSlots(w.id, now.toISOString(), LIMITS.slotAttempts)) {
     const c = byId.get(slot.campaignId);
     if (now.getTime() - Date.parse(slot.sendAt) > LIMITS.slotGraceMs) {
-      // A reminder days late is worse than none; the admin sees it under "Needs you".
+      // A reminder days late is worse than none; the admin sees it under "Needs you". Any of its texts still
+      // waiting (held back by the daily limit or credits) go too.
+      await d.store.cancelQueued(`slot:${slot.id}:`, new Set());
       await d.store.finishSlot(slot.id, 'cancelled', `Missed: was due ${slot.sendAt}`);
       continue;
     }
@@ -250,7 +252,11 @@ export async function flush(d: EngineDeps, w: WeddingCtx): Promise<FlushResult> 
       .filter(expired)
       .map((r) => ({ id: r.id, status: 'failed' as const, error: 'Not confirmed by the provider within 23 hours. Check before resending.' })),
   ]);
-  rows = rows.filter((r) => !blocked(r) && !expired(r));
+  // A dated text (the night before, a reminder) still waiting more than a day after it was due never goes:
+  // late is worse than not at all.
+  const late = (r: OutboxRow) => r.batchKey === null && r.dedupeKey.startsWith('slot:') && now.getTime() - Date.parse(r.createdAt) > LIMITS.slotGraceMs;
+  await d.store.markResults(rows.filter((r) => !blocked(r) && !expired(r) && late(r)).map((r) => ({ id: r.id, status: 'cancelled' as const, error: 'Too late: it was due over a day ago' })));
+  rows = rows.filter((r) => !blocked(r) && !expired(r) && !late(r));
 
   // Dated texts held over (cap, credits) are re-checked: a guest who has replied since is not reminded.
   const stale = await noLongerQualifies(d, w, rows.filter((r) => r.batchKey === null && r.dedupeKey.startsWith('slot:')));
@@ -443,7 +449,9 @@ export async function estimateAll(d: EngineDeps, weddingId: string, campaignIds:
 /** "Send now": queues with a one-off key and sends unless it's quiet hours (then it waits for 8am). */
 export async function sendNow(d: EngineDeps, weddingId: string, campaignId: string, only?: string[]) {
   const { w, c, events, list } = await prepare(d, weddingId, campaignId, only);
-  const run = d.uuid();
+  // The same message sent again within two minutes is the same send (a double tap, a retried request): each
+  // guest's text has the one key, so it's never queued twice.
+  const run = `${campaignId}:${Math.floor(d.now().getTime() / 120_000)}`;
   const queued = await enqueueCampaign(d, w, events, c, list, (r) => `manual:${run}:${r.id}`);
   const res = await flush(d, w);
   return { queued, ...res };

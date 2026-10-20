@@ -107,7 +107,7 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
   return (
     <AdminDataProvider wid={wid} section={section} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
-        <SectionPage section={section} tab={tab} />
+        <SectionPage key={section} section={section} tab={tab} />
       </Shell>
     </AdminDataProvider>
   );
@@ -134,6 +134,7 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
   }
   if (!TABS.some((t) => t.key === tab)) return <Navigate to={path('overview')} replace />;
   // The wedding has a wedding party (with the couple's checklists); every other event has a day checklist.
+  if (!o && section !== ACCOUNT && (tab === 'party' || tab === 'day' || tab === 'planner')) return <Loading />;
   if (o && o.events[0] && section !== ACCOUNT) {
     const isWedding = section === o.events[0].key;
     if (tab === 'party' && !isWedding) return <Navigate to={path('day')} replace />;

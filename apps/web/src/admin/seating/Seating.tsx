@@ -86,7 +86,9 @@ function SeatingPlan() {
   const commit = useCallback((fn: (d: Snapshot) => Snapshot, record = true) => {
     if (editingRef.current) dispatch({ type: 'change', fn, record });
   }, []);
-  const checkpoint = useCallback(() => dispatch({ type: 'checkpoint' }), []);
+  const checkpoint = useCallback(() => {
+    if (editingRef.current) dispatch({ type: 'checkpoint' });
+  }, []);
   const undo = useCallback(() => dispatch({ type: 'undo' }), []);
   const redo = useCallback(() => dispatch({ type: 'redo' }), []);
 
@@ -250,8 +252,10 @@ function SeatingPlan() {
       return seatingApi.saveVersion(wid, s.event.key, name);
     }, `Saved “${name}”. It's now the current arrangement.`);
   /** Show a version on the plan to look at; nothing changes until Make current. */
-  const viewVersion = (id: string) =>
-    run(async () => {
+  const viewVersion = (id: string) => {
+    if (changed && !window.confirm('Look at this version? Your unsaved seating changes will be lost (Save first to keep them).')) return;
+    setEditing(false);
+    return run(async () => {
       const v = await seatingApi.version(wid, id);
       const known = new Set(v.tables.map((t) => t.id));
       dispatch({ type: 'reset', doc: { tables: v.tables, areas: v.areas, seats: Object.fromEntries(s.people.map((p) => [p.id, known.has(v.seats[p.id] ?? '') ? v.seats[p.id]! : null])) } });
@@ -260,6 +264,7 @@ function SeatingPlan() {
       setSel(null);
       setAdding(false);
     });
+  };
   const backToCurrent = () => void run(() => seatingApi.get(wid, s.event.key));
   const makeCurrent = (id: string, name: string) => {
     const unnamed = s.current ? s.current.changes : seated;
@@ -560,7 +565,7 @@ function SeatingPlan() {
         </div>
 
         <aside className="flex flex-col gap-5 print:hidden">
-          {selArea && sel?.kind === 'area' && (
+          {editing && selArea && sel?.kind === 'area' && (
             <div className="flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]">
               <Label text="Area name">
                 <input value={selArea.label} onChange={(e) => setArea(sel.i, { label: e.target.value }, false)} onFocus={checkpoint} className={inputCls} />
@@ -606,7 +611,7 @@ function SeatingPlan() {
                   <input value={selTable.name} onChange={(e) => setTable(selTable.id, { name: e.target.value }, false)} onFocus={checkpoint} className={inputCls} />
                 </Label>
                 <Label text="Seats">
-                  <input type="number" min={1} max={60} value={selTable.seats} onChange={(e) => setTable(selTable.id, { seats: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} className={inputCls} />
+                  <SeatsInput key={selTable.id} value={selTable.seats} onValue={(seats) => setTable(selTable.id, { seats })} />
                 </Label>
                 <Label text="Type" className="col-span-2">
                   <select value={selTable.shape} onChange={(e) => setTable(selTable.id, reshape(selTable, e.target.value as TableShape))} className={inputCls}>
@@ -963,5 +968,30 @@ function TableShapeView({
         </span>
       )}
     </div>
+  );
+}
+
+/** The number of seats: can be cleared and typed afresh; kept between 1 and 60 once you leave the box. */
+function SeatsInput({ value, onValue }: { value: number; onValue: (n: number) => void }) {
+  const [text, setText] = useState(String(value));
+  const done = () => {
+    const n = Math.max(1, Math.min(60, Math.round(Number(text)) || value));
+    setText(String(n));
+    if (n !== value) onValue(n);
+  };
+  return (
+    <input
+      type="number"
+      min={1}
+      max={60}
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        const n = Number(e.target.value);
+        if (e.target.value !== '' && Number.isInteger(n) && n >= 1 && n <= 60) onValue(n);
+      }}
+      onBlur={done}
+      className={inputCls}
+    />
   );
 }

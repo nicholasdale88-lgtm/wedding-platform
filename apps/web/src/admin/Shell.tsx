@@ -17,6 +17,8 @@ interface AdminData {
   event: string;
   /** The address of a tab, in this section or another event's ("account" or an event key). */
   path: (tab: string, event?: string) => string;
+  /** The last overview seen for each section (event key, or ALL_EVENTS), shown at once when switching back. */
+  seen?: Map<string, Overview>;
 }
 const Ctx = createContext<AdminData>({ wid: '', overview: null, error: '', reload: async () => {}, event: '', path: (t) => t });
 export const useAdmin = () => useContext(Ctx);
@@ -48,10 +50,12 @@ export function AdminDataProvider({ wid, section, children, onSignedOut }: { wid
   }, [wid, section]);
   // Only the latest request lands: switching section quickly never shows the previous event's figures.
   const seq = useRef(0);
+  const seen = useRef(new Map<string, Overview>());
   const reload = useCallback(async () => {
     const n = ++seq.current;
     try {
       const o = await api.overview(wid, event !== ALL_EVENTS ? event : undefined);
+      seen.current.set(o.focus ?? ALL_EVENTS, o);
       if (n !== seq.current) return;
       setOverview(o);
       setError('');
@@ -66,13 +70,15 @@ export function AdminDataProvider({ wid, section, children, onSignedOut }: { wid
   }, [reload]);
   useAutoRefresh(reload); // Overview figures and nav badges stay current
   const path = useCallback((tab: string, ev?: string) => `/admin/${wid}/${sectionOf(ev ?? event)}/${tab}`, [wid, event]);
-  return <Ctx.Provider value={{ wid, overview, error, reload, event, path }}>{children}</Ctx.Provider>;
+  // While a section's own figures load, the overview last seen for it (so switching doesn't blank the page).
+  const shown = overview && (overview.focus ?? ALL_EVENTS) !== event ? (seen.current.get(event) ?? overview) : overview;
+  return <Ctx.Provider value={{ wid, overview: shown, error, reload, event, path, seen: seen.current }}>{children}</Ctx.Provider>;
 }
 
 /** Overview data for the section in the address (not one still loading for the section you just left). */
 export function useSectionOverview(): Overview | null {
-  const { overview: o, event } = useAdmin();
-  return o && (o.focus ?? ALL_EVENTS) === event ? o : null;
+  const { overview: o, event, seen } = useAdmin();
+  return o && (o.focus ?? ALL_EVENTS) === event ? o : (seen?.get(event) ?? null);
 }
 
 /**
@@ -296,7 +302,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
       <div style={looks(o, event)} className="adm min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300">
         <LeaveGuard />
         {/* The only menu on a phone. */}
-        <header className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
+        <header className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] transition-colors duration-300 px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
           <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate flex-1">{name}</div>
           <button
             type="button"
@@ -327,7 +333,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   return (
     <div style={looks(o, event)} className="adm grid min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300 grid-cols-[236px_minmax(0,1fr)]">
       <LeaveGuard />
-      <aside className="bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 gap-[24px] pt-[30px] px-4 pb-[22px] h-screen">
+      <aside className="bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 gap-[24px] pt-[30px] px-4 pb-[22px] h-screen transition-colors duration-300">
         <div className="px-[10px]">
           <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
           <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#cfd8bb]">RSVP admin</div>

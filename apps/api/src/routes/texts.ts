@@ -182,8 +182,8 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     if (!claimed.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
     const stmts: D1PreparedStatement[] = [];
     if (p.dates !== undefined) {
-      // Pending dates are replaced; ones already sent (or failed) stay as history.
-      stmts.push(c.env.DB.prepare(`DELETE FROM campaign_slot WHERE campaign_id = ? AND status = 'pending'`).bind(cid));
+      // Dates still to go (and ones that failed, which would retry) are replaced; ones already sent stay as history.
+      stmts.push(c.env.DB.prepare(`DELETE FROM campaign_slot WHERE campaign_id = ? AND status IN ('pending', 'failed')`).bind(cid));
       const now = nowIso();
       for (const at of [...new Set(p.dates)].filter((x) => x > now)) {
         stmts.push(c.env.DB.prepare(`INSERT INTO campaign_slot (id, campaign_id, send_at) VALUES (?, ?, ?)`).bind(crypto.randomUUID(), cid, at));

@@ -55,6 +55,8 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      // On a button, a link or a box, keys do their own job (Space presses it, arrows change a choice).
+      if ((e.target as HTMLElement).closest?.('button, a, select, input, textarea')) return;
       if (e.key === 'ArrowRight') go(at + 1);
       if (e.key === 'ArrowLeft') go(at - 1);
       if (e.key === ' ') {
@@ -95,6 +97,7 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
     setLeft(0.5);
     return () => {
       u.onend = null;
+      u.onerror = u.onend; // speech that fails (blocked, no voice) moves on too
       clearTimeout(wait);
       speechSynthesis.cancel();
     };

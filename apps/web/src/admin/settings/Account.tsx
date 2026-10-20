@@ -156,6 +156,7 @@ export function TheWedding() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('owner');
   const [link, setLink] = useState('');
+  const [inviting, setInviting] = useState(false); // one link per tap, however fast the taps
   // Arriving from "Add your partner" (?invite=1): straight to the email box.
   const [params] = useSearchParams();
   const emailBox = useRef<HTMLInputElement>(null);
@@ -185,6 +186,8 @@ export function TheWedding() {
     }
   };
   const invite = async () => {
+    if (inviting) return;
+    setInviting(true);
     try {
       const r = await accountApi.invite(wid, email.trim(), role);
       setLink(r.link);
@@ -192,6 +195,8 @@ export function TheWedding() {
       await load();
     } catch (e) {
       toast((e as Error).message);
+    } finally {
+      setInviting(false);
     }
   };
   const share = async () => {
@@ -291,8 +296,8 @@ export function TheWedding() {
                 <option value="viewer">Only view</option>
               </select>
             </Label>
-            <Pill kind="primary" type="submit" disabled={!email.includes('@')}>
-              Create the link
+            <Pill kind="primary" type="submit" disabled={!email.includes('@') || inviting}>
+              {inviting ? 'Creating…' : 'Create the link'}
             </Pill>
           </form>
           {link && (

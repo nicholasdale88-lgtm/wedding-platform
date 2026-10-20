@@ -105,7 +105,7 @@ function NightCard({ c, tz, startsAt, onChanged, sender }: { c: Campaign; tz: st
       setBusy(false);
     }
   };
-  const dirty = body !== c.body || (next ? toLocalInput(next, tz) : '') !== when;
+  const dirty = body !== c.body || (next ? toLocalInput(next, tz) : eveningBefore(startsAt, tz)) !== when;
   useUnsavedChanges(dirty);
   const sent = c.slots.some((s) => s.status === 'sent');
 

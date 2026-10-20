@@ -74,18 +74,21 @@ export function Dietary() {
       ['Name', 'Dietary', 'Serious', 'Table', ...shown.map((e) => `Coming to ${shortLabel(e.name)}`)],
       ...view.withDiet.map(({ g, p }) => [p.name, p.diet, isSerious(p.diet) ? 'Yes' : '', p.table ?? '', ...shown.map((e) => (coming(g, e) ? 'Yes' : ''))]),
     ] }], shown.map((e) => e.key));
-  const exportEvent = (e: EventInfo) =>
-    void downloadDressed(wid, overview, fileName(slug, `${e.key}-caterer`, 'xlsx'), `For the caterer`, [{ name: shortLabel(e.name), rows: [
+  /** The caterer's list, with the menus as they are now (fetched afresh: an edit made a moment ago counts). */
+  const exportEvent = async (e: EventInfo) => {
+    const menus = await plannerApi.docFor<Menus>(wid, 'menus', e.key).then((r) => r.data, () => menusFor[e.key]);
+    return downloadDressed(wid, overview, fileName(slug, `${e.key}-caterer`, 'xlsx'), `For the caterer`, [{ name: shortLabel(e.name), rows: [
       ['Name', 'Table', 'Dietary', 'Serious', 'Menu', 'Entrée', 'Main', 'Dessert', 'Check'],
       ...data.guests
         .filter((g) => coming(g, e))
         .flatMap((g) => g.people.slice(0, Math.max(1, g.rsvp[e.key]?.count ?? g.people.length)))
         .map((p) => {
           const c = p.meals?.[e.key];
-          const m = servedMeal(c, menusFor[e.key]);
-          return [p.name, p.table ?? '', p.diet, isSerious(p.diet) ? 'Yes' : '', m.menu, m.entree, m.main, m.dessert, p.diet.trim() ? mealWarning(p.diet, c, menusFor[e.key]) : ''];
+          const m = servedMeal(c, menus);
+          return [p.name, p.table ?? '', p.diet, isSerious(p.diet) ? 'Yes' : '', m.menu, m.entree, m.main, m.dessert, p.diet.trim() ? mealWarning(p.diet, c, menus) : ''];
         }),
     ] }], [e.key]);
+  };
 
   return (
     <div className="flex flex-col gap-7">
@@ -97,7 +100,7 @@ export function Dietary() {
         <div className="flex gap-2 flex-wrap">
           <Pill onClick={exportAll}>Dietary list</Pill>
           {catered.map((e) => (
-            <Pill key={e.key} onClick={() => exportEvent(e)}>
+            <Pill key={e.key} onClick={() => void exportEvent(e)}>
               Export for {shortLabel(e.name).toLowerCase() === 'wedding' ? 'the wedding venue' : `${shortLabel(e.name)} caterer`}
             </Pill>
           ))}
@@ -236,7 +239,7 @@ function Meals({ event, guests, onSaved }: { event: EventInfo; guests: Guest[]; 
         )}
         {rows.map(({ p, choice, warning, suggested, needs }) => (
           <MealRow
-            key={`${p.id}:${choice.menu}|${choice.entree}|${choice.main}|${choice.dessert}`}
+            key={`${p.id}:${event.key}`}
             wid={wid}
             eventKey={event.key}
             p={p}
@@ -250,7 +253,7 @@ function Meals({ event, guests, onSaved }: { event: EventInfo; guests: Guest[]; 
         ))}
         <div className="flex justify-between gap-3 pt-3 border-t border-[#e2d7bc] text-[14px]">
           <span>
-            <strong className="font-semibold">{people.length - withDiet.length} guests</strong> · no dietary requirements
+            <strong className="font-semibold">{people.length - withDiet.length} {people.length - withDiet.length === 1 ? 'guest' : 'guests'}</strong> · no dietary requirements
           </span>
           <span>Set menu</span>
         </div>
@@ -284,6 +287,14 @@ function MealRow({
   const toast = useToast();
   const [c, setC] = useState(choice);
   const saved = useRef(choice);
+  // A change made elsewhere (another device, Give them their menus) shows here; our own saves already do.
+  const incoming = `${choice.menu}|${choice.entree}|${choice.main}|${choice.dessert}`;
+  useEffect(() => {
+    const s = saved.current;
+    if (incoming === `${s.menu}|${s.entree}|${s.main}|${s.dessert}`) return;
+    saved.current = choice;
+    setC(choice);
+  }, [incoming]); // eslint-disable-line
   const special = menus?.special ?? [];
   const served = servedMeal(c, menus);
   const first = p.name.split(' ')[0];
