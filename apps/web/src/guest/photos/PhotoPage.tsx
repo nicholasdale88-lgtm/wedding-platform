@@ -37,6 +37,8 @@ interface Item {
 }
 
 const NAME_KEY = 'wp-photo-name';
+/** The design's top line ("names · the wedding day"). */
+const HEADER = 'ph.0fb66927';
 const remembered = () => {
   try {
     return localStorage.getItem(NAME_KEY) ?? '';
@@ -172,7 +174,11 @@ export function PhotoPage() {
   });
   useEffect(() => setFilter(filters[1] ?? 'none'), [info?.title]); // eslint-disable-line
 
-  const t = useCallback((k: string) => page?.texts[k] ?? '', [page]);
+  // The page's top line names the couple and the wedding day; another event's page names that event instead.
+  const t = useCallback(
+    (k: string) => (k === HEADER && ev && ev.slot !== 0 && info ? `${ev.name}${info.date ? ` · ${info.date}` : ''}` : (page?.texts[k] ?? '')),
+    [page, ev, info],
+  );
   const mark = (id: string, st: Status) => setItems((xs) => xs.map((x) => (x.id === id ? { ...x, st } : x)));
   const add = (files: Blob[], pre: boolean, original?: Blob) => {
     const big = files.filter((f) => isVideo(f) && f.size > MAX_VIDEO_MB * 1024 * 1024);

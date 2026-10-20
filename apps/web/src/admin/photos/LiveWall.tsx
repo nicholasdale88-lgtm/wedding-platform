@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { albumApi, liveApi } from '../../lib/api';
-import { useAdmin } from '../Shell';
+import { ALL_EVENTS, useAdmin } from '../Shell';
 import { Pill, useToast } from '../ui';
 
 /** Photos → "Share the album with guests": after the day, every guest can see and save everyone's photos. */
@@ -47,7 +47,7 @@ export function AlbumSharePanel() {
  * screen. Switch it on to get its secret link; off again stops the link working.
  */
 export function LiveWallPanel() {
-  const { wid } = useAdmin();
+  const { wid, event } = useAdmin();
   const toast = useToast();
   const [s, setS] = useState<{ on: boolean; code: string | null; slug: string } | null>(null);
   useEffect(() => {
@@ -57,7 +57,8 @@ export function LiveWallPanel() {
       .catch(() => setS(null));
   }, [wid]);
   if (!s) return null;
-  const link = s.code ? `${window.location.origin}/w/${s.slug}/live?k=${s.code}` : '';
+  // The wall for the event you're in (its photos only).
+  const link = s.code ? `${window.location.origin}/w/${s.slug}/live?k=${s.code}${event && event !== ALL_EVENTS ? `&event=${encodeURIComponent(event)}` : ''}` : '';
   const set = async (on: boolean) => {
     try {
       setS(await liveApi.set(wid, on));

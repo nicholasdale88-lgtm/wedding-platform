@@ -46,7 +46,7 @@ export const FILTER_LABEL: Record<FilterKey, string> = {
 export const BIRTHDAY_FRAMES: FilterKey[] = ['number', 'balloons', 'confetti', 'cheers', 'snapshot', 'partytag', 'bdayframe'];
 export const WEDDING_FRAMES: FilterKey[] = ['names', 'polaroid', 'seal', 'sprig', 'frame', 'stamp', 'hashtag'];
 /** A birthday (the second celebration, with an age in its name: "Alex's 30th"). */
-export const isBirthday = (info: Pick<FilterInfo, 'slot' | 'title'>) => info.slot === 1 && /\d/.test(info.title);
+export const isBirthday = (info: Pick<FilterInfo, 'slot' | 'title'>) => info.slot === 1 && /\d|birthday|bday/i.test(info.title);
 /** "Alex's 30th" → the age ("30th", "30") and whose it is ("Alex"). */
 const age = (title: string) => {
   const m = /(\d+)(st|nd|rd|th)?/i.exec(title);

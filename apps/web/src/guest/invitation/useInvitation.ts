@@ -573,7 +573,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
           ? createElement(
               'a',
               {
-                href: `/w/${encodeURIComponent(data.wedding.slug)}/shuttle?g=${encodeURIComponent(token)}`,
+                href: `/w/${encodeURIComponent(data.wedding.slug)}/shuttle?g=${encodeURIComponent(token)}&event=${encodeURIComponent(ev.key)}`,
                 style: { alignSelf: 'center', fontSize: 16, color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3, fontFamily: "'Cormorant Garamond', Georgia, serif" },
               },
               'There’s a shuttle: book your seats',

@@ -20,7 +20,7 @@ const VIA: Record<string, string> = { invitation: 'Invitation', sms: 'Text reply
  */
 export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: { wid: string; id: string; tz: string; isNew?: boolean; onClose: () => void; onChanged: () => Promise<void> }) {
   const toast = useToast();
-  const { overview } = useAdmin();
+  const { overview, event: chosen } = useAdmin();
   const [d, setD] = useState<GuestDetail | null>(null);
   const [error, setError] = useState('');
   const [names, setNames] = useState<string[]>([]);
@@ -268,7 +268,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
             </datalist>
           </Label>
           <Label text="Reception table">
-            <input value={table} placeholder="e.g. 4" onChange={(e) => setTable(e.target.value)} onBlur={() => table !== (g.people.find((p) => p.table)?.table ?? '') && void patch({ table: table.trim() || null })} className={inputCls} />
+            <input value={table} placeholder="e.g. 4" onChange={(e) => setTable(e.target.value)} onBlur={() => table !== (g.people.find((p) => p.table)?.table ?? '') && void patch({ table: table.trim() || null, ...(overview?.events.some((e) => e.key === chosen) ? { tableEvent: chosen } : {}) })} className={inputCls} />
           </Label>
         </div>
         {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any texts.</div>}

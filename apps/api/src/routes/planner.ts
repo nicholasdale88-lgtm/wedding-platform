@@ -639,7 +639,9 @@ export function partyGuestRoutes() {
       .all<{ key: string; name: string; starts_at: string }>();
     const roles = [...new Set(mine.map((m) => m.party_role))];
     const out = [];
-    for (const e of events) {
+    // The wedding party belongs to the wedding (the first event): never another event's run sheet.
+    const first = (await db.prepare(`SELECT key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(w.id).first<{ key: string }>())?.key;
+    for (const e of events.filter((x) => x.key === first)) {
       const doc = await readDoc(db, w.id, 'party-runsheet', e.key);
       const seen = new Set<string>();
       // Everything for any of the roles on this invitation, once each, in the couple's order.

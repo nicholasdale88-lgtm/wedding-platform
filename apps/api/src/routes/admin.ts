@@ -31,6 +31,8 @@ const GuestPatch = z
     party: z.string().trim().max(60),
     invited: z.array(z.string()).max(20),
     table: z.string().trim().max(40).nullable(),
+    /** The event the table is for (the section it was typed in): only that event's tables and seats. */
+    tableEvent: z.string().max(40),
   })
   .partial()
   .strict();
@@ -316,9 +318,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
                   EXISTS (SELECT 1 FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
                            WHERE r.invitation_id = ? AND r.event_id = t.event_id AND r.attending = 1) AS coming
              FROM seat_table t JOIN event e ON e.id = t.event_id
-            WHERE t.wedding_id = ? AND t.deleted_at IS NULL AND lower(t.name) = lower(?) ORDER BY e.has_seating DESC, e.sort LIMIT 1`,
+            WHERE t.wedding_id = ? AND t.deleted_at IS NULL AND lower(t.name) = lower(?) AND (? = '' OR e.key = ?) ORDER BY e.has_seating DESC, e.sort LIMIT 1`,
         )
-          .bind(invId, wid(c), p.table)
+          .bind(invId, wid(c), p.table, p.tableEvent ?? '', p.tableEvent ?? '')
           .first<{ id: string; event_id: string; event: string; coming: number }>();
         if (!t) return err(c, 400, 'no_table', `There's no table called "${p.table}" yet. Add it in Seating.`);
         // Same rule as Seating: only guests who have said yes to that event get a table.
@@ -362,7 +364,14 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       );
     }
     // A table belongs to one event: the party sits there for that event (no table = no seats at all).
-    if (tableId === null) stmts.push(db.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?)`).bind(invId));
+    if (tableId === null) {
+      // Cleared in one event's section: that event's seats only (their table at the other event stays).
+      stmts.push(
+        p.tableEvent
+          ? db.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?) AND event_id IN (SELECT id FROM event WHERE wedding_id = ? AND key = ?)`).bind(invId, wid(c), p.tableEvent)
+          : db.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?)`).bind(invId),
+      );
+    }
     if (tableId) {
       stmts.push(
         db

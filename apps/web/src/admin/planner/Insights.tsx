@@ -237,7 +237,7 @@ export function Insights() {
       <div className="grid gap-4 lg:grid-cols-2">
         <section aria-label="Replies" className={card}>
           <H2>Replies</H2>
-          {data.events.map((e) => (
+          {data.events.slice(0, 1).map((e) => (
             <div key={e.key} className="flex flex-col gap-2">
               <strong className="text-[14px] font-semibold">{e.name}</strong>
               <Bars

@@ -40,8 +40,9 @@ async function guestOf(c: GC, token: string) {
   )
     .bind(inv.id)
     .all<{ key: string; name: string; starts_at: string; attending: number | null }>();
-  // Not the events they've said they can't come to.
-  return { w, inv, events: events.filter((e) => e.attending !== 0) };
+  // Not the events they've said they can't come to; only the one the link names, when it names one.
+  const only = c.req.query('event') ?? '';
+  return { w, inv, events: events.filter((e) => e.attending !== 0 && (!only || e.key === only)) };
 }
 
 export function shuttleGuestRoutes() {

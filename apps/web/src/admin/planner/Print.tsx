@@ -111,7 +111,7 @@ export function Print() {
     venue: overview?.events[0]?.venue ?? '',
     website: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}`,
     // The photo page from a table card: no guest link needed (they give their name).
-    photos: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/photos${photoCode ? `?t=${photoCode}` : ''}`,
+    photos: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/photos${overview?.events[0] ? `/${encodeURIComponent(overview.events[0].key)}` : ''}${photoCode ? `?t=${photoCode}` : ''}`,
     timeline: items.map((x) => `${x.time}  ${x.title}`).join('\n') || '2:00pm  Ceremony\n3:00pm  Canapés\n5:30pm  Reception\n10:30pm  Farewell',
   };
 

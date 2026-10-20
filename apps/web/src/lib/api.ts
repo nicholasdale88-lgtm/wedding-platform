@@ -133,6 +133,8 @@ export interface GuestPatch {
   party?: string;
   invited?: string[];
   table?: string | null;
+  /** The event the table is for (the section it was typed in). */
+  tableEvent?: string;
 }
 export interface RsvpPut {
   events: Record<string, { attending: boolean | null; answers?: Record<string, string> }>;

@@ -32,7 +32,8 @@ export function LivePage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/p/${encodeURIComponent(slug)}/live?k=${encodeURIComponent(k)}`);
+      const ev = new URLSearchParams(window.location.search).get('event') ?? '';
+      const res = await fetch(`/api/p/${encodeURIComponent(slug)}/live?k=${encodeURIComponent(k)}${ev ? `&event=${encodeURIComponent(ev)}` : ''}`);
       const body = (await res.json()) as Wall & { error?: { message: string } };
       if (!res.ok) throw new Error(body.error?.message ?? 'The photo wall is off.');
       setWall(body);
