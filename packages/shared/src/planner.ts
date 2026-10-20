@@ -624,6 +624,8 @@ export const Vendor = z.object({
   chasedOn: s(10),
   /** Not going ahead: why (too dear, booked out, went with someone else). */
   declinedWhy: s(200),
+  /** Where it came from in the shared vendor directory (its id there), if it did. */
+  dirId: s(80),
   /** The payment schedule (deposit, instalments, balance), once you've set one; until then it comes from the quote. */
   payments: z.array(Payment).max(12).default([]),
 });
@@ -827,7 +829,10 @@ export type Vendors = z.infer<typeof Vendors>;
 
 /** What "Find vendors" can search for near the venue (OpenStreetMap tags). */
 export const VENDOR_SEARCH: Record<string, { label: string; tags: string[] }> = {
+  venue: { label: 'Venues', tags: ['amenity=events_venue', 'amenity=conference_centre', 'leisure=resort', 'craft=winery'] },
+  celebrant: { label: 'Celebrants', tags: [] },
   florist: { label: 'Florists', tags: ['shop=florist'] },
+  videographer: { label: 'Videographers', tags: [] },
   photographer: { label: 'Photographers', tags: ['craft=photographer', 'shop=photo'] },
   caterer: { label: 'Caterers', tags: ['craft=caterer'] },
   cake: { label: 'Cakes and bakeries', tags: ['shop=pastry', 'shop=bakery', 'shop=confectionery'] },
@@ -840,8 +845,32 @@ export const VENDOR_SEARCH: Record<string, { label: string; tags: string[] }> = 
   transport: { label: 'Cars, buses and taxis', tags: ['amenity=car_rental', 'amenity=taxi', 'office=taxi', 'amenity=bus_station'] },
   hire: { label: 'Party hire and styling', tags: ['shop=party', 'shop=interior_decoration'] },
   print: { label: 'Printing and stationery', tags: ['shop=stationery', 'shop=copyshop', 'craft=printer'] },
-  music: { label: 'Music shops and DJs', tags: ['shop=musical_instrument', 'amenity=music_venue'] },
+  music: { label: 'Bands, DJs and music', tags: ['shop=musical_instrument', 'amenity=music_venue'] },
 };
+/** Which directory category a vendor's "what they do" belongs to ('' when none fits). */
+export function searchKeyOf(what: string): string {
+  const t = what.toLowerCase();
+  const rules: [string, RegExp][] = [
+    ['videographer', /video|film/],
+    ['photographer', /photo(?!\s*booth)/],
+    ['celebrant', /celebrant|officiant|minister/],
+    ['venue', /venue|reception|estate|winery/],
+    ['florist', /flor|flower/],
+    ['caterer', /cater/],
+    ['cake', /cake|bak|patisserie|dessert/],
+    ['hair', /\bhair/],
+    ['makeup', /make-?up|beauty/],
+    ['bridal', /dress|gown|bridal/],
+    ['suits', /\bsuits?\b|tailor/],
+    ['jewellery', /\brings?\b|jewel/],
+    ['accommodation', /hotel|motel|accommodation|lodg/],
+    ['transport', /\bcars?\b|\bbus(es)?\b|transport|limo|coach|shuttle|taxi/],
+    ['hire', /hire|styl|decor|marquee/],
+    ['print', /print|station|invit/],
+    ['music', /\bband\b|\bdj\b|music|singer|string/],
+  ];
+  return rules.find(([, re]) => re.test(t))?.[0] ?? '';
+}
 
 // ---------------------------------------------------------------- the planning checklist
 

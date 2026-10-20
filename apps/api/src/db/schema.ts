@@ -502,3 +502,39 @@ export const memberInvite = sqliteTable('member_invite', {
   acceptedAt: text('accepted_at'),
   createdAt: text('created_at').notNull(),
 });
+
+// migration 0025: the shared vendor directory, the areas searched, and each wedding's use of it
+export const vendorDirectory = sqliteTable('vendor_directory', {
+  id: text('id').primaryKey(),
+  source: text('source').notNull(),
+  category: text('category').notNull(),
+  name: text('name').notNull(),
+  lat: real('lat').notNull(),
+  lon: real('lon').notNull(),
+  cell: text('cell').notNull(),
+  address: text('address').notNull(),
+  phone: text('phone').notNull(),
+  email: text('email').notNull(),
+  website: text('website').notNull(),
+  hidden: integer('hidden').notNull(),
+  firstSeen: text('first_seen').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const vendorAreaSearch = sqliteTable(
+  'vendor_area_search',
+  { category: text('category').notNull(), cell: text('cell').notNull(), searchedAt: text('searched_at').notNull() },
+  (t) => ({ pk: primaryKey({ columns: [t.category, t.cell] }) }),
+);
+
+export const vendorUse = sqliteTable(
+  'vendor_use',
+  {
+    weddingId: text('wedding_id').notNull(),
+    dirId: text('dir_id').notNull(),
+    booked: integer('booked').notNull(),
+    amount: real('amount').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.dirId] }) }),
+);

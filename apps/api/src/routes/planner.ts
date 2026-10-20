@@ -1,4 +1,4 @@
-import { allPayments, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind } from '@wp/shared';
+import { allPayments, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -6,6 +6,7 @@ import { allow } from '../lib/rateLimit';
 import { MAX_PLANNER_FILE, readJson, MAX_PLANNER_DOC } from '../lib/security';
 import { keepDocument, openPhoto } from '../photos/store';
 import { portalWho } from './partyPortal';
+import { recordUse, searchDirectory } from '../lib/directory';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -252,52 +253,10 @@ export function plannerRoutes() {
     }
     const lat0 = g.lat;
     const lon0 = g.lon;
-    const filters = cat.tags.map((t) => {
-      const [k, v] = t.split('=');
-      return `nwr["${k}"="${v}"](around:${km * 1000},${lat0},${lon0});`;
-    });
-    const query = `[out:json][timeout:20];(${filters.join('')});out center tags 80;`;
-    let els: { lat?: number; lon?: number; center?: { lat: number; lon: number }; id: number; type: string; tags?: Record<string, string> }[] = [];
-    try {
-      const res = await fetch('https://overpass-api.de/api/interpreter', {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded', 'user-agent': 'wedding-platform vendor finder' },
-        body: `data=${encodeURIComponent(query)}`,
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      els = ((await res.json()) as { elements: typeof els }).elements ?? [];
-    } catch {
-      return err(c, 502, 'unavailable', 'The map search is busy. Please try again in a minute.');
-    }
-    const rad = (d: number) => (d * Math.PI) / 180;
-    const dist = (lat: number, lon: number) => {
-      const a = Math.sin(rad(lat - lat0) / 2) ** 2 + Math.cos(rad(lat0)) * Math.cos(rad(lat)) * Math.sin(rad(lon - lon0) / 2) ** 2;
-      return 6371 * 2 * Math.asin(Math.sqrt(a));
-    };
-    const seen = new Set<string>();
-    const found = els
-      .map((e) => {
-        const t = e.tags ?? {};
-        const lat = e.lat ?? e.center?.lat;
-        const lon = e.lon ?? e.center?.lon;
-        if (!t.name || lat === undefined || lon === undefined) return null;
-        const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
-        return {
-          osm: `${e.type}/${e.id}`,
-          name: t.name,
-          address: [street, t['addr:suburb'] ?? t['addr:city'], t['addr:postcode']].filter(Boolean).join(', '),
-          phone: t.phone ?? t['contact:phone'] ?? '',
-          email: t.email ?? t['contact:email'] ?? '',
-          website: t.website ?? t['contact:website'] ?? '',
-          km: Math.round(dist(lat, lon) * 10) / 10,
-          lat,
-          lon,
-        };
-      })
-      .filter((x): x is NonNullable<typeof x> => !!x && !seen.has(x.name.toLowerCase()) && !!seen.add(x.name.toLowerCase()))
-      .sort((a, b) => a.km - b.km)
-      .slice(0, 40);
-    return c.json({ venue: { event: ev.name, lat: lat0, lon: lon0 }, km, category: cat.label, results: found });
+    // The shared directory for this area: filled from OpenStreetMap the first time, then kept (and grown by couples).
+    const found = await searchDirectory(db, asked, lat0, lon0, km);
+    if (found.offline) return err(c, 502, 'unavailable', 'The map search is busy. Please try again in a minute.');
+    return c.json({ venue: { event: ev.name, lat: lat0, lon: lon0 }, km, category: cat.label, results: found.results, price: found.price });
   });
 
   /**
@@ -580,6 +539,18 @@ export function plannerRoutes() {
             .run();
     if (!res.meta.changes) return c.json({ error: { code: 'conflict', message: 'Changed elsewhere, so this has been reloaded. Make your change again.' }, current: await readDoc(c.env.DB, wid(c), kind, scope) }, 409);
     await audit(c, `planner.${kind}`, scope).run();
+    if (kind === 'vendors') {
+      // The shared directory learns which of its vendors couples add and book (and what they paid); never stops the save.
+      try {
+        const w = await c.env.DB.prepare(`SELECT guide FROM wedding WHERE id = ?`).bind(wid(c)).first<{ guide: string }>();
+        const { results: evs } = await c.env.DB.prepare(`SELECT key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(wid(c)).all<{ key: string }>();
+        const guides = guidesOf(json(w?.guide, {}), evs.map((e) => e.key));
+        const at = evs.map((e) => guides[e.key]).find((x) => x?.lat !== undefined && x.lon !== undefined);
+        await recordUse(c.env.DB, wid(c), (parsed.data as { list: Vendor[] }).list, at?.lat !== undefined && at.lon !== undefined ? { lat: at.lat, lon: at.lon } : null);
+      } catch (e) {
+        console.error('vendor directory', e);
+      }
+    }
     return c.json(await readDoc(c.env.DB, wid(c), kind, scope));
   });
 

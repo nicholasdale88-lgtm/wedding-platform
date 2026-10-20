@@ -43,6 +43,7 @@ const newVendor = (over: Partial<Vendor>): Vendor => ({
   contractFileName: '',
   meals: 0,
   payments: [],
+  dirId: '',
   askedOn: '',
   quoteBy: '',
   chasedOn: '',
@@ -542,14 +543,14 @@ function Finder({ have, onAdd }: { have: Set<string>; onAdd: (v: Vendor) => void
   const [category, setCategory] = useState('florist');
   const [km, setKm] = useState(25);
   const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<{ venue: string; results: VendorHit[] } | null>(null);
+  const [res, setRes] = useState<{ venue: string; results: VendorHit[]; price: { low: number; typical: number; high: number; weddings: number } | null } | null>(null);
   const [problem, setProblem] = useState('');
   const search = async () => {
     setBusy(true);
     setProblem('');
     try {
       const r = await plannerApi.searchVendors(wid, category, km);
-      setRes({ venue: r.venue.event, results: r.results });
+      setRes({ venue: r.venue.event, results: r.results, price: r.price ?? null });
     } catch (e) {
       setRes(null);
       setProblem((e as Error).message);
@@ -559,7 +560,8 @@ function Finder({ have, onAdd }: { have: Set<string>; onAdd: (v: Vendor) => void
   };
   return (
     <section aria-label="Find vendors near the venue" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-      <H2>Find vendors near the venue</H2>
+      <H2>Vendor directory near the venue</H2>
+      <p className="m-0 text-[13px] text-[#5b6a52]">Suppliers near your venue, from the map and from other couples’ weddings nearby: the ones couples book most come first.</p>
       <div className="flex gap-3 flex-wrap items-end">
         <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
           Looking for
@@ -583,8 +585,13 @@ function Finder({ have, onAdd }: { have: Set<string>; onAdd: (v: Vendor) => void
       {res && (
         <div className="flex flex-col">
           <span className="text-[13px] text-[#5b6a52] pb-2">
-            {res.results.length ? `${res.results.length} within ${km} km of ${res.venue}, nearest first` : `Nothing listed within ${km} km. Try a wider radius.`} · from OpenStreetMap, so do check them before booking
+            {res.results.length ? `${res.results.length} within ${km} km of ${res.venue}` : `Nothing listed within ${km} km yet. Try a wider radius, or add your own: booked vendors join the directory for couples after you.`} · do check them before booking
           </span>
+          {res.price && (
+            <div className="mb-2 p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[14px]">
+              Couples nearby paid <strong className="font-semibold">{aud(res.price.low)}–{aud(res.price.high)}</strong> (typically {aud(res.price.typical)}) · from {res.price.weddings} weddings
+            </div>
+          )}
           {res.results.map((h) => {
             const added = have.has(h.name.toLowerCase());
             return (
@@ -592,6 +599,11 @@ function Finder({ have, onAdd }: { have: Set<string>; onAdd: (v: Vendor) => void
                 <span className="min-w-0">
                   <span className="block font-medium truncate">{h.name}</span>
                   <span className="block text-[13px] text-[#5b6a52] truncate">{[`${h.km} km`, h.address, h.phone].filter(Boolean).join(' · ')}</span>
+                  {(h.booked ?? 0) > 0 && (
+                    <span className="block text-[12px] text-[#3d4a2f] font-semibold">
+                      Booked by {h.booked} {h.booked === 1 ? 'couple' : 'couples'} nearby
+                    </span>
+                  )}
                 </span>
                 <span className="flex gap-3 items-center flex-none text-[13px]">
                   {h.website && (
@@ -599,13 +611,13 @@ function Finder({ have, onAdd }: { have: Set<string>; onAdd: (v: Vendor) => void
                       Website
                     </a>
                   )}
-                  <a href={`https://www.openstreetmap.org/?mlat=${h.lat}&mlon=${h.lon}#map=16/${h.lat}/${h.lon}`} target="_blank" rel="noopener noreferrer" className="!text-[#33402f]">
+                  <a href={`https://maps.google.com/?q=${h.lat},${h.lon}`} target="_blank" rel="noopener noreferrer" className="!text-[#33402f]">
                     Map
                   </a>
                   <Pill
                     kind="outline"
                     disabled={added}
-                    onClick={() => onAdd(newVendor({ name: h.name, category: VENDOR_SEARCH[category]!.label.replace(/s$/, ''), phone: h.phone, email: h.email, website: h.website, address: h.address, km: h.km }))}
+                    onClick={() => onAdd(newVendor({ name: h.name, category: VENDOR_SEARCH[category]!.label.replace(/s$/, ''), phone: h.phone, email: h.email, website: h.website, address: h.address, km: h.km, dirId: h.id ?? '' }))}
                   >
                     {added ? 'Added' : '+ Add'}
                   </Pill>

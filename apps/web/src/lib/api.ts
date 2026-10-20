@@ -409,6 +409,11 @@ export const photoLinksApi = {
 };
 
 export interface VendorHit {
+  /** Its id in the shared vendor directory. */
+  id?: string;
+  /** How many weddings added it, and booked it. */
+  added?: number;
+  booked?: number;
   osm: string;
   name: string;
   address: string;
@@ -464,7 +469,7 @@ export const plannerApi = {
   docFor: <T>(wid: string, kind: PlannerKind, scope: string) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`),
   doc: <T>(wid: string, kind: PlannerKind) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
   searchVendors: (wid: string, category: string, km: number) =>
-    request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[] }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
+    request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[]; price?: { low: number; typical: number; high: number; weddings: number } | null }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
 };
 
 /** The shared album (guests see everyone's photos from their events, once switched on). */

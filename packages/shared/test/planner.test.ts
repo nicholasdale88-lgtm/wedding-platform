@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPayments, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -242,5 +242,17 @@ describe('standard budget', () => {
     // Photography at 20% (not 12%): the photographer's line grows to match.
     const more = standardLines({ total: 50000, split: { 'Photography and video': 0.2 }, lines: [] }, 100);
     expect(more.find((l) => l.item === 'Photographer')!.estimate).toBe(Math.round((50000 * 0.08 * 0.2) / 0.12));
+  });
+});
+
+describe('vendor directory categories', () => {
+  it('maps what a vendor does to its directory category', () => {
+    expect(searchKeyOf('Wedding photographer')).toBe('photographer');
+    expect(searchKeyOf('Photo booth hire')).toBe('hire');
+    expect(searchKeyOf('Videography')).toBe('videographer');
+    expect(searchKeyOf('Chair hire')).toBe('hire');
+    expect(searchKeyOf('Hair stylist')).toBe('hair');
+    expect(searchKeyOf('Car hire')).toBe('transport');
+    expect(searchKeyOf('Something else')).toBe('');
   });
 });

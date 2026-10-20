@@ -119,7 +119,7 @@ describe('planner: wedding party', () => {
     });
     try {
       const r = (await (await call('/vendors/search?category=florist&km=30')).json()) as { results: { name: string; km: number; address: string }[] };
-      expect(query).toContain('["shop"="florist"](around:30000,-33.37,151.19)');
+      expect(query).toContain('["shop"="florist"](around:50000,-33.37,151.19)'); // the area is filled out to 50 km once
       expect(r.results.map((x) => x.name)).toEqual(['Valley Blooms', 'Far Flowers']);
       expect(r.results[0]).toMatchObject({ address: 'Main Rd, Somersby' });
       expect(r.results[0]!.km).toBeLessThan(r.results[1]!.km);
@@ -127,6 +127,43 @@ describe('planner: wedding party', () => {
       vi.unstubAllGlobals();
     }
     expect((await call('/vendors/search?category=nonsense')).status).toBe(400);
+
+    // The directory keeps the area: the next search doesn't ask the map, and still works when the map is down.
+    let asked = 0;
+    vi.stubGlobal('fetch', async () => {
+      asked++;
+      return new Response('down', { status: 503 });
+    });
+    try {
+      const again = (await (await call('/vendors/search?category=florist&km=30')).json()) as { results: { id: string; name: string; booked: number }[]; price: unknown };
+      expect(asked).toBe(0);
+      expect(again.results.map((x) => x.name)).toEqual(['Valley Blooms', 'Far Flowers']);
+      expect(again.price).toBeNull();
+      // A couple books one: the directory counts it (and its price), and lists it first.
+      const valley = again.results.find((x) => x.name === 'Valley Blooms')!;
+      const far = again.results.find((x) => x.name === 'Far Flowers')!;
+      const list = [
+        { id: 'v1', name: 'Far Flowers', category: 'Florist', status: 'booked', quote: 2800, dirId: far.id },
+        { id: 'v2', name: 'Valley Blooms', category: 'Florist', status: 'quoted', dirId: valley.id },
+      ];
+      expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ list }) })).status).toBe(200);
+      const after = (await (await call('/vendors/search?category=florist&km=30')).json()) as { results: { name: string; booked: number; added: number }[]; price: unknown };
+      expect(after.results[0]).toMatchObject({ name: 'Far Flowers', booked: 1, added: 1 });
+      expect(after.results[1]).toMatchObject({ name: 'Valley Blooms', booked: 0, added: 1 });
+      expect(after.price).toBeNull(); // one wedding's price is never shown
+      // Two more weddings nearby booked florists: now a range shows (never which wedding).
+      await t.db.prepare(`INSERT INTO vendor_use (wedding_id, dir_id, booked, amount, updated_at) VALUES ('w-x', ?, 1, 2000, '2027-01-01'), ('w-y', ?, 1, 3600, '2027-01-01')`).bind(far.id, valley.id).run();
+      const priced = (await (await call('/vendors/search?category=florist&km=30')).json()) as { price: { low: number; typical: number; high: number; weddings: number } };
+      expect(priced.price).toEqual({ low: 2000, typical: 2800, high: 3600, weddings: 3 });
+      expect(JSON.stringify(priced)).not.toContain('w-x');
+      // A booked vendor of their own (not from the directory) joins it for the couples after them.
+      const own = [...list, { id: 'v3', name: 'Hill Top Celebrants', category: 'Celebrant', status: 'booked', phone: '0400 000 000' }];
+      await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '1' }, body: JSON.stringify({ list: own }) });
+      const cel = (await (await call('/vendors/search?category=celebrant&km=30')).json()) as { results: { name: string; booked: number }[] };
+      expect(cel.results).toEqual([expect.objectContaining({ name: 'Hill Top Celebrants', booked: 1 })]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
     const budget = await call('/doc/budget', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ total: 40000, lines: [{ category: 'Cake', estimate: 800, paid: 200, due: '2027-10-01' }] }) });
     expect(((await budget.json()) as { data: { lines: { quote: number }[] } }).data.lines[0]!.quote).toBe(0); // defaults filled in
   });
