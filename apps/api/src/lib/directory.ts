@@ -75,7 +75,7 @@ export interface DirectoryHit {
  * The directory for a category near a point: filled from OpenStreetMap when the area is new or stale,
  * nearest first, with how often couples chose each, and the price range couples nearby paid.
  */
-export async function searchDirectory(db: D1Database, category: string, lat: number, lon: number, km: number) {
+export async function searchDirectory(db: D1Database, category: string, lat: number, lon: number, km: number, weddingId = '') {
   const now = new Date().toISOString();
   const here = cellOf(lat, lon);
   const want = reach(km);
@@ -140,14 +140,16 @@ export async function searchDirectory(db: D1Database, category: string, lat: num
     .filter((r) => r.km <= km && !seen.has(r.name.toLowerCase()) && !!seen.add(r.name.toLowerCase()))
     .sort((a, b) => b.booked - a.booked || a.km - b.km)
     .slice(0, 60);
-  // What couples nearby paid for this kind of supplier: a range, once three weddings have prices.
+  // What other couples nearby paid for this kind of supplier: one figure per wedding (never the asking
+  // wedding's own), shown as a range only once three other weddings have prices.
   const { results: prices } = await db
     .prepare(
-      `SELECT u.amount FROM vendor_use u JOIN vendor_directory d ON d.id = u.dir_id
-        WHERE d.category = ? AND d.lat BETWEEN ? AND ? AND d.lon BETWEEN ? AND ? AND u.booked = 1 AND u.amount > 0 ORDER BY u.amount`,
+      `SELECT u.wedding_id, MAX(u.amount) AS amount FROM vendor_use u JOIN vendor_directory d ON d.id = u.dir_id
+        WHERE d.category = ? AND d.lat BETWEEN ? AND ? AND d.lon BETWEEN ? AND ? AND u.booked = 1 AND u.amount > 0 AND u.wedding_id != ?
+        GROUP BY u.wedding_id ORDER BY amount`,
     )
-    .bind(category, b.lat0, b.lat1, b.lon0, b.lon1)
-    .all<{ amount: number }>();
+    .bind(category, b.lat0, b.lat1, b.lon0, b.lon1, weddingId)
+    .all<{ wedding_id: string; amount: number }>();
   const amounts = prices.map((p) => p.amount);
   // The middle half (quartiles, rounded outwards) and the median.
   const n = amounts.length;
@@ -171,13 +173,15 @@ export async function recordUse(db: D1Database, weddingId: string, list: Vendor[
       const category = searchKeyOf(`${v.category} ${v.name}`);
       if (category) {
         dir = `c:${category}:${v.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}:${cellOf(venue.lat, venue.lon)}`;
+        // Filed at the middle of the venue's grid square, never the venue itself (it may be someone's home).
+        const at = { lat: (Math.floor(venue.lat / CELL) + 0.5) * CELL, lon: (Math.floor(venue.lon / CELL) + 0.5) * CELL };
         stmts.push(
           db
             .prepare(
               `INSERT INTO vendor_directory (id, source, category, name, lat, lon, cell, address, phone, email, website, hidden, first_seen, updated_at)
                VALUES (?, 'couple', ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?) ON CONFLICT (id) DO NOTHING`,
             )
-            .bind(dir, category, v.name.slice(0, 160), venue.lat, venue.lon, cellOf(venue.lat, venue.lon), v.address.slice(0, 300), v.phone.slice(0, 40), v.email.slice(0, 120), v.website.slice(0, 300), now, now),
+            .bind(dir, category, v.name.slice(0, 160), at.lat, at.lon, cellOf(venue.lat, venue.lon), v.address.slice(0, 300), v.phone.slice(0, 40), v.email.slice(0, 120), v.website.slice(0, 300), now, now),
         );
       }
     }

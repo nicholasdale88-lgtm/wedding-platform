@@ -6,7 +6,7 @@ import type { Env } from '../env';
  * Outlook, Google all open it). Only what the invitation already shows: the name, the time, the place.
  */
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n'); // a lone CR too: some calendar apps read it as a new line
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
 /** Lines over 75 characters are folded, as the calendar format asks. */
 const fold = (line: string) => line.match(/.{1,74}/g)!.join('\r\n ');

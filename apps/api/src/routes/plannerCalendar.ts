@@ -13,7 +13,7 @@ import { readDoc } from './planner';
  * Admin: /api/a/w/:wid/planner-calendar (switch on, a new link, off). The feed: /api/cal/:wid/:key.ics
  */
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n'); // a lone CR too: some calendar apps read it as a new line
 /** Lines over 75 characters are folded (by whole characters, so nothing is cut in half). */
 const fold = (line: string) => {
   const rows: string[] = [];

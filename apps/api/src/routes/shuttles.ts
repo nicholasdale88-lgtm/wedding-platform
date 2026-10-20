@@ -81,7 +81,7 @@ export function shuttleGuestRoutes() {
     const seats = Math.min(body.data.seats, Math.max(1, g.inv.seats_held));
     const db = c.env.DB;
     if (!seats) {
-      await db.prepare(`DELETE FROM shuttle_booking WHERE shuttle_id = ? AND invitation_id = ?`).bind(run.id, g.inv.id).run();
+      await db.prepare(`DELETE FROM shuttle_booking WHERE wedding_id = ? AND shuttle_id = ? AND invitation_id = ?`).bind(g.w.id, run.id, g.inv.id).run();
       return c.json(await view(c, g));
     }
     // Only if the seats are there (counting everyone else's bookings), in one statement.
@@ -89,7 +89,7 @@ export function shuttleGuestRoutes() {
       .prepare(
         `INSERT INTO shuttle_booking (wedding_id, shuttle_id, invitation_id, seats, created_at)
          SELECT ?1, ?2, ?3, ?4, ?5
-          WHERE (SELECT COALESCE(SUM(seats), 0) FROM shuttle_booking WHERE shuttle_id = ?2 AND invitation_id != ?3) + ?4 <= ?6
+          WHERE (SELECT COALESCE(SUM(seats), 0) FROM shuttle_booking WHERE wedding_id = ?1 AND shuttle_id = ?2 AND invitation_id != ?3) + ?4 <= ?6
          ON CONFLICT (shuttle_id, invitation_id) DO UPDATE SET seats = excluded.seats`,
       )
       .bind(g.w.id, run.id, g.inv.id, seats, new Date().toISOString(), run.seats)

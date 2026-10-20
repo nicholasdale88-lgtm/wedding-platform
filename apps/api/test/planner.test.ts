@@ -151,10 +151,13 @@ describe('planner: wedding party', () => {
       expect(after.results[0]).toMatchObject({ name: 'Far Flowers', booked: 1, added: 1 });
       expect(after.results[1]).toMatchObject({ name: 'Valley Blooms', booked: 0, added: 1 });
       expect(after.price).toBeNull(); // one wedding's price is never shown
-      // Two more weddings nearby booked florists: now a range shows (never which wedding).
+      // Other weddings nearby booked florists: two aren't enough (with this couple's own, it would give theirs away).
       await t.db.prepare(`INSERT INTO vendor_use (wedding_id, dir_id, booked, amount, updated_at) VALUES ('w-x', ?, 1, 2000, '2027-01-01'), ('w-y', ?, 1, 3600, '2027-01-01')`).bind(far.id, valley.id).run();
+      expect(((await (await call('/vendors/search?category=florist&km=30')).json()) as { price: unknown }).price).toBeNull();
+      // Three other weddings: now a range shows (never which wedding, and never this couple's own price).
+      await t.db.prepare(`INSERT INTO vendor_use (wedding_id, dir_id, booked, amount, updated_at) VALUES ('w-z', ?, 1, 3000, '2027-01-01')`).bind(far.id).run();
       const priced = (await (await call('/vendors/search?category=florist&km=30')).json()) as { price: { low: number; typical: number; high: number; weddings: number } };
-      expect(priced.price).toEqual({ low: 2000, typical: 2800, high: 3600, weddings: 3 });
+      expect(priced.price).toEqual({ low: 2000, typical: 3000, high: 3600, weddings: 3 });
       expect(JSON.stringify(priced)).not.toContain('w-x');
       // A booked vendor of their own (not from the directory) joins it for the couples after them.
       const own = [...list, { id: 'v3', name: 'Hill Top Celebrants', category: 'Celebrant', status: 'booked', phone: '0400 000 000' }];

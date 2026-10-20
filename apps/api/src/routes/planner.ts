@@ -254,7 +254,7 @@ export function plannerRoutes() {
     const lat0 = g.lat;
     const lon0 = g.lon;
     // The shared directory for this area: filled from OpenStreetMap the first time, then kept (and grown by couples).
-    const found = await searchDirectory(db, asked, lat0, lon0, km);
+    const found = await searchDirectory(db, asked, lat0, lon0, km, wid(c));
     if (found.offline) return err(c, 502, 'unavailable', 'The map search is busy. Please try again in a minute.');
     return c.json({ venue: { event: ev.name, lat: lat0, lon: lon0 }, km, category: cat.label, results: found.results, price: found.price });
   });
