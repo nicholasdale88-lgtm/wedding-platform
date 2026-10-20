@@ -85,6 +85,7 @@ export const ACCOUNT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'messages', label: 'Messages' },
   { key: 'settings', label: 'Settings' }, // texting, your sign-in, backup, admin look
+  { key: 'help', label: 'Help' }, // how to do each thing, step by step
 ] as const;
 export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -479,6 +480,12 @@ const ICON: Record<string, ReactNode> = {
   print: <path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z" />,
   gift: <path d="M3 9h18v4H3zM5 13v8h14v-8M12 9v12M12 9c-2-4-6-4-6-1.5S10 9 12 9zm0 0c2-4 6-4 6-1.5S14 9 12 9z" />,
   spark: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v3M17.5 4.5h3" />,
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01" />
+    </>
+  ),
   look: <path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-1.5 2-1.5h2a4 4 0 0 0 4-4c0-4.4-4-8-9-8zM7.5 11h.01M10 7h.01M15 7.5h.01" />,
 };
 const PLANNER_TOOLS: { view: string; label: string; icon: string }[] = [

@@ -10,3 +10,4 @@ export * from './guide';
 export * from './text';
 export * from './seating';
 export * from './planner';
+export * from './help';

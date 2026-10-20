@@ -1,4 +1,4 @@
-import { allPayments, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
+import { allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -299,13 +299,16 @@ export function plannerRoutes() {
       vendors.length ? `Vendors: ${vendors.map((v) => `${v.name} (${v.category || 'vendor'}, ${v.status})`).join('; ')}.` : 'No vendors recorded yet.',
       crew.length ? `Wedding party: ${crew.map((m) => `${m.name} (${m.role})`).join('; ')}.` : 'No wedding party recorded yet.',
     ].join('\n');
+    const guides = searchHelp(body.data.question, 3);
     const system =
       'You are a warm, practical wedding planning assistant for an Australian couple using their wedding app. Use Australian spelling. ' +
       'Be concise: short paragraphs or a short list, under 220 words unless asked for a draft (vows, speeches, wording). ' +
       'Use the facts below about their wedding; never invent bookings, names, prices or dates that are not there, and say when something is missing. ' +
       'Australian law: the Notice of Intended Marriage must reach the celebrant at least one month (and no more than 18 months) before the wedding. ' +
-      'When useful, point them to the app: Guest planning, Wedding party, SMS, Photos, Setup, Budget, Vendors.\n\nFacts:\n' +
-      facts;
+      'When useful, point them to the app: Guest planning, Wedding party, SMS, Photos, Setup, Budget, Vendors. For "how do I" questions about the app, answer from the How-to guides below, step by step.\n\nFacts:\n' +
+      facts +
+      // The app's own help for what they asked (Account → Help has the same words).
+      (guides.length ? `\n\nHow-to guides:\n${guides.map((g) => `${g.title}: ${g.steps.join(' ')}`).join('\n')}` : '');
     try {
       const out = (await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
         messages: [{ role: 'system', content: system }, ...body.data.history.map((h) => ({ role: h.role, content: h.text })), { role: 'user', content: body.data.question }],
