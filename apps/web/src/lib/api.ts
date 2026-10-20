@@ -14,11 +14,18 @@ export class ApiError extends Error {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`/api${path}`, {
-      credentials: 'same-origin',
-      ...init,
-      headers: { ...(init.body ? { 'content-type': 'application/json' } : {}), ...init.headers },
-    });
+    const go = () =>
+      fetch(`/api${path}`, {
+        credentials: 'same-origin',
+        ...init,
+        headers: { ...(init.body ? { 'content-type': 'application/json' } : {}), ...init.headers },
+      });
+    res = await go();
+    // Briefly busy (503): nothing was saved, so try again quietly before saying anything.
+    for (let i = 0; i < 3 && res.status === 503; i++) {
+      await new Promise((ok) => setTimeout(ok, 400 * (i + 1)));
+      res = await go();
+    }
   } catch {
     throw new ApiError(0, 'offline', "Can't reach the server. Check your connection and try again.");
   }

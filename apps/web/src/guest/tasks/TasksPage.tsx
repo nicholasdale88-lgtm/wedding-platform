@@ -40,11 +40,18 @@ export function TasksPage() {
   if (err) return <GuestMessage message={err} />;
   if (!d) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
 
+  const save = (id: string, status: Status) =>
+    fetch(`/api/p/${encodeURIComponent(slug)}/tasks`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, id, status }) });
   const set = async (id: string, status: Status) => {
     const before = d;
     setD((cur) => (cur ? { ...cur, tasks: cur.tasks.map((t) => (t.id === id ? { ...t, status } : t)) } : cur));
     try {
-      const r = await fetch(`/api/p/${encodeURIComponent(slug)}/tasks`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, id, status }) });
+      // Busy (others saving at the same moment): try again quietly a few times.
+      let r = await save(id, status);
+      for (let i = 0; i < 4 && (r.status === 409 || r.status === 503); i++) {
+        await new Promise((ok) => setTimeout(ok, 300 + Math.random() * 500));
+        r = await save(id, status);
+      }
       const b = (await r.json()) as Data & { error?: { message: string } };
       if (!r.ok) throw new Error(b.error?.message ?? 'That didn’t save.');
       setD(b);

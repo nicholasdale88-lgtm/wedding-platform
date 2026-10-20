@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { engineDeps, type Env } from './env';
-import { hardening } from './lib/security';
+import { hardening, isBusy } from './lib/security';
 import { adminRoutes } from './routes/admin';
 import { authRoutes } from './routes/auth';
 import { accountRoutes, memberRoutes } from './routes/accounts';
@@ -81,6 +81,8 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {
     console.error(err);
+    // Briefly busy (a burst of saves at once): ask the page to try again rather than reporting a fault.
+    if (isBusy(err)) return c.json({ error: { code: 'busy', message: 'Busy for a moment. Please try again.' } }, 503, { 'Retry-After': '1' });
     return c.json({ error: { code: 'server_error', message: 'Something went wrong. Your changes are safe.' } }, 500);
   });
   return app;

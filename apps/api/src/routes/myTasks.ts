@@ -3,7 +3,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
-import { readJson } from '../lib/security';
+import { isBusy, readJson } from '../lib/security';
 import { changeDoc, readDoc } from './planner';
 
 /**
@@ -59,12 +59,17 @@ export function myTaskRoutes() {
     if (!(await allow(c.env.DB, `mytasks-save:${found.w.id}:${found.helper.id}`, 300, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a minute.' } }, 429);
     const today = dateIn(found.w.timezone);
     const found_ = { theirs: false };
+    // A database that's briefly busy (many helpers at once) answers "try again", which the page does.
     const saved = await changeDoc(c.env.DB, found.w.id, 'checklist', '', (d) => {
       const i = d.tasks.findIndex((t) => t.id === b.data.id && t.helper === found.helper.id);
       if (i < 0) return false;
       found_.theirs = true;
       if (statusOf(d.tasks[i]!) === b.data.status) return false;
       d.tasks[i] = withStatus(d.tasks[i]!, b.data.status, today);
+    }).catch((e: unknown) => {
+      if (!isBusy(e)) throw e;
+      found_.theirs = true;
+      return false;
     });
     if (!found_.theirs) return c.json({ error: { code: 'not_yours', message: 'That task isn’t on your list any more.' } }, 404);
     if (!saved) return c.json({ error: { code: 'busy', message: 'Busy, try again.' } }, 409);
