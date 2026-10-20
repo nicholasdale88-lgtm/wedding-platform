@@ -286,6 +286,8 @@ describe('guest pages tab', () => {
     expect(await screen.findByRole('heading', { name: 'Set up The wedding' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'The wedding' })).toHaveAttribute('aria-current', 'true'));
     for (const name of ['Invitation', 'Details', 'Timeline', 'Night-before page', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    // On a phone (and in tests) the preview opens full screen from its own button.
+    await userEvent.click(screen.getByRole('button', { name: /^Preview/ }));
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/?preview=1');
     // The preview can be seen as guests will on a laptop or desktop too.
     await userEvent.click(screen.getByRole('radio', { name: 'Laptop' }));

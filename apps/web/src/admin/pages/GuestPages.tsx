@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
+import { chipCls, Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
 import { Events } from '../events/Events';
@@ -36,6 +36,7 @@ export function GuestPages() {
   const [status, setStatus] = useState<'saved' | 'saving' | 'waiting' | 'error'>('saved');
   const [previewKey, setPreviewKey] = useState(0);
   const [sharing, setSharing] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false); // phones: the preview opens full screen
   const [device, setDevice] = useDevice();
 
   // Pending edits: section -> generation, so an edit made while saving is saved next time.
@@ -148,7 +149,6 @@ export function GuestPages() {
     list.push({ key: 'details', label: 'Details' }, { key: 'timeline', label: 'Timeline' });
     if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
     list.push({ key: 'photos', label: 'Photo page' });
-    if (data.events.indexOf(ev) === 0) list.push({ key: 'party', label: 'Wedding party access' });
     return list;
   }, [data, doc, chosen]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
@@ -172,7 +172,8 @@ export function GuestPages() {
         else n.delete(k);
         return n;
       },
-      { replace: true },
+      // Moving between Setup's pages adds a history entry (Back returns to the last one); other choices replace.
+      { replace: k !== 'page' },
     );
   const base = `/w/${data.slug}`;
   const path = page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
@@ -254,17 +255,19 @@ export function GuestPages() {
       )}
 
       <div className="flex gap-2 flex-wrap items-center">
-        {pages.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            aria-pressed={p.key === page}
-            onClick={() => setParam('page', p.key === pages[0]?.key ? '' : p.key)}
-            className={`py-2 px-4 rounded-full border text-[14px] cursor-pointer ${p.key === page ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`}
-          >
-            {p.label}
-          </button>
-        ))}
+        <div className={wide ? 'flex gap-2 flex-wrap' : 'flex gap-2 overflow-x-auto [scrollbar-width:none] -mx-4 px-4 w-[calc(100%+32px)]'}>
+          {pages.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              aria-pressed={p.key === page}
+              onClick={() => setParam('page', p.key === pages[0]?.key ? '' : p.key)}
+              className={chipCls(p.key === page)}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
         <Label text="Preview as" className="!flex-row items-center gap-2 ml-auto">
           <select value={sample?.token ?? ''} onChange={(e) => setParam('as', e.target.value)} className={`${inputCls} !py-2`}>
             <option value="">{page === 'invitation' ? 'Someone without their link' : 'A sample guest'}</option>
@@ -285,10 +288,27 @@ export function GuestPages() {
           {preview}
         </div>
       ) : (
-        // On a phone or tablet the fields come first; the preview follows them.
+        // On a phone or tablet the fields fill the screen; the preview opens full screen from a button that stays in view.
         <>
           {editor}
-          {preview}
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            className="sticky bottom-[calc(72px+env(safe-area-inset-bottom))] z-[12] self-end flex items-center gap-2 py-3 px-5 min-h-[48px] rounded-full border-0 bg-[var(--adm-accent,#5d6b47)] text-[#fbf8f2] text-[15px] font-medium shadow-[0_8px_20px_rgba(51,64,47,.3)] cursor-pointer"
+          >
+            Preview <span aria-hidden>↗</span>
+          </button>
+          {previewOpen && (
+            <div role="dialog" aria-modal="true" aria-label="Preview" className="fixed inset-0 z-[40] flex flex-col bg-[#f6f0e2] pt-[max(12px,env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)]">
+              <div className="flex items-center justify-between gap-3 px-4 pb-2 border-b border-[#e2d7bc]">
+                <span className="font-display text-[22px]">Preview</span>
+                <button type="button" aria-label="Close preview" onClick={() => setPreviewOpen(false)} className="w-10 h-10 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[20px] cursor-pointer">
+                  ×
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">{preview}</div>
+            </div>
+          )}
         </>
       )}
     </div>
