@@ -4,14 +4,15 @@
  *
  * Colours that follow the section you're in come from the shell's theme tokens (Shell themeVars):
  * --adm-ink (headings), --adm-accent and --adm-accent-deep (primary buttons, selected tabs and chips),
- * --adm-soft and --adm-bg. The second event is blue, so everything in its section turns blue together.
+ * --adm-soft and --adm-bg; and, set only in the second event, --adm-text, --adm-muted, --adm-card, --adm-tint and
+ * --adm-line (each falls back to the sage palette). The second event is blue, so everything in its section turns blue together.
  */
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 const INK = 'text-[var(--adm-ink,#33402f)]';
 
 export const Eyebrow = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
-  <div className={`text-[11px] font-semibold tracking-[.22em] uppercase text-[#5b6a52] ${className}`}>{children}</div>
+  <div className={`text-[11px] font-semibold tracking-[.22em] uppercase text-[var(--adm-muted,#5b6a52)] ${className}`}>{children}</div>
 );
 
 export const H2 = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
@@ -25,7 +26,7 @@ export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: ReactNo
       <div className="flex flex-col gap-[10px] min-w-0">
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
         <h1 className={`m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance] ${INK}`}>{title}</h1>
-        {sub && <p className="m-0 max-w-[620px] text-[15px] text-[#5b6a52]">{sub}</p>}
+        {sub && <p className="m-0 max-w-[620px] text-[15px] text-[var(--adm-muted,#5b6a52)]">{sub}</p>}
       </div>
       {actions && <div className="flex gap-2 flex-wrap items-center">{actions}</div>}
     </header>
@@ -35,8 +36,8 @@ export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: ReactNo
 type Kind = 'primary' | 'secondary' | 'dashed' | 'outline' | 'danger';
 const PILL: Record<Kind, string> = {
   primary: 'border border-[var(--adm-accent,#5d6b47)] bg-[var(--adm-accent,#5d6b47)] text-[#fbf8f2] font-medium hover:bg-[var(--adm-accent-deep,#46543a)]',
-  secondary: 'border border-[#c6b794] bg-transparent font-medium hover:bg-[#efe7d3]',
-  dashed: 'border border-dashed border-[#8a9670] bg-transparent hover:bg-[#efe7d3]',
+  secondary: 'border border-[var(--adm-line,#c6b794)] bg-transparent font-medium hover:bg-[var(--adm-tint,#efe7d3)]',
+  dashed: 'border border-dashed border-[#8a9670] bg-transparent hover:bg-[var(--adm-tint,#efe7d3)]',
   outline: 'border border-[var(--adm-ink,#33402f)] bg-transparent font-medium whitespace-nowrap hover:bg-[var(--adm-ink,#33402f)] hover:text-[#f3ecd6]',
   danger: 'border border-[#a4553c] bg-transparent text-[#8a3f2a] font-medium hover:bg-[#a4553c] hover:text-[#fbf8f2]',
 };
@@ -74,10 +75,10 @@ export function Tabs<K extends string>({ label, items, value, onChange }: { labe
  * Every page's own menu looks like the Wedding party's: pills in a soft rounded bar, the page you're on
  * filled. On a phone the bar scrolls sideways; wider, it wraps. `subNavCls` is the bar, `tabCls` each pill.
  */
-export const subNavCls = 'flex gap-1 overflow-x-auto [scrollbar-width:none] p-1 rounded-[22px] bg-[#efe7d3] self-start max-w-full min-[760px]:flex-wrap';
+export const subNavCls = 'flex gap-1 overflow-x-auto [scrollbar-width:none] p-1 rounded-[22px] bg-[var(--adm-tint,#efe7d3)] self-start max-w-full min-[760px]:flex-wrap';
 export const tabCls = (on: boolean) =>
   `flex-none whitespace-nowrap py-[7px] px-4 rounded-full border-0 text-[14px] no-underline cursor-pointer ${
-    on ? 'bg-[var(--adm-ink,#33402f)] !text-[#f3ecd6] font-medium' : 'bg-transparent !text-[var(--adm-ink,#33402f)] hover:bg-[#e2d7bc]'
+    on ? 'bg-[var(--adm-ink,#33402f)] !text-[#f3ecd6] font-medium' : 'bg-transparent !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-line,#e2d7bc)]'
   }`;
 
 /** Filter chips: one choice from a few (quick filters, the photo album's people, the device preview…). */
@@ -94,7 +95,7 @@ export function Chips<K extends string>({ label, items, value, onChange }: { lab
 }
 export const chipCls = (on: boolean) =>
   `flex-none py-[6px] px-3 min-h-[40px] sm:min-h-0 rounded-full border text-[13px] cursor-pointer whitespace-nowrap ${
-    on ? 'bg-[var(--adm-accent,#5d6b47)] border-[var(--adm-accent,#5d6b47)] text-[#fbf8f2]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'
+    on ? 'bg-[var(--adm-accent,#5d6b47)] border-[var(--adm-accent,#5d6b47)] text-[#fbf8f2]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-text,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]'
   }`;
 
 /**
@@ -103,8 +104,8 @@ export const chipCls = (on: boolean) =>
  */
 export function SaveBar({ onDiscard, onSave, busy, label = 'Save changes', note = 'You have changes that are not saved.' }: { onDiscard: () => void; onSave: () => void; busy?: boolean; label?: string; note?: string }) {
   return (
-    <div className="sticky bottom-[calc(12px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
-      <span className="text-[14px] text-[#5b6a52]">{note}</span>
+    <div className="sticky bottom-[calc(12px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f2)] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
+      <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">{note}</span>
       <span className="flex gap-2">
         <Pill onClick={onDiscard} disabled={busy}>
           Discard
@@ -126,10 +127,10 @@ export function Disclosure({ title, sub, defaultOpen = false, children }: { titl
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((x) => !x)}
-        className="flex items-center justify-between gap-3 py-3 px-4 min-h-[52px] rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6]"
+        className="flex items-center justify-between gap-3 py-3 px-4 min-h-[52px] rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]"
       >
         <span className="font-display text-[22px] leading-tight">{title}</span>
-        <span className="text-[13px] text-[#5b6a52] text-right">
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] text-right">
           {open ? 'Hide' : sub} <span aria-hidden>{open ? '▴' : '▾'}</span>
         </span>
       </button>
@@ -140,7 +141,7 @@ export function Disclosure({ title, sub, defaultOpen = false, children }: { titl
 
 /** While a screen's data loads: keeps the space and tells screen readers. */
 export const Loading = ({ label = 'Loading…' }: { label?: string }) => (
-  <div aria-busy="true" className="min-h-[40vh] text-[14px] text-[#5b6a52]">
+  <div aria-busy="true" className="min-h-[40vh] text-[14px] text-[var(--adm-muted,#5b6a52)]">
     <span className="sr-only">{label}</span>
   </div>
 );
@@ -162,7 +163,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
 /** Nothing here yet: a short line in the design's italic, and what to do next. */
 export function Empty({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-start gap-3 py-5 border-t border-[#e2d7bc]">
+    <div className="flex flex-col items-start gap-3 py-5 border-t border-[var(--adm-line,#e2d7bc)]">
       <p className="m-0 font-display text-[22px] italic">{children}</p>
       {action}
     </div>
@@ -186,9 +187,9 @@ export function StatusPill({ invited, attending }: { invited: boolean; attending
 }
 
 // 16px on phones: iPhones zoom the page into any smaller box you tap.
-export const inputCls = 'py-[10px] px-3 border border-[#d3c6a4] rounded-[10px] bg-[#fbf8f2] text-[16px] sm:text-[15px] text-[#33402f]';
+export const inputCls = 'py-[10px] px-3 border border-[var(--adm-line,#d3c6a4)] rounded-[10px] bg-[var(--adm-card,#fbf8f2)] text-[16px] sm:text-[15px] text-[var(--adm-text,#33402f)]';
 export const Label = ({ text, children, className = '' }: { text: ReactNode; children: ReactNode; className?: string }) => (
-  <label className={`flex flex-col gap-[5px] text-[13px] text-[#5b6a52] ${className}`}>
+  <label className={`flex flex-col gap-[5px] text-[13px] text-[var(--adm-muted,#5b6a52)] ${className}`}>
     {text}
     {children}
   </label>
@@ -217,7 +218,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastCtx.Provider value={show}>
       {children}
       {toast && (
-        <div role="status" className="fixed left-1/2 bottom-[calc(20px+env(safe-area-inset-bottom))] -translate-x-1/2 z-40 w-max max-w-[calc(100vw-32px)] py-3 px-5 rounded-[22px] bg-[#33402f] text-[#f3ecd6] text-[14px] shadow-[0_8px_24px_rgba(51,64,47,.25)] flex items-center gap-4">
+        <div role="status" className="fixed left-1/2 bottom-[calc(20px+env(safe-area-inset-bottom))] -translate-x-1/2 z-40 w-max max-w-[calc(100vw-32px)] py-3 px-5 rounded-[22px] bg-[var(--adm-text,#33402f)] text-[#f3ecd6] text-[14px] shadow-[0_8px_24px_rgba(51,64,47,.25)] flex items-center gap-4">
           {toast.text}
           {toast.action && (
             <button
@@ -262,7 +263,7 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className="relative w-[min(480px,100%)] h-full overflow-y-auto bg-[#f6f0e2] shadow-[-12px_0_40px_rgba(51,64,47,.18)] pt-[max(20px,env(safe-area-inset-top))] sm:pt-[26px] px-[18px] sm:px-[26px] pb-[calc(40px+env(safe-area-inset-bottom))] flex flex-col gap-6"
+        className="relative w-[min(480px,100%)] h-full overflow-y-auto bg-[var(--adm-card,#f6f0e2)] shadow-[-12px_0_40px_rgba(51,64,47,.18)] pt-[max(20px,env(safe-area-inset-top))] sm:pt-[26px] px-[18px] sm:px-[26px] pb-[calc(40px+env(safe-area-inset-bottom))] flex flex-col gap-6"
       >
         {children}
       </aside>

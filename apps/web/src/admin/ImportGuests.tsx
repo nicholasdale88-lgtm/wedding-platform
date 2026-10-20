@@ -64,20 +64,20 @@ export function ImportGuests({ events, onClose, onDone, focus }: { events: Event
   };
 
   return (
-    <section className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#c6b794] bg-[#fbf8f2]">
+    <section className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f2)]">
       <div className="flex justify-between items-baseline gap-3 flex-wrap">
         <h2 className="m-0 font-display font-medium text-[26px]">Import guests</h2>
-        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[#33402f]">
+        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[var(--adm-text,#33402f)]">
           Close
         </button>
       </div>
-      <p className="m-0 text-[14px] text-[#5b6a52]">
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
         One row per invitation. Columns we understand: <strong>Name</strong> (put partners in the same cell with &amp;, or in their own columns), <strong>Mobile</strong>, <strong>Seats</strong>, <strong>Group</strong> (e.g. a side or the wedding party), and a yes/no column for each event (
         {events.map((e) => e.name).join(', ')}). {focus ? '' : 'Leave the event columns out to invite everyone to everything.'}
       </p>
       {focus && (
         <div role="radiogroup" aria-label="Invite them to" className="flex gap-2 flex-wrap items-center text-[14px]">
-          <span className="text-[#5b6a52]">Rows without event columns are invited to</span>
+          <span className="text-[var(--adm-muted,#5b6a52)]">Rows without event columns are invited to</span>
           {(
             [
               [true, focus.name],
@@ -93,7 +93,7 @@ export function ImportGuests({ events, onClose, onDone, focus }: { events: Event
                 setOnlyFocus(v);
                 setCheckResult(null);
               }}
-              className={`py-[6px] px-3 rounded-full border cursor-pointer ${onlyFocus === v ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f]'}`}
+              className={`py-[6px] px-3 rounded-full border cursor-pointer ${onlyFocus === v ? 'bg-[var(--adm-text,#33402f)] text-[#f3ecd6] border-[var(--adm-text,#33402f)]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-text,#33402f)]'}`}
             >
               {label}
             </button>
@@ -101,7 +101,7 @@ export function ImportGuests({ events, onClose, onDone, focus }: { events: Event
         </div>
       )}
       <div className="flex gap-3 flex-wrap items-center">
-        <label className="py-[10px] px-[18px] rounded-full border border-[#c6b794] text-[14px] font-medium cursor-pointer hover:bg-[#efe7d3]">
+        <label className="py-[10px] px-[18px] rounded-full border border-[var(--adm-line,#c6b794)] text-[14px] font-medium cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">
           Choose an Excel or CSV file
           <input type="file" accept=".xlsx,.csv,.tsv,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void readFile(f); }} />
         </label>
@@ -133,7 +133,7 @@ export function ImportGuests({ events, onClose, onDone, focus }: { events: Event
           ))}
           <div className="flex flex-col max-h-[220px] overflow-y-auto text-[13px]">
             {rows.slice(0, 50).map((r, i) => (
-              <div key={i} className="grid grid-cols-[minmax(0,1fr)_120px_60px] gap-2 py-1 border-t border-[#ece3cc]">
+              <div key={i} className="grid grid-cols-[minmax(0,1fr)_120px_60px] gap-2 py-1 border-t border-[var(--adm-line,#ece3cc)]">
                 <span className="truncate">{r.people.join(' & ') || '—'}</span>
                 <span>{r.phone ?? ''}</span>
                 <span>{r.seats ?? r.people.length}</span>

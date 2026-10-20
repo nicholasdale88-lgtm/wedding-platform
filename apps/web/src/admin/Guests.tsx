@@ -120,7 +120,7 @@ export function Guests() {
         <div className="relative flex gap-[10px] flex-wrap">
           {/* Phones: one main action, the rest under More. */}
           {(!mob || more) && (
-            <div className={mob ? 'absolute right-0 top-[calc(100%+6px)] z-[14] flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)] min-w-[220px]' : 'contents'}>
+            <div className={mob ? 'absolute right-0 top-[calc(100%+6px)] z-[14] flex flex-col gap-2 p-3 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f2)] shadow-[0_8px_24px_rgba(51,64,47,.16)] min-w-[220px]' : 'contents'}>
               <Pill onClick={() => (setMore(false), setManual((x) => !x))}>Share invitation links yourself</Pill>
               <Pill onClick={() => (setMore(false), setImporting((x) => !x))}>Import</Pill>
               <Pill
@@ -167,7 +167,7 @@ export function Guests() {
                   else next.delete('show');
                   setParams(next, { replace: true });
                 }}
-                className={`py-2 px-4 rounded-full border text-[14px] cursor-pointer ${on ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`}
+                className={`py-2 px-4 rounded-full border text-[14px] cursor-pointer ${on ? 'bg-[var(--adm-text,#33402f)] text-[#f3ecd6] border-[var(--adm-text,#33402f)]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-text,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]'}`}
               >
                 {label}
               </button>
@@ -183,7 +183,7 @@ export function Guests() {
           onChange={(e) => set({ q: e.target.value })}
           placeholder="Search name or mobile"
           aria-label="Search name or mobile"
-          className={`${mob ? 'w-full' : 'flex-[0_1_280px] min-w-[200px]'} py-[10px] px-[14px] border border-[#d3c6a4] rounded-full bg-[#fbf8f2] text-[14px]`}
+          className={`${mob ? 'w-full' : 'flex-[0_1_280px] min-w-[200px]'} py-[10px] px-[14px] border border-[var(--adm-line,#d3c6a4)] rounded-full bg-[var(--adm-card,#fbf8f2)] text-[14px]`}
         />
         {/* Phones: the quick filters are one row that scrolls sideways. */}
         <div className={mob ? 'flex gap-[6px] overflow-x-auto [scrollbar-width:none] -mx-4 px-4 w-[calc(100%+32px)]' : 'flex gap-[6px] flex-wrap'}>
@@ -211,19 +211,19 @@ export function Guests() {
           </Pill>
         )}
         {(!mob || filtersOpen) && drops.map((d) => (
-          <label key={d.key} className="flex items-center gap-[6px] text-[12px] text-[#5b6a52]">
+          <label key={d.key} className="flex items-center gap-[6px] text-[12px] text-[var(--adm-muted,#5b6a52)]">
             {d.label}
             <select
               value={state[d.key] ?? ''}
               onChange={(e) => set({ [d.key]: e.target.value })}
-              className="py-[7px] pr-[30px] pl-3 border rounded-full bg-[#fbf8f2] text-[13px] text-[#33402f]"
+              className="py-[7px] pr-[30px] pl-3 border rounded-full bg-[var(--adm-card,#fbf8f2)] text-[13px] text-[var(--adm-text,#33402f)]"
               style={{ borderColor: state[d.key] ? '#33402f' : '#c6b794', fontWeight: state[d.key] ? 600 : 400 }}
             >
               {d.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </label>
         ))}
-        <span className="text-[13px] text-[#5b6a52] ml-auto">
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] ml-auto">
           {shown.length === guests.length ? `${guests.length} invitations` : `${shown.length} of ${guests.length} invitations`}
         </span>
         {anyFilter && (
@@ -234,26 +234,26 @@ export function Guests() {
       </div>
 
       {mob ? (
-        <div className="flex flex-col border-t-2 border-[#33402f]">
+        <div className="flex flex-col border-t-2 border-[var(--adm-text,#33402f)]">
           {shown.map((g) => (
-            <button key={g.id} onClick={() => openGuest(g.id)} className="flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[#e2d7bc] bg-transparent text-left cursor-pointer">
+            <button key={g.id} onClick={() => openGuest(g.id)} className="flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[var(--adm-line,#e2d7bc)] bg-transparent text-left cursor-pointer">
               <span className="flex justify-between gap-[10px] items-baseline w-full">
                 <strong className="font-semibold text-[15px]">{g.people[0]?.name || 'New guest'}</strong>
-                <span className="text-[12px] text-[#5b6a52] whitespace-nowrap">{seats(g)}</span>
+                <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{seats(g)}</span>
               </span>
-              {g.people.length > 1 && <span className="text-[13px] text-[#5b6a52]">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>}
+              {g.people.length > 1 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>}
               <span className="flex gap-[6px] flex-wrap items-center">
-                <span className="text-[12px] text-[#5b6a52]">{events.filter((e) => g.invited.includes(e.key)).map((e) => shortLabel(e.name)).join(' · ')}</span>
+                <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{events.filter((e) => g.invited.includes(e.key)).map((e) => shortLabel(e.name)).join(' · ')}</span>
                 {events.map((e) => <StatusPill key={e.key} invited={g.invited.includes(e.key)} attending={g.rsvp[e.key]?.attending} />)}
               </span>
             </button>
           ))}
-          {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[#5b6a52]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
+          {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
         </div>
       ) : (
-        <div className="bg-[#fbf8f2] border border-[#e2d7bc] rounded-[14px] overflow-x-auto">
+        <div className="bg-[var(--adm-card,#fbf8f2)] border border-[var(--adm-line,#e2d7bc)] rounded-[14px] overflow-x-auto">
           <div className="min-w-[1060px]" role="table" aria-label="Guests">
-            <div role="row" className="grid gap-3 py-3 px-[18px] border-b border-[#e2d7bc] text-[11px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]" style={{ gridTemplateColumns: cols }}>
+            <div role="row" className="grid gap-3 py-3 px-[18px] border-b border-[var(--adm-line,#e2d7bc)] text-[11px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]" style={{ gridTemplateColumns: cols }}>
               <span role="columnheader">Main contact</span>
               <span role="columnheader">Mobile</span>
               {events.length === 2 && <span role="columnheader">Invited to</span>}
@@ -270,13 +270,13 @@ export function Guests() {
                 tabIndex={0}
                 onClick={() => openGuest(g.id)}
                 onKeyDown={(e) => e.key === 'Enter' && openGuest(g.id)}
-                className="grid gap-3 items-center py-3 px-[18px] border-b border-[#ece3cc] cursor-pointer hover:bg-[#f3ecdc]"
+                className="grid gap-3 items-center py-3 px-[18px] border-b border-[var(--adm-line,#ece3cc)] cursor-pointer hover:bg-[var(--adm-tint,#f3ecdc)]"
                 style={{ gridTemplateColumns: cols }}
               >
                 <span className="min-w-0">
                   <span className="block font-medium">{g.people[0]?.name || 'New guest'}</span>
                   {g.people.length > 1 && (
-                    <span className="block text-[12px] text-[#5b6a52] overflow-hidden text-ellipsis whitespace-nowrap">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>
+                    <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] overflow-hidden text-ellipsis whitespace-nowrap">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>
                   )}
                 </span>
                 <span className="text-[13px] tabular-nums" style={{ color: g.phone ? '#33402f' : '#8a5a45' }}>{g.phoneDisplay || 'No mobile'}</span>
@@ -286,7 +286,7 @@ export function Guests() {
                     value={g.invited.length === 2 ? 'all' : g.invited[0] ?? ''}
                     onClick={(e) => e.stopPropagation()}
                     onChange={(e) => void setInvited(g, e.target.value === 'all' ? events.map((x) => x.key) : [e.target.value])}
-                    className="py-[5px] px-[6px] border border-[#d3c6a4] rounded-[8px] bg-[#fbf8f2] text-[13px] text-[#33402f] cursor-pointer"
+                    className="py-[5px] px-[6px] border border-[var(--adm-line,#d3c6a4)] rounded-[8px] bg-[var(--adm-card,#fbf8f2)] text-[13px] text-[var(--adm-text,#33402f)] cursor-pointer"
                   >
                     <option value="all">Both</option>
                     {events.map((e) => <option key={e.key} value={e.key}>{shortLabel(e.name)}</option>)}
@@ -298,10 +298,10 @@ export function Guests() {
                   <span key={q.key} className="text-[13px]">{g.rsvp[q.event]?.attending ? shortAnswer(g.rsvp[q.event]?.answers[q.key]) : '–'}</span>
                 ))}
                 <span className="text-[13px] overflow-hidden text-ellipsis whitespace-nowrap">{g.people.map((p) => p.diet.trim()).filter(Boolean).join('; ') || '–'}</span>
-                <span className="text-[12px] text-[#5b6a52]">{g.lastSms ? `${g.lastSms.name} · ${fmtWhen(g.lastSms.at, tz)}` : g.phone ? 'Not invited yet' : 'No mobile'}</span>
+                <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{g.lastSms ? `${g.lastSms.name} · ${fmtWhen(g.lastSms.at, tz)}` : g.phone ? 'Not invited yet' : 'No mobile'}</span>
               </div>
             ))}
-            {data && shown.length === 0 && (guests.length ? <div className="py-10 px-[18px] text-center text-[#5b6a52]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
+            {data && shown.length === 0 && (guests.length ? <div className="py-10 px-[18px] text-center text-[var(--adm-muted,#5b6a52)]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
           </div>
         </div>
       )}
@@ -331,8 +331,8 @@ function seats(g: Guest): string {
 function FirstGuests({ onAdd, onImport }: { onAdd: () => void; onImport: () => void }) {
   return (
     <div className="py-10 px-[18px] flex flex-col items-center gap-3 text-center">
-      <strong className="text-[17px] font-semibold text-[#33402f]">No guests yet</strong>
-      <span className="text-[15px] text-[#5b6a52] max-w-[420px]">Add your first household (everyone on one invitation shares a link), or bring your whole list in from a spreadsheet.</span>
+      <strong className="text-[17px] font-semibold text-[var(--adm-text,#33402f)]">No guests yet</strong>
+      <span className="text-[15px] text-[var(--adm-muted,#5b6a52)] max-w-[420px]">Add your first household (everyone on one invitation shares a link), or bring your whole list in from a spreadsheet.</span>
       <span className="flex gap-2 flex-wrap justify-center">
         <Pill kind="primary" onClick={onAdd}>
           Add your first guests

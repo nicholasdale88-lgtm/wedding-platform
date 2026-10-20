@@ -520,7 +520,19 @@ function themeVars(theme: string | undefined, slot: number): CSSProperties {
   const t: Record<string, string | undefined> = themeOf(theme);
   if (slot === 1) {
     const ink = t.bdtx ?? '#2f3d5c';
-    return { '--adm-ink': ink, '--adm-soft': t.bdbg ?? '#dde7f3', '--adm-bg': '#eef2f8', '--adm-accent': t.bdac ?? '#4a6290', '--adm-accent-deep': ink } as CSSProperties;
+    // Text, muted text, cards, tints and lines too: otherwise lists and drawers keep the wedding's sage and cream on a blue page.
+    return {
+      '--adm-ink': ink,
+      '--adm-soft': t.bdbg ?? '#dde7f3',
+      '--adm-bg': '#eef2f8',
+      '--adm-accent': t.bdac ?? '#4a6290',
+      '--adm-accent-deep': ink,
+      '--adm-text': ink,
+      '--adm-muted': '#56657f',
+      '--adm-card': '#f8fafd',
+      '--adm-tint': '#e3eaf4',
+      '--adm-line': '#c8d4e5',
+    } as CSSProperties;
   }
   // Buttons keep the admin's sage in the first event and Account (the theme's own accents are too light for white text).
   return { '--adm-ink': t.dg ?? '#33402f', '--adm-soft': t.b2 ?? '#cfd8bb', '--adm-bg': t.iv ?? '#f6f0e2', '--adm-accent': '#5d6b47', '--adm-accent-deep': '#46543a' } as CSSProperties;

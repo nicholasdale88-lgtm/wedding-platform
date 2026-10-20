@@ -209,22 +209,22 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
   return (
     <Drawer onClose={close} label={`Guest: ${g.people[0]?.name || 'New guest'}`}>
       {/* The name and Close stay in view while you scroll the guest's details. */}
-      <div className="sticky top-0 z-[2] -mx-[18px] sm:-mx-[26px] -mt-3 px-[18px] sm:px-[26px] pt-3 pb-3 bg-[#f6f0e2] border-b border-[#e2d7bc] flex justify-between items-start gap-3">
+      <div className="sticky top-0 z-[2] -mx-[18px] sm:-mx-[26px] -mt-3 px-[18px] sm:px-[26px] pt-3 pb-3 bg-[var(--adm-card,#f6f0e2)] border-b border-[var(--adm-line,#e2d7bc)] flex justify-between items-start gap-3">
         <div className="min-w-0">
           <button type="button" onClick={close} className="sm:hidden -ml-1 mb-1 py-1 px-1 min-h-[36px] border-0 bg-transparent text-[14px] text-[var(--adm-ink,#33402f)] cursor-pointer">
             ← Guests
           </button>
           <Eyebrow className="hidden sm:block">Guest</Eyebrow>
           <h2 className="mt-1 mb-0 font-display font-medium text-[clamp(26px,7vw,32px)] leading-[1.1] truncate">{g.people[0]?.name || 'New guest'}</h2>
-          <div className="mt-1 text-[13px] text-[#5b6a52]">{g.repliedAt ? `Replied ${fmtWhen(g.repliedAt, tz)} · ${VIA[lastVia] ?? lastVia}` : 'No reply yet'}</div>
+          <div className="mt-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">{g.repliedAt ? `Replied ${fmtWhen(g.repliedAt, tz)} · ${VIA[lastVia] ?? lastVia}` : 'No reply yet'}</div>
         </div>
-        <button onClick={close} aria-label="Close" className="flex-none w-10 h-10 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[20px] leading-none cursor-pointer">×</button>
+        <button onClick={close} aria-label="Close" className="flex-none w-10 h-10 rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f2)] text-[20px] leading-none cursor-pointer">×</button>
       </div>
 
       <section className="flex flex-col gap-3">
         <div className="flex justify-between items-baseline gap-[10px]">
           <Eyebrow>People on this invitation</Eyebrow>
-          <span className="text-[13px] text-[#5b6a52]">{peopleNames.length} {peopleNames.length === 1 ? 'person' : 'people'}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{peopleNames.length} {peopleNames.length === 1 ? 'person' : 'people'}</span>
         </div>
         <Label text="Main contact · gets the texts">
           <input value={names[0] ?? ''} onChange={(e) => setNames([e.target.value, ...names.slice(1)])} onBlur={() => names[0] !== g.people[0]?.name && savePeople(names)} className={inputCls} />
@@ -239,13 +239,13 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
               onBlur={() => n !== g.people[i + 1]?.name && savePeople(names)}
               className={`flex-1 min-w-0 ${inputCls}`}
             />
-            <button onClick={() => savePeople(names.filter((_, j) => j !== i + 1))} aria-label="Remove person" className="w-[38px] h-[38px] flex-none rounded-full border border-[#c6b794] bg-transparent text-[16px] cursor-pointer hover:bg-[#efe7d3]">×</button>
+            <button onClick={() => savePeople(names.filter((_, j) => j !== i + 1))} aria-label="Remove person" className="w-[38px] h-[38px] flex-none rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[16px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">×</button>
           </div>
         ))}
         <Pill kind="dashed" className="self-start" onClick={() => setNames([...names, ''])}>+ Add person</Pill>
         {/* The wedding party: a role here puts them in it (and Wedding party → add puts new people here). */}
         {g.people.some((p) => p.name.trim()) && (
-          <details className="rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]" open={g.people.some((p) => p.role)}>
+          <details className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]" open={g.people.some((p) => p.role)}>
             <summary className="cursor-pointer py-2 px-3 text-[14px] font-medium">
               Wedding party{g.people.some((p) => p.role) ? `: ${g.people.filter((p) => p.role).map((p) => `${p.name.split(' ')[0]} (${p.role})`).join(', ')}` : ''}
             </summary>
@@ -313,11 +313,11 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
         {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any texts.</div>}
         {g.optOut && <div className="text-[13px] text-[#8a5a45]">Opted out of texts (replied STOP).</div>}
         <div className="flex gap-2 items-center flex-wrap">
-          <span className="text-[13px] text-[#5b6a52]">Invited to</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Invited to</span>
           {invOptions.map(([k, label, next]) => {
             const on = invitedKey !== null ? invitedKey === k : g.invited.includes(k);
             return (
-              <button key={k} aria-pressed={on} onClick={() => void patch({ invited: next })} className="py-[6px] px-[13px] rounded-full border border-[#c6b794] text-[13px] cursor-pointer" style={{ background: on ? '#5d6b47' : 'transparent', color: on ? '#fbf8f2' : '#33402f' }}>
+              <button key={k} aria-pressed={on} onClick={() => void patch({ invited: next })} className="py-[6px] px-[13px] rounded-full border border-[var(--adm-line,#c6b794)] text-[13px] cursor-pointer" style={{ background: on ? '#5d6b47' : 'transparent', color: on ? '#fbf8f2' : '#33402f' }}>
                 {label}
               </button>
             );
@@ -325,16 +325,16 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
         </div>
       </section>
 
-      <section className="flex flex-col gap-[14px] pt-5 border-t border-[#e2d7bc]">
+      <section className="flex flex-col gap-[14px] pt-5 border-t border-[var(--adm-line,#e2d7bc)]">
         <Eyebrow>RSVP</Eyebrow>
         {invitedEvents.map((e) => (
           <div key={e.key} className="flex flex-col gap-[6px]" role="group" aria-label={e.name}>
-            <span className="text-[13px] text-[#5b6a52]">{e.name} · {dayOf(e.startsAt)}</span>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{e.name} · {dayOf(e.startsAt)}</span>
             <div className="flex gap-[6px]">
               {SEG.map(([val, label, bg, fg]) => {
                 const on = (g.rsvp[e.key]?.attending ?? null) === val;
                 return (
-                  <button key={label} aria-pressed={on} onClick={() => void rsvp({ events: { [e.key]: { attending: val } } })} className="flex-1 py-[9px] px-[10px] rounded-[10px] border border-[#c6b794] text-[14px] cursor-pointer" style={{ background: on ? bg : '#fbf8f2', color: on ? fg : '#33402f' }}>
+                  <button key={label} aria-pressed={on} onClick={() => void rsvp({ events: { [e.key]: { attending: val } } })} className="flex-1 py-[9px] px-[10px] rounded-[10px] border border-[var(--adm-line,#c6b794)] text-[14px] cursor-pointer" style={{ background: on ? bg : '#fbf8f2', color: on ? fg : '#33402f' }}>
                     {label}
                   </button>
                 );
@@ -362,7 +362,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
           )}
         </div>
         <div className="flex justify-between items-center gap-3 pt-1">
-          <span className="text-[12px] text-[#5b6a52]">{override ? 'Manual override is on: you can change what the guest told you.' : 'What the guest told you (locked so it can’t be changed by accident).'}</span>
+          <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{override ? 'Manual override is on: you can change what the guest told you.' : 'What the guest told you (locked so it can’t be changed by accident).'}</span>
           <label className="flex items-center gap-2 text-[13px] cursor-pointer flex-none">
             <input type="checkbox" role="switch" checked={override} onChange={(e) => toggleOverride(e.target.checked)} className="w-[18px] h-[18px] accent-[#a5533c]" />
             Manual override
@@ -372,7 +372,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
           {override ? (
             <textarea rows={2} value={diet} onChange={(e) => setDiet(e.target.value)} onBlur={() => diet !== joinDiet(g.people) && void rsvp({ events: {}, diet })} className={`${inputCls} resize-y !border-[#c98a70]`} />
           ) : (
-            <div aria-readonly="true" className="min-h-[44px] py-[10px] px-3 rounded-[10px] border border-dashed border-[#d3c6a4] bg-[#f6f0e2] text-[15px] whitespace-pre-wrap">
+            <div aria-readonly="true" className="min-h-[44px] py-[10px] px-3 rounded-[10px] border border-dashed border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#f6f0e2)] text-[15px] whitespace-pre-wrap">
               {diet.trim() || <span className="text-[#7a7466]">None</span>}
             </div>
           )}
@@ -381,27 +381,27 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
           {override ? (
             <textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} onBlur={() => message !== (Object.values(g.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '') && void rsvp({ events: {}, message })} className={`${inputCls} resize-y !border-[#c98a70]`} />
           ) : (
-            <div aria-readonly="true" className="min-h-[44px] py-[10px] px-3 rounded-[10px] border border-dashed border-[#d3c6a4] bg-[#f6f0e2] text-[15px] italic whitespace-pre-wrap">
+            <div aria-readonly="true" className="min-h-[44px] py-[10px] px-3 rounded-[10px] border border-dashed border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#f6f0e2)] text-[15px] italic whitespace-pre-wrap">
               {message.trim() ? `“${message.trim()}”` : <span className="not-italic text-[#7a7466]">No message</span>}
             </div>
           )}
         </Label>
       </section>
 
-      <section className="flex flex-col gap-[10px] pt-5 border-t border-[#e2d7bc]">
+      <section className="flex flex-col gap-[10px] pt-5 border-t border-[var(--adm-line,#e2d7bc)]">
         <Eyebrow>Personal link</Eyebrow>
         <div className="flex gap-2 items-center">
-          <code className="flex-1 min-w-0 py-[9px] px-3 rounded-[10px] bg-[#fbf8f2] border border-[#e2d7bc] text-[12px] overflow-hidden text-ellipsis whitespace-nowrap">{d.link}</code>
+          <code className="flex-1 min-w-0 py-[9px] px-3 rounded-[10px] bg-[var(--adm-card,#fbf8f2)] border border-[var(--adm-line,#e2d7bc)] text-[12px] overflow-hidden text-ellipsis whitespace-nowrap">{d.link}</code>
           <Pill className="!py-[9px] !px-[14px] !text-[13px] !font-normal" onClick={copy}>Copy</Pill>
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <span className="text-[13px] text-[#5b6a52]">Send it by</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Send it by</span>
           <Pill className="!py-[7px] !px-[14px] !text-[13px] !font-normal" onClick={() => void whatsapp()}>WhatsApp</Pill>
           <Pill className="!py-[7px] !px-[14px] !text-[13px] !font-normal" onClick={() => void messenger()}>Messenger</Pill>
           {canShareNative() && <Pill className="!py-[7px] !px-[14px] !text-[13px] !font-normal" onClick={() => void share()}>Share…</Pill>}
         </div>
         <div className="flex gap-2 flex-wrap items-center">
-          <span className="text-[13px] text-[#5b6a52]">Preview as this guest</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Preview as this guest</span>
           <a href={previewUrl(d.link)} target="_blank" rel="noopener" className={previewCls}>
             Invitation
           </a>
@@ -416,17 +416,17 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
         </div>
       </section>
 
-      <section className="flex flex-col gap-[10px] pt-5 border-t border-[#e2d7bc]">
+      <section className="flex flex-col gap-[10px] pt-5 border-t border-[var(--adm-line,#e2d7bc)]">
         <Eyebrow>Text messages</Eyebrow>
         {d.sms.map((m, i) => (
-          <div key={i} className="flex justify-between gap-[10px] text-[13px] py-[7px] border-b border-[#ece3cc]">
+          <div key={i} className="flex justify-between gap-[10px] text-[13px] py-[7px] border-b border-[var(--adm-line,#ece3cc)]">
             <span>{m.name}</span>
-            <span className="text-[#5b6a52]">{fmtWhen(m.at, tz)} · {m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>
+            <span className="text-[var(--adm-muted,#5b6a52)]">{fmtWhen(m.at, tz)} · {m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>
           </div>
         ))}
-        {d.sms.length === 0 && <div className="text-[13px] text-[#5b6a52]">Nothing sent yet.</div>}
+        {d.sms.length === 0 && <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Nothing sent yet.</div>}
         <div className="flex gap-2">
-          <select aria-label="Message to send" value={pick} onChange={(e) => setPick(e.target.value)} className="flex-1 min-w-0 py-[9px] px-3 border border-[#d3c6a4] rounded-[10px] bg-[#fbf8f2] text-[14px]">
+          <select aria-label="Message to send" value={pick} onChange={(e) => setPick(e.target.value)} className="flex-1 min-w-0 py-[9px] px-3 border border-[var(--adm-line,#d3c6a4)] rounded-[10px] bg-[var(--adm-card,#fbf8f2)] text-[14px]">
             {d.campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
           <Pill kind="primary" className="!py-[9px] !px-4 !text-[13px]" disabled={busy} onClick={sendNow}>Send now</Pill>
@@ -438,7 +438,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
   );
 }
 
-const previewCls = 'py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]';
+const previewCls = 'py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] text-[13px] no-underline !text-[var(--adm-text,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]';
 
 /**
  * One of the guest's own pages (invitation, a night-before guide, photos), opened in preview mode:
