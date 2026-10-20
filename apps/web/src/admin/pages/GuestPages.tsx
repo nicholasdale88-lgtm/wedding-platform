@@ -11,6 +11,7 @@ import { Events } from '../events/Events';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
 import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
+import { checkMusic } from '../../guest/audio';
 
 /**
  * Admin → Setup (Account: the shared invitation and photo page; an event: its details, timeline and night-before page and text). Pick a page (the invitation, each
@@ -314,6 +315,32 @@ export function GuestPages() {
 
 // ---------------------------------------------------------------- invitation
 
+/** Whether the music link will actually play for guests (a YouTube video's owner can stop it playing on other sites). */
+function MusicCheck({ src }: { src: string }) {
+  const [state, setState] = useState<'checking' | 'ok' | 'blocked' | 'missing' | 'unreadable'>('checking');
+  useEffect(() => {
+    let live = true;
+    setState('checking');
+    const t = setTimeout(() => void checkMusic(src).then((r) => live && setState(r)), 700);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [src]);
+  const say = {
+    checking: ['Checking the music plays…', 'text-[#5b6a52]'],
+    ok: ['✓ The music plays: guests hear it when they open the envelope (and the ♪ button turns it off).', 'text-[#3d4a2f] font-semibold'],
+    blocked: ['This song can’t play on your invitation: its owner doesn’t allow it on other websites (or it’s been taken down). Try another upload of the same song (search YouTube for the song’s name with “audio” or “lyrics”), or use a link to an MP3.', 'text-[#7a4a37]'],
+    missing: ['That YouTube video doesn’t exist or is private. Check the link.', 'text-[#7a4a37]'],
+    unreadable: ['That link doesn’t play. Use a YouTube link, or a link to an MP3 file.', 'text-[#7a4a37]'],
+  }[state];
+  return (
+    <p role="status" className={`m-0 mt-2 text-[14px] ${say[1]}`}>
+      {say[0]}
+    </p>
+  );
+}
+
 const INV_FIELDS: { key: keyof InvitationContent & string; label: string; ph?: string; hint?: string; type?: 'date' }[] = [
   { key: 'initials', label: 'Initials on the seal and sign-off', ph: 'A & B' },
   { key: 'rsvpBy', label: 'Reply-by line', ph: 'Kindly reply by 1 August' },
@@ -323,7 +350,7 @@ const INV_FIELDS: { key: keyof InvitationContent & string; label: string; ph?: s
   { key: 'registryUrl', label: 'Registry link', ph: 'https://…' },
   { key: 'giftAccountLabel', label: 'Gift account name', ph: 'Wishing well' },
   { key: 'giftAccount', label: 'Gift account details', ph: 'BSB 000-000, Account 0000 0000' },
-  { key: 'audioUrl', label: 'Music link (MP3 or YouTube)', ph: 'https://…', hint: 'Plays once when the guest opens the envelope.' },
+  { key: 'audioUrl', label: 'Music link (MP3 or YouTube)', ph: 'https://…', hint: 'Plays once when the guest opens the envelope. A YouTube link or an MP3 link: it’s checked below.' },
   { key: 'rideTime', label: 'Activity time (if your second event has one)', ph: '10:00am' },
 ];
 
@@ -413,6 +440,7 @@ function InvitationEditor({
             <TextField key={f.key} label={f.label} value={String(inv[f.key] ?? '')} placeholder={f.ph} hint={f.hint} type={f.type} onChange={(v) => setInv({ [f.key]: v })} />
           ))}
         </Grid>
+        {inv.audioUrl?.trim() ? <MusicCheck src={inv.audioUrl.trim()} /> : null}
       </Section>
       <Section n={n()} title="Sections" hint="Switch off any part of the invitation you don't need. Guests won't see it; your wording is kept if you switch it back on.">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
