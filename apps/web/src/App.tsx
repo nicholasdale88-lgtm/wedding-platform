@@ -40,6 +40,11 @@ const AlbumPage = lazy(() => fresh(import('./guest/album/AlbumPage')).then((m) =
 const QuotePage = lazy(() => fresh(import('./guest/quote/QuotePage')).then((m) => ({ default: m.QuotePage })));
 const SalesPage = lazy(() => fresh(import('./sales/SalesPage')).then((m) => ({ default: m.SalesPage })));
 const VendorPage = lazy(() => fresh(import('./guest/vendor/VendorPage')).then((m) => ({ default: m.VendorPage })));
+// The vendor directory (public): browse, a vendor's page, joining, and a vendor's own listing.
+const DirectoryPage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.DirectoryPage })));
+const ListingPage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.ListingPage })));
+const VendorJoinPage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.VendorJoinPage })));
+const VendorHomePage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.VendorHomePage })));
 
 function Pages() {
   return (
@@ -64,6 +69,10 @@ function Pages() {
         <Route path="/w/:slug/quote" element={<QuotePage />} />
         <Route path="/w/:slug/vendor" element={<VendorPage />} />
         <Route path="/" element={<SalesPage />} />
+        <Route path="/vendors" element={<DirectoryPage />} />
+        <Route path="/vendors/join" element={<VendorJoinPage />} />
+        <Route path="/vendors/me" element={<VendorHomePage />} />
+        <Route path="/vendors/:slug" element={<ListingPage />} />
         {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
         <Route path="*" element={<GuestNotFound />} />
       </Routes>

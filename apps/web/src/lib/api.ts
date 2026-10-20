@@ -1,4 +1,4 @@
-import type { DayChecklist, GuideContent, InvitationContent, PartyRunsheet, PartySetup, PlannerKind, Side, TableShape, TaskTotals } from '@wp/shared';
+import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, Side, TableShape, TaskTotals } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -454,6 +454,25 @@ export const backupsApi = {
   auto: (wid: string, on: boolean) => send<{ ok: true; auto: boolean }>('PUT', `${w(wid)}/settings/backups/auto`, { on }),
 };
 
+/** A vendor who's signed up to the directory, near the venue. */
+export type ListedHit = ListingCard & { id: string; km: number; phone: string; website: string };
+
+/** The vendor directory: vendors who've signed up (public), and a vendor's own listing (signed in). */
+export interface MyListing {
+  listing: Listing & { email: string; hidden: boolean };
+  enquiries: { id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: boolean; at: string }[];
+}
+export const directoryApi = {
+  browse: (p: { category?: string; region?: string; q?: string }) =>
+    request<{ results: ListingCard[] }>(`/directory?${new URLSearchParams(Object.entries(p).filter(([, v]) => !!v) as [string, string][]).toString()}`),
+  listing: (slug: string) => request<Listing>(`/directory/v/${encodeURIComponent(slug)}`),
+  enquire: (slug: string, e: Enquiry) => send<{ ok: true }>('POST', `/directory/v/${encodeURIComponent(slug)}/enquire`, e),
+  join: (f: ListingFields & { email: string; passcode: string; company: string }) => send<{ slug: string }>('POST', '/directory/join', f),
+  mine: () => request<MyListing>('/a/vendor'),
+  save: (f: ListingFields) => send<{ ok: true; slug: string }>('PUT', '/a/vendor', f),
+  read: (id: string) => send<{ ok: true }>('POST', `/a/vendor/enquiries/${encodeURIComponent(id)}/read`),
+};
+
 export interface VendorHit {
   /** Its id in the shared vendor directory. */
   id?: string;
@@ -516,8 +535,11 @@ export const plannerApi = {
   doc: <T>(wid: string, kind: PlannerKind) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),
   /** A vendor's own page (the details they need, always up to date). */
   vendorHub: (wid: string, vendorId: string) => request<{ url: string }>(`${w(wid)}/planner/vendors/${encodeURIComponent(vendorId)}/hub`),
-  searchVendors: (wid: string, category: string, km: number) =>
-    request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; results: VendorHit[]; price?: { low: number; typical: number; high: number; weddings: number } | null }>(`${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}`),
+  /** Vendors near the venue: those listed in the directory first, then (with `map`) places from the map. */
+  searchVendors: (wid: string, category: string, km: number, map = false) =>
+    request<{ venue: { event: string; lat: number; lon: number }; km: number; category: string; listed?: ListedHit[]; results: VendorHit[]; price?: { low: number; typical: number; high: number; weddings: number } | null }>(
+      `${w(wid)}/planner/vendors/search?category=${encodeURIComponent(category)}&km=${km}&map=${map ? 1 : 0}`,
+    ),
 };
 
 /** The shared album (guests see everyone's photos from their events, once switched on). */

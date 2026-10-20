@@ -79,6 +79,9 @@ export function SalesPage() {
           <a href="#pricing" className="no-underline hidden sm:inline" style={{ color: INK }}>
             Pricing
           </a>
+          <Link to="/vendors" className="no-underline hidden sm:inline" style={{ color: INK }}>
+            Vendor directory
+          </Link>
           <Link to="/admin" className="no-underline" style={{ color: INK }}>
             Sign in
           </Link>
@@ -208,6 +211,12 @@ export function SalesPage() {
         </span>
         <Link to="/admin" style={{ color: SOFT }}>
           Sign in
+        </Link>
+        <Link to="/vendors" style={{ color: SOFT }}>
+          Vendor directory
+        </Link>
+        <Link to="/vendors/join" style={{ color: SOFT }}>
+          Wedding vendor? List your business free
         </Link>
       </footer>
     </div>

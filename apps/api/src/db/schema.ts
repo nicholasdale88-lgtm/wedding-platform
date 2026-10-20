@@ -551,3 +551,38 @@ export const seatVersion = sqliteTable('seat_version', {
   createdAt: text('created_at').notNull(),
   createdBy: text('created_by'),
 });
+
+// migration 0028: vendors' own listings in the directory, and couples' enquiries to them
+export const vendorListing = sqliteTable('vendor_listing', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  slug: text('slug').notNull(),
+  name: text('name').notNull(),
+  category: text('category').notNull(),
+  region: text('region').notNull(),
+  regions: text('regions').notNull(),
+  contactName: text('contact_name').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone').notNull(),
+  website: text('website').notNull(),
+  instagram: text('instagram').notNull(),
+  about: text('about').notNull(),
+  priceFrom: integer('price_from').notNull(),
+  photos: text('photos').notNull(),
+  hidden: integer('hidden').notNull(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const vendorEnquiry = sqliteTable('vendor_enquiry', {
+  id: text('id').primaryKey(),
+  listingId: text('listing_id').notNull(),
+  name: text('name').notNull(),
+  email: text('email').notNull(),
+  phone: text('phone').notNull(),
+  date: text('date').notNull(),
+  guests: integer('guests').notNull(),
+  message: text('message').notNull(),
+  read: integer('read').notNull(),
+  createdAt: text('created_at').notNull(),
+});

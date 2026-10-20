@@ -29,7 +29,7 @@ const Signup = z
   })
   .strict();
 
-const slugPart = (s: string) =>
+export const slugPart = (s: string) =>
   s
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')

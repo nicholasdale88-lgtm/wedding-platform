@@ -9,6 +9,7 @@ import { portalWho } from './partyPortal';
 import { partyCalKey } from './partyCalendar';
 import { vendorHubKey } from './vendorHub';
 import { recordUse, searchDirectory } from '../lib/directory';
+import { listedNear } from './vendorListings';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -265,10 +266,20 @@ export function plannerRoutes() {
     }
     const lat0 = g.lat;
     const lon0 = g.lon;
-    // The shared directory for this area: filled from OpenStreetMap the first time, then kept (and grown by couples).
-    const found = await searchDirectory(db, asked, lat0, lon0, km, wid(c));
-    if (found.offline) return err(c, 502, 'unavailable', 'The map search is busy. Please try again in a minute.');
-    return c.json({ venue: { event: ev.name, lat: lat0, lon: lon0 }, km, category: cat.label, results: found.results, price: found.price });
+    // Vendors who've signed up to the directory and work in this area come first. Places from the map
+    // (OpenStreetMap: patchy for wedding vendors) are extra leads, left out with map=0.
+    const listed = await listedNear(db, asked, lat0, lon0, km);
+    const withMap = c.req.query('map') !== '0';
+    const found: Awaited<ReturnType<typeof searchDirectory>> = withMap ? await searchDirectory(db, asked, lat0, lon0, km, wid(c)) : { results: [], price: null, offline: false };
+    if (found.offline && !listed.length) return err(c, 502, 'unavailable', 'The map search is busy. Please try again in a minute.');
+    return c.json({
+      venue: { event: ev.name, lat: lat0, lon: lon0 },
+      km,
+      category: cat.label,
+      listed,
+      results: found.results.filter((r) => !r.id.startsWith('v:')),
+      price: found.price,
+    });
   });
 
   /**

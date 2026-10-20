@@ -33,6 +33,7 @@ import { coordinatorAdminRoutes, coordinatorPageRoutes } from './routes/coordina
 import { plannerCalendarAdminRoutes, plannerCalendarFeed } from './routes/plannerCalendar';
 import { paymentReminderRoutes, runPaymentReminders } from './routes/paymentReminders';
 import { myTaskRoutes } from './routes/myTasks';
+import { directoryRoutes, vendorAccountRoutes } from './routes/vendorListings';
 import { manifestRoutes } from './routes/manifest';
 import { partyAccountRoutes, partyPortalRoutes } from './routes/partyPortal';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
@@ -45,6 +46,9 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.use('*', hardening());
   app.get('/health', (c) => c.json({ ok: true }));
   app.route('/hooks', hookRoutes(deps));
+  // The vendor directory (public) and a vendor's own listing: before the admin's /a routes.
+  app.route('/directory', directoryRoutes());
+  app.route('/a/vendor', vendorAccountRoutes());
   app.route('/a/signup', signupRoutes());
   app.route('/a', planRoutes());
   app.route('/a', authRoutes());
