@@ -312,12 +312,13 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   const sectionName = o?.events.find((e) => e.key === event)?.name ?? 'Account';
 
   if (mob) {
-    // Phones: your names and the section you're in scroll away; the page strip stays at the top; the
-    // things you reach for most (Home, Guests, Messages, Planner, More) sit in a bar at the bottom.
+    // Phones: a slim row with your names and the section you're in; the things you reach for most (Home,
+    // Guests, Messages, Planner) sit in a bar at the bottom, and More has the section's other pages.
     return (
       <div style={looks(o, event)} className="adm min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300">
         <LeaveGuard />
-        <header className="bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] px-4 pt-[max(12px,env(safe-area-inset-top))] pb-1 flex items-center justify-between gap-3">
+        {/* One slim row at the top (the bottom bar and More do the navigating, so nothing is shown twice). */}
+        <header className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
           <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate">{name}</div>
           <button
             type="button"
@@ -329,9 +330,6 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
             <span aria-hidden>▾</span>
           </button>
         </header>
-        <div className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] px-[14px] pt-1 pb-2 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
-          <SideNav mob />
-        </div>
         <main className="min-w-0 pt-5 px-4 pb-[calc(88px+env(safe-area-inset-bottom))]">{children}</main>
         <BottomBar onMore={() => setMore(true)} moreOpen={more} />
         {more && <MoreSheet onClose={() => setMore(false)} onSignOut={signOut} />}
@@ -435,7 +433,7 @@ function BottomBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean
 /** Phones: More. Every section as a big button, then Settings, the admin's look and Sign out. */
 function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
   const { path, overview: o } = useAdmin();
-  const { groups, current, open } = useSections();
+  const { groups, current, open, tab } = useSections();
   const go = useNavigate();
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -447,18 +445,19 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       document.body.style.overflow = prev;
     };
   }, [onClose]);
-  const link = (label: string, to: string) => (
+  const link = (label: string, to: string, on = false) => (
     <button
       key={label}
       type="button"
+      aria-current={on ? 'page' : undefined}
       onClick={() => {
         onClose();
         go(to);
       }}
-      className="w-full flex items-center justify-between py-3 px-1 min-h-[48px] border-0 border-t border-[#ece3cc] bg-transparent text-left text-[16px] cursor-pointer text-[var(--adm-ink,#33402f)]"
+      className={`w-full flex items-center justify-between py-3 px-1 min-h-[48px] border-0 border-t border-[#ece3cc] bg-transparent text-left text-[16px] cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'font-semibold' : ''}`}
     >
       {label}
-      <span aria-hidden className="text-[#8a9670]">›</span>
+      <span aria-hidden className="text-[#8a9670]">{on ? '●' : '›'}</span>
     </button>
   );
   return (
@@ -466,6 +465,10 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.35)]" />
       <div role="dialog" aria-modal="true" aria-label="More" className="relative max-h-[85vh] overflow-y-auto rounded-t-[22px] bg-[#f6f0e2] px-5 pt-3 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-4">
         <span aria-hidden className="self-center w-10 h-[5px] rounded-full bg-[#d3c6a4]" />
+        <div className="flex flex-col">
+          <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52] mb-1">{current.name}</span>
+          {current.tabs.map((t) => link(t.label, path(t.key), navKey(tab) === t.key))}
+        </div>
         <div className="flex flex-col gap-2">
           <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52]">Sections</span>
           {groups.map((g) => {
@@ -489,7 +492,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
           })}
         </div>
         <div className="flex flex-col">
-          {link('Settings', path('settings', ALL_EVENTS))}
+          {current.key !== ALL_EVENTS && link('Settings', path('settings', ALL_EVENTS))}
           {link('Admin look and name', `${path('settings', ALL_EVENTS)}?view=look`)}
         </div>
         <Pill onClick={onSignOut} className="self-stretch">
