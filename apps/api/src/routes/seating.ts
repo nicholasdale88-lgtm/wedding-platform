@@ -66,7 +66,7 @@ export function seatingRoutes() {
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
       db.prepare(
         `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, (SELECT s.table_id FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS tableId,
-                i.party,
+                i.party, p.party_role AS role,
                 ie.event_id IS NOT NULL AS invited, r.attending
            FROM person p JOIN invitation i ON i.id = p.invitation_id
            LEFT JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
@@ -114,9 +114,9 @@ export function seatingRoutes() {
         planImg: '', // plan photos arrive with uploads (R2)
         tables: tables!.results as { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number }[],
         areas: areas!.results,
-        people: (people!.results as { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; invited: number; attending: number | null }[])
+        people: (people!.results as { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; role: string; invited: number; attending: number | null }[])
           .filter((x) => x.invited && x.attending !== 0)
-          .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: x.attending === 1 && x.tableId && tableIds.has(x.tableId) ? x.tableId : null, coming: x.attending === 1 })),
+          .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: x.attending === 1 && x.tableId && tableIds.has(x.tableId) ? x.tableId : null, coming: x.attending === 1 })),
       },
     };
   }

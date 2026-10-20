@@ -682,6 +682,32 @@ describe('seating tab', () => {
     expect(screen.queryByRole('button', { name: 'Jo Banks' })).toBeNull(); // can't be seated until she says yes
   });
 
+  it('preset rules are on, can be turned off (saved), and auto-seat keeps people kept apart at different tables', async () => {
+    let saved: unknown = null;
+    const T2 = '22222222-2222-4222-8222-222222222222';
+    const two = { ...seating, tables: [...seating.tables, { ...seating.tables[0]!, id: T2, name: '2', x: 60 }], people: seating.people.map((p) => ({ ...p, tableId: null, coming: true, invitationId: p.id })) };
+    mockApi({
+      '/api/a/w/w1/seating': () => json(200, two),
+      '/api/a/w/w1/planner/doc/seat-rules/wedding': (init) => {
+        if (init?.method === 'PUT') {
+          saved = JSON.parse(String(init.body));
+          return json(200, { data: saved, version: 2 });
+        }
+        return json(200, { data: { pairs: [{ a: 'p1', b: 'p2', kind: 'apart' }] }, version: 1 });
+      },
+    });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: /^The rules \(4 on, 1 of your own\)/ }));
+    const invite = screen.getByRole('checkbox', { name: /People invited together sit together/ });
+    expect(invite).toBeChecked();
+    await waitFor(() => expect(invite).toBeEnabled());
+    await userEvent.click(screen.getByRole('checkbox', { name: /Wedding party at the head table/ }));
+    await waitFor(() => expect(saved).toMatchObject({ presets: { invite: true, head: false }, pairs: [{ a: 'p1', b: 'p2', kind: 'apart' }] }));
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-seat the rest' }));
+    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByText('All good ✓')).toBeInTheDocument(); // Robin and Sam ended up apart
+  });
+
   it('unsaved seating: leaving asks first, and staying keeps the changes', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
     const ask = vi.spyOn(window, 'confirm').mockReturnValue(false);

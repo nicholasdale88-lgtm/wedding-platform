@@ -1,4 +1,4 @@
-import { clampTable, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STRETCHES, TABLE_SHAPES, tableBox, type TableShape } from '@wp/shared';
+import { autoSeat as autoSeatPlan, clampTable, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STRETCHES, TABLE_SHAPES, tableBox, type TableShape } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData } from '../../lib/api';
@@ -9,7 +9,7 @@ import { useUnsavedChanges } from '../leave';
 import { ALL_EVENTS, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
-import { SeatChecks } from './SeatChecks';
+import { SeatChecks, useSeatRules } from './SeatChecks';
 import { Gate } from '../Upgrade';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 
@@ -112,6 +112,7 @@ function SeatingPlan() {
     }
     return m;
   }, [s, seats]);
+  const seatRules = useSeatRules(s?.event.key);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!s) return <div aria-busy="true" className="text-[#5b6a52]">Loading the floor plan…</div>;
@@ -265,45 +266,21 @@ function SeatingPlan() {
   };
 
   /**
-   * Seat everyone who said yes and has no seat yet: each invitation stays together, and each group
-   * (e.g. "Alex's side") goes to tables that group already uses before starting new ones.
+   * Seat everyone who said yes and has no seat yet, following the rules (Rules and checks): invitations
+   * and "with" pairs at one table, nobody beside someone they're kept apart from, the wedding party at
+   * the head table, groups at the tables they already use.
    */
   const autoSeat = () => {
-    const free = new Map(tables.map((t) => [t.id, t.seats - (byTable.get(t.id)?.length ?? 0)]));
-    const tableParties = new Map(tables.map((t) => [t.id, new Set((byTable.get(t.id) ?? []).map((p) => p.party).filter(Boolean))]));
-    const invites = new Map<string, { party: string; ids: string[] }>();
-    for (const p of s.people) {
-      if (!p.coming || seats[p.id]) continue;
-      const g = invites.get(p.invitationId) ?? { party: p.party, ids: [] };
-      g.ids.push(p.id);
-      invites.set(p.invitationId, g);
-    }
-    const ordered = [...invites.values()].sort((a, b) => a.party.localeCompare(b.party));
-    const next = { ...seats };
-    let n = 0;
-    let left = 0;
-    for (const { party, ids } of ordered) {
-      const fits = (t: SeatTable) => (free.get(t.id) ?? 0) >= ids.length;
-      // Prefer a table where this group already sits, then an empty one, then anywhere it fits.
-      const whole =
-        (party && tables.find((t) => fits(t) && tableParties.get(t.id)!.has(party))) ||
-        tables.find((t) => fits(t) && tableParties.get(t.id)!.size === 0 && (free.get(t.id) ?? 0) === t.seats) ||
-        tables.find(fits);
-      if (whole && party) tableParties.get(whole.id)!.add(party);
-      for (const id of ids) {
-        const t = whole ?? tables.find((x) => (free.get(x.id) ?? 0) > 0);
-        if (!t) {
-          left++;
-          continue;
-        }
-        next[id] = t.id;
-        free.set(t.id, free.get(t.id)! - 1);
-        n++;
-      }
-    }
-    commit((d) => ({ ...d, seats: next }));
-    const extra = Math.ceil(left / DEFAULT_SEATS[shape]);
-    toast(left ? `Seated ${n}. ${left} still need a seat: about ${extra} more ${extra === 1 ? 'table' : 'tables'}.` : n ? `Seated ${n}. Check it, then Save.` : 'Everyone already has a seat.');
+    const r = autoSeatPlan(s.people, tables, seats, seatRules.rules);
+    commit((d) => ({ ...d, seats: r.seats }));
+    const extra = Math.ceil(r.left / DEFAULT_SEATS[shape]);
+    const more = r.left ? ` About ${extra} more ${extra === 1 ? 'table' : 'tables'} would seat everyone.` : '';
+    const said = r.notes.filter((n) => !/still needs? a seat/.test(n));
+    toast(
+      r.seated || r.left
+        ? `Seated ${r.seated}.${r.left ? ` ${r.left} still ${r.left === 1 ? 'needs' : 'need'} a seat.${more}` : ' Check it, then Save.'}${said.length ? ` ${said.join(' ')}` : ''}`
+        : 'Everyone already has a seat.',
+    );
   };
 
   /** Even rows across the room. */
@@ -677,7 +654,7 @@ function SeatingPlan() {
             </div>
           )}
 
-          <SeatChecks data={s} tables={tables} seats={seats} />
+          <SeatChecks data={s} tables={tables} seats={seats} seatRules={seatRules} />
 
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-baseline">

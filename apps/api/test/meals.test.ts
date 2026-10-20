@@ -103,7 +103,7 @@ describe('meals API', () => {
       .prepare(`SELECT p.id FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ? AND p.deleted_at IS NULL LIMIT 120`)
       .bind(wid)
       .all<{ id: string }>();
-    const codes = await Promise.all(ppl.map((x, i) => call(`/a/w/${wid}/people/${x.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', menu: i % 2 ? 'vegan' : '', entree: '', main: `Dish ${i}`, dessert: '' }) }).then((r) => r.status)));
+    const codes = await Promise.all(ppl.map(async (x, i) => (await call(`/a/w/${wid}/people/${x.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', menu: i % 2 ? 'vegan' : '', entree: '', main: `Dish ${i}`, dessert: '' }) })).status));
     expect(codes.filter((c) => c !== 200)).toEqual([]);
     const n = await t.db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT person_id) AS people FROM meal_choice m JOIN event e ON e.id = m.event_id AND e.key = 'wedding'`).first<{ n: number; people: number }>();
     expect(n).toEqual({ n: ppl.length, people: ppl.length });

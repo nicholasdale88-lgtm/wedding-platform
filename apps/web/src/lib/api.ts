@@ -386,7 +386,7 @@ export interface SeatingData {
   planImg: string;
   tables: SeatTable[];
   areas: SeatArea[];
-  people: { id: string; invitationId: string; name: string; party: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
+  people: { id: string; invitationId: string; name: string; party: string; role?: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
 }
 export interface SeatingSave {
   event: string;

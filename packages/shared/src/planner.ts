@@ -1218,8 +1218,17 @@ export type Shuttle = z.infer<typeof Shuttle>;
 export const Shuttles = z.object({ list: z.array(Shuttle).max(20).default([]) });
 export type Shuttles = z.infer<typeof Shuttles>;
 
-/** Seating rules per event: pairs of people (person ids) to keep apart or together. */
-export const SeatRules = z.object({ pairs: z.array(z.object({ a: z.string().max(40), b: z.string().max(40), kind: z.enum(['apart', 'together']) })).max(200).default([]) });
+/**
+ * Seating rules per event. Presets (on unless turned off): people on one invitation sit together, each
+ * group stays at the same tables, the wedding party at the head table, fill tables before starting new
+ * ones. Plus your own pairs of people (person ids) to keep apart or together. Auto-seat follows them all.
+ */
+export const SeatPresets = z.object({ invite: z.boolean().default(true), groups: z.boolean().default(true), head: z.boolean().default(true), fill: z.boolean().default(true) });
+export type SeatPresets = z.infer<typeof SeatPresets>;
+export const SeatRules = z.object({
+  presets: SeatPresets.default({}),
+  pairs: z.array(z.object({ a: z.string().max(40), b: z.string().max(40), kind: z.enum(['apart', 'together']) })).max(200).default([]),
+});
 export type SeatRules = z.infer<typeof SeatRules>;
 
 

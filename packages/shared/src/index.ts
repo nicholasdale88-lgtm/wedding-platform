@@ -9,6 +9,7 @@ export * from './generated/invScopes';
 export * from './guide';
 export * from './text';
 export * from './seating';
+export * from './seatRules';
 export * from './planner';
 export * from './help';
 export * from './plan';
