@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, settingsApi, textsApi, type SettingsData, type SettingsPut } from '../../lib/api';
+import { ApiError, backupsApi, settingsApi, textsApi, type BackupStatus, type SettingsData, type SettingsPut } from '../../lib/api';
+import { fmtWhen } from '../../lib/format';
 import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { inputCls, Label, Pill, SaveBar, useToast } from '../ui';
@@ -165,11 +166,62 @@ export function SmsSetup() {
 }
 
 /** Settings → Backup: everything about the wedding as one file. */
+/**
+ * Account → Backup: a backup every day to the couple's linked Google Drive, Dropbox or OneDrive (its
+ * Backups folder), back up now, or download one. Everything: guests, replies, texts, seating and its
+ * versions, the planner, the party, photos' details. Never passcodes or sign-ins.
+ */
 export function Backup() {
-  const { wid } = useAdmin();
+  const { wid, overview, path } = useAdmin();
+  const toast = useToast();
+  const [b, setB] = useState<BackupStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => backupsApi.get(wid).then(setB).catch(() => setB(null)), [wid]);
+  useEffect(() => void load(), [load]);
+  const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
+  const run = async (fn: () => Promise<unknown>, done: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      toast(done);
+      await load();
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
-    <section className="flex flex-col gap-3 max-w-[640px]">
-      <p className="m-0 text-[15px] text-[#5b6a52]">Download everything about your wedding as one file: guests, replies, messages, seating and wording. Keep it somewhere safe.</p>
+    <section className="flex flex-col gap-4 max-w-[640px]">
+      <div className="flex flex-col gap-2 p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
+        <strong className="text-[16px] font-semibold">Daily backup</strong>
+        {b?.linked ? (
+          <>
+            <p className="m-0 text-[14px] text-[#5b6a52]">
+              {b.auto ? `Every day, a full backup goes to the Backups folder in your ${b.linked}.` : `Daily backups to your ${b.linked} are off.`}{' '}
+              {b.last ? `Last backup: ${fmtWhen(b.last, tz)}${b.where ? ` to ${b.where}` : ''}.` : 'The first one goes within the next hour.'}
+            </p>
+            {b.problem && <p role="alert" className="m-0 text-[14px] text-[#7a4a37]">{b.problem}</p>}
+            <div className="flex gap-2 flex-wrap">
+              <Pill kind="primary" disabled={busy} onClick={() => void run(() => backupsApi.now(wid), `Backed up to your ${b.linked}`)}>
+                {busy ? 'Backing up…' : 'Back up now'}
+              </Pill>
+              <Pill disabled={busy} onClick={() => void run(() => backupsApi.auto(wid, !b.auto), b.auto ? 'Daily backups off' : 'Daily backups on')}>
+                {b.auto ? 'Turn off daily backups' : 'Turn on daily backups'}
+              </Pill>
+            </div>
+          </>
+        ) : (
+          <p className="m-0 text-[14px] text-[#5b6a52]">
+            Link your Google Drive, Dropbox or OneDrive (under{' '}
+            <a href={path('photos')} className="!text-[#33402f]">
+              Photos → Where photos are saved
+            </a>
+            ) and a full backup goes there every day, filed in a Backups folder.
+          </p>
+        )}
+      </div>
+      <p className="m-0 text-[15px] text-[#5b6a52]">Or download everything about your wedding as one file now: guests, replies, messages, seating, the planner and wording. Keep it somewhere safe.</p>
       <a href={settingsApi.backupUrl(wid)} download className="self-start py-[10px] px-[18px] rounded-full border border-[#c6b794] text-[14px] font-medium no-underline !text-[#33402f] hover:bg-[#efe7d3]">
         Download backup
       </a>

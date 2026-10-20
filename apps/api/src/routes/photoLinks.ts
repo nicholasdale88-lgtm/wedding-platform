@@ -6,7 +6,7 @@ import { SESSION_COOKIE, sessionId } from '../lib/auth';
 import { seal } from '../lib/seal';
 import { readJson } from '../lib/security';
 import { PROVIDER, PROVIDER_NAME, PROVIDERS, providerReady, ProviderError, type ProviderKey } from '../photos/providers';
-import { runCopies, SEAL_LABEL } from '../photos/store';
+import { linkRow, runCopies, SEAL_LABEL, setUpFolders } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -42,6 +42,8 @@ export function photoLinkRoutes() {
       .bind(wid(c))
       .all<{ id: string; provider: ProviderKey; account: string; status: string; last_error: string | null; created_at: string; copied: number | null; waiting: number | null; failed: number | null; copy_error: string | null }>();
     const docs = await c.env.DB.prepare(`SELECT json_extract(content, '$.docsLink') AS l FROM wedding WHERE id = ?`).bind(wid(c)).first<{ l: string | null }>();
+    const { results: filedRows } = await c.env.DB.prepare(`SELECT id FROM photo_link WHERE wedding_id = ? AND deleted_at IS NULL AND json_valid(folders) AND json_extract(folders, '$._v') = '2'`).bind(wid(c)).all<{ id: string }>();
+    const filed = new Set(filedRows.map((r) => r.id));
     return c.json({
       siteStorage: !!c.env.MEDIA,
       redirectUri: redirectUri(c.env),
@@ -58,6 +60,7 @@ export function photoLinkRoutes() {
         failed: r.failed ?? 0,
         since: r.created_at,
         docs: docs?.l === r.id,
+        filed: filed.has(r.id),
       })),
     });
   });
@@ -105,6 +108,23 @@ export function photoLinkRoutes() {
       .bind(...(on ? [id, wid(c)] : [wid(c), id]))
       .run();
     return c.json({ ok: true });
+  });
+
+  /**
+   * File everything in this storage: one "<couple> wedding" folder with Photos (a folder per event),
+   * Planning files, Signs and print, and Backups, made now. Photos from now on go there.
+   */
+  app.post('/:id/folders', writer, async (c) => {
+    const link = await linkRow(c.env.DB, wid(c), c.req.param('id'));
+    if (!link) return err(c, 404, 'not_found', 'That link is gone.');
+    if (link.provider === 'gphotos') return err(c, 400, 'invalid', 'Google Photos keeps an album per event instead of folders.');
+    try {
+      const folders = await setUpFolders(c.env, link);
+      await audit(c, 'photos.folders', link.id).run();
+      return c.json({ ok: true, folders });
+    } catch (e) {
+      return err(c, 503, 'unavailable', `Couldn't make the folders: ${(e as Error).message.slice(0, 200)}`);
+    }
   });
 
   /** Copy every photo not there yet (and try failed ones again); the rest continue every 15 minutes. */
@@ -166,6 +186,14 @@ export function oauthRoutes() {
         ),
         c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, at) VALUES (?, ?, ?, 'photos.link', ?, ?)`).bind(crypto.randomUUID(), row.wedding_id, row.user_id, id, now),
       ]);
+      // Filed straight away: the couple sees the folders in their storage as soon as they look.
+      if (row.provider !== 'gphotos') {
+        c.executionCtx.waitUntil(
+          linkRow(c.env.DB, row.wedding_id, id)
+            .then((l) => (l ? setUpFolders(c.env, l) : []))
+            .catch((e) => console.error('link folders', e)),
+        );
+      }
       return back(`linked=${row.provider}`);
     } catch (e) {
       console.error('photo link', e instanceof ProviderError ? e.message : e);

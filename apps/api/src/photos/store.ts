@@ -80,10 +80,81 @@ async function accessFor(env: Env, link: LinkRow): Promise<string> {
   }
 }
 
+/**
+ * The couple's linked storage, filed: one "<A & B> wedding" folder, and in it Photos (a folder per
+ * event), Planning files, Signs and print, and Backups. Set up as soon as a link is made (older links
+ * when the couple taps Set up folders); Google Photos keeps an album per event instead.
+ */
+export const SHELVES = { photos: 'Photos', docs: 'Planning files', signs: 'Signs and print', backups: 'Backups' } as const;
+export type Shelf = keyof typeof SHELVES;
+const filed = (link: LinkRow) => (JSON.parse(link.folders || '{}') as Record<string, string>)._v === '2';
+const topName = async (env: Env, weddingId: string) => {
+  const w = await env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(weddingId).first<{ name1: string; name2: string }>();
+  return safeName(`${(w?.name1 ?? '').split(' ')[0]} & ${(w?.name2 ?? '').split(' ')[0]} wedding`);
+};
+
+/** A folder by its path from the top (made the first time, remembered on the link under `key`). */
+async function folderAt(env: Env, link: LinkRow, token: string, key: string, path: string[]): Promise<string> {
+  const known = JSON.parse(link.folders || '{}') as Record<string, string>;
+  if (known[key]) return known[key];
+  const p = PROVIDER[link.provider];
+  // Google Drive goes by folder ids; Dropbox and OneDrive by paths ('/' is the app's own folder).
+  let at = link.provider === 'gdrive' ? '' : '/';
+  for (let i = 0; i < path.length; i++) {
+    const k = i === path.length - 1 ? key : `path:${path.slice(0, i + 1).join('/')}`;
+    at = known[k] || (await p.folder(token, path[i]!, at));
+    known[k] = at;
+  }
+  const patch: Record<string, string> = Object.fromEntries(Object.entries(known).filter(([k]) => k === key || k.startsWith('path:')));
+  await env.DB.prepare(`UPDATE photo_link SET folders = json_patch(COALESCE(NULLIF(folders, ''), '{}'), ?) WHERE id = ?`).bind(JSON.stringify(patch), link.id).run();
+  link.folders = JSON.stringify({ ...(JSON.parse(link.folders || '{}') as Record<string, string>), ...patch });
+  return at;
+}
+
+/** A shelf of the filed layout (the link becomes filed if it wasn't). */
+export async function shelfFolder(env: Env, link: LinkRow, token: string, shelf: Shelf, sub?: string): Promise<string> {
+  if (!filed(link)) await markFiled(env, link);
+  const top = await topName(env, link.wedding_id);
+  return folderAt(env, link, token, sub === undefined ? `shelf:${shelf}` : `shelf:${shelf}:${sub}`, sub === undefined ? [top, SHELVES[shelf]] : [top, SHELVES[shelf], safeName(sub)]);
+}
+async function markFiled(env: Env, link: LinkRow) {
+  // Photos from now on go in the filed layout (ones already copied stay where they are).
+  await env.DB.prepare(`UPDATE photo_link SET folders = json_set(COALESCE(NULLIF(folders, ''), '{}'), '$._v', '2') WHERE id = ?`).bind(link.id).run();
+  link.folders = JSON.stringify({ ...(JSON.parse(link.folders || '{}') as Record<string, string>), _v: '2' });
+}
+
+/**
+ * Sets up the filed layout in a link's storage now (top folder, the four shelves, a photo folder per
+ * event), so the couple sees it straight away. Returns the folder names, top first.
+ */
+export async function setUpFolders(env: Env, link: LinkRow): Promise<string[]> {
+  if (link.provider === 'gphotos') return [];
+  const token = await accessFor(env, link);
+  const top = await topName(env, link.wedding_id);
+  const { results: events } = await env.DB.prepare(`SELECT key, name FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(link.wedding_id).all<{ key: string; name: string }>();
+  for (const s of Object.keys(SHELVES) as Shelf[]) await shelfFolder(env, link, token, s);
+  for (const e of events) await shelfFolder(env, link, token, 'photos', e.name);
+  return [top, ...Object.values(SHELVES).flatMap((s) => (s === SHELVES.photos ? [s, ...events.map((e) => `${s} / ${safeName(e.name)}`)] : [s]))];
+}
+export async function linkRow(db: D1Database, weddingId: string, id: string) {
+  return db.prepare(`SELECT id, wedding_id, provider, account, refresh_enc, folders FROM photo_link WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(id, weddingId).first<LinkRow>();
+}
+
+/** Uploads a file to a shelf of the couple's filed storage; returns the provider's id for it. */
+export async function fileTo(env: Env, link: LinkRow, shelf: Shelf, f: { bytes: Uint8Array; name: string; type: string }): Promise<string> {
+  const token = await accessFor(env, link);
+  const folder = await shelfFolder(env, link, token, shelf);
+  return PROVIDER[link.provider].upload(token, { bytes: f.bytes, name: safeName(f.name.replace(/\.[^.]+$/, '')) + (/\.[a-z0-9]{2,5}$/i.exec(f.name)?.[0] ?? ''), type: f.type, folder });
+}
+
 /** The folder or album for an event (made the first time, remembered on the link). */
 async function folderFor(env: Env, link: LinkRow, token: string, eventKey: string | null): Promise<string> {
   const folders = JSON.parse(link.folders || '{}') as Record<string, string>;
   const k = eventKey ?? '';
+  if (link.provider !== 'gphotos' && filed(link)) {
+    const ev = eventKey ? await env.DB.prepare(`SELECT name FROM event WHERE wedding_id = ? AND key = ?`).bind(link.wedding_id, eventKey).first<{ name: string }>() : null;
+    return shelfFolder(env, link, token, 'photos', ev?.name ?? 'All photos');
+  }
   if (folders[k]) return folders[k];
   const w = await env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(link.wedding_id).first<{ name1: string; name2: string }>();
   const top = safeName(`${(w?.name1 ?? '').split(' ')[0]} & ${(w?.name2 ?? '').split(' ')[0]} photos`);
@@ -128,6 +199,7 @@ export async function keepDocument(env: Env, weddingId: string, f: { bytes: Uint
     .first<LinkRow>();
   if (!link || link.provider === 'gphotos') return null; // Google Photos takes photos only
   try {
+    if (filed(link)) return `link:${link.id}:${await fileTo(env, link, 'docs', f)}`;
     const token = await accessFor(env, link);
     const folders = JSON.parse(link.folders || '{}') as Record<string, string>;
     let folder = folders.docs;

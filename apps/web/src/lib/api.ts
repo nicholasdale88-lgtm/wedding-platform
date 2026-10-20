@@ -409,6 +409,8 @@ export interface PhotoLink {
   since: string;
   /** Planning files (quotes, contracts, menus) are kept here too. */
   docs?: boolean;
+  /** Everything is filed in one "<couple> wedding" folder (Photos, Planning files, Signs and print, Backups). */
+  filed?: boolean;
 }
 export interface PhotoLinks {
   siteStorage: boolean;
@@ -423,6 +425,21 @@ export const photoLinksApi = {
   remove: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/photo-links/${id}`),
   copyAll: (wid: string, id: string) => send<{ ok: true; queued: number }>('POST', `${w(wid)}/photo-links/${id}/copy-all`),
   setDocs: (wid: string, id: string, on: boolean) => send<{ ok: true }>('PUT', `${w(wid)}/photo-links/${id}/docs`, { on }),
+  setUpFolders: (wid: string, id: string) => send<{ ok: true; folders: string[] }>('POST', `${w(wid)}/photo-links/${id}/folders`),
+};
+/** Automatic daily backups to the linked storage (owners). */
+export interface BackupStatus {
+  last: string | null;
+  where: string | null;
+  problem: string | null;
+  auto: boolean;
+  /** The linked storage backups go to (null: none linked yet). */
+  linked: string | null;
+}
+export const backupsApi = {
+  get: (wid: string) => request<BackupStatus>(`${w(wid)}/settings/backups`),
+  now: (wid: string) => send<{ ok: true; at: string; where: string }>('POST', `${w(wid)}/settings/backups/now`),
+  auto: (wid: string, on: boolean) => send<{ ok: true; auto: boolean }>('PUT', `${w(wid)}/settings/backups/auto`, { on }),
 };
 
 export interface VendorHit {

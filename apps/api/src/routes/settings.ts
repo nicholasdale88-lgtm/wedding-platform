@@ -3,6 +3,8 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { readJson, safeJson } from '../lib/security';
+import { allow } from '../lib/rateLimit';
+import { backUpNow, backupLink, weddingBackup } from '../lib/backup';
 import { estimateAll, type EngineDeps, type Estimate } from '../sms/engine';
 import { DEFAULT_REPLIES } from '../sms/inbound';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -147,41 +149,9 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
   app.get('/backup', requireMember('owner'), async (c) => {
     const db = c.env.DB;
     const id = wid(c);
-    const q = (sql: string) => db.prepare(sql).bind(id);
-    const [wedding, events, invitations, people, invites, rsvps, campaigns, slots, tables, areas, plans, smsOut, smsIn, media] = await db.batch([
-      q(`SELECT * FROM wedding WHERE id = ?`),
-      q(`SELECT * FROM event WHERE wedding_id = ?`),
-      q(`SELECT * FROM invitation WHERE wedding_id = ?`),
-      q(`SELECT p.* FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ?`),
-      q(`SELECT ie.* FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id WHERE i.wedding_id = ?`),
-      q(`SELECT r.* FROM rsvp r JOIN invitation i ON i.id = r.invitation_id WHERE i.wedding_id = ?`),
-      q(`SELECT * FROM campaign WHERE wedding_id = ?`),
-      q(`SELECT s.* FROM campaign_slot s JOIN campaign c ON c.id = s.campaign_id WHERE c.wedding_id = ?`),
-      q(`SELECT * FROM seat_table WHERE wedding_id = ?`),
-      q(`SELECT * FROM seat_area WHERE wedding_id = ?`),
-      q(`SELECT sp.* FROM seat_plan sp JOIN event e ON e.id = sp.event_id WHERE e.wedding_id = ?`),
-      q(`SELECT * FROM sms_out WHERE wedding_id = ?`),
-      q(`SELECT * FROM sms_in WHERE wedding_id = ?`),
-      q(`SELECT id, kind, key, content_type, bytes, uploaded_by, invitation_id, created_at, deleted_at FROM media WHERE wedding_id = ?`),
-    ]);
-    const w = wedding!.results[0] as { slug: string } | undefined;
-    if (!w) return err(c, 404, 'not_found', 'Wedding not found.');
-    const out = {
-      format: 'wedding-backup',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      wedding: w,
-      events: events!.results,
-      invitations: invitations!.results,
-      people: people!.results,
-      invites: invites!.results,
-      rsvps: rsvps!.results,
-      campaigns: campaigns!.results,
-      slots: slots!.results,
-      seating: { tables: tables!.results, areas: areas!.results, plans: plans!.results },
-      sms: { out: smsOut!.results, in: smsIn!.results },
-      media: media!.results,
-    };
+    const out = await weddingBackup(db, id);
+    if (!out) return err(c, 404, 'not_found', 'Wedding not found.');
+    const w = { slug: String(out.wedding.slug ?? 'wedding') };
     await db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, at) VALUES (?, ?, ?, 'backup.download', ?, ?)`)
       .bind(crypto.randomUUID(), id, c.get('user').id, id, out.exportedAt)
       .run();
@@ -191,6 +161,32 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
         'content-disposition': `attachment; filename="${w.slug}-backup-${out.exportedAt.slice(0, 10)}.json"`,
       },
     });
+  });
+
+  /** Automatic backups: when the last one went, where, and any problem (owners). */
+  app.get('/backups', requireMember('owner'), async (c) => {
+    const r = await c.env.DB.prepare(
+      `SELECT json_extract(content, '$.backupAt') AS at, json_extract(content, '$.backupWhere') AS where_, json_extract(content, '$.backupError') AS error, COALESCE(json_extract(content, '$.backupOff'), 0) AS off FROM wedding WHERE id = ? AND json_valid(content)`,
+    )
+      .bind(wid(c))
+      .first<{ at: string | null; where_: string | null; error: string | null; off: number }>();
+    const link = await backupLink(c.env, wid(c));
+    return c.json({ last: r?.at ?? null, where: r?.where_ ?? null, problem: r?.error ?? null, auto: !r?.off, linked: link ? ({ gdrive: 'Google Drive', dropbox: 'Dropbox', onedrive: 'OneDrive', gphotos: 'Google Photos' } as const)[link.provider] : null });
+  });
+
+  /** Back up to the linked storage now. */
+  app.post('/backups/now', requireMember('owner'), async (c) => {
+    if (!(await allow(c.env.DB, `backup-now:${wid(c)}`, 12, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'That is a lot of backups at once. Try again later.' } }, 429);
+    const r = await backUpNow(c.env, wid(c));
+    if (!r.ok) return err(c, 400, 'not_saved', r.message ?? 'The backup did not go through.');
+    return c.json(r);
+  });
+
+  /** Daily automatic backups on or off. */
+  app.put('/backups/auto', requireMember('owner'), async (c) => {
+    const on = ((await readJson(c.req.raw)) as { on?: unknown } | null)?.on !== false;
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.backupOff', ?) WHERE id = ? AND json_valid(content)`).bind(on ? 0 : 1, wid(c)).run();
+    return c.json({ ok: true, auto: on });
   });
 
   return app;

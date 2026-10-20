@@ -246,8 +246,16 @@ const dropbox: Provider = {
     );
     return { access: r.access_token, expires: r.expires_in };
   },
-  // The app folder is the top; each event is a folder in it (made by the first upload).
-  folder: async (_token, name) => `/${safeName(name)}`,
+  // The app folder is the top. Older links: each event is a folder in it (made by the first upload).
+  // Filed links pass a path ('/' is the app folder) and get the folder made now, so it shows straight away.
+  async folder(token, name, root) {
+    if (!root.startsWith('/')) return `/${safeName(name)}`;
+    const path = `${root === '/' ? '' : root}/${safeName(name)}`;
+    const r = await fetch('https://api.dropboxapi.com/2/files/create_folder_v2', { method: 'POST', headers: bearer(token, { 'content-type': 'application/json' }), body: JSON.stringify({ path, autorename: false }) });
+    // 409: it's there already.
+    if (!r.ok && r.status !== 409) await ok(r, 'Making the folder');
+    return path;
+  },
   async upload(token, u) {
     const r = await json<{ id: string }>(
       await fetch('https://content.dropboxapi.com/2/files/upload', {
@@ -286,10 +294,21 @@ const onedrive: Provider = {
     );
     return { access: r.access_token, refresh: r.refresh_token, expires: r.expires_in };
   },
-  folder: async (_token, name) => safeName(name),
+  // Older links: a folder per event in the app folder. Filed links pass a path ('/' is the app folder).
+  async folder(token, name, root) {
+    if (!root.startsWith('/')) return safeName(name);
+    const parent = root === '/' ? '' : root;
+    const r = await fetch(`${GRAPH}/me/drive/special/approot${parent ? `:${encPath(parent)}:` : ''}/children`, {
+      method: 'POST',
+      headers: bearer(token, { 'content-type': 'application/json' }),
+      body: JSON.stringify({ name: safeName(name), folder: {}, '@microsoft.graph.conflictBehavior': 'fail' }),
+    });
+    if (!r.ok && r.status !== 409) await ok(r, 'Making the folder');
+    return `${parent}/${safeName(name)}`;
+  },
   async upload(token, u) {
     // An upload session takes any size up to the photo limit in one go.
-    const path = `${encodeURIComponent(u.folder)}/${encodeURIComponent(u.name)}`;
+    const path = `${encPath(u.folder.replace(/^\//, ''))}/${encodeURIComponent(u.name)}`;
     const s = await json<{ uploadUrl: string }>(
       await fetch(`${GRAPH}/me/drive/special/approot:/${path}:/createUploadSession`, {
         method: 'POST',
@@ -306,6 +325,14 @@ const onedrive: Provider = {
   },
   download: async (token, id, range) => ok(await fetch(`${GRAPH}/me/drive/items/${encodeURIComponent(id)}/content`, { headers: bearer(token, range ? { range } : {}) }), 'Opening the photo'),
 };
+
+/** A folder path with each part encoded (the slashes kept). */
+function encPath(p: string) {
+  return p
+    .split('/')
+    .map((x) => (x ? encodeURIComponent(x) : ''))
+    .join('/');
+}
 
 export const PROVIDER: Record<ProviderKey, Provider> = { gdrive, gphotos, dropbox, onedrive };
 

@@ -121,7 +121,7 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
         <strong className="font-semibold text-[15px]">Where photos are saved</strong>
         <p className="m-0 mt-1 text-[13px] text-[#5b6a52]">
           {d.siteStorage ? 'Photos are kept here on your site. ' : ''}
-          Link your own Google Drive, Google Photos, Dropbox or OneDrive and every photo guests add is saved there too, in a folder for each event.
+          Link your own Google Drive, Google Photos, Dropbox or OneDrive and everything is filed there for you, in one folder for your wedding: Photos (a folder for each event), Planning files, Signs and print, and a Backup every day.
           {!d.siteStorage && ' With nothing linked, guests can’t add photos yet.'}
         </p>
       </div>
@@ -157,6 +157,7 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
             {l.failed ? ` · ${l.failed} couldn’t be saved` : ''} · {WHERE[l.provider]}
           </span>
           {l.problem && <span className="text-[12px] text-[#7a4a37]">{l.problem}</span>}
+          {l.provider !== 'gphotos' && <Folders filed={!!l.filed} onSetUp={() => act(() => photoLinksApi.setUpFolders(wid, l.id), `Your folders are ready in ${l.name}`)} />}
           {l.provider !== 'gphotos' && (
             <label className="flex items-center gap-2 text-[13px] cursor-pointer pt-1">
               <input
@@ -165,7 +166,7 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
                 onChange={(e) => void act(() => photoLinksApi.setDocs(wid, l.id, e.target.checked), e.target.checked ? `Quotes, contracts and menus now go to ${l.name}` : 'Planning files are kept on the site again')}
                 className="w-[16px] h-[16px] accent-[#5d6b47]"
               />
-              Keep planning files here too (quotes, invoices, contracts, menus), in a “wedding planning” folder
+              Keep planning files here too (quotes, invoices, contracts, menus), in the “Planning files” folder
             </label>
           )}
         </div>
@@ -199,5 +200,49 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
         </div>
       )}
     </section>
+  );
+}
+
+/** How the couple's storage is filed, as a little folder tree (and setting it up, for links made before). */
+function Folders({ filed, onSetUp }: { filed: boolean; onSetUp: () => Promise<void> }) {
+  const { overview } = useAdmin();
+  const [busy, setBusy] = useState(false);
+  const first = (s = '') => s.split(' ')[0] ?? '';
+  const top = `${first(overview?.wedding.name1)} & ${first(overview?.wedding.name2)} wedding`;
+  const events = overview?.events.map((e) => e.name) ?? [];
+  const row = (name: string, depth: number, note = '') => (
+    <li key={`${depth}-${name}`} className="flex items-baseline gap-2" style={{ paddingLeft: depth * 18 }}>
+      <span aria-hidden>📁</span>
+      <span>{name}</span>
+      {note && <span className="text-[12px] text-[#7a7466]">{note}</span>}
+    </li>
+  );
+  return (
+    <div className="flex flex-col gap-1 pt-1">
+      <ul className="m-0 p-0 list-none text-[13px] flex flex-col gap-[2px]" aria-label="Folders">
+        {row(top, 0)}
+        {row('Photos', 1)}
+        {events.map((e) => row(e, 2))}
+        {row('Planning files', 1, 'quotes, contracts, menus')}
+        {row('Signs and print', 1)}
+        {row('Backups', 1, 'one a day')}
+      </ul>
+      {!filed && (
+        <span className="flex items-center gap-3 flex-wrap text-[13px] text-[#5b6a52]">
+          Linked before folders were filed this way: photos already copied stay where they are.
+          <Pill
+            size="sm"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              await onSetUp();
+              setBusy(false);
+            }}
+          >
+            {busy ? 'Setting up…' : 'Set up these folders'}
+          </Pill>
+        </span>
+      )}
+    </div>
   );
 }

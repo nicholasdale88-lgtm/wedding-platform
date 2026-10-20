@@ -82,6 +82,23 @@ describe('settings API', () => {
     expect((await call(`/a/w/${wid}/settings/backup`)).status).toBe(403);
   });
 
+  it('backup has the planner and every other part of the wedding too; daily backups need a linked storage', async () => {
+    await call(`/a/w/${wid}/seating/versions`, { method: 'POST', body: JSON.stringify({ event: 'wedding', name: 'Final' }) });
+    const b = (await (await call(`/a/w/${wid}/settings/backup`)).json()) as { version: number; seating: { versions: { name: string }[] }; planner: unknown[]; more: Record<string, unknown[]> };
+    expect(b.version).toBe(2);
+    expect(b.seating.versions.map((v) => v.name)).toEqual(['Final']);
+    expect(Array.isArray(b.planner)).toBe(true);
+    expect(Object.keys(b.more)).toEqual(expect.arrayContaining(['membership', 'audit']));
+    expect(Object.keys(b.more)).not.toContain('session');
+    const st = (await (await call(`/a/w/${wid}/settings/backups`)).json()) as { linked: string | null; auto: boolean; last: string | null };
+    expect(st).toMatchObject({ linked: null, auto: true, last: null });
+    const now = await call(`/a/w/${wid}/settings/backups/now`, { method: 'POST', body: '{}' });
+    expect(now.status).toBe(400);
+    expect(((await now.json()) as { error: { message: string } }).error.message).toMatch(/Link a Google Drive/);
+    expect((await call(`/a/w/${wid}/settings/backups/auto`, { method: 'PUT', body: JSON.stringify({ on: false }) })).status).toBe(200);
+    expect(((await (await call(`/a/w/${wid}/settings/backups`)).json()) as { auto: boolean }).auto).toBe(false);
+  });
+
   it('change passcode: needs the current one, a decent new one, and signs out other devices', async () => {
     const other = await login('valley-2027');
     const change = (body: unknown) => call('/a/auth/passcode', { method: 'POST', body: JSON.stringify(body) });

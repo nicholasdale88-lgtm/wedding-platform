@@ -16,6 +16,7 @@ import { calendarRoutes } from './routes/calendar';
 import { shuttleAdminRoutes, shuttleGuestRoutes } from './routes/shuttles';
 import { albumAdminRoutes, albumGuestRoutes } from './routes/album';
 import { runCopies } from './photos/store';
+import { runBackups } from './lib/backup';
 import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
@@ -97,8 +98,10 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   const photos = await runCopies(env, { limit: 30 }).catch((e) => ({ error: String(e) }));
   // Payment reminders to the couple (only where switched on; never in quiet hours).
   const payReminders = await runPaymentReminders(env, d).catch((e) => ({ error: String(e) }));
+  // A daily backup of each wedding to its linked Drive, Dropbox or OneDrive (a couple per run).
+  const backups = await runBackups(env).catch((e) => ({ error: String(e) }));
   await purgeExpired(env.DB, d.now()).catch(() => undefined);
-  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders }));
+  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups }));
   return { swept, ...report };
 }
 
