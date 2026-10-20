@@ -222,10 +222,12 @@ function SideNav({ mob }: { mob: boolean }) {
   }
   return (
     <nav aria-label="Admin" className="flex flex-col gap-2 flex-none overflow-y-auto [scrollbar-width:none]">
-      {groups.map((g) => {
+      {groups.map((g, i) => {
         const isOpen = !shut.has(g.key) && (openSet.has(g.key) || g.key === current.key);
         return (
           <div key={g.key} className="flex flex-col gap-1">
+            {/* Account first, then the events under their own heading. */}
+            {i === 1 && <div className="mt-3 px-1 text-[11px] font-semibold tracking-[.22em] uppercase text-[#cfd8bb]">Events</div>}
             <div className="flex items-stretch gap-1">
               <div className="flex-1 min-w-0 flex [&>button]:flex-1">{groupBtn(g)}</div>
               <button
@@ -503,26 +505,40 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.35)]" />
       <div role="dialog" aria-modal="true" aria-label="More" className="relative max-h-[88vh] overflow-y-auto rounded-t-[22px] bg-[#f6f0e2] px-4 pt-3 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-5">
         <span aria-hidden className="self-center w-10 h-[5px] rounded-full bg-[#d3c6a4]" />
-        {/* Sections first: which part of the admin you're in (Account, then each event). */}
-        <div role="group" aria-label="Sections" className="flex flex-col gap-2">
-          {heading('Sections')}
-          <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(groups.length, 3)}, minmax(0, 1fr))` }}>
-            {groups.map((g) => {
-              const on = g.key === shown.key;
-              return (
-                <button
-                  key={g.key}
-                  type="button"
-                  aria-pressed={g.key === shown.key}
-                  onClick={() => setPicked(g.key)}
-                  className={`min-h-[52px] py-2 px-3 rounded-[14px] border text-center font-display text-[18px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
-                >
-                  {g.name}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Account on its own, then the events under their own heading: Account is not an event. */}
+        {(() => {
+          const btn = (g: Group) => {
+            const on = g.key === shown.key;
+            return (
+              <button
+                key={g.key}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setPicked(g.key)}
+                className={`min-h-[52px] py-2 px-3 rounded-[14px] border text-center font-display text-[18px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
+              >
+                {g.name}
+              </button>
+            );
+          };
+          const evs = groups.filter((g) => g.key !== ALL_EVENTS);
+          return (
+            <>
+              <div role="group" aria-label="Account" className="flex flex-col gap-2">
+                {heading('Account')}
+                <div className="grid">{groups.filter((g) => g.key === ALL_EVENTS).map(btn)}</div>
+              </div>
+              {evs.length > 0 && (
+                <div role="group" aria-label="Events" className="flex flex-col gap-2">
+                  {heading('Events')}
+                  <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(evs.length, 3)}, minmax(0, 1fr))` }}>
+                    {evs.map(btn)}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()}
         <div className="flex flex-col gap-2">
           {heading(shown.name)}
           {rest.length ? (
