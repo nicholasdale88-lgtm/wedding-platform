@@ -470,6 +470,8 @@ describe('guest pages tab', () => {
     expect(await screen.findByRole('heading', { name: 'Set up Recovery brunch' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Invitation' })).toBeNull();
     await userEvent.click(await screen.findByRole('button', { name: 'Night-before page' }));
+    // Another event's page starts fresh: its preview opens from its own button.
+    await userEvent.click(screen.getByRole('button', { name: /^Preview/ }));
     // A stand-in guest by default; only guests invited to the brunch can be picked for its guide.
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/tomorrow/brunch?preview=1');
     expect(screen.getByRole('option', { name: 'A sample guest' })).toBeInTheDocument();
@@ -850,6 +852,7 @@ describe('seating publish', () => {
     renderAt('/admin/w1/wedding/seating');
     expect(await screen.findByText(/2 saved changes are not live yet/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Edit seating' }));
     await userEvent.click(screen.getByRole('button', { name: 'Line up tables' })); // an unsaved edit
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeDisabled();
   });
