@@ -44,14 +44,43 @@ const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 const field = 'w-full py-[11px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px]';
 
+/** Why couples choose it: what it does for them (the headline), then how. */
 const WHAT: [string, string][] = [
-  ['Invitations by text', 'Every guest gets a text with their own invitation. They tap yes or no, add how many are coming and anything they can’t eat, and it’s in your list. If they don’t answer, a reminder goes out for you.'],
-  ['Guest questions, answered', 'When someone texts “what time does it start?” or “Sam’s vegetarian”, it answers from what you’ve already written, and notes the dietary need against the right person. Anything else comes to you.'],
-  ['Seating', 'Lay out the room, drag people to tables, and keep a few versions until you settle on one. When you publish it, each guest can see their table.'],
-  ['The planning', 'A budget that works per guest, payments with due dates, a checklist counted back from your date, and quotes from vendors side by side.'],
-  ['Photos', 'Put the QR code on each table. Guests take photos with your frames and they go straight into your own Google Drive, Dropbox or OneDrive.'],
-  ['Your wedding party', 'Bridesmaids and groomsmen get their own sign-in with the run sheet and their jobs, and nothing you haven’t shared.'],
+  ['Replies chase themselves', 'Every guest gets their own invitation by text. They tap yes or no, say who’s coming and what they can’t eat, and it’s in your list. Anyone who hasn’t answered gets a gentle reminder, without you lifting a finger.'],
+  ['Questions answered while you sleep', 'When someone texts “what time does it start?” or “Sam’s vegetarian”, it answers from what you’ve already written, and notes the dietary need against the right person. Only what really needs you comes to you.'],
+  ['Every dietary need on the right plate', 'Add the caterer’s special menus and give them to everyone who needs one in a tap: vegan and coeliac gets the menu marked both. Anything not marked safe is flagged, and the caterer gets one clear list.'],
+  ['Seating that follows your rules', 'Couples together, families together, the wedding party at the head table, and the two who mustn’t sit together kept apart. Auto-seat does it in a second; change anything by dragging.'],
+  ['Every payment, on time', 'Each vendor’s deposits and balances in one schedule, with a nudge before each is due. Drop in a quote or contract and its dates are added for you.'],
+  ['An invitation they’ll remember', 'A wax-sealed envelope that opens on their phone, with your music, your photos and your words. Each guest’s own page has their reply, their table and the night-before guide.'],
+  ['Your wedding party, sorted', 'Bridesmaids and groomsmen get their own welcome and sign-in: the run sheet, their jobs, what to bring and when they’re on. Nothing you haven’t shared.'],
+  ['Every photo, in your own Drive', 'A QR code on each table: guests take photos with your frames and they land straight in your Google Drive or OneDrive, filed by event. No app, no chasing people for their photos.'],
 ];
+
+/** The four highlights under the headline. */
+const HIGHLIGHTS = ['Replies by text, on autopilot', 'Dietary needs sorted to menus', 'Seating that follows your rules', 'Photos straight to your Drive'];
+
+/** What couples bring, and what it usually costs on top of their plan (AUD). */
+const BYO: { what: string; cost: string; detail: string; good: string }[] = [
+  {
+    what: 'Your Google Drive or OneDrive',
+    cost: 'Usually free',
+    detail: 'Connect it once and everything is filed there for you: every guest photo (a folder per event), quotes and contracts, signs, and a backup every day.',
+    good: 'They’re yours forever, not locked in an app. Google gives 15 GB free (shared with Gmail), which most weddings fit in; OneDrive 5 GB. Need more? From about $3 a month. Got Gmail or Outlook? You already have one.',
+  },
+  {
+    what: 'Texts to your guests',
+    cost: 'About 2c each',
+    detail: 'Invitations, reminders, answers and the night-before guide go by text, at cost. You see how many and what it costs before anything is sent.',
+    good: 'A 120-guest wedding usually spends under $15 on every text, start to finish. Rather not text? Share each guest’s link yourself, for nothing.',
+  },
+  {
+    what: 'Your own mobile',
+    cost: 'Already in your pocket',
+    detail: 'Replies that need you are sent on to your phone, and you can send yourself a test of any text first.',
+    good: 'No new number, no app to install.',
+  },
+];
+
 
 /** Every feature that differs between plans, for the comparison table (what the server checks, so it can't drift). */
 const COMPARE: Feature[] = ['unlimitedGuests', 'texts', 'seating', 'planner', 'extraEvent', 'photoQr', 'partySignIns', 'dailyBackups'];
@@ -114,6 +143,16 @@ export function SalesPage() {
                 No card needed. Pay once when you’re ready.
               </span>
             </div>
+            <ul aria-label="Highlights" className="m-0 p-0 list-none grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+              {HIGHLIGHTS.map((h) => (
+                <li key={h} className="flex items-center gap-2 text-[15px]">
+                  <span aria-hidden className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] shrink-0" style={{ background: '#e6ecd8', color: INK }}>
+                    ✓
+                  </span>
+                  {h}
+                </li>
+              ))}
+            </ul>
           </div>
           <div aria-hidden className="mx-auto w-[270px] rounded-[38px] p-3 shadow-[0_24px_50px_rgba(51,64,47,.22)]" style={{ background: INK }}>
             <div className="rounded-[28px] bg-[#fbf8f2] px-4 py-6 flex flex-col gap-3 text-[14px]">
@@ -131,13 +170,18 @@ export function SalesPage() {
 
         <section className="bg-[#fbf8f2] py-14">
           <div className="max-w-[1000px] mx-auto px-4 flex flex-col gap-8">
-            <h2 className="m-0 text-[clamp(30px,5vw,42px)] font-normal" style={{ fontFamily: serif }}>
-              What it does
-            </h2>
+            <div className="flex flex-col gap-2">
+              <h2 className="m-0 text-[clamp(30px,5vw,42px)] font-normal" style={{ fontFamily: serif }}>
+                Why couples choose it
+              </h2>
+              <p className="m-0 text-[16px] max-w-[640px]" style={{ color: SOFT }}>
+                The jobs that eat your evenings, done for you: from the first invitation to the last photo.
+              </p>
+            </div>
             <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
               {WHAT.map(([t, d]) => (
-                <div key={t} className="flex flex-col gap-1">
-                  <h3 className="m-0 text-[18px] font-semibold">{t}</h3>
+                <div key={t} className="flex flex-col gap-1 pl-4" style={{ borderLeft: '3px solid #c8a46a' }}>
+                  <h3 className="m-0 text-[20px] font-semibold">{t}</h3>
                   <p className="m-0 text-[15px] leading-[1.6]" style={{ color: SOFT }}>
                     {d}
                   </p>
@@ -231,6 +275,36 @@ export function SalesPage() {
                 </table>
               </div>
             </details>
+          </div>
+        </section>
+
+        <section aria-labelledby="byo" className="bg-[#fbf8f2] py-16">
+          <div className="max-w-[1100px] mx-auto px-4 flex flex-col gap-8">
+            <div className="text-center flex flex-col gap-2">
+              <h2 id="byo" className="m-0 text-[clamp(30px,5vw,42px)] font-normal" style={{ fontFamily: serif }}>
+                What you bring, and what it costs
+              </h2>
+              <p className="m-0 text-[16px] max-w-[680px] mx-auto" style={{ color: SOFT }}>
+                Nothing hidden. Most couples spend nothing extra on storage and under $15 on texts for the whole wedding.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {BYO.map((b) => (
+                <article key={b.what} className="flex flex-col gap-3 p-6 rounded-[20px] bg-white border border-[#e2d7bc]">
+                  <h3 className="m-0 text-[19px] font-semibold">{b.what}</h3>
+                  <span className="text-[28px] leading-none" style={{ fontFamily: serif }}>
+                    {b.cost}
+                  </span>
+                  <p className="m-0 text-[15px] leading-[1.55]">{b.detail}</p>
+                  <p className="m-0 text-[14px] leading-[1.55]" style={{ color: SOFT }}>
+                    {b.good}
+                  </p>
+                </article>
+              ))}
+            </div>
+            <p className="m-0 text-center text-[15px]" style={{ color: SOFT }}>
+              Not needed: an app for your guests, a printer, a website builder or a separate RSVP service.
+            </p>
           </div>
         </section>
 

@@ -5,6 +5,21 @@ import { EVENT_ADDON, PLAN_INFO } from '@wp/shared';
 import { SalesPage } from '../src/sales/SalesPage';
 
 describe('front page pricing', () => {
+  it('sells it: highlights up top, why couples choose it, and what they bring with its cost', () => {
+    render(
+      <MemoryRouter>
+        <SalesPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('list', { name: 'Highlights' }).querySelectorAll('li')).toHaveLength(4);
+    expect(screen.getByRole('heading', { name: 'Why couples choose it' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Every dietary need on the right plate' })).toBeInTheDocument();
+    const byo = screen.getByRole('region', { name: 'What you bring, and what it costs' });
+    expect(within(byo).getByRole('heading', { name: 'Your Google Drive or OneDrive' })).toBeInTheDocument();
+    expect(within(byo).getByText('Usually free')).toBeInTheDocument();
+    expect(within(byo).getByText('About 2c each')).toBeInTheDocument();
+  });
+
   it('shows the same prices the app enforces, the add-ons, and a comparison that matches each plan', () => {
     render(
       <MemoryRouter>
