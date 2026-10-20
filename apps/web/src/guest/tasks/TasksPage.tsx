@@ -5,7 +5,8 @@ import { InstallApp } from '../../lib/InstallApp';
 
 /**
  * /w/:slug/tasks?k=<key>: a helper's own wedding jobs (a parent, a bridesmaid, a friend). What the couple
- * has given them, soonest first, grouped by when it's due, with a tap to mark each doing or done.
+ * has given them, soonest first, grouped by when it's due, with a tap to mark each doing or done; the
+ * things on the day checklists handed to them (with their time); and all of it in their phone's calendar.
  */
 type Status = 'todo' | 'doing' | 'done';
 interface Data {
@@ -14,6 +15,10 @@ interface Data {
   event: { name: string; date: string } | null;
   today: string;
   tasks: { id: string; text: string; note: string; due: string; status: Status }[];
+  /** Things on a day checklist handed to them: when, at what time, ticked or not. */
+  day?: { event: string; eventName: string; id: string; text: string; time: string; note: string; when: string; date: string; done: boolean }[];
+  /** Their calendar feed (subscribe once; it updates by itself). */
+  calendar?: string;
 }
 const STATUS: Record<Status, [string, string, string]> = { todo: ['To do', '#efe9da', '#5b6a52'], doing: ['Doing', '#f4dfae', '#6b4e12'], done: ['Done ✓', '#cfdcbc', '#2f3d24'] };
 const day = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) : '');
@@ -61,6 +66,28 @@ export function TasksPage() {
       setProblem((e as Error).message);
     }
   };
+  const tick = async (event: string, id: string, done: boolean) => {
+    const before = d;
+    setD((cur) => (cur ? { ...cur, day: cur.day?.map((x) => (x.event === event && x.id === id ? { ...x, done } : x)) } : cur));
+    const post = () => fetch(`/api/p/${encodeURIComponent(slug)}/tasks/day`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, event, id, done }) });
+    try {
+      let r = await post();
+      for (let i = 0; i < 4 && (r.status === 409 || r.status === 503); i++) {
+        await new Promise((ok) => setTimeout(ok, 300 + Math.random() * 500));
+        r = await post();
+      }
+      const b = (await r.json()) as Data & { error?: { message: string } };
+      if (!r.ok) throw new Error(b.error?.message ?? 'That didn’t save.');
+      setD(b);
+      setProblem('');
+    } catch (e) {
+      setD(before);
+      setProblem((e as Error).message);
+    }
+  };
+  const onDay = d.day ?? [];
+  const android = /android/i.test(navigator.userAgent);
+  const feed = d.calendar?.replace(/^https?:/, 'webcal:') ?? '';
   const open = d.tasks.filter((t) => t.status !== 'done');
   const done = d.tasks.filter((t) => t.status === 'done');
   const week = plus(d.today, 7);
@@ -94,7 +121,7 @@ export function TasksPage() {
             {problem}
           </p>
         )}
-        {!d.tasks.length && <p className="m-0 text-center text-[15px] text-[#5b6a52]">Nothing on your list yet. The couple will add things here.</p>}
+        {!d.tasks.length && !onDay.length && <p className="m-0 text-center text-[15px] text-[#5b6a52]">Nothing on your list yet. The couple will add things here.</p>}
         {groups
           .filter(([, ts]) => ts.length)
           .map(([title, ts, colour]) => (
@@ -107,6 +134,36 @@ export function TasksPage() {
               ))}
             </section>
           ))}
+        {onDay.length > 0 && (
+          <section aria-label="Around the day" className="flex flex-col gap-2">
+            <h2 className="m-0 text-[12px] font-semibold tracking-[.14em] uppercase text-[#8a6d2f]">Around the day</h2>
+            {onDay.map((x) => (
+              <label key={`${x.event}-${x.id}`} className="flex items-start gap-3 p-4 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] cursor-pointer">
+                <input type="checkbox" checked={x.done} onChange={() => void tick(x.event, x.id, !x.done)} className="mt-[3px] w-5 h-5 accent-[#5d6b47] flex-none" />
+                <span className="flex-1 min-w-0 flex flex-col gap-[2px]">
+                  <span className={`text-[16px] ${x.done ? 'line-through text-[#7a7466]' : ''}`}>{x.text}</span>
+                  <span className="text-[12px] text-[#7a7466]">
+                    {[x.when, x.time, day(x.date), onDay.some((y) => y.event !== x.event) ? x.eventName : ''].filter(Boolean).join(' · ')}
+                  </span>
+                  {x.note && <span className="text-[13px] text-[#5b6a52]">{x.note}</span>}
+                </span>
+              </label>
+            ))}
+          </section>
+        )}
+        {feed && (d.tasks.length > 0 || onDay.length > 0) && (
+          <section aria-label="Your calendar" className="flex flex-col gap-2 p-4 rounded-[14px] border border-[#c6b794] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">
+            <span>Put all of this in your phone’s calendar, with a reminder before each one. If the couple change anything, it updates by itself.</span>
+            <a
+              href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
+              target={android ? '_blank' : undefined}
+              rel="noopener"
+              className="self-start py-[10px] px-5 rounded-full bg-[#33402f] !text-[#fbf8f2] no-underline font-medium"
+            >
+              Add my jobs to my calendar
+            </a>
+          </section>
+        )}
         {done.length > 0 && (
           <details className="flex flex-col gap-2">
             <summary className="cursor-pointer text-[13px] text-[#5b6a52]">Done · {done.length}</summary>

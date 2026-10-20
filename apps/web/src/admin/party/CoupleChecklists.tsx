@@ -2,6 +2,7 @@ import { CHECK_TEMPLATE, daysUntil, progressOf, WEDDING_PHASES, type CheckItem, 
 import { useState } from 'react';
 import { ApiError, plannerApi, type PartyData } from '../../lib/api';
 import { phaseNow, PhasedChecklist, Ring } from '../checklists/PhasedChecklist';
+import { useHelpers } from '../checklists/useHelpers';
 import { useUnsavedChanges } from '../leave';
 import { useLiveDoc } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
@@ -26,6 +27,7 @@ export function CoupleChecklists({ d, sideName }: { d: PartyData; sideName: Side
   const scope = d.event ?? '';
   const live = useLiveDoc<DayChecklist>(wid, 'day-checklist', scope, toast);
   useUnsavedChanges(live.pending);
+  const helpers = useHelpers();
   const [who, setWho] = useState<Who>('p1');
   if (!scope) return <p className="text-[#5b6a52]">Add your wedding as an event first.</p>;
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
@@ -90,7 +92,7 @@ export function CoupleChecklists({ d, sideName }: { d: PartyData; sideName: Side
               sideName={sideName}
             />
           )}
-          <PhasedChecklist key={who} items={list} onChange={(items) => live.set({ ...data, [who]: items })} labels={WEDDING_PHASES} now={now} who={label(who)} />
+          <PhasedChecklist key={who} items={list} onChange={(items) => live.set({ ...data, [who]: items })} labels={WEDDING_PHASES} now={now} who={label(who)} people={helpers.people} onAddPerson={helpers.ready ? helpers.add : undefined} />
         </>
       )}
       <p className="m-0 text-[12px] text-[#7a7466]">{live.pending ? 'Saving…' : 'Saved. Open this on your phone on the day: the list you’re on now is opened for you.'}</p>

@@ -150,4 +150,42 @@ ${pdf}
     expect(ins.tasks.byPerson.find((p) => p.name === 'Mum')).toMatchObject({ doing: 1 });
     expect(ins.tasks.donePerWeek).toHaveLength(12);
   });
+
+  it('day-checklist things handed to a helper: on their page and in their calendar, and they tick them', async () => {
+    const k = 'd'.repeat(24);
+    const list = { helpers: [{ id: 'jess', name: 'Jess Lee', key: k }], tasks: [{ id: 't1', text: 'Collect the cake', before: 1, helper: 'jess' }] };
+    expect((await call('/planner/doc/checklist', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify(list) })).status).toBe(200);
+    const ev = ((await (await call('/overview')).json()) as { events: { key: string }[] }).events[0]!.key;
+    const day = {
+      p1: [{ text: 'Pick up the rings', time: '10:30am', phase: 'morning', id: 'r1', helper: 'jess' }],
+      p2: [],
+      both: [{ text: 'Thank the venue', phase: 'after' }, { text: 'Not hers', phase: 'eve', id: 'x1', helper: 'someone-else' }],
+    };
+    expect((await call(`/planner/doc/day-checklist/${ev}`, { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify(day) })).status).toBe(200);
+    const page = (await (await app.request(`/api/p/sophie-and-nicholas/tasks?k=${k}`, {}, env, ctx)).json()) as { day: { id: string; text: string; time: string; date: string; done: boolean }[]; calendar: string };
+    expect(page.day.map((x) => [x.id, x.text, x.time, x.done])).toEqual([['r1', 'Pick up the rings', '10:30am', false]]);
+    expect(page.day[0]!.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(page.calendar).toMatch(new RegExp(`/api/p/sophie-and-nicholas/tasks/cal/${k}\\.ics$`));
+
+    // Their calendar: the job (all day, reminder the day before) and the rings at 10:30.
+    const cal = await app.request(`/api/p/sophie-and-nicholas/tasks/cal/${k}.ics`, {}, env, ctx);
+    expect(cal.status).toBe(200);
+    const ics = await cal.text();
+    expect(ics).toContain('SUMMARY:Collect the cake');
+    expect(ics).toContain('SUMMARY:Pick up the rings');
+    expect(ics).toMatch(/UID:help-day-[^\r\n]+-r1@wedding-platform\r\nDTSTAMP:\d{8}T\d{6}Z\r\nDTSTART:\d{8}T\d{6}Z/);
+    expect(ics).not.toContain('Not hers');
+    expect((await app.request(`/api/p/sophie-and-nicholas/tasks/cal/${'z'.repeat(24)}.ics`, {}, env, ctx)).status).toBe(404);
+
+    // They tick it; someone else's isn't theirs to tick.
+    const tick = (id: string, done: boolean) => app.request('/api/p/sophie-and-nicholas/tasks/day', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ k, event: ev, id, done }) }, env, ctx);
+    const after = (await (await tick('r1', true)).json()) as { day: { done: boolean }[] };
+    expect(after.day[0]!.done).toBe(true);
+    expect((await tick('x1', true)).status).toBe(404);
+    const doc = (await (await call(`/planner/doc/day-checklist/${ev}`)).json()) as { data: { p1: { done: boolean }[]; both: { done: boolean }[] } };
+    expect(doc.data.p1[0]!.done).toBe(true);
+    expect(doc.data.both.map((x) => x.done)).toEqual([false, false]);
+    // Done things leave the calendar.
+    expect(await (await app.request(`/api/p/sophie-and-nicholas/tasks/cal/${k}.ics`, {}, env, ctx)).text()).not.toContain('Pick up the rings');
+  });
 });

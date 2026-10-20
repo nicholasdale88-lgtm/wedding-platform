@@ -132,8 +132,10 @@ export const HELP: HelpArticle[] = [
     steps: [
       'Open Wedding planner → Checklist: the usual Australian plan counted back from your date, including the Notice of Intended Marriage.',
       'Give a task to a family member or friend: they get a private link to their own list and can mark it done.',
+      'On the day checklists too (Wedding party → Your checklists, or an event’s Day checklist): tap a thing, then “Who’s doing it” to hand it to someone, or add someone new right there.',
+      'On their page, “Add my jobs to my calendar” puts everything that’s theirs in their phone’s calendar, with reminders, and keeps it up to date.',
     ],
-    also: 'to do todo tasks timeline helpers family jobs notice of intended marriage',
+    also: 'to do todo tasks timeline helpers family jobs notice of intended marriage allocate assign hand over delegate day checklist calendar reminder',
     go: { tab: 'planner', event: true, query: 'view=checklist' },
   },
   {

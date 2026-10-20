@@ -5,6 +5,7 @@ import { useLiveDoc } from '../planner/useDocSave';
 import { useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, Pill, useToast } from '../ui';
 import { phaseNow, PhasedChecklist, Ring } from './PhasedChecklist';
+import { useHelpers } from './useHelpers';
 
 /**
  * An event that isn't the wedding (a birthday) → Day checklist: the host's things to do, from a month out
@@ -16,6 +17,7 @@ export function EventDayChecklist() {
   const toast = useToast();
   const live = useLiveDoc<EventChecklist>(wid, 'event-checklist', event ?? '', toast);
   useUnsavedChanges(live.pending);
+  const helpers = useHelpers();
   const ev = overview?.events.find((e) => e.key === event);
   const header = (
     <header>
@@ -61,7 +63,7 @@ export function EventDayChecklist() {
               </button>
             </div>
           )}
-          <PhasedChecklist items={items} onChange={(next) => live.set({ items: next })} labels={PARTY_PHASES} now={now} who="your" />
+          <PhasedChecklist items={items} onChange={(next) => live.set({ items: next })} labels={PARTY_PHASES} now={now} who="your" people={helpers.people} onAddPerson={helpers.ready ? helpers.add : undefined} />
         </>
       )}
       <p className="m-0 text-[12px] text-[#7a7466]">{live.pending ? 'Saving…' : 'Saved as you go.'}</p>

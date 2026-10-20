@@ -1,6 +1,7 @@
 import { PHASES, type CheckItem, type Phase } from '@wp/shared';
 import { useState } from 'react';
-import { inputCls, Pill } from '../ui';
+import { inputCls, Pill, useToast } from '../ui';
+import type { Person } from './useHelpers';
 
 /** A progress ring: how much of a list is done, at a glance. */
 export function Ring({ done, total, size = 64, label }: { done: number; total: number; size?: number; label?: string }) {
@@ -31,7 +32,8 @@ export function phaseNow(days: number | null): Phase | null {
 
 /**
  * A checklist grouped by moment (the month before … after), with the moment you're in now opened and
- * marked. Tick, add, remove, give a time or a tip. The parent saves `onChange`.
+ * marked. Tick, add, remove, give a time or a tip, and hand a thing to someone helping (`people`): it goes
+ * on their own list and in their phone's calendar. The parent saves `onChange`.
  */
 export function PhasedChecklist({
   items,
@@ -39,13 +41,34 @@ export function PhasedChecklist({
   labels,
   now,
   who,
+  people = [],
+  onAddPerson,
 }: {
   items: CheckItem[];
   onChange: (next: CheckItem[]) => void;
   labels: Record<Phase, string>;
   now: Phase | null;
   who: string;
+  people?: Person[];
+  /** Add someone new to hand things to; returns their id. */
+  onAddPerson?: (name: string) => string;
 }) {
+  const toast = useToast();
+  const [newName, setNewName] = useState<{ i: number; name: string } | null>(null);
+  const nameOf = (id?: string) => (id ? (people.find((p) => p.id === id)?.name ?? '') : '');
+  const handTo = (i: number, id: string) => patch(i, id ? { helper: id, id: items[i]!.id || crypto.randomUUID().slice(0, 10) } : { helper: undefined });
+  const share = async (p: Person, text: string) => {
+    const msg = `I've put “${text}” on your list: ${p.link}`;
+    try {
+      if (navigator.share) await navigator.share({ text: msg });
+      else {
+        await navigator.clipboard.writeText(msg);
+        toast(`Copied: send it to ${p.name}`);
+      }
+    } catch {
+      /* closed the share sheet */
+    }
+  };
   const [hideDone, setHideDone] = useState(false);
   const [open, setOpen] = useState<Set<Phase>>(() => new Set(now ? [now] : PHASES.filter((p) => items.some((i) => i.phase === p && !i.done)).slice(0, 2)));
   const [adding, setAdding] = useState<{ phase: Phase; text: string; time: string }>({ phase: now ?? 'month', text: '', time: '' });
@@ -99,6 +122,7 @@ export function PhasedChecklist({
                         {it.time && <span className="text-[13px] font-semibold text-[#5b6a52] mr-2 tabular-nums">{it.time}</span>}
                         {it.text}
                         {it.note && detail !== i && <span aria-hidden className="ml-1 text-[#b39563]">ⓘ</span>}
+                        {nameOf(it.helper) && <span className="ml-2 inline-block py-[1px] px-2 rounded-full bg-[#efe6d3] text-[12px] text-[#5b6a52] no-underline align-middle">→ {nameOf(it.helper)}</span>}
                       </button>
                     </div>
                     {detail === i && (
@@ -116,10 +140,54 @@ export function PhasedChecklist({
                               </option>
                             ))}
                           </select>
+                          {(people.length > 0 || onAddPerson) && (
+                            <select
+                              aria-label="Who’s doing it"
+                              value={newName?.i === i ? 'new' : nameOf(it.helper) ? it.helper : ''}
+                              onChange={(e) => {
+                                if (e.target.value === 'new') return setNewName({ i, name: '' });
+                                setNewName(null);
+                                handTo(i, e.target.value);
+                              }}
+                              className={`${inputCls} !py-[6px] !text-[13px]`}
+                            >
+                              <option value="">{who === 'your' ? 'You' : who}</option>
+                              {people.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  → {p.name}
+                                </option>
+                              ))}
+                              {onAddPerson && <option value="new">+ Someone else…</option>}
+                            </select>
+                          )}
                           <button type="button" onClick={() => onChange(items.filter((_, j) => j !== i))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">
                             Remove
                           </button>
                         </div>
+                        {newName?.i === i && onAddPerson && (
+                          <div className="flex gap-2 flex-wrap items-center">
+                            <input aria-label="Their name" placeholder="Their name (e.g. Mum, Jess)" value={newName.name} maxLength={80} autoFocus onChange={(e) => setNewName({ i, name: e.target.value })} className={`${inputCls} flex-1 min-w-[160px] !py-2`} />
+                            <Pill
+                              kind="outline"
+                              disabled={!newName.name.trim()}
+                              onClick={() => {
+                                const id = onAddPerson(newName.name);
+                                if (id) handTo(i, id);
+                                setNewName(null);
+                              }}
+                            >
+                              Hand it over
+                            </Pill>
+                          </div>
+                        )}
+                        {it.helper && people.find((p) => p.id === it.helper) && (
+                          <p className="m-0 text-[13px] text-[#5b6a52]">
+                            It’s on {nameOf(it.helper)}’s own list and calendar.{' '}
+                            <button type="button" onClick={() => void share(people.find((p) => p.id === it.helper)!, it.text)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+                              Send them their link
+                            </button>
+                          </p>
+                        )}
                       </div>
                     )}
                   </li>

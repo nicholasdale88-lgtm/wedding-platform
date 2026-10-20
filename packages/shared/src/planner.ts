@@ -72,8 +72,19 @@ export const CheckItem = z.object({
   done: z.boolean().default(false),
   phase: z.enum(PHASES).default('morning'),
   note: s(300),
+  /** Someone it's handed to (a helper's id from Wedding planner → Checklist): it's on their own list and calendar. */
+  helper: z.string().max(40).optional(),
+  /** Set when it's handed to someone, so their tick finds it again. */
+  id: z.string().max(40).optional(),
 });
 export type CheckItem = z.infer<typeof CheckItem>;
+
+/** The day a checklist moment falls on, from the event's date (yyyy-mm-dd): a month out, a week out, the day before, the day, the day after. */
+export function phaseDate(phase: Phase, eventDay: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDay)) return '';
+  const back: Record<Phase, number> = { month: -28, week: -7, eve: -1, morning: 0, ceremony: 0, reception: 0, after: 1 };
+  return new Date(Date.parse(`${eventDay}T00:00:00Z`) + back[phase] * 86_400_000).toISOString().slice(0, 10);
+}
 /** Each partner's own list, and the things you do together. */
 export const DayChecklist = z.object({
   p1: z.array(CheckItem).max(120).default([]),
