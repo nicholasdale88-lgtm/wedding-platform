@@ -504,13 +504,16 @@ const PLANNER_TOOLS: { view: string; label: string; icon: string }[] = [
 ];
 
 /**
- * Phones: More. The sections at the top (Account and each event), then everything that isn't in the bottom
- * bar as tiles with icons: this section's pages, every Wedding planner tool, Settings, the look and Sign out.
+ * Phones: More. The sections at the top (Account and each event); tapping one shows only that section's
+ * pages as tiles with icons (the wedding's include its planner tools). Opens on the section you're in.
  */
 function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
   const { path, overview: o } = useAdmin();
-  const { groups, current, open, tab } = useSections();
+  const { groups, current, tab } = useSections();
   const go = useNavigate();
+  const [picked, setPicked] = useState(current.key);
+  const shown = groups.find((g) => g.key === picked) ?? current;
+  const here = shown.key === current.key;
   const { search } = useLocation();
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -554,16 +557,13 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
           {heading('Sections')}
           <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(groups.length, 3)}, minmax(0, 1fr))` }}>
             {groups.map((g) => {
-              const on = g.key === current.key;
+              const on = g.key === shown.key;
               return (
                 <button
                   key={g.key}
                   type="button"
-                  aria-current={on ? 'true' : undefined}
-                  onClick={() => {
-                    onClose();
-                    if (!on) open(g);
-                  }}
+                  aria-pressed={g.key === shown.key}
+                  onClick={() => setPicked(g.key)}
                   className={`min-h-[52px] py-2 px-3 rounded-[14px] border text-center font-display text-[18px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
                 >
                   {g.name}
@@ -573,19 +573,15 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          {heading(current.name)}
-          <div className={grid}>{current.tabs.map((t) => tile(t.key, t.label, path(t.key), t.key, navKey(tab) === t.key))}</div>
+          {heading(shown.name)}
+          <div className={grid}>{shown.tabs.map((t) => tile(`${shown.key}-${t.key}`, t.label, path(t.key, shown.key), t.key, here && navKey(tab) === t.key))}</div>
         </div>
-        {first && (
+        {first && shown.key === first && (
           <div className="flex flex-col gap-2">
             {heading('Wedding planner')}
             <div className={grid}>{PLANNER_TOOLS.map((t) => tile(`planner-${t.view}`, t.label, `${path('planner', first)}?view=${t.view}`, t.icon, plannerView === t.view))}</div>
           </div>
         )}
-        <div className={grid}>
-          {current.key !== ALL_EVENTS && tile('settings', 'Settings', path('settings', ALL_EVENTS), 'settings')}
-          {tile('look', 'Look & name', `${path('settings', ALL_EVENTS)}?view=look`, 'look')}
-        </div>
         <Pill onClick={onSignOut} className="self-stretch">
           Sign out
         </Pill>

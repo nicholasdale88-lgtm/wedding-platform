@@ -85,6 +85,33 @@ describe('addresses', () => {
   });
 });
 
+describe('phone menu', () => {
+  it("More shows the sections first, and tapping one shows only that section's pages", async () => {
+    // A phone-sized screen.
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: /max-width/.test(q), media: q, addEventListener: () => {}, removeEventListener: () => {} }));
+    mockApi();
+    renderAt('/admin/w1/account/overview');
+    await userEvent.click(await screen.findByRole('button', { name: 'More' }));
+    const sheet = screen.getByRole('dialog', { name: 'More' });
+    // Account: its own pages, no event or planner pages.
+    expect(within(sheet).getByRole('button', { name: 'Settings' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Budget' })).toBeNull();
+    expect(within(sheet).queryByRole('button', { name: 'Photos' })).toBeNull();
+    // The second event: its pages only (no planner, no wedding party).
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Recovery brunch' }));
+    expect(within(sheet).getByRole('button', { name: 'Texts' })).toBeInTheDocument();
+    expect(within(sheet).queryByRole('button', { name: 'Wedding planner' })).toBeNull();
+    expect(within(sheet).queryByRole('button', { name: 'Budget' })).toBeNull();
+    expect(within(sheet).queryByRole('button', { name: 'Settings' })).toBeNull();
+    // The wedding: its pages and the planner's tools.
+    await userEvent.click(within(sheet).getByRole('button', { name: 'The wedding' }));
+    expect(within(sheet).getByRole('button', { name: 'Budget' })).toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Recovery brunch' }));
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Texts' }));
+    expect(location).toBe('/admin/w1/brunch/texts');
+  });
+});
+
 describe('messages', () => {
   const thread = (id: string, name: string, events: string[], unread: number) => ({
     invitationId: id, name, canText: true, last: { body: `Hi from ${name}`, at: '2026-10-19T00:00:00.000Z', from: 'guest' }, unread, kinds: [], events,
