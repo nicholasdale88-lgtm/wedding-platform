@@ -20,6 +20,34 @@ const err = (c: C, status: 400 | 404 | 503, code: string, message: string) => c.
 const wid = (c: C) => c.req.param('wid')!;
 const STATE_MINUTES = 15;
 export const redirectUri = (env: Env) => `${env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/oauth/callback`;
+/**
+ * Every photo not in this storage yet goes in the queue (failed ones are tried again): the cron copies
+ * them every 15 minutes, and the first batch starts straight away.
+ */
+const queueCopies = (db: D1Database, linkId: string, weddingId: string): D1PreparedStatement[] => {
+  const old = '2000-01-01T00:00:00.000Z'; // picked up straight away
+  return [
+    db.prepare(`UPDATE photo_link SET status = 'ok', last_error = NULL WHERE id = ?`).bind(linkId),
+    db.prepare(`UPDATE photo_copy SET status = 'pending', attempts = 0, updated_at = ? WHERE link_id = ? AND status = 'failed'`).bind(old, linkId),
+    db
+      .prepare(
+        `INSERT OR IGNORE INTO photo_copy (media_id, link_id, status, attempts, updated_at)
+         SELECT m.id, ?, 'pending', 0, ? FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL AND m.key NOT LIKE 'link:' || ? || ':%'`,
+      )
+      .bind(linkId, old, weddingId, linkId),
+  ];
+};
+
+/** Where the couple can see it in their own storage (Google Drive: the wedding's own folder). */
+const openUrl = (provider: ProviderKey, folders: string | null): string => {
+  if (provider === 'gdrive') {
+    const f = JSON.parse(folders || '{}') as Record<string, string>;
+    const top = Object.entries(f).find(([k]) => k.startsWith('path:') && !k.slice(5).includes('/'))?.[1];
+    return top ? `https://drive.google.com/drive/folders/${encodeURIComponent(top)}` : 'https://drive.google.com/drive/my-drive';
+  }
+  return provider === 'gphotos' ? 'https://photos.google.com/albums' : provider === 'dropbox' ? 'https://www.dropbox.com/home/Apps' : 'https://onedrive.live.com/';
+};
+
 const randomId = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 export function photoLinkRoutes() {
@@ -31,7 +59,7 @@ export function photoLinkRoutes() {
 
   app.get('/', async (c) => {
     const { results } = await c.env.DB.prepare(
-      `SELECT l.id, l.provider, l.account, l.status, l.last_error, l.created_at,
+      `SELECT l.id, l.provider, l.account, l.status, l.last_error, l.created_at, l.folders,
               SUM(CASE WHEN pc.status = 'done' THEN 1 ELSE 0 END) AS copied,
               SUM(CASE WHEN pc.status = 'pending' OR (pc.status = 'failed' AND pc.attempts < 6) THEN 1 ELSE 0 END) AS waiting,
               SUM(CASE WHEN pc.status = 'failed' AND pc.attempts >= 6 THEN 1 ELSE 0 END) AS failed,
@@ -40,13 +68,15 @@ export function photoLinkRoutes() {
         WHERE l.wedding_id = ? AND l.deleted_at IS NULL GROUP BY l.id ORDER BY l.created_at`,
     )
       .bind(wid(c))
-      .all<{ id: string; provider: ProviderKey; account: string; status: string; last_error: string | null; created_at: string; copied: number | null; waiting: number | null; failed: number | null; copy_error: string | null }>();
+      .all<{ id: string; provider: ProviderKey; account: string; status: string; last_error: string | null; created_at: string; folders: string | null; copied: number | null; waiting: number | null; failed: number | null; copy_error: string | null }>();
     const docs = await c.env.DB.prepare(`SELECT json_extract(content, '$.docsLink') AS l FROM wedding WHERE id = ?`).bind(wid(c)).first<{ l: string | null }>();
     const { results: filedRows } = await c.env.DB.prepare(`SELECT id FROM photo_link WHERE wedding_id = ? AND deleted_at IS NULL AND json_valid(folders) AND json_extract(folders, '$._v') = '2'`).bind(wid(c)).all<{ id: string }>();
     const filed = new Set(filedRows.map((r) => r.id));
     return c.json({
       siteStorage: !!c.env.MEDIA,
       redirectUri: redirectUri(c.env),
+      // The site's own app setup (Google Cloud, Dropbox, Azure) is for whoever runs the site, never the couple.
+      canSetUp: c.get('user').superAdmin,
       providers: PROVIDERS.map((p) => ({ key: p, name: PROVIDER_NAME[p], ready: providerReady(c.env, p) })),
       links: results.map((r) => ({
         id: r.id,
@@ -61,6 +91,7 @@ export function photoLinkRoutes() {
         since: r.created_at,
         docs: docs?.l === r.id,
         filed: filed.has(r.id),
+        openUrl: openUrl(r.provider, r.folders),
       })),
     });
   });
@@ -70,7 +101,7 @@ export function photoLinkRoutes() {
     const body = z.object({ provider: z.enum(['gdrive', 'gphotos', 'dropbox', 'onedrive']) }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose where to link.');
     const p = body.data.provider;
-    if (!providerReady(c.env, p) || !c.env.SESSION_SECRET) return err(c, 503, 'not_set_up', `${PROVIDER_NAME[p]} isn't set up on this site yet. See the steps under it.`);
+    if (!providerReady(c.env, p) || !c.env.SESSION_SECRET) return err(c, 503, 'not_set_up', `${PROVIDER_NAME[p]} isn't switched on for this site yet.`);
     const state = randomId();
     const now = new Date();
     await c.env.DB.batch([
@@ -132,16 +163,7 @@ export function photoLinkRoutes() {
     const id = c.req.param('id');
     const link = await c.env.DB.prepare(`SELECT id FROM photo_link WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(id, wid(c)).first();
     if (!link) return err(c, 404, 'not_found', 'That link is gone.');
-    const old = '2000-01-01T00:00:00.000Z'; // picked up straight away
-    await c.env.DB.batch([
-      c.env.DB.prepare(`UPDATE photo_link SET status = 'ok', last_error = NULL WHERE id = ?`).bind(id),
-      c.env.DB.prepare(`UPDATE photo_copy SET status = 'pending', attempts = 0, updated_at = ? WHERE link_id = ? AND status = 'failed'`).bind(old, id),
-      c.env.DB.prepare(
-        `INSERT OR IGNORE INTO photo_copy (media_id, link_id, status, attempts, updated_at)
-         SELECT m.id, ?, 'pending', 0, ? FROM media m WHERE m.wedding_id = ? AND m.kind IN ('photo', 'video') AND m.deleted_at IS NULL AND m.key NOT LIKE 'link:' || ? || ':%'`,
-      ).bind(id, old, wid(c), id),
-      audit(c, 'photos.copy-all', id),
-    ]);
+    await c.env.DB.batch([...queueCopies(c.env.DB, id, wid(c)), audit(c, 'photos.copy-all', id)]);
     const queued = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM photo_copy WHERE link_id = ? AND status = 'pending'`).bind(id).first<{ n: number }>();
     c.executionCtx.waitUntil(runCopies(c.env, { linkId: id, limit: 25 }).catch(() => undefined));
     return c.json({ ok: true, queued: queued?.n ?? 0 });
@@ -173,19 +195,23 @@ export function oauthRoutes() {
     try {
       const t = await PROVIDER[row.provider].exchange(c.env, redirectUri(c.env), c.req.query('code')!);
       if (!t.refresh) return back('link_error=no_offline');
-      const id = crypto.randomUUID();
       const now = new Date().toISOString();
+      const account = t.account.slice(0, 200);
+      const sealed = await seal(c.env.SESSION_SECRET!, SEAL_LABEL, t.refresh);
+      // Connecting the same account again mends the link it already has (its folders and copies carry on).
+      const had = await c.env.DB.prepare(`SELECT id FROM photo_link WHERE wedding_id = ? AND provider = ? AND lower(account) = lower(?) AND deleted_at IS NULL ORDER BY created_at LIMIT 1`)
+        .bind(row.wedding_id, row.provider, account)
+        .first<{ id: string }>();
+      const id = had?.id ?? crypto.randomUUID();
       await c.env.DB.batch([
-        c.env.DB.prepare(`INSERT INTO photo_link (id, wedding_id, provider, account, refresh_enc, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(
-          id,
-          row.wedding_id,
-          row.provider,
-          t.account.slice(0, 200),
-          await seal(c.env.SESSION_SECRET!, SEAL_LABEL, t.refresh),
-          now,
-        ),
-        c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, at) VALUES (?, ?, ?, 'photos.link', ?, ?)`).bind(crypto.randomUUID(), row.wedding_id, row.user_id, id, now),
+        had
+          ? c.env.DB.prepare(`UPDATE photo_link SET refresh_enc = ?, status = 'ok', last_error = NULL WHERE id = ?`).bind(sealed, id)
+          : c.env.DB.prepare(`INSERT INTO photo_link (id, wedding_id, provider, account, refresh_enc, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(id, row.wedding_id, row.provider, account, sealed, now),
+        c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, at) VALUES (?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), row.wedding_id, row.user_id, had ? 'photos.relink' : 'photos.link', id, now),
+        // Photos already taken go there too, without anyone having to ask.
+        ...queueCopies(c.env.DB, id, row.wedding_id),
       ]);
+      c.executionCtx.waitUntil(runCopies(c.env, { linkId: id, limit: 25 }).catch(() => undefined));
       // Filed straight away: the couple sees the folders in their storage as soon as they look.
       if (row.provider !== 'gphotos') {
         c.executionCtx.waitUntil(

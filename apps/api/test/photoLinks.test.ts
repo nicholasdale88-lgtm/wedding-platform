@@ -196,6 +196,29 @@ describe('photo links', () => {
     expect(down.items.find((i) => i.key.startsWith('storage:'))).toMatchObject({ state: 'warn' });
   });
 
+  it('connecting the same account again mends its link (no second one), and photos already taken are copied without asking', async () => {
+    const bucket = new Map<string, Uint8Array>();
+    env.MEDIA = {
+      put: async (k: string, v: Uint8Array) => void bucket.set(k, v),
+      get: async (k: string) => (bucket.has(k) ? { body: new Blob([bucket.get(k)!]).stream() } : null),
+      delete: async (k: string) => void bucket.delete(k),
+    } as unknown as R2Bucket;
+    // A photo from before anything was linked.
+    expect((await call(`/p/sophie-and-nicholas/photos?g=${await guestToken()}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg' }, body: JPEG })).status).toBe(200);
+    await link();
+    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM photo_copy`).first<{ n: number }>())!.n).toBe(1);
+    // The link breaks (password changed); connecting again mends it.
+    await t.db.prepare(`UPDATE photo_link SET status = 'error', last_error = 'Connect again'`).run();
+    const back = await link();
+    expect(back.headers.get('location')).toContain('linked=dropbox');
+    const rows = (await t.db.prepare(`SELECT status, last_error FROM photo_link WHERE deleted_at IS NULL`).all()).results;
+    expect(rows).toEqual([{ status: 'ok', last_error: null }]);
+    const d = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { canSetUp: boolean; links: { ok: boolean; openUrl: string }[] };
+    expect(d.canSetUp).toBe(false); // the couple never sees the site's app setup
+    expect(d.links).toHaveLength(1);
+    expect(d.links[0]).toMatchObject({ ok: true, openUrl: 'https://www.dropbox.com/home/Apps' });
+  });
+
   it('a token sealed under another secret is useless', async () => {
     const sealed = await seal('one-secret-000000000000000000', 'photo-link', 'x');
     expect(await unseal('another-secret-0000000000000000', 'photo-link', sealed)).toBeNull();

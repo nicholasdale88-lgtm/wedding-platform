@@ -428,10 +428,14 @@ export interface PhotoLink {
   docs?: boolean;
   /** Everything is filed in one "<couple> wedding" folder (Photos, Planning files, Signs and print, Backups). */
   filed?: boolean;
+  /** Where to see it in their own storage (Google Drive: the wedding's folder). */
+  openUrl?: string;
 }
 export interface PhotoLinks {
   siteStorage: boolean;
   redirectUri: string;
+  /** Whoever runs the site (a super-admin) sees how to switch each service on; couples never do. */
+  canSetUp?: boolean;
   providers: { key: PhotoLink['provider']; name: string; ready: boolean }[];
   links: PhotoLink[];
 }
