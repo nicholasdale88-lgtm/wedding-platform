@@ -114,7 +114,7 @@ export async function runBackups(env: Env, now = new Date(), limit = 2) {
   const retry = new Date(now.getTime() - RETRY).toISOString();
   const { results } = await env.DB.prepare(
     `SELECT w.id FROM wedding w
-      WHERE w.deleted_at IS NULL AND json_valid(w.content)
+      WHERE w.deleted_at IS NULL AND json_valid(w.content) AND w.plan NOT IN ('free', 'essentials')
         AND COALESCE(json_extract(w.content, '$.backupOff'), 0) = 0
         AND EXISTS (SELECT 1 FROM photo_link l WHERE l.wedding_id = w.id AND l.deleted_at IS NULL AND l.status = 'ok' AND l.provider != 'gphotos')
         AND COALESCE(json_extract(w.content, '$.backupAt'), '') < ?

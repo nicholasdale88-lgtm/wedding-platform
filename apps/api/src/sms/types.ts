@@ -49,6 +49,8 @@ export interface WeddingCtx {
   invitesFrom?: Iso | null;
   /** True when the couple picked the date. */
   invitesFromCustom?: boolean;
+  /** 'free' weddings send no texts (the plan doesn't include them). */
+  plan?: string;
 }
 
 export interface EventInfo {

@@ -6,6 +6,7 @@ import { useAdmin } from '../Shell';
 import { H2, Pill, useToast } from '../ui';
 import { CoordinatorCard } from './CoordinatorCard';
 import { PortalAccounts } from './PortalAccounts';
+import { Upgrade, usePlan } from '../Upgrade';
 
 /**
  * Wedding → Setup → Wedding party access: the wedding party portal. Each member can have their own sign-in
@@ -15,6 +16,7 @@ import { PortalAccounts } from './PortalAccounts';
  */
 export function PartyAccess() {
   const { wid } = useAdmin();
+  const { has } = usePlan();
   const toast = useToast();
   const [d, setD] = useState<PartyData | null>(null);
   const [error, setError] = useState('');
@@ -50,7 +52,7 @@ export function PartyAccess() {
 
   return (
     <section aria-label="Wedding party access" className="flex flex-col gap-6">
-      <PortalAccounts couple={couple} onChanged={() => void load()} />
+      {has('partySignIns') ? <PortalAccounts couple={couple} onChanged={() => void load()} /> : <Upgrade feature="partySignIns" compact />}
       <div>
         <H2>Private links</H2>
         <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[720px]">

@@ -1,4 +1,4 @@
-import { dateIn, dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, PARTY_ROLES, PartySetup, sideOf, splitDiet, textsFor, type TableShape } from '@wp/shared';
+import { allows, dateIn, dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, PARTY_ROLES, PartySetup, sideOf, splitDiet, textsFor, type TableShape } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import { MAX_PHOTO, MAX_VIDEO, readBytes, readJson } from '../lib/security';
 import { forecastFor } from '../lib/weather';
 import { canStore, storePhoto } from '../photos/store';
 import { isPhotoCode } from '../lib/photoQr';
+import { weddingPlan } from '../lib/plan';
 
 /** The site's own photo storage per wedding: inside R2's free 10 GB. */
 const ALBUM_BYTES = 9 * 1024 ** 3;
@@ -320,7 +321,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
           .first<{ name: string; inv: string }>()
       : null;
     // The table-card QR code: anyone at the tables can add photos, giving their name.
-    const qr = !who && (await isPhotoCode(c.env.SESSION_SECRET, w.id, c.req.query('t') ?? ''));
+    const qr = !who && (await isPhotoCode(c.env.SESSION_SECRET, w.id, c.req.query('t') ?? '')) && allows(await weddingPlan(c.env.DB, w.id), 'photoQr');
     // Each event has its own album; the page offers the events this guest is invited to (all, on the public page).
     const all = await eventsOf(c.env.DB, w.id);
     const mine = who ? new Set((await c.env.DB.prepare(`SELECT event_id FROM invite_event WHERE invitation_id = ?`).bind(who.inv).all<{ event_id: string }>()).results.map((r) => r.event_id)) : null;
@@ -355,7 +356,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     const db = c.env.DB;
     const inv = isToken(token) ? await db.prepare(`SELECT id FROM invitation WHERE token = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>() : null;
     // Or the table-card QR code: limited per phone (network) and per wedding instead of per invitation.
-    const qr = !inv && (await isPhotoCode(c.env.SESSION_SECRET, w.id, c.req.query('t') ?? ''));
+    const qr = !inv && (await isPhotoCode(c.env.SESSION_SECRET, w.id, c.req.query('t') ?? '')) && allows(await weddingPlan(db, w.id), 'photoQr');
     if (!inv && !qr) return err(c, 404, 'no_link', 'Please open this page from the link in your text.');
     const who = inv ? inv.id : `qr:${w.id}:${c.req.header('CF-Connecting-IP') ?? 'local'}`;
     if (!(await canStore(c.env, w.id))) return err(c, 503, 'closed', 'Photo uploads are not open yet.');

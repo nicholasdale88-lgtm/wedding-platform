@@ -1,4 +1,5 @@
-import { TABLE_SHAPES } from '@wp/shared';
+import { allows, TABLE_SHAPES } from '@wp/shared';
+import { needsUpgrade, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { readJson, safeJson } from '../lib/security';
@@ -125,6 +126,7 @@ export function seatingRoutes() {
   });
 
   app.put('/', requireMember('owner', 'editor'), async (c) => {
+    if (!allows(await weddingPlan(c.env.DB, wid(c)), 'seating')) return needsUpgrade(c, 'seating');
     const v = Number(c.req.header('If-Match'));
     if (!Number.isInteger(v)) return err(c, 428, 'version_required', 'Reload and try again.');
     const body = Save.safeParse(await readJson(c.req.raw));

@@ -1,4 +1,5 @@
-import { PARTY_PERMS, permsOf, segments, toE164, type PartyPerm } from '@wp/shared';
+import { allows, PARTY_PERMS, permsOf, segments, toE164, type PartyPerm } from '@wp/shared';
+import { needsUpgrade, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -294,6 +295,7 @@ export function partyAccountRoutes() {
 
   /** Invite them (or a fresh invite link): a link to set their password, good for 14 days. */
   app.post('/:pid/invite', writer, async (c) => {
+    if (!allows(await weddingPlan(c.env.DB, wid(c)), 'partySignIns')) return needsUpgrade(c, 'partySignIns');
     const p = await memberOf(c);
     if (!p) return err(c, 404, 'not_found', 'They’re not in the wedding party.');
     const b = z.object({ email: z.string().trim().max(200).optional() }).strict().safeParse((await readJson(c.req.raw)) ?? {});

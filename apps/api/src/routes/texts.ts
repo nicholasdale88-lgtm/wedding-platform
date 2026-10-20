@@ -2,6 +2,8 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { readJson, safeJson } from '../lib/security';
+import { needsUpgrade, weddingPlan } from '../lib/plan';
+import { allows } from '@wp/shared';
 import { estimate, sendNow, sendTest, type EngineDeps } from '../sms/engine';
 import { recipientsFor } from '../sms/audience';
 import { Audience } from '../sms/types';
@@ -226,6 +228,7 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
   });
 
   app.post('/:cid/send', writer, async (c) => {
+    if (!allows(await weddingPlan(c.env.DB, wid(c)), 'texts')) return needsUpgrade(c, 'texts');
     const body = z.object({ only: z.array(z.string()).max(2000).optional() }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Please choose who to send to.');
     try {
@@ -239,6 +242,7 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
 
   /** "Send me a test": to the couple's own mobile, any hour. */
   app.post('/test', writer, async (c) => {
+    if (!allows(await weddingPlan(c.env.DB, wid(c)), 'texts')) return needsUpgrade(c, 'texts');
     const body = z.object({ body: z.string().min(1).max(1600) }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Write the message first.');
     const d = deps(c.env);

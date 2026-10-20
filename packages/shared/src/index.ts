@@ -11,3 +11,4 @@ export * from './text';
 export * from './seating';
 export * from './planner';
 export * from './help';
+export * from './plan';

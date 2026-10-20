@@ -1,6 +1,7 @@
 import { PartySetup, randomToken, splitDiet, toE164 } from '@wp/shared';
 import { clearDietIfDeclinedAll, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
+import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { loadWedding } from '../admin/data';
@@ -126,6 +127,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         timezone: w.timezone,
         adminName: (w.content.adminName as string | undefined) ?? '',
         adminLook: AdminLook.safeParse(w.content.adminLook ?? {}).data ?? {},
+        // What this wedding's plan includes (the admin shows Upgrade where it doesn't).
+        plan: await weddingPlan(c.env.DB, w.id),
+        planRequested: (w.content.planRequested as string | undefined) ?? '',
       },
       ...ov,
       partySides: { p1: setup.p1, p2: setup.p2 },
@@ -169,6 +173,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
 
   app.post('/guests', writer, async (c) => {
     const w = wid(c);
+    if (!(await roomFor(c.env.DB, w, 1))) return needsUpgrade(c, 'unlimitedGuests');
     const invId = id();
     const t = now();
     const { results: all } = await c.env.DB.prepare(`SELECT id, key FROM event WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w).all<{ id: string; key: string }>();
@@ -242,6 +247,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       );
     }
 
+    if (!(await roomFor(db, w, ok.reduce((n, g) => n + g.people.length, 0)))) return needsUpgrade(c, 'unlimitedGuests');
     const t = now();
     // D1 batches are all-or-nothing and up to ~100 statements: pack whole guests, never half of one.
     // A batch that fails is retried once (each batch is all-or-nothing). If it still fails, say exactly how many

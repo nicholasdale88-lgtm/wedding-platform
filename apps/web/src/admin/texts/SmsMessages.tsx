@@ -8,6 +8,7 @@ import { useUnsavedChanges } from '../leave';
 import { ALL_EVENTS, useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
 import { isNightBefore, NightText } from '../pages/NightText';
+import { Upgrade, usePlan } from '../Upgrade';
 
 /**
  * Admin → SMS messages (design: isSms). Every text the wedding sends: when it goes, to whom, the
@@ -16,6 +17,7 @@ import { isNightBefore, NightText } from '../pages/NightText';
  */
 export function SmsMessages() {
   const { wid, reload: reloadOverview, event: chosen, path } = useAdmin();
+  const { has } = usePlan();
   const go = useNavigate();
   const section = useSectionName();
   const toast = useToast();
@@ -117,6 +119,7 @@ export function SmsMessages() {
         </div>
       </header>
 
+      {!has('texts') && <Upgrade feature="texts" compact />}
       {lastCall && (
         <LastCall
           data={data}

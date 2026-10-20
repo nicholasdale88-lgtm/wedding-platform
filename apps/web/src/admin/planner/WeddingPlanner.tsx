@@ -6,6 +6,7 @@ import { confirmLeave } from '../leave';
 import { InstallApp } from '../../lib/InstallApp';
 import { useAdmin } from '../Shell';
 import { H2 } from '../ui';
+import { Gate } from '../Upgrade';
 import { Assistant } from './Assistant';
 import { Budget } from './Budget';
 import { Checklist, nextTasks } from './Checklist';
@@ -49,7 +50,16 @@ const VIEWS = [...MAIN, ...MORE];
 /** What most Australian weddings book (a checklist of vendor kinds; matched loosely against yours). */
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 
+/** The planner comes with Essentials (older weddings and the platform's own have it). */
 export function WeddingPlanner() {
+  return (
+    <Gate feature="planner">
+      <Planner />
+    </Gate>
+  );
+}
+
+function Planner() {
   const [params, setParams] = useSearchParams();
   const view = (VIEWS.find(([k]) => k === params.get('view'))?.[0] ?? 'glance') as View;
   const [more, setMore] = useState(false);

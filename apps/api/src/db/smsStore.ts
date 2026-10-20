@@ -360,6 +360,7 @@ export class D1SmsStore implements SmsStore {
       paused: !!w.sms_paused, sender: w.sms_sender, adminMobile: w.admin_mobile, dailyCap: w.sms_daily_cap, rateX100: w.sms_rate_cents_x100,
       walletCredits: w.wallet_credits, optOutFooter: w.sms_optout_footer, baseUrl: this.baseUrl,
       replies: parseJson(w.sms_replies, {}),
+      plan: w.plan,
       ...invitesFrom(w.invites_from, w.first_event),
     };
   }
@@ -392,6 +393,7 @@ interface WeddingRow {
   id: string; slug: string; name1: string; name2: string; timezone: string; quiet_start: number; quiet_end: number;
   sms_paused: number; sms_sender: string | null; admin_mobile: string | null; sms_daily_cap: number; sms_rate_cents_x100: number;
   wallet_credits: number | null; sms_optout_footer: string; sms_replies: string; invites_from: string | null; first_event: string | null;
+  plan: string;
 }
 interface EventRow { id: string; key: string; name: string; pending_label: string; sort: number }
 interface InvitationRow { id: string; token: string; phone: string | null; seats_held: number; sms_optout: number; stopped: number }

@@ -105,7 +105,7 @@ export interface GuestDetail {
 }
 
 export interface Overview {
-  wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string; adminLook?: { palette?: string; eventColours?: boolean; large?: boolean } };
+  wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string; adminLook?: { palette?: string; eventColours?: boolean; large?: boolean }; plan?: 'free' | 'essentials' | 'complete'; planRequested?: string };
   total: number;
   replied: number;
   awaiting: number;
@@ -147,6 +147,11 @@ export const api = {
   me: () => request<Me>('/a/me'),
   login: (email: string, passcode: string) => send<Me>('POST', '/a/auth/login', { email, passcode }),
   logout: () => send<{ ok: true }>('POST', '/a/auth/logout'),
+  /** Ask to upgrade (the platform owner sends a payment link). */
+  requestPlan: (wid: string, plan: 'essentials' | 'complete') => send<{ ok: true; requested: string }>('POST', `${w(wid)}/plan/request`, { plan }),
+  /** From the front page: a new account and wedding, signed in. */
+  signup: (b: { firstName: string; partnerName: string; email: string; passcode: string; date: string; plan: 'free' | 'essentials' | 'complete'; marketing: boolean; website: string }) =>
+    send<Me & { weddingId: string }>('POST', '/a/signup', b),
 
   overview: (wid: string, event?: string) => request<Overview>(`${w(wid)}/overview${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   guests: (wid: string) => request<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> }>(`${w(wid)}/guests`),

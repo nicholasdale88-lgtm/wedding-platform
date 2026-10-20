@@ -10,6 +10,7 @@ import { ALL_EVENTS, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
 import { SeatChecks } from './SeatChecks';
+import { Gate } from '../Upgrade';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 
 /**
@@ -27,7 +28,16 @@ type Person = SeatingData['people'][number];
 const AREAS = ['Dance floor', 'DJ', 'Bar', 'Entrance', 'Balcony', 'Fireplace', 'Cake table', 'Photo booth', 'Gift table', 'Area'];
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/** Seating comes with Essentials (older weddings and the platform's own have it). */
 export function Seating() {
+  return (
+    <Gate feature="seating">
+      <SeatingPlan />
+    </Gate>
+  );
+}
+
+function SeatingPlan() {
   const { wid, overview, reload: reloadOverview, event: chosen } = useAdmin();
   const toast = useToast();
   const [params] = useSearchParams();

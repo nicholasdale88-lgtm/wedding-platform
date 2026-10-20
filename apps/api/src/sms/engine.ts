@@ -67,7 +67,7 @@ export async function runAutopilot(d: EngineDeps): Promise<RunReport> {
 }
 
 async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
-  if (w.paused) return 0;
+  if (w.paused || w.plan === 'free') return 0; // Free doesn't include texts
   const now = d.now();
   const quiet = inQuietHours(now, w.timezone, w.quietStart, w.quietEnd);
   const campaigns = (await d.store.campaigns(w.id)).filter((c) => c.enabled);

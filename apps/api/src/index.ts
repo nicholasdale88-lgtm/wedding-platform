@@ -18,6 +18,7 @@ import { albumAdminRoutes, albumGuestRoutes } from './routes/album';
 import { runCopies } from './photos/store';
 import { runBackups } from './lib/backup';
 import { rfqRoutes } from './routes/rfq';
+import { planRoutes, signupRoutes } from './routes/signup';
 import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
@@ -42,6 +43,8 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.use('*', hardening());
   app.get('/health', (c) => c.json({ ok: true }));
   app.route('/hooks', hookRoutes(deps));
+  app.route('/a/signup', signupRoutes());
+  app.route('/a', planRoutes());
   app.route('/a', authRoutes());
   app.route('/a', accountRoutes());
   app.route('/a/w/:wid/members', memberRoutes());
