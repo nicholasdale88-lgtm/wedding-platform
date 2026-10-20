@@ -1,4 +1,4 @@
-import { autoSeat as autoSeatPlan, clampTable, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STRETCHES, TABLE_SHAPES, tableBox, type TableShape } from '@wp/shared';
+import { autoSeat as autoSeatPlan, clampTable, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STRETCHES, TABLE_SHAPES, tableBox, type TableShape } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData } from '../../lib/api';
@@ -48,10 +48,14 @@ function SeatingPlan() {
   const [shape, setShape] = useState<TableShape>('round');
   const [snap, setSnap] = useState(true);
   const [zoom, setZoom] = useState(1);
-  // Phones: seating guests first; the room's tools (tables, areas, snap, line up, print) under Arrange room.
   const mob = useMedia('(max-width: 759px)');
-  const [arrange, setArrange] = useState(false);
-  const roomTools = !mob || arrange;
+  // Looking at the plan by default; Edit seating opens every tool (and nothing changes outside it).
+  const [editing, setEditing] = useState(false);
+  const editingRef = useRef(false);
+  editingRef.current = editing;
+  const roomTools = editing;
+  // The room's shape and size, changed while editing (saved with the plan).
+  const [room, setRoom] = useState<string | null>(null);
   const [groupFilter, setGroupFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -64,6 +68,7 @@ function SeatingPlan() {
 
   const apply = (d: SeatingData) => {
     setS(d);
+    setRoom(null);
     setViewing(null);
     dispatch({ type: 'reset', doc: { tables: d.tables, areas: d.areas, seats: Object.fromEntries(d.people.map((p) => [p.id, p.tableId])) } });
   };
@@ -78,7 +83,9 @@ function SeatingPlan() {
   useEffect(() => void load(), [load]);
 
   /** Every change goes through here, so it can be undone. */
-  const commit = useCallback((fn: (d: Snapshot) => Snapshot, record = true) => dispatch({ type: 'change', fn, record }), []);
+  const commit = useCallback((fn: (d: Snapshot) => Snapshot, record = true) => {
+    if (editingRef.current) dispatch({ type: 'change', fn, record });
+  }, []);
   const checkpoint = useCallback(() => dispatch({ type: 'checkpoint' }), []);
   const undo = useCallback(() => dispatch({ type: 'undo' }), []);
   const redo = useCallback(() => dispatch({ type: 'redo' }), []);
@@ -86,7 +93,7 @@ function SeatingPlan() {
   // Keyboard: Ctrl/⌘+Z undo, Shift+Ctrl/⌘+Z or Ctrl+Y redo (not while typing in a box).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest('input, textarea, select')) return;
+      if (!editingRef.current || (e.target as HTMLElement).closest('input, textarea, select')) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -102,7 +109,8 @@ function SeatingPlan() {
   }, [undo, redo]);
 
   // Leaving with unsaved seating asks first: the menu, links, Back, or closing the page.
-  useUnsavedChanges(dirty, 'You have seating changes that are not saved. Leave without saving them?');
+  const changed = dirty || (room !== null && room !== s?.aspect);
+  useUnsavedChanges(changed, 'You have seating changes that are not saved. Leave without saving them?');
 
   const byTable = useMemo(() => {
     const m = new Map<string, Person[]>();
@@ -117,7 +125,12 @@ function SeatingPlan() {
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!s) return <div aria-busy="true" className="text-[#5b6a52]">Loading the floor plan…</div>;
 
-  const aspect = s.aspect;
+  const aspect = room ?? s.aspect;
+  /** A new room shape or size: tables keep their places, and stay inside the room. */
+  const setRoomTo = (next: string) => {
+    setRoom(next);
+    commit((d) => ({ ...d, tables: d.tables.map((t) => clampTable(t, next)) }));
+  };
   const snapTo = (n: number) => (snap ? Math.round(n / 2.5) * 2.5 : round1(n));
   const at = (e: { clientX: number; clientY: number }) => {
     const r = plan.current!.getBoundingClientRect();
@@ -233,7 +246,7 @@ function SeatingPlan() {
   /** Name the plan as it is now (unsaved changes are saved first); it becomes the current arrangement. */
   const saveVersion = (name: string) =>
     run(async () => {
-      if (dirty) apply(await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats }));
+      if (changed) apply(await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats }));
       return seatingApi.saveVersion(wid, s.event.key, name);
     }, `Saved “${name}”. It's now the current arrangement.`);
   /** Show a version on the plan to look at; nothing changes until Make current. */
@@ -344,19 +357,23 @@ function SeatingPlan() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap items-center print:hidden">
-          <Pill onClick={undo} disabled={!past.length} aria-label="Undo">
-            ↶ Undo
-          </Pill>
-          <Pill onClick={redo} disabled={!future.length} aria-label="Redo">
-            ↷ Redo
-          </Pill>
+          {editing && (
+            <>
+              <Pill onClick={undo} disabled={!past.length} aria-label="Undo">
+                ↶ Undo
+              </Pill>
+              <Pill onClick={redo} disabled={!future.length} aria-label="Redo">
+                ↷ Redo
+              </Pill>
+            </>
+          )}
           <Pill kind={versionsOpen ? 'outline' : 'secondary'} aria-expanded={versionsOpen} onClick={() => setVersionsOpen((x) => !x)}>
             Versions{versions.length ? ` (${versions.length})` : ''}
           </Pill>
-          <Pill kind={dirty && !viewing ? 'primary' : 'secondary'} disabled={!dirty || busy || !!viewing} onClick={() => void save()}>
-            {busy && dirty ? 'Saving…' : dirty ? 'Save seating' : 'Saved'}
+          <Pill kind={changed && !viewing ? 'primary' : 'secondary'} disabled={!changed || busy || !!viewing} onClick={() => void save()}>
+            {busy && changed ? 'Saving…' : changed ? 'Save seating' : 'Saved'}
           </Pill>
-          <Pill kind={!dirty && unpublished ? 'primary' : 'secondary'} disabled={dirty || busy || !unpublished || !tables.length || !!viewing} onClick={() => void publish()} title={dirty ? 'Save first' : undefined}>
+          <Pill kind={!changed && unpublished ? 'primary' : 'secondary'} disabled={changed || busy || !unpublished || !tables.length || !!viewing} onClick={() => void publish()} title={changed ? 'Save first' : undefined}>
             {!s.published ? 'Publish to guests' : unpublished ? `Publish ${s.published.changes} ${s.published.changes === 1 ? 'change' : 'changes'}` : 'Published'}
           </Pill>
         </div>
@@ -381,7 +398,7 @@ function SeatingPlan() {
           current={s.current ?? null}
           viewing={viewing?.id ?? null}
           busy={busy}
-          dirty={dirty && !viewing}
+          dirty={changed && !viewing}
           tz={tz}
           onSave={(name) => void saveVersion(name)}
           onView={(id) => void viewVersion(id)}
@@ -392,13 +409,36 @@ function SeatingPlan() {
       )}
 
       <div className="flex gap-2 flex-wrap items-center print:hidden">
-        {mob && (
-          <Pill kind={arrange ? 'outline' : 'secondary'} aria-pressed={arrange} onClick={() => (setArrange((x) => !x), setAdding(false))}>
-            {arrange ? 'Done arranging' : 'Arrange room'}
-          </Pill>
-        )}
+        <Pill
+          kind={editing ? 'outline' : 'primary'}
+          aria-pressed={editing}
+          disabled={!!viewing}
+          onClick={() => {
+            setEditing((x) => !x);
+            setAdding(false);
+          }}
+        >
+          {editing ? 'Done editing' : 'Edit seating'}
+        </Pill>
         {roomTools && (
           <>
+        <Label text="Room" className="!flex-row items-center gap-2">
+          <select aria-label="Room shape" value={roomShape(aspect)} onChange={(e) => setRoomTo(roomAspect(e.target.value, roomScale(aspect)))} className={`${inputCls} !py-2`}>
+            {ROOM_SHAPES.map((x) => (
+              <option key={x.aspect} value={x.aspect}>
+                {x.label}
+              </option>
+            ))}
+            {!ROOM_SHAPES.some((x) => x.aspect === roomShape(aspect)) && <option value={roomShape(aspect)}>{roomShape(aspect)}</option>}
+          </select>
+          <select aria-label="Room size" value={String(roomScale(aspect))} onChange={(e) => setRoomTo(roomAspect(aspect, Number(e.target.value)))} className={`${inputCls} !py-2`}>
+            {ROOM_SIZES.map((x) => (
+              <option key={x.scale} value={String(x.scale)}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+        </Label>
         <Label text={selTable ? `Table ${selTable.name} type` : 'Table type'} className="!flex-row items-center gap-2">
           <select
             value={selTable?.shape ?? shape}
@@ -445,9 +485,11 @@ function SeatingPlan() {
         </Pill>
           </>
         )}
-        <Pill onClick={autoSeat} disabled={!tables.length}>
-          Auto-seat the rest
-        </Pill>
+        {editing && (
+          <Pill onClick={autoSeat} disabled={!tables.length}>
+            Auto-seat the rest
+          </Pill>
+        )}
         <span className="flex-1" />
         <Pill onClick={() => setZoom((z) => Math.max(1, round1(z - 0.25)))} disabled={zoom <= 1} aria-label="Zoom out">
           −
@@ -456,7 +498,7 @@ function SeatingPlan() {
         <Pill onClick={() => setZoom((z) => Math.min(3, round1(z + 0.25)))} disabled={zoom >= 3} aria-label="Zoom in">
           +
         </Pill>
-        {roomTools && (
+        {!editing && (
           <>
             <Pill onClick={exportList} disabled={!tables.length}>
               Table list for the caterer
@@ -466,13 +508,13 @@ function SeatingPlan() {
         )}
       </div>
       <div className="text-[14px] text-[#5b6a52] print:hidden">
-        {adding
-          ? 'Tap the plan to drop a table. Tap Done adding when finished.'
-          : mob
-            ? arrange
-              ? 'Drag tables and areas to move them. Swipe the empty floor to scroll.'
-              : 'Tap a table, then tap names to seat them there. Undo puts back any change.'
-            : 'Drag tables and areas to arrange the room. Tap a table to see who sits there; tap or drag guests onto a table to seat them. Ctrl+Z undoes.'}
+        {!editing
+          ? 'Tap a table to see who sits there. Edit seating to move tables, change the room, or seat people.'
+          : adding
+            ? 'Tap the plan to drop a table. Tap Done adding when finished.'
+            : mob
+              ? 'Drag tables to move them, or tap a table, then tap names to seat them there. Undo puts back any change.'
+              : 'Drag tables and areas to arrange the room. Tap a table, then tap or drag guests onto it to seat them. Ctrl+Z undoes.'}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
@@ -487,7 +529,7 @@ function SeatingPlan() {
             role="application"
             aria-label="Floor plan"
             className={`relative select-none touch-pan-x touch-pan-y ${adding ? 'cursor-crosshair' : ''}`}
-            style={{ width: `${zoom * 100}%`, aspectRatio: aspect.replace(/\s/g, ''), background: '#fbf8f2', backgroundImage: 'radial-gradient(#e2d7bc 1px, transparent 1.2px)', backgroundSize: '18px 18px' }}
+            style={{ width: `${zoom * 100}%`, aspectRatio: cssAspect(aspect), background: '#fbf8f2', backgroundImage: 'radial-gradient(#e2d7bc 1px, transparent 1.2px)', backgroundSize: '18px 18px' }}
           >
             {areas.map((a, i) => (
               <div
@@ -613,15 +655,19 @@ function SeatingPlan() {
                       {p.diet && <span className={`block text-[12px] ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span>}
                       {!p.coming && <span className="block text-[12px] text-[#5e5130]">Not replied yet</span>}
                     </span>
-                    <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className="w-10 h-10 sm:w-[26px] sm:h-[26px] rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer">
-                      ×
-                    </button>
+                    {editing ? (
+                      <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className="w-10 h-10 sm:w-[26px] sm:h-[26px] rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer">
+                        ×
+                      </button>
+                    ) : (
+                      <span />
+                    )}
                   </div>
                 ))}
                 {(byTable.get(selTable.id)?.length ?? 0) > selTable.seats && <div className="text-[13px] text-[#7a4a37]">More people than seats. Add seats or move someone.</div>}
-                {!byTable.get(selTable.id)?.length && <div className="text-[13px] text-[#7a7466]">Nobody here yet. Tap or drag guests below to seat them.</div>}
+                {!byTable.get(selTable.id)?.length && <div className="text-[13px] text-[#7a7466]">Nobody here yet.{editing ? ' Tap or drag guests below to seat them.' : ''}</div>}
               </div>
-              {mob && unseated.length > 0 && (
+              {editing && mob && unseated.length > 0 && (
                 <div className="flex flex-col gap-2 pt-2 border-t border-[#e2d7bc]">
                   <span className="text-[13px] text-[#5b6a52]">Tap a name to seat them here</span>
                   <div className="flex gap-2 flex-wrap">
@@ -671,7 +717,7 @@ function SeatingPlan() {
                 ))}
               </select>
             )}
-            <div className="text-[13px] text-[#5b6a52]">{target ? `Tap a name to seat them at table ${selTable!.name}, or drag names onto any table.` : 'Drag names onto a table, or tap a table first and then tap names.'}</div>
+            <div className="text-[13px] text-[#5b6a52]">{!editing ? 'Edit seating to seat them.' : target ? `Tap a name to seat them at table ${selTable!.name}, or drag names onto any table.` : 'Drag names onto a table, or tap a table first and then tap names.'}</div>
             {unseated.map((group) => (
               <div key={group[0]!.invitationId} className="flex flex-col gap-1 py-2 border-t border-[#ece3cc]">
                 <div className="flex justify-between gap-2 items-center">
@@ -696,7 +742,7 @@ function SeatingPlan() {
                       type="button"
                       draggable
                       onDragStart={dragGuests([p.id])}
-                      onClick={() => (target ? seat([p.id], target) : toast('Tap a table first, or drag the name onto one'))}
+                      onClick={() => (!editing ? toast('Tap Edit seating first') : target ? seat([p.id], target) : toast('Tap a table first, or drag the name onto one'))}
                       title={p.party || undefined}
                       style={{ boxShadow: p.party ? `inset 4px 0 0 ${groupColour(p.party)}` : undefined }}
                       className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[13px] cursor-grab hover:bg-[#efe7d3] text-[#33402f]"

@@ -1,4 +1,4 @@
-import { STRETCHES, tableBox, type ReceptionGuide } from '@wp/shared';
+import { STRETCHES, tableBox, type ReceptionGuide, cssAspect } from '@wp/shared';
 import qrcode from 'qrcode-generator';
 import { useMemo, useState } from 'react';
 import type { GuidePayload } from '../invitation/api';
@@ -128,7 +128,7 @@ export function useGuide(data: GuidePayload): ViewValues {
     dietNotes: diet ? [s('gd.dyn.dietNote', { diet })] : [],
     hasPlan: tables.length > 0 || !!plan?.planImg,
     planImg: plan?.planImg ?? '',
-    aspect: plan?.aspect ?? '4 / 3',
+    aspect: cssAspect(plan?.aspect ?? '4 / 3'), // the room's shape (its size only makes the tables smaller)
     features: (plan?.features ?? []).map((f) => ({ label: (/entr/i.test(f.label) ? '↓ ' : '') + f.label, left: `${f.x}%`, top: `${f.y}%`, w: `${f.w}%`, h: `${f.h}%` })),
     planTables: tables.map((tb) => {
       const mine = myIds.includes(tb.id);

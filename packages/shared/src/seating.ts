@@ -29,9 +29,39 @@ export interface TableGeom {
   y: number;
 }
 
-/** "4 / 3" -> 4/3 */
+/**
+ * The room: its shape ("4 / 3") and, after it, how big it is ("4 / 3 x2": twice the size, so every table is
+ * half as big on the plan and twice as many fit). Plain "4 / 3" is the usual size.
+ */
+export const ROOM_SHAPES: { aspect: string; label: string }[] = [
+  { aspect: '1 / 1', label: 'Square' },
+  { aspect: '4 / 3', label: 'Standard' },
+  { aspect: '16 / 9', label: 'Wide' },
+  { aspect: '2 / 1', label: 'Long' },
+  { aspect: '3 / 4', label: 'Deep' },
+];
+export const ROOM_SIZES: { scale: number; label: string }[] = [
+  { scale: 1, label: 'Standard (up to about 15 tables)' },
+  { scale: 1.5, label: 'Large (about 30 tables)' },
+  { scale: 2, label: 'Very large (about 50 tables)' },
+  { scale: 3, label: 'Huge (100+ tables)' },
+];
+const SIZE = /\s*x(\d+(?:\.\d+)?)\s*$/;
+/** "4 / 3 x2" -> 2 (1 when not given). */
+export const roomScale = (aspect: string) => {
+  const n = Number(SIZE.exec(aspect)?.[1] ?? 1);
+  return n >= 1 && n <= 4 ? n : 1;
+};
+/** "4 / 3 x2" -> "4 / 3". */
+export const roomShape = (aspect: string) => aspect.replace(SIZE, '').trim() || '4 / 3';
+/** The stored room: its shape, plus its size when bigger than usual. */
+export const roomAspect = (shape: string, scale: number) => (scale > 1 ? `${roomShape(shape)} x${scale}` : roomShape(shape));
+/** For CSS aspect-ratio: "4/3". */
+export const cssAspect = (aspect: string) => roomShape(aspect).replace(/\s/g, '');
+
+/** "4 / 3" -> 4/3 (the room's size doesn't change its shape). */
 export const aspectRatio = (aspect: string) => {
-  const [w, h] = aspect.split('/').map((n) => Number(n.trim()));
+  const [w, h] = roomShape(aspect).split('/').map((n) => Number(n.trim()));
   return w && h ? w / h : 4 / 3;
 };
 
@@ -41,19 +71,21 @@ export const aspectRatio = (aspect: string) => {
  */
 export function tableBox(t: Pick<TableGeom, 'shape' | 'dir' | 'len'>, aspect: string) {
   const r = aspectRatio(aspect);
+  const k = 1 / roomScale(aspect); // a bigger room: every table smaller on the plan
   const thick = 5.5;
+  const box = (w: number, h: number, radius: string) => ({ w: w * k, h: h * k, radius });
   switch (t.shape) {
     case 'oval':
-      return { w: 13, h: 8 * r, radius: '50%' };
+      return box(13, 8 * r, '50%');
     case 'square':
-      return { w: 8.5, h: 8.5 * r, radius: '4px' };
+      return box(8.5, 8.5 * r, '4px');
     case 'long':
     case 'head':
-      return t.dir === 'v' ? { w: t.shape === 'head' ? thick - 1 : thick, h: t.len, radius: '4px' } : { w: t.len, h: (t.shape === 'head' ? thick - 1 : thick) * r, radius: '4px' };
+      return t.dir === 'v' ? box(t.shape === 'head' ? thick - 1 : thick, t.len, '4px') : box(t.len, (t.shape === 'head' ? thick - 1 : thick) * r, '4px');
     case 'sweetheart':
-      return { w: 8, h: 4.5 * r, radius: '999px 999px 6px 6px' };
+      return box(8, 4.5 * r, '999px 999px 6px 6px');
     default:
-      return { w: 9, h: 9 * r, radius: '50%' };
+      return box(9, 9 * r, '50%');
   }
 }
 

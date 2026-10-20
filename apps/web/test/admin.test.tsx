@@ -683,6 +683,7 @@ describe('seating tab', () => {
       },
     });
     renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     expect(await screen.findByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Table 1, 1 of 4' }));
     expect(screen.getByText('Nut allergy')).toBeInTheDocument(); // who sits there, with their diet
@@ -694,9 +695,31 @@ describe('seating tab', () => {
     expect(await screen.findByText('Saved. Publish when you want guests to see it.')).toBeInTheDocument();
   });
 
+  it('opens to look at (nothing moves); Edit seating opens the tools, and a bigger room is saved with the plan', async () => {
+    let body: { aspect: string } | null = null;
+    mockApi({
+      '/api/a/w/w1/seating': (init) => {
+        if (init?.method === 'PUT') body = JSON.parse(String(init.body));
+        return json(200, seating);
+      },
+    });
+    renderAt('/admin/w1/wedding/seating');
+    const edit = await screen.findByRole('button', { name: 'Edit seating' });
+    expect(screen.queryByRole('button', { name: 'Auto-seat the rest' })).toBeNull();
+    expect(screen.queryByLabelText('Room size')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Print plan' })).toBeInTheDocument();
+    await userEvent.click(edit);
+    await userEvent.selectOptions(screen.getByLabelText('Room size'), '2');
+    await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
+    await waitFor(() => expect(body?.aspect).toBe('4 / 3 x2'));
+    await userEvent.click(screen.getByRole('button', { name: 'Done editing' }));
+    expect(screen.getByRole('button', { name: 'Edit seating' })).toBeInTheDocument();
+  });
+
   it('Auto-seat seats only guests who said yes, keeping invitations together', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
     renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
     expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument(); // Jo hasn't replied: not seated
     expect(screen.getByText('Waiting for a reply (1)')).toBeInTheDocument();
@@ -718,6 +741,7 @@ describe('seating tab', () => {
       },
     });
     renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     await userEvent.click(await screen.findByRole('button', { name: /^The rules \(4 on, 1 of your own\)/ }));
     const invite = screen.getByRole('checkbox', { name: /People invited together sit together/ });
     expect(invite).toBeChecked();
@@ -733,6 +757,7 @@ describe('seating tab', () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
     const ask = vi.spyOn(window, 'confirm').mockReturnValue(false);
     renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
     await userEvent.click(screen.getByRole('link', { name: 'Guest list' }));
     expect(ask).toHaveBeenCalledWith('You have seating changes that are not saved. Leave without saving them?');
@@ -747,6 +772,7 @@ describe('seating tab', () => {
   it('undo and redo every change', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
     renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
     expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
@@ -764,6 +790,7 @@ describe('seating tab', () => {
       },
     });
     renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
     await userEvent.selectOptions(screen.getByLabelText('Table 1 type'), 'long');
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));

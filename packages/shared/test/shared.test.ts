@@ -105,3 +105,17 @@ describe('splitDiet / joinDiet (one note per invitation, one per person)', () =>
     expect(joinDiet([{ name: 'Ella T', diet: 'Vegan' }])).toBe('Vegan');
   });
 });
+
+describe('room size', () => {
+  it('a bigger room keeps its shape and makes every table smaller on the plan', async () => {
+    const { tableBox, roomAspect, roomScale, roomShape, cssAspect, aspectRatio } = await import('../src/seating');
+    expect(roomAspect('16 / 9', 2)).toBe('16 / 9 x2');
+    expect(roomAspect('16 / 9 x2', 1)).toBe('16 / 9');
+    expect([roomScale('4 / 3 x1.5'), roomScale('4 / 3'), roomScale('4 / 3 x9')]).toEqual([1.5, 1, 1]);
+    expect(roomShape('2 / 1 x3')).toBe('2 / 1');
+    expect(cssAspect('4 / 3 x2')).toBe('4/3');
+    expect(aspectRatio('4 / 3 x2')).toBeCloseTo(4 / 3);
+    const t = { shape: 'round' as const, dir: 'h' as const, len: 40 };
+    expect(tableBox(t, '4 / 3 x2').w).toBeCloseTo(tableBox(t, '4 / 3').w / 2);
+  });
+});

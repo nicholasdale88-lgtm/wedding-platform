@@ -24,7 +24,7 @@ const pct = z.number().min(0).max(100);
 const Save = z
   .object({
     event: z.string().max(40),
-    aspect: z.string().regex(/^\d{1,2} \/ \d{1,2}$/),
+    aspect: z.string().regex(/^\d{1,2} \/ \d{1,2}( x(1\.5|2|3|4))?$/), // the room's shape, and its size when bigger
     tables: z
       .array(
         z.object({
