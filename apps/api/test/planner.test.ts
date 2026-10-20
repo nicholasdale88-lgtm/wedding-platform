@@ -351,6 +351,37 @@ describe('planner: wedding party', () => {
     expect((await call('/doc/nonsense/wedding', { method: 'PUT', body: '{}' })).status).toBe(404);
     expect((await call('/doc/party-runsheet/no-such-event', { method: 'PUT', body: '{}' })).status).toBe(404);
   });
+  it('inviting a bridesmaid with an email sends her a welcome with her set-up link (when email is switched on)', async () => {
+    const ella = await personOf('Ella Thompson');
+    await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });
+    const admin = (path: string, body: unknown) => app.request(`/api/a/w/${wid}/party-accounts${path}`, { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) }, env, ctx);
+    // Email off: the link comes back to share, nothing is emailed.
+    const off = (await (await admin(`/${ella.id}/invite`, { email: 'ella@example.com' })).json()) as { link: string; emailed: boolean };
+    expect(off.emailed).toBe(false);
+    // Email on: one email to her, with the same kind of link.
+    env = { ...env, RESEND_API_KEY: 're_test', EMAIL_FROM: 'Weddings <hello@example.com>' };
+    const sent: { to: string[]; subject: string; text: string }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (String(url).includes('api.resend.com')) {
+        sent.push(JSON.parse(String(init!.body)));
+        return new Response('{"id":"x"}', { status: 200 });
+      }
+      return new Response('unexpected', { status: 500 });
+    });
+    try {
+      const on = (await (await admin(`/${ella.id}/invite`, {})).json()) as { link: string; emailed: boolean; email: string };
+      expect(on).toMatchObject({ emailed: true, email: 'ella@example.com' }); // the email she was invited with before
+      expect(sent).toHaveLength(1);
+      expect(sent[0]!.to).toEqual(['ella@example.com']);
+      expect(sent[0]!.subject).toMatch(/welcome to the wedding party/);
+      expect(sent[0]!.text).toContain('Welcome to the wedding party, Ella!');
+      expect(sent[0]!.text).toContain(on.link);
+      expect(sent[0]!.text).toContain('bridesmaid');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('the portal: invite, set a password, sign in, see only what is allowed, a reset signs out, and sign-in needed', async () => {
     const ella = await personOf('Ella Thompson');
     await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });

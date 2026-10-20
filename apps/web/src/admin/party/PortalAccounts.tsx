@@ -16,7 +16,7 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
   const [d, setD] = useState<{ signIn: boolean; members: PortalMember[] } | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<string | null>(null);
-  const [shared, setShared] = useState<{ pid: string; link: string; phone: string; kind: 'invite' | 'reset' } | null>(null);
+  const [shared, setShared] = useState<{ pid: string; link: string; phone: string; kind: 'invite' | 'reset'; emailed?: string } | null>(null);
   const load = useCallback(async () => {
     try {
       setD(await partyAccountsApi.list(wid));
@@ -42,7 +42,8 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
   const invite = async (m: PortalMember, email: string) => {
     try {
       const r = await partyAccountsApi.invite(wid, m.personId, email || undefined);
-      setShared({ pid: m.personId, link: r.link, phone: r.phone, kind: 'invite' });
+      setShared({ pid: m.personId, link: r.link, phone: r.phone, kind: 'invite', emailed: r.emailed ? r.email : undefined });
+      if (r.emailed) toast(`Emailed to ${r.email}: a welcome and a button to set their password`);
       await load();
     } catch (e) {
       toast((e as Error).message);
@@ -51,7 +52,8 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
   const reset = async (m: PortalMember) => {
     try {
       const r = await partyAccountsApi.reset(wid, m.personId);
-      setShared({ pid: m.personId, link: r.link, phone: r.phone, kind: 'reset' });
+      setShared({ pid: m.personId, link: r.link, phone: r.phone, kind: 'reset', emailed: r.emailed ? r.email : undefined });
+      if (r.emailed) toast(`Reset link emailed to ${r.email}`);
     } catch (e) {
       toast((e as Error).message);
     }
@@ -117,6 +119,7 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
               </div>
               {msg && (
                 <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[13px]">
+                  {shared!.emailed && <span className="font-semibold text-[#3d4a2f]">✓ Emailed to {shared!.emailed}. You can also share the link yourself:</span>}
                   <span className="break-all select-all text-[#33402f]">{shared!.link}</span>
                   <span className="flex gap-3 flex-wrap">
                     <button type="button" onClick={() => void navigator.clipboard?.writeText(msg).then(() => toast('Copied, with a note for them'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">

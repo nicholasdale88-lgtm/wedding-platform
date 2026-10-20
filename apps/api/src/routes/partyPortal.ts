@@ -4,6 +4,7 @@ import { Hono, type Context } from 'hono';
 import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { z } from 'zod';
 import { hashPasscode, newSessionToken, passcodeProblem, sessionId, verifyPasscode } from '../lib/auth';
+import { buttonEmail, emailReady, sendEmail } from '../lib/email';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { engineDeps, type Env } from '../env';
@@ -194,18 +195,30 @@ export function partyPortalRoutes() {
     const acc = await accountOf(c.env.DB, 'wedding_id = ? AND email = ?', w.id, email);
     const person = acc ? await personOf(c.env.DB, w.id, acc.person_id) : null;
     const phone = toE164(person?.phone ?? '');
-    if (acc && person && phone) {
+    const byEmail = emailReady(c.env);
+    if (acc && person && (phone || byEmail)) {
       const t = newSessionToken();
       await c.env.DB.prepare(`UPDATE party_account SET reset_hash = ?, reset_expires = ?, updated_at = ? WHERE id = ?`).bind(await hashOf(c.env, t), new Date(Date.now() + RESET_HOURS * 3_600_000).toISOString(), now(), acc.id).run();
+      const link = `${(c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '')}/w/${w.slug}/party/reset?t=${t}`;
+      // By email (to the address they sign in with), and by text to the mobile on their invitation.
+      if (byEmail) {
+        const m = buttonEmail({ heading: 'Reset your password', lines: [`Here’s a link to choose a new password for ${couple(w)}’s wedding party page. It works for 48 hours.`], button: 'Choose a new password', link, footer: 'Didn’t ask for this? Ignore it: your password stays the same.' });
+        await sendEmail(c.env, { to: email, subject: `${couple(w)}’s wedding party: reset your password`, ...m });
+      }
       const d = engineDeps(c.env);
-      const ctx = await d.store.wedding(w.id);
-      if (ctx?.sender && !ctx.paused) {
-        const body = `${couple(w)}’s wedding party: reset your password here ${ctx.baseUrl.replace(/\/+$/, '')}/w/${w.slug}/party/reset?t=${t} (works for 48 hours). Didn’t ask? Ignore this.`;
+      const ctx = phone ? await d.store.wedding(w.id) : null;
+      if (phone && ctx?.sender && !ctx.paused) {
+        const body = `${couple(w)}’s wedding party: reset your password here ${link} (works for 48 hours). Didn’t ask? Ignore this.`;
         await d.store.enqueue([{ weddingId: w.id, invitationId: person.invitation_id, campaignId: null, dedupeKey: `preset:${acc.id}:${Date.now()}`, kind: 'test', to: phone, body, parts: segments(body).parts }]);
         await flush(d, ctx).catch(() => undefined);
       }
     }
-    return c.json({ ok: true, message: 'If that email signs in here, we’ve texted a reset link to the mobile on your invitation. No text? Ask the couple to send you one.' });
+    return c.json({
+      ok: true,
+      message: byEmail
+        ? 'If that email signs in here, we’ve emailed it a reset link (and texted the mobile on your invitation). Nothing? Ask the couple to send you one.'
+        : 'If that email signs in here, we’ve texted a reset link to the mobile on your invitation. No text? Ask the couple to send you one.',
+    });
   });
 
   /** Change their password (needs the current one); every other device is signed out. */
@@ -316,7 +329,27 @@ export function partyAccountRoutes() {
         .bind(crypto.randomUUID(), wid(c), p.id, email, h, expires, now(), now())
         .run();
     }
-    return c.json({ link: `${base(c)}/w/${await slugOf(c)}/party/join?t=${t}`, expires, phone: p.phone ?? '' });
+    const link = `${base(c)}/w/${await slugOf(c)}/party/join?t=${t}`;
+    // With an email for them, the invitation goes straight to their inbox: a welcome and a button to set a password.
+    const to = email ?? cur?.email ?? null;
+    let emailed = false;
+    if (to && emailReady(c.env)) {
+      const names = await c.env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(wid(c)).first<{ name1: string; name2: string }>();
+      const cp = names ? `${names.name1.split(' ')[0]} & ${names.name2.split(' ')[0]}` : 'The couple';
+      const first = p.name.split(' ')[0] || p.name;
+      const m = buttonEmail({
+        heading: `Welcome to the wedding party, ${first}!`,
+        lines: [
+          `${cp} would love you as their ${p.party_role.toLowerCase()}, and have made you your own page: the run sheet for the day, your to-dos, what to bring, and everything else you’ll need.`,
+          'Tap the button to choose a password. After that you sign in with this email.',
+        ],
+        button: 'Set up my sign-in',
+        link,
+        footer: 'The link works for 14 days. If it runs out, ask them for a new one.',
+      });
+      emailed = await sendEmail(c.env, { to, subject: `${cp}: welcome to the wedding party`, ...m });
+    }
+    return c.json({ link, expires, phone: p.phone ?? '', emailed, email: to ?? '' });
   });
 
   /** What they can see and do. */
@@ -345,7 +378,13 @@ export function partyAccountRoutes() {
     if (!p || !acc?.pass_hash) return err(c, 404, 'no_account', 'They haven’t set up their sign-in yet: send them an invite instead.');
     const t = newSessionToken();
     await c.env.DB.prepare(`UPDATE party_account SET reset_hash = ?, reset_expires = ?, failed = 0, locked_until = NULL, updated_at = ? WHERE id = ?`).bind(await hashOf(c.env, t), new Date(Date.now() + RESET_HOURS * 3_600_000).toISOString(), now(), acc.id).run();
-    return c.json({ link: `${base(c)}/w/${await slugOf(c)}/party/reset?t=${t}`, phone: p.phone ?? '' });
+    const link = `${base(c)}/w/${await slugOf(c)}/party/reset?t=${t}`;
+    let emailed = false;
+    if (acc.email && emailReady(c.env)) {
+      const m = buttonEmail({ heading: 'A new password', lines: [`Here’s a link to choose a new password for your wedding party page. It works for 48 hours.`], button: 'Choose a new password', link });
+      emailed = await sendEmail(c.env, { to: acc.email, subject: 'Your wedding party page: choose a new password', ...m });
+    }
+    return c.json({ link, phone: p.phone ?? '', emailed, email: acc.email ?? '' });
   });
 
   /** Sign them out on every device. */

@@ -109,7 +109,7 @@ if [ -z "${SESSION_SECRET:-}" ] && ! wr secret list 2>/dev/null | grep -q '"SESS
   echo "Created a new SESSION_SECRET in Cloudflare"
 fi
 node -e '
-  const keys = ["SESSION_SECRET", "SUPER_ADMINS", "MM_USER", "MM_PASS", "MM_HOOK_SECRET", "MM_SIGNING_SECRET", "SMS_PROVIDER", "TEXTO_API_KEY", "TEXTO_WEBHOOK_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "DROPBOX_APP_KEY", "DROPBOX_APP_SECRET", "MS_CLIENT_ID", "MS_CLIENT_SECRET"];
+  const keys = ["SESSION_SECRET", "SUPER_ADMINS", "MM_USER", "MM_PASS", "MM_HOOK_SECRET", "MM_SIGNING_SECRET", "SMS_PROVIDER", "TEXTO_API_KEY", "TEXTO_WEBHOOK_SECRET", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "DROPBOX_APP_KEY", "DROPBOX_APP_SECRET", "MS_CLIENT_ID", "MS_CLIENT_SECRET", "RESEND_API_KEY", "EMAIL_FROM"];
   const out = Object.fromEntries(keys.filter((k) => process.env[k]).map((k) => [k, process.env[k]]));
   require("fs").writeFileSync(process.argv[1], JSON.stringify(out), { mode: 0o600 });
 ' "$TMP/secrets.json"

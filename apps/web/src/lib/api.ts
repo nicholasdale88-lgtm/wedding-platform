@@ -761,9 +761,9 @@ export interface PortalMember {
 export const partyAccountsApi = {
   list: (wid: string) => request<{ signIn: boolean; members: PortalMember[] }>(`${w(wid)}/party-accounts`),
   settings: (wid: string, signIn: boolean) => send<{ signIn: boolean }>('PUT', `${w(wid)}/party-accounts/settings`, { signIn }),
-  invite: (wid: string, pid: string, email?: string) => send<{ link: string; expires: string; phone: string }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/invite`, email ? { email } : {}),
+  invite: (wid: string, pid: string, email?: string) => send<{ link: string; expires: string; phone: string; emailed?: boolean; email?: string }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/invite`, email ? { email } : {}),
   perms: (wid: string, pid: string, perms: Record<PartyPermKey, boolean>) => send<{ perms: Record<PartyPermKey, boolean> }>('PUT', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/perms`, { perms }),
-  reset: (wid: string, pid: string) => send<{ link: string; phone: string }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/reset`, {}),
+  reset: (wid: string, pid: string) => send<{ link: string; phone: string; emailed?: boolean; email?: string }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/reset`, {}),
   signOut: (wid: string, pid: string) => send<{ ok: true }>('POST', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}/signout`, {}),
   remove: (wid: string, pid: string) => send<{ ok: true }>('DELETE', `${w(wid)}/party-accounts/${encodeURIComponent(pid)}`),
 };

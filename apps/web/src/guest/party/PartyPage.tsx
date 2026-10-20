@@ -5,6 +5,7 @@ import { GuestMessage } from '../GuestMessage';
 import { guestApi, GuestApiError, type PartyAct, type PartyMine, type PartyPayload } from '../invitation/api';
 import { AccountBar, PartySignIn } from './PartyAuth';
 import { InstallApp } from '../../lib/InstallApp';
+import { partyGroup, PartyHelp, PartyWelcome } from './PartyWelcome';
 
 /**
  * /w/:slug/party (signed in to the portal) or ?g=<token> (their private link): a wedding party member's own page.
@@ -274,6 +275,7 @@ export function PartyPage() {
   const ink = '#33402f';
   const gold = theme.acc ?? '#b39563';
   const roles = [...new Set(data.me.map((m) => m.role))];
+  const group = partyGroup(roles);
   const title = (k: 'p1' | 'p2') => `${data.sides?.[k] || (k === 'p1' ? 'Bride' : 'Groom')}'s side`;
   const sides: [string, string, PartyPayload['party']][] = [
     [title('p1'), data.names.p1, data.party.filter((p) => p.side === 'p1')],
@@ -289,7 +291,7 @@ export function PartyPage() {
             {data.couple}
           </div>
           <h1 className="m-0 font-normal text-[52px] leading-[1.1]" style={{ fontFamily: "'Pinyon Script', cursive" }}>
-            Wedding party
+            {group.title}
           </h1>
           <span aria-hidden className="mx-auto w-16 h-[2px]" style={{ background: gold }} />
           <p className="m-0 text-[21px] italic">
@@ -312,6 +314,17 @@ export function PartyPage() {
             />
           )}
         </header>
+
+        <PartyWelcome
+          storeKey={`wp-party-welcome-${slug}-${data.me.map((m) => m.personId).join('-')}`}
+          firstNames={data.me.map((m) => first(m.name)).join(' & ')}
+          word={group.word}
+          couple={data.couple}
+          perms={perms}
+          calendar={mine.some((m) => m.calendar)}
+          gold={gold}
+          ink={ink}
+        />
 
         <NowNext data={data} now={now} gold={gold} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
 
@@ -435,6 +448,7 @@ export function PartyPage() {
         </section>
         <Extras data={data} gold={gold} />
         <InstallApp what="your wedding party page" tone="guest" />
+        <PartyHelp perms={perms} calendar={mine.some((m) => m.calendar)} gold={gold} />
       </div>
     </main>
   );

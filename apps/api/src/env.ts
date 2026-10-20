@@ -31,6 +31,9 @@ export interface Env {
   DROPBOX_APP_SECRET?: string;
   MS_CLIENT_ID?: string;
   MS_CLIENT_SECRET?: string;
+  /** Email through Resend (lib/email.ts): the API key, and who it's from ("Name <hello@your-domain>"). */
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   /** Workers AI, for the planning assistant (bound by the deploy only when the account allows it). */
   AI?: {
     run(model: string, input: unknown): Promise<unknown>;
