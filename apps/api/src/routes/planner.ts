@@ -545,7 +545,13 @@ export function plannerRoutes() {
   app.get('/doc/:kind/:scope?', async (c) => {
     const kind = c.req.param('kind');
     if (!isKind(kind)) return err(c, 404, 'not_found', 'Unknown document.');
-    return c.json(await readDoc(c.env.DB, wid(c), kind, c.req.param('scope') ?? ''));
+    const doc = await readDoc(c.env.DB, wid(c), kind, c.req.param('scope') ?? '');
+    // Helpers' private list keys are for the people who send them, not viewers.
+    if (kind === 'checklist' && c.get('role') === 'viewer') {
+      const d = doc.data as { helpers: { key: string }[] };
+      return c.json({ ...doc, data: { ...d, helpers: d.helpers.map((h) => ({ ...h, key: '' })) } });
+    }
+    return c.json(doc);
   });
 
   app.put('/doc/:kind/:scope?', writer, async (c) => {

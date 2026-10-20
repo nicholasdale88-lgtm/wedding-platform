@@ -42,7 +42,8 @@ export function plannerCalendarAdminRoutes() {
   const app = new Hono<AdminEnv>();
   app.use('*', jsonWritesOnly, requireUser, requireMember());
   const url = (c: C, k: string) => (k ? `${(c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '')}/api/cal/${c.req.param('wid')}/${k}.ics` : '');
-  app.get('/', async (c) => c.json({ url: url(c, await keyOf(c.env.DB, c.req.param('wid')!)) }));
+  // The feed's address is private (anyone with it sees the plan): not for viewers.
+  app.get('/', async (c) => c.json({ url: c.get('role') === 'viewer' ? '' : url(c, await keyOf(c.env.DB, c.req.param('wid')!)) }));
   /** On (a new private link; the old one stops working) or off. */
   app.put('/', requireMember('owner', 'editor'), async (c) => {
     const on = ((await readJson(c.req.raw)) as { on?: unknown } | null)?.on === true;

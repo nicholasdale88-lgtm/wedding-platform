@@ -25,7 +25,8 @@ export function coordinatorAdminRoutes() {
   const out = (c: C, slug: string, co: Coord | null) => ({
     on: !!co?.key,
     name: co?.name ?? '',
-    url: co?.key ? `${(c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '')}/w/${slug}/coordinator?k=${co.key}` : '',
+    // The link itself is private: viewers see whether it's on, not the link.
+    url: co?.key && c.get('role') !== 'viewer' ? `${(c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '')}/w/${slug}/coordinator?k=${co.key}` : '',
   });
   app.get('/', async (c) => {
     const w = await coordOf(c.env.DB, 'id = ?', c.req.param('wid')!);
