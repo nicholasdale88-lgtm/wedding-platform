@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import { AdminLook } from '../AdminLook';
+import { AtAGlance } from './AtAGlance';
 import { confirmLeave } from '../leave';
 import { PageHeader, Tabs } from '../ui';
 import { ChangeEmail, PlanAndBilling, TheWedding, YourDetails } from './Account';
@@ -37,7 +38,10 @@ export function Settings() {
       <PageHeader eyebrow="Account" title="Settings" />
       <Tabs label="Settings" items={VIEWS} value={view} onChange={choose} />
       {view === 'details' ? (
-        <YourDetails />
+        <div className="flex flex-col gap-6">
+          <AtAGlance />
+          <YourDetails />
+        </div>
       ) : view === 'people' ? (
         <TheWedding />
       ) : view === 'privacy' ? (
