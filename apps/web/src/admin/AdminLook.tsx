@@ -30,8 +30,8 @@ export function lookVars(look: AdminLookSettings): CSSProperties | null {
   return { '--adm-ink': p.ink, '--adm-soft': p.soft, '--adm-bg': p.bg, '--adm-accent': p.accent, '--adm-accent-deep': p.deep } as CSSProperties;
 }
 
-/** Account → Admin look. Changes show straight away and are kept for everyone who runs the wedding. */
-export function AdminLook() {
+/** Settings → Admin look. Changes show straight away and are kept for everyone who runs the wedding. */
+export function AdminLook({ embedded = false }: { embedded?: boolean }) {
   const { wid, overview, reload } = useAdmin();
   const toast = useToast();
   const [saving, setSaving] = useState(false);
@@ -88,11 +88,13 @@ export function AdminLook() {
   };
   return (
     <div className="flex flex-col gap-6 max-w-[860px]">
+      {!embedded && (
       <header>
         <Eyebrow>Account · Admin look</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Admin look</h1>
         <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">How this admin looks for both of you. Guests never see it.</p>
       </header>
+      )}
       <section aria-label="Name" className="flex flex-col gap-3">
         <H2>Name</H2>
         <Label text="Shown at the top of the admin, on every screen">

@@ -64,3 +64,12 @@
   display: revert;
   vertical-align: revert;
 }
+
+/* Admin on phones: iPhones zoom the page into any box under 16px, so every admin box is 16px there. */
+@media (max-width: 639px) {
+  .adm input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  .adm select,
+  .adm textarea {
+    font-size: 16px !important;
+  }
+}

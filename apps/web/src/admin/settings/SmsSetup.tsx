@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, settingsApi, textsApi, type SettingsData, type SettingsPut } from '../../lib/api';
 import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
+import { inputCls, Label, Pill, SaveBar, useToast } from '../ui';
 
 /**
  * Account → Texting setup (design: isSettings). Set once and left alone: your sender number and mobile,
@@ -60,13 +60,10 @@ export function SmsSetup() {
 
   return (
     <div className="flex flex-col gap-7 max-w-[1000px]">
-      <header>
-        <Eyebrow>Account · Texting setup</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Automatic texts for a few cents each</h1>
-        <p className="m-0 mt-2 max-w-[640px] text-[15px] text-[#5b6a52]">
-          Texts go out through {s.provider}, an Australian SMS provider: you only pay for the texts you send, and guests can text YES or NO straight back to your number.
-        </p>
-      </header>
+      <p className="m-0 max-w-[640px] text-[15px] text-[#5b6a52]">
+        Automatic texts for a few cents each. They go out through {s.provider}, an Australian provider: you only pay for the texts you send, and guests can text YES or NO
+        straight back to your number.
+      </p>
 
       <section className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[14px]" style={{ background: s.paused ? '#f1e1d6' : '#dfe5cc' }}>
         <div>
@@ -91,7 +88,7 @@ export function SmsSetup() {
           <Label text="Your mobile (replies that need you are forwarded here; tests go here)">
             <input value={val('adminMobile')} onChange={(e) => edit({ adminMobile: e.target.value })} placeholder="04xx xxx xxx" className={inputCls} />
           </Label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Label text="Send from">
               <select value={val('quietStart')} onChange={(e) => edit({ quietStart: Number(e.target.value) })} className={inputCls}>
                 {hours.map((h) => (
@@ -162,26 +159,21 @@ export function SmsSetup() {
         ))}
       </section>
 
-      {dirty && (
-        <div className="sticky bottom-4 flex justify-end gap-2">
-          <Pill onClick={() => setDraft({})}>Discard</Pill>
-          <Pill kind="primary" disabled={busy} onClick={() => void save(draft)}>
-            Save changes
-          </Pill>
-        </div>
-      )}
-
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-7 pt-6 border-t border-[#e2d7bc]">
-        <div className="flex flex-col gap-3">
-          <h2 className="m-0 font-display font-medium text-[26px]">Backup</h2>
-          <p className="m-0 text-[14px] text-[#5b6a52]">Download everything about your wedding as one file: guests, replies, messages, seating and wording. Keep it somewhere safe.</p>
-          <a href={settingsApi.backupUrl(wid)} download className="self-start py-[10px] px-[18px] rounded-full border border-[#c6b794] text-[14px] font-medium no-underline !text-[#33402f] hover:bg-[#efe7d3]">
-            Download backup
-          </a>
-        </div>
-        <Passcode />
-      </section>
+      {dirty && <SaveBar busy={busy} onDiscard={() => setDraft({})} onSave={() => void save(draft)} />}
     </div>
+  );
+}
+
+/** Settings → Backup: everything about the wedding as one file. */
+export function Backup() {
+  const { wid } = useAdmin();
+  return (
+    <section className="flex flex-col gap-3 max-w-[640px]">
+      <p className="m-0 text-[15px] text-[#5b6a52]">Download everything about your wedding as one file: guests, replies, messages, seating and wording. Keep it somewhere safe.</p>
+      <a href={settingsApi.backupUrl(wid)} download className="self-start py-[10px] px-[18px] rounded-full border border-[#c6b794] text-[14px] font-medium no-underline !text-[#33402f] hover:bg-[#efe7d3]">
+        Download backup
+      </a>
+    </section>
   );
 }
 
@@ -211,14 +203,15 @@ function TestSend({ wid, hasMobile }: { wid: string; hasMobile: boolean }) {
   );
 }
 
-function Passcode() {
+/** Settings → Your sign-in: change the passcode (other devices are signed out). */
+export function Passcode() {
   const toast = useToast();
   const [cur, setCur] = useState('');
   const [next, setNext] = useState('');
   const [busy, setBusy] = useState(false);
   return (
     <form
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-3 max-w-[420px]"
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -234,7 +227,7 @@ function Passcode() {
         }
       }}
     >
-      <h2 className="m-0 font-display font-medium text-[26px]">Your passcode</h2>
+      <h2 className="m-0 font-display font-medium text-[26px]">Change your passcode</h2>
       <Label text="Current passcode">
         <input type="password" autoComplete="current-password" value={cur} onChange={(e) => setCur(e.target.value)} className={inputCls} />
       </Label>

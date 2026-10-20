@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { photosApi, type PhotosData } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
 import { useAdmin, useSectionName } from '../Shell';
-import { Eyebrow, Pill, useToast } from '../ui';
+import { chipCls, Disclosure, Eyebrow, Pill, useToast } from '../ui';
 import { ChatImport } from './ChatImport';
 import { PhotoLinksPanel } from './PhotoLinks';
 import { AlbumSharePanel, LiveWallPanel } from './LiveWall';
@@ -83,15 +83,17 @@ export function Photos() {
       setZipping(false);
     }
   };
-  const remove = async (id: string) => {
-    if (!window.confirm('Remove this photo from the album? Guests will no longer see it.')) return;
+  const removeChosen = async () => {
+    const ids = [...sel];
+    if (!window.confirm(ids.length === 1 ? 'Remove this photo from the album? Guests will no longer see it.' : `Remove these ${ids.length} photos from the album? Guests will no longer see them.`)) return;
     try {
-      await photosApi.remove(wid, id);
-      toast('Photo removed');
-      setSel((s) => new Set([...s].filter((x) => x !== id)));
+      for (const id of ids) await photosApi.remove(wid, id);
+      toast(ids.length === 1 ? 'Photo removed' : `${ids.length} photos removed`);
+      setSel(new Set());
       await load();
     } catch (e) {
       toast((e as Error).message);
+      await load();
     }
   };
 
@@ -114,44 +116,40 @@ export function Photos() {
         </div>
       </header>
 
-      <PhotoLinksPanel onChanged={() => void load()} />
-
-      <LooksPanel />
-
-      <LiveWallPanel />
-
-      <AlbumSharePanel />
-
-      {data.enabled && (
-        <ChatImport key={chosen} wid={wid} events={(overview?.events ?? []).map((e) => ({ key: e.key, name: e.name }))} event={one ? chosen : undefined} onDone={() => void load()} />
-      )}
-
       {!data.enabled && (
         <div className="p-5 rounded-[14px] bg-[#f1e7c9] text-[15px]">
-          <strong className="font-semibold">Guests can't add photos yet.</strong> Link your Google Drive, Google Photos, Dropbox or OneDrive above (free), or switch on this site's own photo storage (Cloudflare R2, free up to 10 GB, needs a card on your Cloudflare account).
+          <strong className="font-semibold">Guests can't add photos yet.</strong> Link your Google Drive, Google Photos, Dropbox or OneDrive under Photo settings below (free), or switch on this site's own photo storage (Cloudflare R2, free up to 10 GB, needs a card on your Cloudflare account).
         </div>
       )}
 
       {data.items.length > 0 && (
         <div className="flex justify-between items-center gap-3 flex-wrap">
-          <div className="flex gap-2 flex-wrap">
-            <button type="button" aria-pressed={!by} onClick={() => setBy('')} className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${!by ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f]'}`}>
+          <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] max-w-full">
+            <button type="button" aria-pressed={!by} onClick={() => setBy('')} className={chipCls(!by)}>
               Everyone
             </button>
             {people.map(([name, n]) => (
-              <button key={name} type="button" aria-pressed={by === name} onClick={() => setBy(name)} className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${by === name ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f]'}`}>
+              <button key={name} type="button" aria-pressed={by === name} onClick={() => setBy(name)} className={chipCls(by === name)}>
                 {name} · {n}
               </button>
             ))}
           </div>
-          {sel.size > 0 && (
-            <div className="flex gap-2">
-              <Pill kind="primary" disabled={zipping} onClick={() => void zip([...sel])}>
-                Download {sel.size} selected
-              </Pill>
-              <Pill onClick={() => setSel(new Set())}>Clear</Pill>
-            </div>
-          )}
+        </div>
+      )}
+
+      {/* Tap ✓ on photos to choose some; what you can do with them stays in view at the bottom. */}
+      {sel.size > 0 && (
+        <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
+          <span className="text-[14px] font-medium">{sel.size} chosen</span>
+          <span className="flex gap-2 flex-wrap">
+            <Pill kind="primary" disabled={zipping} onClick={() => void zip([...sel])}>
+              Download {sel.size}
+            </Pill>
+            <Pill kind="danger" onClick={() => void removeChosen()}>
+              Remove
+            </Pill>
+            <Pill onClick={() => setSel(new Set())}>Clear</Pill>
+          </span>
         </div>
       )}
 
@@ -174,7 +172,7 @@ export function Photos() {
                 aria-label="Select photo"
                 aria-pressed={on}
                 onClick={() => setSel((s) => (on ? new Set([...s].filter((x) => x !== p.id)) : new Set([...s, p.id])))}
-                className={`absolute top-2 left-2 w-[26px] h-[26px] rounded-full border-2 border-[#fbf8f2] cursor-pointer text-[13px] ${on ? 'bg-[var(--adm-accent,#5d6b47)] text-[#fbf8f2]' : 'bg-[rgba(51,64,47,.35)] text-transparent'}`}
+                className={`absolute top-2 left-2 w-9 h-9 sm:w-[26px] sm:h-[26px] rounded-full border-2 border-[#fbf8f2] cursor-pointer text-[14px] ${on ? 'bg-[var(--adm-accent,#5d6b47)] text-[#fbf8f2]' : 'bg-[rgba(51,64,47,.35)] text-transparent'}`}
               >
                 ✓
               </button>
@@ -183,14 +181,9 @@ export function Photos() {
                 <span className="truncate">
                   {p.by} · {fmtWhen(p.at, tz)}
                 </span>
-                <span className="flex gap-2 shrink-0">
-                  <a href={p.url} download={`photo-${p.id.slice(0, 8)}.${ext(p.type)}`} className="!text-[#33402f]">
-                    Save
-                  </a>
-                  <button type="button" onClick={() => void remove(p.id)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#7a4a37] text-[12px]">
-                    Remove
-                  </button>
-                </span>
+                <a href={p.url} download={`photo-${p.id.slice(0, 8)}.${ext(p.type)}`} aria-label={`Save photo by ${p.by}`} className="shrink-0 !text-[var(--adm-ink,#33402f)]">
+                  Save
+                </a>
               </figcaption>
             </figure>
           );
@@ -199,6 +192,17 @@ export function Photos() {
       {!data.items.length && data.enabled && (
         <div className="text-[15px] text-[#5b6a52]">No photos yet. The QR code is on every night-before guide, and the "share your photos" text goes out the morning after.</div>
       )}
+
+      {/* Set once: where photos are kept, the photo looks, the live wall, sharing the album, WhatsApp import. */}
+      <Disclosure title="Photo settings" sub="Storage, looks, live wall, sharing, WhatsApp import" defaultOpen={!data.enabled || !data.items.length}>
+        <PhotoLinksPanel onChanged={() => void load()} />
+        <LooksPanel />
+        <LiveWallPanel />
+        <AlbumSharePanel />
+        {data.enabled && (
+          <ChatImport key={chosen} wid={wid} events={(overview?.events ?? []).map((e) => ({ key: e.key, name: e.name }))} event={one ? chosen : undefined} onDone={() => void load()} />
+        )}
+      </Disclosure>
     </div>
   );
 }

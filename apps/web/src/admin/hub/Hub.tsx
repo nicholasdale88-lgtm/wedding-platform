@@ -118,8 +118,6 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
 
   // ---- headline figures across every area
   const kpis: { label: string; value: string; sub: string; go: () => void; warn?: boolean }[] = [
-    { label: 'Replies', value: `${goal ? Math.round((o.replied / goal) * 100) : 0}%`, sub: `${o.replied} of ${goal} invitations`, go: () => to(`guests?show=all`, first?.key) },
-    { label: 'Coming', value: String(first?.coming ?? 0), sub: o.events.length > 1 ? `to ${first?.name ?? 'the wedding'}` : 'guests said yes', go: () => to(`guests?filter=attending:${first?.key ?? ''}`, first?.key) },
     { label: 'Tasks', value: t.total ? `${done}/${t.total}` : '—', sub: t.overdue ? `${t.overdue} overdue` : `${t.due7} due this week`, go: () => planner('checklist'), warn: t.overdue > 0 },
     { label: 'Budget', value: committed ? audShort(committed) : '—', sub: d.budget.total ? `of ${audShort(d.budget.total)} planned` : 'no total set yet', go: () => planner('budget'), warn: d.budget.total > 0 && committed > d.budget.total },
     { label: 'Next payment', value: next ? aud(next.amount) : overduePay.length ? `${overduePay.length} late` : '—', sub: next ? `${next.who}, ${new Date(`${next.due}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : 'nothing scheduled', go: () => planner('payments'), warn: overduePay.length > 0 },
@@ -128,7 +126,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
 
   return (
     <div className="flex flex-col gap-[34px]">
-      <section aria-label="At a glance" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
+      <section aria-label="At a glance" className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
         {kpis.map((k) => (
           <button key={k.label} type="button" onClick={k.go} className="flex flex-col gap-1 p-4 border-0 bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6] min-w-0">
             <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{k.label}</span>
@@ -141,16 +139,6 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card title="Replies coming in" action={['Guest list', () => to('guests?show=all', first?.key)]}>
           <Climb points={climb} goal={goal} label="Replies over time" />
-          {(o.perEvent?.length ?? 0) > 0 && (
-            <Rows
-              label="Replies by event"
-              rows={o.perEvent!.map((e) => ({
-                label: e.name,
-                parts: [{ value: e.yes, colour: C.accent }, { value: e.no, colour: C.gold }, { value: e.awaiting, colour: C.sand }],
-                right: `${e.yes} yes · ${e.awaiting} waiting`,
-              }))}
-            />
-          )}
         </Card>
 
         <Card title="Planning tasks" action={['Checklist', () => planner('checklist')]}>
@@ -269,7 +257,6 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
             {ins && ins.seating.seats > 0 && <Tile label="Seated" value={`${ins.seating.seated}/${ins.seating.seats}`} go={() => to('seating', first?.key)} />}
             {ins && <Tile label="Guest photos" value={ins.guests.photos} go={() => to('photos', first?.key)} />}
             {ins && <Tile label="Board posts" value={ins.guests.board} go={() => to('messages', 'all')} />}
-            <Tile label="Dietary needs" value={o.diet.people} sub={o.diet.serious ? `${o.diet.serious} serious` : undefined} go={() => to('dietary', first?.key)} />
             {ins && ins.opened.invitations > 0 && <Tile label="Invitations opened" value={`${Math.round((ins.opened.opened / ins.opened.invitations) * 100)}%`} go={() => to('guests?show=all', first?.key)} />}
           </div>
         </Card>

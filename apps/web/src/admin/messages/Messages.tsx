@@ -3,9 +3,10 @@ import { EmailInbox } from './EmailInbox';
 import { useSearchParams } from 'react-router-dom';
 import { messagesApi, type Conversation, type MessageThread, type ThreadMessage } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
+import { useOpenParam } from '../openParam';
 import { useAdmin } from '../Shell';
 import { BoardAdmin } from './Board';
-import { Eyebrow, inputCls, Pill, useAutoRefresh, useMedia, useToast } from '../ui';
+import { Eyebrow, inputCls, Pill, Tabs, useAutoRefresh, useMedia, useToast } from '../ui';
 
 /**
  * Account → Messages: guests' messages of support and questions, Messenger-style. Conversations on the
@@ -47,12 +48,9 @@ export function Messages() {
     () => (threads ?? []).filter((t) => (filter === 'all' ? true : filter === 'unread' ? t.unread > 0 : t.kinds.includes(filter))),
     [threads, filter],
   );
-  const setOpen = (inv: string | null) => {
-    const n = new URLSearchParams(params);
-    if (inv) n.set('c', inv);
-    else n.delete('c');
-    setParams(n, { replace: true });
-  };
+  // Opening a conversation adds a history entry: the phone's Back returns to the list.
+  const [, openChat, closeChat] = useOpenParam('c');
+  const setOpen = (inv: string | null) => (inv ? openChat(inv) : closeChat());
 
   const board = params.get('view') === 'board';
   const email = params.get('view') === 'email';
@@ -62,29 +60,16 @@ export function Messages() {
     setParams(n, { replace: true });
   };
   const tabs = (
-    <div role="tablist" aria-label="Messages" className="flex gap-6 border-b border-[#e2d7bc]">
-      {(
-        [
-          ['chats', 'Conversations'],
-          ['email', 'Email'],
-          ['board', 'Message board'],
-        ] as const
-      ).map(([k, label]) => {
-        const sel = k === (board ? 'board' : email ? 'email' : 'chats');
-        return (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={sel}
-            onClick={() => setView(k)}
-            className={`py-2 px-0 border-0 border-b-2 bg-transparent text-[15px] cursor-pointer -mb-px ${sel ? 'border-[#33402f] font-semibold text-[#33402f]' : 'border-transparent text-[#5b6a52]'}`}
-          >
-            {label}
-          </button>
-        );
-      })}
-    </div>
+    <Tabs
+      label="Messages"
+      items={[
+        { key: 'chats', label: 'From guests' },
+        { key: 'email', label: 'Email' },
+        { key: 'board', label: 'Message board' },
+      ]}
+      value={board ? 'board' : email ? 'email' : 'chats'}
+      onChange={setView}
+    />
   );
   if (email) {
     return (
@@ -180,7 +165,7 @@ export function Messages() {
         </div>
       ) : open ? (
         <div className="flex flex-col gap-3">
-          <button type="button" onClick={() => setOpen(null)} className="self-start p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[#33402f]">
+          <button type="button" onClick={() => setOpen(null)} className="self-start py-2 px-1 min-h-[40px] border-0 bg-transparent text-[14px] underline cursor-pointer text-[var(--adm-ink,#33402f)]">
             ← All messages
           </button>
           <Chat key={open} inv={open} tz={tz} onChanged={() => void Promise.all([load(), reloadNav()])} />
@@ -244,7 +229,7 @@ function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () =
       const r = await messagesApi.reply(wid, inv, text.trim(), sms && c.canText);
       setC({ ...c, messages: r.messages });
       setText('');
-      toast(r.sentSms ? (r.smsLater ? 'Reply sent; the text goes in the morning (quiet hours)' : 'Reply sent, and texted to them') : sms && c.canText ? 'Reply sent to their page; the text couldn’t go (check SMS setup)' : 'Reply sent: they will see it on their page');
+      toast(r.sentSms ? (r.smsLater ? 'Reply sent; the text goes in the morning (quiet hours)' : 'Reply sent, and texted to them') : sms && c.canText ? 'Reply sent to their page; the text couldn’t go (check Settings → Texting)' : 'Reply sent: they will see it on their page');
       onChanged();
     } catch (e) {
       toast((e as Error).message);

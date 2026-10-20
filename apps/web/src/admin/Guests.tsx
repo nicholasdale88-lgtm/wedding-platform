@@ -9,6 +9,7 @@ import { exportSheets } from './guestImport';
 import { ImportGuests } from './ImportGuests';
 import { ManualSend } from './ManualSend';
 import { answerLabel, applyFilters, dropdowns, quickFilters, shortAnswer, type FilterState } from './guestFilters';
+import { useOpenParam } from './openParam';
 import { useAdmin, useSectionName } from './Shell';
 import { Eyebrow, Pill, StatusPill, useAutoRefresh, useMedia, useToast } from './ui';
 
@@ -27,6 +28,8 @@ export function Guests() {
   const [importing, setImporting] = useState(false);
   const [manual, setManual] = useState(false);
   const [fresh, setFresh] = useState(''); // the guest "Add guest" just made
+  const [more, setMore] = useState(false); // phones: Import, Export and Send without SMS under More
+  const [filtersOpen, setFiltersOpen] = useState(false); // phones: the dropdown filters under Filters (n)
 
   const load = useCallback(async () => {
     try {
@@ -43,7 +46,7 @@ export function Guests() {
 
   const state: FilterState = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ''])) as FilterState;
   if (!state.filter) state.filter = 'all';
-  const set = (patch: Partial<Record<(typeof FILTER_KEYS)[number] | 'g', string>>) => {
+  const set = (patch: Partial<Record<(typeof FILTER_KEYS)[number], string>>) => {
     const next = new URLSearchParams(params);
     for (const [k, v] of Object.entries(patch)) {
       if (v) next.set(k, v);
@@ -51,7 +54,7 @@ export function Guests() {
     }
     setParams(next, { replace: true });
   };
-  const open = params.get('g');
+  const [open, openGuest, closeGuest] = useOpenParam('g'); // a pushed entry: the phone's Back closes the guest
 
   // The guest list is joint by default; "just this event" narrows it to the sidebar's event.
   const focusEv = data?.events.find((e) => e.key === chosen);
@@ -75,11 +78,21 @@ export function Guests() {
       const d = await api.addGuest(wid, focusEv ? [focusEv.key] : undefined);
       await changed();
       setFresh(d.guest.id);
-      set({ g: d.guest.id });
+      openGuest(d.guest.id);
     } catch (e) {
       toast((e as Error).message);
     }
   }
+
+  // "+ Add a guest" from the Overview arrives as ?add=1: add one straight away (once).
+  const adding = params.get('add') === '1';
+  useEffect(() => {
+    if (!adding || !data) return;
+    const next = new URLSearchParams(params);
+    next.delete('add');
+    setParams(next, { replace: true });
+    void addGuest();
+  }, [adding, data]); // eslint-disable-line
 
   async function setInvited(g: Guest, invited: string[]) {
     try {
@@ -104,12 +117,28 @@ export function Guests() {
             {data ? `${seatsHeld} guests on ${guests.length} invitations` : ''}
           </h1>
         </div>
-        <div className="flex gap-[10px] flex-wrap">
-          <Pill onClick={() => setManual((x) => !x)}>Send without SMS</Pill>
-          <Pill onClick={() => setImporting((x) => !x)}>Import</Pill>
-          <Pill disabled={!guests.length} onClick={() => void downloadDressed(wid, overview, fileName(overview?.wedding.slug ?? 'wedding', 'guests', 'xlsx'), 'Guest list', exportSheets(guests, events, data?.links), events.map((e) => e.key))}>
-            Export
-          </Pill>
+        <div className="relative flex gap-[10px] flex-wrap">
+          {/* Phones: one main action, the rest under More. */}
+          {(!mob || more) && (
+            <div className={mob ? 'absolute right-0 top-[calc(100%+6px)] z-[14] flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)] min-w-[220px]' : 'contents'}>
+              <Pill onClick={() => (setMore(false), setManual((x) => !x))}>Send without texts</Pill>
+              <Pill onClick={() => (setMore(false), setImporting((x) => !x))}>Import</Pill>
+              <Pill
+                disabled={!guests.length}
+                onClick={() => {
+                  setMore(false);
+                  void downloadDressed(wid, overview, fileName(overview?.wedding.slug ?? 'wedding', 'guests', 'xlsx'), 'Guest list', exportSheets(guests, events, data?.links), events.map((e) => e.key));
+                }}
+              >
+                Export
+              </Pill>
+            </div>
+          )}
+          {mob && (
+            <Pill aria-expanded={more} onClick={() => setMore((x) => !x)}>
+              More ▾
+            </Pill>
+          )}
           <Pill kind="primary" onClick={addGuest}>Add guest</Pill>
         </div>
       </header>
@@ -149,13 +178,15 @@ export function Guests() {
 
       <div className="flex gap-3 flex-wrap items-center">
         <input
+          type="search"
           value={state.q}
           onChange={(e) => set({ q: e.target.value })}
           placeholder="Search name or mobile"
           aria-label="Search name or mobile"
-          className="flex-[0_1_280px] min-w-[200px] py-[10px] px-[14px] border border-[#d3c6a4] rounded-full bg-[#fbf8f2] text-[14px]"
+          className={`${mob ? 'w-full' : 'flex-[0_1_280px] min-w-[200px]'} py-[10px] px-[14px] border border-[#d3c6a4] rounded-full bg-[#fbf8f2] text-[14px]`}
         />
-        <div className="flex gap-[6px] flex-wrap">
+        {/* Phones: the quick filters are one row that scrolls sideways. */}
+        <div className={mob ? 'flex gap-[6px] overflow-x-auto [scrollbar-width:none] -mx-4 px-4 w-[calc(100%+32px)]' : 'flex gap-[6px] flex-wrap'}>
           {quick.map((f) => {
             const on = state.filter === f.key;
             return (
@@ -163,8 +194,8 @@ export function Guests() {
                 key={f.key}
                 onClick={() => set({ filter: f.key === 'all' ? '' : f.key })}
                 aria-pressed={on}
-                className="py-[7px] px-[13px] rounded-full border text-[13px] cursor-pointer"
-                style={{ borderColor: on ? '#33402f' : '#d3c6a4', background: on ? '#33402f' : '#fbf8f2', color: on ? '#f3ecd6' : '#33402f' }}
+                className="flex-none whitespace-nowrap py-[7px] px-[13px] min-h-[40px] sm:min-h-0 rounded-full border text-[13px] cursor-pointer"
+                style={{ borderColor: on ? 'var(--adm-ink,#33402f)' : '#d3c6a4', background: on ? 'var(--adm-ink,#33402f)' : '#fbf8f2', color: on ? '#f3ecd6' : 'var(--adm-ink,#33402f)' }}
               >
                 {f.label} {guests.filter(f.test).length}
               </button>
@@ -174,7 +205,12 @@ export function Guests() {
       </div>
 
       <div className="flex gap-2 flex-wrap items-center -mt-[6px]">
-        {drops.map((d) => (
+        {mob && (
+          <Pill size="sm" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((x) => !x)}>
+            Filters{drops.filter((d) => state[d.key]).length ? ` (${drops.filter((d) => state[d.key]).length})` : ''} {filtersOpen ? '▴' : '▾'}
+          </Pill>
+        )}
+        {(!mob || filtersOpen) && drops.map((d) => (
           <label key={d.key} className="flex items-center gap-[6px] text-[12px] text-[#5b6a52]">
             {d.label}
             <select
@@ -200,7 +236,7 @@ export function Guests() {
       {mob ? (
         <div className="flex flex-col border-t-2 border-[#33402f]">
           {shown.map((g) => (
-            <button key={g.id} onClick={() => set({ g: g.id })} className="flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[#e2d7bc] bg-transparent text-left cursor-pointer">
+            <button key={g.id} onClick={() => openGuest(g.id)} className="flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[#e2d7bc] bg-transparent text-left cursor-pointer">
               <span className="flex justify-between gap-[10px] items-baseline w-full">
                 <strong className="font-semibold text-[15px]">{g.people[0]?.name || 'New guest'}</strong>
                 <span className="text-[12px] text-[#5b6a52] whitespace-nowrap">{seats(g)}</span>
@@ -225,15 +261,15 @@ export function Guests() {
               <span role="columnheader">Seats</span>
               {questions.map((q) => <span role="columnheader" key={q.key}>{answerLabel(q.key)}</span>)}
               <span role="columnheader">Dietary</span>
-              <span role="columnheader">Last SMS</span>
+              <span role="columnheader">Last text</span>
             </div>
             {shown.map((g) => (
               <div
                 key={g.id}
                 role="row"
                 tabIndex={0}
-                onClick={() => set({ g: g.id })}
-                onKeyDown={(e) => e.key === 'Enter' && set({ g: g.id })}
+                onClick={() => openGuest(g.id)}
+                onKeyDown={(e) => e.key === 'Enter' && openGuest(g.id)}
                 className="grid gap-3 items-center py-3 px-[18px] border-b border-[#ece3cc] cursor-pointer hover:bg-[#f3ecdc]"
                 style={{ gridTemplateColumns: cols }}
               >
@@ -276,7 +312,7 @@ export function Guests() {
           id={open}
           tz={tz}
           isNew={open === fresh}
-          onClose={() => set({ g: '' })}
+          onClose={closeGuest}
           onChanged={changed}
         />
       )}

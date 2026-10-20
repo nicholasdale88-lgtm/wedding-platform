@@ -48,7 +48,7 @@ describe('admin shell', () => {
     expect(await screen.findByText('Alex & Blair')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin' });
     // Account: what's shared by every event (overview, messages, the SMS provider setup). The invitation is in the first event.
-    for (const name of [/^Overview/, /^Messages/, /^Texting setup\s*Not set up/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
+    for (const name of [/^Overview/, /^Messages/, /^Settings\s*Texts off/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: /^Invitation/ })).toBeNull();
     expect(screen.getAllByText('Recovery brunch').length).toBeGreaterThan(0);
     expect(screen.getByText('138 days to go')).toBeInTheDocument();
@@ -119,6 +119,8 @@ describe('Overview', () => {
       '/api/a/w/w1/planner/doc/vendors': doc({ list: [] }),
     });
     renderAt('/admin/w1/account/overview');
+    // On a phone (and in tests) the dashboard opens with one tap.
+    await userEvent.click(await screen.findByRole('button', { name: /Planning dashboard/ }));
     const tasks = await screen.findByRole('region', { name: 'Planning tasks' });
     expect(within(tasks).getByText('33%')).toBeInTheDocument();
     const glance = screen.getByRole('region', { name: 'At a glance' });
@@ -214,7 +216,7 @@ describe('Guests', () => {
     renderAt('/admin/w1/wedding/guests?show=all&g=g2');
     const drawer = await screen.findByRole('dialog', { name: 'Guest: Jo Banks' });
     expect(within(drawer).getByText(/\/w\/alex-and-blair\/\?g=/)).toBeInTheDocument();
-    expect(within(drawer).getByText('No mobile, so this guest will not receive any SMS.')).toBeInTheDocument();
+    expect(within(drawer).getByText('No mobile, so this guest will not receive any texts.')).toBeInTheDocument();
     expect(within(drawer).getByText('Nothing sent yet.')).toBeInTheDocument();
   });
 
@@ -613,7 +615,7 @@ describe('send without SMS', () => {
     const opened: string[] = [];
     vi.spyOn(window, 'open').mockImplementation((u) => (opened.push(String(u)), null));
     renderAt('/admin/w1/wedding/guests?show=all');
-    await userEvent.click(await screen.findByRole('button', { name: 'Send without SMS' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Send without texts' }));
     expect(screen.getByText(/1 guest can't get texts/)).toBeInTheDocument();
     expect(screen.getByText(/g=g2/)).toBeInTheDocument(); // Jo Banks has no mobile
     await userEvent.click(screen.getByRole('button', { name: 'WhatsApp' }));

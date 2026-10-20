@@ -135,7 +135,7 @@ export function Dietary() {
         <h2 className="m-0 font-display font-medium text-[26px]">Messages from guests</h2>
         <div className="mb-2 text-[14px] text-[#5b6a52]">Access needs and questions often turn up here.</div>
         {view.notes.map(({ g, m }) => (
-          <button key={g.id} type="button" onClick={() => open(g)} className="grid grid-cols-[160px_minmax(0,1fr)] gap-3 py-3 border-0 border-t border-solid border-[#e2d7bc] bg-transparent text-left cursor-pointer text-[#33402f] hover:bg-[#f3ecd6]">
+          <button key={g.id} type="button" onClick={() => open(g)} className="grid grid-cols-1 sm:grid-cols-[160px_minmax(0,1fr)] gap-1 sm:gap-3 py-3 border-0 border-t border-solid border-[#e2d7bc] bg-transparent text-left cursor-pointer text-[#33402f] hover:bg-[#f3ecd6]">
             <span className="font-medium">{g.people[0]?.name}</span>
             <span className="italic text-[15px]">“{m}”</span>
           </button>

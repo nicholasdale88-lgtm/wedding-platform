@@ -9,7 +9,7 @@ import { Overview } from './Overview';
 import { GuestPages } from './pages/GuestPages';
 import { Dietary } from './diet/Dietary';
 import { Photos } from './photos/Photos';
-import { AdminLook } from './AdminLook';
+import { Settings } from './settings/Settings';
 import { EventDayChecklist } from './checklists/EventDayChecklist';
 import { Party } from './party/Party';
 import { WeddingPlanner } from './planner/WeddingPlanner';
@@ -104,7 +104,11 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
 function SectionPage({ section, tab }: { section: string; tab: string }) {
   const { overview: o, path } = useAdmin();
   const { search } = useLocation();
-  if (tab === 'settings') return <Navigate to={path('texts', ALL_EVENTS)} replace />;
+  // Account's texting setup and admin look are views of Settings now.
+  if (tab === 'look') return <Navigate to={`${path('settings', ALL_EVENTS)}?view=look`} replace />;
+  if (tab === 'texts' && section === ACCOUNT) return <Navigate to={path('settings', ALL_EVENTS)} replace />;
+  // Wedding party sign-ins moved from Setup into the Wedding party page.
+  if (tab === 'pages' && new URLSearchParams(search).get('page') === 'party') return <Navigate to={`${path('party')}?view=access`} replace />;
   if (tab === 'events') return <Navigate to={path('overview', ALL_EVENTS)} replace />;
   if (PLANNER_VIEWS.has(tab) || (tab === 'planner' && o && o.events[0] && section !== o.events[0].key)) {
     // The Wedding planner lives in the first event's section only.
@@ -147,8 +151,8 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
       return <Party />;
     case 'day':
       return <EventDayChecklist />;
-    case 'look':
-      return <AdminLook />;
+    case 'settings':
+      return <Settings />;
     default:
       return <WeddingPlanner />;
   }

@@ -144,7 +144,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
       const name = d.campaigns.find((c) => c.id === pick)?.name ?? 'this text';
       const cost = (est.costCents / 100).toFixed(2);
       const when = est.quiet ? ' It is quiet hours, so it will go out at 8am.' : '';
-      if (!window.confirm(`Send "${name}" to ${g.people[0]?.name ?? 'this guest'}? ${est.parts} SMS ${est.parts === 1 ? 'part' : 'parts'}, about $${cost}.${when}`)) return;
+      if (!window.confirm(`Send "${name}" to ${g.people[0]?.name ?? 'this guest'}? ${est.parts} text ${est.parts === 1 ? 'part' : 'parts'}, about $${cost}.${when}`)) return;
       const res = await api.sendOne(wid, g.id, pick);
       toast(res.stopped ? res.stopped.error : res.sent ? 'Sent' : 'Queued for 8am');
       await load();
@@ -208,13 +208,17 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
 
   return (
     <Drawer onClose={close} label={`Guest: ${g.people[0]?.name || 'New guest'}`}>
-      <div className="flex justify-between items-start gap-3">
-        <div>
-          <Eyebrow>Guest</Eyebrow>
-          <h2 className="mt-1 mb-0 font-display font-medium text-[32px] leading-[1.1]">{g.people[0]?.name || 'New guest'}</h2>
+      {/* The name and Close stay in view while you scroll the guest's details. */}
+      <div className="sticky top-0 z-[2] -mx-[18px] sm:-mx-[26px] -mt-3 px-[18px] sm:px-[26px] pt-3 pb-3 bg-[#f6f0e2] border-b border-[#e2d7bc] flex justify-between items-start gap-3">
+        <div className="min-w-0">
+          <button type="button" onClick={close} className="sm:hidden -ml-1 mb-1 py-1 px-1 min-h-[36px] border-0 bg-transparent text-[14px] text-[var(--adm-ink,#33402f)] cursor-pointer">
+            ← Guests
+          </button>
+          <Eyebrow className="hidden sm:block">Guest</Eyebrow>
+          <h2 className="mt-1 mb-0 font-display font-medium text-[clamp(26px,7vw,32px)] leading-[1.1] truncate">{g.people[0]?.name || 'New guest'}</h2>
           <div className="mt-1 text-[13px] text-[#5b6a52]">{g.repliedAt ? `Replied ${fmtWhen(g.repliedAt, tz)} · ${VIA[lastVia] ?? lastVia}` : 'No reply yet'}</div>
         </div>
-        <button onClick={close} aria-label="Close" className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent text-[18px] leading-none cursor-pointer">×</button>
+        <button onClick={close} aria-label="Close" className="flex-none w-10 h-10 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[20px] leading-none cursor-pointer">×</button>
       </div>
 
       <section className="flex flex-col gap-3">
@@ -267,7 +271,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
             <input value={table} placeholder="e.g. 4" onChange={(e) => setTable(e.target.value)} onBlur={() => table !== (g.people.find((p) => p.table)?.table ?? '') && void patch({ table: table.trim() || null })} className={inputCls} />
           </Label>
         </div>
-        {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any SMS.</div>}
+        {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any texts.</div>}
         {g.optOut && <div className="text-[13px] text-[#8a5a45]">Opted out of texts (replied STOP).</div>}
         <div className="flex gap-2 items-center flex-wrap">
           <span className="text-[13px] text-[#5b6a52]">Invited to</span>

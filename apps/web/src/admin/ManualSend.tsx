@@ -5,7 +5,7 @@ import { useAdmin } from './Shell';
 import { Pill, useToast } from './ui';
 
 /**
- * Guests → "Send without SMS": steps through everyone texts can't reach (no mobile, or replied STOP)
+ * Guests → "Send without texts": steps through everyone texts can't reach (no mobile, or replied STOP)
  * one at a time, with WhatsApp, Messenger, the share sheet or a copied message. Ticks are kept on this
  * device so a long list can be done in sittings.
  */
@@ -48,7 +48,7 @@ export function ManualSend({ guests, links, onClose }: { guests: Guest[]; links:
   return (
     <section className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#c6b794] bg-[#fbf8f2]">
       <div className="flex justify-between items-baseline gap-3 flex-wrap">
-        <h2 className="m-0 font-display font-medium text-[26px]">Send without SMS</h2>
+        <h2 className="m-0 font-display font-medium text-[26px]">Send without texts</h2>
         <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[#33402f]">
           Close
         </button>

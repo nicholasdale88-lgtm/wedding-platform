@@ -10,7 +10,7 @@ import { ALL_EVENTS, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
 import { SeatChecks } from './SeatChecks';
-import { Eyebrow, inputCls, Label, Pill, useToast } from '../ui';
+import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 
 /**
  * Admin → Seating (design: isSeating). Drag tables and areas on the floor plan; tap a table to see and
@@ -36,6 +36,10 @@ export function Seating() {
   const [shape, setShape] = useState<TableShape>('round');
   const [snap, setSnap] = useState(true);
   const [zoom, setZoom] = useState(1);
+  // Phones: seating guests first; the room's tools (tables, areas, snap, line up, print) under Arrange room.
+  const mob = useMedia('(max-width: 759px)');
+  const [arrange, setArrange] = useState(false);
+  const roomTools = !mob || arrange;
   const [groupFilter, setGroupFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -313,6 +317,13 @@ export function Seating() {
       </header>
 
       <div className="flex gap-2 flex-wrap items-center print:hidden">
+        {mob && (
+          <Pill kind={arrange ? 'outline' : 'secondary'} aria-pressed={arrange} onClick={() => (setArrange((x) => !x), setAdding(false))}>
+            {arrange ? 'Done arranging' : 'Arrange room'}
+          </Pill>
+        )}
+        {roomTools && (
+          <>
         <Label text={selTable ? `Table ${selTable.name} type` : 'Table type'} className="!flex-row items-center gap-2">
           <select
             value={selTable?.shape ?? shape}
@@ -357,6 +368,8 @@ export function Seating() {
         <Pill onClick={lineUp} disabled={!tables.length}>
           Line up tables
         </Pill>
+          </>
+        )}
         <Pill onClick={autoSeat} disabled={!tables.length}>
           Auto-seat the rest
         </Pill>
@@ -368,15 +381,23 @@ export function Seating() {
         <Pill onClick={() => setZoom((z) => Math.min(3, round1(z + 0.25)))} disabled={zoom >= 3} aria-label="Zoom in">
           +
         </Pill>
-        <Pill onClick={exportList} disabled={!tables.length}>
-          Table list for the caterer
-        </Pill>
-        <Pill onClick={() => window.print()}>Print plan</Pill>
+        {roomTools && (
+          <>
+            <Pill onClick={exportList} disabled={!tables.length}>
+              Table list for the caterer
+            </Pill>
+            <Pill onClick={() => window.print()}>Print plan</Pill>
+          </>
+        )}
       </div>
       <div className="text-[14px] text-[#5b6a52] print:hidden">
         {adding
           ? 'Tap the plan to drop a table. Tap Done adding when finished.'
-          : 'Drag tables and areas to arrange the room. Tap a table to see who sits there; tap or drag guests onto a table to seat them. Ctrl+Z undoes.'}
+          : mob
+            ? arrange
+              ? 'Drag tables and areas to move them. Swipe the empty floor to scroll.'
+              : 'Tap a table, then tap names to seat them there. Undo puts back any change.'
+            : 'Drag tables and areas to arrange the room. Tap a table to see who sits there; tap or drag guests onto a table to seat them. Ctrl+Z undoes.'}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
@@ -445,7 +466,24 @@ export function Seating() {
           )}
 
           {selTable && (
-            <div className="flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]">
+            <div
+              className={
+                mob
+                  ? 'fixed inset-x-0 bottom-[calc(57px+env(safe-area-inset-bottom))] z-[17] max-h-[58vh] overflow-y-auto flex flex-col gap-3 p-4 rounded-t-[20px] border-t border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_-8px_24px_rgba(51,64,47,.18)]'
+                  : 'flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]'
+              }
+            >
+              {mob && (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-display text-[22px]">
+                    Table {selTable.name} · {(byTable.get(selTable.id) ?? []).length} of {selTable.seats}
+                  </span>
+                  <button type="button" aria-label="Close table" onClick={() => setSel(null)} className="w-10 h-10 rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer">
+                    ×
+                  </button>
+                </div>
+              )}
+              {roomTools && (
               <div className="grid grid-cols-2 gap-3">
                 <Label text="Table name">
                   <input value={selTable.name} onChange={(e) => setTable(selTable.id, { name: e.target.value }, false)} onFocus={checkpoint} className={inputCls} />
@@ -471,7 +509,8 @@ export function Seating() {
                   </Label>
                 )}
               </div>
-              {(selTable.shape === 'long' || selTable.shape === 'head') && (
+              )}
+              {roomTools && (selTable.shape === 'long' || selTable.shape === 'head') && (
                 <Label text="Seats on">
                   <select
                     aria-label="Seats on"
@@ -485,7 +524,7 @@ export function Seating() {
                   </select>
                 </Label>
               )}
-              {STRETCHES(selTable.shape) && (
+              {roomTools && STRETCHES(selTable.shape) && (
                 <Label text={`Length · ${selTable.len}%`}>
                   <input type="range" min={10} max={90} value={selTable.len} onChange={(e) => setTable(selTable.id, { len: Number(e.target.value) })} />
                 </Label>
@@ -499,7 +538,7 @@ export function Seating() {
                       {p.diet && <span className={`block text-[12px] ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span>}
                       {!p.coming && <span className="block text-[12px] text-[#5e5130]">Not replied yet</span>}
                     </span>
-                    <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className="w-[26px] h-[26px] rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer">
+                    <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className="w-10 h-10 sm:w-[26px] sm:h-[26px] rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer">
                       ×
                     </button>
                   </div>
@@ -507,6 +546,26 @@ export function Seating() {
                 {(byTable.get(selTable.id)?.length ?? 0) > selTable.seats && <div className="text-[13px] text-[#7a4a37]">More people than seats. Add seats or move someone.</div>}
                 {!byTable.get(selTable.id)?.length && <div className="text-[13px] text-[#7a7466]">Nobody here yet. Tap or drag guests below to seat them.</div>}
               </div>
+              {mob && unseated.length > 0 && (
+                <div className="flex flex-col gap-2 pt-2 border-t border-[#e2d7bc]">
+                  <span className="text-[13px] text-[#5b6a52]">Tap a name to seat them here</span>
+                  <div className="flex gap-2 flex-wrap">
+                    {unseated.flat().map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => seat([p.id], selTable.id)}
+                        style={{ boxShadow: p.party ? `inset 4px 0 0 ${groupColour(p.party)}` : undefined }}
+                        className="py-2 px-3 min-h-[40px] rounded-full border border-[#c6b794] bg-[#f6f0e2] text-[14px] cursor-pointer text-[#33402f]"
+                      >
+                        {p.name}
+                        {isSerious(p.diet) && <span className="ml-1 text-[#7a4a37]">●</span>}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {roomTools && (
               <Pill
                 onClick={() => {
                   const ids = (byTable.get(selTable.id) ?? []).map((p) => p.id);
@@ -516,6 +575,7 @@ export function Seating() {
               >
                 Remove table
               </Pill>
+              )}
             </div>
           )}
 

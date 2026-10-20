@@ -24,7 +24,7 @@ export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: ReactNo
     <header className="flex justify-between items-end gap-4 flex-wrap">
       <div className="flex flex-col gap-[10px] min-w-0">
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-        <h1 className={`m-0 font-display font-medium text-[clamp(32px,6vw,46px)] leading-[1.05] [text-wrap:balance] ${INK}`}>{title}</h1>
+        <h1 className={`m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance] ${INK}`}>{title}</h1>
         {sub && <p className="m-0 max-w-[620px] text-[15px] text-[#5b6a52]">{sub}</p>}
       </div>
       {actions && <div className="flex gap-2 flex-wrap items-center">{actions}</div>}
@@ -53,7 +53,7 @@ export function Pill({ kind = 'secondary', size, className = '', ...props }: But
     <button
       type="button"
       {...props}
-      className={`rounded-full cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed aria-busy:cursor-wait ${PILL[kind]} ${size === 'sm' ? 'py-[5px] px-3 text-[12px]' : SIZE[kind]} ${className}`}
+      className={`rounded-full cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed aria-busy:cursor-wait ${PILL[kind]} ${size === 'sm' ? 'py-[5px] px-3 text-[12px] min-h-[40px] sm:min-h-0' : SIZE[kind]} inline-flex items-center justify-center gap-1 ${className}`}
     />
   );
 }
@@ -89,9 +89,50 @@ export function Chips<K extends string>({ label, items, value, onChange }: { lab
   );
 }
 export const chipCls = (on: boolean) =>
-  `py-[6px] px-3 rounded-full border text-[13px] cursor-pointer whitespace-nowrap ${
+  `flex-none py-[6px] px-3 min-h-[40px] sm:min-h-0 rounded-full border text-[13px] cursor-pointer whitespace-nowrap ${
     on ? 'bg-[var(--adm-accent,#5d6b47)] border-[var(--adm-accent,#5d6b47)] text-[#fbf8f2]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'
   }`;
+
+/**
+ * Unsaved edits: Discard and Save in a bar that stays at the bottom of the screen while you scroll
+ * (above the phone's bottom tab bar), with its own background so it never sits over text unreadably.
+ */
+export function SaveBar({ onDiscard, onSave, busy, label = 'Save changes', note = 'You have changes that are not saved.' }: { onDiscard: () => void; onSave: () => void; busy?: boolean; label?: string; note?: string }) {
+  return (
+    <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
+      <span className="text-[14px] text-[#5b6a52]">{note}</span>
+      <span className="flex gap-2">
+        <Pill onClick={onDiscard} disabled={busy}>
+          Discard
+        </Pill>
+        <Pill kind="primary" onClick={onSave} disabled={busy}>
+          {label}
+        </Pill>
+      </span>
+    </div>
+  );
+}
+
+/** A section you open when you need it (settings set once, a long dashboard): a full-width row with a title. */
+export function Disclosure({ title, sub, defaultOpen = false, children }: { title: string; sub?: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section aria-label={title} className="flex flex-col gap-4">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((x) => !x)}
+        className="flex items-center justify-between gap-3 py-3 px-4 min-h-[52px] rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6]"
+      >
+        <span className="font-display text-[22px] leading-tight">{title}</span>
+        <span className="text-[13px] text-[#5b6a52] text-right">
+          {open ? 'Hide' : sub} <span aria-hidden>{open ? '▴' : '▾'}</span>
+        </span>
+      </button>
+      {open && children}
+    </section>
+  );
+}
 
 /** While a screen's data loads: keeps the space and tells screen readers. */
 export const Loading = ({ label = 'Loading…' }: { label?: string }) => (
