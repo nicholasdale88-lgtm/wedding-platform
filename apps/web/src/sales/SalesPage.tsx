@@ -39,7 +39,6 @@ const PLANS: { key: PlanKey; name: string; price: string; note: string; items: s
 
 const INK = '#33402f';
 const SOFT = '#5b6a52';
-const GOLD = '#a8834e';
 const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 const field = 'w-full py-[11px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px]';
