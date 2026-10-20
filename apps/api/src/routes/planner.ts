@@ -1,4 +1,4 @@
-import { allPayments, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor } from '@wp/shared';
+import { allPayments, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -511,6 +511,11 @@ export function plannerRoutes() {
       const d = doc.data as { helpers: { key: string }[] };
       return c.json({ ...doc, data: { ...d, helpers: d.helpers.map((h) => ({ ...h, key: '' })) } });
     }
+    // Vendors' private quote links likewise.
+    if (kind === 'vendors' && c.get('role') === 'viewer') {
+      const d = doc.data as Vendors;
+      return c.json({ ...doc, data: { ...d, rfqs: d.rfqs.map((r) => ({ ...r, vendors: r.vendors.map((v) => ({ ...v, key: '' })) })) } });
+    }
     return c.json(doc);
   });
 
@@ -522,7 +527,12 @@ export function plannerRoutes() {
       const ev = await c.env.DB.prepare(`SELECT 1 FROM event WHERE wedding_id = ? AND key = ? AND deleted_at IS NULL`).bind(wid(c), scope).first();
       if (!ev) return err(c, 404, 'not_found', 'That event no longer exists.');
     }
-    const parsed = PLANNER_DOCS[kind].safeParse((await readJson(c.req.raw, MAX_PLANNER_DOC)) ?? undefined);
+    const raw = (await readJson(c.req.raw, MAX_PLANNER_DOC)) ?? undefined;
+    // A save of the vendor list alone (from Payments or the Checklist) keeps the quote requests as they are.
+    if (kind === 'vendors' && raw && typeof raw === 'object' && !Array.isArray(raw) && !('rfqs' in raw)) {
+      (raw as Record<string, unknown>).rfqs = (await readDoc(c.env.DB, wid(c), 'vendors', scope)).data.rfqs;
+    }
+    const parsed = PLANNER_DOCS[kind].safeParse(raw);
     if (!parsed.success) return err(c, 400, 'invalid', 'Some of it is too long or missing. Check and try again.');
     const v = Number(c.req.header('If-Match') ?? '0');
     if (!Number.isInteger(v) || v < 0) return err(c, 400, 'invalid', 'Reload the page and try again.');

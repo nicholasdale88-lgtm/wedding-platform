@@ -17,6 +17,7 @@ import { shuttleAdminRoutes, shuttleGuestRoutes } from './routes/shuttles';
 import { albumAdminRoutes, albumGuestRoutes } from './routes/album';
 import { runCopies } from './photos/store';
 import { runBackups } from './lib/backup';
+import { rfqRoutes } from './routes/rfq';
 import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
@@ -78,6 +79,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/p/:slug/calendar', calendarRoutes());
   app.route('/p/:slug/shuttles', shuttleGuestRoutes());
   app.route('/p/:slug/album', albumGuestRoutes());
+  app.route('/p/:slug/rfq', rfqRoutes());
   app.route('/p/:slug', guestRoutes(deps));
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {

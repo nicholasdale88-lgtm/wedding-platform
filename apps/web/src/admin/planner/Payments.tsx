@@ -48,7 +48,7 @@ export function Payments() {
   /** Tick a payment off (or back on): a vendor's payment, or a budget line paid in full. */
   const markPaid = (p: DuePayment, on: boolean) => {
     const r = paying(p, on, vendors, lines, today);
-    if (p.vendorId) vendorsDoc.update(() => ({ list: r.vendors }));
+    if (p.vendorId) vendorsDoc.update((d) => ({ ...d, list: r.vendors }));
     else budgetDoc.update((d) => ({ ...d, lines: r.lines }));
     if (on) toast(`${p.who}: ${aud(p.amount)} paid ✓`);
   };

@@ -588,6 +588,9 @@ export const Quote = z.object({
   fileName: s(160),
   /** What the assistant read from the file (kept so quotes can be compared later). */
   extract: s(6000),
+  /** The quote request it answers, and its price for each line of that request (null: not included). */
+  rfq: s(40),
+  lines: z.array(z.object({ id: z.string().max(40), amount: z.number().min(0).max(10_000_000).nullable() })).max(40).default([]),
 });
 export type Quote = z.infer<typeof Quote>;
 export const Vendor = z.object({
@@ -824,8 +827,138 @@ export function quoteStatus(v: Vendor, today: string) {
 }
 const aud0 = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
 
-export const Vendors = z.object({ list: z.array(Vendor).max(200).default([]) });
+/**
+ * A quote request (like a tender): what you want priced, line by line, sent to several vendors. Each gets
+ * a private link to price every line (or say it isn't included); the answers come back as their quotes,
+ * side by side, with gaps levelled so the totals compare like for like.
+ */
+export const RfqLine = z.object({ id: z.string().max(40), label: z.string().max(160), detail: s(400) });
+export const RfqVendor = z.object({
+  vendorId: z.string().max(40),
+  /** The vendor's private link key (never shown to viewers). */
+  key: s(40),
+  sentOn: s(10),
+  openedOn: s(10),
+  answeredOn: s(10),
+  quoteId: s(40),
+});
+export const Rfq = z.object({
+  id: z.string().max(40),
+  title: s(120),
+  /** A key of VENDOR_SEARCH (florist, photographer...), or '' for anything else. */
+  service: s(40),
+  lines: z.array(RfqLine).max(40).default([]),
+  /** Quotes wanted by (yyyy-mm-dd). */
+  due: s(10),
+  /** The email (or text) that goes with the link, as you wrote it. */
+  subject: s(200),
+  message: s(4000),
+  vendors: z.array(RfqVendor).max(20).default([]),
+  createdOn: s(10),
+  /** Decided: the vendor chosen (or closed without one). */
+  closed: z.boolean().default(false),
+});
+export type Rfq = z.infer<typeof Rfq>;
+export type RfqLine = z.infer<typeof RfqLine>;
+export type RfqVendor = z.infer<typeof RfqVendor>;
+
+export const Vendors = z.object({ list: z.array(Vendor).max(200).default([]), rfqs: z.array(Rfq).max(30).default([]) });
 export type Vendors = z.infer<typeof Vendors>;
+
+/** What usually gets priced for each kind of supplier: the starting lines of a quote request. */
+export const RFQ_LINES: Record<string, string[]> = {
+  venue: ['Venue hire (ceremony)', 'Venue hire (reception)', 'Food and beverage minimum spend', 'Furniture and linen', 'Staff and security', 'Cleaning and bump-out', 'Late finish'],
+  celebrant: ['Ceremony and legal paperwork', 'Rehearsal', 'PA system and microphone', 'Travel'],
+  florist: ['Bridal bouquet', 'Bridesmaid bouquets', 'Buttonholes and corsages', 'Ceremony arbour or arch', 'Aisle flowers', 'Table centrepieces', 'Delivery, set-up and pack-down'],
+  photographer: ['Coverage (hours)', 'Second photographer', 'Engagement shoot', 'Online gallery and downloads', 'Printed album', 'Travel'],
+  videographer: ['Coverage (hours)', 'Highlights film', 'Full ceremony and speeches', 'Drone footage', 'Raw footage', 'Travel'],
+  caterer: ['Canapés (per guest)', 'Entrée (per guest)', 'Main (per guest)', 'Dessert (per guest)', 'Children’s meals', 'Vendor meals', 'Staff', 'Equipment and crockery hire', 'Cake cutting and service'],
+  cake: ['Wedding cake', 'Tasting', 'Delivery and set-up', 'Stand hire'],
+  hair: ['Bride: trial', 'Bride: on the day', 'Bridesmaids (each)', 'Mothers (each)', 'Travel and early start'],
+  makeup: ['Bride: trial', 'Bride: on the day', 'Bridesmaids (each)', 'Mothers (each)', 'Lashes', 'Travel and early start'],
+  bridal: ['Gown', 'Alterations', 'Veil and accessories', 'Steaming and pressing'],
+  suits: ['Suit (each)', 'Alterations', 'Shirts and ties', 'Shoes'],
+  jewellery: ['Engagement ring', 'Wedding bands', 'Engraving', 'Resizing'],
+  accommodation: ['Room block (per night)', 'Bridal suite', 'Getting-ready room', 'Late checkout'],
+  transport: ['Bridal car', 'Guest shuttle (each run)', 'Waiting time', 'Decorations'],
+  hire: ['Marquee or tent', 'Tables and chairs', 'Linen', 'Lighting', 'Styling and set-up', 'Delivery and pack-down'],
+  print: ['Invitations', 'Save the dates', 'Menus', 'Place cards', 'Signage', 'Postage'],
+  music: ['Ceremony music', 'Reception band or DJ (hours)', 'PA and lighting', 'MC services', 'Extra hour', 'Travel'],
+  '': ['Package price', 'Extras', 'Travel'],
+};
+
+/** The usual email for a quote request, by service: {couple}, {date}, {venue}, {guests}, {due}, {link} are filled in when sent. */
+export function rfqDraft(service: string): { subject: string; message: string } {
+  const what = (VENDOR_SEARCH[service]?.label ?? 'your services').toLowerCase().replace(/s$/, '');
+  const ask: Record<string, string> = {
+    venue: 'We’d love to know your availability and pricing for our ceremony and reception, including any minimum spend.',
+    celebrant: 'We’re looking for a celebrant for our ceremony and would love to know your availability and fees.',
+    florist: 'We’d love a quote for our wedding flowers: bouquets, buttonholes, ceremony and table flowers.',
+    photographer: 'We’d love to know your availability and packages to photograph our wedding.',
+    videographer: 'We’d love to know your availability and packages to film our wedding.',
+    caterer: 'We’d love a quote to cater our reception, including staff and equipment.',
+    cake: 'We’d love a quote for our wedding cake.',
+    hair: 'We’d love a quote for hair on the morning of our wedding, including a trial.',
+    makeup: 'We’d love a quote for makeup on the morning of our wedding, including a trial.',
+    transport: 'We’d love a quote for transport on our wedding day.',
+    hire: 'We’d love a quote for hire and styling for our wedding.',
+    music: 'We’d love to know your availability and pricing for music at our wedding.',
+    accommodation: 'We’d love a quote for accommodation for us and our guests.',
+    print: 'We’d love a quote for our wedding stationery.',
+  };
+  return {
+    subject: `Quote request: {couple}'s wedding, {date}`,
+    message: [
+      'Hi,',
+      '',
+      `We're {couple} and we're getting married on {date} at {venue}, with about {guests} guests. ${ask[service] ?? `We'd love a quote for ${what}.`}`,
+      '',
+      'To make it easy, we\'ve listed what we need here. You can price each item (or mark it not included), add notes, and attach your own quote:',
+      '{link}',
+      '',
+      'If you could send it by {due}, that would be wonderful.',
+      '',
+      'Thank you!',
+      '{couple}',
+    ].join('\n'),
+  };
+}
+
+/**
+ * Quotes for one request side by side: each line's price per vendor (the lowest marked), and each vendor's
+ * total "levelled": a line they left out is counted at the middle price of those who included it, so a
+ * cheap quote that leaves things out doesn't look cheaper than it is.
+ */
+export function compareRfq(rfq: Rfq, list: Vendor[]) {
+  const cols = rfq.vendors
+    .map((rv) => {
+      const v = list.find((x) => x.id === rv.vendorId);
+      const q = v?.quotes.find((x) => x.id === rv.quoteId) ?? v?.quotes.find((x) => x.rfq === rfq.id);
+      return v ? { v, rv, q: q ?? null } : null;
+    })
+    .filter((x): x is { v: Vendor; rv: RfqVendor; q: Quote | null } => !!x);
+  const priceOf = (q: Quote | null, line: string) => (q ? (q.lines.find((l) => l.id === line)?.amount ?? null) : null);
+  const mid = (xs: number[]) => {
+    const s = [...xs].sort((a, b) => a - b);
+    return s.length ? (s.length % 2 ? s[(s.length - 1) / 2]! : (s[s.length / 2 - 1]! + s[s.length / 2]!) / 2) : 0;
+  };
+  const rows = rfq.lines.map((l) => {
+    const prices = cols.map((c) => priceOf(c.q, l.id));
+    const given = prices.filter((p): p is number => p !== null);
+    const low = given.length > 1 ? Math.min(...given) : null;
+    return { line: l, prices, low, mid: mid(given) };
+  });
+  const totals = cols.map((c, i) => {
+    if (!c.q) return { quoted: null as number | null, levelled: null as number | null, missing: rfq.lines.length };
+    const missing = rows.filter((r) => r.prices[i] === null).length;
+    const quoted = c.q.amount;
+    const levelled = quoted + rows.reduce((a, r) => a + (r.prices[i] === null ? r.mid : 0), 0);
+    return { quoted, levelled, missing };
+  });
+  const done = totals.map((t) => t.levelled).filter((x): x is number => x !== null);
+  const best = done.length > 1 ? Math.min(...done) : null;
+  return { cols, rows, totals, best };
+}
 
 /** What "Find vendors" can search for near the venue (OpenStreetMap tags). */
 export const VENDOR_SEARCH: Record<string, { label: string; tags: string[] }> = {

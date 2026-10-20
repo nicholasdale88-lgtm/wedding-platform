@@ -1,6 +1,7 @@
 import { commitmentOf, dateIn, moneyOf, QUOTE_STAGES, quoteStatus, VENDOR_SEARCH, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type VendorHit } from '../../lib/api';
+import { QuoteRequests } from './QuoteRequests';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
 import { useDocSave } from './useDocSave';
@@ -50,7 +51,7 @@ const newVendor = (over: Partial<Vendor>): Vendor => ({
   declinedWhy: '',
   ...over,
 });
-const BLANK_QUOTE: Quote = { id: '', amount: 0, deposit: 0, date: '', validUntil: '', includes: '', excludes: '', notes: '', fileId: '', fileName: '', extract: '' };
+const BLANK_QUOTE: Quote = { id: '', amount: 0, deposit: 0, date: '', validUntil: '', includes: '', excludes: '', notes: '', fileId: '', fileName: '', extract: '', rfq: '', lines: [] };
 const safeUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : u ? `https://${u}` : '');
 /** The quote that counts for comparing: the accepted one, else the cheapest. */
 const bestQuote = (v: Vendor) => v.quotes.find((q) => q.id === v.accepted) ?? [...v.quotes].sort((a, b) => (a.amount || Infinity) - (b.amount || Infinity))[0];
@@ -77,11 +78,11 @@ export function Vendors() {
   const list = doc.data.list;
 
   /** Each change is saved straight away (the list is small and changes are deliberate). */
-  const save = async (next: Vendor[], done?: string) => {
+  const save = async (next: Vendor[], done?: string, rfqs = doc.data.rfqs) => {
     const before = doc;
-    setDoc({ ...doc, data: { list: next } });
+    setDoc({ ...doc, data: { list: next, rfqs } });
     try {
-      const r = await saveDoc({ list: next });
+      const r = await saveDoc({ list: next, rfqs });
       setDoc((d) => (d ? { ...d, version: r.version } : r)); // keep what's on screen: a later change may be on its way
       if (done) toast(done);
     } catch (e) {
@@ -114,6 +115,16 @@ export function Vendors() {
       <QuoteTracker
         list={list}
         onPatch={(id, p, msg) => patch(id, p, msg)}
+        onOpen={(id) => {
+          setOpen(id);
+          setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }}
+      />
+
+      <QuoteRequests
+        list={list}
+        rfqs={doc.data.rfqs}
+        onSave={(l, r, msg) => void save(l, msg, r)}
         onOpen={(id) => {
           setOpen(id);
           setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);

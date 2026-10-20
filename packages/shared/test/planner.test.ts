@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { allPayments, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { allPayments, compareRfq, Rfq, rfqDraft, searchKeyOf, Vendor, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -254,5 +254,33 @@ describe('vendor directory categories', () => {
     expect(searchKeyOf('Hair stylist')).toBe('hair');
     expect(searchKeyOf('Car hire')).toBe('transport');
     expect(searchKeyOf('Something else')).toBe('');
+  });
+});
+
+describe('quote requests', () => {
+  it('compares quotes line by line, marks the lowest, and levels out what was left out', () => {
+    const rfq = Rfq.parse({ id: 'r', lines: [{ id: 'a', label: 'Coverage' }, { id: 'b', label: 'Album' }, { id: 'c', label: 'Travel' }], vendors: [{ vendorId: 'x', quoteId: 'qx' }, { vendorId: 'y', quoteId: 'qy' }, { vendorId: 'z' }] });
+    const q = (id: string, lines: [string, number | null][]) => ({ id, rfq: 'r', amount: lines.reduce((a, [, n]) => a + (n ?? 0), 0), lines: lines.map(([lid, amount]) => ({ id: lid, amount })) });
+    const list = [
+      Vendor.parse({ id: 'x', name: 'X', quotes: [q('qx', [['a', 3000], ['b', 800], ['c', 200]])] }),
+      Vendor.parse({ id: 'y', name: 'Y', quotes: [q('qy', [['a', 2500], ['b', null], ['c', 100]])] }),
+      Vendor.parse({ id: 'z', name: 'Z' }),
+    ];
+    const c = compareRfq(rfq, list);
+    expect(c.rows.map((r) => r.low)).toEqual([2500, null, 100]);
+    expect(c.totals[0]).toEqual({ quoted: 4000, levelled: 4000, missing: 0 });
+    // Y left the album out: counted at the middle price of the others (800), so 2600 is really 3400.
+    expect(c.totals[1]).toEqual({ quoted: 2600, levelled: 3400, missing: 1 });
+    expect(c.totals[2]).toEqual({ quoted: null, levelled: null, missing: 3 });
+    expect(c.best).toBe(3400);
+  });
+
+  it('has a standard email for each service, with the link to price it', () => {
+    for (const s of ['photographer', 'florist', 'caterer', 'venue', '']) {
+      const d = rfqDraft(s);
+      expect(d.message).toContain('{link}');
+      expect(d.message).toContain('{couple}');
+    }
+    expect(rfqDraft('florist').message).toMatch(/bouquets/);
   });
 });

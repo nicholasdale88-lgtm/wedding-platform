@@ -171,6 +171,56 @@ describe('planner: wedding party', () => {
     expect(((await budget.json()) as { data: { lines: { quote: number }[] } }).data.lines[0]!.quote).toBe(0); // defaults filled in
   });
 
+  it('quote requests: each vendor prices the lines on their own link, side by side; other saves keep the requests; viewers never see the links', async () => {
+    const key = 'k'.repeat(10) + 'Abc123_-xyz9';
+    const other = 'z'.repeat(24);
+    const rfq = { id: 'r1', title: 'Photographer quotes', service: 'photographer', lines: [{ id: 'l1', label: 'Coverage (hours)' }, { id: 'l2', label: 'Album' }], due: '2099-01-01', vendors: [{ vendorId: 'v1', key }, { vendorId: 'v2', key: other }] };
+    const list = [{ id: 'v1', name: 'Lens & Light', category: 'Photographer' }, { id: 'v2', name: 'Snap Co', category: 'Photographer' }];
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ list, rfqs: [rfq] }) })).status).toBe(200);
+    const pub = (path: string, init: RequestInit = {}) => app.request(`/api/p/sophie-and-nicholas/rfq${path}`, { ...init, headers: { 'content-type': 'application/json', ...init.headers } }, env, ctx);
+
+    // The vendor's page: only what they need, never the other vendor or the couple's full names.
+    const page = await pub(`?k=${key}`);
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    const view = JSON.parse(text) as { couple: string; vendor: string; lines: { id: string }[]; answer: unknown };
+    expect(view).toMatchObject({ couple: 'Sophie & Nicholas', vendor: 'Lens & Light', answer: null });
+    expect(view.lines.map((l) => l.id)).toEqual(['l1', 'l2']);
+    expect(text).not.toContain('Snap Co');
+    expect(text).not.toContain(other);
+    expect((await pub('?k=' + 'x'.repeat(24))).status).toBe(404);
+
+    // They price one line and leave the album out; it lands as their quote.
+    const answer = { k: key, lines: [{ id: 'l1', amount: 3200 }, { id: 'l2', amount: null }, { id: 'nope', amount: 99 }], deposit: 500, includes: 'Edited gallery' };
+    expect((await pub('', { method: 'POST', body: JSON.stringify(answer) })).status).toBe(200);
+    type Doc = { version: number; data: { list: { id: string; status: string; quotes: { id: string; rfq: string; amount: number; lines: { id: string; amount: number | null }[] }[] }[]; rfqs: { closed: boolean; vendors: { key: string; vendorId: string; openedOn: string; answeredOn: string; quoteId: string }[] }[] } };
+    const doc = (await (await call('/doc/vendors')).json()) as Doc;
+    const v1 = doc.data.list.find((v) => v.id === 'v1')!;
+    expect(v1.status).toBe('quoted');
+    expect(v1.quotes).toHaveLength(1);
+    expect(v1.quotes[0]).toMatchObject({ rfq: 'r1', amount: 3200, lines: [{ id: 'l1', amount: 3200 }, { id: 'l2', amount: null }] });
+    expect(doc.data.rfqs[0]!.vendors[0]).toMatchObject({ quoteId: v1.quotes[0]!.id });
+    expect(doc.data.rfqs[0]!.vendors[0]!.openedOn).not.toBe('');
+    // A second answer replaces the first.
+    await pub('', { method: 'POST', body: JSON.stringify({ ...answer, lines: [{ id: 'l1', amount: 3000 }, { id: 'l2', amount: 900 }] }) });
+    const again = (await (await call('/doc/vendors')).json()) as Doc;
+    expect(again.data.list.find((v) => v.id === 'v1')!.quotes.map((q) => q.amount)).toEqual([3900]);
+
+    // Saving the vendor list alone (Payments, the Checklist) keeps the requests.
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': String(again.version) }, body: JSON.stringify({ list: again.data.list }) })).status).toBe(200);
+    const kept = (await (await call('/doc/vendors')).json()) as Doc;
+    expect(kept.data.rfqs[0]!.vendors.map((v) => v.key)).toEqual([key, other]);
+    // Viewers see the requests, not the vendors' links.
+    await t.db.prepare(`UPDATE membership SET role = 'viewer'`).run();
+    const seen = (await (await call('/doc/vendors')).json()) as Doc;
+    expect(seen.data.rfqs[0]!.vendors.map((v) => v.key)).toEqual(['', '']);
+    await t.db.prepare(`UPDATE membership SET role = 'owner'`).run();
+
+    // Once decided, a vendor can't change their quote.
+    await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': String(kept.version) }, body: JSON.stringify({ list: kept.data.list, rfqs: kept.data.rfqs.map((r) => ({ ...r, closed: true })) }) });
+    expect((await pub('', { method: 'POST', body: JSON.stringify(answer) })).status).toBe(409);
+  });
+
   it("the assistant answers from the wedding's own facts, and says when it is off", async () => {
     expect(((await (await call('/ask', { method: 'POST', body: JSON.stringify({ question: 'What next?' }) })).json()) as { error: { code: string } }).error.code).toBe('off');
     const seen: { input?: { messages: { role: string; content: string }[] } } = {};

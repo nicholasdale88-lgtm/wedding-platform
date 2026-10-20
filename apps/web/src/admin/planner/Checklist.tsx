@@ -95,14 +95,14 @@ export function Checklist() {
   const tickVendor = (a: VendorAction) => {
     if (a.kind === 'payment' && a.payment) {
       const r = markPaid(a.payment, !a.done, vlist, vlines, today);
-      if (a.payment.vendorId) vendorsDoc.update(() => ({ list: r.vendors }), true);
+      if (a.payment.vendorId) vendorsDoc.update((d) => ({ ...d, list: r.vendors }), true);
       else budgetDoc.update((d) => ({ ...d, lines: r.lines }), true);
       toast(a.done ? 'Marked not paid' : 'Paid ✓ (in Payments too)');
     } else if (a.kind === 'chase') {
-      vendorsDoc.update((d) => ({ list: d.list.map((v) => (v.id === a.vendorId ? { ...v, chasedOn: today } : v)) }), true);
+      vendorsDoc.update((d) => ({ ...d, list: d.list.map((v) => (v.id === a.vendorId ? { ...v, chasedOn: today } : v)) }), true);
       toast('Chased ✓ (it comes back in five days if no quote)');
     } else if (a.kind === 'contract') {
-      vendorsDoc.update((d) => ({ list: d.list.map((v) => (v.id === a.vendorId ? { ...v, contractSigned: a.done ? '' : today } : v)) }), true);
+      vendorsDoc.update((d) => ({ ...d, list: d.list.map((v) => (v.id === a.vendorId ? { ...v, contractSigned: a.done ? '' : today } : v)) }), true);
       toast(a.done ? 'Contract not signed yet' : 'Contract signed ✓');
     }
   };
