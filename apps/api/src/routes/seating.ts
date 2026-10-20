@@ -346,7 +346,7 @@ export interface Snapshot {
 /** How many tables, areas and seats differ between what's published and the saved draft. */
 export function changesBetween(a: Snapshot, b: Snapshot): number {
   let n = 0;
-  const key = (t: Snapshot['tables'][number]) => JSON.stringify([t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats]);
+  const key = (t: Snapshot['tables'][number]) => JSON.stringify([t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, (t as { sides?: number }).sides ?? 2]);
   const at = new Map(a.tables.map((t) => [t.id, key(t)]));
   const bt = new Map(b.tables.map((t) => [t.id, key(t)]));
   for (const [id, k] of bt) if (at.get(id) !== k) n++;

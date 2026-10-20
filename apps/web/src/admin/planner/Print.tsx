@@ -177,7 +177,8 @@ export function Print() {
               </section>
             ))}
           {kind === 'places' &&
-            chunk(seated, 8).map((page, n) => (
+            // Table by table, so the cards go out one table at a time.
+            chunk([...seated].sort((a, b) => a.table.localeCompare(b.table, undefined, { numeric: true }) || a.name.localeCompare(b.name)), 8).map((page, n) => (
               <section key={n} className="pp pp-a4 grid grid-cols-2 grid-rows-4">
                 {page.map((p) => (
                   <div key={`${p.name}-${p.table}`} className="pp-place flex flex-col items-center justify-end pb-[8mm] text-center">

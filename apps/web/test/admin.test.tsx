@@ -755,6 +755,33 @@ describe('seating tab', () => {
     expect(screen.getByText('All good ✓')).toBeInTheDocument(); // Robin and Sam ended up apart
   });
 
+  it('moves someone, or their whole household, to another table; finds a guest by name; numbers the tables', async () => {
+    const T2 = '22222222-2222-4222-8222-222222222222';
+    const two = {
+      ...seating,
+      tables: [{ ...seating.tables[0]!, name: '7', y: 60 }, { ...seating.tables[0]!, id: T2, name: '9', x: 60, y: 20 }],
+      people: seating.people.map((p) => (p.id === 'p2' ? { ...p, tableId: T1 } : p)),
+    };
+    mockApi({ '/api/a/w/w1/seating': () => json(200, two) });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 7, 2 of 4' }));
+    // Robin and Sam (one invitation) move together.
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Move Robin Hart to another table' }), `all:${T2}`);
+    expect(screen.getByRole('button', { name: 'Table 9, 2 of 4' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Table 7, 0 of 4' })).toBeInTheDocument();
+    // Find a guest: where they sit, or that they haven't said yes.
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Find a guest' }), 'sam');
+    expect(screen.getByText('Table 9')).toBeInTheDocument();
+    await userEvent.clear(screen.getByRole('searchbox', { name: 'Find a guest' }));
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Find a guest' }), 'jo');
+    expect(screen.getByText('Hasn’t said yes')).toBeInTheDocument();
+    // Numbered row by row: the top table (9) becomes 1.
+    await userEvent.click(screen.getByRole('button', { name: 'Number tables 1, 2, 3…' }));
+    expect(screen.getByRole('button', { name: 'Table 1, 2 of 4' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Table 2, 0 of 4' })).toBeInTheDocument();
+  });
+
   it('unsaved seating: leaving asks first, and staying keeps the changes', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
     const ask = vi.spyOn(window, 'confirm').mockReturnValue(false);

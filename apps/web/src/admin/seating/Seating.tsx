@@ -57,6 +57,8 @@ function SeatingPlan() {
   // The room's shape and size, changed while editing (saved with the plan).
   const [room, setRoom] = useState<string | null>(null);
   const [groupFilter, setGroupFilter] = useState('');
+  // Find a guest by name: where they're sitting, or seat them.
+  const [find, setFind] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   // Versions: the panel, and the version being looked at (the plan shows it, read-only, until Back).
@@ -208,8 +210,28 @@ function SeatingPlan() {
       toast(s.published ? 'Saved as a draft. Publish when you want guests to see it.' : 'Saved. Publish when you want guests to see it.');
       void reloadOverview();
     } catch (e) {
-      toast((e as Error).message);
-      if (e instanceof ApiError && e.status === 409) await load();
+      // Never throw away the plan you're working on. Someone else saved meanwhile (409): your plan stays
+      // here on top of theirs, to save again. Someone said no meanwhile (400): they come off the plan and
+      // it's saved.
+      if (e instanceof ApiError && (e.status === 409 || (e.status === 400 && /no longer coming|said yes/i.test(e.message)))) {
+        try {
+          const fresh = await seatingApi.get(wid, s.event.key);
+          const coming = new Map(fresh.people.map((p) => [p.id, p.coming]));
+          const gone = s.people.filter((p) => seats[p.id] && !coming.get(p.id)).map((p) => p.name);
+          const kept = Object.fromEntries(Object.entries(seats).filter(([id]) => coming.has(id)).map(([id, t]) => [id, coming.get(id) ? t : null]));
+          if (e.status === 409) {
+            setS(fresh);
+            dispatch({ type: 'change', fn: (d) => ({ ...d, seats: kept }), record: false });
+            toast(`Someone else saved the seating while you were working. Your plan is still here: Save again to keep it (it replaces theirs)${gone.length ? `. ${gone.join(', ')} said no, so they're off it` : ''}.`);
+          } else {
+            apply(await seatingApi.save(wid, fresh.version, { event: s.event.key, aspect, tables, areas, seats: kept }));
+            toast(`Saved. ${gone.join(', ') || 'Someone'} said no since, so they’re off the plan.`);
+            void reloadOverview();
+          }
+        } catch (again) {
+          toast((again as Error).message);
+        }
+      } else toast((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -302,6 +324,14 @@ function SeatingPlan() {
   };
 
   /** Even rows across the room. */
+  /** Number the tables 1, 2, 3… across the room, row by row (head and sweetheart tables keep their names). */
+  const renumber = () => {
+    const rest = tables.filter((t) => t.shape !== 'head' && t.shape !== 'sweetheart');
+    const order = [...rest].sort((a, b) => Math.round(a.y / 8) - Math.round(b.y / 8) || a.x - b.x);
+    const name = new Map(order.map((t, i) => [t.id, String(i + 1)]));
+    commit((d) => ({ ...d, tables: d.tables.map((t) => (name.has(t.id) ? { ...t, name: name.get(t.id)! } : t)) }));
+    toast(`Tables numbered 1 to ${order.length}, row by row. Save to keep it.`);
+  };
   const lineUp = () => {
     const sorted = [...tables].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     const cols = Math.max(1, Math.ceil(Math.sqrt(sorted.length * 1.4)));
@@ -488,6 +518,9 @@ function SeatingPlan() {
         <Pill onClick={lineUp} disabled={!tables.length}>
           Line up tables
         </Pill>
+        <Pill onClick={renumber} disabled={tables.length < 2}>
+          Number tables 1, 2, 3…
+        </Pill>
           </>
         )}
         {editing && (
@@ -595,16 +628,15 @@ function SeatingPlan() {
                   : 'flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]'
               }
             >
-              {mob && (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-display text-[22px]">
-                    Table {selTable.name} · {(byTable.get(selTable.id) ?? []).length} of {selTable.seats}
-                  </span>
-                  <button type="button" aria-label="Close table" onClick={() => setSel(null)} className="w-10 h-10 rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer">
-                    ×
-                  </button>
-                </div>
-              )}
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-display text-[22px]">
+                  {/^\d+$/.test(selTable.name) ? `Table ${selTable.name}` : selTable.name} · {(byTable.get(selTable.id) ?? []).length} of {selTable.seats}
+                </span>
+                <button type="button" aria-label="Close table" onClick={() => setSel(null)} className="w-10 h-10 sm:w-8 sm:h-8 rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer">
+                  ×
+                </button>
+              </div>
+              <TableSummary people={byTable.get(selTable.id) ?? []} />
               {roomTools && (
               <div className="grid grid-cols-2 gap-3">
                 <Label text="Table name">
@@ -661,9 +693,12 @@ function SeatingPlan() {
                       {!p.coming && <span className="block text-[12px] text-[#5e5130]">Not replied yet</span>}
                     </span>
                     {editing ? (
-                      <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className="w-10 h-10 sm:w-[26px] sm:h-[26px] rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer">
-                        ×
-                      </button>
+                      <span className="flex items-center gap-1">
+                        <MoveTo p={p} here={selTable.id} tables={tables} byTable={byTable} onMove={(ids, to) => seat(ids, to)} />
+                        <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className="w-10 h-10 sm:w-[30px] sm:h-[30px] rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer">
+                          ×
+                        </button>
+                      </span>
                     ) : (
                       <span />
                     )}
@@ -706,6 +741,17 @@ function SeatingPlan() {
           )}
 
           <SeatChecks data={s} tables={tables} seats={seats} seatRules={seatRules} />
+
+          <FindGuest
+            find={find}
+            setFind={setFind}
+            people={s.people}
+            seats={seats}
+            tables={tables}
+            onShow={(tableId) => setSel({ kind: 'table', id: tableId })}
+            onSeat={editing && target ? (ids) => seat(ids, target) : undefined}
+            target={selTable?.name}
+          />
 
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-baseline">
@@ -993,5 +1039,126 @@ function SeatsInput({ value, onValue }: { value: number; onValue: (n: number) =>
       onBlur={done}
       className={inputCls}
     />
+  );
+}
+
+/** What's on a table: meals by course and the dietary needs (serious ones first), at a glance. */
+function TableSummary({ people }: { people: Person[] }) {
+  if (!people.length) return null;
+  const count = (xs: string[]) => [...xs.filter(Boolean).reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1]);
+  const mains = count(people.map((p) => p.meal.m));
+  const diets = people.filter((p) => p.diet.trim());
+  if (!mains.length && !diets.length) return null;
+  return (
+    <div className="flex flex-col gap-1 p-3 rounded-[12px] bg-[#f6f0e2] text-[13px]">
+      {mains.length > 0 && (
+        <span>
+          <strong className="font-semibold">Mains:</strong> {mains.map(([m, n]) => `${n} × ${m}`).join(' · ')}
+        </span>
+      )}
+      {diets.length > 0 && (
+        <span>
+          <strong className="font-semibold">Dietary:</strong>{' '}
+          {[...diets]
+            .sort((a, b) => Number(isSerious(b.diet)) - Number(isSerious(a.diet)))
+            .map((p) => (
+              <span key={p.id} className={isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : ''}>
+                {p.name.split(' ')[0]} ({p.diet}){' '}
+              </span>
+            ))}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** Move someone, or their whole household at this table, to another table (works on phones too). */
+function MoveTo({ p, here, tables, byTable, onMove }: { p: Person; here: string; tables: SeatTable[]; byTable: Map<string, Person[]>; onMove: (ids: string[], to: string) => void }) {
+  const household = (byTable.get(here) ?? []).filter((x) => x.invitationId === p.invitationId);
+  const others = tables.filter((t) => t.id !== here);
+  if (!others.length) return null;
+  const label = (t: SeatTable) => `${/^\d+$/.test(t.name) ? `Table ${t.name}` : t.name} (${(byTable.get(t.id) ?? []).length}/${t.seats})`;
+  return (
+    <select
+      aria-label={`Move ${p.name} to another table`}
+      value=""
+      onChange={(e) => {
+        const [who, to] = e.target.value.split(':');
+        if (to) onMove(who === 'all' ? household.map((x) => x.id) : [p.id], to);
+      }}
+      className={`${inputCls} !py-[6px] !px-2 !text-[13px] w-[92px] sm:w-[84px]`}
+    >
+      <option value="">Move…</option>
+      <optgroup label={`Just ${p.name.split(' ')[0]}`}>
+        {others.map((t) => (
+          <option key={t.id} value={`one:${t.id}`}>
+            {label(t)}
+          </option>
+        ))}
+      </optgroup>
+      {household.length > 1 && (
+        <optgroup label={`${p.name.split(' ')[0]} and their household (${household.length})`}>
+          {others.map((t) => (
+            <option key={t.id} value={`all:${t.id}`}>
+              {label(t)}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  );
+}
+
+/** Find a guest by name: where they're sitting (tap to open the table), or seat them at the open table. */
+function FindGuest({
+  find,
+  setFind,
+  people,
+  seats,
+  tables,
+  onShow,
+  onSeat,
+  target,
+}: {
+  find: string;
+  setFind: (v: string) => void;
+  people: Person[];
+  seats: Record<string, string | null>;
+  tables: SeatTable[];
+  onShow: (tableId: string) => void;
+  onSeat?: (ids: string[]) => void;
+  target?: string;
+}) {
+  const q = find.trim().toLowerCase();
+  const hits = q.length >= 2 ? people.filter((p) => p.name.toLowerCase().includes(q)).slice(0, 8) : [];
+  const nameOf = (id: string | null | undefined) => {
+    const t = tables.find((x) => x.id === id);
+    return t ? (/^\d+$/.test(t.name) ? `Table ${t.name}` : t.name) : '';
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <input type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find a guest" aria-label="Find a guest" className={inputCls} />
+      {hits.map((p) => {
+        const at = seats[p.id];
+        return (
+          <div key={p.id} className="flex justify-between items-center gap-2 py-[6px] px-3 rounded-[10px] bg-[#fbf8f2] border border-[#e2d7bc] text-[14px]">
+            <span className="min-w-0 truncate">
+              {p.name}
+              <span className="block text-[12px] text-[#7a7466]">{!p.coming ? 'Hasn’t said yes' : at ? nameOf(at) : 'Not seated'}</span>
+            </span>
+            {at ? (
+              <button type="button" onClick={() => onShow(at)} className="flex-none py-[6px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer text-[#33402f]">
+                Show
+              </button>
+            ) : p.coming && onSeat ? (
+              <button type="button" onClick={() => onSeat([p.id])} className="flex-none py-[6px] px-3 rounded-full border-0 bg-[#33402f] text-[#fbf8f2] text-[13px] cursor-pointer">
+                Seat at {target}
+              </button>
+            ) : null}
+          </div>
+        );
+      })}
+      {q.length >= 2 && !hits.length && <span className="text-[13px] text-[#7a7466]">No guest by that name.</span>}
+    </div>
   );
 }
