@@ -9,6 +9,9 @@ import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './aut
  * Admin → Seating (/api/a/w/:wid/seating?event=<key>): the floor plan for one event. Tables and areas
  * are placed in % of the plan, so it looks the same at any size. Saving sends the whole layout and
  * who sits where, applied in one batch (If-Match: the wedding's version).
+ *
+ * Versions (/seating/versions): name a snapshot of the saved plan ("Family draft", "Final"), look back at
+ * any of them, and nominate one as the current arrangement (it's copied into the working plan).
  */
 
 type C = Context<AdminEnv>;
@@ -55,8 +58,8 @@ export function seatingRoutes() {
       .all<{ id: string; key: string; name: string; has_seating: number; catered: number }>();
     const ev = events.find((e) => e.key === eventKey) ?? events.find((e) => e.has_seating) ?? events.find((e) => e.catered) ?? events[0];
     if (!ev) return null;
-    const [plan, tables, areas, people, pub] = await db.batch([
-      db.prepare(`SELECT aspect, image_key FROM seat_plan WHERE event_id = ?`).bind(ev.id),
+    const [plan, tables, areas, people, pub, vers] = await db.batch([
+      db.prepare(`SELECT aspect, image_key, current_version FROM seat_plan WHERE event_id = ?`).bind(ev.id),
       db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats, sides FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
       db.prepare(
@@ -70,9 +73,11 @@ export function seatingRoutes() {
           ORDER BY i.created_at, p.idx`,
       ).bind(ev.id, w.id),
       db.prepare(`SELECT snapshot, published_at FROM seat_publish WHERE event_id = ?`).bind(ev.id),
+      db.prepare(`SELECT id, name, snapshot, created_at FROM seat_version WHERE event_id = ? ORDER BY created_at DESC`).bind(ev.id),
     ]);
+    const versionRows = vers!.results as { id: string; name: string; snapshot: string; created_at: string }[];
     const tableIds = new Set((tables!.results as { id: string }[]).map((t) => t.id));
-    const p = plan!.results[0] as { aspect: string; image_key: string | null } | undefined;
+    const p = plan!.results[0] as { aspect: string; image_key: string | null; current_version: string | null } | undefined;
     const draft: Snapshot = {
       aspect: p?.aspect ?? '4 / 3',
       tables: tables!.results as Snapshot['tables'],
@@ -84,12 +89,21 @@ export function seatingRoutes() {
       ),
     };
     const pubRow = pub!.results[0] as { snapshot: string; published_at: string } | undefined;
+    const empty = { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot;
+    const cur = versionRows.find((x) => x.id === p?.current_version);
+    const versions = versionRows.map((x) => {
+      const snap = safeJson<Snapshot>(x.snapshot, empty);
+      return { id: x.id, name: x.name, at: x.created_at, tables: snap.tables.length, seated: Object.keys(snap.seats).length };
+    });
     const published = pubRow ? { at: pubRow.published_at, changes: changesBetween(safeJson<Snapshot>(pubRow.snapshot, { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot), draft) } : null;
     return {
       eventId: ev.id,
       draft,
       view: {
         published,
+        versions,
+        /** The nominated arrangement, and how many saved edits differ from it since. */
+        current: cur ? { id: cur.id, name: cur.name, changes: changesBetween(safeJson<Snapshot>(cur.snapshot, empty), draft) } : null,
         version: w.version,
         event: { key: ev.key, name: ev.name },
         events: events.map((e) => ({ key: e.key, name: e.name })),
@@ -213,8 +227,109 @@ export function seatingRoutes() {
     return c.json((await load(c, body.data.event))!.view);
   });
 
+  // ---------------------------------------------------------------- versions
+  const VersionName = z.string().trim().min(1, 'Give the version a name.').max(60);
+  const ownVersion = (c: C, id: string) =>
+    c.env.DB.prepare(`SELECT v.id, v.event_id, v.name, v.snapshot, e.key FROM seat_version v JOIN event e ON e.id = v.event_id WHERE v.id = ? AND v.wedding_id = ?`)
+      .bind(id, wid(c))
+      .first<{ id: string; event_id: string; name: string; snapshot: string; key: string }>();
+
+  /** Name the saved plan as a version; it becomes the current arrangement. */
+  app.post('/versions', requireMember('owner', 'editor'), async (c) => {
+    const body = z.object({ event: z.string().max(40), name: VersionName }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', body.error.issues[0]?.message ?? 'Give the version a name.');
+    const loaded = await load(c, body.data.event);
+    if (!loaded || loaded.view.event.key !== body.data.event) return err(c, 404, 'not_found', 'That event no longer exists.');
+    if (loaded.view.versions.length >= MAX_VERSIONS) return err(c, 400, 'too_many', `Up to ${MAX_VERSIONS} versions per event. Delete an old one first.`);
+    const db = c.env.DB;
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await db.batch([
+      db.prepare(`INSERT INTO seat_version (id, wedding_id, event_id, name, snapshot, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, wid(c), loaded.eventId, body.data.name, JSON.stringify(loaded.draft), now, c.get('user').id),
+      db.prepare(`INSERT INTO seat_plan (event_id, aspect, current_version) VALUES (?1, ?2, ?3) ON CONFLICT (event_id) DO UPDATE SET current_version = ?3`).bind(loaded.eventId, loaded.draft.aspect, id),
+      db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.version', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, body.data.event, JSON.stringify({ name: body.data.name }), now),
+    ]);
+    return c.json((await load(c, body.data.event))!.view);
+  });
+
+  /** One version's plan, to look at (nothing changes). */
+  app.get('/versions/:id', async (c) => {
+    const v = await ownVersion(c, c.req.param('id'));
+    if (!v) return err(c, 404, 'not_found', 'That version no longer exists.');
+    return c.json({ id: v.id, name: v.name, ...safeJson<Snapshot>(v.snapshot, { aspect: '4 / 3', tables: [], areas: [], seats: {} }) });
+  });
+
+  app.patch('/versions/:id', requireMember('owner', 'editor'), async (c) => {
+    const body = z.object({ name: VersionName }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', body.error.issues[0]?.message ?? 'Give the version a name.');
+    const v = await ownVersion(c, c.req.param('id'));
+    if (!v) return err(c, 404, 'not_found', 'That version no longer exists.');
+    await c.env.DB.prepare(`UPDATE seat_version SET name = ? WHERE id = ?`).bind(body.data.name, v.id).run();
+    return c.json((await load(c, v.key))!.view);
+  });
+
+  app.delete('/versions/:id', requireMember('owner', 'editor'), async (c) => {
+    const v = await ownVersion(c, c.req.param('id'));
+    if (!v) return err(c, 404, 'not_found', 'That version no longer exists.');
+    await c.env.DB.batch([
+      c.env.DB.prepare(`DELETE FROM seat_version WHERE id = ?`).bind(v.id),
+      c.env.DB.prepare(`UPDATE seat_plan SET current_version = NULL WHERE event_id = ? AND current_version = ?`).bind(v.event_id, v.id),
+    ]);
+    return c.json((await load(c, v.key))!.view);
+  });
+
+  /**
+   * Nominate a version as the current arrangement: its tables, areas and seats become the working plan.
+   * Guests who've since said no, or are no longer on the list, aren't seated; publish to show guests.
+   */
+  app.post('/versions/:id/current', requireMember('owner', 'editor'), async (c) => {
+    const ver = Number(c.req.header('If-Match'));
+    if (!Number.isInteger(ver)) return err(c, 428, 'version_required', 'Reload and try again.');
+    const v = await ownVersion(c, c.req.param('id'));
+    if (!v) return err(c, 404, 'not_found', 'That version no longer exists.');
+    const loaded = await load(c, v.key);
+    if (!loaded || loaded.eventId !== v.event_id) return err(c, 404, 'not_found', 'That event no longer exists.');
+    if (loaded.view.version !== ver) return err(c, 409, 'conflict', 'Save your changes (or reload) first.');
+    const snap = safeJson<Snapshot>(v.snapshot, { aspect: '4 / 3', tables: [], areas: [], seats: {} });
+    const db = c.env.DB;
+    const ev = loaded.eventId;
+    const now = new Date().toISOString();
+    const claim = await db.prepare(`UPDATE wedding SET version = version + 1, updated_at = ? WHERE id = ? AND version = ?`).bind(now, wid(c), ver).run();
+    if (!claim.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
+    const keep = new Set(snap.tables.map((t) => t.id));
+    const coming = new Set(loaded.view.people.filter((p) => p.coming).map((p) => p.id));
+    const stmts: D1PreparedStatement[] = [
+      db.prepare(`INSERT INTO seat_plan (event_id, aspect, current_version) VALUES (?1, ?2, ?3) ON CONFLICT (event_id) DO UPDATE SET aspect = ?2, current_version = ?3`).bind(ev, snap.aspect || '4 / 3', v.id),
+      db.prepare(`DELETE FROM seat WHERE event_id = ?`).bind(ev),
+      db.prepare(`DELETE FROM seat_area WHERE event_id = ?`).bind(ev),
+    ];
+    for (const t of snap.tables) {
+      // Only this event's own tables come back (an id can't take over another event's table).
+      stmts.push(
+        db
+          .prepare(
+            `INSERT INTO seat_table (id, wedding_id, event_id, name, shape, dir, length_pct, x, y, seats, sides) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+             ON CONFLICT (id) DO UPDATE SET name = ?4, shape = ?5, dir = ?6, length_pct = ?7, x = ?8, y = ?9, seats = ?10, sides = ?11, deleted_at = NULL, version = version + 1
+             WHERE seat_table.event_id = ?3`,
+          )
+          .bind(t.id, wid(c), ev, t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, (t as { sides?: number }).sides ?? 2),
+      );
+    }
+    for (const t of loaded.view.tables) if (!keep.has(t.id)) stmts.push(db.prepare(`UPDATE seat_table SET deleted_at = ? WHERE id = ?`).bind(now, t.id));
+    for (const a of snap.areas) stmts.push(db.prepare(`INSERT INTO seat_area (id, wedding_id, event_id, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), ev, a.label, a.x, a.y, a.w, a.h));
+    for (const [pid, tid] of Object.entries(snap.seats)) {
+      if (coming.has(pid) && keep.has(tid)) stmts.push(db.prepare(`INSERT INTO seat (person_id, event_id, table_id) SELECT ?1, ?2, ?3 WHERE EXISTS (SELECT 1 FROM seat_table WHERE id = ?3 AND event_id = ?2)`).bind(pid, ev, tid));
+    }
+    stmts.push(unseatEveryoneNotComing(db, ev));
+    stmts.push(db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.current', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, v.key, JSON.stringify({ name: v.name }), now));
+    await db.batch(stmts);
+    return c.json((await load(c, v.key))!.view);
+  });
+
   return app;
 }
+
+const MAX_VERSIONS = 30;
 
 /** What guests see: the plan and who sits where (people ids -> table ids). */
 export interface Snapshot {

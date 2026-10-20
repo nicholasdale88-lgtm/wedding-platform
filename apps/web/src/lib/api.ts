@@ -350,6 +350,10 @@ export interface SeatArea {
 export interface SeatingData {
   /** The plan guests see; null until first published. changes = edits saved since. */
   published: { at: string; changes: number } | null;
+  /** Named versions, newest first. */
+  versions?: { id: string; name: string; at: string; tables: number; seated: number }[];
+  /** The version nominated as the current arrangement, and saved edits since. */
+  current?: { id: string; name: string; changes: number } | null;
   version: number;
   event: { key: string; name: string };
   events: { key: string; name: string }[];
@@ -371,6 +375,11 @@ export const seatingApi = {
   get: (wid: string, event?: string) => request<SeatingData>(`${w(wid)}/seating${event ? `?event=${encodeURIComponent(event)}` : ''}`),
   save: (wid: string, version: number, body: SeatingSave) => send<SeatingData>('PUT', `${w(wid)}/seating`, body, version),
   publish: (wid: string, version: number, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/publish`, { event }, version),
+  saveVersion: (wid: string, event: string, name: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions`, { event, name }),
+  version: (wid: string, id: string) => request<{ id: string; name: string; aspect: string; tables: SeatTable[]; areas: SeatArea[]; seats: Record<string, string> }>(`${w(wid)}/seating/versions/${encodeURIComponent(id)}`),
+  renameVersion: (wid: string, id: string, name: string) => send<SeatingData>('PATCH', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, { name }),
+  deleteVersion: (wid: string, id: string) => send<SeatingData>('DELETE', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, {}),
+  makeCurrent: (wid: string, version: number, id: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions/${encodeURIComponent(id)}/current`, {}, version),
 };
 
 // ---------------------------------------------------------------- Photos

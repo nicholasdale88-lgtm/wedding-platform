@@ -17,6 +17,8 @@ import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
  * change who sits there; tap or drag guests onto tables. Six table shapes, each drawn with its chairs.
  * Undo/redo, zoom, capacity warnings, a caterer's table list and a printable plan. Nothing changes for
  * guests until Save; then each guest's night-before guide shows their table on the plan.
+ * Versions: name the saved plan ("Family draft", "Final"), look back at any version, and nominate one as
+ * the current arrangement.
  */
 
 type Sel = { kind: 'table'; id: string } | { kind: 'area'; i: number } | null;
@@ -43,12 +45,16 @@ export function Seating() {
   const [groupFilter, setGroupFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Versions: the panel, and the version being looked at (the plan shows it, read-only, until Back).
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [viewing, setViewing] = useState<{ id: string; name: string } | null>(null);
   const plan = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   const { tables, areas, seats } = doc;
 
   const apply = (d: SeatingData) => {
     setS(d);
+    setViewing(null);
     dispatch({ type: 'reset', doc: { tables: d.tables, areas: d.areas, seats: Object.fromEntries(d.people.map((p) => [p.id, p.tableId])) } });
   };
   const load = useCallback(async () => {
@@ -198,6 +204,56 @@ export function Seating() {
   };
   const unpublished = !s.published || s.published.changes > 0;
 
+  // ---------------------------------------------------------------- versions
+  const versions = s.versions ?? [];
+  const run = async (fn: () => Promise<SeatingData | void>, done?: string) => {
+    setBusy(true);
+    try {
+      const d = await fn();
+      if (d) apply(d);
+      if (done) toast(done);
+    } catch (e) {
+      toast((e as Error).message);
+      if (e instanceof ApiError && e.status === 409) await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+  /** Name the plan as it is now (unsaved changes are saved first); it becomes the current arrangement. */
+  const saveVersion = (name: string) =>
+    run(async () => {
+      if (dirty) apply(await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats }));
+      return seatingApi.saveVersion(wid, s.event.key, name);
+    }, `Saved “${name}”. It's now the current arrangement.`);
+  /** Show a version on the plan to look at; nothing changes until Make current. */
+  const viewVersion = (id: string) =>
+    run(async () => {
+      const v = await seatingApi.version(wid, id);
+      const known = new Set(v.tables.map((t) => t.id));
+      dispatch({ type: 'reset', doc: { tables: v.tables, areas: v.areas, seats: Object.fromEntries(s.people.map((p) => [p.id, known.has(v.seats[p.id] ?? '') ? v.seats[p.id]! : null])) } });
+      setS({ ...s, aspect: v.aspect || s.aspect });
+      setViewing({ id: v.id, name: v.name });
+      setSel(null);
+      setAdding(false);
+    });
+  const backToCurrent = () => void run(() => seatingApi.get(wid, s.event.key));
+  const makeCurrent = (id: string, name: string) => {
+    const unnamed = s.current ? s.current.changes : seated;
+    if (unnamed && !window.confirm(`Make “${name}” the current arrangement? The plan as it is now${s.current ? ` (${s.current.changes} ${s.current.changes === 1 ? 'change' : 'changes'} since “${s.current.name}”)` : ''} isn't saved as a version, so save it as one first if you want to keep it.`)) return;
+    void run(async () => {
+      // Anything unsaved is set aside, not mixed in.
+      const fresh = dirty && !viewing ? await seatingApi.get(wid, s.event.key) : s;
+      return seatingApi.makeCurrent(wid, fresh.version, id);
+    }, `“${name}” is now the current arrangement.${s.published ? ' Publish when you want guests to see it.' : ''}`);
+  };
+  const renameVersion = (id: string, was: string) => {
+    const name = window.prompt('Rename this version', was)?.trim();
+    if (name && name !== was) void run(() => seatingApi.renameVersion(wid, id, name.slice(0, 60)));
+  };
+  const deleteVersion = (id: string, name: string) => {
+    if (window.confirm(`Delete the version “${name}”? The seating plan itself doesn't change.`)) void run(() => seatingApi.deleteVersion(wid, id), `Deleted “${name}”.`);
+  };
+
   /**
    * Seat everyone who said yes and has no seat yet: each invitation stays together, and each group
    * (e.g. "Alex's side") goes to tables that group already uses before starting new ones.
@@ -307,14 +363,46 @@ export function Seating() {
           <Pill onClick={redo} disabled={!future.length} aria-label="Redo">
             ↷ Redo
           </Pill>
-          <Pill kind={dirty ? 'primary' : 'secondary'} disabled={!dirty || busy} onClick={() => void save()}>
+          <Pill kind={versionsOpen ? 'outline' : 'secondary'} aria-expanded={versionsOpen} onClick={() => setVersionsOpen((x) => !x)}>
+            Versions{versions.length ? ` (${versions.length})` : ''}
+          </Pill>
+          <Pill kind={dirty && !viewing ? 'primary' : 'secondary'} disabled={!dirty || busy || !!viewing} onClick={() => void save()}>
             {busy && dirty ? 'Saving…' : dirty ? 'Save seating' : 'Saved'}
           </Pill>
-          <Pill kind={!dirty && unpublished ? 'primary' : 'secondary'} disabled={dirty || busy || !unpublished || !tables.length} onClick={() => void publish()} title={dirty ? 'Save first' : undefined}>
+          <Pill kind={!dirty && unpublished ? 'primary' : 'secondary'} disabled={dirty || busy || !unpublished || !tables.length || !!viewing} onClick={() => void publish()} title={dirty ? 'Save first' : undefined}>
             {!s.published ? 'Publish to guests' : unpublished ? `Publish ${s.published.changes} ${s.published.changes === 1 ? 'change' : 'changes'}` : 'Published'}
           </Pill>
         </div>
       </header>
+
+      {viewing && (
+        <div role="status" className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-[#f3ecd9] border border-[#d3c6a4] print:hidden">
+          <span className="flex-1 min-w-[200px] text-[14px]">
+            Looking at the version <strong className="font-semibold">“{viewing.name}”</strong>. Nothing has changed: make it current to use it, or go back.
+          </span>
+          <Pill kind="primary" disabled={busy} onClick={() => makeCurrent(viewing.id, viewing.name)}>
+            Make this current
+          </Pill>
+          <Pill disabled={busy} onClick={backToCurrent}>
+            Back to the current plan
+          </Pill>
+        </div>
+      )}
+      {versionsOpen && (
+        <VersionsPanel
+          versions={versions}
+          current={s.current ?? null}
+          viewing={viewing?.id ?? null}
+          busy={busy}
+          dirty={dirty && !viewing}
+          tz={tz}
+          onSave={(name) => void saveVersion(name)}
+          onView={(id) => void viewVersion(id)}
+          onCurrent={makeCurrent}
+          onRename={renameVersion}
+          onDelete={deleteVersion}
+        />
+      )}
 
       <div className="flex gap-2 flex-wrap items-center print:hidden">
         {mob && (
@@ -675,6 +763,96 @@ export function Seating() {
 }
 
 /** One table, drawn in its shape with its chairs; filled chairs are taken, a red mark means a serious allergy here. */
+/** Named versions of the seating: save the plan as one, look at any, nominate the current arrangement. */
+function VersionsPanel({
+  versions,
+  current,
+  viewing,
+  busy,
+  dirty,
+  tz,
+  onSave,
+  onView,
+  onCurrent,
+  onRename,
+  onDelete,
+}: {
+  versions: NonNullable<SeatingData['versions']>;
+  current: SeatingData['current'] | null;
+  viewing: string | null;
+  busy: boolean;
+  dirty: boolean;
+  tz: string;
+  onSave: (name: string) => void;
+  onView: (id: string) => void;
+  onCurrent: (id: string, name: string) => void;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string, name: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const suggested = `Version ${versions.length + 1}`;
+  return (
+    <section aria-label="Seating versions" className="p-4 rounded-[14px] bg-white border border-[#e2d7bc] flex flex-col gap-3 print:hidden">
+      <div>
+        <h2 className="m-0 font-display font-medium text-[22px]">Versions</h2>
+        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">
+          {current
+            ? current.changes
+              ? `Current arrangement: “${current.name}”, with ${current.changes} saved ${current.changes === 1 ? 'change' : 'changes'} since. Save again to keep them as a version.`
+              : `Current arrangement: “${current.name}”.`
+            : 'Save the plan as a named version to keep it, then try other arrangements: you can look back at any version and make it current again.'}
+        </p>
+      </div>
+      <form
+        className="flex flex-wrap gap-2 items-end"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSave((name.trim() || suggested).slice(0, 60));
+          setName('');
+        }}
+      >
+        <Label text="Name" className="flex-1 min-w-[200px]">
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={`${suggested}, e.g. Family draft, Final`} className={inputCls} />
+        </Label>
+        <Pill kind="primary" type="submit" disabled={busy || !!viewing}>
+          {dirty ? 'Save plan as a version' : 'Save as a version'}
+        </Pill>
+      </form>
+      {versions.length > 0 && (
+        <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#efe6d0]">
+          {versions.map((v) => {
+            const isCurrent = current?.id === v.id;
+            return (
+              <li key={v.id} className="py-2 flex flex-wrap items-center gap-2">
+                <span className="flex-1 min-w-[180px]">
+                  <span className="font-semibold">{v.name}</span>
+                  {isCurrent && <span className="ml-2 px-2 py-[2px] rounded-full bg-[#33402f] text-white text-[11px] align-middle">Current</span>}
+                  {viewing === v.id && <span className="ml-2 px-2 py-[2px] rounded-full bg-[#f3ecd9] text-[#5e5130] text-[11px] align-middle">Looking at</span>}
+                  <span className="block text-[13px] text-[#5b6a52]">
+                    {fmtWhen(v.at, tz)} · {v.tables} {v.tables === 1 ? 'table' : 'tables'} · {v.seated} seated
+                  </span>
+                </span>
+                <Pill size="sm" disabled={busy || viewing === v.id} onClick={() => onView(v.id)}>
+                  View
+                </Pill>
+                <Pill size="sm" kind={isCurrent ? 'secondary' : 'outline'} disabled={busy || (isCurrent && !current?.changes)} onClick={() => onCurrent(v.id, v.name)}>
+                  {isCurrent ? (current?.changes ? 'Go back to it' : 'Current') : 'Make current'}
+                </Pill>
+                <Pill size="sm" disabled={busy} onClick={() => onRename(v.id, v.name)}>
+                  Rename
+                </Pill>
+                <Pill size="sm" disabled={busy} onClick={() => onDelete(v.id, v.name)} aria-label={`Delete ${v.name}`}>
+                  Delete
+                </Pill>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function TableShapeView({
   t,
   aspect,

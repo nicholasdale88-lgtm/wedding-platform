@@ -150,6 +150,54 @@ describe('seating API', () => {
     expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/said yes/);
   });
 
+  it('saves named versions, shows one without changing anything, and nominates the current arrangement', async () => {
+    type Ver = Seating & { versions: { id: string; name: string; tables: number; seated: number }[]; current: { id: string; name: string; changes: number } | null };
+    const post = (path: string, body: unknown, headers: Record<string, string> = {}) => call(`/a/w/${wid}/seating${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const s = (await get()) as Ver;
+    expect(s.versions).toEqual([]);
+    expect(s.current).toBeNull();
+    expect((await post('/versions', { event: 'wedding', name: '  ' })).status).toBe(400);
+
+    // "Family draft" is the plan as saved; it becomes current.
+    const a = (await (await post('/versions', { event: 'wedding', name: 'Family draft' })).json()) as Ver;
+    const draft = a.versions[0]!;
+    expect(draft).toMatchObject({ name: 'Family draft', tables: s.tables.length, seated: s.people.filter((p) => p.tableId).length });
+    expect(a.current).toMatchObject({ id: draft.id, changes: 0 });
+
+    // Try another arrangement: nobody seated, one table fewer. Current shows the changes since.
+    const b = (await (await put(a, { tables: a.tables.slice(1), seats: Object.fromEntries(a.people.map((p) => [p.id, null])) })).json()) as Ver;
+    expect(b.current!.changes).toBeGreaterThan(1);
+    const c = (await (await post('/versions', { event: 'wedding', name: 'Empty room' })).json()) as Ver;
+    expect(c.versions.map((v) => v.name)).toEqual(['Empty room', 'Family draft']);
+    expect(c.current!.name).toBe('Empty room');
+
+    // Looking at a version changes nothing.
+    const look = (await (await call(`/a/w/${wid}/seating/versions/${draft.id}`)).json()) as { name: string; tables: Table[]; seats: Record<string, string> };
+    expect(look.name).toBe('Family draft');
+    expect(look.tables).toHaveLength(s.tables.length);
+    expect(((await get()) as Ver).tables).toHaveLength(s.tables.length - 1);
+
+    // Making it current brings back its tables and seats (stale version refused).
+    expect((await post(`/versions/${draft.id}/current`, {}, { 'If-Match': String(c.version - 1) })).status).toBe(409);
+    const back = (await (await post(`/versions/${draft.id}/current`, {}, { 'If-Match': String(c.version) })).json()) as Ver;
+    expect(back.current).toMatchObject({ id: draft.id, changes: 0 });
+    expect(back.tables.map((x) => x.id).sort()).toEqual(s.tables.map((x) => x.id).sort());
+    expect(Object.fromEntries(back.people.map((p) => [p.id, p.tableId]))).toEqual(Object.fromEntries(s.people.map((p) => [p.id, p.tableId])));
+
+    // Rename and delete; deleting the current one leaves the plan alone.
+    const renamed = (await (await call(`/a/w/${wid}/seating/versions/${draft.id}`, { method: 'PATCH', body: JSON.stringify({ name: 'Final' }) })).json()) as Ver;
+    expect(renamed.current!.name).toBe('Final');
+    const gone = (await (await call(`/a/w/${wid}/seating/versions/${draft.id}`, { method: 'DELETE', body: '{}' })).json()) as Ver;
+    expect(gone.versions.map((v) => v.name)).toEqual(['Empty room']);
+    expect(gone.current).toBeNull();
+    expect(gone.tables).toHaveLength(s.tables.length);
+
+    // Another wedding's version id is not found; viewers can't save one.
+    expect((await call(`/a/w/${wid}/seating/versions/${crypto.randomUUID()}`)).status).toBe(404);
+    await t.db.prepare(`UPDATE membership SET role = 'viewer'`).run();
+    expect((await post('/versions', { event: 'wedding', name: 'Nope' })).status).toBe(403);
+  });
+
   it('viewers can look but not change the seating', async () => {
     await t.db.prepare(`UPDATE membership SET role = 'viewer'`).run();
     const s = await get();

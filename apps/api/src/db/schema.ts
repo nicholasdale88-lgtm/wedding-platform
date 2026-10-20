@@ -255,6 +255,7 @@ export const seatPlan = sqliteTable('seat_plan', {
   eventId: text('event_id').primaryKey(),
   imageKey: text('image_key'),
   aspect: text('aspect').notNull().default('4 / 3'),
+  currentVersion: text('current_version'),
 });
 
 export const media = sqliteTable('media', {
@@ -538,3 +539,14 @@ export const vendorUse = sqliteTable(
   },
   (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.dirId] }) }),
 );
+
+// migration 0026: named versions of an event's seating
+export const seatVersion = sqliteTable('seat_version', {
+  id: text('id').primaryKey(),
+  weddingId: text('wedding_id').notNull(),
+  eventId: text('event_id').notNull(),
+  name: text('name').notNull(),
+  snapshot: text('snapshot').notNull(),
+  createdAt: text('created_at').notNull(),
+  createdBy: text('created_by'),
+});
