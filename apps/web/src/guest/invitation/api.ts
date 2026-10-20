@@ -206,6 +206,8 @@ export interface PartyMine {
   tasks: { id: string; text: string; due: string; done: boolean; mine: boolean }[];
   packed: string[];
   pack: { text: string; done: boolean }[];
+  /** Their own calendar feed (https …/x.ics): subscribe on their phone. */
+  calendar?: string;
 }
 
 export interface PartyPayload {

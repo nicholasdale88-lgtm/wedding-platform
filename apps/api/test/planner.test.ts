@@ -58,6 +58,25 @@ describe('planner: wedding party', () => {
     expect(JSON.stringify(mc)).not.toMatch(/token|phone/); // names and roles only
   });
 
+  it('a party member subscribes to their own calendar: their jobs with a reminder, and their moments on the day', async () => {
+    const ella = await personOf('Ella Thompson');
+    await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });
+    await call('/doc/party-runsheet/wedding', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ items: [{ time: '9:00am', title: 'Hair and makeup', who: ['p1'] }, { time: '7:30pm', title: 'Speeches', who: ['MC'] }] }) });
+    await call('/doc/party-p1', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ tasks: [{ id: 'j1', text: 'Pick up the dresses', person: ella.id, due: '2027-11-10' }, { id: 'j2', text: 'Someone else', person: 'nobody', due: '2027-11-11' }] }) });
+    const me = (await (await page(ella.token)).json()) as { mine: { calendar: string }[] };
+    const url = new URL(me.mine[0]!.calendar);
+    const res = await app.request(url.pathname, {}, env, ctx);
+    expect(res.status).toBe(200);
+    const ics = await res.text();
+    expect(ics).toContain('SUMMARY:Pick up the dresses');
+    expect(ics).toContain('DTSTART;VALUE=DATE:20271110');
+    expect(ics).toContain('TRIGGER:-PT15H');
+    expect(ics).toContain('SUMMARY:Hair and makeup');
+    expect(ics).not.toContain('Someone else');
+    expect(ics).not.toContain('Speeches'); // the MC's, not hers
+    expect((await app.request(url.pathname.replace(/\/[^/]+\.ics$/, '/wrongwrongwrongwrongwron.ics'), {}, env, ctx)).status).toBe(404);
+  });
+
   it('party members tick and add their own to-dos and packing (saved with their side); a paused member is turned away', async () => {
     const ella = await personOf('Ella Thompson');
     await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });

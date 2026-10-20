@@ -6,6 +6,7 @@ import { allow } from '../lib/rateLimit';
 import { MAX_PLANNER_FILE, readJson, MAX_PLANNER_DOC } from '../lib/security';
 import { keepDocument, openPhoto } from '../photos/store';
 import { portalWho } from './partyPortal';
+import { partyCalKey } from './partyCalendar';
 import { recordUse, searchDirectory } from '../lib/directory';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -672,6 +673,10 @@ export function partyGuestRoutes() {
         tasks: perms.tasks ? doc.tasks.filter((t) => t.person === m.id || (perms.sideTasks && !t.person && side)).map((t) => ({ id: t.id, text: t.text, due: t.due, done: t.done, mine: t.person === m.id })) : [],
         packed: perms.packing ? (p?.packed ?? []) : [],
         pack: perms.packing ? (p?.pack ?? []) : [],
+        // Their own calendar to subscribe to: their jobs, fittings, the hens or bucks, and their moments on the day.
+        calendar: c.env.SESSION_SECRET
+          ? `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/p/${encodeURIComponent(c.req.param('slug') ?? '')}/party/cal/${m.id}/${await partyCalKey(c.env.SESSION_SECRET, m.id)}.ics`
+          : '',
       });
     }
     return c.json({

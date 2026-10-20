@@ -320,6 +320,29 @@ export function PartyPage() {
             {note}
           </p>
         )}
+        {mine.some((m) => m.calendar) && (
+          <section aria-label="Your calendar" className="flex flex-col gap-2 p-4 rounded-[16px] border text-[17px]" style={{ borderColor: gold }}>
+            <strong className="font-semibold">On your phone</strong>
+            <span>Your jobs (with a reminder the morning before), fittings, the hens or bucks, and your moments on the day, in your phone’s calendar. If anything changes, it updates by itself.</span>
+            {mine
+              .filter((m) => m.calendar)
+              .map((m) => {
+                const feed = m.calendar!.replace(/^https?:/, 'webcal:');
+                const android = /android/i.test(navigator.userAgent);
+                return (
+                  <a
+                    key={m.personId}
+                    href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
+                    {...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                    className="self-start py-2 px-4 rounded-full no-underline text-[16px]"
+                    style={{ background: ink, color: '#fbf8f2' }}
+                  >
+                    Add {mine.length > 1 ? `${first(m.name)}’s` : 'my'} jobs to my calendar
+                  </a>
+                );
+              })}
+          </section>
+        )}
         {(!perms || perms.tasks) &&
           mine.map((m) => <Todos key={m.personId} me={m} act={act} gold={gold} many={mine.length > 1} canAdd={!perms || perms.addTasks} />)}
 

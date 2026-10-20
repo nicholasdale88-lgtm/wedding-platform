@@ -19,6 +19,7 @@ import { runCopies } from './photos/store';
 import { runBackups } from './lib/backup';
 import { rfqRoutes } from './routes/rfq';
 import { planRoutes, signupRoutes } from './routes/signup';
+import { partyCalendarRoutes } from './routes/partyCalendar';
 import { purgeExpired } from './lib/rateLimit';
 import { eventRoutes } from './routes/events';
 import { seatingRoutes } from './routes/seating';
@@ -72,6 +73,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/events', eventRoutes());
   app.route('/a/w/:wid', adminRoutes(deps));
   app.route('/p/:slug/board', boardGuestRoutes());
+  app.route('/p/:slug/party/cal', partyCalendarRoutes());
   app.route('/p/:slug/party', partyGuestRoutes());
   app.route('/p/:slug/portal', partyPortalRoutes());
   app.route('/p/:slug/manifest', manifestRoutes());
