@@ -12,6 +12,60 @@ export interface HelpArticle {
   /** Other words people use for it. */
   also: string;
   go: { tab: string; event?: boolean; query?: string };
+  /** A recorded walkthrough (a YouTube, Vimeo or Loom link, or an .mp4) when there is one; otherwise Help plays the animated one. */
+  video?: string;
+}
+
+/** Where the admin's menu calls each place, for the animated walkthrough. */
+export const HELP_PLACES: Record<string, string> = {
+  pages: 'Setup',
+  guests: 'Guests',
+  dietary: 'Dietary',
+  seating: 'Seating',
+  texts: 'Texts',
+  messages: 'Messages',
+  planner: 'Wedding planner',
+  party: 'Wedding party',
+  photos: 'Photos',
+  settings: 'Settings',
+};
+
+/** The tour for someone new: the guides to play one after another. */
+export const HELP_TOUR = ['start', 'guests', 'invitations', 'seating', 'budget', 'photos'];
+
+/**
+ * A recorded walkthrough's player address: YouTube (privacy-enhanced), Vimeo or Loom, set to play; a video
+ * file plays as it is ('file'); anything else isn't shown.
+ */
+export function videoEmbed(url: string | undefined): { kind: 'frame' | 'file'; src: string } | null {
+  if (!url) return null;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:') return null;
+  const host = u.hostname.replace(/^www\./, '');
+  const id = (re: RegExp, s: string) => re.exec(s)?.[1] ?? '';
+  if (host === 'youtube.com' || host === 'm.youtube.com') {
+    const v = u.searchParams.get('v') || id(/^\/(?:embed|shorts)\/([\w-]{6,})/, u.pathname);
+    return /^[\w-]{6,20}$/.test(v) ? { kind: 'frame', src: `https://www.youtube-nocookie.com/embed/${v}?autoplay=1&rel=0` } : null;
+  }
+  if (host === 'youtu.be') {
+    const v = id(/^\/([\w-]{6,20})$/, u.pathname);
+    return v ? { kind: 'frame', src: `https://www.youtube-nocookie.com/embed/${v}?autoplay=1&rel=0` } : null;
+  }
+  if (host === 'vimeo.com') {
+    const v = id(/^\/(\d{5,12})$/, u.pathname);
+    return v ? { kind: 'frame', src: `https://player.vimeo.com/video/${v}?autoplay=1` } : null;
+  }
+  if (host === 'loom.com') {
+    const v = id(/^\/(?:share|embed)\/([0-9a-f]{16,40})$/, u.pathname);
+    return v ? { kind: 'frame', src: `https://www.loom.com/embed/${v}?autoplay=1` } : null;
+  }
+  if (/\.(mp4|webm)$/i.test(u.pathname)) return { kind: 'file', src: u.toString() };
+  return null;
 }
 
 export const HELP: HelpArticle[] = [
