@@ -209,9 +209,12 @@ export const HELP: HelpArticle[] = [
   },
 ];
 
+/** Words that say nothing about what someone wants to do. */
+const FILLER = new Set(['how', 'what', 'where', 'when', 'who', 'why', 'can', 'are', 'our', 'the', 'and', 'for', 'you', 'your', 'with', 'does', 'did', 'get', 'want', 'need', 'from', 'this', 'that', 'there', 'into', 'have', 'has', 'all', 'any', 'out']);
+
 /** The help articles that best match a question, best first (empty when nothing fits). */
 export function searchHelp(q: string, limit = 3): HelpArticle[] {
-  const words = q.toLowerCase().match(/[a-z]{3,}/g) ?? [];
+  const words = (q.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter((w) => !FILLER.has(w));
   if (!words.length) return [];
   const scored = HELP.map((a) => {
     const title = a.title.toLowerCase();
@@ -220,9 +223,11 @@ export function searchHelp(q: string, limit = 3): HelpArticle[] {
     for (const w of words) {
       const stem = w.replace(/(ing|s|es|ed)$/, '');
       if (stem.length < 3) continue;
-      if (title.includes(stem)) score += 3;
-      else if (a.also.includes(stem)) score += 2;
-      else if (body.includes(stem)) score += 1;
+      // Whole words (a stem may end early: "backups" finds "backup"), never the middle of one ("our" in "your").
+      const re = new RegExp(`\\b${stem}`);
+      if (re.test(title)) score += 3;
+      else if (re.test(a.also)) score += 2;
+      else if (re.test(body)) score += 1;
     }
     return { a, score };
   });
