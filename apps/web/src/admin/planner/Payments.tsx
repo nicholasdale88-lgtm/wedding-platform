@@ -43,6 +43,7 @@ export function Payments() {
   /** Change a vendor's schedule (the first change keeps what it started from, as payments of its own). */
   const editSchedule = (vid: string, fn: (ps: Payment[]) => Payment[]) =>
     vendorsDoc.update((d) => ({
+      ...d,
       list: d.list.map((v) => (v.id !== vid ? v : { ...v, payments: fn(ownSchedule(v, lines)) })),
     }));
   /** Tick a payment off (or back on): a vendor's payment, or a budget line paid in full. */
