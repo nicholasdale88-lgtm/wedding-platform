@@ -23,6 +23,7 @@ export function SmsMessages() {
   const [error, setError] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [lastCall, setLastCall] = useState(false);
   const [histOpen, setHistOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -99,6 +100,9 @@ export function SmsMessages() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <Pill onClick={() => void quickAdd('reminder')}>+ Add a reminder</Pill>
+          <Pill onClick={() => setLastCall((x) => !x)} aria-expanded={lastCall}>
+            + Last call before RSVPs close
+          </Pill>
           <Pill onClick={() => void quickAdd('everyone')}>Message everyone</Pill>
           <Pill kind="primary" onClick={() => setAdding(true)}>
             + New message
@@ -106,6 +110,19 @@ export function SmsMessages() {
         </div>
       </header>
 
+      {lastCall && (
+        <LastCall
+          data={data}
+          event={data.events.find((e) => e.key === chosen) ?? null}
+          onCancel={() => setLastCall(false)}
+          onAdded={async (id) => {
+            setLastCall(false);
+            await load();
+            setOpen(id);
+            void reloadOverview();
+          }}
+        />
+      )}
       {adding && (
         <NewMessage
           data={data}
@@ -500,6 +517,88 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
         </div>
       )}
     </div>
+  );
+}
+
+/** The reply-by date written in the invitation or a reminder ("by 18 August 2027"), as YYYY-MM-DD. */
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+function replyByIn(texts: string[]): string {
+  for (const t of texts) {
+    const m = /\bby (\d{1,2}) ([a-z]+),? (\d{4})/i.exec(t);
+    const mon = m ? MONTHS.findIndex((x) => x.startsWith(m[2]!.toLowerCase().slice(0, 3))) : -1;
+    if (m && mon >= 0) return `${m[3]}-${String(mon + 1).padStart(2, '0')}-${m[1]!.padStart(2, '0')}`;
+  }
+  return '';
+}
+const dayBefore = (ymd: string, days: number) => {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+};
+const longDay = (ymd: string) => {
+  const d = new Date(`${ymd}T00:00:00Z`);
+  const mon = MONTHS[d.getUTCMonth()]!;
+  return `${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getUTCDay()]} ${d.getUTCDate()} ${mon[0]!.toUpperCase()}${mon.slice(1)}`;
+};
+
+/**
+ * A "last call" text before RSVPs close (a week before, by default), to everyone still to reply then (in
+ * an event's section, that event's guests): pick the closing date, and it's scheduled for 10am.
+ */
+function LastCall({ data, event, onCancel, onAdded }: { data: TextsData; event: { key: string; name: string } | null; onCancel: () => void; onAdded: (id: string) => Promise<void> }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const [closes, setCloses] = useState(() => replyByIn(data.campaigns.map((c) => c.body)));
+  const [daysBefore, setDaysBefore] = useState(7);
+  const [busy, setBusy] = useState(false);
+  const sendOn = closes ? dayBefore(closes, daysBefore) : '';
+  const body = closes ? `Hi {first}, last call! RSVPs close ${longDay(closes)}. If you haven't replied yet, please let us know for {pending}: {link}` : '';
+  const at = sendOn ? zonedToUtc(`${sendOn}T10:00`, data.timezone).toISOString() : '';
+  const past = !!at && at <= new Date().toISOString();
+  const add = async () => {
+    const aud = data.audiences.find((a) => a.label === 'Still to reply');
+    if (!aud || !at || past) return;
+    setBusy(true);
+    try {
+      const { id } = await textsApi.add(wid, `RSVP last call${event ? ` · ${event.name}` : ''}`, event ? { ...aud.audience, invitedTo: event.key } : aud.audience, body, [at]);
+      toast(`Last call scheduled for ${longDay(sendOn)} at 10am, to everyone still to reply then.`);
+      await onAdded(id);
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section aria-label="Last call before RSVPs close" className="flex flex-col gap-3 p-5 rounded-[14px] bg-white border border-[#e2d7bc]">
+      <H2>Last call before RSVPs close</H2>
+      <p className="m-0 text-[14px] text-[#5b6a52]">
+        One text to everyone who still hasn&rsquo;t replied{event ? ` to ${event.name}` : ''}. Anyone who replies before then doesn&rsquo;t get it. You can change the wording after.
+      </p>
+      <div className="flex flex-wrap gap-3 items-end">
+        <Label text="RSVPs close on">
+          <input type="date" value={closes} onChange={(e) => setCloses(e.target.value)} className={inputCls} />
+        </Label>
+        <Label text="Send it">
+          <select value={daysBefore} onChange={(e) => setDaysBefore(Number(e.target.value))} className={inputCls}>
+            <option value={7}>A week before</option>
+            <option value={3}>3 days before</option>
+            <option value={14}>2 weeks before</option>
+          </select>
+        </Label>
+      </div>
+      {closes && (
+        <p className="m-0 text-[14px]" style={{ color: past ? '#7a4a37' : undefined }}>
+          {past ? 'That day has already passed: pick a later closing date, or send a reminder now.' : `Goes ${longDay(sendOn)} at 10am: “${body}”`}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Pill kind="primary" disabled={!closes || past || busy} onClick={() => void add()}>
+          {busy ? 'Scheduling…' : 'Schedule the last call'}
+        </Pill>
+        <Pill onClick={onCancel}>Cancel</Pill>
+      </div>
+    </section>
   );
 }
 

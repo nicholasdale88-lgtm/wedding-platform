@@ -90,6 +90,20 @@ describe('SMS messages API', () => {
     expect((await call(`/${p.campaigns[0]!.id}`, { method: 'DELETE' })).status).toBe(400);
   });
 
+  it('a last call before RSVPs close: scheduled and on autopilot in one go; a past date or no wording is refused', async () => {
+    const p = await list();
+    const still = p.audiences.find((a) => a.label === 'Still to reply')!;
+    const at = '2099-08-11T00:00:00.000Z';
+    const res = await post('', { name: 'RSVP last call', audience: still.audience, body: 'Hi {first}, last call! {link}', dates: [at] });
+    expect(res.status).toBe(200);
+    const { id } = (await res.json()) as { id: string };
+    const mine = (await list()).campaigns.find((c) => c.id === id)!;
+    expect(mine).toMatchObject({ enabled: true, mode: 'dates', audienceLabel: 'Still to reply' });
+    expect(mine.slots.map((x) => x.sendAt)).toEqual([at]);
+    expect((await post('', { name: 'Too late', audience: still.audience, body: 'x', dates: ['2001-01-01T00:00:00.000Z'] })).status).toBe(400);
+    expect((await post('', { name: 'No words', audience: still.audience, dates: [at] })).status).toBe(400);
+  });
+
   it("'Send me a test' goes to the couple's own mobile only", async () => {
     const res = await post('/test', { body: 'Test from the admin' });
     expect(res.status).toBe(200);

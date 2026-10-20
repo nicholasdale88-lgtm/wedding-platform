@@ -125,15 +125,28 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     });
   });
 
-  /** A new message of your own (starts switched off, sent by hand or on dates you pick). */
+  /**
+   * A new message of your own: switched off and sent by hand, unless it comes with its dates (e.g. the
+   * "last call" a week before RSVPs close), when it's on autopilot for those dates straight away.
+   */
   app.post('/', writer, async (c) => {
-    const body = z.object({ name: z.string().trim().min(1).max(80), audience: Audience, body: z.string().max(1600).optional() }).strict().safeParse(await readJson(c.req.raw));
+    const body = z
+      .object({ name: z.string().trim().min(1).max(80), audience: Audience, body: z.string().max(1600).optional(), dates: z.array(z.string().datetime()).max(20).optional() })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Give the message a name and choose who it goes to.');
     const id = crypto.randomUUID();
+    const now = nowIso();
+    const dates = [...new Set(body.data.dates ?? [])].filter((x) => x > now);
+    if (body.data.dates?.length && !dates.length) return err(c, 400, 'invalid', 'That date has already passed.');
+    if (dates.length && !body.data.body?.trim()) return err(c, 400, 'invalid', 'Write the message first.');
     const sort = (await c.env.DB.prepare(`SELECT COALESCE(MAX(sort), 0) + 1 AS n FROM campaign WHERE wedding_id = ?`).bind(wid(c)).first<{ n: number }>())!.n;
-    await c.env.DB.prepare(`INSERT INTO campaign (id, wedding_id, key, name, body, mode, enabled, audience, sort) VALUES (?, ?, ?, ?, ?, 'manual', 0, ?, ?)`)
-      .bind(id, wid(c), `custom-${id.slice(0, 8)}`, body.data.name, body.data.body ?? '', JSON.stringify(body.data.audience), sort)
-      .run();
+    await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO campaign (id, wedding_id, key, name, body, mode, enabled, audience, sort) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+        id, wid(c), `custom-${id.slice(0, 8)}`, body.data.name, body.data.body ?? '', dates.length ? 'dates' : 'manual', dates.length ? 1 : 0, JSON.stringify(body.data.audience), sort,
+      ),
+      ...dates.map((at) => c.env.DB.prepare(`INSERT INTO campaign_slot (id, campaign_id, send_at) VALUES (?, ?, ?)`).bind(crypto.randomUUID(), id, at)),
+    ]);
     await audit(c, 'sms.campaign.add', id);
     return c.json({ id });
   });
