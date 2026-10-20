@@ -7,7 +7,7 @@ import { Backup, Passcode, SmsSetup } from './SmsSetup';
 
 const VIEWS = [
   { key: 'details', label: 'Your details' },
-  { key: 'wedding', label: 'Wedding & people' },
+  { key: 'wedding', label: 'People & plan' },
   { key: 'texting', label: 'Texting' },
   { key: 'signin', label: 'Sign-in' },
   { key: 'backup', label: 'Backup' },

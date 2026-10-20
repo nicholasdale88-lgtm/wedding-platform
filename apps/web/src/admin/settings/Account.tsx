@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { accountApi, type Members, type Profile, type ProfilePut, type Role } from '../../lib/api';
-import { fmtEvent, fmtWhen } from '../../lib/format';
+import { fmtWhen } from '../../lib/format';
 import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
 import { ErrorState, H2, inputCls, Label, Loading, Pill, SaveBar, useToast } from '../ui';
@@ -111,7 +110,7 @@ export function YourDetails() {
 
 /** Settings → The wedding: its names, date and plan, and the people who can sign in to run it. */
 export function TheWedding() {
-  const { wid, overview: o, path } = useAdmin();
+  const { wid } = useAdmin();
   const toast = useToast();
   const [m, setM] = useState<Members | null>(null);
   const [error, setError] = useState('');
@@ -158,29 +157,17 @@ export function TheWedding() {
       /* closed the share sheet */
     }
   };
-  const first = o?.events[0];
   const owner = m?.you.role === 'owner';
   return (
     <div className="flex flex-col gap-8 max-w-[860px]">
-      <section aria-label="Your wedding" className="grid grid-cols-1 sm:grid-cols-3 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
-        {[
-          ['Couple', o ? `${o.wedding.name1} & ${o.wedding.name2}` : ''],
-          ['Date', first ? fmtEvent(first.startsAt, o!.wedding.timezone) : 'Not set yet'],
-          ['Plan', 'Free'],
-        ].map(([k, v]) => (
-          <div key={k} className="flex flex-col gap-1 p-4 bg-[#fbf8f0] min-w-0">
-            <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{k}</span>
-            <span className="font-display text-[22px] leading-tight">{v}</span>
-          </div>
-        ))}
+      {/* Account is about you as a customer: your plan here; the events themselves live in their own sections. */}
+      <section aria-label="Your plan" className="flex items-center justify-between gap-4 flex-wrap p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <span className="flex flex-col gap-1">
+          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Your plan</span>
+          <span className="font-display text-[24px] leading-tight">Free</span>
+        </span>
+        <span className="text-[13px] text-[#5b6a52] max-w-[420px]">Everything you see here, for as many guests and helpers as you need.</span>
       </section>
-      <p className="m-0 -mt-5 text-[13px] text-[#5b6a52]">
-        Names and the date are changed where guests see them:{' '}
-        <Link to={path('pages', first?.key)} className="!text-[var(--adm-ink,#33402f)]">
-          Setup → Invitation
-        </Link>{' '}
-        and each event&apos;s details.
-      </p>
 
       <section aria-label="People" className="flex flex-col gap-3">
         <H2>People who run this wedding</H2>

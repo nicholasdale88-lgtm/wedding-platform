@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fmtDay, fmtEvent, fmtWhen, shortLabel } from '../lib/format';
+import { fmtDay, fmtWhen, shortLabel } from '../lib/format';
 import { Events } from './events/Events';
 import { Hub } from './hub/Hub';
 import { useAdmin, useSectionOverview } from './Shell';
@@ -30,7 +30,10 @@ export function Overview() {
   const all = o.focus ? '' : 'show=all&';
 
   const figures = [
-    ...shown.map((e) => ({ label: shortLabel(e.name), val: e.coming, sub: 'guests coming', link: `guests?filter=attending:${e.key}`, event: e.key })),
+    // Account is about you and your guests overall; each event's own figures are in its section.
+    ...(o.focus
+      ? shown.map((e) => ({ label: shortLabel(e.name), val: e.coming, sub: 'guests coming', link: `guests?filter=attending:${e.key}`, event: e.key }))
+      : [{ label: 'Coming', val: o.yesInv, sub: 'invitations said yes', link: 'guests?show=all', event: home }]),
     { label: 'Awaiting', val: o.awaiting, sub: 'invitations to reply', link: `guests?${all}filter=awaiting`, event: home },
     { label: 'Dietary', val: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, link: 'dietary', event: o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home },
   ];
@@ -39,7 +42,7 @@ export function Overview() {
     <div className="flex flex-col gap-[34px]">
       {!o.focus && <GettingStarted o={o} to={to} />}
       <header className="flex flex-col gap-[14px]">
-        {firstEvent && o.daysToGo !== null && <Eyebrow>{o.daysToGo} days to {firstEvent.name.replace(/^the\s+/i, 'the ')}</Eyebrow>}
+        {firstEvent && o.daysToGo !== null && <Eyebrow>{o.focus ? `${o.daysToGo} days to ${firstEvent.name.replace(/^the\s+/i, 'the ')}` : `${o.daysToGo} days until the big day`}</Eyebrow>}
         <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance]">
           {o.replied} of {o.total} invitations answered
         </h1>
@@ -124,53 +127,6 @@ export function Overview() {
         <Dashboard>
           <Hub wid={wid} o={o} to={to} />
         </Dashboard>
-      )}
-
-      {!o.focus && (o.perEvent?.length ?? 0) > 1 && (
-        <section aria-label="Events side by side" className="flex flex-col gap-3">
-          <H2>Side by side</H2>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
-            {o.perEvent!.map((e, i) => (
-              <div
-                key={e.key}
-                className={`flex flex-col gap-3 p-5 rounded-[16px] border ${i === 1 ? 'bg-[#eef2f8] border-[#c9d5e8]' : 'bg-[#fbf8f0] border-[#e2d7bc]'}`}
-              >
-                <div>
-                  <Eyebrow>{fmtEvent(e.startsAt, tz)}</Eyebrow>
-                  <h3 className="m-0 mt-1 font-display font-medium text-[26px]">{e.name}</h3>
-                </div>
-                <div className="flex h-[8px] rounded-[99px] overflow-hidden bg-[#e6dcc4]" aria-hidden="true">
-                  <div style={{ width: pc(e.yes, e.invited), background: i === 1 ? '#2f3d5c' : '#5d6b47' }} />
-                  <div style={{ width: pc(e.no, e.invited), background: '#b9a07a' }} />
-                </div>
-                <dl className="m-0 grid grid-cols-2 gap-x-4 gap-y-2 text-[14px]">
-                  {(
-                    [
-                      ['Invited', `${e.invited} invitations`],
-                      ['Coming', `${e.coming} ${e.coming === 1 ? 'guest' : 'guests'}`],
-                      ['Declined', String(e.no)],
-                      ['Still to reply', String(e.awaiting)],
-                      ['Dietary needs', String(e.diet)],
-                      ...(e.hasSeating ? [['Seated', `${e.seated} of ${e.coming}`]] : []),
-                    ] as [string, string][]
-                  ).map(([k, v]) => (
-                    <div key={k}>
-                      <dt className="text-[12px] text-[#5b6a52]">{k}</dt>
-                      <dd className="m-0 font-semibold">{v}</dd>
-                    </div>
-                  ))}
-                </dl>
-                <button
-                  type="button"
-                  onClick={() => to('overview', e.key)}
-                  className="self-start py-2 px-[14px] min-h-[40px] rounded-full border border-[#33402f] bg-transparent text-[13px] font-medium cursor-pointer hover:bg-[#33402f] hover:text-[#f3ecd6]"
-                >
-                  Open {e.name}
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
       )}
 
       {!o.focus && <AddEventToggle />}

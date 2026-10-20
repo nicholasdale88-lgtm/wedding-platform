@@ -185,9 +185,10 @@ describe('Overview', () => {
     mockApi();
     renderAt('/admin/w1/account/overview');
     expect(await screen.findByRole('heading', { name: '2 of 3 invitations answered' })).toBeInTheDocument();
-    expect(screen.getByText('138 days to the wedding')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Wedding\s*2\s*guests coming/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Recovery brunch\s*2\s*guests coming/ })).toBeInTheDocument();
+    expect(screen.getByText('138 days until the big day')).toBeInTheDocument();
+    // Account is about you overall: no event-by-event figures (those are in each event's section).
+    expect(screen.getByRole('button', { name: /Coming\s*1\s*invitations said yes/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Recovery brunch\s*2\s*guests coming/ })).toBeNull();
     const needs = screen.getByRole('region', { name: 'Needs you' });
     expect(within(needs).getByText('2 things to do')).toBeInTheDocument();
     expect(within(needs).getByText('1 invitation has no mobile')).toBeInTheDocument();
