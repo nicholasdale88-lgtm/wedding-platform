@@ -5,6 +5,7 @@ import { PageHeader, Tabs } from '../ui';
 import { ChangeEmail, PlanAndBilling, TheWedding, YourDetails } from './Account';
 import { Privacy } from './Privacy';
 import { Backup, Passcode, SmsSetup } from './SmsSetup';
+import { SystemCheck } from './SystemCheck';
 
 const VIEWS = [
   { key: 'details', label: 'Your details' },
@@ -14,6 +15,7 @@ const VIEWS = [
   { key: 'texting', label: 'Texting' },
   { key: 'signin', label: 'Sign-in' },
   { key: 'backup', label: 'Backup' },
+  { key: 'check', label: 'System check' },
   { key: 'look', label: 'Admin look' },
 ] as const;
 type View = (typeof VIEWS)[number]['key'];
@@ -51,6 +53,8 @@ export function Settings() {
         </div>
       ) : view === 'backup' ? (
         <Backup />
+      ) : view === 'check' ? (
+        <SystemCheck />
       ) : (
         <AdminLook embedded />
       )}

@@ -177,6 +177,25 @@ describe('photo links', () => {
     expect(await runBackups(env)).toEqual({ due: 0, done: 0 });
   });
 
+  it('the system check signs in to the linked storage for real, files the wedding folder, and says what else is set up', async () => {
+    type Check = { items: { key: string; state: string; detail: string }[] };
+    const before = (await (await call(`/a/w/${wid}/settings/check`)).json()) as Check;
+    expect(before.items.find((i) => i.key === 'storage')).toMatchObject({ state: 'off' });
+    expect(before.items.find((i) => i.key === 'texts')?.state).toBe('off'); // no texting keys in tests
+    await link();
+    const after = (await (await call(`/a/w/${wid}/settings/check`)).json()) as Check;
+    const storage = after.items.find((i) => i.key.startsWith('storage:'))!;
+    expect(storage.state).toBe('ok');
+    expect(storage.detail).toMatch(/ wedding”: Photos, .*Planning files, Signs and print, Backups\./);
+    expect(sent.filter((x) => x.url.includes('create_folder_v2')).length).toBeGreaterThanOrEqual(5);
+    expect(after.items.find((i) => i.key === 'backups')?.state).toBe('warn'); // linked, no backup yet
+    // Storage that can't be reached is flagged, with what to do.
+    dropboxDown = true;
+    await t.db.prepare(`UPDATE photo_link SET folders = '{}'`).run();
+    const down = (await (await call(`/a/w/${wid}/settings/check`)).json()) as Check;
+    expect(down.items.find((i) => i.key.startsWith('storage:'))).toMatchObject({ state: 'warn' });
+  });
+
   it('a token sealed under another secret is useless', async () => {
     const sealed = await seal('one-secret-000000000000000000', 'photo-link', 'x');
     expect(await unseal('another-secret-0000000000000000', 'photo-link', sealed)).toBeNull();

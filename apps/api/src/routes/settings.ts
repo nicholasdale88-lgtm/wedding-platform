@@ -5,6 +5,7 @@ import type { Env } from '../env';
 import { readJson, safeJson } from '../lib/security';
 import { allow } from '../lib/rateLimit';
 import { backUpNow, backupLink, weddingBackup } from '../lib/backup';
+import { activeLinks, setUpFolders } from '../photos/store';
 import { estimateAll, type EngineDeps, type Estimate } from '../sms/engine';
 import { DEFAULT_REPLIES } from '../sms/inbound';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -180,6 +181,85 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     const r = await backUpNow(c.env, wid(c));
     if (!r.ok) return err(c, 400, 'not_saved', r.message ?? 'The backup did not go through.');
     return c.json(r);
+  });
+
+  /**
+   * The system check: each outside service this wedding relies on, and whether it's working. Linked
+   * storage is tried for real (signing in to it and making sure the "<A & B> wedding" folder and its
+   * folders are there); the rest reports how it's set up.
+   */
+  app.get('/check', requireMember('owner'), async (c) => {
+    if (!(await allow(c.env.DB, `check:${wid(c)}`, 30, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Try the check again in a few minutes.' } }, 429);
+    const env = c.env;
+    type Item = { key: string; name: string; state: 'ok' | 'warn' | 'off'; detail: string; fix: string };
+    const items: Item[] = [];
+    const NAMES = { gdrive: 'Google Drive', dropbox: 'Dropbox', onedrive: 'OneDrive', gphotos: 'Google Photos' } as const;
+
+    const texto = env.SMS_PROVIDER === 'texto';
+    const sms = texto ? !!env.TEXTO_API_KEY : !!(env.MM_USER && env.MM_PASS);
+    items.push({
+      key: 'texts',
+      name: 'Texts (SMS)',
+      state: sms ? 'ok' : 'off',
+      detail: sms ? `Invitations, reminders and replies go through ${texto ? 'Texto' : 'Mobile Message'}.` : 'No texting account is connected to the site, so no texts can go out yet.',
+      fix: sms ? '' : 'The site owner adds the texting account’s keys.',
+    });
+
+    const links = await activeLinks(env.DB, wid(c));
+    if (!links.length) {
+      items.push({ key: 'storage', name: 'Your Google Drive, Dropbox or OneDrive', state: 'off', detail: 'Nothing linked: guests’ photos and planning files are kept on the site only.', fix: 'Link one in Photos → Photo settings: everything is then filed in one wedding folder there.' });
+    }
+    for (const link of links) {
+      const name = `${NAMES[link.provider as keyof typeof NAMES] ?? link.provider}${link.account ? ` (${link.account})` : ''}`;
+      try {
+        const folders = await setUpFolders(env, link);
+        items.push({
+          key: `storage:${link.id}`,
+          name,
+          state: 'ok',
+          detail: folders.length ? `Signed in, and everything is filed in “${folders[0]}”: ${folders.slice(1).join(', ')}.` : 'Signed in: photos go into an album per event.',
+          fix: '',
+        });
+      } catch {
+        items.push({ key: `storage:${link.id}`, name, state: 'warn', detail: 'Couldn’t sign in to it: the link may have been removed or its permission withdrawn.', fix: 'Reconnect it in Photos → Photo settings.' });
+      }
+    }
+
+    const b = await env.DB.prepare(`SELECT json_extract(content, '$.backupAt') AS at, json_extract(content, '$.backupError') AS error, COALESCE(json_extract(content, '$.backupOff'), 0) AS off FROM wedding WHERE id = ? AND json_valid(content)`)
+      .bind(wid(c))
+      .first<{ at: string | null; error: string | null; off: number }>();
+    const bl = await backupLink(env, wid(c));
+    const fresh = !!b?.at && Date.now() - Date.parse(b.at) < 36 * 3_600_000;
+    items.push({
+      key: 'backups',
+      name: 'Daily backups',
+      state: !bl || b?.off ? 'off' : fresh && !b?.error ? 'ok' : 'warn',
+      detail: !bl ? 'Need a linked Google Drive, Dropbox or OneDrive.' : b?.off ? 'Switched off.' : b?.error ? b.error : fresh ? `The last one went to your ${NAMES[bl.provider as keyof typeof NAMES] ?? 'storage'} ${Math.max(1, Math.round((Date.now() - Date.parse(b!.at!)) / 3_600_000))} hours ago.` : 'No backup in the last day and a half.',
+      fix: !bl ? 'Link storage in Photos → Photo settings.' : b?.off ? 'Switch them on in Settings → Backup.' : fresh && !b?.error ? '' : 'Tap Back up now in Settings → Backup.',
+    });
+
+    items.push({
+      key: 'assistant',
+      name: 'Planning assistant and reading quotes',
+      state: env.AI ? 'ok' : 'off',
+      detail: env.AI ? 'Switched on.' : 'Not switched on for the site yet.',
+      fix: env.AI ? '' : 'The site owner turns on Workers AI for the site.',
+    });
+    items.push({
+      key: 'media',
+      name: 'Photo storage on the site',
+      state: env.MEDIA ? 'ok' : 'warn',
+      detail: env.MEDIA ? 'Guests’ photos are kept on the site as well.' : 'Not set up: guests’ photos go only to your linked storage.',
+      fix: env.MEDIA ? '' : 'The site owner sets up photo storage (Cloudflare R2).',
+    });
+    items.push({
+      key: 'signin',
+      name: 'Sign-in and private links',
+      state: env.SESSION_SECRET ? 'ok' : 'warn',
+      detail: env.SESSION_SECRET ? 'Working.' : 'The site’s sign-in key is missing.',
+      fix: env.SESSION_SECRET ? '' : 'The site owner sets SESSION_SECRET.',
+    });
+    return c.json({ at: new Date().toISOString(), items });
   });
 
   /** Daily automatic backups on or off. */

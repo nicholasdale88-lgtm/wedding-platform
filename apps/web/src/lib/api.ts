@@ -450,7 +450,16 @@ export interface BackupStatus {
   /** The linked storage backups go to (null: none linked yet). */
   linked: string | null;
 }
+/** The system check: each outside service, and whether it's working. */
+export interface CheckItem {
+  key: string;
+  name: string;
+  state: 'ok' | 'warn' | 'off';
+  detail: string;
+  fix: string;
+}
 export const backupsApi = {
+  check: (wid: string) => request<{ at: string; items: CheckItem[] }>(`${w(wid)}/settings/check`),
   get: (wid: string) => request<BackupStatus>(`${w(wid)}/settings/backups`),
   now: (wid: string) => send<{ ok: true; at: string; where: string }>('POST', `${w(wid)}/settings/backups/now`),
   auto: (wid: string, on: boolean) => send<{ ok: true; auto: boolean }>('PUT', `${w(wid)}/settings/backups/auto`, { on }),
