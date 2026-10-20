@@ -16,7 +16,7 @@ const GROUPS: HelpArticle['group'][] = ['Getting started', 'Guests and replies',
 export function Help() {
   const { overview, path } = useAdmin();
   const [q, setQ] = useState('');
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>('bestuse'); // the how-to-make-the-most-of-it plan, open to start
   const [watching, setWatching] = useState<HelpArticle[] | null>(null);
   const tour = HELP_TOUR.map((id) => HELP.find((a) => a.id === id)!).filter(Boolean);
   const minutes = Math.max(1, Math.round(tour.reduce((n, a) => n + 2.6 + a.steps.reduce((m, s) => m + Math.max(4, s.split(/\s+/).length * 0.33), 0), 0) / 60));

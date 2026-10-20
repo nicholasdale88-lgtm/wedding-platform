@@ -9,6 +9,10 @@ describe('help', () => {
     expect(searchHelp('compare quotes from florists')[0]?.id).toBe('quotes');
     expect(searchHelp('where are our backups')[0]?.id).toBe('backup');
     expect(searchHelp('bridesmaids sign in')[0]?.id).toBe('party');
+    expect(searchHelp('connect google drive')[0]?.id).toBe('drive');
+    expect(searchHelp('special menus vegan')[0]?.id).toBe('dietary');
+    expect(searchHelp('keep apart at tables')[0]?.id).toBe('seating');
+    expect(searchHelp('how to make the most of it')[0]?.id).toBe('bestuse');
     expect(searchHelp('xyzzy')).toEqual([]);
   });
 

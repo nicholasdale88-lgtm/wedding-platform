@@ -82,6 +82,21 @@ export function videoEmbed(url: string | undefined): { kind: 'frame' | 'file'; s
 
 export const HELP: HelpArticle[] = [
   {
+    id: 'bestuse',
+    title: 'Making the most of it: from now to the day',
+    group: 'Getting started',
+    steps: [
+      'As soon as you’re engaged: add your events, set your budget, and open the Wedding planner’s checklist. It’s filled in already, month by month: add your own tasks and give each one to whoever is doing it (each of you, or a helper), so everyone has their own to-do list.',
+      'Booking vendors: add each one in the planner’s Vendors with their quote. Drop in the quote or contract and its payment dates go into your payment schedule, with a nudge before each one is due. Tick them off as you pay.',
+      'Guests: add or import everyone early, and give them groups (“Uni friends”, “Alex’s family”). Then connect your Google Drive once: photos, contracts and a daily backup are all filed there for you.',
+      'Invitations: choose the look, Preview it, then switch on Texts. Replies, dietary needs and questions come back on their own. The Overview always shows what’s left to do, across everything.',
+      'The last month: add the caterer’s special menus and give them to everyone who needs one, then Auto-seat (it follows your seating rules) and Publish. Fill in the night-before guide.',
+      'On the day and after: guests get their table, meal and map the night before, and share photos by the QR code on each table. Everything stays in your Drive afterwards.',
+    ],
+    also: 'tips best way plan timeline overview how to use make the most guide start',
+    go: { tab: 'planner', event: true },
+  },
+  {
     id: 'start',
     title: 'Getting set up',
     group: 'Getting started',
@@ -135,10 +150,12 @@ export const HELP: HelpArticle[] = [
     title: 'Dietary requirements and meals',
     group: 'Guests and replies',
     steps: [
-      'Open Guests → Dietary to see every need by guest, with serious allergies flagged.',
-      'Download the caterer’s list from there, or from Seating → Table list for the caterer (table by table).',
+      'Open Guests → Dietary to see every need by guest, with serious allergies flagged and the kitchen’s counts (vegan, gluten free…).',
+      'Under Menus, add each special menu your caterer offers (Vegan, Gluten free, Nut free) and write what it’s safe for. Say what the set menu is already safe for, too.',
+      'Tap Give them their menus: everyone with a need gets the one menu that covers all of it (vegan and coeliac needs one marked both). Choose a menu, or change a course, for anyone yourself. Edit a menu and everyone on it changes too.',
+      'Anything to check is flagged (a meal not marked safe for something they need). Download the caterer’s list: each person’s table, needs, menu and courses.',
     ],
-    also: 'diet allergy allergies caterer meals menu vegetarian vegan coeliac gluten',
+    also: 'diet allergy allergies caterer meals menu menus special vegetarian vegan coeliac gluten nut assign',
     go: { tab: 'dietary', event: true },
   },
   {
@@ -147,11 +164,12 @@ export const HELP: HelpArticle[] = [
     group: 'Planning',
     steps: [
       'Open Guests → Seating. + Add tables, then tap the plan to drop them; drag to move. Areas (dance floor, bar) come from + Add area.',
-      'Tap a table, then tap names to seat them, or Auto-seat the rest (households stay together).',
+      'Tap a table, then tap names to seat them, or Auto-seat the rest: it follows your rules.',
+      'Rules and checks: people invited together sit together, groups stay together, the wedding party goes to the head table, and tables fill before new ones start, all unless you turn them off. Add your own: keep two people apart, or together. Anything that breaks a rule is listed.',
       'Save seating as you go. Versions → Save as a version keeps a named copy (“Family draft”, “Final”); View any version, and Make current to switch.',
       'Publish when you’re ready: guests then see their table in their night-before guide.',
     ],
-    also: 'tables seat chart floor plan version revision draft final publish',
+    also: 'tables seat chart floor plan version revision draft final publish rules apart together head table',
     go: { tab: 'seating', event: true },
   },
   {
@@ -217,6 +235,18 @@ export const HELP: HelpArticle[] = [
     go: { tab: 'party', event: true },
   },
   {
+    id: 'drive',
+    title: 'Connecting your Google Drive',
+    group: 'Your account',
+    steps: [
+      'Open Photos and tap Connect Google Drive. Choose your Google account and allow access: the site can only see the folder it makes, nothing else in your Drive.',
+      'Your “<your names> wedding” folder appears in your Drive with Photos (a folder per event), Planning files, Signs and print, and Backups. Photos already taken are copied straight away.',
+      'If it ever says Needs reconnecting (a changed password), tap Reconnect with the same account: it carries on where it left off.',
+    ],
+    also: 'google drive connect link storage folder dropbox onedrive reconnect',
+    go: { tab: 'photos', event: true },
+  },
+  {
     id: 'photos',
     title: 'Guests’ photos and the table QR code',
     group: 'On the day',
@@ -279,6 +309,14 @@ export const HELP: HelpArticle[] = [
 
 /** One scene per step of each guide (same order as its steps), for the walkthroughs. */
 export const HELP_SCENES: Record<string, HelpScene[]> = {
+  bestuse: [
+    { at: ['Wedding planner', 'Checklist'], rows: ['Book the venue · Alex', 'Choose photographer · Sam', 'Order invitations · Mum'], tap: '+ Add a task', then: 'Everyone has their own to-do list ✓' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['The Boathouse · quote $14,000', 'Deposit $4,000 · due 1 Mar'], tap: 'Add their quote', then: 'Payments added to your schedule ✓' },
+    { at: ['Guest list'], rows: ['Uni friends · 14', 'Alex’s family · 22'], tap: 'Connect Google Drive', then: 'Everything filed in your Drive ✓' },
+    { at: ['Texts'], rows: ['The invitation · on autopilot', 'Replies: 84 of 112'], tap: 'Switch on', then: 'Replies come back on their own' },
+    { at: ['Guest list', 'Seating'], rows: ['Rules: invited together sit together ✓', 'Ben ≠ Lou'], tap: 'Auto-seat the rest', then: 'Seated, every rule kept ✓' },
+    { at: ['Guest’s phone'], rows: ['Table 4 · next to the dance floor', 'Your meal: Vegan menu'], then: 'Their table, meal and map, the night before' },
+  ],
   start: [
     { at: ['Overview', 'Your events'], rows: ['The wedding · Sat 14 Mar'], fields: [['Event', 'Welcome drinks'], ['Date', 'Fri 13 Mar, 6:00pm'], ['Venue', 'The Boathouse']], tap: '+ Add an event', then: 'Welcome drinks added ✓' },
     { at: ['Setup', 'Invitation'], fields: [['Your names', 'Alex & Sam'], ['Reply by', '1 February']], tap: 'Save', then: 'Saved: guests see it now ✓' },
@@ -302,11 +340,14 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
   ],
   dietary: [
     { at: ['Guest list', 'Dietary'], rows: ['Sam · Vegan', 'Ben · Coeliac ⚠ serious', 'Lou · No seafood'], then: 'Serious allergies are flagged' },
-    { at: ['Guest list', 'Seating'], rows: ['Table 1 · 2 vegan, 1 coeliac', 'Table 2 · 1 no seafood'], tap: 'Table list for the caterer', then: 'Downloaded ✓' },
+    { at: ['Guest list', 'Dietary'], fields: [['Menu', 'Vegan and gluten free'], ['Safe for', 'vegan, gluten free, nut free']], tap: '+ Add a special menu', then: 'Menu added ✓' },
+    { at: ['Guest list', 'Dietary'], rows: ['Sam · Vegan → Vegan', 'Ben · Coeliac → Gluten free'], tap: 'Give them their menus', then: '2 guests have their menu ✓' },
+    { at: ['Guest list', 'Dietary'], rows: ['⚠ Lou · Set menu isn’t marked nut free', 'Meals: 11 of 12 sorted'], tap: 'Download the caterer’s list', then: 'Downloaded ✓' },
   ],
   seating: [
     { at: ['Guest list', 'Seating'], rows: ['Room plan'], tap: '+ Add tables', then: 'Tap the plan to drop each table' },
     { at: ['Guest list', 'Seating'], rows: ['Table 3 · 6 of 10', 'Jordan & Casey', 'The Nguyens'], tap: 'Auto-seat the rest', then: 'Everyone seated, households together ✓' },
+    { at: ['Guest list', 'Seating'], rows: ['✓ People invited together sit together', '✓ Wedding party at the head table', 'Ben ≠ Lou (keep apart)'], tap: '+ Add rule', then: 'All good ✓' },
     { at: ['Guest list', 'Seating'], fields: [['Version name', 'Family draft']], tap: 'Save as a version', then: 'Kept: make it current any time ✓' },
     { at: ['Guest list', 'Seating'], rows: ['Final · current'], tap: 'Publish', then: 'Guests see their table in their guide ✓' },
   ],
@@ -336,6 +377,11 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Wedding party', 'Overview'], fields: [['Role', 'Groomsman'], ['Name', 'Riley Chen'], ['Mobile', '0423 456 789']], tap: '+ Add Riley Chen as a groomsman', then: 'In the party and on your guest list ✓' },
     { at: ['Wedding party', 'Links & sign-ins'], rows: ['☑ Run sheet', '☑ Their to-dos', '☑ Packing', '☐ The guest list'], tap: 'Text their sign-in', then: 'Riley has their own sign-in ✓' },
     { at: ['Wedding party', 'Run sheet'], rows: ['8:00am · Breakfast together · Everyone', '1:30pm · Photos · Groom’s side', '3:00pm · Ceremony · Everyone'], tap: 'See it as: Riley', then: 'Exactly what Riley sees' },
+  ],
+  drive: [
+    { at: ['Photos'], rows: ['Your own Google Drive'], tap: 'Connect Google Drive', then: 'Google asks which account' },
+    { at: ['Photos'], rows: ['✓ Connected to Google Drive', 'Alex & Sam wedding › Photos, Planning files, Backups'], tap: 'Open in Google Drive', then: 'Your folders, in your Drive ✓' },
+    { at: ['Photos'], rows: ['⚠ Google Drive needs reconnecting'], tap: 'Reconnect', then: 'Carries on where it left off ✓' },
   ],
   photos: [
     { at: ['Photos', 'Photo settings'], rows: ['Google Drive', 'Dropbox', 'OneDrive'], tap: 'Connect Google Drive', then: '“Alex & Sam wedding” folder made ✓' },
