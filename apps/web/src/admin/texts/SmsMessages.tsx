@@ -90,12 +90,19 @@ export function SmsMessages() {
     <div className="flex flex-col gap-6">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>{section} · SMS · {data.live ? (data.paused ? 'Paused' : 'Live') : 'Not set up yet'}</Eyebrow>
+          <Eyebrow>{section} · Texts · {data.live ? (data.paused ? 'Paused' : 'Live') : 'Not set up yet'}</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">
-            {auto.length} {auto.length === 1 ? 'message' : 'messages'} on autopilot
+            {auto.length} {auto.length === 1 ? 'text' : 'texts'} sending themselves
           </h1>
           <div className="mt-1 text-[15px] text-[#5b6a52]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
-          {!data.live && <div className="mt-1 text-[14px] text-[#7a4a37]">Texts won't really send until your number is added under Account → Texting setup.</div>}
+          {!data.live && (
+            <div className="mt-1 text-[14px] text-[#7a4a37]">
+              Texts won't really send until texting is set up.{' '}
+              <button type="button" onClick={() => go(`${path('settings', ALL_EVENTS)}?view=texting`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#7a4a37] text-[14px]">
+                Set up texting →
+              </button>
+            </div>
+          )}
           {data.invitesFrom && <InvitesFrom data={data} onChanged={load} />}
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -103,7 +110,7 @@ export function SmsMessages() {
           <Pill onClick={() => setLastCall((x) => !x)} aria-expanded={lastCall}>
             + Last call before RSVPs close
           </Pill>
-          <Pill onClick={() => void quickAdd('everyone')}>Message everyone</Pill>
+          <Pill onClick={() => void quickAdd('everyone')}>Text everyone</Pill>
           <Pill kind="primary" onClick={() => setAdding(true)}>
             + New message
           </Pill>

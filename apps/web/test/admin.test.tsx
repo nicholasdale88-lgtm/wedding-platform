@@ -464,7 +464,7 @@ describe('SMS messages tab', () => {
   it('shows autopilot count, the next send and replies', async () => {
     mockApi({ '/api/a/w/w1/texts': () => json(200, texts) });
     renderAt('/admin/w1/wedding/texts');
-    expect(await screen.findByRole('heading', { name: '2 messages on autopilot' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '2 texts sending themselves' })).toBeInTheDocument();
     expect(screen.getByText(/Next: Reminder, 18 Jun/)).toBeInTheDocument();
     expect(screen.getByText('“Yes!”')).toBeInTheDocument();
     expect(screen.getByText('Marked attending')).toBeInTheDocument();
@@ -719,7 +719,7 @@ describe('send without SMS', () => {
     const opened: string[] = [];
     vi.spyOn(window, 'open').mockImplementation((u) => (opened.push(String(u)), null));
     renderAt('/admin/w1/wedding/guests?show=all');
-    await userEvent.click(await screen.findByRole('button', { name: 'Send without texts' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Share invitation links yourself' }));
     expect(screen.getByText(/1 guest can't get texts/)).toBeInTheDocument();
     expect(screen.getByText(/g=g2/)).toBeInTheDocument(); // Jo Banks has no mobile
     await userEvent.click(screen.getByRole('button', { name: 'WhatsApp' }));

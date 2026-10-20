@@ -118,7 +118,7 @@ export function Photos() {
 
       {!data.enabled && (
         <div className="p-5 rounded-[14px] bg-[#f1e7c9] text-[15px]">
-          <strong className="font-semibold">Guests can't add photos yet.</strong> Link your Google Drive, Google Photos, Dropbox or OneDrive under Photo settings below (free), or switch on this site's own photo storage (Cloudflare R2, free up to 10 GB, needs a card on your Cloudflare account).
+          <strong className="font-semibold">Guests can't add photos yet.</strong> Connect your Google Drive, Dropbox or OneDrive in Photo settings below (free): every photo is filed there for you.
         </div>
       )}
 

@@ -5,7 +5,7 @@ import { plannerApi } from '../../lib/api';
 import { confirmLeave } from '../leave';
 import { InstallApp } from '../../lib/InstallApp';
 import { useAdmin } from '../Shell';
-import { Eyebrow, H2 } from '../ui';
+import { H2 } from '../ui';
 import { Assistant } from './Assistant';
 import { Budget } from './Budget';
 import { Checklist, nextTasks } from './Checklist';
@@ -29,21 +29,21 @@ type View = 'glance' | 'insights' | 'ideas' | 'checklist' | 'budget' | 'payments
 /** The everyday pages, always in view. */
 const MAIN: [View, string][] = [
   ['glance', 'At a glance'],
-  ['checklist', 'Checklist'],
+  ['checklist', 'Planning checklist'],
   ['budget', 'Budget'],
   ['payments', 'Payments'],
   ['vendors', 'Vendors'],
-  ['insights', 'Insights'],
+  ['insights', 'Progress'],
 ];
 /** Everything else, a tap away under More. */
 const MORE: [View, string][] = [
   ['ideas', 'Ideas'],
   ['transport', 'Transport'],
   ['music', 'Music'],
-  ['photos', 'Photo list'],
-  ['print', 'Print'],
-  ['gifts', 'Gifts'],
-  ['assistant', 'Assistant'],
+  ['photos', 'Shot list'],
+  ['print', 'Print cards & signs'],
+  ['gifts', 'Gifts & thank-yous'],
+  ['assistant', 'Ask the assistant'],
 ];
 const VIEWS = [...MAIN, ...MORE];
 /** What most Australian weddings book (a checklist of vendor kinds; matched loosely against yours). */
@@ -65,8 +65,7 @@ export function WeddingPlanner() {
   return (
     <div className="flex flex-col gap-5">
       <header>
-        <Eyebrow>Wedding planner</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[40px] leading-[1.08]">Wedding planner</h1>
+        <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Wedding planner</h1>
       </header>
       <nav aria-label="Wedding planner" className="relative flex gap-5 border-b border-[#e2d7bc]">
         <div className="flex gap-5 overflow-x-auto [scrollbar-width:none] min-w-0">
@@ -90,7 +89,7 @@ export function WeddingPlanner() {
           onClick={() => setMore(!more)}
           className={`flex-none py-2 px-0 border-0 border-b-2 border-solid bg-transparent text-[15px] cursor-pointer -mb-px whitespace-nowrap ${inMore ? 'border-[#33402f] font-semibold text-[#33402f]' : 'border-transparent text-[#5b6a52]'}`}
         >
-          {inMore ? inMore[1] : 'More'} ▾
+          {inMore ? inMore[1] : 'Other tools'} ▾
         </button>
         {more && (
           <div role="menu" className="absolute right-0 top-full mt-1 z-20 flex flex-col min-w-[190px] p-1 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] shadow-[0_10px_30px_rgba(51,64,47,.15)]">

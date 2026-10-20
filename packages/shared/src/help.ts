@@ -20,7 +20,8 @@ export const HELP: HelpArticle[] = [
     title: 'Getting set up',
     group: 'Getting started',
     steps: [
-      'Open Setup in your wedding’s section: add your names, the date, the venue and your events (welcome drinks, the ceremony, a recovery brunch).',
+      'In Account → Overview, add your events (the wedding, welcome drinks, a recovery brunch) with their dates and venues.',
+      'Open Setup in the wedding: your names, the details and the invitation.',
       'Choose a look for the invitation: colours, envelope and wording. Tap Preview to see exactly what guests will get.',
       'Add your guests (see “Adding guests”), then send the invitations from Texts.',
     ],
@@ -58,7 +59,7 @@ export const HELP: HelpArticle[] = [
     steps: [
       'Guests reply on their own page or by texting YES or NO. Either way, it’s recorded straight away.',
       'Texts that mention a dietary need (“Sam is vegan”) are noted on that guest. Questions you’ve already answered in the night-before guide (time, place, parking, what to wear, your FAQ) are answered automatically.',
-      'Anything else lands in Messages, marked “needs you”: reply from there.',
+      'Anything else lands in Messages as unread: reply from there.',
     ],
     also: 'messages inbox answer question diet dietary allergy vegetarian vegan auto reply',
     go: { tab: 'messages' },
@@ -129,7 +130,7 @@ export const HELP: HelpArticle[] = [
     title: 'Checklist and helpers',
     group: 'Planning',
     steps: [
-      'Open Wedding planner → Checklist: the usual Australian plan counted back from your date, including the Notice of Intended Marriage.',
+      'Open Wedding planner → Planning checklist: the usual Australian plan counted back from your date, including the Notice of Intended Marriage.',
       'Give a task to a family member or friend: they get a private link to their own list and can mark it done.',
     ],
     also: 'to do todo tasks timeline helpers family jobs notice of intended marriage',
@@ -152,8 +153,8 @@ export const HELP: HelpArticle[] = [
     title: 'Guests’ photos and the table QR code',
     group: 'On the day',
     steps: [
-      'Open Photos → Where photos are saved, and link your Google Drive, Dropbox or OneDrive: everything is filed there in folders.',
-      'Print table numbers or Snap & share cards (Wedding planner → Print): each has a QR code.',
+      'Open Photos → Photo settings, and connect your Google Drive, Dropbox or OneDrive: everything is filed there in folders.',
+      'Print table numbers or Snap & share cards (Wedding planner → Other tools → Print cards & signs): each has a QR code.',
       'Guests scan it, give their name, pick a frame, and take photos straight into your album. No app needed.',
     ],
     also: 'camera qr code album frames filters upload drive dropbox onedrive table cards',
@@ -164,7 +165,7 @@ export const HELP: HelpArticle[] = [
     title: 'The night-before guide',
     group: 'On the day',
     steps: [
-      'In Setup → Guide, add the run sheet, arrival time, parking, menu and your FAQ.',
+      'In Setup, open the Night-before page: add the run sheet, arrival time, parking, menu and your FAQ.',
       'The night before, every guest gets a text with their guide: their table, the menu and the map.',
       'Your FAQ is also how texted questions get answered automatically.',
     ],
@@ -177,18 +178,18 @@ export const HELP: HelpArticle[] = [
     group: 'On the day',
     steps: [
       'Guests tap “All my events, kept up to date” on their invitation: their events go into their phone’s calendar and update themselves.',
-      'In Wedding planner, switch on your planning calendar: due tasks and payments appear in your own calendar.',
+      'In Wedding planner → Planning checklist, switch on your planning calendar: due tasks and payments appear in your own calendar.',
       'Install the admin on your phone: in your browser’s menu, choose Add to Home Screen.',
     ],
     also: 'calendar ical apple google outlook android iphone app install home screen',
-    go: { tab: 'planner', event: true },
+    go: { tab: 'planner', event: true, query: 'view=checklist' },
   },
   {
     id: 'backup',
     title: 'Backups and keeping everything safe',
     group: 'Your account',
     steps: [
-      'Link your Google Drive, Dropbox or OneDrive (Photos → Where photos are saved). A full backup goes to its Backups folder every day.',
+      'Connect your Google Drive, Dropbox or OneDrive (Photos → Photo settings). A full backup goes to its Backups folder every day.',
       'Account → Settings → Backup: Back up now, or download everything as one file.',
       'Each wedding is kept completely separate; only people you invite can see yours.',
     ],
@@ -204,7 +205,7 @@ export const HELP: HelpArticle[] = [
       'They set their own passcode. Remove them any time and they’re signed out at once.',
     ],
     also: 'partner planner share invite member access editor viewer owner',
-    go: { tab: 'settings' },
+    go: { tab: 'settings', query: 'view=wedding' },
   },
 ];
 

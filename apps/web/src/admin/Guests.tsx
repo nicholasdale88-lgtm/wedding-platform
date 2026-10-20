@@ -114,14 +114,14 @@ export function Guests() {
         <div>
           <Eyebrow>{section} · Guests</Eyebrow>
           <h1 className="mt-[6px] mb-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] min-h-[43px]">
-            {data ? `${seatsHeld} guests on ${guests.length} invitations` : ''}
+            {data ? (guests.length ? `${seatsHeld} guests on ${guests.length} invitations` : 'Your guest list') : ''}
           </h1>
         </div>
         <div className="relative flex gap-[10px] flex-wrap">
           {/* Phones: one main action, the rest under More. */}
           {(!mob || more) && (
             <div className={mob ? 'absolute right-0 top-[calc(100%+6px)] z-[14] flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)] min-w-[220px]' : 'contents'}>
-              <Pill onClick={() => (setMore(false), setManual((x) => !x))}>Send without texts</Pill>
+              <Pill onClick={() => (setMore(false), setManual((x) => !x))}>Share invitation links yourself</Pill>
               <Pill onClick={() => (setMore(false), setImporting((x) => !x))}>Import</Pill>
               <Pill
                 disabled={!guests.length}
@@ -248,7 +248,7 @@ export function Guests() {
               </span>
             </button>
           ))}
-          {data && shown.length === 0 && <div className="py-10 text-center text-[#5b6a52]">No guests match.</div>}
+          {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[#5b6a52]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
         </div>
       ) : (
         <div className="bg-[#fbf8f2] border border-[#e2d7bc] rounded-[14px] overflow-x-auto">
@@ -301,7 +301,7 @@ export function Guests() {
                 <span className="text-[12px] text-[#5b6a52]">{g.lastSms ? `${g.lastSms.name} · ${fmtWhen(g.lastSms.at, tz)}` : g.phone ? 'Not invited yet' : 'No mobile'}</span>
               </div>
             ))}
-            {data && shown.length === 0 && <div className="py-10 px-[18px] text-center text-[#5b6a52]">No guests match.</div>}
+            {data && shown.length === 0 && (guests.length ? <div className="py-10 px-[18px] text-center text-[#5b6a52]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
           </div>
         </div>
       )}
@@ -325,4 +325,20 @@ function seats(g: Guest): string {
   const n = yes.length ? Math.max(...yes.map(([, r]) => r.count)) : null;
   const table = g.people.find((p) => p.table)?.table;
   return `${n ?? '–'}/${g.seatsHeld}${table ? ` · T${table}` : ''}`;
+}
+
+/** No guests yet: what to do first, not "No guests match". */
+function FirstGuests({ onAdd, onImport }: { onAdd: () => void; onImport: () => void }) {
+  return (
+    <div className="py-10 px-[18px] flex flex-col items-center gap-3 text-center">
+      <strong className="text-[17px] font-semibold text-[#33402f]">No guests yet</strong>
+      <span className="text-[15px] text-[#5b6a52] max-w-[420px]">Add your first household (everyone on one invitation shares a link), or bring your whole list in from a spreadsheet.</span>
+      <span className="flex gap-2 flex-wrap justify-center">
+        <Pill kind="primary" onClick={onAdd}>
+          Add your first guests
+        </Pill>
+        <Pill onClick={onImport}>Import a spreadsheet</Pill>
+      </span>
+    </div>
+  );
 }

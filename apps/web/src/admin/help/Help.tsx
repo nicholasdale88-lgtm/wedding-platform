@@ -50,7 +50,7 @@ export function Help() {
       </header>
       <label className="flex flex-col gap-1 text-[14px] font-semibold">
         What do you want to do?
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. send reminders, seating versions, compare quotes" className={inputCls} autoFocus />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. send reminders, seating versions, compare quotes" className={inputCls} autoFocus={window.matchMedia?.('(min-width: 760px)').matches ?? false} />
       </label>
       {q.trim().length >= 3 && (
         <section aria-label="Answers" className="flex flex-col gap-3">
