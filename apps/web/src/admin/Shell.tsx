@@ -431,11 +431,80 @@ function BottomBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean
   );
 }
 
-/** Phones: More. Every section as a big button, then Settings, the admin's look and Sign out. */
+/** Line icons for the More sheet's tiles (24px, drawn with the text colour). */
+const ICON: Record<string, ReactNode> = {
+  overview: <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />,
+  guests: (
+    <>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18.5 14.8c1.7.8 2.8 2.5 3 5.2" />
+    </>
+  ),
+  messages: <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />,
+  texts: <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM10 18h4M8 8h8M8 11h6" />,
+  photos: (
+    <>
+      <rect x="3" y="5" width="18" height="15" rx="2" />
+      <circle cx="12" cy="12.5" r="3.5" />
+      <path d="M8 5l1.5-2h5L16 5" />
+    </>
+  ),
+  pages: (
+    <>
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </>
+  ),
+  party: <path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z" />,
+  day: <path d="M4 6h16M4 12h16M4 18h10M18 16l2 2 3-4" />,
+  planner: (
+    <>
+      <rect x="4" y="4" width="16" height="17" rx="2" />
+      <path d="M8 2.5v3M16 2.5v3M8 11l2 2 4-4M8 17h8" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v3M12 18.5v3M4.2 6.2l2.1 2.1M17.7 15.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 17.8l2.1-2.1M17.7 8.3l2.1-2.1" />
+    </>
+  ),
+  money: <path d="M12 3v18M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3 2 2.6 4.5 3 4.5 1.3 4.5 3-2 3-4.5 3-4.5-1.3-4.5-3" />,
+  list: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+  chart: <path d="M4 20V10M10 20V4M16 20v-8M22 20H2" />,
+  store: <path d="M3 9l1.5-5h15L21 9M3 9v11h18V9M3 9h18M9 20v-6h6v6" />,
+  idea: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z" />,
+  car: <path d="M5 17h14M3 13l2-6h14l2 6v4h-2.5M3 13v4h2.5M3 13h18M7.5 17a1.5 1.5 0 1 0 0 .01M16.5 17a1.5 1.5 0 1 0 0 .01" />,
+  music: <path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-3-3 3 3 0 0 1 3 3zM20 16a3 3 0 1 1-3-3 3 3 0 0 1 3 3z" />,
+  print: <path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z" />,
+  gift: <path d="M3 9h18v4H3zM5 13v8h14v-8M12 9v12M12 9c-2-4-6-4-6-1.5S10 9 12 9zm0 0c2-4 6-4 6-1.5S14 9 12 9z" />,
+  spark: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 3v3M17.5 4.5h3" />,
+  look: <path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-1.5 2-1.5h2a4 4 0 0 0 4-4c0-4.4-4-8-9-8zM7.5 11h.01M10 7h.01M15 7.5h.01" />,
+};
+const PLANNER_TOOLS: { view: string; label: string; icon: string }[] = [
+  { view: 'checklist', label: 'Checklist', icon: 'list' },
+  { view: 'budget', label: 'Budget', icon: 'money' },
+  { view: 'payments', label: 'Payments', icon: 'money' },
+  { view: 'vendors', label: 'Vendors', icon: 'store' },
+  { view: 'insights', label: 'Insights', icon: 'chart' },
+  { view: 'ideas', label: 'Ideas', icon: 'idea' },
+  { view: 'transport', label: 'Transport', icon: 'car' },
+  { view: 'music', label: 'Music', icon: 'music' },
+  { view: 'photos', label: 'Photo list', icon: 'photos' },
+  { view: 'print', label: 'Print', icon: 'print' },
+  { view: 'gifts', label: 'Gifts', icon: 'gift' },
+  { view: 'assistant', label: 'Assistant', icon: 'spark' },
+];
+
+/**
+ * Phones: More. Everything that isn't in the bottom bar, as tiles with icons: this section's pages, every
+ * Wedding planner tool, the other sections, then Settings, the admin's look and Sign out.
+ */
 function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
   const { path, overview: o } = useAdmin();
   const { groups, current, open, tab } = useSections();
   const go = useNavigate();
+  const { search } = useLocation();
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', key);
@@ -446,61 +515,74 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       document.body.style.overflow = prev;
     };
   }, [onClose]);
-  const link = (label: string, to: string, on = false) => (
+  const to = (where: string) => {
+    onClose();
+    go(where);
+  };
+  const tile = (key: string, label: string, where: string, icon: string, on = false) => (
     <button
-      key={label}
+      key={key}
       type="button"
       aria-current={on ? 'page' : undefined}
-      onClick={() => {
-        onClose();
-        go(to);
-      }}
-      className={`w-full flex items-center justify-between py-3 px-1 min-h-[48px] border-0 border-t border-[#ece3cc] bg-transparent text-left text-[16px] cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'font-semibold' : ''}`}
+      onClick={() => to(where)}
+      className={`flex flex-col items-center justify-center gap-[6px] min-h-[84px] p-2 rounded-[14px] border text-center text-[13px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
     >
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {ICON[icon] ?? ICON.list}
+      </svg>
       {label}
-      <span aria-hidden className="text-[#8a9670]">{on ? '●' : '›'}</span>
     </button>
   );
+  const heading = (text: string) => <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52]">{text}</span>;
+  const grid = 'grid grid-cols-3 gap-2';
+  const first = o?.events[0]?.key;
+  const plannerView = tab === 'planner' ? (new URLSearchParams(search).get('view') ?? '') : null;
   return (
     <div className="fixed inset-0 z-[30] flex flex-col justify-end">
       <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.35)]" />
-      <div role="dialog" aria-modal="true" aria-label="More" className="relative max-h-[85vh] overflow-y-auto rounded-t-[22px] bg-[#f6f0e2] px-5 pt-3 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-4">
+      <div role="dialog" aria-modal="true" aria-label="More" className="relative max-h-[88vh] overflow-y-auto rounded-t-[22px] bg-[#f6f0e2] px-4 pt-3 pb-[calc(20px+env(safe-area-inset-bottom))] flex flex-col gap-5">
         <span aria-hidden className="self-center w-10 h-[5px] rounded-full bg-[#d3c6a4]" />
-        <div className="flex flex-col">
-          <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52] mb-1">{current.name}</span>
-          {current.tabs.map((t) => link(t.label, path(t.key), navKey(tab) === t.key))}
-        </div>
         <div className="flex flex-col gap-2">
-          <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52]">Sections</span>
-          {groups.map((g) => {
-            const on = g.key === current.key;
-            const ev = o?.events.find((e) => e.key === g.key);
-            return (
-              <button
-                key={g.key}
-                type="button"
-                aria-current={on ? 'true' : undefined}
-                onClick={() => {
-                  onClose();
-                  open(g);
-                }}
-                className={`w-full flex flex-col items-start gap-[2px] py-3 px-4 min-h-[56px] rounded-[14px] border text-left cursor-pointer ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
-              >
-                <span className="font-display text-[22px] leading-tight">{g.name}</span>
-                <span className="text-[12px] text-[#5b6a52]">{ev ? `${ev.coming} coming` : 'Overview, messages and settings'}</span>
-              </button>
-            );
-          })}
+          {heading(current.name)}
+          <div className={grid}>{current.tabs.map((t) => tile(t.key, t.label, path(t.key), t.key, navKey(tab) === t.key))}</div>
         </div>
-        <div className="flex flex-col">
-          {current.key !== ALL_EVENTS && link('Settings', path('settings', ALL_EVENTS))}
-          {link('Admin look and name', `${path('settings', ALL_EVENTS)}?view=look`)}
+        {first && (
+          <div className="flex flex-col gap-2">
+            {heading('Wedding planner')}
+            <div className={grid}>{PLANNER_TOOLS.map((t) => tile(`planner-${t.view}`, t.label, `${path('planner', first)}?view=${t.view}`, t.icon, plannerView === t.view))}</div>
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          {heading('Other sections')}
+          {groups
+            .filter((g) => g.key !== current.key)
+            .map((g) => {
+              const ev = o?.events.find((e) => e.key === g.key);
+              return (
+                <button
+                  key={g.key}
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    open(g);
+                  }}
+                  className="w-full flex items-center justify-between gap-3 py-3 px-4 min-h-[56px] rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer text-[var(--adm-ink,#33402f)]"
+                >
+                  <span className="flex flex-col gap-[2px] min-w-0">
+                    <span className="font-display text-[22px] leading-tight truncate">{g.name}</span>
+                    <span className="text-[12px] text-[#5b6a52]">{ev ? `${ev.coming} coming` : 'Overview, messages and settings'}</span>
+                  </span>
+                  <span aria-hidden className="text-[#8a9670] text-[20px]">›</span>
+                </button>
+              );
+            })}
+        </div>
+        <div className={grid}>
+          {current.key !== ALL_EVENTS && tile('settings', 'Settings', path('settings', ALL_EVENTS), 'settings')}
+          {tile('look', 'Look & name', `${path('settings', ALL_EVENTS)}?view=look`, 'look')}
         </div>
         <Pill onClick={onSignOut} className="self-stretch">
           Sign out
-        </Pill>
-        <Pill onClick={onClose} kind="primary" className="self-stretch">
-          Close
         </Pill>
       </div>
     </div>
