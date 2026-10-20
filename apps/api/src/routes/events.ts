@@ -1,6 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { readJson, safeJson } from '../lib/security';
+import { eventRoom, needsUpgrade } from '../lib/plan';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -108,6 +109,7 @@ export function eventRoutes() {
     const db = c.env.DB;
     const all = await db.prepare(`SELECT key, sort FROM event WHERE wedding_id = ?`).bind(wid(c)).all<{ key: string; sort: number }>();
     if (all.results.length >= 20) return err(c, 400, 'too_many', 'Up to 20 events per celebration.');
+    if (!(await eventRoom(db, wid(c)))) return needsUpgrade(c, 'extraEvent');
     const taken = new Set(all.results.map((r) => r.key)); // removed events keep their key, so old links never point at a new event
     const base = slug(b.name);
     let key = base;
@@ -161,7 +163,10 @@ export function eventRoutes() {
     )
       .bind(...cols.map(([, val]) => val), c.req.param('id'), wid(c), v)
       .run();
-    if (!res.meta.changes) return err(c, 409, 'conflict', 'This event changed elsewhere. Reloaded: check it and try again.');
+    if (!res.meta.changes) {
+      const there = await c.env.DB.prepare(`SELECT 1 FROM event WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(c.req.param('id'), wid(c)).first();
+      return there ? err(c, 409, 'conflict', 'This event changed elsewhere. Reloaded: check it and try again.') : err(c, 404, 'not_found', 'That event no longer exists.');
+    }
     await audit(c, 'event.edit', c.req.param('id'), { fields: cols.map(([k]) => k) }).run();
     return c.json({ events: await list(c) });
   });
@@ -171,6 +176,7 @@ export function eventRoutes() {
     if (!Number.isInteger(v)) return err(c, 428, 'version_required', 'Reload and try again.');
     const db = c.env.DB;
     const eventId = c.req.param('id');
+    if (!(await db.prepare(`SELECT 1 FROM event WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(eventId, wid(c)).first())) return err(c, 404, 'not_found', 'That event no longer exists.');
     const live = await db.prepare(`SELECT COUNT(*) AS n FROM event WHERE wedding_id = ? AND deleted_at IS NULL`).bind(wid(c)).first<{ n: number }>();
     if ((live?.n ?? 0) <= 1) return err(c, 400, 'last_event', 'Keep at least one event. Rename this one instead.');
     // One batch: removed, gone from every invitation (so no RSVP, text, guide or list includes it), and

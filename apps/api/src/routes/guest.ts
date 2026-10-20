@@ -546,11 +546,11 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
           `INSERT INTO rsvp (invitation_id, event_id, attending, count, answers, message, via, updated_at)
            VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'invitation', ?7)
            ON CONFLICT (invitation_id, event_id) DO UPDATE SET
-             count = ?4, answers = ?5, message = ?6, via = 'invitation',
+             count = ?4, answers = ?5, message = CASE WHEN ?8 THEN ?6 ELSE message END, via = 'invitation',
              updated_at = CASE WHEN attending IS NOT ?3 THEN ?7 ELSE updated_at END,
              attending = ?3`,
         )
-        .bind(inv.id, e.id, a.attending ? 1 : 0, count, JSON.stringify(a.answers ?? {}), i === 0 ? (r.message ?? '').trim() : '', now);
+        .bind(inv.id, e.id, a.attending ? 1 : 0, count, JSON.stringify(a.answers ?? {}), i === 0 ? (r.message ?? '').trim() : '', now, i === 0 && r.message !== undefined ? 1 : 0);
     });
     if (r.diet !== undefined) {
       const { results: people } = await db.prepare(`SELECT idx, name FROM person WHERE invitation_id = ? AND deleted_at IS NULL ORDER BY idx`).bind(inv.id).all<{ idx: number; name: string }>();

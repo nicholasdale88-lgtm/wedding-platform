@@ -300,6 +300,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (!body.success) return err(c, 400, 'invalid', 'Check the details and try again.');
     const p = body.data;
     const invId = c.req.param('id');
+    if (p.people) {
+      const had = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM person WHERE invitation_id = ? AND deleted_at IS NULL`).bind(invId).first<{ n: number }>();
+      const more = p.people.length - (had?.n ?? 0);
+      if (more > 0 && !(await roomFor(c.env.DB, wid(c), more))) return needsUpgrade(c, 'unlimitedGuests');
+    }
 
     let phone: string | null | undefined;
     if (p.phone !== undefined) {
@@ -449,12 +454,16 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (!r.meta.changes) return err(c, 404, 'not_found', 'That guest no longer exists.');
     // Texts waiting to go to them don't (ones already handed to the provider can't be recalled).
     await c.env.DB.prepare(`UPDATE sms_out SET status = 'cancelled', error = 'Guest removed' WHERE invitation_id = ? AND status = 'queued' AND batch_key IS NULL`).bind(invId).run();
+    // Their seats are free again.
+    await c.env.DB.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?)`).bind(invId).run();
     await audit(c, 'guest.remove', invId).run();
     return c.json({ ok: true });
   });
 
   app.post('/guests/:id/restore', writer, async (c) => {
     const invId = c.req.param('id');
+    const people = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.id = ? AND i.wedding_id = ? AND p.deleted_at IS NULL`).bind(invId, wid(c)).first<{ n: number }>();
+    if ((people?.n ?? 0) > 0 && !(await roomFor(c.env.DB, wid(c), people!.n))) return needsUpgrade(c, 'unlimitedGuests');
     const r = await c.env.DB.prepare(`UPDATE invitation SET deleted_at = NULL, version = version + 1 WHERE id = ? AND wedding_id = ? AND deleted_at IS NOT NULL`)
       .bind(invId, wid(c))
       .run();
