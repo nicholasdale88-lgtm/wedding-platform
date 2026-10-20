@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react';
-import { createBrowserRouter, Navigate, Route, RouterProvider, Routes } from 'react-router-dom';
+import { createBrowserRouter, Route, RouterProvider, Routes } from 'react-router-dom';
 import { GuestNotFound } from './guest/GuestMessage';
 
 // Guests and the couple download separate code: a guest opening their invitation never loads the admin.
@@ -17,6 +17,7 @@ const LivePage = lazy(() => import('./guest/live/LivePage').then((m) => ({ defau
 const ShuttlePage = lazy(() => import('./guest/shuttle/ShuttlePage').then((m) => ({ default: m.ShuttlePage })));
 const AlbumPage = lazy(() => import('./guest/album/AlbumPage').then((m) => ({ default: m.AlbumPage })));
 const QuotePage = lazy(() => import('./guest/quote/QuotePage').then((m) => ({ default: m.QuotePage })));
+const SalesPage = lazy(() => import('./sales/SalesPage').then((m) => ({ default: m.SalesPage })));
 
 function Pages() {
   return (
@@ -39,7 +40,7 @@ function Pages() {
         <Route path="/w/:slug/shuttle" element={<ShuttlePage />} />
         <Route path="/w/:slug/album" element={<AlbumPage />} />
         <Route path="/w/:slug/quote" element={<QuotePage />} />
-        <Route path="/" element={<Navigate to="/admin" replace />} />
+        <Route path="/" element={<SalesPage />} />
         {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
         <Route path="*" element={<GuestNotFound />} />
       </Routes>
