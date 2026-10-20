@@ -1,4 +1,4 @@
-import { allPayments, BUDGET_SPLIT, bookingTimeline, moneyOf, withSchedules, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
+import { allPayments, BUDGET_SPLIT, moneyOf, withSchedules, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
@@ -67,41 +67,6 @@ function Chase({ rows, tz }: { rows: InsightsData['chase']; tz: string | undefin
 }
 
 /** Replies coming in: a running total over time (one dot per day with replies). */
-/** Each kind of supplier against when couples usually book it. */
-function WhenToBook({ rows }: { rows: ReturnType<typeof bookingTimeline> }) {
-  const month = (d: string) => new Date(`${d}T00:00`).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
-  const booked = rows.filter((r) => r.state === 'booked').length;
-  const late = rows.filter((r) => r.late).length;
-  return (
-    <section aria-label="When to book" className={card}>
-      <div className="flex justify-between items-baseline gap-3 flex-wrap">
-        <H2>When to book</H2>
-        <span className={`text-[13px] ${late ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}`}>
-          {booked} of {rows.length} booked{late ? ` · ${late} past the usual time` : ''}
-        </span>
-      </div>
-      <ul className="list-none m-0 p-0 grid gap-x-6 md:grid-cols-2">
-        {rows.map((r) => (
-          <li key={r.what} className="flex items-center gap-3 py-[6px] border-t border-[#ece3cd] text-[14px] min-w-0">
-            <span
-              aria-hidden
-              className="w-[10px] h-[10px] rounded-full shrink-0"
-              style={{ background: r.state === 'booked' ? '#5d6b47' : r.late ? '#a5533c' : r.state === 'looking' ? '#b39563' : '#d8cfb8' }}
-            />
-            <span className="flex-1 min-w-0 truncate">
-              {r.what}
-              <span className="text-[12px] text-[#7a7466]"> · {r.months} months out</span>
-            </span>
-            <span className={`text-[13px] whitespace-nowrap ${r.state === 'booked' ? 'text-[#33402f]' : r.late ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}`}>
-              {r.state === 'booked' ? `✓ ${r.vendor || 'Booked'}` : r.late ? (r.state === 'looking' ? 'Book soon' : 'Not started') : `${r.state === 'looking' ? 'Looking · ' : ''}by ${month(r.bookBy)}`}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="m-0 text-[12px] text-[#7a7466]">Matched from “what they do” on each vendor. A guide, not a rule: skip anything you don’t need.</p>
-    </section>
-  );
-}
 
 function RepliesChart({ days, invited }: { days: { day: string; n: number }[]; invited: number }) {
   if (!days.length) return <p className="m-0 text-[14px] text-[#7a7466]">No replies yet: the chart starts with the first one.</p>;
@@ -138,9 +103,10 @@ function RepliesChart({ days, invited }: { days: { day: string; n: number }[]; i
 }
 
 /**
- * Wedding planner → Insights: how the wedding is tracking. Replies (and a forecast of who'll come), money
- * (where it goes, what's due by month, cost per guest), the plan (done against where you'd expect to be),
- * vendors, and what guests are doing on the site.
+ * Wedding planner → Overview, under "Progress": how the wedding is tracking. Replies (and a forecast of
+ * who'll come), money (where it goes, what's due by month, cost per guest), the plan (done against where
+ * you'd expect to be), vendors, and what guests are doing on the site. The Overview's own tiles above
+ * already show days to go, the budget and what's still to book, so those aren't repeated here.
  */
 export function Insights() {
   const { wid, overview } = useAdmin();
@@ -218,12 +184,10 @@ export function Insights() {
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Headlines" className="grid gap-3 grid-cols-2 lg:grid-cols-5">
+      <section aria-label="Headlines" className="grid gap-3 grid-cols-3 max-[560px]:grid-cols-2">
         {[
-          ['Days to go', days === null ? '—' : String(Math.max(0, days)), first?.name ?? ''],
           ['Replied', `${first ? pct(first.yes + first.no, first.invited) : 0}%`, first ? `${first.yes + first.no} of ${first.invited} invitations` : ''],
           ['Expected guests', String(forecast), first ? `${first.people} said yes so far` : ''],
-          ['Budget used', `${pct(committed, budget.total)}%`, budget.total ? `${aud(committed)} of ${aud(budget.total)}` : 'Set your budget'],
           ['Plan done', `${pct(done, plan.tasks.length)}%`, plan.tasks.length ? (onTrack ? 'On track ✓' : `${expected - done} behind where you’d expect`) : 'Start the checklist'],
         ].map(([k, v, sub]) => (
           <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
@@ -339,7 +303,6 @@ export function Insights() {
         </section>
       </div>
 
-      {!Number.isNaN(day) && <WhenToBook rows={bookingTimeline(vendors.list, Date.parse(dateIn(tz, new Date(day))), Date.now(), !!first?.venue)} />}
 
       {data.chase.length > 0 && <Chase rows={data.chase} tz={tz} />}
 

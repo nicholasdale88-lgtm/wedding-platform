@@ -52,7 +52,7 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
       else setLeft(share);
     }, 80);
     return () => window.clearInterval(id);
-  }, [at, playing, voice, done, recorded, ms]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [at, playing, voice, done, recorded, ms]);
 
   useEffect(() => {
     if (recorded || done || !playing || !voice || typeof speechSynthesis === 'undefined') return;

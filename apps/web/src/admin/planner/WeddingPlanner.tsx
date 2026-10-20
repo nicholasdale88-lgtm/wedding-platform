@@ -26,7 +26,7 @@ import { Vendors } from './Vendors';
  * comparisons, the finder near the venue) and the planning assistant. ?view= picks the page.
  */
 
-type View = 'glance' | 'insights' | 'ideas' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
+type View = 'glance' | 'ideas' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
 /** The planner's pages, in three groups (the menu shows them all, so nothing hides behind "more"). */
 const GROUPS: { title: string; views: [View, string][] }[] = [
   {
@@ -53,7 +53,6 @@ const GROUPS: { title: string; views: [View, string][] }[] = [
     views: [
       ['ideas', 'Ideas'],
       ['gifts', 'Gifts & thank-yous'],
-      ['insights', 'Progress'],
       ['assistant', 'Ask the assistant'],
     ],
   },
@@ -94,7 +93,7 @@ function Planner() {
           </button>
         ))}
       </nav>
-      {view === 'glance' ? <Glance go={go} /> : view === 'insights' ? <Insights /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
+      {view === 'glance' ? <Glance go={go} /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );
 }
@@ -267,6 +266,12 @@ function Glance({ go }: { go: (v: View) => void }) {
           ))}
         </section>
       )}
+
+      {/* Progress: replies, money, the plan and how guests are using the site (it used to be a page of its own). */}
+      <section aria-label="Progress" className="flex flex-col gap-3 pt-2">
+        <H2>Progress</H2>
+        <Insights />
+      </section>
 
       <section aria-label="Ask the assistant" className="flex justify-between items-center gap-3 flex-wrap p-4 rounded-[16px] bg-[#33402f] text-[#f3ecd6]">
         <span className="text-[15px]">Not sure what's next? The assistant knows your dates, budget, vendors and wedding party.</span>
