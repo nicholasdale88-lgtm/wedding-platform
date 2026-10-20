@@ -3,6 +3,15 @@ import type { EventInfo, Recipient, WeddingCtx } from './types';
 
 const firstName = (full: string) => full.trim().split(/\s+/)[0] ?? full;
 
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+/** {rsvp_by}: the day replies close ("Wednesday 18 August"), or "the RSVP date" when none is set. */
+export function rsvpBy(close: string | undefined): string {
+  if (!close || !/^\d{4}-\d{2}-\d{2}$/.test(close)) return 'the RSVP date';
+  const d = new Date(`${close}T12:00:00Z`);
+  return `${DAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
 /** Personal page URLs. The first event's guide is `{guide}`; others are `{guide_<key>}`. */
 export function links(w: WeddingCtx, events: EventInfo[], r: Recipient) {
   const base = `${w.baseUrl.replace(/\/+$/, '')}/w/${w.slug}`;
@@ -44,6 +53,7 @@ export function renderFor(
     couple: `${firstName(w.name1)} & ${firstName(w.name2)}`,
     partner1: firstName(w.name1),
     partner2: firstName(w.name2),
+    rsvp_by: rsvpBy(w.rsvpClose),
     ...(r.tableName ? { table: r.tableName } : {}),
     ...links(w, events, r),
   });

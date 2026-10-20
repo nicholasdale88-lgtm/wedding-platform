@@ -77,6 +77,15 @@ describe('inbound replies', () => {
     expect(await text(phoneOf(3), 'Can I bring my dog?')).toBe('Needs you');
   });
 
+  it('replies say until when a reply can change: the RSVP date when it is set', async () => {
+    expect(await text(phoneOf(3), 'No sorry')).toBe('RSVP set to no');
+    expect(toPhone(phoneOf(3)).at(-1)!.message).toContain('If plans change before the RSVP date:');
+    t.store.weddingList[0]!.rsvpClose = '2027-08-18';
+    t.clock.set('2026-10-21T11:00');
+    expect(await text(phoneOf(6), 'Yes!')).toBe('RSVP set to yes');
+    expect(toPhone(phoneOf(6)).at(-1)!.message).toContain('until Wednesday 18 August:');
+  });
+
   it('an unknown number is forwarded', async () => {
     expect(await text('0499 111 222', 'Who is this?')).toBe('Unknown number');
     expect(toPhone(ADMIN).at(-1)!.message).toBe('Reply from +61499111222: Who is this?');

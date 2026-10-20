@@ -2,7 +2,7 @@
 
 export const PLACEHOLDERS = [
   'first', 'link', 'guide', 'photos', 'pending', 'couple', 'partner1', 'partner2', 'event', 'date', 'venue', 'table',
-  'arrive_by',
+  'arrive_by', 'rsvp_by',
 ] as const;
 export type Placeholder = (typeof PLACEHOLDERS)[number];
 

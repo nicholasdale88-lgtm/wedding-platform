@@ -16,8 +16,8 @@ export interface InboundSms {
 }
 
 export const DEFAULT_REPLIES = {
-  yes: "Wonderful, {first}! You're down as coming to {event}. Add numbers and dietary needs here: {link}",
-  no: "Thanks for letting us know, {first}. We'll miss you! If plans change: {link}",
+  yes: "Wonderful, {first}! You're down as coming to {event}. Add numbers and dietary needs (or change your reply) until {rsvp_by}: {link}",
+  no: "Thanks for letting us know, {first}. We'll miss you! If plans change before {rsvp_by}: {link}",
   multi: "Thanks {first}! You're invited to more than one celebration, so please reply for each one here: {link}",
 };
 
@@ -152,7 +152,7 @@ export async function processInbound(d: EngineDeps, row: InboundRow): Promise<In
   }
   if (reply && noted) reply = { ...reply, body: `${reply.body} ${noted}`.slice(0, 600), parts: segments(`${reply.body} ${noted}`.slice(0, 600)).parts };
   else if (!reply && noted) {
-    const m = renderFor(`Thanks {first}! ${noted} You can change it any time: {link}`, w, events, r);
+    const m = renderFor(`Thanks {first}! ${noted} You can change it until {rsvp_by}: {link}`, w, events, r);
     reply = toRow(w, r.id, `reply:${id}`, 'reply', r.phone!, m.body);
     action = 'Dietary noted';
   } else if (!reply && !shared && !diets.length) {

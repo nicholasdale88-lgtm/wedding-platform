@@ -16,7 +16,7 @@ const campaign = (key: string, mode: Campaign['mode'], audience: Audience, body:
 /** The schedule from docs/05, using the seed's wording. */
 export const CAMPAIGNS: Campaign[] = [
   campaign('invite', 'auto', { all: true }, 'Hi {first}, Sophie and Nicholas would love you to celebrate with them at Glenworth Valley in November 2027. Your invitation and RSVP: {link}', { trigger: 'invitation_created' }),
-  campaign('thanks', 'auto', { all: true }, "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. Change your reply any time: {link}", { trigger: 'rsvp_changed' }),
+  campaign('thanks', 'auto', { all: true }, "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. You can change your reply until {rsvp_by}: {link}", { trigger: 'rsvp_changed' }),
   campaign('reminder', 'dates', { invitedBefore: true, awaitingAny: true }, 'Hi {first}, a gentle reminder to RSVP for {pending} by 18 August 2027. It only takes a minute: {link}'),
   campaign('ride', 'dates', { attending: '30th', answer: { event: '30th', key: 'ride', notIn: ['No, not riding'] } }, 'Hi {first}, riding on Sat 20 Nov? Please book the 10:00am session by 20 August.'),
   campaign('nightW', 'dates', { attending: 'wedding' }, 'Hi {first}, see you tomorrow! Your table, menu and parking: {guide} Love, S & N'),

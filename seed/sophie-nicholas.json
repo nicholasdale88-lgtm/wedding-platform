@@ -214,7 +214,7 @@
   {
    "k": "thanks",
    "label": "Thank you for replying",
-   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. Change your reply any time: {link}"
+   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. You can change your reply until {rsvp_by}: {link}"
   },
   {
    "k": "ride",
@@ -303,7 +303,7 @@
    "on": true,
    "name": "RSVP thank-you",
    "aud": "each guest the moment they reply",
-   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. Change your reply any time: {link}",
+   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. You can change your reply until {rsvp_by}: {link}",
    "excl": [],
    "status": "",
    "sentAt": ""
@@ -365,7 +365,7 @@
    "on": true,
    "name": "RSVP thank-you",
    "aud": "each guest the moment they reply",
-   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. Change your reply any time: {link}",
+   "text": "Thanks {first}, we have your RSVP. We can't wait to celebrate with you. You can change your reply until {rsvp_by}: {link}",
    "excl": [],
    "status": "",
    "sentAt": ""

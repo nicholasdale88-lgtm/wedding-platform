@@ -51,6 +51,8 @@ export interface WeddingCtx {
   invitesFromCustom?: boolean;
   /** 'free' weddings send no texts (the plan doesn't include them). */
   plan?: string;
+  /** Replies close on this day (yyyy-mm-dd, Setup → Invitation); {rsvp_by} in texts. */
+  rsvpClose?: string;
 }
 
 export interface EventInfo {

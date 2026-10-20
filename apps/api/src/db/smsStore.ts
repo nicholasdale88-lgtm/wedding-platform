@@ -361,6 +361,10 @@ export class D1SmsStore implements SmsStore {
       walletCredits: w.wallet_credits, optOutFooter: w.sms_optout_footer, baseUrl: this.baseUrl,
       replies: parseJson(w.sms_replies, {}),
       plan: w.plan,
+      rsvpClose: (() => {
+        const close = parseJson<{ invitation?: { rsvpClose?: unknown } }>(w.content, {}).invitation?.rsvpClose;
+        return typeof close === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(close) ? close : '';
+      })(),
       ...invitesFrom(w.invites_from, w.first_event),
     };
   }
@@ -394,6 +398,7 @@ interface WeddingRow {
   sms_paused: number; sms_sender: string | null; admin_mobile: string | null; sms_daily_cap: number; sms_rate_cents_x100: number;
   wallet_credits: number | null; sms_optout_footer: string; sms_replies: string; invites_from: string | null; first_event: string | null;
   plan: string;
+  content: string;
 }
 interface EventRow { id: string; key: string; name: string; pending_label: string; sort: number }
 interface InvitationRow { id: string; token: string; phone: string | null; seats_held: number; sms_optout: number; stopped: number }
