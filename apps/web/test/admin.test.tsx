@@ -85,6 +85,31 @@ describe('addresses', () => {
   });
 });
 
+describe('messages', () => {
+  const thread = (id: string, name: string, events: string[], unread: number) => ({
+    invitationId: id, name, canText: true, last: { body: `Hi from ${name}`, at: '2026-10-19T00:00:00.000Z', from: 'guest' }, unread, kinds: [], events,
+  });
+  const threads = [thread('g1', 'Robin Hart', ['wedding', 'brunch'], 1), thread('g2', 'Jo Banks', ['wedding'], 2)];
+
+  it("each event's Messages shows its own guests; Account has an overview of every event", async () => {
+    mockApi({ '/api/a/w/w1/messages': () => json(200, { threads }) });
+    renderAt('/admin/w1/brunch/messages');
+    expect(await screen.findByText('Robin Hart')).toBeInTheDocument();
+    expect(screen.queryByText('Jo Banks')).toBeNull(); // not invited to the brunch
+    expect(screen.queryByRole('tab', { name: 'Email' })).toBeNull(); // email and the board are in Account
+  });
+
+  it('Account → Messages: unread and the latest conversations per event, each opening that event', async () => {
+    mockApi({ '/api/a/w/w1/messages': () => json(200, { threads }) });
+    renderAt('/admin/w1/account/messages');
+    const wedding = await screen.findByRole('region', { name: 'The wedding messages' });
+    expect(within(wedding).getByText('3 unread')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Recovery brunch messages' })).getByText('1 unread')).toBeInTheDocument();
+    await userEvent.click(within(wedding).getByRole('link', { name: /Jo Banks/ }));
+    expect(location).toBe('/admin/w1/wedding/messages?c=g2');
+  });
+});
+
 describe('your account', () => {
   const profile = {
     id: 'u1', email: 'owner@example.com', firstName: '', lastName: '', mobile: '', state: '', postcode: '', heardFrom: '',

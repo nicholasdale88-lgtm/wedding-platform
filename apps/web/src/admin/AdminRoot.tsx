@@ -95,7 +95,7 @@ function OldAddress() {
 }
 
 /** Pages that belong to Account only, or to an event only; the rest (Overview, SMS) exist in both. */
-const ACCOUNT_ONLY = new Set<string>(['messages', 'settings', 'events', 'look']);
+const ACCOUNT_ONLY = new Set<string>(['settings', 'events', 'look']);
 const EVENT_ONLY = new Set<string>(['guests', 'dietary', 'seating', 'party', 'day', 'photos', 'pages', 'planner']);
 /** Budget, Vendors and the assistant were Account pages; they're views of the Wedding planner now. */
 const PLANNER_VIEWS = new Set<string>(['budget', 'vendors', 'assistant']);

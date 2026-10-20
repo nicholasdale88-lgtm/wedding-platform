@@ -59,7 +59,7 @@ export function messageRoutes(deps: (env: Env) => EngineDeps) {
   app.get('/', async (c) => {
     const db = c.env.DB;
     const w = wid(c);
-    const [msgs, rsvps, texts, names] = await db.batch([
+    const [msgs, rsvps, texts, names, invited] = await db.batch([
       db.prepare(`SELECT invitation_id, from_guest, kind, body, created_at, read_at FROM message WHERE wedding_id = ?`).bind(w),
       db.prepare(`SELECT r.invitation_id, r.message AS body, r.updated_at AS created_at FROM rsvp r JOIN invitation i ON i.id = r.invitation_id WHERE i.wedding_id = ? AND r.message <> ''`).bind(w),
       db.prepare(`SELECT invitation_id, body, received_at AS created_at, action, handled FROM sms_in WHERE wedding_id = ? AND invitation_id IS NOT NULL AND type = 'inbound'`).bind(w),
@@ -67,14 +67,18 @@ export function messageRoutes(deps: (env: Env) => EngineDeps) {
         `SELECT i.id, i.phone, (SELECT GROUP_CONCAT(name, ' & ') FROM (SELECT name FROM person WHERE invitation_id = i.id AND deleted_at IS NULL ORDER BY idx)) AS names
            FROM invitation i WHERE i.wedding_id = ? AND i.deleted_at IS NULL`,
       ).bind(w),
+      // Which events each guest is invited to: an event's Messages shows its own guests' conversations.
+      db.prepare(`SELECT ie.invitation_id, e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id WHERE e.wedding_id = ? AND e.deleted_at IS NULL`).bind(w),
     ]);
-    type T = { invitationId: string; name: string; canText: boolean; last: { body: string; at: string; from: 'guest' | 'couple' }; unread: number; kinds: string[] };
+    type T = { invitationId: string; name: string; canText: boolean; last: { body: string; at: string; from: 'guest' | 'couple' }; unread: number; kinds: string[]; events: string[] };
+    const eventsOf = new Map<string, string[]>();
+    for (const r of invited!.results as { invitation_id: string; key: string }[]) eventsOf.set(r.invitation_id, [...(eventsOf.get(r.invitation_id) ?? []), r.key]);
     const who = new Map((names!.results as { id: string; phone: string | null; names: string | null }[]).map((r) => [r.id, r]));
     const threads = new Map<string, T>();
     const touch = (inv: string, body: string, at: string, from: 'guest' | 'couple', unread: boolean, kind?: string) => {
       const p = who.get(inv);
       if (!p) return; // a removed guest
-      const t = threads.get(inv) ?? { invitationId: inv, name: p.names || 'A guest', canText: !!p.phone, last: { body, at, from }, unread: 0, kinds: [] };
+      const t = threads.get(inv) ?? { invitationId: inv, name: p.names || 'A guest', canText: !!p.phone, last: { body, at, from }, unread: 0, kinds: [], events: eventsOf.get(inv) ?? [] };
       if (at >= t.last.at) t.last = { body, at, from };
       if (unread) t.unread++;
       if (kind && kind !== 'message' && !t.kinds.includes(kind)) t.kinds.push(kind);

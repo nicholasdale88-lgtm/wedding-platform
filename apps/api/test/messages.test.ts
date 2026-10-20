@@ -42,6 +42,10 @@ describe('messages', () => {
     const mine = list.threads.find((x) => x.invitationId === ella.id)!;
     expect(mine).toMatchObject({ unread: 2, last: { body: 'Is there parking for a minibus?' } });
     expect(mine.kinds.sort()).toEqual(['question', 'support']);
+    // Each conversation says which events the guest is invited to (an event's Messages shows its own guests).
+    const invited = (await t.db.prepare(`SELECT e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id WHERE ie.invitation_id = ?`).bind(ella.id).all<{ key: string }>()).results.map((r) => r.key);
+    expect(invited.length).toBeGreaterThan(0);
+    expect((mine as unknown as { events: string[] }).events.sort()).toEqual(invited.sort());
     const overview = (await (await app.request(`/api/a/w/${wid}/overview`, { headers: { cookie } }, env, ctx)).json()) as { needsYou: { kind: string; link: string }[] };
     expect(overview.needsYou.find((n) => n.kind === 'inbox')).toMatchObject({ link: 'messages' });
 

@@ -90,6 +90,7 @@ export const EVENT_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'planner', label: 'Wedding planner' }, // the first event's section only (budget, vendors, assistant…)
   { key: 'guests', label: 'Guests' }, // guest list, dietary and seating together (GuestPlanningBar)
+  { key: 'messages', label: 'Messages' }, // this event's guests' messages (Account has the overview)
   { key: 'party', label: 'Wedding party' }, // the first event's section only (its views open under it)
   { key: 'day', label: 'Day checklist' }, // every other event (a birthday has no wedding party)
   { key: 'texts', label: 'Texts' },
@@ -381,7 +382,7 @@ function BottomBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean
         </>
       ),
     },
-    { key: 'messages', label: 'Messages', to: path('messages', ALL_EVENTS), on: tab === 'messages', badge: unread, icon: <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" /> },
+    { key: 'messages', label: 'Messages', to: path('messages', inEvent ? event : ALL_EVENTS), on: tab === 'messages', badge: unread, icon: <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-5 4v-4H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" /> },
     ...(first
       ? [
           {
