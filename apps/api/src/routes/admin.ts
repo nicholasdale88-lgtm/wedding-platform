@@ -234,7 +234,13 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       ok.push({ people, phone, seats: r.seats ?? people.length, party: r.party ?? '', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
     });
 
-    if (c.req.query('dry') || problems.length) return c.json({ added: 0, wouldAdd: ok.length, skipped, problems, dry: true }, problems.length && !c.req.query('dry') ? 400 : 200);
+    if (c.req.query('dry') || problems.length) {
+      const refused = problems.length > 0 && !c.req.query('dry');
+      return c.json(
+        { added: 0, wouldAdd: ok.length, skipped, problems, dry: true, ...(refused ? { error: { code: 'problems', message: `${problems.length} ${problems.length === 1 ? 'row needs' : 'rows need'} fixing first.` } } : {}) },
+        refused ? 400 : 200,
+      );
+    }
 
     const t = now();
     // D1 batches are all-or-nothing and up to ~100 statements: pack whole guests, never half of one.
