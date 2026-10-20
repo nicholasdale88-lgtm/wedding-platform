@@ -216,11 +216,13 @@ describe('your account', () => {
 });
 
 describe('add your partner', () => {
-  it('while only you can sign in, Account shows a card that opens the invite with the email box ready', async () => {
+  it('while only you can sign in, Account → Setting up opens the invite with the email box ready', async () => {
     const members = { you: { id: 'u1', role: 'owner' }, members: [{ id: 'u1', email: 'owner@example.com', name: 'Alex Smith', role: 'owner', lastLoginAt: null }], invites: [] };
     mockApi({ '/api/a/w/w1/members': () => json(200, members) });
     renderAt('/admin/w1/account/overview');
-    await userEvent.click(await screen.findByRole('button', { name: 'Add your partner or a helper' }));
+    const step = (await screen.findByText('Add your partner or a helper')).closest('li')!;
+    await waitFor(() => expect(within(step).getByLabelText('To do')).toBeInTheDocument());
+    await userEvent.click(within(step).getByRole('button', { name: 'Set up' }));
     expect(location).toBe('/admin/w1/account/settings?view=people&invite=1');
     await waitFor(() => expect(screen.getByLabelText('Their email')).toHaveFocus());
     expect(screen.getByLabelText('They can')).toHaveValue('owner');
@@ -266,7 +268,7 @@ describe('Overview', () => {
     await userEvent.click(await screen.findByRole('button', { name: /Planning dashboard/ }));
     const tasks = await screen.findByRole('region', { name: 'Planning tasks' });
     expect(within(tasks).getByText('33%')).toBeInTheDocument();
-    const glance = screen.getByRole('region', { name: 'At a glance' });
+    const glance = screen.getByRole('region', { name: 'Key figures' });
     expect(within(glance).getByText('1/3')).toBeInTheDocument();
     expect(within(glance).getByText('1 overdue')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Tasks by person' })).toHaveTextContent(/Alex.*1\/2/);
@@ -275,18 +277,29 @@ describe('Overview', () => {
     expect(screen.getByRole('region', { name: 'Budget' })).toHaveTextContent('$5,000 paid · $12,000 committed · $30,000 budget');
   });
 
-  it('shows answered, figures per event, Needs you and latest replies', async () => {
-    mockApi();
-    renderAt('/admin/w1/account/overview');
+  it("an event's overview: replies, its figures, Needs you and latest replies", async () => {
+    mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
+    renderAt('/admin/w1/wedding/overview');
     expect(await screen.findByRole('heading', { name: '2 of 3 invitations answered' })).toBeInTheDocument();
-    expect(screen.getByText('138 days until the big day')).toBeInTheDocument();
-    // Account is about you overall: no event-by-event figures (those are in each event's section).
-    expect(screen.getByRole('button', { name: /Coming\s*1\s*invitations said yes/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Recovery brunch\s*2\s*guests coming/ })).toBeNull();
+    expect(screen.getByText('138 days to the wedding')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Wedding\s*2\s*guests coming/ })).toBeInTheDocument();
     const needs = screen.getByRole('region', { name: 'Needs you' });
     expect(within(needs).getByText('2 things to do')).toBeInTheDocument();
     expect(within(needs).getByText('1 invitation has no mobile')).toBeInTheDocument();
     expect(screen.getByText('Casey Lund')).toBeInTheDocument();
+  });
+
+  it('Account → Overview is the setup home: what to set up, plan, who signs in, backups, and each event as a card', async () => {
+    mockApi();
+    renderAt('/admin/w1/account/overview');
+    expect(await screen.findByRole('heading', { name: 'Your wedding admin' })).toBeInTheDocument();
+    const setup = screen.getByRole('region', { name: 'Setting up' });
+    for (const t of ['Your names and the date', 'Your guests', 'Texting', 'Add your partner or a helper', 'Keep it private']) expect(within(setup).getByText(t)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Your plan/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Backups/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /invitations answered/ })).toBeNull(); // figures are in each event
+    await userEvent.click(within(screen.getByRole('region', { name: 'Your events' })).getByRole('button', { name: /Recovery brunch/ }));
+    expect(location).toBe('/admin/w1/brunch/overview');
   });
 
   it('Needs you buttons go straight to the fix', async () => {

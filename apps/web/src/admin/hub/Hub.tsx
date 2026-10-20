@@ -126,7 +126,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
 
   return (
     <div className="flex flex-col gap-[34px]">
-      <section aria-label="At a glance" className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
+      <section aria-label="Key figures" className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
         {kpis.map((k) => (
           <button key={k.label} type="button" onClick={k.go} className="flex flex-col gap-1 p-4 border-0 bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6] min-w-0">
             <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{k.label}</span>

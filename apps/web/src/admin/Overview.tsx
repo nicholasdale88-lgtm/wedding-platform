@@ -1,11 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtWhen, shortLabel } from '../lib/format';
-import { Events } from './events/Events';
+import { AccountHome, NeedsYou } from './AccountHome';
 import { Hub } from './hub/Hub';
-import { accountApi } from '../lib/api';
-import { ALL_EVENTS, useAdmin, useSectionOverview } from './Shell';
-import { ErrorState, Eyebrow, H2, Loading, Pill, useMedia, useToast } from './ui';
+import { useAdmin, useSectionOverview } from './Shell';
+import { ErrorState, Eyebrow, H2, Loading, useMedia, useToast } from './ui';
 
 const pc = (n: number, total: number) => `${total ? ((n / total) * 100).toFixed(1) : 0}%`;
 const dot = (bg: string, border?: string) => (
@@ -22,6 +21,8 @@ export function Overview() {
   const to = (link: string, event?: string) => go(path(link, event));
   if (error && !o) return <ErrorState message={error} onRetry={() => void reload()} />;
   if (!o) return <Loading />;
+  // Account: the setup and settings home. Each event's overview is below.
+  if (!o.focus) return <AccountHome o={o} to={to} />;
   const tz = o.wedding.timezone;
   // The event switcher: figures are about the event being looked at.
   const shown = o.focus ? o.events.filter((e) => e.key === o.focus) : o.events;
@@ -41,8 +42,6 @@ export function Overview() {
 
   return (
     <div className="flex flex-col gap-[34px]">
-      {!o.focus && <GettingStarted o={o} to={to} />}
-      {!o.focus && <AddPartner />}
       <header className="flex flex-col gap-[14px]">
         {firstEvent && o.daysToGo !== null && <Eyebrow>{o.focus ? `${o.daysToGo} days to ${firstEvent.name.replace(/^the\s+/i, 'the ')}` : `${o.daysToGo} days until the big day`}</Eyebrow>}
         <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance]">
@@ -72,29 +71,7 @@ export function Overview() {
       {/* Quick actions belong to an event: its guests, its messages, its texts. */}
       {o.focus && <Today o={o} to={to} event={o.focus} />}
 
-      <section className="flex flex-col gap-1" aria-label="Needs you">
-        <div className="flex justify-between items-baseline gap-3 mb-[6px]">
-          <H2>Needs you</H2>
-          {o.needsYou.length > 0 && (
-            <span className="text-[13px] text-[#5b6a52]">{o.needsYou.length} {o.needsYou.length === 1 ? 'thing' : 'things'} to do</span>
-          )}
-        </div>
-        {o.needsYou.map((t) => (
-          <div key={t.kind} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-center py-[13px] border-t border-[#e2d7bc]">
-            <span className="w-[18px] h-[18px] rounded-full border-[1.5px] border-[#8a5a45]" />
-            <span className="min-w-0">
-              <span className="block font-semibold">{t.title}</span>
-              <span className="block text-[13px] text-[#5b6a52] mt-[2px]">{t.detail}</span>
-            </span>
-            <button onClick={() => to(t.link, t.event)} className="py-2 px-[14px] min-h-[40px] rounded-full border border-[var(--adm-ink,#33402f)] bg-transparent text-[13px] font-medium cursor-pointer whitespace-nowrap hover:bg-[var(--adm-ink,#33402f)] hover:text-[#f3ecd6]">
-              {t.cta}
-            </button>
-          </div>
-        ))}
-        {o.needsYou.length === 0 && (
-          <div className="py-4 border-t border-[#e2d7bc] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>
-        )}
-      </section>
+      <NeedsYou o={o} to={to} />
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-[34px]">
         <section className="flex flex-col" aria-label="Latest replies">
@@ -133,7 +110,6 @@ export function Overview() {
         </Dashboard>
       )}
 
-      {!o.focus && <AddEventToggle />}
     </div>
   );
 }
@@ -201,93 +177,5 @@ function Dashboard({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Account → Overview, while only one person can sign in: a card to add your partner (or a helper) as an
- * admin. It opens Settings → Who can sign in with the email box ready. Owners only; gone once someone joins.
- */
-function AddPartner() {
-  const { wid, path } = useAdmin();
-  const go = useNavigate();
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    let live = true;
-    accountApi.members(wid).then(
-      (m) => live && setShow(m.you.role === 'owner' && m.members.length === 1 && m.invites.length === 0),
-      () => undefined,
-    );
-    return () => {
-      live = false;
-    };
-  }, [wid]);
-  if (!show) return null;
-  return (
-    <section aria-label="Add your partner" className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-      <span className="flex flex-col gap-1 min-w-0">
-        <H2>Run it together</H2>
-        <span className="text-[14px] text-[#5b6a52]">Only you can sign in. Add your partner (or a planner or helper) so they can see and change everything too.</span>
-      </span>
-      <Pill kind="primary" onClick={() => go(`${path('settings', ALL_EVENTS)}?view=people&invite=1`)}>
-        Add your partner or a helper
-      </Pill>
-    </section>
-  );
-}
 
-/** "+ Add an event" opens the form only when you want it. */
-function AddEventToggle() {
-  const [open, setOpen] = useState(false);
-  if (open) return <Events addOnly />;
-  return (
-    <Pill kind="dashed" className="self-start" onClick={() => setOpen(true)}>
-      + Add an event
-    </Pill>
-  );
-}
 
-/**
- * Account → Overview, for a couple starting out: the order to set things up, each step ticked off as
- * it's done, opening the right place. Gone once the essentials are done.
- */
-function GettingStarted({ o, to }: { o: NonNullable<ReturnType<typeof useAdmin>['overview']>; to: (link: string, event?: string) => void }) {
-  const first = o.events[0]?.key;
-  const steps = [
-    { done: !!(o.wedding.name1.trim() && o.wedding.name2.trim()), title: 'Your invitation', detail: 'Names, colours, photo and wording (in your first event).', link: 'pages', event: first },
-    { done: o.events.length > 0, title: 'Your events', detail: 'Add each celebration below, with its date and place.', link: 'overview', event: 'all' },
-    { done: o.nav.guests > 0, title: 'Your guests', detail: 'Import your list or add guests in an event.', link: 'guests?show=all', event: first },
-    { done: o.nav.smsLive, title: 'Texting', detail: 'Add your texting number so invitations and reminders send.', link: 'texts', event: 'all' },
-    { done: o.nav.smsLive && o.nav.guests > 0 && o.nav.autopilot > 0, title: 'Invitations and reminders', detail: 'Check the send date and messages in each event.', link: 'texts', event: first },
-  ];
-  const left = steps.filter((s) => !s.done).length;
-  if (!left) return null;
-  return (
-    <section aria-label="Getting started" className="flex flex-col gap-2 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-      <div className="flex justify-between items-baseline gap-3 flex-wrap">
-        <H2>Getting started</H2>
-        <span className="text-[13px] text-[#5b6a52]">
-          {steps.length - left} of {steps.length} done
-        </span>
-      </div>
-      <ol className="m-0 p-0 list-none flex flex-col">
-        {steps.map((s, i) => (
-          <li key={s.title} className="grid grid-cols-[28px_minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[#ece3cc]">
-            <span
-              aria-label={s.done ? 'Done' : 'To do'}
-              className={`w-[24px] h-[24px] rounded-full flex items-center justify-center text-[13px] font-semibold ${s.done ? 'bg-[var(--adm-accent,#5d6b47)] text-[#f3ecd6]' : 'border-[1.5px] border-[#c6b794] text-[#5b6a52]'}`}
-            >
-              {s.done ? '✓' : i + 1}
-            </span>
-            <span className="min-w-0">
-              <span className={`block font-semibold ${s.done ? 'opacity-60' : ''}`}>{s.title}</span>
-              <span className="block text-[13px] text-[#5b6a52]">{s.detail}</span>
-            </span>
-            {!s.done && (
-              <button type="button" onClick={() => to(s.link, s.event)} className="py-2 px-[14px] rounded-full border border-[#33402f] bg-transparent text-[13px] font-medium cursor-pointer whitespace-nowrap hover:bg-[#33402f] hover:text-[#f3ecd6]">
-                Go
-              </button>
-            )}
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
