@@ -125,7 +125,15 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     admin(w, path, { method: 'DELETE', ...(version !== undefined ? { headers: { 'If-Match': String(version) } } : {}) }, cookie);
   /** A guest-facing page for the wedding. */
   const pub = (w: W, path: string, init: Init = {}, ip = 'local') => send(`/p/${w.slug}${path}`, init, '', ip);
-  const rsvp = (w: W, token: string, body: Record<string, unknown>, ip: string) => pub(w, '/rsvp', { method: 'POST', body: JSON.stringify({ token, ...body }) }, ip);
+  /** A guest's reply. Like the real page, a "busy, try again" (503) is retried a few times; only the final answer counts. */
+  const rsvp = async (w: W, token: string, body: Record<string, unknown>, ip: string) => {
+    const init = { method: 'POST', body: JSON.stringify({ token, ...body }), headers: { 'content-type': 'application/json', 'CF-Connecting-IP': ip } };
+    for (let i = 0; ; i++) {
+      const r = await app.request(`/api/p/${w.slug}/rsvp`, init, env, ctx);
+      if (r.status !== 503 || i === 5) return record(`POST /p/${w.slug}/rsvp`, r);
+      await new Promise((ok) => setTimeout(ok, 150 + Math.random() * 400));
+    }
+  };
   /** Send in waves of `size` at once (all of a wave concurrently). */
   const inWaves = async <T>(items: T[], size: number, fn: (x: T, i: number) => Promise<Response>) => {
     const out: Response[] = [];
