@@ -342,6 +342,12 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
   it('4. a two-event weekend: the wedding and a recovery brunch, invited separately, counted per event', { timeout: 90_000 }, async () => {
     const date = day(180);
     const w = await signup({ firstName: 'Amelia', partnerName: 'Hugo', email: 'amelia.hugo@example.com', date });
+    // Free includes one event: a second asks for the add-on, then works once it's paid for.
+    const early = await post(w, '/events', { name: 'Recovery brunch', startsAt: `${day(181)}T00:00:00.000Z` });
+    expect(early.status).toBe(402);
+    expect((await read<ApiError>(early)).error).toMatchObject({ code: 'upgrade', feature: 'extraEvent' });
+    expect((await events(w)).length).toBe(1);
+    await upgrade(w, 'essentials');
     const ev = await post(w, '/events', { name: 'Recovery brunch', startsAt: `${day(181)}T00:00:00.000Z`, venue: 'The Boathouse, Palm Beach', catered: false });
     expect(ev.status).toBe(201);
     expect((await read<{ added: string }>(ev)).added).toBe('recovery-brunch');
