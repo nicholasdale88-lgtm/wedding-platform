@@ -86,8 +86,46 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
         </label>
         )}
       </div>
+      {/* Phones: one card per person (the table below is for wider screens). */}
       {glam.people.length > 0 && (
-        <div className="overflow-x-auto">
+        <div className="flex flex-col gap-2 sm:hidden">
+          {glam.people.map((p) => {
+            const r = byId.get(p.id);
+            return (
+              <div key={p.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-white">
+                <div className="flex gap-2 items-center">
+                  <input aria-label="Who" value={p.who} maxLength={80} onChange={(e) => setP(p.id, { who: e.target.value })} className={`${inputCls} !py-2 flex-1 min-w-0`} />
+                  <button type="button" aria-label={`Remove ${p.who}`} onClick={() => set({ ...glam, people: glam.people.filter((x) => x.id !== p.id) }, true)} className="w-10 h-10 flex-none rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer text-[#7a7466] text-[18px]">
+                    ×
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 text-[14px]">
+                  <input type="checkbox" aria-label={`${p.who}: hair`} checked={p.hair} onChange={(e) => setP(p.id, { hair: e.target.checked }, true)} className="w-5 h-5 accent-[#5d6b47]" />
+                  Hair
+                  <Mins label={`${p.who} hair minutes`} value={p.hairMins} disabled={!p.hair} onValue={(n) => setP(p.id, { hairMins: n }, true)} />
+                  min
+                  <span className="ml-auto text-[12px] text-[#5b6a52] tabular-nums">{p.hair && timed ? span(r?.hair) : ''}</span>
+                </label>
+                {makeup && (
+                  <label className="flex items-center gap-2 text-[14px]">
+                    <input type="checkbox" aria-label={`${p.who}: makeup`} checked={p.makeup} onChange={(e) => setP(p.id, { makeup: e.target.checked }, true)} className="w-5 h-5 accent-[#5d6b47]" />
+                    Makeup
+                    <Mins label={`${p.who} makeup minutes`} value={p.makeupMins} disabled={!p.makeup} onValue={(n) => setP(p.id, { makeupMins: n }, true)} />
+                    min
+                    <span className="ml-auto text-[12px] text-[#5b6a52] tabular-nums">{p.makeup && timed ? span(r?.makeup) : ''}</span>
+                  </label>
+                )}
+                <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
+                  <input type="checkbox" aria-label={`${p.who} goes last`} checked={p.last} onChange={(e) => setP(p.id, { last: e.target.checked }, true)} className="w-5 h-5 accent-[#b39563]" />
+                  Goes last (freshest for the photos)
+                </label>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {glam.people.length > 0 && (
+        <div className="overflow-x-auto hidden sm:block">
           <table className={`w-full border-collapse text-[14px] ${makeup ? "min-w-[620px]" : "min-w-[440px]"}`}>
             <thead>
               <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[#5b6a52]">

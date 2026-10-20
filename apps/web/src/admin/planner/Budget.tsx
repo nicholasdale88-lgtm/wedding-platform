@@ -514,15 +514,15 @@ function Plan({ b, guests, coming, planned, onGuests, onSplit, onStandard }: { b
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-[14px] min-w-[560px]">
+        <table className="w-full border-collapse text-[14px] sm:min-w-[560px]">
           <thead>
             <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[#5b6a52]">
               <th className="py-1 font-semibold">Category</th>
-              <th className="py-1 font-semibold text-right">Share</th>
+              <th className={`py-1 font-semibold text-right ${open ? '' : 'hidden sm:table-cell'}`}>Share</th>
               <th className="py-1 font-semibold text-right">Allowed</th>
               <th className="py-1 font-semibold text-right">Planned</th>
               <th className="py-1 font-semibold text-right">Left</th>
-              <th className="py-1 font-semibold text-right">Per guest</th>
+              <th className="py-1 font-semibold text-right hidden sm:table-cell">Per guest</th>
             </tr>
           </thead>
           <tbody>
@@ -533,7 +533,7 @@ function Plan({ b, guests, coming, planned, onGuests, onSplit, onStandard }: { b
               return (
                 <tr key={category} className="border-t border-[#ece3cd]">
                   <td className="py-[6px]">{category}</td>
-                  <td className="py-[6px] text-right">
+                  <td className={`py-[6px] text-right ${open ? '' : 'hidden sm:table-cell'}`}>
                     {open ? (
                       <input
                         type="number"
@@ -551,18 +551,18 @@ function Plan({ b, guests, coming, planned, onGuests, onSplit, onStandard }: { b
                   <td className="py-[6px] text-right tabular-nums">{aud(allowed)}</td>
                   <td className="py-[6px] text-right tabular-nums">{have ? aud(have) : <span className="text-[#a39d8e]">—</span>}</td>
                   <td className={`py-[6px] text-right tabular-nums ${left < 0 ? 'text-[#7a4a37] font-semibold' : have ? 'text-[#3d4a2f]' : 'text-[#7a7466]'}`}>{left < 0 ? `${aud(-left)} over` : aud(left)}</td>
-                  <td className="py-[6px] text-right tabular-nums text-[#5b6a52]">{guests ? aud(allowed / guests) : '—'}</td>
+                  <td className="py-[6px] text-right tabular-nums text-[#5b6a52] hidden sm:table-cell">{guests ? aud(allowed / guests) : '—'}</td>
                 </tr>
               );
             })}
             {others.map(([cat, have]) => (
               <tr key={cat} className="border-t border-[#ece3cd] text-[#5b6a52]">
                 <td className="py-[6px]">{cat}</td>
-                <td className="py-[6px] text-right">—</td>
+                <td className={`py-[6px] text-right ${open ? '' : 'hidden sm:table-cell'}`}>—</td>
                 <td className="py-[6px] text-right">—</td>
                 <td className="py-[6px] text-right tabular-nums">{aud(have)}</td>
                 <td className="py-[6px]" />
-                <td className="py-[6px] text-right tabular-nums">{guests ? aud(have / guests) : '—'}</td>
+                <td className="py-[6px] text-right tabular-nums hidden sm:table-cell">{guests ? aud(have / guests) : '—'}</td>
               </tr>
             ))}
           </tbody>
