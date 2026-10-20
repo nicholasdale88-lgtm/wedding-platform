@@ -172,24 +172,24 @@ export function SmsMessages() {
         {!data.inbox.length && <div className="text-[14px] text-[#5b6a52]">No replies yet. When a guest texts back YES or NO it is handled for you and shows up here.</div>}
       </section>
 
-      {night && (
-        <section aria-label="Night before" className="flex flex-col gap-3">
-          <H2>The night before</H2>
-          <NightText eventKey={chosen} data={data} onChanged={load} />
-        </section>
-      )}
-
       {STAGES.map((stage) => {
         // The sidebar's event: its own messages, plus those that go to everyone.
         // The night-before text has its own card above (preview, time, on/off).
         const list = data.campaigns.filter((c) => stageOf(c) === stage.key && forEvent(c, chosen, data.events) && !(night && isNightBefore(c) && eventOf(c) === chosen));
-        if (!list.length) return null;
+        // The night before: this event's text (its card) and any others for the day, together under one heading.
+        const card = stage.key === 'night' && night;
+        if (!list.length && !card) return null;
         return (
-          <section key={stage.key} className="flex flex-col">
+          <section key={stage.key} aria-label={stage.title} className="flex flex-col">
             <div className="flex items-baseline justify-between gap-3 pb-1">
               <h2 className="m-0 font-display font-medium text-[24px]">{stage.title}</h2>
               <span className="text-[13px] text-[#7a7466]">{stage.hint}</span>
             </div>
+            {card && (
+              <div className="pb-2">
+                <NightText eventKey={chosen} data={data} onChanged={load} />
+              </div>
+            )}
             {list.map((c) => (
               <CampaignRow key={c.id} c={c} data={data} open={open === c.id} onOpen={() => setOpen(open === c.id ? null : c.id)} onToggle={() => void toggle(c)} onChanged={load} />
             ))}
@@ -224,7 +224,7 @@ type StageKey = 'invite' | 'auto' | 'night' | 'after' | 'own' | 'other';
 const STAGES: { key: StageKey; title: string; hint: string }[] = [
   { key: 'invite', title: 'Invitations & reminders', hint: 'before the reply-by date' },
   { key: 'auto', title: 'Thank-yous', hint: 'sent when a guest replies' },
-  { key: 'night', title: 'The night before', hint: 'directions, tables, weather' },
+  { key: 'night', title: 'The night before and the day', hint: 'directions, tables, weather' },
   { key: 'after', title: 'Afterwards', hint: 'photos and thanks' },
   { key: 'own', title: 'Your own messages', hint: 'sent when you choose' },
   { key: 'other', title: 'Other messages', hint: '' },

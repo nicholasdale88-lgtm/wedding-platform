@@ -103,6 +103,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   const [guest, setGuest] = useState<GuestInvitation | null>(data.invitation);
   const [p, setP] = useState(0);
   const [muted, setMuted] = useState(false);
+  /** The music has been started by a tap (opening the envelope, or the music button when it opened already). */
+  const started = useRef(false);
   const [form, setForm] = useState<Form>(() => formFrom(data.invitation, data));
   const [err, setErr] = useState('');
   const [sent, setSent] = useState(false);
@@ -155,6 +157,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       try {
         if (sessionStorage.getItem(`wp-preview-open-${slug}`)) {
           setP(4);
+          setMuted(true); // opened already, so no tap has started the music: the button starts it
           setTimeout(() => {
             const el = document.getElementById('inv-scroll');
             const y = Number(sessionStorage.getItem(`${openKey}-y`) ?? 0);
@@ -170,6 +173,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       const o = JSON.parse(store.get(openKey) ?? 'null') as { at: number } | null;
       if (o && Date.now() - o.at < 90 * 864e5) {
         setP(4);
+        setMuted(true); // opened before: the music button starts the music
         setTimeout(() => {
           const el = document.getElementById('inv-scroll');
           const y = Number(sessionStorage.getItem(`${openKey}-y`) ?? 0);
@@ -268,6 +272,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       }
     }
     audio.current?.play(); // inside the tap, so iOS allows it
+    started.current = true;
     setP(1);
     timers.current.push(setTimeout(() => setP(2), 1500), setTimeout(() => setP(3), 2700), setTimeout(() => setP(4), 4600));
   }, [openKey, preview, slug]);
@@ -419,6 +424,14 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     musicIcon: muted ? t('inv.dyn.musicOff') : t('inv.dyn.musicOn'),
     toggleMusic: (e: MouseEvent) => {
       e.stopPropagation();
+      if (!started.current) {
+        // Not started yet (the invitation opened already): this tap starts it.
+        started.current = true;
+        audio.current?.setMuted(false);
+        audio.current?.play();
+        setMuted(false);
+        return;
+      }
       audio.current?.setMuted(!muted);
       setMuted(!muted);
     },

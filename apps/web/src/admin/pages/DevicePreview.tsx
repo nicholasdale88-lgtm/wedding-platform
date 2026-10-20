@@ -98,7 +98,7 @@ function BrowserBar({ url }: { url: string }) {
 export function DevicePreview({ src, url, device, title, frameKey }: { src: string; url: string; device: Device; title: string; frameKey: string }) {
   const [ref, avail] = useWidth();
   const size = SIZE[device];
-  const frame = <iframe key={frameKey} src={src} title={title} className="block w-full flex-1 border-0 bg-white" />;
+  const frame = <iframe key={frameKey} src={src} title={title} allow="autoplay; encrypted-media; fullscreen" className="block w-full flex-1 border-0 bg-white" />;
 
   if (device === 'phone') {
     const outer = { w: size.w + 24, h: size.h + 24 };
