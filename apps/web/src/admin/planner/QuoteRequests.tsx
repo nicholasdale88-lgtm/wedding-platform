@@ -7,7 +7,8 @@ import { H2, inputCls, Label, Pill, useToast } from '../ui';
  * Wedding planner → Vendors → Quote requests: ask several vendors to price the same thing, line by line
  * (like a tender), and compare what comes back side by side.
  * 1. What for: the service. Its usual lines to price come filled in, and every one can be changed.
- * 2. Who: your vendors for that service are ticked already; add others as you go.
+ * 2. Who: your vendors for that service are ticked already; add anyone yourself (name, email or mobile),
+ *    then or later, from an open request.
  * 3. The email: a standard one for that service, ready to change. Each vendor's copy carries their own
  *    private link, where they price each line (or mark it not included).
  * Then: send by email or text (or copy the link), see who has opened and answered, and compare. Totals are
@@ -20,6 +21,8 @@ const newKey = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint
 const plusDays = (ymd: string, n: number) => new Date(Date.parse(`${ymd}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 const longDay = (ymd: string) => (ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) : '');
 const SERVICES = Object.entries(VENDOR_SEARCH).filter(([k]) => k !== 'jewellery');
+/** A vendor's place on a request: their own private link, nothing sent yet. */
+const askOf = (vendorId: string) => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '' });
 
 export function QuoteRequests({ list, rfqs, onSave, onOpen }: { list: Vendor[]; rfqs: Rfq[]; onSave: (list: Vendor[], rfqs: Rfq[], done?: string) => void; onOpen: (vendorId: string) => void }) {
   const { overview } = useAdmin();
@@ -109,7 +112,7 @@ function NewRequest({ list, today, onCancel, onMake }: { list: Vendor[]; today: 
         due,
         subject: subject.slice(0, 200),
         message: message.slice(0, 4000),
-        vendors: [...picked].map((vendorId) => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '' })),
+        vendors: [...picked].map(askOf),
         createdOn: today,
         closed: false,
       },
@@ -239,25 +242,69 @@ function NewRequest({ list, today, onCancel, onMake }: { list: Vendor[]; today: 
   );
 }
 
-function AddVendor({ category, onAdd }: { category: string; onAdd: (v: Vendor) => void }) {
+/**
+ * Add a vendor yourself (any florist, band or venue, in the directory or not): their name and an email or
+ * mobile to send the request to. They join your vendor list too. Optionally pick one already in your list.
+ */
+function AddVendor({ category, onAdd, existing = [], onPick }: { category: string; onAdd: (v: Vendor) => void; existing?: Vendor[]; onPick?: (v: Vendor) => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [problem, setProblem] = useState('');
   const add = () => {
-    if (!name.trim()) return;
+    setProblem('');
+    if (!name.trim()) return setProblem('Add their name.');
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setProblem('That email doesn’t look right.');
+    if (!email.trim() && !phone.trim()) return setProblem('Add an email or a mobile, so the request can reach them.');
     onAdd(Vendor.parse({ id: newId(), name: name.trim().slice(0, 120), category, status: 'requested', phone: phone.trim().slice(0, 40), email: email.trim().slice(0, 120) }));
     setName('');
     setEmail('');
     setPhone('');
   };
   return (
-    <div className="flex gap-2 flex-wrap items-end pt-1">
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add another: name" aria-label="New vendor name" className={`${inputCls} flex-1 min-w-[150px]`} />
-      <input value={email} type="email" onChange={(e) => setEmail(e.target.value)} placeholder="Email" aria-label="New vendor email" className={`${inputCls} flex-1 min-w-[150px]`} />
-      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Mobile" aria-label="New vendor mobile" className={`${inputCls} w-[130px]`} />
-      <Pill size="sm" disabled={!name.trim()} onClick={add}>
-        Add
-      </Pill>
+    <div className="flex flex-col gap-2 p-3 mt-1 rounded-[12px] border border-dashed border-[#c6b794] bg-[#fbf8f0]">
+      <strong className="text-[14px] font-semibold">Add a vendor yourself</strong>
+      <span className="text-[13px] text-[#5b6a52]">Anyone you’d like a quote from. They’re added to your vendor list too.</span>
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,1.2fr)_minmax(0,.8fr)_auto] items-end">
+        <Label text="Name">
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Wildflower Studio" aria-label="New vendor name" className={inputCls} />
+        </Label>
+        <Label text="Email">
+          <input value={email} type="email" onChange={(e) => setEmail(e.target.value)} placeholder="hello@…" aria-label="New vendor email" className={inputCls} />
+        </Label>
+        <Label text="Mobile">
+          <input value={phone} type="tel" onChange={(e) => setPhone(e.target.value)} placeholder="04xx xxx xxx" aria-label="New vendor mobile" className={inputCls} />
+        </Label>
+        <Pill kind="primary" size="sm" onClick={add}>
+          Add
+        </Pill>
+      </div>
+      {existing.length > 0 && onPick && (
+        <Label text="Or choose one already in your list">
+          <select
+            value=""
+            aria-label="Choose from your vendors"
+            onChange={(e) => {
+              const v = existing.find((x) => x.id === e.target.value);
+              if (v) onPick(v);
+            }}
+            className={inputCls}
+          >
+            <option value="">Choose…</option>
+            {existing.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+                {v.category ? ` · ${v.category}` : ''}
+              </option>
+            ))}
+          </select>
+        </Label>
+      )}
+      {problem && (
+        <span role="alert" className="text-[13px] text-[#7a4a37]">
+          {problem}
+        </span>
+      )}
     </div>
   );
 }
@@ -384,6 +431,14 @@ function RequestCard({
               );
             })}
           </ul>
+          {!rfq.closed && rfq.vendors.length < 20 && (
+            <AddVendor
+              category={VENDOR_SEARCH[rfq.service]?.label.replace(/s$/, '') ?? ''}
+              existing={list.filter((v) => !rfq.vendors.some((rv) => rv.vendorId === v.id))}
+              onAdd={(v) => onChange({ ...rfq, vendors: [...rfq.vendors, askOf(v.id)] }, [...list, v], `${v.name} added: send them the request`)}
+              onPick={(v) => onChange({ ...rfq, vendors: [...rfq.vendors, askOf(v.id)] }, undefined, `${v.name} added: send them the request`)}
+            />
+          )}
           {cmp.cols.some((c) => c.q) ? <Comparison rfq={rfq} cmp={cmp} onBook={book} /> : <p className="m-0 text-[13px] text-[#5b6a52]">Quotes appear here side by side as vendors answer.</p>}
           <div className="flex gap-3 text-[13px] pt-1">
             {!rfq.closed && (
