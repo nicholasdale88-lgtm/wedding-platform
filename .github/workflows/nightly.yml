@@ -1,0 +1,109 @@
+# Every night (about 2am Sydney): a backup of the whole database, and a security check.
+# Details and the restore drill: docs/BACKUPS_AND_SECURITY.md
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      # The whole database as SQL, encrypted before it leaves this machine (this repository is public, so an
+      # unencrypted copy is never uploaded). Kept 30 days. Without the BACKUP_PASSPHRASE secret this step
+      # only records a restore point: D1 Time Travel still lets the database be put back to any minute.
+      - name: Back up the database
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then echo "::warning::No CLOUDFLARE_API_TOKEN secret: nothing to back up yet."; exit 0; fi
+          cd apps/api
+          echo "Restore point (D1 Time Travel):"
+          pnpm exec wrangler d1 time-travel info wedding-db || echo "::warning::Couldn't read the restore point."
+          if [ -z "${BACKUP_PASSPHRASE:-}" ]; then
+            echo "::warning::Add a BACKUP_PASSPHRASE secret to keep an encrypted copy of the database each night (docs/BACKUPS_AND_SECURITY.md)."
+            exit 0
+          fi
+          pnpm exec wrangler d1 export wedding-db --remote --output "$RUNNER_TEMP/db.sql"
+          test -s "$RUNNER_TEMP/db.sql"
+          gzip -9 "$RUNNER_TEMP/db.sql"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:BACKUP_PASSPHRASE -in "$RUNNER_TEMP/db.sql.gz" -out "$RUNNER_TEMP/wedding-db-$(date -u +%F).sql.gz.enc"
+          rm -f "$RUNNER_TEMP/db.sql.gz"
+          ls -la "$RUNNER_TEMP"/*.enc
+
+      - name: Keep the encrypted backup (30 days)
+        if: ${{ hashFiles(format('{0}/*.enc', runner.temp)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wedding-db-backup
+          path: ${{ runner.temp }}/*.enc
+          retention-days: 30
+          if-no-files-found: ignore
+
+  security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      # New weaknesses are published every day, even when nothing here changes.
+      - name: No known-vulnerable runtime dependencies
+        run: pnpm audit --prod --audit-level high
+
+      - name: No secrets committed
+        run: |
+          if git grep -nIE '(-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{40,}|sk_live_[A-Za-z0-9]{16,}|xox[bap]-[A-Za-z0-9-]{10,})' -- . ':!pnpm-lock.yaml'; then
+            echo "::error::Something that looks like a secret is committed. Remove it and roll the key."
+            exit 1
+          fi
+
+      # The attack tests (two weddings, every way one could reach the other) against today's code.
+      - name: Security tests
+        run: pnpm --filter ./apps/api exec vitest run test/launch.security.test.ts
+
+      # The live site still sends its protective headers.
+      - name: Live site headers
+        run: |
+          set -euo pipefail
+          h=$(curl -fsSI https://wedding-platform-nd.pages.dev/ | tr -d '\r' | tr 'A-Z' 'a-z')
+          for want in 'strict-transport-security' 'x-content-type-options: nosniff' 'content-security-policy' 'referrer-policy'; do
+            echo "$h" | grep -q "^$want" || { echo "::error::The live site is missing $want"; exit 1; }
+          done
+          echo "Headers OK"

@@ -35,6 +35,9 @@ if [ -z "$DB_ID" ]; then
   echo "Created $DB ($DB_ID)"
 fi
 sed -i "s/00000000-0000-0000-0000-000000000000/$DB_ID/" "$API/wrangler.toml"
+# A restore point before the database changes: D1 Time Travel can put it back to this minute (docs/BACKUPS_AND_SECURITY.md).
+echo "Restore point before migrations:"
+wr d1 time-travel info "$DB" || echo "::warning::Could not read the restore point."
 wr d1 migrations apply "$DB" --remote
 echo "::endgroup::"
 
