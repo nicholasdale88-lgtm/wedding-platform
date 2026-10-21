@@ -22,7 +22,7 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
-export async function readSetting<T>(db: D1Database, key: 'site' | 'promos', schema: z.ZodType<T>): Promise<T> {
+export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
   try {
@@ -31,7 +31,7 @@ export async function readSetting<T>(db: D1Database, key: 'site' | 'promos', sch
     raw = {};
   }
   const p = schema.safeParse(raw);
-  return p.success ? p.data : schema.parse({});
+  return (p.success ? p.data : schema.parse({})) as z.output<S>;
 }
 const writeSetting = (db: D1Database, key: string, value: unknown) =>
   db.prepare(`INSERT INTO platform_setting (key, value, updated_at) VALUES (?1, ?2, ?3) ON CONFLICT (key) DO UPDATE SET value = ?2, updated_at = ?3`).bind(key, JSON.stringify(value), new Date().toISOString()).run();
