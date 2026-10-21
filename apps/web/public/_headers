@@ -14,3 +14,20 @@
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The public sales pages and the vendor directory may be found by search engines (everything else stays
+# unlisted: guest links are private).
+/
+  ! X-Robots-Tag
+/demo
+  ! X-Robots-Tag
+/privacy
+  ! X-Robots-Tag
+/terms
+  ! X-Robots-Tag
+/contact
+  ! X-Robots-Tag
+/vendors
+  ! X-Robots-Tag
+/vendors/*
+  ! X-Robots-Tag

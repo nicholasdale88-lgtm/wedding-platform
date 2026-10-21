@@ -40,6 +40,11 @@ const ShuttlePage = lazy(() => fresh(import('./guest/shuttle/ShuttlePage')).then
 const AlbumPage = lazy(() => fresh(import('./guest/album/AlbumPage')).then((m) => ({ default: m.AlbumPage })));
 const QuotePage = lazy(() => fresh(import('./guest/quote/QuotePage')).then((m) => ({ default: m.QuotePage })));
 const SalesPage = lazy(() => fresh(import('./sales/SalesPage')).then((m) => ({ default: m.SalesPage })));
+// The front page's sample invitation and its footer pages (privacy, terms, contact).
+const DemoPage = lazy(() => fresh(import('./sales/Demo')).then((m) => ({ default: m.DemoPage })));
+const PrivacyPage = lazy(() => fresh(import('./sales/Legal')).then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => fresh(import('./sales/Legal')).then((m) => ({ default: m.TermsPage })));
+const ContactPage = lazy(() => fresh(import('./sales/Legal')).then((m) => ({ default: m.ContactPage })));
 const VendorPage = lazy(() => fresh(import('./guest/vendor/VendorPage')).then((m) => ({ default: m.VendorPage })));
 // The vendor directory (public): browse, a vendor's page, joining, and a vendor's own listing.
 const DirectoryPage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.DirectoryPage })));
@@ -71,6 +76,10 @@ function Pages() {
         <Route path="/w/:slug/quote" element={<QuotePage />} />
         <Route path="/w/:slug/vendor" element={<VendorPage />} />
         <Route path="/" element={<SalesPage />} />
+        <Route path="/demo" element={<DemoPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/vendors" element={<DirectoryPage />} />
         <Route path="/vendors/join" element={<VendorJoinPage />} />
         <Route path="/vendors/me" element={<VendorHomePage />} />

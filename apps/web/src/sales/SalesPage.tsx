@@ -1,6 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, type Feature } from '@wp/shared';
 import { api } from '../lib/api';
@@ -14,7 +14,7 @@ import { DriveArt, FEATURE_ICONS, Wordmark } from './Art';
 export const BRAND = 'The Yes List';
 
 type PlanKey = 'free' | 'essentials' | 'complete';
-const PLANS: { key: PlanKey; name: string; price: string; note: string; items: string[]; pick?: boolean }[] = [
+const PLANS: { key: PlanKey; name: string; price: string; note: string; items: string[]; pick?: boolean; extra?: string }[] = [
   {
     key: 'free',
     name: PLAN_INFO.free.name,
@@ -35,6 +35,8 @@ const PLANS: { key: PlanKey; name: string; price: string; note: string; items: s
     name: PLAN_INFO.complete.name,
     price: PLAN_INFO.complete.price,
     note: 'One payment, for your whole wedding',
+    // What the difference buys, worked out from the shared prices below (deluxeExtra).
+    extra: 'guests’ photos by QR code, the live photo wall, wedding party sign-ins and daily backups.',
     items: ['Everything in Essentials', `${EVENTS_INCLUDED.complete} events (a welcome drinks or a recovery brunch too)`, 'Guests’ photos by QR code on each table', 'Live photo wall at the reception', 'Wedding party sign-ins (run sheet, to-dos, speeches)', 'Daily backups to your Google Drive, Dropbox or OneDrive', 'Help from a real person'],
   },
 ];
@@ -45,17 +47,50 @@ const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 const field = 'w-full py-[11px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px]';
 
-/** Why couples choose it: what it does for them (the headline), then how. */
-const WHAT: [string, string][] = [
-  ['Replies chase themselves', 'Every guest gets their own invitation by text. They tap yes or no, say who’s coming and what they can’t eat, and it’s in your list. Anyone who hasn’t answered gets a gentle reminder, without you lifting a finger.'],
-  ['Questions answered while you sleep', 'When someone texts “what time does it start?” or “Sam’s vegetarian”, it answers from what you’ve already written, and notes the dietary need against the right person. Only what really needs you comes to you.'],
-  ['Every dietary need on the right plate', 'Add the caterer’s special menus and give them to everyone who needs one in a tap: vegan and coeliac gets the menu marked both. Anything not marked safe is flagged, and the caterer gets one clear list.'],
-  ['Seating that follows your rules', 'Couples together, families together, the wedding party at the head table, and the two who mustn’t sit together kept apart. Auto-seat does it in a second; change anything by dragging.'],
-  ['Every payment, on time', 'Each vendor’s deposits and balances in one schedule, with a nudge before each is due. Drop in a quote or contract and its dates are added for you.'],
-  ['An invitation they’ll remember', 'A wax-sealed envelope that opens on their phone, with your music, your photos and your words. Each guest’s own page has their reply, their table and the night-before guide.'],
-  ['Your wedding party, sorted', 'Bridesmaids and groomsmen get their own welcome and sign-in: the run sheet, their jobs, what to bring and when they’re on. Nothing you haven’t shared.'],
-  ['Every photo, in your own Drive', 'A QR code on each table: guests take photos with your frames and they land straight in your Google Drive or OneDrive, filed by event. No app, no chasing people for their photos.'],
+/** The three big reasons couples choose it: what it does for them (the headline), then how. */
+const BIG: { title: string; text: string; icon: ReactNode }[] = [
+  {
+    title: 'Replies chase themselves',
+    text: 'Every guest gets their own invitation by text. They tap yes or no, say who’s coming and what they can’t eat, and it’s in your list. Anyone who hasn’t answered gets a gentle reminder, without you lifting a finger.',
+    icon: FEATURE_ICONS[0],
+  },
+  {
+    title: 'Every dietary need on the right plate',
+    text: 'Add the caterer’s special menus and give them to everyone who needs one in a tap: vegan and coeliac gets the menu marked both. Anything not marked safe is flagged, and the caterer gets one clear list.',
+    icon: FEATURE_ICONS[2],
+  },
+  {
+    title: 'Seating done in a second',
+    text: 'Tell it your rules: couples together, families together, the wedding party at the head table, and the two who mustn’t sit together kept apart. Auto-seat fills every table at once; change anything by dragging.',
+    icon: FEATURE_ICONS[3],
+  },
 ];
+
+/** A small round badge for the grid items that don't have a drawn icon. */
+const badge = (emoji: string) => (
+  <span aria-hidden className="w-[44px] h-[44px] rounded-full flex items-center justify-center text-[20px] bg-[#eef1e4]">
+    {emoji}
+  </span>
+);
+
+/** And the rest, one line each. */
+const MORE: { text: string; icon: ReactNode }[] = [
+  { text: 'Questions guests text in are answered from what you’ve already written', icon: FEATURE_ICONS[1] },
+  { text: 'Every deposit and balance in one schedule, with a nudge before it’s due', icon: FEATURE_ICONS[4] },
+  { text: 'A wax-sealed envelope that opens on their phone, with your music and photos', icon: FEATURE_ICONS[5] },
+  { text: 'Your wedding party gets their own sign-in: run sheet, jobs and timings', icon: FEATURE_ICONS[6] },
+  { text: 'Guests’ photos by QR code, straight into your own Drive', icon: FEATURE_ICONS[7] },
+  { text: 'A vendor directory near your venue', icon: badge('📍') },
+  { text: 'Step-by-step video help on every page', icon: badge('▶️') },
+];
+
+/** "$35" → 35 (NaN when it isn't a price). */
+const dollars = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
+/** How much more Deluxe is than Essentials, from the shared prices (so it can't drift). */
+const deluxeExtra = (() => {
+  const d = dollars(PLAN_INFO.complete.price) - dollars(PLAN_INFO.essentials.price);
+  return Number.isFinite(d) && d > 0 ? `$${Number.isInteger(d) ? d : d.toFixed(2)} more` : 'A little more';
+})();
 
 /** The four highlights under the headline. */
 const HIGHLIGHTS = ['Replies by text, on autopilot', 'Dietary needs sorted to menus', 'Seating that follows your rules', 'Photos straight to your Drive'];
@@ -99,7 +134,10 @@ const FAQ: [string, string][] = [
 export function SalesPage() {
   const [plan, setPlan] = useState<PlanKey>('essentials');
   useEffect(() => {
-    document.title = `${BRAND} · Wedding invitations by text, and the planning`;
+    document.title = `${BRAND} · Your guests reply by text. You stop chasing.`;
+    // Arriving from another page with #start or #pricing (e.g. the sample invitation's "Start free").
+    const id = window.location.hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView({ block: 'start' });
   }, []);
   const choose = (k: PlanKey) => {
     setPlan(k);
@@ -131,7 +169,7 @@ export function SalesPage() {
         <section className="max-w-[1100px] mx-auto px-4 pt-8 pb-14 grid gap-10 md:grid-cols-[1.2fr_1fr] items-center">
           <div className="flex flex-col gap-5">
             <h1 className="m-0 text-[clamp(38px,6.5vw,62px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
-              Wedding invitations by text, and the rest of the planning in one place.
+              Your guests reply by text. You stop chasing.
             </h1>
             <p className="m-0 text-[18px] leading-[1.6] max-w-[540px]" style={{ color: SOFT }}>
               We started building this for our own wedding, when the spreadsheet of who’d replied, who was vegetarian and who sat where got out of hand. Now it does the chasing for us. It can for you too.
@@ -140,10 +178,13 @@ export function SalesPage() {
               <a href="#start" className="py-[14px] px-7 rounded-full no-underline text-[16px] font-medium" style={{ background: INK, color: '#fbf8f2' }}>
                 Start free
               </a>
-              <span className="text-[14px]" style={{ color: SOFT }}>
-                No card needed. Pay once when you’re ready.
-              </span>
+              <Link to="/demo" className="py-[13px] px-6 rounded-full no-underline text-[16px]" style={{ color: INK, border: `1px solid ${INK}` }}>
+                See a sample invitation
+              </Link>
             </div>
+            <span className="text-[14px] -mt-2" style={{ color: SOFT }}>
+              No card needed. Pay once when you’re ready.
+            </span>
             <ul aria-label="Highlights" className="m-0 p-0 list-none grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
               {HIGHLIGHTS.map((h) => (
                 <li key={h} className="flex items-center gap-2 text-[15px]">
@@ -160,7 +201,12 @@ export function SalesPage() {
               <span className="text-[12px] text-center" style={{ color: SOFT }}>
                 Today 6:42pm
               </span>
-              <span className="self-start max-w-[85%] py-2 px-3 rounded-[16px] rounded-bl-[4px] bg-[#e9e3d3]">Hi Jo, Alex and Sam would love you at their wedding on Saturday 14 March. Your invitation: alexandsam.wedding/jo</span>
+              <span className="self-start max-w-[85%] py-2 px-3 rounded-[16px] rounded-bl-[4px] bg-[#e9e3d3]">
+                Hi Jo, Alex and Sam would love you at their wedding on Saturday 13 March. Your invitation:{' '}
+                <span className="underline underline-offset-2" style={{ color: '#2f5f8a' }}>
+                  tap here
+                </span>
+              </span>
               <span className="self-end max-w-[85%] py-2 px-3 rounded-[16px] rounded-br-[4px] text-[#fbf8f2]" style={{ background: INK }}>
                 Yes! Both of us. Sam’s vegetarian
               </span>
@@ -170,7 +216,7 @@ export function SalesPage() {
         </section>
 
         <section className="bg-[#fbf8f2] py-14">
-          <div className="max-w-[1000px] mx-auto px-4 flex flex-col gap-8">
+          <div className="max-w-[1000px] mx-auto px-4 flex flex-col gap-10">
             <div className="flex flex-col gap-2">
               <h2 className="m-0 text-[clamp(30px,5vw,42px)] font-normal" style={{ fontFamily: serif }}>
                 Why couples choose it
@@ -179,20 +225,49 @@ export function SalesPage() {
                 The jobs that eat your evenings, done for you: from the first invitation to the last photo.
               </p>
             </div>
-            <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
-              {WHAT.map(([t, d], i) => (
-                <div key={t} className="flex gap-4 items-start">
-                  <span className="shrink-0">{FEATURE_ICONS[i]}</span>
-                  <div className="flex flex-col gap-1">
-                  <h3 className="m-0 text-[20px] font-semibold">{t}</h3>
-                  <p className="m-0 text-[15px] leading-[1.6]" style={{ color: SOFT }}>
-                    {d}
+            <div className="grid gap-8 md:grid-cols-3">
+              {BIG.map((b) => (
+                <article key={b.title} className="flex flex-col gap-3">
+                  <span className="shrink-0 [&>svg]:w-[56px] [&>svg]:h-[56px]">{b.icon}</span>
+                  <h3 className="m-0 text-[26px] leading-[1.15] font-normal" style={{ fontFamily: serif }}>
+                    {b.title}
+                  </h3>
+                  <p className="m-0 text-[16px] leading-[1.6]" style={{ color: SOFT }}>
+                    {b.text}
                   </p>
-                  </div>
-                </div>
+                </article>
               ))}
             </div>
+            <div className="flex flex-col gap-4 pt-2">
+              <h3 className="m-0 text-[18px] font-semibold">And the rest of it</h3>
+              <ul className="m-0 p-0 list-none grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                {MORE.map((m) => (
+                  <li key={m.text} className="flex items-center gap-3 text-[15px] leading-[1.45]">
+                    <span className="shrink-0">{m.icon}</span>
+                    {m.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
+        </section>
+
+        <section aria-labelledby="founders" className="py-14">
+          <figure className="max-w-[720px] mx-auto px-4 m-0 flex flex-col gap-4">
+            <h2 id="founders" className="m-0 text-[clamp(26px,4vw,34px)] font-normal" style={{ fontFamily: serif }}>
+              Built for our own wedding
+            </h2>
+            <blockquote className="m-0 pl-5 border-l-[3px] border-[#c8a46a] text-[clamp(21px,3.2vw,26px)] leading-[1.45] italic" style={{ fontFamily: serif }}>
+              “Our guest list lived in a spreadsheet, the replies came in by text, email and word of mouth, and every evening went on
+              chasing the people who hadn’t answered. So we made the thing we wanted: one link each, replies by text, and the list keeps itself.”
+            </blockquote>
+            <figcaption className="pl-5 flex flex-col gap-1 text-[15px]" style={{ color: SOFT }}>
+              <span>The founders</span>
+              <span className="font-medium" style={{ color: INK }}>
+                Used for our own wedding, November 2027
+              </span>
+            </figcaption>
+          </figure>
         </section>
 
         <section id="pricing" className="py-16">
@@ -229,6 +304,11 @@ export function SalesPage() {
                       <li key={i}>{i}</li>
                     ))}
                   </ul>
+                  {p.extra && (
+                    <p className="m-0 py-2 px-3 rounded-[10px] text-[14px] leading-[1.5] bg-[#f3eedf]">
+                      <strong className="font-semibold">For {deluxeExtra} than {PLAN_INFO.essentials.name}:</strong> {p.extra}
+                    </p>
+                  )}
                   <button type="button" onClick={() => choose(p.key)} className="py-3 rounded-full text-[15px] font-medium cursor-pointer" style={p.pick ? { background: INK, color: '#fbf8f2', border: 0 } : { background: 'transparent', color: INK, border: `1px solid ${INK}` }}>
                     {p.key === 'free' ? 'Start free' : `Choose ${p.name}`}
                   </button>
@@ -349,6 +429,15 @@ export function SalesPage() {
         <Link to="/vendors/join" style={{ color: SOFT }}>
           Wedding vendor? List your business free
         </Link>
+        <Link to="/privacy" style={{ color: SOFT }}>
+          Privacy
+        </Link>
+        <Link to="/terms" style={{ color: SOFT }}>
+          Terms
+        </Link>
+        <Link to="/contact" style={{ color: SOFT }}>
+          Contact
+        </Link>
       </footer>
     </div>
   );
@@ -367,7 +456,9 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
     setBusy(true);
     try {
       const r = await api.signup({ ...f, plan });
-      window.location.assign(`/admin/${encodeURIComponent(r.weddingId)}`);
+      // Their own invitation first (with their names), then "Make it yours" takes them into the admin.
+      const slug = r.weddings.find((x) => x.id === r.weddingId)?.slug;
+      window.location.assign(slug ? `/w/${encodeURIComponent(slug)}/?preview=1&welcome=1` : `/admin/${encodeURIComponent(r.weddingId)}`);
     } catch (err) {
       setProblem((err as Error).message);
       setBusy(false);
