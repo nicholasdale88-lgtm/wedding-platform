@@ -19,7 +19,7 @@ import { checkMusic } from '../../guest/audio';
  * Saves by itself a moment after you stop typing; a clash with another editor reloads.
  */
 
-type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts'>;
+type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts' | 'filled'>;
 type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
@@ -53,7 +53,7 @@ export function GuestPages() {
       const d = await pagesApi.get(wid);
       setData(d);
       versionRef.current = d.version;
-      setDoc({ names: d.names, theme: d.theme, invitation: d.invitation, guides: d.guides, texts: d.texts });
+      setDoc({ names: d.names, theme: d.theme, invitation: d.invitation, guides: d.guides, texts: d.texts, filled: d.filled });
       dirty.current.clear();
       setError('');
     } catch (e) {
