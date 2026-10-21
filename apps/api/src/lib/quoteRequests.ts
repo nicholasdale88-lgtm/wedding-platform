@@ -117,7 +117,7 @@ export async function tellCouple(env: Env, f: WeddingFacts, subject: string, lin
  * listed back (to text or copy the link instead). Reminders are counted (automatic ones stop at two).
  */
 export type SendResult = { error: string; status: 404 | 409; message: string } | { sent: string[]; skipped: string[] };
-export async function sendRequests(env: Env, weddingId: string, rfqId: string, vendorIds: string[], remindAsked: boolean): Promise<SendResult> {
+export async function sendRequests(env: Env, weddingId: string, rfqId: string, vendorIds: string[], remindAsked: boolean, now = new Date()): Promise<SendResult> {
   const f = await weddingFacts(env.DB, weddingId);
   if (!f) return { error: 'not_found', status: 404, message: 'Wedding not found.' };
   const doc = await readDoc(env.DB, weddingId, 'vendors', '');
@@ -146,7 +146,7 @@ export async function sendRequests(env: Env, weddingId: string, rfqId: string, v
     if (await sendEmail(env, { to, subject: subject.slice(0, 200), ...m, replyTo })) sent.push(id);
     else skipped.push(id);
   }
-  const today = dateIn(f.w.timezone);
+  const today = dateIn(f.w.timezone, now);
   if (sent.length) {
     await changeDoc(env.DB, weddingId, 'vendors', '', (d) => {
       const r = d.rfqs.find((x) => x.id === rfq.id);
@@ -193,7 +193,7 @@ export async function runQuoteFollowUps(env: Env, now = new Date(), limit = 20) 
       const due = rfq.vendors.filter((rv) => rv.remindedOn !== today && (() => { const d = nextFollowUp(rfq, rv); return !!d && d <= today; })()).map((rv) => rv.vendorId);
       if (!due.length) continue;
       touched = true;
-      const r = await sendRequests(env, w.id, rfq.id, due, true);
+      const r = await sendRequests(env, w.id, rfq.id, due, true, now);
       if (!('error' in r)) sent += r.sent.length;
     }
     if (touched) weddings++;
