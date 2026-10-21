@@ -45,6 +45,20 @@ describe('sign-up and plans', () => {
     expect(again.weddings[0]!.slug).toBe('alex-and-sam-2');
   });
 
+  it("a new wedding's invitation has every word, in neutral wording with [placeholders], and nothing from anyone else's wedding", async () => {
+    const res = await signup({}, '4.4.4.4');
+    const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
+    const { weddings } = (await res.json()) as { weddings: { slug: string }[] };
+    const page = await call(`/p/${weddings[0]!.slug}/invite?preview=1`, {}, cookie);
+    expect(page.status).toBe(200);
+    const text = await page.text();
+    const body = JSON.parse(text) as { texts: Record<string, string> };
+    expect(Object.keys(body.texts).length).toBeGreaterThan(200);
+    expect(body.texts['inv.f3262251']).toBe('You are invited to celebrate the wedding of');
+    expect(body.texts['inv.e257ef55']).toBe('[Ceremony venue]');
+    expect(text).not.toMatch(/Glenworth|Gosford|Killcare|horse ride/i);
+  });
+
   it('refuses a short passcode, says nothing useful to a bot, and limits sign-ups from one place', async () => {
     expect((await signup({ passcode: 'short' })).status).toBe(400);
     const bot = await signup({ website: 'http://spam.example', email: 'bot@example.com' });

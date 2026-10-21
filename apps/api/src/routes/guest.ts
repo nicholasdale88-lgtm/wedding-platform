@@ -15,6 +15,7 @@ import { forecastFor } from '../lib/weather';
 import { canStore, storePhoto } from '../photos/store';
 import { isPhotoCode } from '../lib/photoQr';
 import { weddingPlan } from '../lib/plan';
+import { withDefaults } from '../lib/defaultTexts';
 
 /** The site's own photo storage per wedding: inside R2's free 10 GB. */
 const ALBUM_BYTES = 9 * 1024 ** 3;
@@ -144,7 +145,7 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
     wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
     // Music is the link set in Setup (MP3 or YouTube): there are no uploaded music files to point at.
     content: { ...(inv.success ? inv.data : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
-    texts: textsFor('inv', (content.texts as Record<string, string> | undefined) ?? {}, slots),
+    texts: textsFor('inv', withDefaults(content.texts as Record<string, string> | undefined), slots),
     events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []), shuttles: shuttles.has(e.key) })),
     invitation,
     // Only for a guest opening their own link (not the public page).
@@ -297,7 +298,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       images: imagesOf(content),
       event: { key: ev.key, name: ev.name, startsAt: ev.starts_at, slot: events.indexOf(ev) },
       guide,
-      texts: textsFor(GUIDE_PAGE[guide.style], (content.texts as Record<string, string> | undefined) ?? {}, null),
+      texts: textsFor(GUIDE_PAGE[guide.style], withDefaults(content.texts as Record<string, string> | undefined), null),
       guest: {
         token,
         people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: tableOf(p.id), meals: (({ e, m, d }) => ({ e, m, d }))(served(p.id)) })),
@@ -353,7 +354,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       album: !!who && content.albumShared === true,
       // The frames and looks the couple offers (all of them until they choose), and the look to start on.
       looks: (content.photoLooks as { frames?: string[]; looks?: string[]; def?: string } | undefined) ?? null,
-      texts: textsFor('ph', (content.texts as Record<string, string> | undefined) ?? {}, null),
+      texts: textsFor('ph', withDefaults(content.texts as Record<string, string> | undefined), null),
     });
   });
 

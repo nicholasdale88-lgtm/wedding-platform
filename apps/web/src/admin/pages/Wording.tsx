@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import shipped from '../../../../../seed/texts.json';
-import shippedDynamic from '../../../../../seed/texts.dynamic.json';
+// The neutral wording every wedding starts from (the server fills in the same where a wedding has none).
+import generic from '../../../../../seed/texts.generic.json';
 import { inputCls, Rollup } from '../ui';
 import { fillName, sentencesFor, type Sentence } from './wordingMap';
 
 /** The design's original wording, so "Reset" can always bring it back. */
-export const ORIGINAL: Record<string, string> = { ...shipped, ...shippedDynamic };
+export const ORIGINAL: Record<string, string> = generic;
 
 /**
  * "Every word guests read": one roll-up that says what's changed. Opened, the page's wording reads as it
