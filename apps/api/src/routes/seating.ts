@@ -46,13 +46,12 @@ const Save = z
   })
   .strict();
 
-export function seatingRoutes() {
-  const app = new Hono<AdminEnv>();
-  app.use('*', jsonWritesOnly, requireUser, requireMember());
-
-  async function load(c: C, eventKey?: string) {
-    const db = c.env.DB;
-    const w = await db.prepare(`SELECT id, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(wid(c)).first<{ id: string; version: number }>();
+/**
+ * An event's seating, as saved (the draft) and as published to guests, with everyone invited to it. The
+ * admin's seating page and a caterer's page both read it.
+ */
+export async function loadSeating(db: D1Database, weddingId: string, eventKey?: string) {
+    const w = await db.prepare(`SELECT id, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(weddingId).first<{ id: string; version: number }>();
     if (!w) return null;
     const { results: events } = await db
       .prepare(`SELECT id, key, name, has_seating, catered FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`)
@@ -102,6 +101,8 @@ export function seatingRoutes() {
     return {
       eventId: ev.id,
       draft,
+      /** What guests were last shown (null: never published). */
+      publishedPlan: pubRow ? safeJson<Snapshot>(pubRow.snapshot, empty) : null,
       view: {
         published,
         versions,
@@ -119,7 +120,12 @@ export function seatingRoutes() {
           .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: x.attending === 1 && x.tableId && tableIds.has(x.tableId) ? x.tableId : null, coming: x.attending === 1 })),
       },
     };
-  }
+}
+
+export function seatingRoutes() {
+  const app = new Hono<AdminEnv>();
+  app.use('*', jsonWritesOnly, requireUser, requireMember());
+  const load = (c: C, eventKey?: string) => loadSeating(c.env.DB, wid(c), eventKey);
 
   app.get('/', async (c) => {
     const s = await load(c, c.req.query('event'));

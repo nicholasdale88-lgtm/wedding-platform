@@ -1,3 +1,4 @@
+import { cssAspect, tableBox } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
@@ -5,7 +6,9 @@ import { GuestMessage } from '../GuestMessage';
 /**
  * /w/:slug/vendor?v=<vendor>&k=<key>: a vendor's own page (the celebrant, the caterer, the photographer).
  * The day, the venue, when to arrive, the timeline, guest numbers and dietary needs, their payments and who
- * to call: always up to date, so the couple never re-sends details.
+ * to call: always up to date, so the couple never re-sends details. When the couple shares the seating
+ * (the caterer), the room plan with the tables that have special meals marked, and each special meal by
+ * table and seat.
  */
 interface Data {
   couple: string;
@@ -18,6 +21,18 @@ interface Data {
   dietary: { diet: string; n: number; serious: boolean }[];
   payments: { label: string; amount: number; due: string; paid: boolean }[];
   contacts: { name: string; role: string; phone: string }[];
+  seating?: Seating | null;
+}
+type Meal = { e: string; m: string; d: string };
+interface Seating {
+  event: string;
+  aspect: string;
+  /** Published to guests (else the couple's saved plan, which may still change). */
+  published: boolean;
+  tables: { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number; guests: number; special: number; serious: boolean }[];
+  areas: { label: string; x: number; y: number; w: number; h: number }[];
+  special: { table: string; seat: number; name: string; diet: string; meal: Meal; serious: boolean }[];
+  notSeated: { name: string; diet: string; meal: Meal; serious: boolean }[];
 }
 const aud = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
 const card = 'flex flex-col gap-2 p-4 rounded-[16px] bg-white border border-[#e2d7bc]';
@@ -105,6 +120,8 @@ export function VendorPage() {
           </section>
         )}
 
+        {d.seating && <SpecialMeals s={d.seating} />}
+
         {d.payments.length > 0 && (
           <section className={card} aria-label="Payments">
             <strong>Payments</strong>
@@ -140,5 +157,97 @@ export function VendorPage() {
         )}
       </div>
     </main>
+  );
+}
+
+const mealLine = (m: Meal) =>
+  [m.e && `Entrée: ${m.e}`, m.m && `Main: ${m.m}`, m.d && `Dessert: ${m.d}`].filter(Boolean).join(' · ');
+
+/** For the caterer: the room, with the tables that have special meals marked, and each one by table and seat. */
+function SpecialMeals({ s }: { s: Seating }) {
+  const [only, setOnly] = useState<string | null>(null);
+  const shown = only ? s.special.filter((r) => r.table === only) : s.special;
+  const serious = s.special.filter((r) => r.serious).length;
+  return (
+    <section className={card} aria-label="Special meals by table">
+      <div className="flex justify-between items-baseline gap-2 flex-wrap">
+        <strong className="text-[18px]">Special meals by table</strong>
+        <button type="button" onClick={() => window.print()} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer text-[#33402f] print:hidden">
+          Print
+        </button>
+      </div>
+      <span className="text-[14px] text-[#5b6a52]">
+        {s.event}: {s.special.length} special {s.special.length === 1 ? 'meal' : 'meals'}
+        {serious ? `, ${serious} of them serious allergies` : ''}. Seats are numbered round each table from the first chair.
+        {!s.published && ' This is the couple’s plan so far: it may still change.'}
+      </span>
+      {s.tables.length > 0 && (
+        <div className="relative w-full rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f2] overflow-hidden" style={{ aspectRatio: cssAspect(s.aspect) }} role="img" aria-label="Room plan: tables with special meals are marked">
+          {s.areas.map((a) => (
+            <span key={`${a.label}${a.x}${a.y}`} className="absolute flex items-center justify-center rounded-[6px] border border-dashed border-[#c6b794] text-[10px] text-[#7a7466]" style={{ left: `${a.x - a.w / 2}%`, top: `${a.y - a.h / 2}%`, width: `${a.w}%`, height: `${a.h}%` }}>
+              {a.label}
+            </span>
+          ))}
+          {s.tables.map((t) => {
+            const b = tableBox(t, s.aspect);
+            const on = only === t.name;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setOnly(on ? null : t.special ? t.name : null)}
+                aria-label={`${t.name}: ${t.guests} guests, ${t.special} special ${t.special === 1 ? 'meal' : 'meals'}`}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center border-2 p-0 text-[10px] leading-tight ${t.special ? 'cursor-pointer' : 'cursor-default'} ${on ? 'ring-2 ring-[#33402f]' : ''}`}
+                style={{
+                  left: `${t.x}%`,
+                  top: `${t.y}%`,
+                  width: `${b.w}%`,
+                  height: `${b.h}%`,
+                  borderRadius: b.radius,
+                  background: t.serious ? '#f6dcd2' : t.special ? '#f3e7c9' : '#ffffff',
+                  borderColor: t.serious ? '#a8473a' : t.special ? '#b39563' : '#d6c8a6',
+                  color: '#33402f',
+                }}
+              >
+                <span className="font-semibold">{t.name.replace(/^Table /, '')}</span>
+                {t.special > 0 && <span className={t.serious ? 'text-[#7a4a37] font-semibold' : ''}>{t.special}★</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <span className="text-[12px] text-[#7a7466]">★ special meals at that table · red: a serious allergy. Tap a table to see only its meals.</span>
+      {only && (
+        <button type="button" onClick={() => setOnly(null)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          Show every table
+        </button>
+      )}
+      <ul className="m-0 p-0 list-none flex flex-col">
+        {shown.map((r) => (
+          <li key={`${r.table}-${r.seat}-${r.name}`} className={`grid grid-cols-[92px_minmax(0,1fr)] gap-3 py-2 border-t border-[#ece3cd] ${r.serious ? 'text-[#7a4a37]' : ''}`}>
+            <span className="text-[13px] font-semibold tabular-nums">
+              {r.table}
+              <span className="block font-normal text-[#7a7466]">Seat {r.seat}</span>
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold">{r.name}</span>
+              {r.diet && <span className="block text-[14px]">{r.diet}{r.serious ? ' (serious)' : ''}</span>}
+              {mealLine(r.meal) && <span className="block text-[13px] text-[#5b6a52]">{mealLine(r.meal)}</span>}
+            </span>
+          </li>
+        ))}
+        {!shown.length && <li className="py-2 text-[14px] text-[#7a7466]">No special meals{only ? ' at this table' : ' yet'}.</li>}
+      </ul>
+      {s.notSeated.length > 0 && (
+        <div className="flex flex-col gap-1 pt-2 border-t border-[#ece3cd] text-[14px]">
+          <strong className="text-[14px]">Special meals for guests without a seat yet</strong>
+          {s.notSeated.map((r) => (
+            <span key={r.name} className={r.serious ? 'text-[#7a4a37] font-semibold' : ''}>
+              {r.name}: {[r.diet, mealLine(r.meal)].filter(Boolean).join(' · ')}
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

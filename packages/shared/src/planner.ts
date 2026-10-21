@@ -732,6 +732,8 @@ export const Vendor = z.object({
   contractFileName: s(160),
   /** Meals for this vendor's team on the day (tell the caterer). */
   meals: z.number().int().min(0).max(50).default(0),
+  /** Their page also shows the seating: each table, and who has a special meal at which seat (for the caterer). */
+  shareSeating: z.boolean().optional(),
   /** The quote: when you asked for it, when they said it would come (or when to chase), when you last chased. */
   askedOn: s(10),
   quoteBy: s(10),

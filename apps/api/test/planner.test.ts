@@ -282,6 +282,44 @@ describe('planner: wedding party', () => {
     expect((await app.request(api, {}, env, ctx)).status).toBe(404);
   });
 
+  it('a caterer the couple shares the seating with sees each special meal by table and seat; others never see names', async () => {
+    const admin = (path: string, init: RequestInit = {}) => app.request(`/api/a/w/${wid}${path}`, { ...init, headers: { 'content-type': 'application/json', cookie, ...init.headers } }, env, ctx);
+    // Seat everyone coming at two tables, one guest with a serious allergy.
+    const s0 = (await (await admin('/seating')).json()) as { version: number; event: { key: string }; people: { id: string; name: string; coming: boolean }[] };
+    const coming = s0.people.filter((p) => p.coming);
+    expect(coming.length).toBeGreaterThan(2);
+    const allergic = coming[0]!;
+    await t.db.prepare(`UPDATE person SET diet = 'Severe peanut allergy' WHERE id = ?`).bind(allergic.id).run();
+    const T1 = '11111111-1111-4111-8111-111111111111';
+    const T2 = '22222222-2222-4222-8222-222222222222';
+    const tables = [T1, T2].map((id, i) => ({ id, name: String(i + 1), shape: 'round', dir: 'h', len: 30, x: 30 + i * 40, y: 40, seats: 10 }));
+    const seats = Object.fromEntries(coming.map((p, i) => [p.id, i % 2 ? T2 : T1]));
+    const saved = await admin('/seating', { method: 'PUT', headers: { 'If-Match': String(s0.version) }, body: JSON.stringify({ event: s0.event.key, aspect: '4 / 3', tables, areas: [], seats }) });
+    expect(saved.status).toBe(200);
+    const v1 = ((await saved.json()) as { version: number }).version;
+    expect((await admin('/seating/publish', { method: 'POST', headers: { 'If-Match': String(v1) }, body: JSON.stringify({ event: s0.event.key }) })).status).toBe(200);
+
+    const list = [{ id: 'cat', name: 'Feast Catering', category: 'Caterer', status: 'booked', shareSeating: false }];
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ list }) })).status).toBe(200);
+    const { url } = (await (await call('/vendors/cat/hub')).json()) as { url: string };
+    const u = new URL(url);
+    const api = `/api/p/sophie-and-nicholas/vendor/${u.searchParams.get('v')}/${u.searchParams.get('k')}`;
+    // Not shared: no seating, no names.
+    const before = await (await app.request(api, {}, env, ctx)).text();
+    expect(JSON.parse(before).seating).toBeNull();
+    expect(before).not.toContain(allergic.name);
+    // Shared: the special meal at its table and seat, the table marked.
+    const doc = (await (await call('/doc/vendors')).json()) as { version: number };
+    await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': String(doc.version) }, body: JSON.stringify({ list: [{ ...list[0], shareSeating: true }] }) });
+    const page = (await (await app.request(api, {}, env, ctx)).json()) as {
+      seating: { published: boolean; tables: { name: string; special: number; serious: boolean }[]; special: { table: string; seat: number; name: string; diet: string; serious: boolean }[] };
+    };
+    expect(page.seating.published).toBe(true);
+    expect(page.seating.special).toContainEqual({ table: 'Table 1', seat: 1, name: allergic.name, diet: 'Severe peanut allergy', meal: expect.any(Object), serious: true });
+    expect(page.seating.tables.find((t) => t.name === 'Table 1')).toMatchObject({ serious: true });
+    expect(page.seating.special.every((r) => r.diet || r.serious || r.name)).toBe(true);
+  });
+
   it("the assistant answers from the wedding's own facts, and says when it is off", async () => {
     expect(((await (await call('/ask', { method: 'POST', body: JSON.stringify({ question: 'What next?' }) })).json()) as { error: { code: string } }).error.code).toBe('off');
     const seen: { input?: { messages: { role: string; content: string }[] } } = {};

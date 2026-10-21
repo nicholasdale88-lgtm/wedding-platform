@@ -5,13 +5,15 @@ import { sessionId } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { safeJson } from '../lib/security';
 import { readDoc } from './planner';
+import { loadSeating } from './seating';
 
 /**
  * A vendor's own page (the celebrant, the caterer, the photographer…): /api/p/:slug/vendor/:vid/:key. The
  * details they need, always up to date: the day, the venue, when to arrive, the timeline, guest numbers
  * and dietary needs (for whoever feeds people), their meals, their payments, and who to call on the day.
- * Nothing about guests by name. The key is made from the vendor and the server secret: it can't be guessed,
- * and removing the vendor ends it.
+ * Nothing about guests by name, unless the couple shares the seating with this vendor (the caterer): then
+ * each table, and who has a special meal at which seat. The key is made from the vendor and the server
+ * secret: it can't be guessed, and removing the vendor ends it.
  */
 export async function vendorHubKey(secret: string, weddingId: string, vendorId: string) {
   return (await sessionId(`vendor-hub:${weddingId}:${vendorId}`, secret)).slice(0, 24);
@@ -56,8 +58,38 @@ export function vendorHubRoutes() {
     const guide = ev ? guidesOf(safeJson(w.guide, {}), [ev.key])[ev.key] : undefined;
     const g = guide as Record<string, unknown> | undefined;
     const contacts = (g?.contacts as { name: string; role: string; phone: string }[] | undefined) ?? [];
+    // The caterer's table plan: what guests were shown (or the saved plan, if it isn't published yet).
+    let seating = null;
+    if (v.shareSeating) {
+      const s = await loadSeating(db, w.id);
+      if (s) {
+        const plan = s.publishedPlan ?? s.draft;
+        const people = s.view.people.filter((p) => p.coming && plan.seats[p.id]);
+        const num = (t: string) => (/^\d+$/.test(t) ? `Table ${t}` : t);
+        const tables = [...plan.tables].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+        const special = (p: (typeof people)[number]) => !!(p.diet.trim() || p.meal.e || p.meal.m || p.meal.d);
+        const rows = tables.flatMap((t) =>
+          people
+            .filter((p) => plan.seats[p.id] === t.id)
+            .map((p, i) => ({ table: num(t.name), tableId: t.id, seat: i + 1, name: p.name, diet: p.diet, meal: p.meal, serious: isSerious(p.diet), special: special(p) })),
+        );
+        seating = {
+          event: s.view.event.name,
+          aspect: plan.aspect || s.view.aspect,
+          published: !!s.publishedPlan,
+          tables: tables.map((t) => {
+            const here = rows.filter((r) => r.tableId === t.id);
+            return { id: t.id, name: num(t.name), shape: t.shape, dir: t.dir, len: t.len, x: t.x, y: t.y, seats: t.seats, guests: here.length, special: here.filter((r) => r.special).length, serious: here.some((r) => r.serious) };
+          }),
+          areas: plan.areas,
+          special: rows.filter((r) => r.special).map((r) => ({ table: r.table, seat: r.seat, name: r.name, diet: r.diet, meal: r.meal, serious: r.serious })),
+          notSeated: s.view.people.filter((p) => p.coming && !plan.seats[p.id] && special(p)).map((p) => ({ name: p.name, diet: p.diet, meal: p.meal, serious: isSerious(p.diet) })),
+        };
+      }
+    }
     return c.json({
       couple: `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}`,
+      seating,
       vendor: { name: v.name, category: v.category, arrival: v.arrival, meals: v.meals, notes: '' },
       event: ev ? { name: ev.name, startsAt: ev.starts_at, venue: ev.venue ?? '', address: ev.address ?? '' } : null,
       timezone: w.timezone,
