@@ -116,13 +116,14 @@ export async function tellCouple(env: Env, f: WeddingFacts, subject: string, lin
  * the couple. Vendors who have answered or said they can't are left out; those without an email are
  * listed back (to text or copy the link instead). Reminders are counted (automatic ones stop at two).
  */
-export async function sendRequests(env: Env, weddingId: string, rfqId: string, vendorIds: string[], remindAsked: boolean) {
+export type SendResult = { error: string; status: 404 | 409; message: string } | { sent: string[]; skipped: string[] };
+export async function sendRequests(env: Env, weddingId: string, rfqId: string, vendorIds: string[], remindAsked: boolean): Promise<SendResult> {
   const f = await weddingFacts(env.DB, weddingId);
-  if (!f) return { error: 'not_found', status: 404 as const, message: 'Wedding not found.' };
+  if (!f) return { error: 'not_found', status: 404, message: 'Wedding not found.' };
   const doc = await readDoc(env.DB, weddingId, 'vendors', '');
   const rfq = doc.data.rfqs.find((r) => r.id === rfqId);
-  if (!rfq) return { error: 'not_found', status: 404 as const, message: 'That quote request has gone.' };
-  if (rfq.closed) return { error: 'closed', status: 409 as const, message: 'That request is decided: reopen it to send again.' };
+  if (!rfq) return { error: 'not_found', status: 404, message: 'That quote request has gone.' };
+  if (rfq.closed) return { error: 'closed', status: 409, message: 'That request is decided: reopen it to send again.' };
   const replyTo = await ownerEmails(env.DB, weddingId);
   const sent: string[] = [];
   const skipped: string[] = [];
