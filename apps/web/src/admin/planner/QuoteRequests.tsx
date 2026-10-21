@@ -75,17 +75,20 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
 
   return (
     <section aria-label="Get quotes" className="flex flex-col gap-3 p-4 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      {/* Phones: the heading and words take the full width, the two buttons share a row under them. */}
       <div className="flex justify-between items-start gap-3 flex-wrap">
-        <div className="min-w-0 flex-1">
+        <div className="w-full lg:w-auto lg:flex-1 min-w-0">
           <h2 className="m-0 font-display text-[26px] leading-tight font-medium">Get quotes</h2>
           <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">Send one list to a few vendors. They price it on a simple page or attach their own quote, you get an email as each comes in, and you see them side by side.</p>
         </div>
         {!making && (
-          <div className="flex gap-2 flex-wrap">
-            <Pill kind="primary" onClick={() => setMaking('ask')}>
+          <div className="grid grid-cols-2 gap-2 w-full lg:w-auto lg:flex">
+            <Pill kind="primary" className="px-3" onClick={() => setMaking('ask')}>
               + Get quotes
             </Pill>
-            <Pill onClick={() => setMaking('manual')}>+ Enter quotes myself</Pill>
+            <Pill className="px-3" onClick={() => setMaking('manual')}>
+              + Enter myself
+            </Pill>
           </div>
         )}
       </div>
