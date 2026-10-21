@@ -64,6 +64,21 @@ describe('sign-up and plans', () => {
     expect(text).not.toMatch(/Glenworth|Gosford|Killcare|horse ride/i);
   });
 
+  it('no date at sign-up: the invitation keeps [Day, date] until they set it, then shows it, with the venue and address', async () => {
+    const res = await signup({ date: '', email: 'nodate@example.com' }, '5.5.5.5');
+    const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
+    const { weddingId, weddings } = (await res.json()) as { weddingId: string; weddings: { slug: string }[] };
+    const texts = async () => ((await (await call(`/p/${weddings[0]!.slug}/invite?preview=1`, {}, cookie)).json()) as { texts: Record<string, string> }).texts;
+    expect((await texts())['inv.5fb81f2d']).toBe('[Day, date]');
+    const ev = (await (await call(`/a/w/${weddingId}/events`, {}, cookie)).json()) as { events: { id: string; version: number }[] };
+    const put = await call(`/a/w/${weddingId}/events/${ev.events[0]!.id}`, { method: 'PUT', headers: { 'If-Match': String(ev.events[0]!.version) }, body: JSON.stringify({ startsAt: '2027-04-10T05:00:00.000Z', venue: 'Bellbird Hill', address: '1 Bellbird Road, Yarra Glen VIC' }) }, cookie);
+    expect(put.status).toBe(200);
+    const t = await texts();
+    expect(t['inv.5fb81f2d']).toBe('Saturday 10 April 2027');
+    expect(t['inv.e257ef55']).toBe('Bellbird Hill');
+    expect(t['inv.8297e5e4']).toBe('Address: 1 Bellbird Road, Yarra Glen VIC. ');
+  });
+
   it('refuses a short passcode, says nothing useful to a bot, and limits sign-ups from one place', async () => {
     expect((await signup({ passcode: 'short' })).status).toBe(400);
     const bot = await signup({ website: 'http://spam.example', email: 'bot@example.com' });

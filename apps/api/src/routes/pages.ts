@@ -60,7 +60,7 @@ export function pagesRoutes() {
   async function payload(c: C, w: WRow) {
     const db = c.env.DB;
     const [events, people] = await db.batch([
-      db.prepare(`SELECT key, name, starts_at, venue FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w.id),
+      db.prepare(`SELECT key, name, starts_at, venue, address FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w.id),
       db.prepare(
         `SELECT i.token,
                 (SELECT GROUP_CONCAT(name, ' & ') FROM (SELECT name FROM person WHERE invitation_id = i.id AND deleted_at IS NULL ORDER BY idx)) AS names,
@@ -70,7 +70,7 @@ export function pagesRoutes() {
           ORDER BY names LIMIT 500`,
       ).bind(w.id),
     ]);
-    const rows = events!.results as { key: string; name: string; starts_at: string; venue: string | null }[];
+    const rows = events!.results as { key: string; name: string; starts_at: string; venue: string | null; address: string | null }[];
     const evs = rows.map(({ key, name }) => ({ key, name }));
     const content = parse<Record<string, unknown>>(w.content, {});
     const inv = InvitationContent.safeParse(content.invitation ?? {});
@@ -86,7 +86,7 @@ export function pagesRoutes() {
       share: c.get('role') !== 'viewer' && typeof content.previewShare === 'string' ? content.previewShare : null,
       texts: (content.texts as Record<string, string> | undefined) ?? {},
       // The starting wording's placeholders as guests see them, filled from the events (the date, the venue).
-      filled: fillsFor({ tz: w.timezone, events: rows, rsvpClose: inv.success ? inv.data.rsvpClose : undefined }),
+      filled: fillsFor({ tz: w.timezone, events: content.dateToBeSet ? rows.map((e) => ({ ...e, starts_at: '' })) : rows, rsvpClose: inv.success ? inv.data.rsvpClose : undefined }),
       // Previewing as a real guest uses their link: owners and editors only.
       samples: (c.get('role') === 'viewer' ? [] : (people!.results as { token: string; names: string; invited: string | null }[])).map((r) => ({
         token: r.token,

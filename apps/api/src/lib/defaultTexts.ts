@@ -12,7 +12,7 @@ export const DEFAULT_TEXTS: Record<string, string> = generic;
 export interface Facts {
   tz: string;
   /** The wedding first, then any other events. */
-  events: { starts_at: string; venue?: string | null }[];
+  events: { starts_at: string; venue?: string | null; address?: string | null }[];
   /** Replies close (yyyy-mm-dd), if set. */
   rsvpClose?: string;
 }
@@ -48,9 +48,19 @@ export function fillsFor(f: Facts): Record<string, string> {
       'inv.8edf3058': time,
       'inv.6fcb1ea3': p.time(new Date(start.getTime() - 30 * 60_000)),
     });
-    const venue = first.venue?.trim();
-    if (venue) Object.assign(out, { 'inv.984b8c1f': venue, 'inv.e257ef55': venue, 'inv.a045b264': ` ${venue}.`, 'inv.ffa3f3e2': venue, 'inv.de092a2e': `At ${venue}` });
   }
+  // The place: the venue's name, and its street address where they've given one.
+  const venue = first?.venue?.trim();
+  const address = first?.address?.trim();
+  if (venue) Object.assign(out, { 'inv.984b8c1f': venue, 'inv.e257ef55': venue, 'inv.a045b264': ` ${venue}.`, 'inv.ffa3f3e2': address || venue, 'inv.de092a2e': `At ${venue}` });
+  if (address)
+    Object.assign(out, {
+      'inv.ffa3f3e2': address,
+      'inv.8297e5e4': `Address: ${address}. `,
+      'inv.db80331a': ` to ${address}.`,
+      'inv.bcd99820': ` book a car or shuttle from the airport to ${address}.`,
+      'inv.698be8f5': `. Mention ${address}.`,
+    });
   const second = f.events[1];
   if (second?.starts_at && !Number.isNaN(Date.parse(second.starts_at))) {
     const p = parts(second.starts_at, f.tz);

@@ -168,6 +168,8 @@ export function eventRoutes() {
       return there ? err(c, 409, 'conflict', 'This event changed elsewhere. Reloaded: check it and try again.') : err(c, 404, 'not_found', 'That event no longer exists.');
     }
     await audit(c, 'event.edit', c.req.param('id'), { fields: cols.map(([k]) => k) }).run();
+    // A date set at last: the invitation can show it (it wasn't known at sign-up).
+    if (b.startsAt !== undefined) await c.env.DB.prepare(`UPDATE wedding SET content = json_remove(content, '$.dateToBeSet') WHERE id = ? AND json_valid(content)`).bind(wid(c)).run();
     return c.json({ events: await list(c) });
   });
 
