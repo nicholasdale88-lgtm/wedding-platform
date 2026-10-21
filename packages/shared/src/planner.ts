@@ -980,6 +980,8 @@ export const Rfq = z.object({
   createdOn: s(10),
   /** Decided: the vendor chosen (or closed without one). */
   closed: z.boolean().default(false),
+  /** Filled in by the couple themselves (quotes they already have): nothing is sent unless they choose to. */
+  manual: z.boolean().optional(),
 });
 export type Rfq = z.infer<typeof Rfq>;
 export type RfqLine = z.infer<typeof RfqLine>;

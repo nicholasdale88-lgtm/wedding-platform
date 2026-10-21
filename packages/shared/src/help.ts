@@ -203,10 +203,10 @@ export const HELP: HelpArticle[] = [
     steps: [
       'In Wedding planner → Vendors, tap + Get quotes and tap what for (florist, photographer…). Your vendors of that kind are ticked, and the usual things to price, the date and the email are filled in: change any of it, or none.',
       'Tap Send. With email set up it goes from the site, each vendor with their own link, and replies come to you; otherwise use Email, Text or Copy link by each name.',
-      'Each vendor prices every item, or gives one total and attaches their own quote, or says they can’t. You get an email as each lands. Got a quote by email instead? More → Add a quote they sent me, and drop in the PDF.',
+      'Each vendor prices every item, or gives one total and attaches their own quote, or says they can’t. You get an email as each lands. Got a quote by email instead? More → Add a quote they sent me, and drop in the PDF. Already have all your quotes? Tap + Enter quotes myself instead: nothing is sent, you type each one in.',
       'Quotes show as cards, best value first, like for like. Rate each with the stars, see line by line if you like, then Book: the request closes and the others are marked.',
     ],
-    also: 'quote request rfq tender price compare comparison email draft',
+    also: 'quote request rfq tender price compare comparison email draft manual enter type in myself',
     go: { tab: 'planner', event: true, query: 'view=vendors' },
   },
   {

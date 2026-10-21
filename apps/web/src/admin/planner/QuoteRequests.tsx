@@ -14,6 +14,9 @@ import { QuoteFile } from './QuoteFile';
  * - Each vendor gets their own page: they price each line, or give one total and attach their own quote,
  *   or say they can't. You get an email as each one comes in. Quotes that arrive some other way (an email
  *   with a PDF) are added in a tap: drop the PDF and type the total.
+ * - Or enter the quotes yourself (ones you already have, by phone or email): the same screen without the
+ *   email, then type each vendor's quote in (one total or item by item, with the PDF), and the same
+ *   comparison. Any vendor can still be sent their link later.
  * - The comparison leads with a card per vendor, best first: the like-for-like total (a line someone left
  *   out counts at the middle price of the others), what's in and out, the deposit, your star ratings and a
  *   Book button. The full line-by-line table is one tap away, with an export.
@@ -48,7 +51,7 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
   const { overview, wid } = useAdmin();
   const toast = useToast();
   const siteEmail = useSiteEmail();
-  const [making, setMaking] = useState(false);
+  const [making, setMaking] = useState<false | 'ask' | 'manual'>(false);
   const [openId, setOpenId] = useState<string | null>(rfqs.find((r) => !r.closed)?.id ?? null);
   const today = dateIn(overview?.wedding.timezone);
   const live = rfqs.filter((r) => !r.closed);
@@ -78,16 +81,19 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
           <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">Send one list to a few vendors. They price it on a simple page or attach their own quote, you get an email as each comes in, and you see them side by side.</p>
         </div>
         {!making && (
-          <Pill kind="primary" onClick={() => setMaking(true)}>
-            + Get quotes
-          </Pill>
+          <div className="flex gap-2 flex-wrap">
+            <Pill kind="primary" onClick={() => setMaking('ask')}>
+              + Get quotes
+            </Pill>
+            <Pill onClick={() => setMaking('manual')}>+ Enter quotes myself</Pill>
+          </div>
         )}
       </div>
       {!rfqs.length && !making && (
         <ol className="m-0 p-0 list-none grid gap-2 sm:grid-cols-3">
           {[
             ['Pick what for', 'Florist, photographer, caterer… The usual things to price are filled in.'],
-            ['Send it', 'To your vendors of that kind, or anyone you add. One tap.'],
+            ['Send it, or type them in', 'Vendors price it on their own link. Already have quotes? Enter them yourself.'],
             ['Compare and book', 'Best value first, like for like. Book in a tap.'],
           ].map(([h, t], i) => (
             <li key={h} className="flex gap-3 p-3 rounded-[12px] bg-white border border-[#ece3cd]">
@@ -106,10 +112,11 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
         <NewRequest
           list={list}
           today={today}
+          manual={making === 'manual'}
           siteEmail={siteEmail}
           onCancel={() => setMaking(false)}
           onMake={async (rfq, nextList, sendTo) => {
-            const ok = await onSave(nextList, [...rfqs, rfq], sendTo.length ? undefined : 'Request ready: send it to each vendor below');
+            const ok = await onSave(nextList, [...rfqs, rfq], sendTo.length ? undefined : rfq.manual ? 'Ready: enter each vendor’s quote below' : 'Request ready: send it to each vendor below');
             if (!ok) return false;
             setMaking(false);
             setOpenId(rfq.id);
@@ -141,12 +148,15 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
 function NewRequest({
   list,
   today,
+  manual,
   siteEmail,
   onCancel,
   onMake,
 }: {
   list: Vendor[];
   today: string;
+  /** Quotes you'll type in yourself: no email, nothing sent. */
+  manual: boolean;
   siteEmail: boolean;
   onCancel: () => void;
   onMake: (rfq: Rfq, list: Vendor[], sendTo: string[]) => Promise<boolean>;
@@ -180,7 +190,8 @@ function NewRequest({
   if (service === null) {
     return (
       <div className="flex flex-col gap-3 p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
-        <strong className="text-[16px]">What do you need quotes for?</strong>
+        <strong className="text-[16px]">{manual ? 'What are the quotes for?' : 'What do you need quotes for?'}</strong>
+        {manual && <span className="text-[13px] text-[#5b6a52] -mt-2">For quotes you already have (by phone, email or a PDF). You’ll type each one in, then see them side by side.</span>}
         <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
           {[...SERVICES, ['', { label: 'Something else' }] as const].map(([k, v]) => (
             <button key={k || 'other'} type="button" onClick={() => choose(k)} className="min-h-[52px] py-2 px-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] text-[14px] cursor-pointer text-[#33402f] hover:border-[#33402f]">
@@ -199,7 +210,7 @@ function NewRequest({
   const matching = all.filter((v) => searchKeyOf(`${v.category} ${v.name}`) === service);
   const others = all.filter((v) => !matching.includes(v) && v.status !== 'declined');
   const chosen = all.filter((v) => picked.has(v.id));
-  const byEmail = siteEmail ? chosen.filter((v) => isEmail(v.email)) : [];
+  const byEmail = siteEmail && !manual ? chosen.filter((v) => isEmail(v.email)) : [];
   const setVendor = (id: string, p: Partial<Vendor>) => setAll(all.map((v) => (v.id === id ? { ...v, ...p } : v)));
 
   const make = async () => {
@@ -207,7 +218,7 @@ function NewRequest({
     const ls = lines.filter((l) => l.label.trim());
     if (!ls.length) return setProblem('Add at least one thing to price.');
     if (!picked.size) return setProblem('Tick at least one vendor to ask.');
-    if (!message.includes('{link}')) return setProblem('Keep {link} in the message: it’s where each vendor prices the list.');
+    if (!manual && !message.includes('{link}')) return setProblem('Keep {link} in the message: it’s where each vendor prices the list.');
     setBusy(true);
     const rfq: Rfq = {
       id: newId(),
@@ -221,6 +232,7 @@ function NewRequest({
       createdOn: today,
       closed: false,
       budget: 0,
+      ...(manual ? { manual: true } : {}),
     };
     await onMake(rfq, all, byEmail.map((v) => v.id));
     setBusy(false);
@@ -236,7 +248,7 @@ function NewRequest({
       </div>
 
       <div className="flex flex-col gap-2">
-        <strong className="text-[14px]">Who to ask</strong>
+        <strong className="text-[14px]">{manual ? 'Whose quotes' : 'Who to ask'}</strong>
         {!matching.length && <span className="text-[13px] text-[#5b6a52]">None of your vendors are {label.toLowerCase()} yet: add who you’d like a quote from.</span>}
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {[...matching, ...others].map((v) => {
@@ -250,7 +262,7 @@ function NewRequest({
                     <span className="block text-[12px] text-[#7a7466] truncate">{[v.category, v.email || v.phone].filter(Boolean).join(' · ') || 'No email or mobile yet'}</span>
                   </span>
                 </label>
-                {on && !v.email && (
+                {on && !v.email && !manual && (
                   <input
                     type="email"
                     value={v.email}
@@ -267,6 +279,7 @@ function NewRequest({
         {adding ? (
           <AddVendor
             category={label.replace(/s$/, '')}
+            nameOnly={manual}
             onCancel={() => setAdding(false)}
             onAdd={(v) => {
               setAll([...all, v]);
@@ -276,11 +289,12 @@ function NewRequest({
           />
         ) : (
           <button type="button" onClick={() => setAdding(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]">
-            + Ask someone else
+            {manual ? '+ Someone else' : '+ Ask someone else'}
           </button>
         )}
       </div>
 
+      {!manual && (
       <div className="flex flex-col gap-2">
         <strong className="text-[14px]">Quotes wanted by</strong>
         <div className="flex gap-2 flex-wrap items-center">
@@ -299,10 +313,13 @@ function NewRequest({
           <input type="date" value={due} min={today} aria-label="Quotes wanted by" onChange={(e) => setDue(e.target.value)} className={`${inputCls} max-w-[180px] py-[6px]`} />
         </div>
       </div>
+      )}
 
       <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd]">
         <div className="flex justify-between items-baseline gap-2">
-          <strong className="text-[14px]">What they’ll price ({lines.filter((l) => l.label.trim()).length})</strong>
+          <strong className="text-[14px]">
+            {manual ? 'What to compare' : 'What they’ll price'} ({lines.filter((l) => l.label.trim()).length})
+          </strong>
           <button type="button" aria-expanded={editLines} onClick={() => setEditLines(!editLines)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
             {editLines ? 'Done' : 'Change'}
           </button>
@@ -337,6 +354,7 @@ function NewRequest({
         )}
       </div>
 
+      {!manual && (
       <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd]">
         <div className="flex justify-between items-baseline gap-2">
           <strong className="text-[14px]">The message</strong>
@@ -358,6 +376,7 @@ function NewRequest({
           <span className="text-[13px] text-[#5b6a52] line-clamp-2">{message.replace(/\{link\}/g, '[their link]').replace(/\s+/g, ' ')}</span>
         )}
       </div>
+      )}
 
       {problem && (
         <p role="alert" className="m-0 text-[14px] text-[#7a4a37]">
@@ -366,12 +385,14 @@ function NewRequest({
       )}
       <div className="flex gap-2 items-center flex-wrap">
         <Pill kind="primary" disabled={busy} aria-busy={busy} onClick={() => void make()}>
-          {busy ? 'Sending…' : byEmail.length ? `Send to ${byEmail.length} ${byEmail.length === 1 ? 'vendor' : 'vendors'}` : 'Make the request'}
+          {busy ? (manual ? 'Saving…' : 'Sending…') : manual ? 'Start comparing' : byEmail.length ? `Send to ${byEmail.length} ${byEmail.length === 1 ? 'vendor' : 'vendors'}` : 'Make the request'}
         </Pill>
         <Pill onClick={onCancel}>Cancel</Pill>
       </div>
       <span className="text-[12px] text-[#5b6a52]">
-        {byEmail.length
+        {manual
+          ? 'Next, type in each vendor’s quote: one total or item by item, with their PDF if you have it. Nothing is sent to them.'
+          : byEmail.length
           ? `Emailed from the site, each with their own link. Replies come to you.${chosen.length > byEmail.length ? ` ${chosen.length - byEmail.length} without an email: you’ll text or copy their link next.` : ''}`
           : 'Next, send it to each vendor from your email or phone, or copy their link.'}
       </span>
@@ -380,7 +401,7 @@ function NewRequest({
 }
 
 /** Add someone to ask (in the directory or not): their name and an email or mobile. They join your vendors too. */
-function AddVendor({ category, onAdd, onCancel, existing = [], onPick }: { category: string; onAdd: (v: Vendor) => void; onCancel: () => void; existing?: Vendor[]; onPick?: (v: Vendor) => void }) {
+function AddVendor({ category, nameOnly, onAdd, onCancel, existing = [], onPick }: { category: string; nameOnly?: boolean; onAdd: (v: Vendor) => void; onCancel: () => void; existing?: Vendor[]; onPick?: (v: Vendor) => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -389,8 +410,8 @@ function AddVendor({ category, onAdd, onCancel, existing = [], onPick }: { categ
     setProblem('');
     if (!name.trim()) return setProblem('Add their name.');
     if (email.trim() && !isEmail(email)) return setProblem('That email doesn’t look right.');
-    if (!email.trim() && !phone.trim()) return setProblem('Add an email or a mobile, so the request can reach them.');
-    onAdd(Vendor.parse({ id: newId(), name: name.trim().slice(0, 120), category, status: 'requested', phone: phone.trim().slice(0, 40), email: email.trim().slice(0, 120) }));
+    if (!nameOnly && !email.trim() && !phone.trim()) return setProblem('Add an email or a mobile, so the request can reach them.');
+    onAdd(Vendor.parse({ id: newId(), name: name.trim().slice(0, 120), category, status: nameOnly ? 'contacted' : 'requested', phone: phone.trim().slice(0, 40), email: email.trim().slice(0, 120) }));
   };
   return (
     <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-dashed border-[#c6b794] bg-[#fbf8f0]">
@@ -418,8 +439,8 @@ function AddVendor({ category, onAdd, onCancel, existing = [], onPick }: { categ
       <span className="text-[13px] text-[#5b6a52]">{existing.length && onPick ? 'Or someone new:' : 'Someone new (they’re added to your vendors too):'}</span>
       <div className="grid gap-2 sm:grid-cols-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Wildflower Studio" aria-label="New vendor name" className={inputCls} />
-        <input value={email} type="email" onChange={(e) => setEmail(e.target.value)} placeholder="Email" aria-label="New vendor email" className={inputCls} />
-        <input value={phone} type="tel" onChange={(e) => setPhone(e.target.value)} placeholder="Mobile" aria-label="New vendor mobile" className={inputCls} />
+        <input value={email} type="email" onChange={(e) => setEmail(e.target.value)} placeholder={nameOnly ? 'Email (optional)' : 'Email'} aria-label="New vendor email" className={inputCls} />
+        <input value={phone} type="tel" onChange={(e) => setPhone(e.target.value)} placeholder={nameOnly ? 'Mobile (optional)' : 'Mobile'} aria-label="New vendor mobile" className={inputCls} />
       </div>
       {problem && (
         <span role="alert" className="text-[13px] text-[#7a4a37]">
@@ -439,8 +460,9 @@ function AddVendor({ category, onAdd, onCancel, existing = [], onPick }: { categ
 }
 
 type StateOf = { label: string; tone: 'muted' | 'wait' | 'good' | 'out'; when: string };
-function stateOf(rv: RfqVendor): StateOf {
+function stateOf(rv: RfqVendor, manual?: boolean): StateOf {
   if (rv.answeredOn) return { label: 'Quoted', tone: 'good', when: longDay(rv.answeredOn) };
+  if (manual && !rv.sentOn && !rv.declinedOn) return { label: 'Quote to enter', tone: 'muted', when: '' };
   if (rv.declinedOn) return { label: 'Can’t quote', tone: 'out', when: rv.declinedWhy };
   if (rv.openedOn) return { label: 'Looking at it', tone: 'wait', when: `opened ${longDay(rv.openedOn)}` };
   if (rv.sentOn) return { label: 'Sent', tone: 'wait', when: `${longDay(rv.sentOn)}${rv.remindedOn ? ` · reminded ${longDay(rv.remindedOn)}` : ''}` };
@@ -527,14 +549,15 @@ function RequestCard({
     const was = v.quotes.find((x) => x.id === rv.quoteId);
     const quote = { ...q, id: was?.id ?? q.id, rfq: rfq.id };
     void onChange(
-      { ...rfq, vendors: rfq.vendors.map((x) => (x.vendorId === vendorId ? { ...x, quoteId: quote.id, answeredOn: x.answeredOn || today, sentOn: x.sentOn || today, declinedOn: '' } : x)) },
+      { ...rfq, vendors: rfq.vendors.map((x) => (x.vendorId === vendorId ? { ...x, quoteId: quote.id, answeredOn: x.answeredOn || today, sentOn: x.sentOn || (rfq.manual ? '' : today), declinedOn: '' } : x)) },
       list.map((x): Vendor => (x.id === vendorId ? { ...x, quotes: was ? x.quotes.map((y) => (y.id === was.id ? quote : y)) : [...x.quotes, quote].slice(-12), status: x.status === 'booked' ? x.status : 'quoted' } : x)),
       `${v.name}’s quote added`,
     );
     setEntering(null);
   };
 
-  const notSent = rfq.vendors.filter((rv) => !rv.sentOn && !rv.answeredOn && !rv.declinedOn);
+  const notSent = rfq.manual ? [] : rfq.vendors.filter((rv) => !rv.sentOn && !rv.answeredOn && !rv.declinedOn);
+  const toEnter = rfq.manual ? rfq.vendors.filter((rv) => !rv.answeredOn && !rv.sentOn && !rv.declinedOn) : [];
   const emailable = (ids: RfqVendor[]) => ids.filter((rv) => isEmail(list.find((v) => v.id === rv.vendorId)?.email ?? '')).map((rv) => rv.vendorId);
   const waiting = rfq.vendors.filter((rv) => rv.sentOn && !rv.answeredOn && !rv.declinedOn);
   const late = rfq.due && rfq.due < today;
@@ -556,6 +579,13 @@ function RequestCard({
       </button>
       {open && (
         <>
+          {!rfq.closed && toEnter.length > 0 && (
+            <div className="flex items-center gap-3 flex-wrap p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
+              <span className="flex-1 min-w-[180px]">
+                <strong className="font-semibold">{toEnter.length === rfq.vendors.length ? 'Type in each quote.' : `${toEnter.length} still to enter.`}</strong> Tap Enter quote by each name: one total or item by item, with their PDF if you have it.
+              </span>
+            </div>
+          )}
           {!rfq.closed && (notSent.length > 0 || (waiting.length > 0 && siteEmail)) && (
             <div className="flex items-center gap-3 flex-wrap p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
               {notSent.length > 0 ? (
@@ -590,7 +620,7 @@ function RequestCard({
             {rfq.vendors.map((rv) => {
               const v = list.find((x) => x.id === rv.vendorId);
               if (!v) return null;
-              const st = stateOf(rv);
+              const st = stateOf(rv, rfq.manual);
               const q = v.quotes.find((x) => x.id === rv.quoteId);
               const mail = `mailto:${encodeURIComponent(v.email)}?subject=${encodeURIComponent(fill(rfq.subject, rv.key))}&body=${encodeURIComponent(fill(rfq.message, rv.key))}`;
               const sms = `sms:${v.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(`Hi, it's ${couple}. We'd love a quote for our wedding: you can price it here ${linkOf(rv.key)}`)}`;
@@ -610,14 +640,19 @@ function RequestCard({
                         {st.when && <span className="text-[12px] text-[#7a7466]">{st.when}</span>}
                       </span>
                     </span>
-                    {pending && canEmail && (
+                    {!rfq.closed && (rfq.manual || q) && (
+                      <Pill size="sm" kind={q ? 'secondary' : 'primary'} onClick={() => setEntering(entering === v.id ? null : v.id)}>
+                        {q ? 'Change' : 'Enter quote'}
+                      </Pill>
+                    )}
+                    {pending && canEmail && !rfq.manual && (
                       <Pill size="sm" kind={rv.sentOn ? 'secondary' : 'primary'} disabled={!!busy} onClick={() => void send([v.id], !!rv.sentOn, v.id)}>
                         {busy === v.id ? 'Sending…' : rv.sentOn ? 'Remind' : 'Send'}
                       </Pill>
                     )}
                     {!rfq.closed && (
                       <details className="relative">
-                        <summary className={`${small} list-none [&::-webkit-details-marker]:hidden`}>{canEmail || !pending ? 'More' : 'Send'} ▾</summary>
+                        <summary className={`${small} list-none [&::-webkit-details-marker]:hidden`}>{canEmail || !pending || rfq.manual ? 'More' : 'Send'} ▾</summary>
                         <div className="absolute right-0 z-[5] mt-1 w-[230px] flex flex-col p-1 rounded-[12px] border border-[#e2d7bc] bg-white shadow-[0_8px_24px_rgba(51,64,47,.18)] text-[14px]">
                           {pending && v.email && (
                             <a href={mail} onClick={() => markSent(v.id)} className="py-2 px-3 rounded-[8px] no-underline !text-[#33402f] hover:bg-[#f3eee2]">
@@ -645,7 +680,7 @@ function RequestCard({
                             Copy their link
                           </button>
                           <button type="button" className="py-2 px-3 rounded-[8px] border-0 bg-transparent text-left cursor-pointer text-[#33402f] hover:bg-[#f3eee2]" onClick={() => setEntering(v.id)}>
-                            {q ? 'Change their quote' : 'Add a quote they sent me'}
+                            {q ? 'Change their quote' : rfq.manual ? 'Enter their quote' : 'Add a quote they sent me'}
                           </button>
                           <button
                             type="button"
@@ -658,7 +693,7 @@ function RequestCard({
                       </details>
                     )}
                   </div>
-                  {!v.email && !v.phone && pending && <span className="text-[12px] text-[#7a4a37]">No email or mobile: add one on their card, or copy their link.</span>}
+                  {!v.email && !v.phone && pending && !rfq.manual && <span className="text-[12px] text-[#7a4a37]">No email or mobile: add one on their card, or copy their link.</span>}
                   {entering === v.id && <EnterQuote rfq={rfq} vendor={v} was={q} onCancel={() => setEntering(null)} onSave={(qq) => enterQuote(v.id, qq)} />}
                 </li>
               );
@@ -670,14 +705,15 @@ function RequestCard({
             (adding ? (
               <AddVendor
                 category={VENDOR_SEARCH[rfq.service]?.label.replace(/s$/, '') ?? ''}
+                nameOnly={rfq.manual}
                 existing={list.filter((v) => !rfq.vendors.some((rv) => rv.vendorId === v.id) && v.status !== 'declined')}
                 onCancel={() => setAdding(false)}
                 onAdd={(v) => {
-                  void onChange({ ...rfq, vendors: [...rfq.vendors, askOf(v.id)] }, [...list, v], `${v.name} added: send them the request`);
+                  void onChange({ ...rfq, vendors: [...rfq.vendors, askOf(v.id)] }, [...list, v], rfq.manual ? `${v.name} added: enter their quote` : `${v.name} added: send them the request`);
                   setAdding(false);
                 }}
                 onPick={(v) => {
-                  void onChange({ ...rfq, vendors: [...rfq.vendors, askOf(v.id)] }, undefined, `${v.name} added: send them the request`);
+                  void onChange({ ...rfq, vendors: [...rfq.vendors, askOf(v.id)] }, undefined, rfq.manual ? `${v.name} added: enter their quote` : `${v.name} added: send them the request`);
                   setAdding(false);
                 }}
               />
@@ -690,7 +726,7 @@ function RequestCard({
           {cmp.cols.some((c) => c.q) ? (
             <Comparison rfq={rfq} cmp={cmp} today={today} onBook={book} onChange={(next, msg) => void onChange(next, undefined, msg)} />
           ) : (
-            <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">Quotes appear here side by side as they come in. We’ll email you when each one lands.</p>
+            <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">{rfq.manual ? 'Quotes appear here side by side as you enter them.' : 'Quotes appear here side by side as they come in. We’ll email you when each one lands.'}</p>
           )}
 
           <div className="flex gap-4 text-[13px] pt-1 flex-wrap">
