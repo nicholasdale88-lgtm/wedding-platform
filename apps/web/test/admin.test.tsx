@@ -593,7 +593,7 @@ describe('SMS messages tab', () => {
       },
     });
     renderAt('/admin/w1/wedding/texts');
-    await userEvent.click(await screen.findByRole('switch', { name: 'Autopilot: Invitation' }));
+    await userEvent.click(await screen.findByRole('switch', { name: 'Send automatically: Invitation' }));
     await waitFor(() => expect(patch).toEqual({ body: { enabled: false }, ifMatch: '2' }));
   });
 
