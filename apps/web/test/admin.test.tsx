@@ -709,7 +709,7 @@ describe('seating tab', () => {
     const edit = await screen.findByRole('button', { name: 'Edit seating' });
     expect(screen.queryByRole('button', { name: 'Auto-seat the rest' })).toBeNull();
     expect(screen.queryByLabelText('Room size')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Print plan' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Print floor plan' })).toBeInTheDocument();
     await userEvent.click(edit);
     await userEvent.selectOptions(screen.getByLabelText('Room size'), '2');
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
@@ -808,6 +808,66 @@ describe('seating tab', () => {
     expect(screen.getByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Redo' }));
     expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+  });
+
+  it('undo puts back a room size change, with the tables it moved, and Save sends the room as it was', async () => {
+    let body: { aspect: string; tables: { x: number }[] } | null = null;
+    // A very large room with a table near the right wall: back to Standard size, it has to move in.
+    const big = { ...seating, aspect: '4 / 3 x2', tables: [{ ...seating.tables[0]!, x: 96.5 }] };
+    mockApi({
+      '/api/a/w/w1/seating': (init) => {
+        if (init?.method === 'PUT') body = JSON.parse(String(init.body));
+        return json(200, big);
+      },
+    });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    expect(screen.getByLabelText('Room size')).toHaveValue('2');
+    await userEvent.selectOptions(screen.getByLabelText('Room size'), '1');
+    expect(screen.getByLabelText('Room size')).toHaveValue('1');
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByLabelText('Room size')).toHaveValue('2');
+    await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
+    await waitFor(() => expect(body?.aspect).toBe('4 / 3 x2'));
+    expect(body!.tables[0]!.x).toBe(96.5); // the table went back where it was, too
+  });
+
+  it('a slider drag is one undo step', async () => {
+    mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    fireEvent.pointerDown(await screen.findByText('Dance floor', { selector: 'div' })); // the area on the plan (not the Add area menu)
+    const width = screen.getByLabelText('Width · 20%');
+    fireEvent.pointerDown(width);
+    for (const w of [24, 30, 41]) fireEvent.change(width, { target: { value: String(w) } });
+    expect(screen.getByLabelText('Width · 41%')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    expect(screen.getByLabelText('Width · 20%')).toBeInTheDocument();
+  });
+
+  it('dragging a name onto a table seats them (pointer events, so a finger works as well as a mouse)', async () => {
+    mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    const table = await screen.findByRole('button', { name: 'Table 1, 1 of 4' });
+    const sam = screen.getByRole('button', { name: 'Sam Hart' });
+    // jsdom does no layout, so say what's under the pointer: table 1. MouseEvents named pointer* reach
+    // React's pointer handlers whether or not this jsdom has PointerEvent.
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => table });
+    const ptr = (type: string, x: number, y: number) => new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y });
+    try {
+      fireEvent(sam, ptr('pointerdown', 10, 10));
+      fireEvent(sam, ptr('pointermove', 12, 11)); // a wobble: still a tap
+      expect(document.querySelector('[data-drag-label]')).toBeNull();
+      fireEvent(sam, ptr('pointermove', 80, 60));
+      expect(document.querySelector('[data-drag-label]')).toHaveTextContent('Sam Hart'); // the label follows the pointer
+      fireEvent(sam, ptr('pointerup', 80, 60));
+    } finally {
+      delete (document as { elementFromPoint?: unknown }).elementFromPoint;
+    }
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Table 1, 2 of 4' })).toBeInTheDocument();
+    expect(document.querySelector('[data-drag-label]')).toBeNull();
   });
 
   it('the table type menu changes the selected table (and its usual seats); Save sends every table', async () => {

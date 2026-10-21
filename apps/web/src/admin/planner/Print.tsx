@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pagesApi, photosApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
 import { themeOf } from '../../guest/themeKit';
 import { SignStudio } from '../signs/SignStudio';
-import { useAdmin } from '../Shell';
+import { ALL_EVENTS, useAdmin } from '../Shell';
 import { H2, Pill } from '../ui';
 
 /**
@@ -14,11 +14,12 @@ import { H2, Pill } from '../ui';
  * chart come from the seating plan; menu cards from the night-before page's menu.
  */
 
-type Kind = 'welcome' | 'tables' | 'places' | 'chart' | 'menu' | 'runsheet' | 'savedate' | 'envelopes';
+type Kind = 'welcome' | 'tables' | 'places' | 'escort' | 'chart' | 'menu' | 'runsheet' | 'savedate' | 'envelopes';
 const KINDS: [Kind, string, string][] = [
   ['welcome', 'Welcome sign', 'One A3 page (prints well up to A1).'],
   ['tables', 'Table numbers', 'An A5 card for each table.'],
   ['places', 'Place cards', 'Name and table, eight to an A4 page: cut on the lines and fold.'],
+  ['escort', 'Escort cards', 'A little tent card for each guest with their table, A to Z by surname, eight to an A4 page: set them out in order on a table at the entrance.'],
   ['chart', 'Seating chart', 'Everyone A to Z with their table, on A3 posters (one per 135 guests).'],
   ['menu', 'Menu cards', 'The menu from your night-before page, two to an A4 page.'],
   ['envelopes', 'Vendor envelopes', 'A label for each supplier still to be paid on the day: what’s owing, when they arrive, who to give it to. Eight to an A4 page.'],
@@ -27,7 +28,7 @@ const KINDS: [Kind, string, string][] = [
 ];
 
 export function Print() {
-  const { wid, overview } = useAdmin();
+  const { wid, overview, event: chosen } = useAdmin();
   const [pages, setPages] = useState<PagesData | null>(null);
   const [seating, setSeating] = useState<SeatingData | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
@@ -35,8 +36,13 @@ export function Print() {
   const [vendors, setVendors] = useState<VendorsDoc['list']>([]);
   const [budgetLines, setBudgetLines] = useState<BudgetDoc['lines']>([]);
   const [photoCode, setPhotoCode] = useState('');
-  const first = overview?.events[0];
+  // The event chosen in the sidebar (in Account, where no event is chosen, the first one).
+  const first = (chosen && chosen !== ALL_EVENTS ? overview?.events.find((e) => e.key === chosen) : undefined) ?? overview?.events[0];
   useEffect(() => {
+    // TODO(seating): cards, the chart and table numbers should come from the PUBLISHED plan (what guests
+    // see), but GET /seating only returns the saved draft, plus `published: { at, changes }`. The API keeps
+    // the published snapshot (seat_publish) but doesn't send it to the admin yet. Until it does, this uses
+    // the saved plan and says so below when it has changes that aren't published.
     pagesApi
       .get(wid)
       .then(setPages)
@@ -86,7 +92,7 @@ export function Print() {
   const owing = booked
     .map((v) => ({ v, amount: moneyOf(v, lineFor(v, budgetLines)).owing }))
     .filter((o) => o.amount > 0);
-  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length, savedate: first ? 1 : 0, envelopes: owing.length };
+  const count: Record<Kind, number> = { welcome: 1, tables: tables.length, places: seated.length, escort: seated.length, chart: seated.length, menu: menu.length, runsheet: items.length + booked.length, savedate: first ? 1 : 0, envelopes: owing.length };
   // The online save the date (no guest link: anyone with the card can open it).
   const stdUrl = `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/save-the-date`;
   const qr = (() => {
@@ -108,10 +114,10 @@ export function Print() {
     name2: names.name2.split(' ')[0] ?? '',
     couple,
     date,
-    venue: overview?.events[0]?.venue ?? '',
+    venue: first?.venue ?? '',
     website: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}`,
     // The photo page from a table card: no guest link needed (they give their name).
-    photos: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/photos${overview?.events[0] ? `/${encodeURIComponent(overview.events[0].key)}` : ''}${photoCode ? `?t=${photoCode}` : ''}`,
+    photos: `${window.location.origin}/w/${overview?.wedding.slug ?? ''}/photos${first ? `/${encodeURIComponent(first.key)}` : ''}${photoCode ? `?t=${photoCode}` : ''}`,
     timeline: items.map((x) => `${x.time}  ${x.title}`).join('\n') || '2:00pm  Ceremony\n3:00pm  Canapés\n5:30pm  Reception\n10:30pm  Farewell',
   };
 
@@ -121,6 +127,13 @@ export function Print() {
       <div>
         <H2>Cards and lists</H2>
         <div className="text-[13px] text-[#5b6a52]">Signs and cards in your wedding’s fonts. Print at home, or choose “Save as PDF” to send to a printer.</div>
+        {seating && seating.tables.length > 0 && (!seating.published || seating.published.changes > 0) && (
+          <div role="note" className="mt-2 text-[13px] text-[#7a4a37]">
+            {seating.published
+              ? `Cards come from the saved seating plan, which has ${seating.published.changes} ${seating.published.changes === 1 ? 'change' : 'changes'} guests can’t see yet. Publish it in Seating first so the cards match what guests are told.`
+              : 'Cards come from the saved seating plan, which isn’t published yet. Publish it in Seating first so the cards match what guests are told.'}
+          </div>
+        )}
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {KINDS.filter(([k]) => k !== 'welcome' && k !== 'tables').map(([k, label, hint]) => {
@@ -132,7 +145,7 @@ export function Print() {
               <span className="text-[12px] text-[#7a7466]">
                 {k === 'tables'
                   ? `${tables.length} tables`
-                  : k === 'places' || k === 'chart'
+                  : k === 'places' || k === 'escort' || k === 'chart'
                     ? `${seated.length} guests seated`
                     : k === 'menu'
                       ? `${menu.length} courses`
@@ -184,6 +197,18 @@ export function Print() {
                   <div key={`${p.name}-${p.table}`} className="pp-place flex flex-col items-center justify-end pb-[8mm] text-center">
                     <div className="pp-script text-[13mm] leading-tight">{p.name}</div>
                     <div className="pp-small mt-[2mm]">{/^\d+$/.test(p.table) ? `Table ${p.table}` : p.table}</div>
+                  </div>
+                ))}
+              </section>
+            ))}
+          {kind === 'escort' &&
+            // A to Z by surname (as `seated` is), so they go out on the entrance table in order and guests find their name fast.
+            chunk(seated, 8).map((page, n) => (
+              <section key={n} className="pp pp-a4 grid grid-cols-2 grid-rows-4">
+                {page.map((p, i) => (
+                  <div key={`${p.name}-${p.table}-${i}`} className="pp-place pp-tent flex flex-col items-center justify-end pb-[8mm] px-[6mm] text-center">
+                    <div className="pp-serif text-[9mm] leading-tight font-semibold">{p.name}</div>
+                    <div className="pp-serif text-[6mm] italic mt-[2mm]">{/^\d+$/.test(p.table) ? `Table ${p.table}` : p.table}</div>
                   </div>
                 ))}
               </section>
@@ -404,6 +429,9 @@ const PRINT_CSS = `
 .pp-small { font-family: 'DM Sans', system-ui, sans-serif; font-size: 3.4mm; letter-spacing: .3em; text-transform: uppercase; font-weight: 600; color: #6b6558; }
 .pp-rule { width: 30mm; height: 0.5mm; background: #c8a46a; }
 .pp-place { border: 0.2mm dashed #d8cfb8; }
+/* Escort cards: a dotted fold line across the middle; the name and table sit on the front half. */
+.pp-tent { position: relative; }
+.pp-tent::after { content: ''; position: absolute; left: 4mm; right: 4mm; top: 50%; border-top: 0.2mm dotted #d8cfb8; }
 .pp-chart { column-count: 3; column-gap: 10mm; }
 .pp-flow { width: 210mm; min-height: 297mm; height: auto; padding: 14mm 16mm; page: a4; overflow: visible; }
 .pp-flow::before { display: none; }
