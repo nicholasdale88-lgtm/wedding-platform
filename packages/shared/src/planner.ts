@@ -704,6 +704,8 @@ export const Quote = z.object({
   lines: z.array(z.object({ id: z.string().max(40), amount: z.number().min(0).max(10_000_000).nullable() })).max(40).default([]),
   /** One price for everything asked (a package): no line-by-line prices, nothing counted as left out. */
   package: z.boolean().optional(),
+  /** Their first price, kept when it changed (after you negotiated): what you saved. */
+  before: z.number().min(0).max(10_000_000).optional(),
 });
 export type Quote = z.infer<typeof Quote>;
 export const Vendor = z.object({
@@ -958,6 +960,8 @@ export const RfqVendor = z.object({
   quoteId: s(40),
   /** Last reminded (by the site's email), and when they said they can't quote, and why. */
   remindedOn: s(10),
+  /** When you asked them for a better price (Negotiate). */
+  negotiatedOn: s(10),
   declinedOn: s(10),
   declinedWhy: s(200),
   /** The couple's own ratings, 1 to 5 (unset: not rated), for the weighted score. */
@@ -1158,6 +1162,92 @@ export function tenderRows(t: ReturnType<typeof tenderAnalysis>): (string | numb
     ['Score (out of 10)', ...t.vendors.map((v) => (v.score === null ? '' : v.score))],
     ['Rank', ...t.vendors.map((v) => v.rank || '')],
   ];
+}
+
+/** A quote's first price, kept when a new one replaces it (what negotiating saved). */
+export const beforeOf = (was: Pick<Quote, 'amount' | 'before'> | undefined, amount: number) =>
+  was ? (was.before ?? (was.amount && was.amount !== amount ? was.amount : undefined)) : undefined;
+
+/** Where a quote request is at: 1 asking, 2 comparing (a quote is in), 3 negotiating, 4 locked in (booked or decided). */
+export function rfqStage(rfq: Rfq, list: Vendor[]): 1 | 2 | 3 | 4 {
+  const booked = rfq.vendors.some((rv) => list.find((v) => v.id === rv.vendorId)?.status === 'booked');
+  if (rfq.closed || booked) return 4;
+  if (rfq.vendors.some((rv) => rv.negotiatedOn)) return 3;
+  return rfq.vendors.some((rv) => rv.answeredOn || rv.quoteId) ? 2 : 1;
+}
+
+/** Ways to ask any vendor for a better deal (shown with each vendor's own points). */
+export const NEGOTIATION_TIPS = [
+  'Be warm and specific: say you love their work, then name the one or two things you’d like to change.',
+  'Ask for more, not just less: an extra hour, delivery, a second shooter or set-up included can be worth more than a discount.',
+  'Flexible on the date or time? Fridays, Sundays and off-season dates are often cheaper.',
+  'Ask about a smaller deposit or paying in instalments if the deposit is the hard part.',
+  'Ask them to hold the price while you decide, so it doesn’t run out on you.',
+];
+
+export type NegotiationPoint = { kind: 'price' | 'budget' | 'lines' | 'missing' | 'deposit' | 'expiry'; text: string; ask: string };
+
+/**
+ * What to raise with each vendor who has quoted, worked out from the comparison: how far they are above
+ * the best like-for-like quote (or your budget), the items they priced well above the middle price, items
+ * they left out, a deposit bigger than the others ask, and a price that runs out soon. Each point comes
+ * with the line to ask it, and a ready message joins them up ({couple} is filled in when it's sent).
+ * `today` is yyyy-mm-dd.
+ */
+export function negotiationPoints(rfq: Rfq, list: Vendor[], today: string) {
+  const t = tenderAnalysis(rfq, list);
+  const deposits = t.cols.map((c) => (c.q ? c.q.deposit : null));
+  return t.cols
+    .map((c, i) => {
+      const q = c.q;
+      if (!q) return null;
+      const a = t.vendors[i]!;
+      const points: NegotiationPoint[] = [];
+      if (a.vsBest !== null && a.vsBest > 0) {
+        points.push({ kind: 'price', text: `${aud0(a.vsBest)} (${a.vsBestPct}%) above the best like-for-like quote.`, ask: `We have another quote that comes in about ${aud0(a.vsBest)} lower for the same things. Is there any room to move on your price?` });
+      } else if (a.vsBudget !== null && a.vsBudget > 0) {
+        points.push({ kind: 'budget', text: `${aud0(a.vsBudget)} over your budget of ${aud0(rfq.budget)}.`, ask: `Our budget for this is ${aud0(rfq.budget)}. Is there an option or package that could get closer to that?` });
+      }
+      if (!q.package) {
+        const high = t.rows
+          .map((r) => ({ label: r.line.label, p: r.prices[i], mid: r.mid, v: r.variance[i] ?? null, n: r.prices.filter((x) => x !== null).length }))
+          .filter((x) => x.p !== null && x.v !== null && x.v >= 15 && x.n > 1)
+          .sort((x, y) => y.v! - x.v!)
+          .slice(0, 3);
+        if (high.length) {
+          points.push({
+            kind: 'lines',
+            text: high.map((x) => `${x.label}: ${aud0(x.p!)}, ${x.v}% above the middle price (${aud0(x.mid)})`).join('; ') + '.',
+            ask: `Could you look again at ${high.map((x) => x.label.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' and $1')}? Others have priced ${high.length === 1 ? 'it' : 'them'} a little lower.`,
+          });
+        }
+        const missing = t.rows.filter((r) => r.prices[i] === null).map((r) => r.line.label);
+        if (missing.length) {
+          const list = missing.slice(0, 4).map((x) => x.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' and $1');
+          points.push({ kind: 'missing', text: `Left out: ${missing.join(', ')}.`, ask: `Could you include ${list} in your price, or let us know what ${missing.length === 1 ? 'it' : 'they'} would add?` });
+        }
+      }
+      const others = deposits.filter((d, j): d is number => j !== i && d !== null && d > 0);
+      if (q.deposit > 0 && others.length && Math.min(...others) <= q.deposit * 0.75) {
+        points.push({ kind: 'deposit', text: `Deposit ${aud0(q.deposit)}; others ask from ${aud0(Math.min(...others))}.`, ask: `Would a smaller deposit, or paying it in instalments, be possible?` });
+      }
+      if (q.validUntil && q.validUntil >= today && Date.parse(q.validUntil) - Date.parse(today) <= 21 * 86_400_000) {
+        points.push({ kind: 'expiry', text: `The price holds only until ${q.validUntil.split('-').reverse().join('/')}.`, ask: `Could you hold this price for a few more weeks while we decide?` });
+      }
+      const hi = c.v.contact.trim().split(/\s+/)[0] || '';
+      const message = [
+        `Hi${hi ? ` ${hi}` : ''},`,
+        '',
+        `Thank you so much for your quote${rfq.title ? ` for our ${rfq.title.toLowerCase().replace(/ quotes?$/, '')}` : ''}. We really like what you offer and would love to make it work.`,
+        '',
+        ...(points.length ? points.map((p) => p.ask) : ['Is there any flexibility on the price, or anything extra you could include?']),
+        '',
+        'Thanks so much,',
+        '{couple}',
+      ].join('\n');
+      return { vendorId: c.v.id, name: c.v.name, email: c.v.email, phone: c.v.phone, quote: q, levelled: t.totals[i]!.levelled, best: t.bestValue?.id === c.v.id, points, message, askedOn: c.rv.negotiatedOn };
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x);
 }
 
 /** What "Find vendors" can search for near the venue (OpenStreetMap tags). */

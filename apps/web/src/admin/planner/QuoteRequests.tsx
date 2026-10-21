@@ -1,4 +1,4 @@
-import { dateIn, Quote, RFQ_LINES, rfqDraft, searchKeyOf, tenderAnalysis, tenderRows, TENDER_RATINGS, TENDER_WEIGHTS, Vendor, VENDOR_SEARCH, type Rfq, type RfqLine, type RfqVendor, type TenderRating } from '@wp/shared';
+import { beforeOf, dateIn, NEGOTIATION_TIPS, negotiationPoints, Quote, RFQ_LINES, rfqStage, rfqDraft, searchKeyOf, tenderAnalysis, tenderRows, TENDER_RATINGS, TENDER_WEIGHTS, Vendor, VENDOR_SEARCH, type Rfq, type RfqLine, type RfqVendor, type TenderRating } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -17,6 +17,10 @@ import { QuoteFile } from './QuoteFile';
  * - Or enter the quotes yourself (ones you already have, by phone or email): the same screen without the
  *   email, then type each vendor's quote in (one total or item by item, with the PDF), and the same
  *   comparison. Any vendor can still be sent their link later.
+ * - Each request walks through four steps, shown at the top: 1 Get quotes, 2 Compare, 3 Negotiate (what to
+ *   raise with each vendor, worked out from the comparison, with a message ready to send, and their new
+ *   price recorded: what you saved), 4 Lock in (book, then the deposit, the contract and a kind note to
+ *   the others). It opens on the step you're at; any step can be looked at.
  * - The comparison leads with a card per vendor, best first: the like-for-like total (a line someone left
  *   out counts at the middle price of the others), what's in and out, the deposit, your star ratings and a
  *   Book button. The full line-by-line table is one tap away, with an export.
@@ -502,6 +506,9 @@ function RequestCard({
   const [entering, setEntering] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState('');
+  const stage = rfqStage(rfq, list);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | null>(null);
+  const shown = step ?? stage;
   const answered = rfq.vendors.filter((v) => v.answeredOn).length;
   const declined = rfq.vendors.filter((v) => v.declinedOn && !v.answeredOn).length;
   const ev = overview?.events[0];
@@ -541,8 +548,9 @@ function RequestCard({
       list.map((v): Vendor =>
         v.id === vendorId ? { ...v, status: 'booked', accepted: col.q!.id } : others.some((c) => c.v.id === v.id) ? { ...v, status: 'declined', declinedWhy: v.declinedWhy || `Went with ${col.v.name}` } : v,
       ),
-      `${col.v.name} booked: their payments are in Payments`,
+      `${col.v.name} booked: now lock it in`,
     );
+    setStep(null);
   };
   /** A quote that came some other way (an email, a PDF), added for them. */
   const enterQuote = (vendorId: string, q: Quote) => {
@@ -550,11 +558,12 @@ function RequestCard({
     const rv = rfq.vendors.find((x) => x.vendorId === vendorId);
     if (!v || !rv) return;
     const was = v.quotes.find((x) => x.id === rv.quoteId);
-    const quote = { ...q, id: was?.id ?? q.id, rfq: rfq.id };
+    const quote = { ...q, id: was?.id ?? q.id, rfq: rfq.id, before: beforeOf(was, q.amount) };
+    const saved = quote.before !== undefined && quote.before > quote.amount ? quote.before - quote.amount : 0;
     void onChange(
       { ...rfq, vendors: rfq.vendors.map((x) => (x.vendorId === vendorId ? { ...x, quoteId: quote.id, answeredOn: x.answeredOn || today, sentOn: x.sentOn || (rfq.manual ? '' : today), declinedOn: '' } : x)) },
       list.map((x): Vendor => (x.id === vendorId ? { ...x, quotes: was ? x.quotes.map((y) => (y.id === was.id ? quote : y)) : [...x.quotes, quote].slice(-12), status: x.status === 'booked' ? x.status : 'quoted' } : x)),
-      `${v.name}’s quote added`,
+      saved ? `${v.name}’s new price saved: ${aud(saved)} less than their first quote` : was ? `${v.name}’s quote updated` : `${v.name}’s quote added`,
     );
     setEntering(null);
   };
@@ -564,6 +573,13 @@ function RequestCard({
   const emailable = (ids: RfqVendor[]) => ids.filter((rv) => isEmail(list.find((v) => v.id === rv.vendorId)?.email ?? '')).map((rv) => rv.vendorId);
   const waiting = rfq.vendors.filter((rv) => rv.sentOn && !rv.answeredOn && !rv.declinedOn);
   const late = rfq.due && rfq.due < today;
+  /** You've asked them for a better price (the message went from your email, a text or a copy). */
+  const markAsked = (vendorId: string) => {
+    if (rfq.vendors.find((v) => v.vendorId === vendorId)?.negotiatedOn === today) return;
+    void onChange({ ...rfq, vendors: rfq.vendors.map((v) => (v.vendorId === vendorId ? { ...v, negotiatedOn: today } : v)) });
+    setStep(null);
+  };
+  const patchVendor = (id: string, p: Partial<Vendor>, msg?: string) => void onChange(rfq, list.map((v) => (v.id === id ? { ...v, ...p } : v)), msg);
 
   return (
     <div className="flex flex-col gap-3 p-3 sm:p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
@@ -574,7 +590,7 @@ function RequestCard({
             {rfq.closed && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] bg-[#dfe5cc] text-[#3d4a2f] align-middle">Decided</span>}
           </span>
           <span className="block text-[13px] text-[#5b6a52]">
-            {answered} of {rfq.vendors.length} quoted{declined ? ` · ${declined} can’t` : ''}
+            Step {stage} of 4: {STEPS[stage - 1]} · {answered} of {rfq.vendors.length} quoted{declined ? ` · ${declined} can’t` : ''}
             {rfq.due && !rfq.closed ? <span className={late ? 'text-[#7a4a37] font-semibold' : ''}>{` · ${late ? 'were due' : 'due'} ${longDay(rfq.due)}`}</span> : ''}
           </span>
         </span>
@@ -582,6 +598,10 @@ function RequestCard({
       </button>
       {open && (
         <>
+          <Stepper stage={stage} shown={shown} onPick={(n) => setStep(n === stage ? null : n)} />
+          <p className="m-0 text-[14px] text-[#5b6a52]">{stepHelp(shown, !!rfq.manual)}</p>
+          {shown === 1 && (
+            <>
           {!rfq.closed && toEnter.length > 0 && (
             <div className="flex items-center gap-3 flex-wrap p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
               <span className="flex-1 min-w-[180px]">
@@ -725,12 +745,48 @@ function RequestCard({
                 + Ask someone else
               </button>
             ))}
-
-          {cmp.cols.some((c) => c.q) ? (
-            <Comparison rfq={rfq} cmp={cmp} today={today} onBook={book} onChange={(next, msg) => void onChange(next, undefined, msg)} />
-          ) : (
-            <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">{rfq.manual ? 'Quotes appear here side by side as you enter them.' : 'Quotes appear here side by side as they come in. We’ll email you when each one lands.'}</p>
+          {answered > 0 && !rfq.closed && (
+            <Pill kind="primary" className="self-start" onClick={() => setStep(2)}>
+              Next: compare {answered} {answered === 1 ? 'quote' : 'quotes'} →
+            </Pill>
           )}
+            </>
+          )}
+
+          {shown === 2 &&
+            (cmp.cols.some((c) => c.q) ? (
+              <>
+                <Comparison rfq={rfq} cmp={cmp} today={today} onBook={book} onChange={(next, msg) => void onChange(next, undefined, msg)} />
+                {!rfq.closed && (
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <Pill kind="primary" onClick={() => setStep(3)}>
+                      Next: ask for a better deal →
+                    </Pill>
+                    <button type="button" onClick={() => setStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+                      Happy with a price? Skip to booking
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">{rfq.manual ? 'Quotes appear here side by side as you enter them (step 1).' : 'Quotes appear here side by side as they come in. We’ll email you when each one lands.'}</p>
+            ))}
+
+          {shown === 3 && (
+            <Negotiate
+              rfq={rfq}
+              list={list}
+              today={today}
+              couple={couple}
+              entering={entering}
+              onEnter={setEntering}
+              onSaveQuote={enterQuote}
+              onAsked={markAsked}
+              onNext={() => setStep(4)}
+            />
+          )}
+
+          {shown === 4 && <LockIn rfq={rfq} list={list} cmp={cmp} couple={couple} onBook={book} onPatch={patchVendor} onOpenVendor={onOpenVendor} />}
 
           <div className="flex gap-4 text-[13px] pt-1 flex-wrap">
             {rfq.closed ? (
@@ -748,6 +804,333 @@ function RequestCard({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+const STEPS = ['Get quotes', 'Compare', 'Negotiate', 'Lock in'] as const;
+function stepHelp(n: number, manual: boolean) {
+  return [
+    manual ? 'Type in each quote you have: one total or item by item, with the PDF if you have it.' : 'Send your list to each vendor. Their quotes come back here, and you’re emailed as each one lands. Remind anyone who’s slow.',
+    'Best value first, like for like. Check what’s left out, the deposit and when each price runs out, and rate them with the stars.',
+    'Before you book, ask for a better deal. Here’s what to raise with each one, worked out from the comparison, with a message ready to send.',
+    'Book your favourite, then pay the deposit, sign the contract and let the others know.',
+  ][n - 1]!;
+}
+
+/** The four steps: done ones ticked, where you're at in bold; tap any to look at it. */
+function Stepper({ stage, shown, onPick }: { stage: number; shown: number; onPick: (n: 1 | 2 | 3 | 4) => void }) {
+  return (
+    <ol aria-label="Steps" className="m-0 p-0 list-none grid grid-cols-4 gap-1">
+      {STEPS.map((label, i) => {
+        const n = (i + 1) as 1 | 2 | 3 | 4;
+        const done = n < stage;
+        const here = n === shown;
+        return (
+          <li key={label}>
+            <button
+              type="button"
+              aria-current={here ? 'step' : undefined}
+              onClick={() => onPick(n)}
+              className={`w-full flex flex-col items-center gap-1 py-2 px-1 rounded-[10px] border cursor-pointer text-[12px] leading-tight ${here ? 'border-[#33402f] bg-[#f3f6ea] font-semibold text-[#33402f]' : 'border-transparent bg-transparent text-[#5b6a52]'}`}
+            >
+              <span
+                aria-hidden
+                className={`w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-semibold ${done ? 'bg-[#5d6b47] text-[#fbf8f0]' : n === stage ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-[#efe7d3] text-[#7a7466]'}`}
+              >
+                {done ? '✓' : n}
+              </span>
+              {label}
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/**
+ * Step 3: for each vendor who has quoted (best value first), what to raise and a ready message to send
+ * from your email or phone, then their new price recorded when they come back (what you saved shows).
+ */
+function Negotiate({
+  rfq,
+  list,
+  today,
+  couple,
+  entering,
+  onEnter,
+  onSaveQuote,
+  onAsked,
+  onNext,
+}: {
+  rfq: Rfq;
+  list: Vendor[];
+  today: string;
+  couple: string;
+  entering: string | null;
+  onEnter: (id: string | null) => void;
+  onSaveQuote: (vendorId: string, q: Quote) => void;
+  onAsked: (vendorId: string) => void;
+  onNext: () => void;
+}) {
+  const toast = useToast();
+  const items = negotiationPoints(rfq, list, today).sort((a, b) => (a.levelled ?? Infinity) - (b.levelled ?? Infinity));
+  const [msgs, setMsgs] = useState<Record<string, string>>({});
+  if (!items.length) return <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">Once a quote is in, this shows what to ask each vendor for.</p>;
+  return (
+    <div className="flex flex-col gap-3">
+      <details className="p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] text-[14px]">
+        <summary className="cursor-pointer font-semibold">How to ask nicely (and get more)</summary>
+        <ul className="m-0 mt-2 pl-5 flex flex-col gap-1 text-[#5b6a52]">
+          {NEGOTIATION_TIPS.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </ul>
+      </details>
+      {items.map((n) => {
+        const v = list.find((x) => x.id === n.vendorId)!;
+        const text = msgs[n.vendorId] ?? n.message.replace(/\{couple\}/g, couple);
+        const subject = `Your quote: ${couple}’s wedding`;
+        const saved = n.quote.before !== undefined && n.quote.before > n.quote.amount ? n.quote.before - n.quote.amount : 0;
+        return (
+          <article key={n.vendorId} className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-white">
+            <div className="flex justify-between items-baseline gap-2 flex-wrap">
+              <strong className="text-[16px]">{n.name}</strong>
+              <span className="text-[14px]">
+                <strong>{aud(n.quote.amount)}</strong>
+                {saved > 0 && <span className="ml-2 text-[12px] text-[#3d4a2f] font-semibold">was {aud(n.quote.before!)}, saved {aud(saved)}</span>}
+                {n.best && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] font-semibold bg-[#dfe5cc] text-[#3d4a2f]">Best value</span>}
+              </span>
+            </div>
+            {n.points.length ? (
+              <ul className="m-0 pl-5 flex flex-col gap-1 text-[14px]">
+                {n.points.map((p) => (
+                  <li key={p.kind}>{p.text}</li>
+                ))}
+              </ul>
+            ) : (
+              <span className="text-[14px] text-[#5b6a52]">Already the best value. You can still ask if they’d include something extra.</span>
+            )}
+            <details className="text-[14px]" open={!n.askedOn}>
+              <summary className="cursor-pointer text-[#33402f]">{n.askedOn ? `Asked ${longDay(n.askedOn)}: see the message` : 'The message, ready to send'}</summary>
+              <textarea rows={8} value={text} maxLength={3000} aria-label={`Message to ${n.name}`} onChange={(e) => setMsgs({ ...msgs, [n.vendorId]: e.target.value })} className={`${inputCls} w-full mt-2`} />
+              <div className="flex gap-2 flex-wrap mt-2">
+                {v.email && (
+                  <a href={`mailto:${encodeURIComponent(v.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`} onClick={() => onAsked(n.vendorId)} className={small}>
+                    Email it
+                  </a>
+                )}
+                {v.phone && (
+                  <a href={`sms:${v.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(text)}`} onClick={() => onAsked(n.vendorId)} className={small}>
+                    Text it
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className={small}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(text);
+                      toast('Message copied: paste it to them');
+                    } catch {
+                      window.prompt('Copy this message', text);
+                    }
+                    onAsked(n.vendorId);
+                  }}
+                >
+                  Copy
+                </button>
+                {!n.askedOn && (
+                  <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]" onClick={() => onAsked(n.vendorId)}>
+                    I asked them another way
+                  </button>
+                )}
+              </div>
+            </details>
+            {!rfq.closed &&
+              (entering === n.vendorId ? (
+                <EnterQuote rfq={rfq} vendor={v} was={n.quote} onCancel={() => onEnter(null)} onSave={(q) => onSaveQuote(n.vendorId, q)} />
+              ) : (
+                <Pill size="sm" className="self-start" onClick={() => onEnter(n.vendorId)}>
+                  They came back with a new price
+                </Pill>
+              ))}
+            {!rfq.manual && n.askedOn && <span className="text-[12px] text-[#7a7466]">They can also change their quote on their own link: it updates here.</span>}
+          </article>
+        );
+      })}
+      <Pill kind="primary" className="self-start" onClick={onNext}>
+        Next: lock it in →
+      </Pill>
+    </div>
+  );
+}
+
+/**
+ * Step 4: book (with what to check first), then what locks it in: the deposit, the contract, the balance
+ * date, and a kind note to the others.
+ */
+function LockIn({
+  rfq,
+  list,
+  cmp,
+  couple,
+  onBook,
+  onPatch,
+  onOpenVendor,
+}: {
+  rfq: Rfq;
+  list: Vendor[];
+  cmp: ReturnType<typeof tenderAnalysis>;
+  couple: string;
+  onBook: (vendorId: string) => void;
+  onPatch: (id: string, p: Partial<Vendor>, msg?: string) => void;
+  onOpenVendor: (id: string) => void;
+}) {
+  const toast = useToast();
+  const booked = cmp.cols.find((c) => c.v.status === 'booked');
+  const quoted = cmp.cols
+    .map((c, i) => ({ c, t: cmp.totals[i]! }))
+    .filter((x) => x.c.q)
+    .sort((a, b) => (a.t.levelled ?? Infinity) - (b.t.levelled ?? Infinity));
+  const tick = (on: boolean) => (
+    <span aria-hidden className={`flex-none w-6 h-6 rounded-full flex items-center justify-center text-[13px] ${on ? 'bg-[#5d6b47] text-[#fbf8f0]' : 'border-2 border-[#c6b794]'}`}>
+      {on ? '✓' : ''}
+    </span>
+  );
+  if (!booked) {
+    if (rfq.closed) return <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">Closed without booking. Reopen it below to carry on.</p>;
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] text-[14px]">
+          <strong className="block mb-1">Before you book, check:</strong>
+          <ul className="m-0 pl-5 flex flex-col gap-1 text-[#5b6a52]">
+            <li>What’s included matches what you asked for (and the date and times).</li>
+            <li>The deposit, when the rest is due, and whether the deposit comes back if plans change.</li>
+            <li>The cancellation terms, and what happens if they can’t make it.</li>
+            <li>It’s in writing: a contract, or at least an email confirming the price and what’s included.</li>
+          </ul>
+        </div>
+        {quoted.length ? (
+          <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#efe6d0]">
+            {quoted.map(({ c, t }, i) => (
+              <li key={c.v.id} className="py-2 flex items-center gap-3 flex-wrap">
+                <span className="flex-1 min-w-[160px]">
+                  <strong className="text-[15px]">{c.v.name}</strong>
+                  <span className="block text-[13px] text-[#5b6a52]">
+                    {aud(c.q!.amount)}
+                    {t.levelled !== null && t.levelled !== c.q!.amount ? ` · ${aud(t.levelled)} like for like` : ''}
+                    {c.q!.deposit ? ` · deposit ${aud(c.q!.deposit)}` : ''}
+                  </span>
+                </span>
+                <Pill size="sm" kind={i === 0 ? 'primary' : 'secondary'} onClick={() => onBook(c.v.id)}>
+                  Book {c.v.name.split(' ')[0]}
+                </Pill>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="m-0 text-[14px] text-[#5b6a52]">No quotes in yet.</p>
+        )}
+      </div>
+    );
+  }
+
+  const v = booked.v;
+  const q = v.quotes.find((x) => x.id === v.accepted) ?? booked.q;
+  const saved = q?.before !== undefined && q.before > q.amount ? q.before - q.amount : 0;
+  const others = rfq.vendors.map((rv) => ({ rv, o: list.find((x) => x.id === rv.vendorId) })).filter((x) => x.o && x.o.id !== v.id && (x.rv.sentOn || x.rv.answeredOn));
+  const thanks = (name: string) =>
+    `Hi,\n\nThank you so much for your quote and your time. We've decided to go with someone else this time, but we really appreciated it and wish you all the best.\n\nKind regards,\n${couple}`.replace(/^Hi,/, `Hi ${name},`);
+  const depositDone = v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid;
+  return (
+    <div className="flex flex-col gap-3">
+      <ol className="m-0 p-0 list-none flex flex-col gap-3">
+        <li className="flex gap-3 items-start">
+          {tick(true)}
+          <span className="text-[15px]">
+            <strong>Booked {v.name}</strong>
+            {q ? ` at ${aud(q.amount)}` : ''}
+            {saved > 0 && <span className="block text-[13px] text-[#3d4a2f] font-semibold">You saved {aud(saved)} on their first quote.</span>}
+          </span>
+        </li>
+        <li className="flex gap-3 items-start">
+          {tick(depositDone)}
+          <span className="flex-1 text-[15px]">
+            <strong>Pay the deposit</strong>
+            {v.payments.length ? (
+              <span className="block text-[13px] text-[#5b6a52]">Your payment schedule is set: tick payments off in Money → Payments.</span>
+            ) : (
+              <label className="flex items-center gap-2 mt-1 text-[14px] cursor-pointer">
+                <input type="checkbox" checked={v.depositPaid} onChange={(e) => onPatch(v.id, { depositPaid: e.target.checked }, e.target.checked ? 'Deposit paid ✓' : undefined)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                Paid{q?.deposit ? ` (${aud(q.deposit)})` : ''}
+              </label>
+            )}
+          </span>
+        </li>
+        <li className="flex gap-3 items-start">
+          {tick(!!v.contractSigned)}
+          <span className="flex-1 text-[15px]">
+            <strong>Sign the contract</strong>
+            <label className="flex items-center gap-2 mt-1 text-[13px] text-[#5b6a52] flex-wrap">
+              Signed on
+              <input type="date" value={v.contractSigned} onChange={(e) => onPatch(v.id, { contractSigned: e.target.value }, e.target.value ? 'Contract signed ✓' : undefined)} className={`${inputCls} py-[4px] max-w-[170px]`} />
+            </label>
+            <button type="button" onClick={() => onOpenVendor(v.id)} className="mt-1 p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+              Add the contract file and cancellation terms on their card
+            </button>
+          </span>
+        </li>
+        {!v.payments.length && (
+          <li className="flex gap-3 items-start">
+            {tick(!!v.balanceDue)}
+            <span className="flex-1 text-[15px]">
+              <strong>When the rest is due</strong>
+              <label className="flex items-center gap-2 mt-1 text-[13px] text-[#5b6a52] flex-wrap">
+                Balance due
+                <input type="date" value={v.balanceDue} onChange={(e) => onPatch(v.id, { balanceDue: e.target.value })} className={`${inputCls} py-[4px] max-w-[170px]`} />
+              </label>
+              <span className="block text-[12px] text-[#7a7466]">You’ll get a nudge before it’s due. Paying in instalments? Set them in Money → Payments.</span>
+            </span>
+          </li>
+        )}
+        {others.length > 0 && (
+          <li className="flex gap-3 items-start">
+            {tick(false)}
+            <span className="flex-1 text-[15px]">
+              <strong>Let the others know</strong>
+              <span className="block text-[13px] text-[#5b6a52]">A kind thank-you keeps the door open.</span>
+              <ul className="m-0 mt-1 p-0 list-none flex flex-col gap-2">
+                {others.map(({ o }) => (
+                  <li key={o!.id} className="flex items-center gap-2 flex-wrap text-[14px]">
+                    <span className="flex-1 min-w-[120px]">{o!.name}</span>
+                    {o!.email && (
+                      <a href={`mailto:${encodeURIComponent(o!.email)}?subject=${encodeURIComponent('Thank you for your quote')}&body=${encodeURIComponent(thanks(o!.contact.split(' ')[0] || o!.name))}`} className={small}>
+                        Email
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      className={small}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(thanks(o!.contact.split(' ')[0] || o!.name));
+                          toast('Thank-you copied');
+                        } catch {
+                          window.prompt('Copy this message', thanks(o!.name));
+                        }
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </span>
+          </li>
+        )}
+      </ol>
     </div>
   );
 }

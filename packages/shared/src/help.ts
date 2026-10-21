@@ -198,15 +198,15 @@ export const HELP: HelpArticle[] = [
   },
   {
     id: 'quotes',
-    title: 'Getting quotes and comparing them',
+    title: 'Getting quotes, comparing, negotiating and booking',
     group: 'Planning',
     steps: [
-      'In Wedding planner → Vendors, tap + Get quotes and tap what for (florist, photographer…). Your vendors of that kind are ticked, and the usual things to price, the date and the email are filled in: change any of it, or none.',
-      'Tap Send. With email set up it goes from the site, each vendor with their own link, and replies come to you; otherwise use Email, Text or Copy link by each name.',
-      'Each vendor prices every item, or gives one total and attaches their own quote, or says they can’t. You get an email as each lands. Got a quote by email instead? More → Add a quote they sent me, and drop in the PDF. Already have all your quotes? Tap + Enter quotes myself instead: nothing is sent, you type each one in.',
-      'Quotes show as cards, best value first, like for like. Rate each with the stars, see line by line if you like, then Book: the request closes and the others are marked.',
+      'Get quotes: in Wedding planner → Vendors tap + Get quotes, tap what for, and Send. Each vendor prices it on their own link (or attaches their own quote), and you’re emailed as each lands. Already have quotes? + Enter myself, and type them in.',
+      'Compare: step 2 shows a card per vendor, best value first, like for like (anything left out is counted at the typical price). Check the deposit and when each price runs out, and rate them with the stars.',
+      'Negotiate: step 3 shows what to raise with each vendor (above the best price, items priced high, things left out, a big deposit) with a kind message ready to email, text or copy. When they come back, tap They came back with a new price: you see what you saved.',
+      'Lock in: step 4 has what to check before you book, then Book. After that: pay the deposit, sign the contract, set when the rest is due, and send the others a thank-you.',
     ],
-    also: 'quote request rfq tender price compare comparison email draft manual enter type in myself',
+    also: 'quote request rfq tender price compare comparison email draft manual enter type in myself negotiate discount better deal haggle book lock in deposit contract',
     go: { tab: 'planner', event: true, query: 'view=vendors' },
   },
   {
@@ -362,10 +362,10 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Wedding planner', 'Vendors'], rows: ['5 booked vendors'], tap: 'Save to phone contacts', then: 'In your phone’s contacts ✓' },
   ],
   quotes: [
-    { at: ['Wedding planner', 'Vendors'], rows: ['Florist', 'Photographer', 'Caterer'], tap: '+ Get quotes', then: 'Who to ask and what to price, filled in' },
-    { at: ['Wedding planner', 'Vendors'], rows: ['☑ Wildflower Studio', '☑ Petal Co', '☐ Bloom House'], tap: 'Send to 2 vendors', then: 'Emailed, each with their own link' },
-    { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower Studio · Quoted $2,800', 'Petal Co · Looking at it', 'Bloom House · Can’t quote'], tap: 'Remind', then: 'You’re emailed as each quote lands' },
-    { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower $2,800 · Best value', 'Petal Co $3,150 · one total'], tap: 'Book Wildflower', then: 'Booked, and the request closes ✓' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['☑ Wildflower Studio', '☑ Petal Co', '☐ Bloom House'], tap: 'Send to 2 vendors', then: 'Each prices it on their own link' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower $2,800 · Best value', 'Petal Co $3,150 · 1 item left out'], tap: '★★★★★', then: 'Best value first, like for like' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['Petal Co · $350 above the best', 'Arbour 40% above the middle price'], tap: 'Email it', then: 'Petal Co: was $3,150, now $2,750 ✓' },
+    { at: ['Wedding planner', 'Vendors'], rows: ['✓ Booked Petal Co · saved $400', '○ Pay the deposit', '○ Sign the contract'], tap: 'Paid', then: 'Locked in ✓' },
   ],
   checklist: [
     { at: ['Wedding planner', 'Checklist'], rows: ['Book the venue · 12 months', 'Notice of Intended Marriage ⚠ by 14 Feb', 'Send invitations · 3 months'], then: 'Counted back from your date' },

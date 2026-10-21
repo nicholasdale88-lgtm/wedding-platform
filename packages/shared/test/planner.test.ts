@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealWarning, menuFit, servedMeal } from '../src/planner';
-import { allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -394,6 +394,43 @@ describe('quote requests', () => {
     expect(t.vendors[1]).toMatchObject({ lowestOn: 0, vsBest: 0 });
     expect(t.bestValue?.name).toBe('P');
     expect(tenderRows(t)[1]).toEqual(['Coverage', 3000, 'In their total', 3000, 3000, 3000]);
+  });
+
+  it('negotiation: points for each vendor from the comparison, each with the line to ask, and a ready message', () => {
+    const rfq = Rfq.parse({
+      id: 'r',
+      title: 'Florist quotes',
+      lines: [{ id: 'a', label: 'Bouquet' }, { id: 'b', label: 'Arbour' }, { id: 'c', label: 'Centrepieces' }],
+      vendors: [{ vendorId: 'x', quoteId: 'qx' }, { vendorId: 'y', quoteId: 'qy', negotiatedOn: '2027-03-01' }, { vendorId: 'z', quoteId: 'qz' }],
+    });
+    const q = (id: string, lines: [string, number | null][], extra = {}) => ({ id, rfq: 'r', amount: lines.reduce((a, [, n]) => a + (n ?? 0), 0), lines: lines.map(([lid, amount]) => ({ id: lid, amount })), ...extra });
+    const list = [
+      Vendor.parse({ id: 'x', name: 'Bloom', contact: 'Jo Bloom', quotes: [q('qx', [['a', 300], ['b', 900], ['c', 700]], { deposit: 200 })] }),
+      Vendor.parse({ id: 'y', name: 'Petal', quotes: [q('qy', [['a', 320], ['b', 1400], ['c', null]], { deposit: 800, validUntil: '2027-03-10' })] }),
+      Vendor.parse({ id: 'z', name: 'Fern', quotes: [q('qz', [['a', 310], ['b', 950], ['c', 720]], { deposit: 250 })] }),
+    ];
+    const n = negotiationPoints(rfq, list, '2027-03-01');
+    const petal = n.find((x) => x.name === 'Petal')!;
+    expect(petal.points.map((p) => p.kind)).toEqual(['price', 'lines', 'missing', 'deposit', 'expiry']);
+    expect(petal.points[1]!.text).toMatch(/^Arbour: \$1,400, \d+% above the middle price/);
+    expect(petal.points[2]!.ask).toBe('Could you include centrepieces in your price, or let us know what it would add?');
+    expect(petal.message).toContain('{couple}');
+    expect(petal.message).toContain('our florist');
+    expect(petal.askedOn).toBe('2027-03-01');
+    const bloom = n.find((x) => x.name === 'Bloom')!;
+    expect(bloom.best).toBe(true);
+    expect(bloom.points).toEqual([]); // best value, nothing to raise
+    expect(bloom.message).toMatch(/^Hi Jo,/);
+    expect(bloom.message).toContain('any flexibility');
+    expect(rfqStage(rfq, list)).toBe(3);
+    expect(rfqStage({ ...rfq, vendors: rfq.vendors.map((v) => ({ ...v, negotiatedOn: '' })) }, list)).toBe(2);
+    expect(rfqStage({ ...rfq, closed: true }, list)).toBe(4);
+    expect(rfqStage(Rfq.parse({ id: 'e', vendors: [{ vendorId: 'x' }] }), list)).toBe(1);
+    // What negotiating saved: the first price is kept once it changes.
+    expect(beforeOf(undefined, 900)).toBeUndefined();
+    expect(beforeOf({ amount: 1000 }, 900)).toBe(1000);
+    expect(beforeOf({ amount: 900, before: 1000 }, 850)).toBe(1000);
+    expect(beforeOf({ amount: 900 }, 900)).toBeUndefined();
   });
 
   it('has a standard email for each service, with the link to price it', () => {

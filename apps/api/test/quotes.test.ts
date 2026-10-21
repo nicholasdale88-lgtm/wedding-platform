@@ -28,7 +28,7 @@ describe('quote requests: send, remind, attach, one total, decline', () => {
   type Doc = {
     version: number;
     data: {
-      list: { id: string; status: string; askedOn: string; declinedWhy: string; quotes: { id: string; amount: number; package?: boolean; fileId: string; fileName: string; lines: unknown[] }[] }[];
+      list: { id: string; status: string; askedOn: string; declinedWhy: string; quotes: { id: string; amount: number; before?: number; package?: boolean; fileId: string; fileName: string; lines: unknown[] }[] }[];
       rfqs: { vendors: { vendorId: string; sentOn: string; remindedOn: string; answeredOn: string; declinedOn: string; declinedWhy: string; quoteId: string }[] }[];
     };
   };
@@ -122,9 +122,14 @@ describe('quote requests: send, remind, attach, one total, decline', () => {
     // The couple heard about it.
     expect(mail.map((m) => m.to[0])).toEqual(['owner@example.com']);
     expect(mail[0]!.subject).toBe('Lens & Light sent their quote: $4,200');
+    // Asked for a better deal, they lower it: their first price is kept (what was saved).
+    mail.length = 0;
+    expect((await pub('', { method: 'POST', body: JSON.stringify({ k: keys.a, lines: [], package: true, total: 3900, deposit: 1000, fileId: file.id }) })).status).toBe(200);
+    expect((await doc()).data.list.find((x) => x.id === 'va')!.quotes[0]).toMatchObject({ amount: 3900, before: 4200 });
+    expect(mail[0]!.subject).toBe('Lens & Light updated their quote: $3,900');
     // The page shows what they sent.
     const page = (await (await pub(`?k=${keys.a}`)).json()) as { answer: { package: boolean; amount: number; fileName: string } };
-    expect(page.answer).toMatchObject({ package: true, amount: 4200, fileName: 'Lens & Light quote - quote.pdf' });
+    expect(page.answer).toMatchObject({ package: true, amount: 3900, fileName: 'Lens & Light quote - quote.pdf' });
   });
 
   it('a vendor can say they can’t quote: the couple stop waiting on them, and are told', async () => {

@@ -1,4 +1,4 @@
-import { dateIn, Quote, VENDOR_SEARCH } from '@wp/shared';
+import { beforeOf, dateIn, Quote, VENDOR_SEARCH } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -149,6 +149,8 @@ export function rfqRoutes() {
         lines,
         package: b.data.package || undefined,
         amount,
+        // Their first price, kept when they change it (after the couple asked for a better one).
+        before: beforeOf(was, amount),
         deposit: b.data.deposit,
         date: today,
         validUntil: b.data.validUntil,
