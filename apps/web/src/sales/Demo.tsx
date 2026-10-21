@@ -23,16 +23,16 @@ const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 const CSS = `
 .dm-env{position:relative;width:min(320px,86vw);aspect-ratio:3/2;perspective:900px;cursor:pointer;border:0;padding:0;background:none}
 .dm-back{position:absolute;inset:0;border-radius:6px;background:#e6dcc4;box-shadow:0 18px 40px rgba(51,64,47,.22)}
-.dm-card{position:absolute;left:6%;right:6%;top:8%;bottom:6%;border-radius:4px;background:#fbf8f2;transition:transform .9s cubic-bezier(.3,.7,.2,1) .55s;display:flex;align-items:flex-start;justify-content:center;padding-top:10%}
+.dm-card{position:absolute;left:6%;right:6%;top:8%;bottom:6%;border-radius:4px;background:#fbf8f2;transition:transform 2.2s cubic-bezier(.22,1.15,.36,1) 1.9s;display:flex;align-items:flex-start;justify-content:center;padding-top:10%}
 .dm-front{position:absolute;inset:0;border-radius:6px;background:linear-gradient(160deg,#ece3cd,#e2d6b9);clip-path:polygon(0 0,50% 58%,100% 0,100% 100%,0 100%)}
-.dm-flap{position:absolute;left:0;right:0;top:0;height:62%;transform-origin:top;transition:transform .6s ease,z-index 0s linear .3s;z-index:3}
+.dm-flap{position:absolute;left:0;right:0;top:0;height:62%;transform-origin:top;transition:transform 2.2s cubic-bezier(.22,1.2,.36,1) .9s,z-index 0s linear 1.9s;z-index:3}
 .dm-flap::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#efe6d1,#ddd0b1);clip-path:polygon(0 0,100% 0,50% 100%)}
 .dm-seal{position:absolute;left:50%;top:62%;width:58px;height:58px;margin:-29px 0 0 -29px;border-radius:50%;z-index:4;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(circle at 35% 30%,#c06a48,${SEAL} 60%,#7d3a24);box-shadow:0 3px 8px rgba(60,20,10,.35),inset 0 0 0 4px rgba(255,255,255,.08);
-  color:#f6e2d2;font-family:${serif};font-size:20px;transition:transform .35s ease,opacity .35s ease}
-.dm-open .dm-seal{transform:scale(.4);opacity:0}
+  color:#f6e2d2;font-family:${serif};font-size:20px;transition:transform 1.2s cubic-bezier(.6,-0.4,.3,1.3),opacity .8s ease .6s}
+.dm-open .dm-seal{transform:translateY(-220px) rotate(-50deg) scale(1.5);opacity:0}
 .dm-open .dm-flap{transform:rotateX(180deg);z-index:-1}
-.dm-open .dm-card{transform:translateY(-55%)}
+.dm-open .dm-card{transform:translateY(-62%)}
 .dm-hint{animation:dmPulse 2s ease-in-out infinite}
 @keyframes dmPulse{50%{opacity:.45}}
 .dm-in{animation:dmIn .7s ease both}
@@ -53,7 +53,7 @@ export function DemoPage() {
     if (phase !== 'closed') return;
     setPhase('opening');
     const still = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    timer.current = setTimeout(() => setPhase('card'), still ? 0 : 1800);
+    timer.current = setTimeout(() => setPhase('card'), still ? 0 : 4800);
   };
 
   return (
