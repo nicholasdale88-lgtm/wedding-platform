@@ -56,6 +56,10 @@ describe('sign-up and plans', () => {
     expect(Object.keys(body.texts).length).toBeGreaterThan(200);
     expect(body.texts['inv.f3262251']).toBe('You are invited to celebrate the wedding of');
     expect(body.texts['inv.e257ef55']).toBe('[Ceremony venue]');
+    // What they told us is filled in: the date they signed up with, and the start time (3pm until they change it).
+    expect(body.texts['inv.5fb81f2d']).toBe('Sunday 14 March 2027');
+    expect(body.texts['inv.8edf3058']).toBe('3:00pm');
+    expect(body.texts['inv.6fcb1ea3']).toBe('2:30pm');
     expect(text).not.toMatch(/Glenworth|Gosford|Killcare|horse ride/i);
   });
 

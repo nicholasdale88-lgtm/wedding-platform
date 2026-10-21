@@ -61,7 +61,7 @@ const PRIVATE = (c: C) => c.json({ error: { code: 'private', message: 'This invi
 interface WeddingRow {
   id: string; slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string; content: string; guide: string; music_key: string | null;
 }
-interface EventRow { id: string; key: string; name: string; starts_at: string; sort: number; questions: string }
+interface EventRow { id: string; key: string; name: string; starts_at: string; sort: number; questions: string; venue: string | null }
 
 async function wedding(c: C) {
   return c.env.DB.prepare(`SELECT id, slug, name1, name2, monogram, theme, timezone, content, guide, music_key FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
@@ -105,7 +105,7 @@ async function invitationJson(db: D1Database, invId: string, events: EventRow[])
 }
 
 async function eventsOf(db: D1Database, weddingId: string) {
-  const { results } = await db.prepare(`SELECT id, key, name, starts_at, sort, questions FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(weddingId).all<EventRow>();
+  const { results } = await db.prepare(`SELECT id, key, name, starts_at, sort, questions, venue FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(weddingId).all<EventRow>();
   return results;
 }
 
@@ -145,7 +145,7 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
     wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
     // Music is the link set in Setup (MP3 or YouTube): there are no uploaded music files to point at.
     content: { ...(inv.success ? inv.data : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
-    texts: textsFor('inv', withDefaults(content.texts as Record<string, string> | undefined), slots),
+    texts: textsFor('inv', withDefaults(content.texts as Record<string, string> | undefined, { tz: w.timezone, events, rsvpClose: inv.success ? inv.data.rsvpClose : undefined }), slots),
     events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []), shuttles: shuttles.has(e.key) })),
     invitation,
     // Only for a guest opening their own link (not the public page).
@@ -298,7 +298,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       images: imagesOf(content),
       event: { key: ev.key, name: ev.name, startsAt: ev.starts_at, slot: events.indexOf(ev) },
       guide,
-      texts: textsFor(GUIDE_PAGE[guide.style], withDefaults(content.texts as Record<string, string> | undefined), null),
+      texts: textsFor(GUIDE_PAGE[guide.style], withDefaults(content.texts as Record<string, string> | undefined, { tz: w.timezone, events }), null),
       guest: {
         token,
         people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: tableOf(p.id), meals: (({ e, m, d }) => ({ e, m, d }))(served(p.id)) })),
@@ -354,7 +354,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       album: !!who && content.albumShared === true,
       // The frames and looks the couple offers (all of them until they choose), and the look to start on.
       looks: (content.photoLooks as { frames?: string[]; looks?: string[]; def?: string } | undefined) ?? null,
-      texts: textsFor('ph', withDefaults(content.texts as Record<string, string> | undefined), null),
+      texts: textsFor('ph', withDefaults(content.texts as Record<string, string> | undefined, { tz: w.timezone, events: all }), null),
     });
   });
 
