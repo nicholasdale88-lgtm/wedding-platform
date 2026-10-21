@@ -34,7 +34,7 @@ const longDay = (ymd: string) => (ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDat
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 const SERVICES = Object.entries(VENDOR_SEARCH).filter(([k]) => k !== 'jewellery');
 /** A vendor's place on a request: their own private link, nothing sent yet. */
-const askOf = (vendorId: string): RfqVendor => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '', remindedOn: '', declinedOn: '', declinedWhy: '', scores: {} });
+const askOf = (vendorId: string): RfqVendor => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '', remindedOn: '', negotiatedOn: '', declinedOn: '', declinedWhy: '', scores: {} });
 const small = 'py-[6px] px-3 rounded-full border border-[#c6b794] bg-white text-[13px] cursor-pointer no-underline !text-[#33402f] hover:bg-[#efe7d3] whitespace-nowrap';
 
 type Save = (list: Vendor[], rfqs: Rfq[], done?: string) => Promise<boolean>;
