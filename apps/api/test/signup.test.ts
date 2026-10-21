@@ -52,7 +52,8 @@ describe('sign-up and plans', () => {
     const page = await call(`/p/${weddings[0]!.slug}/invite?preview=1`, {}, cookie);
     expect(page.status).toBe(200);
     const text = await page.text();
-    const body = JSON.parse(text) as { texts: Record<string, string> };
+    const body = JSON.parse(text) as { texts: Record<string, string>; content: { hidden?: Record<string, boolean> } };
+    expect(body.content.hidden?.['08 Accommodation']).toBe(true); // starts switched off
     expect(Object.keys(body.texts).length).toBeGreaterThan(200);
     expect(body.texts['inv.f3262251']).toBe('You are invited to celebrate the wedding of');
     expect(body.texts['inv.e257ef55']).toBe('[Ceremony venue]');

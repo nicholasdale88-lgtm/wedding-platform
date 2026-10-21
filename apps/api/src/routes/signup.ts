@@ -71,7 +71,9 @@ export function signupRoutes() {
     const monogram = `${b.firstName.charAt(0).toUpperCase()}&${b.partnerName.charAt(0).toUpperCase()}`;
     // Private from the start: their pages open only with each guest's own link.
     // The person signing up is the main account: the plan and billing are theirs (partners join as owners).
-    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, ...(b.date ? {} : { dateToBeSet: true }) });
+    // The Accommodation section starts switched off: it was written for camping at a country venue, and
+    // most couples won't need it (Setup → Sections switches it back on).
+    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...(b.date ? {} : { dateToBeSet: true }) });
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
