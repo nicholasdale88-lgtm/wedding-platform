@@ -1,7 +1,7 @@
 import '@fontsource/cormorant-garamond/400.css';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { api, companyApi, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStats, type CompanyWedding } from '../lib/api';
+import { api, companyApi, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyWedding } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
