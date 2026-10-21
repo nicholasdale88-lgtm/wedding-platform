@@ -22,7 +22,7 @@ export function InvitationView({ v, t }: ViewProps) {
             {t("inv.23b0d1e6")}
           </div>
         </div>
-        <div id={"inv-scroll"} onScroll={v.onCardScroll} style={sx(`position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;opacity:${v.cardOp};pointer-events:${v.cardPE};transform:${v.cardScale};transition:opacity 1.4s ease .2s, transform 2s cubic-bezier(.2,.7,.2,1);background-color:var(--pgbg2,#fdf7f6);background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%3E%3Cfilter%20id%3D%22g%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%22.9%22%20numOctaves%3D%223%22%20stitchTiles%3D%22stitch%22%2F%3E%3CfeColorMatrix%20values%3D%220%200%200%200%20.4%20%200%200%200%200%20.33%20%200%200%200%200%20.2%20%200%200%200%20.07%200%22%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20filter%3D%22url(%23g)%22%2F%3E%3C%2Fsvg%3E'),url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22320%22%20height%3D%22320%22%3E%3Cfilter%20id%3D%22f%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%22.01%20.2%22%20numOctaves%3D%222%22%20seed%3D%227%22%2F%3E%3CfeColorMatrix%20values%3D%220%200%200%200%20.4%20%200%200%200%200%20.33%20%200%200%200%200%20.2%20%200%200%200%20.05%200%22%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%22320%22%20height%3D%22320%22%20filter%3D%22url(%23f)%22%2F%3E%3C%2Fsvg%3E'),radial-gradient(circle at 50% 50%,rgba(200,164,106,.16) 0 1.2px,transparent 1.6px),repeating-linear-gradient(45deg,rgba(200,164,106,.07) 0 1px,transparent 1px 34px),repeating-linear-gradient(-45deg,rgba(200,164,106,.07) 0 1px,transparent 1px 34px),radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.7),rgba(242,212,215,.18));background-size:200px 200px,320px 320px,24px 24px,auto,auto,100% 100%;background-attachment:local;color:#3a3550;text-align:center`)}>
+        <div id={"inv-scroll"} onScroll={v.onCardScroll} style={sx(`position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;opacity:${v.cardOp};pointer-events:${v.cardPE};transform:${v.cardScale};transition:opacity 2s ease .4s, transform 3s cubic-bezier(.2,.7,.2,1);background-color:var(--pgbg2,#fdf7f6);background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22200%22%20height%3D%22200%22%3E%3Cfilter%20id%3D%22g%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%22.9%22%20numOctaves%3D%223%22%20stitchTiles%3D%22stitch%22%2F%3E%3CfeColorMatrix%20values%3D%220%200%200%200%20.4%20%200%200%200%200%20.33%20%200%200%200%200%20.2%20%200%200%200%20.07%200%22%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%22200%22%20height%3D%22200%22%20filter%3D%22url(%23g)%22%2F%3E%3C%2Fsvg%3E'),url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22320%22%20height%3D%22320%22%3E%3Cfilter%20id%3D%22f%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%22.01%20.2%22%20numOctaves%3D%222%22%20seed%3D%227%22%2F%3E%3CfeColorMatrix%20values%3D%220%200%200%200%20.4%20%200%200%200%200%20.33%20%200%200%200%200%20.2%20%200%200%200%20.05%200%22%2F%3E%3C%2Ffilter%3E%3Crect%20width%3D%22320%22%20height%3D%22320%22%20filter%3D%22url(%23f)%22%2F%3E%3C%2Fsvg%3E'),radial-gradient(circle at 50% 50%,rgba(200,164,106,.16) 0 1.2px,transparent 1.6px),repeating-linear-gradient(45deg,rgba(200,164,106,.07) 0 1px,transparent 1px 34px),repeating-linear-gradient(-45deg,rgba(200,164,106,.07) 0 1px,transparent 1px 34px),radial-gradient(120% 80% at 50% 0%,rgba(255,255,255,.7),rgba(242,212,215,.18));background-size:200px 200px,320px 320px,24px 24px,auto,auto,100% 100%;background-attachment:local;color:#3a3550;text-align:center`)}>
           <svg width={"0"} height={"0"} style={sx("position:absolute")} aria-hidden={"true"}>
             <defs>
               <pattern id={"weaveH"} width={"24"} height={"14"} patternUnits={"userSpaceOnUse"}>
@@ -2232,7 +2232,7 @@ export function InvitationView({ v, t }: ViewProps) {
           {" "}
         </div>
         {" "}
-        <div style={sx(`position:absolute;inset:0;pointer-events:${v.envPointer};perspective:1100px;--la:${v.leafAnim};--m:${v.leafM};--ic:${v.leafIc};--ad:${v.leafAd};transform:${v.envZoom};opacity:${v.envOp};transition:transform 1.8s cubic-bezier(.3,0,.2,1), opacity 1.5s ease .1s;will-change:transform`)}>
+        <div style={sx(`position:absolute;inset:0;pointer-events:${v.envPointer};perspective:1100px;--la:${v.leafAnim};--m:${v.leafM};--ic:${v.leafIc};--ad:${v.leafAd};transform:${v.envZoom};opacity:${v.envOp};transition:transform 3.2s cubic-bezier(.3,0,.2,1), opacity 2s ease .3s;will-change:transform`)}>
           <svg width={"0"} height={"0"} style={sx("position:absolute")} aria-hidden={"true"}>
             <defs>
               <filter id={"handDrawn"} x={"-5%"} y={"-5%"} width={"110%"} height={"110%"}>
@@ -2250,9 +2250,9 @@ export function InvitationView({ v, t }: ViewProps) {
             </defs>
           </svg>
           {" "}
-          <div style={sx(`position:absolute;inset:0;background:radial-gradient(60% 45% at 50% 50%, rgba(255,226,160,.95), rgba(255,200,120,.35) 45%, rgba(120,90,50,0) 75%), var(--e3,#2a4130);opacity:${v.innerOp};transition:opacity 1s ease .2s`)} />
+          <div style={sx(`position:absolute;inset:0;background:radial-gradient(60% 45% at 50% 50%, rgba(255,226,160,.95), rgba(255,200,120,.35) 45%, rgba(120,90,50,0) 75%), var(--e3,#2a4130);opacity:${v.innerOp};transition:opacity 2.2s ease .6s`)} />
           {" "}
-          <div style={sx(`position:absolute;inset:0;transform-origin:50% 100%;transform:${v.bottomT};opacity:${v.panelOp};will-change:transform,opacity;backface-visibility:hidden;transition:transform 2s cubic-bezier(.45,0,.15,1), opacity .9s ease 1.3s`)}>
+          <div style={sx(`position:absolute;inset:0;transform-origin:50% 100%;transform:${v.bottomT};opacity:${v.panelOp};will-change:transform,opacity;backface-visibility:hidden;transition:transform 3.6s cubic-bezier(.22,1.2,.36,1), opacity 1.4s ease 2.6s`)}>
             {" "}
             <div style={sx("position:absolute;inset:0;clip-path:polygon(0 100%,50% 47%,100% 100%);background:linear-gradient(0deg,var(--e1,#36503a) 0%,var(--e2,#2d4632) 60%,var(--e3,#243a29) 100%)")}>
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
@@ -2263,7 +2263,7 @@ export function InvitationView({ v, t }: ViewProps) {
             {" "}
           </div>
           {" "}
-          <div style={sx(`position:absolute;inset:0;transform-origin:0 50%;transform:${v.leftT};opacity:${v.panelOp};will-change:transform,opacity;backface-visibility:hidden;transition:transform 2s cubic-bezier(.45,0,.15,1), opacity .9s ease 1.3s`)}>
+          <div style={sx(`position:absolute;inset:0;transform-origin:0 50%;transform:${v.leftT};opacity:${v.panelOp};will-change:transform,opacity;backface-visibility:hidden;transition:transform 3.6s cubic-bezier(.22,1.2,.36,1), opacity 1.4s ease 2.6s`)}>
             {" "}
             <div style={sx("position:absolute;inset:0;clip-path:polygon(0 0,56% 50%,0 100%);background:linear-gradient(90deg,var(--e1,#3f5a42) 0%,var(--e2,#35503a) 70%,var(--e3,#2a4130) 100%)")}>
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
@@ -2274,7 +2274,7 @@ export function InvitationView({ v, t }: ViewProps) {
             {" "}
           </div>
           {" "}
-          <div style={sx(`position:absolute;inset:0;transform-origin:100% 50%;transform:${v.rightT};opacity:${v.panelOp};will-change:transform,opacity;backface-visibility:hidden;transition:transform 2s cubic-bezier(.45,0,.15,1), opacity .9s ease 1.3s`)}>
+          <div style={sx(`position:absolute;inset:0;transform-origin:100% 50%;transform:${v.rightT};opacity:${v.panelOp};will-change:transform,opacity;backface-visibility:hidden;transition:transform 3.6s cubic-bezier(.22,1.2,.36,1), opacity 1.4s ease 2.6s`)}>
             {" "}
             <div style={sx("position:absolute;inset:0;clip-path:polygon(100% 0,44% 50%,100% 100%);background:linear-gradient(270deg,var(--e1,#3f5a42) 0%,var(--e2,#35503a) 70%,var(--e3,#2a4130) 100%)")}>
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
@@ -2285,7 +2285,7 @@ export function InvitationView({ v, t }: ViewProps) {
             {" "}
           </div>
           {" "}
-          <div style={sx(`position:absolute;inset:0;transform-origin:50% 0;transform:${v.topT};opacity:${v.topOp};will-change:transform,opacity;transition:transform 2s cubic-bezier(.45,0,.15,1), opacity .9s ease 1.3s`)}>
+          <div style={sx(`position:absolute;inset:0;transform-origin:50% 0;transform:${v.topT};opacity:${v.topOp};will-change:transform,opacity;transition:transform 3.6s cubic-bezier(.22,1.2,.36,1), opacity 1.4s ease 2.6s`)}>
             {" "}
             <div style={sx("position:absolute;inset:0;clip-path:polygon(0 0,100% 0,50% 56%);background:linear-gradient(180deg,var(--t1,#4a674d) 0%,var(--t2,#3d5a42) 55%,var(--t3,#314b37) 100%)")}>
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
@@ -2326,7 +2326,7 @@ export function InvitationView({ v, t }: ViewProps) {
           {" "}
           <div aria-hidden={"true"} style={sx(`position:absolute;inset:0;z-index:3;pointer-events:none;opacity:${v.panelOp};transition:opacity .9s ease;mix-blend-mode:soft-light;background:linear-gradient(115deg,rgba(255,255,255,.35) 0%,rgba(255,255,255,0) 35%,rgba(255,255,255,0) 65%,rgba(255,255,255,.18) 100%)`)} />
           {" "}
-          <div style={sx(`position:absolute;left:50%;top:56%;width:clamp(96px,24vmin,150px);height:clamp(96px,24vmin,150px);z-index:5;transform:${v.sealT};opacity:${v.sealOp};will-change:transform,opacity;transition:transform 2s cubic-bezier(.45,0,.15,1), opacity 1s ease .3s;filter:drop-shadow(0 5px 8px rgba(50,30,10,.45)) drop-shadow(0 0 14px var(--gl1,rgba(255,214,140,.55)))`)}>
+          <div style={sx(`position:absolute;left:50%;top:56%;width:clamp(96px,24vmin,150px);height:clamp(96px,24vmin,150px);z-index:5;transform:${v.sealT};opacity:${v.sealOp};will-change:transform,opacity;transition:transform 3s cubic-bezier(.6,-0.35,.3,1.3), opacity 1.6s ease 1.2s;filter:drop-shadow(0 5px 8px rgba(50,30,10,.45)) drop-shadow(0 0 14px var(--gl1,rgba(255,214,140,.55)))`)}>
             {" "}
             {v.sealPearl ? (
               <>

@@ -276,7 +276,8 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     audio.current?.play(); // inside the tap, so iOS allows it
     started.current = true;
     setP(1);
-    timers.current.push(setTimeout(() => setP(2), 1500), setTimeout(() => setP(3), 2700), setTimeout(() => setP(4), 4600));
+    // Slow and theatrical: the seal swells and glows, breaks and flies, the flaps swing wide, then the card rises.
+    timers.current.push(setTimeout(() => setP(2), 2400), setTimeout(() => setP(3), 4600), setTimeout(() => setP(4), 7400));
   }, [openKey, preview, slug]);
 
   async function findGuest() {
@@ -520,14 +521,14 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     sealGold: seal === 'Sandstone',
     sealWine: seal === 'Dusty rose',
     sealInk: SEAL_INK[seal],
-    topT: p >= 2 ? 'rotateX(-112deg)' : 'rotateX(0deg)',
+    topT: p >= 2 ? 'rotateX(-165deg)' : 'rotateX(0deg)',
     topOp: p >= 2 ? 0 : 1,
-    sealT: p >= 2 ? 'translate(-50%,-50%) translateY(-60vh) scale(.9)' : p >= 1 ? 'translate(-50%,-50%) scale(1.08)' : 'translate(-50%,-50%)',
+    sealT: p >= 2 ? 'translate(-50%,-50%) translateY(-85vh) rotate(-45deg) scale(1.4)' : p >= 1 ? 'translate(-50%,-50%) scale(1.25) rotate(-8deg)' : 'translate(-50%,-50%)',
     leafAnim: p >= 1 ? 'leafLit' : 'leafGlow',
     leafM: p >= 1 ? 1 : 0,
     leafIc: '1',
     leafAd: p >= 1 ? '1.6s' : '4s',
-    envZoom: p === 1 ? 'scale(.985)' : p >= 2 ? 'scale(1.05)' : 'scale(1)',
+    envZoom: p === 1 ? 'scale(.96)' : p >= 2 ? 'scale(1.16)' : 'scale(1)',
     envOp: p >= 4 ? 0 : 1,
     isP1: p === 1,
     isFalling: p >= 2 && p < 4,
@@ -539,14 +540,14 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     petals,
     panelOp: p >= 2 ? 0 : 1,
     sealOp: p >= 2 ? 0 : 1,
-    leftT: p >= 2 ? 'rotateY(112deg)' : 'rotateY(0deg)',
-    rightT: p >= 2 ? 'rotateY(-112deg)' : 'rotateY(0deg)',
-    bottomT: p >= 2 ? 'rotateX(112deg)' : 'rotateX(0deg)',
+    leftT: p >= 2 ? 'rotateY(155deg)' : 'rotateY(0deg)',
+    rightT: p >= 2 ? 'rotateY(-155deg)' : 'rotateY(0deg)',
+    bottomT: p >= 2 ? 'rotateX(155deg)' : 'rotateX(0deg)',
     innerOp: p >= 2 ? 0 : 1,
     hintOp: p === 0 ? 1 : 0,
     envPointer: p >= 2 ? 'none' : 'auto',
     cardOp: p >= 2 ? 1 : 0,
-    cardScale: p >= 2 ? 'scale(1)' : 'scale(1.06)',
+    cardScale: p >= 2 ? 'scale(1)' : 'scale(1.12)',
     textOp: p >= 2 ? 1 : 0,
     textRise: p >= 2 ? 'translateY(0)' : 'translateY(14px)',
     // The couple's photo, or the design's own until they add one (never a broken image).

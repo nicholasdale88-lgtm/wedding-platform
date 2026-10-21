@@ -58,7 +58,7 @@ describe('invitation page', () => {
     renderAt(`/w/alex-and-blair?g=${TOKEN}`, payload());
     const envelope = await screen.findByRole('button', { name: 'Open invitation' });
     fireEvent.click(envelope);
-    act(() => vi.advanceTimersByTime(4700));
+    act(() => vi.advanceTimersByTime(7500));
     expect(JSON.parse(localStorage.getItem(`wp-inv-opened-${TOKEN}`)!).at).toBeGreaterThan(0);
   });
 

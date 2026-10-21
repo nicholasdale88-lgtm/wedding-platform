@@ -139,9 +139,9 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false 
           className="absolute inset-0"
           style={{
             transformOrigin: '50% 0',
-            transform: closed ? 'rotateX(0deg)' : 'rotateX(-112deg)',
+            transform: closed ? 'rotateX(0deg)' : 'rotateX(-165deg)',
             opacity: closed ? 0 : 1,
-            transition: closed ? 'none' : 'transform 2s cubic-bezier(.45,0,.15,1), opacity .9s ease 1.3s',
+            transition: closed ? 'none' : 'transform 3.6s cubic-bezier(.22,1.2,.36,1), opacity 1.4s ease 2.6s',
             transformStyle: 'preserve-3d',
           }}
         >
