@@ -702,6 +702,8 @@ export const Quote = z.object({
   /** The quote request it answers, and its price for each line of that request (null: not included). */
   rfq: s(40),
   lines: z.array(z.object({ id: z.string().max(40), amount: z.number().min(0).max(10_000_000).nullable() })).max(40).default([]),
+  /** One price for everything asked (a package): no line-by-line prices, nothing counted as left out. */
+  package: z.boolean().optional(),
 });
 export type Quote = z.infer<typeof Quote>;
 export const Vendor = z.object({
@@ -954,6 +956,10 @@ export const RfqVendor = z.object({
   openedOn: s(10),
   answeredOn: s(10),
   quoteId: s(40),
+  /** Last reminded (by the site's email), and when they said they can't quote, and why. */
+  remindedOn: s(10),
+  declinedOn: s(10),
+  declinedWhy: s(200),
   /** The couple's own ratings, 1 to 5 (unset: not rated), for the weighted score. */
   scores: z.object({ quality: z.number().int().min(1).max(5), service: z.number().int().min(1).max(5), fit: z.number().int().min(1).max(5) }).partial().default({}),
 });
@@ -1030,7 +1036,7 @@ export function rfqDraft(service: string): { subject: string; message: string } 
       '',
       `We're {couple} and we're getting married on {date} at {venue}, with about {guests} guests. ${ask[service] ?? `We'd love a quote for ${what}.`}`,
       '',
-      'To make it easy, we\'ve listed what we need here. You can price each item (or mark it not included), add notes, and attach your own quote:',
+      'To make it easy, we\'ve listed what we need on this page. Price each item, or just give one total and attach your own quote. It takes a couple of minutes:',
       '{link}',
       '',
       'If you could send it by {due}, that would be wonderful.',
@@ -1054,7 +1060,8 @@ export function compareRfq(rfq: Rfq, list: Vendor[]) {
       return v ? { v, rv, q: q ?? null } : null;
     })
     .filter((x): x is { v: Vendor; rv: RfqVendor; q: Quote | null } => !!x);
-  const priceOf = (q: Quote | null, line: string) => (q ? (q.lines.find((l) => l.id === line)?.amount ?? null) : null);
+  // A package quote has no line prices: it covers every line, so nothing is "left out".
+  const priceOf = (q: Quote | null, line: string) => (q && !q.package ? (q.lines.find((l) => l.id === line)?.amount ?? null) : null);
   const mid = (xs: number[]) => {
     const s = [...xs].sort((a, b) => a - b);
     return s.length ? (s.length % 2 ? s[(s.length - 1) / 2]! : (s[s.length / 2 - 1]! + s[s.length / 2]!) / 2) : 0;
@@ -1067,6 +1074,7 @@ export function compareRfq(rfq: Rfq, list: Vendor[]) {
   });
   const totals = cols.map((c, i) => {
     if (!c.q) return { quoted: null as number | null, levelled: null as number | null, missing: rfq.lines.length };
+    if (c.q.package) return { quoted: c.q.amount as number | null, levelled: c.q.amount as number | null, missing: 0 };
     const missing = rows.filter((r) => r.prices[i] === null).length;
     const quoted = c.q.amount;
     const levelled = quoted + rows.reduce((a, r) => a + (r.prices[i] === null ? r.mid : 0), 0);
@@ -1105,7 +1113,7 @@ export function tenderAnalysis(rfq: Rfq, list: Vendor[]) {
   const cheapest = levelled.length ? Math.min(...levelled) : null;
   const vendors = cmp.cols.map((c, i) => {
     const t = cmp.totals[i]!;
-    const lowestOn = rows.filter((row) => row.low !== null && row.prices[i] === row.low).length;
+    const lowestOn = c.q?.package ? 0 : rows.filter((row) => row.low !== null && row.prices[i] === row.low).length;
     const vsBest = t.levelled !== null && cmp.best !== null ? t.levelled - cmp.best : null;
     const vsBestPct = vsBest !== null && cmp.best ? Math.round((vsBest / cmp.best) * 100) : null;
     const vsBudget = t.levelled !== null && rfq.budget > 0 ? t.levelled - rfq.budget : null;
@@ -1140,7 +1148,7 @@ export function tenderRows(t: ReturnType<typeof tenderAnalysis>): (string | numb
   const money = (n: number | null) => (n === null ? '' : Math.round(n));
   return [
     ['What', ...t.cols.map((c) => c.v.name), 'Low', 'Median', 'High'],
-    ...t.rows.map((row) => [row.line.label, ...row.prices.map((p, i) => (!t.cols[i]!.q ? '' : p === null ? 'Not included' : Math.round(p))), money(row.lo), money(row.mid), money(row.hi)]),
+    ...t.rows.map((row) => [row.line.label, ...row.prices.map((p, i) => (!t.cols[i]!.q ? '' : t.cols[i]!.q!.package ? 'In their total' : p === null ? 'Not included' : Math.round(p))), money(row.lo), money(row.mid), money(row.hi)]),
     ['Their total', ...t.totals.map((x) => money(x.quoted))],
     ['Like for like', ...t.totals.map((x) => money(x.levelled))],
     ['Lowest on (lines)', ...t.vendors.map((v) => v.lowestOn)],

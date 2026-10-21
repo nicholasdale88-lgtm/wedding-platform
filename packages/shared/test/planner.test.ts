@@ -382,6 +382,20 @@ describe('quote requests', () => {
     expect(Rfq.parse({ id: 'old', vendors: [{ vendorId: 'x' }] })).toMatchObject({ budget: 0, vendors: [{ scores: {} }] });
   });
 
+  it('a quote given as one total covers every line: nothing counted as left out, never "lowest" on a line', () => {
+    const rfq = Rfq.parse({ id: 'r', lines: [{ id: 'a', label: 'Coverage' }, { id: 'b', label: 'Album' }], vendors: [{ vendorId: 'x', quoteId: 'qx' }, { vendorId: 'p', quoteId: 'qp' }] });
+    const list = [
+      Vendor.parse({ id: 'x', name: 'X', quotes: [{ id: 'qx', rfq: 'r', amount: 3500, lines: [{ id: 'a', amount: 3000 }, { id: 'b', amount: 500 }] }] }),
+      Vendor.parse({ id: 'p', name: 'P', quotes: [{ id: 'qp', rfq: 'r', amount: 3200, package: true }] }),
+    ];
+    const t = tenderAnalysis(rfq, list);
+    expect(t.totals[1]).toEqual({ quoted: 3200, levelled: 3200, missing: 0 });
+    expect(t.rows.map((r) => r.prices)).toEqual([[3000, null], [500, null]]);
+    expect(t.vendors[1]).toMatchObject({ lowestOn: 0, vsBest: 0 });
+    expect(t.bestValue?.name).toBe('P');
+    expect(tenderRows(t)[1]).toEqual(['Coverage', 3000, 'In their total', 3000, 3000, 3000]);
+  });
+
   it('has a standard email for each service, with the link to price it', () => {
     for (const s of ['photographer', 'florist', 'caterer', 'venue', '']) {
       const d = rfqDraft(s);

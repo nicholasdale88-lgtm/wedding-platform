@@ -2,6 +2,7 @@ import { commitmentOf, dateIn, moneyOf, QUOTE_STAGES, quoteStatus, VENDOR_SEARCH
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi, type ListedHit, type VendorHit } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
+import { QuoteFile } from './QuoteFile';
 import { saveContacts } from '../../lib/vcard';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
@@ -86,10 +87,13 @@ export function Vendors() {
       const r = await saveDoc({ list: next, rfqs });
       setDoc((d) => (d ? { ...d, version: r.version } : r)); // keep what's on screen: a later change may be on its way
       if (done) toast(done);
+      return true;
     } catch (e) {
       setDoc(before);
-      toast(e instanceof ApiError && e.status === 409 ? 'Changed elsewhere: reloaded. Make your change again.' : (e as Error).message);
+      // A vendor's answer (or another device) changed it meanwhile: show the latest.
+      toast(e instanceof ApiError && e.status === 409 ? 'A quote came in meanwhile: reloaded. Make your change again.' : (e as Error).message);
       if (e instanceof ApiError && e.status === 409) await load();
+      return false;
     }
   };
   const patch = (id: string, p: Partial<Vendor>, done?: string) => void save(list.map((x) => (x.id === id ? { ...x, ...p } : x)), done);
@@ -113,19 +117,20 @@ export function Vendors() {
         ))}
       </section>
 
-      <QuoteTracker
+      <QuoteRequests
         list={list}
-        onPatch={(id, p, msg) => patch(id, p, msg)}
+        rfqs={doc.data.rfqs}
+        onSave={(l, r, msg) => save(l, msg, r)}
+        onReload={load}
         onOpen={(id) => {
           setOpen(id);
           setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
         }}
       />
 
-      <QuoteRequests
+      <QuoteTracker
         list={list}
-        rfqs={doc.data.rfqs}
-        onSave={(l, r, msg) => void save(l, msg, r)}
+        onPatch={(id, p, msg) => patch(id, p, msg)}
         onOpen={(id) => {
           setOpen(id);
           setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
@@ -364,42 +369,10 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
   );
 }
 
-/** File a quote: attach the PDF or a photo (the assistant can read the numbers out), check, save. */
+/** File a quote: drop the PDF or a photo (the assistant reads the numbers out when it's on), check, save. */
 function QuoteForm({ onSave, onCancel }: { onSave: (q: Quote) => void; onCancel: () => void }) {
-  const { wid, overview } = useAdmin();
-  const toast = useToast();
+  const { overview } = useAdmin();
   const [q, setQ] = useState<Quote>({ ...BLANK_QUOTE, id: newId(), date: dateIn(overview?.wedding.timezone) });
-  const [busy, setBusy] = useState('');
-  const pick = async (file: File | undefined) => {
-    if (!file) return;
-    if (file.size > 1_500_000) return toast('That file is over 1.5 MB. Try a smaller PDF, or a photo of the quote.');
-    setBusy('Filing it…');
-    try {
-      const f = await plannerApi.uploadFile(wid, file);
-      setQ((x) => ({ ...x, fileId: f.id, fileName: f.name }));
-      setBusy('Reading the quote…');
-      try {
-        const r = await plannerApi.readQuote(wid, f.id);
-        setQ((x) => ({
-          ...x,
-          amount: r.amount || x.amount,
-          deposit: r.deposit || x.deposit,
-          validUntil: r.validUntil || x.validUntil,
-          date: r.date || x.date,
-          includes: r.includes || x.includes,
-          excludes: r.excludes || x.excludes,
-          extract: r.extract,
-        }));
-        toast('Read it: check the numbers before saving');
-      } catch (e) {
-        toast((e as Error).message);
-      }
-    } catch (e) {
-      toast((e as Error).message);
-    } finally {
-      setBusy('');
-    }
-  };
   const num = (k: 'amount' | 'deposit', label: string) => (
     <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
       {label}
@@ -408,12 +381,23 @@ function QuoteForm({ onSave, onCancel }: { onSave: (q: Quote) => void; onCancel:
   );
   return (
     <div className="flex flex-col gap-3 p-3 rounded-[10px] border border-dashed border-[#8a9670] bg-white">
-      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-        The quote (PDF or a photo, optional)
-        <input type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic" disabled={!!busy} onChange={(e) => void pick(e.target.files?.[0])} />
-      </label>
-      {busy && <span role="status" className="text-[13px] italic text-[#5b6a52]">{busy}</span>}
-      {q.fileName && !busy && <span className="text-[13px] text-[#3d4a2f]">Filed: {q.fileName}</span>}
+      <QuoteFile
+        fileId={q.fileId}
+        fileName={q.fileName}
+        onFiled={(f) => setQ((x) => ({ ...x, fileId: f.id, fileName: f.name }))}
+        onRead={(r) =>
+          setQ((x) => ({
+            ...x,
+            amount: r.amount || x.amount,
+            deposit: r.deposit || x.deposit,
+            validUntil: r.validUntil || x.validUntil,
+            date: r.date || x.date,
+            includes: r.includes || x.includes,
+            excludes: r.excludes || x.excludes,
+            extract: r.extract,
+          }))
+        }
+      />
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         {num('amount', 'Total (AUD)')}
         {num('deposit', 'Deposit (AUD)')}
@@ -438,9 +422,10 @@ function QuoteForm({ onSave, onCancel }: { onSave: (q: Quote) => void; onCancel:
         Notes
         <textarea rows={2} value={q.notes} onChange={(e) => setQ({ ...q, notes: e.target.value })} className={`${inputCls} resize-y`} />
       </label>
+      {!q.amount && <span className="text-[12px] text-[#7a7466]">Add the total to save it.</span>}
       <div className="flex gap-2 justify-end">
         <Pill onClick={onCancel}>Cancel</Pill>
-        <Pill kind="primary" disabled={!!busy || (!q.amount && !q.fileId)} onClick={() => onSave(q)}>
+        <Pill kind="primary" disabled={!q.amount} onClick={() => onSave(q)}>
           Save quote
         </Pill>
       </div>

@@ -4,7 +4,9 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { MAX_PLANNER_FILE, readJson, MAX_PLANNER_DOC } from '../lib/security';
-import { keepDocument, openPhoto } from '../photos/store';
+import { buttonEmail, emailReady, sendEmail } from '../lib/email';
+import { FILE_TYPES, fillRequest, ownerEmails, requestLink, storePlannerFile, weddingFacts } from '../lib/quoteRequests';
+import { openPhoto } from '../photos/store';
 import { portalWho } from './partyPortal';
 import { partyCalKey } from './partyCalendar';
 import { vendorHubKey } from './vendorHub';
@@ -424,50 +426,73 @@ export function plannerRoutes() {
   /** File a quote (a PDF or photo, base64 in JSON, up to 1.5 MB). Returns its id for the vendor's quote. */
   app.post('/files', writer, async (c) => {
     const body = z
-      .object({ name: z.string().trim().min(1).max(160), type: z.enum(['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic']), data: z.string().max(Math.ceil(MAX_PLANNER_FILE * 1.4)) })
+      .object({ name: z.string().trim().min(1).max(160), type: z.enum(FILE_TYPES), data: z.string().max(Math.ceil(MAX_PLANNER_FILE * 1.4)) })
       .strict()
       .safeParse(await readJson(c.req.raw, Math.ceil(MAX_PLANNER_FILE * 1.4) + 4096));
     if (!body.success) return err(c, 400, 'invalid', 'Choose a PDF or a photo of the quote, up to 1.5 MB.');
-    let bytes: Uint8Array;
-    try {
-      bytes = Uint8Array.from(atob(body.data.data), (ch) => ch.charCodeAt(0));
-    } catch {
-      return err(c, 400, 'invalid', 'That file could not be read.');
+    const r = await storePlannerFile(c.env, wid(c), body.data);
+    if (!r.ok) return err(c, 400, r.code, r.message);
+    await audit(c, 'planner.file', r.id).run();
+    return c.json({ id: r.id, name: r.name, where: r.where });
+  });
+
+  /**
+   * Send a quote request (or a reminder) to its vendors by email, from the site: each gets the couple's
+   * message with their own private link, and replies go to the couple. Vendors with no email (or when
+   * email isn't set up) are listed back, to text or copy the link instead.
+   */
+  app.get('/rfq/email', (c) => c.json({ on: emailReady(c.env) }));
+  app.post('/rfq/:id/send', writer, async (c) => {
+    const body = z.object({ vendorIds: z.array(z.string().max(40)).min(1).max(20), remind: z.boolean().default(false) }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose who to send it to.');
+    if (!emailReady(c.env)) return err(c, 400, 'off', 'Email isn’t set up on this site yet: use Email, Text or Copy link for each vendor.');
+    if (!(await allow(c.env.DB, `rfq-send:${wid(c)}`, 60, 86_400_000))) return err(c, 429, 'slow_down', "That's a lot of emails today. Try again tomorrow, or copy the links.");
+    const f = await weddingFacts(c.env.DB, wid(c));
+    if (!f) return err(c, 404, 'not_found', 'Wedding not found.');
+    const doc = await readDoc(c.env.DB, wid(c), 'vendors', '');
+    const rfq = doc.data.rfqs.find((r) => r.id === c.req.param('id'));
+    if (!rfq) return err(c, 404, 'not_found', 'That quote request has gone.');
+    if (rfq.closed) return err(c, 409, 'closed', 'That request is decided: reopen it to send again.');
+    const replyTo = await ownerEmails(c.env.DB, wid(c));
+    const sent: string[] = [];
+    const skipped: string[] = [];
+    for (const id of body.data.vendorIds) {
+      const rv = rfq.vendors.find((x) => x.vendorId === id);
+      const v = doc.data.list.find((x) => x.id === id);
+      if (!rv || !v || !rv.key || rv.answeredOn || rv.declinedOn) continue;
+      const to = v.email.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+        skipped.push(id);
+        continue;
+      }
+      const link = requestLink(c.env, f.w.slug, rv.key);
+      const remind = body.data.remind && !!rv.sentOn;
+      const subject = remind ? `Reminder: ${fillRequest(rfq.subject || 'Quote request: {couple}', f, rfq.due, link)}` : fillRequest(rfq.subject || 'Quote request: {couple}', f, rfq.due, link);
+      const intro = remind ? [`Just a friendly reminder from ${f.couple}: we'd still love your quote${rfq.due ? ` by ${fillRequest('{due}', f, rfq.due, link)}` : ''}.`, ''] : [];
+      const text = [...intro, fillRequest(rfq.message, f, rfq.due, link)].join('\n');
+      const m = buttonEmail({ heading: remind ? 'A quick reminder' : `A quote request from ${f.couple}`, lines: text.split('\n').filter((l) => l.trim() && !l.includes(link)), button: 'Price it here', link, footer: `Reply to this email to reach ${f.couple}.` });
+      if (await sendEmail(c.env, { to, subject: subject.slice(0, 200), ...m, replyTo })) sent.push(id);
+      else skipped.push(id);
     }
-    if (bytes.byteLength > MAX_PLANNER_FILE) return err(c, 400, 'too_large', 'That file is over 1.5 MB. Try a smaller PDF or a photo.');
-    // It must really be what it says (a PDF starts %PDF; images by their first bytes).
-    const head = String.fromCharCode(...bytes.slice(0, 12));
-    const t = body.data.type;
-    const real =
-      t === 'application/pdf'
-        ? head.startsWith('%PDF')
-        : t === 'image/jpeg'
-          ? bytes[0] === 0xff && bytes[1] === 0xd8
-          : t === 'image/png'
-            ? bytes[0] === 0x89 && head.slice(1, 4) === 'PNG'
-            : t === 'image/webp'
-              ? head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP'
-              : head.slice(4, 8) === 'ftyp';
-    if (!real) return err(c, 400, 'invalid', "That file isn't the PDF or photo it says it is.");
-    const id = crypto.randomUUID();
-    // In the couple's linked Drive, Dropbox or OneDrive when they chose one for planning files; else here.
-    const remote = await keepDocument(c.env, wid(c), { bytes, name: body.data.name, type: t });
-    await c.env.DB.batch([
-      c.env.DB.prepare(`INSERT INTO planner_file (id, wedding_id, name, type, bytes, data, created_at, remote) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(
-        id,
-        wid(c),
-        body.data.name,
-        t,
-        bytes.byteLength,
-        remote ? new Uint8Array(0) : bytes,
-        new Date().toISOString(),
-        remote,
-      ),
-      audit(c, 'planner.file', id),
-    ]);
-    // Where it went: the linked storage's kind (gdrive, dropbox, onedrive), or '' for here.
-    const where = remote ? ((await c.env.DB.prepare(`SELECT provider FROM photo_link WHERE id = ?`).bind(remote.split(':')[1] ?? '').first<{ provider: string }>())?.provider ?? '') : '';
-    return c.json({ id, name: body.data.name, where });
+    const today = dateIn(f.w.timezone);
+    if (sent.length) {
+      await changeDoc(c.env.DB, wid(c), 'vendors', '', (d) => {
+        const r = d.rfqs.find((x) => x.id === rfq.id);
+        if (!r) return false;
+        for (const rv of r.vendors.filter((x) => sent.includes(x.vendorId))) {
+          if (body.data.remind && rv.sentOn) rv.remindedOn = today;
+          else rv.sentOn = rv.sentOn || today;
+        }
+        // The quote tracker knows they've been asked, and when the quote is due.
+        for (const v of d.list.filter((x) => sent.includes(x.id))) {
+          if (v.status === 'idea' || v.status === 'contacted') v.status = 'requested';
+          v.askedOn = v.askedOn || today;
+          v.quoteBy = v.quoteBy || r.due;
+          if (body.data.remind) v.chasedOn = today;
+        }
+      });
+    }
+    return c.json({ sent, skipped });
   });
 
   /** A planning file and its bytes (from the linked storage it lives in, or the database). */

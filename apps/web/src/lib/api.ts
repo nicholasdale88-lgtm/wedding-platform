@@ -569,6 +569,10 @@ export const plannerApi = {
   readQuote: (wid: string, id: string) =>
     send<{ amount: number; deposit: number; validUntil: string; date: string; includes: string; excludes: string; extract: string }>('POST', `${w(wid)}/planner/files/${encodeURIComponent(id)}/read`, {}),
   compare: (wid: string, vendorIds: string[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/compare`, { vendorIds }),
+  /** Whether quote requests can be emailed from the site (email is set up). */
+  rfqEmail: (wid: string) => request<{ on: boolean }>(`${w(wid)}/planner/rfq/email`),
+  /** Email a quote request (or a reminder) to these vendors, each with their own link. */
+  sendRfq: (wid: string, id: string, vendorIds: string[], remind = false) => send<{ sent: string[]; skipped: string[] }>('POST', `${w(wid)}/planner/rfq/${encodeURIComponent(id)}/send`, { vendorIds, remind }),
   /** A per-event planning document (e.g. that event's shuttles). */
   docFor: <T>(wid: string, kind: PlannerKind, scope: string) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}/${encodeURIComponent(scope)}`),
   doc: <T>(wid: string, kind: PlannerKind) => request<{ data: T; version: number }>(`${w(wid)}/planner/doc/${kind}`),

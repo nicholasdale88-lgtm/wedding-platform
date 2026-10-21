@@ -23,7 +23,7 @@ const IMPORT_PATH = /^\/api\/a\/w\/[^/]+\/guests\/import$/;
 export const MAX_PLANNER_FILE = 1_500_000;
 /** A planner document (200 vendors with quotes and payments is big): under the database's 2 MB per value. */
 export const MAX_PLANNER_DOC = 1_900_000;
-const FILE_PATH = /^\/api\/a\/w\/[^/]+\/planner\/files$/;
+const FILE_PATH = /^\/api\/(?:a\/w\/[^/]+\/planner\/files|p\/[a-z0-9-]+\/rfq\/file)$/;
 const DOC_PATH = /^\/api\/a\/w\/[^/]+\/planner\/doc\//;
 
 /** The body limit for a path. */

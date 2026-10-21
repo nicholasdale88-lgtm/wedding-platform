@@ -23,13 +23,13 @@ ${o.footer ? `<p style="font-size:13px;color:#7a7466;margin:0">${esc(o.footer)}<
 }
 
 /** Sends one email; true when Resend took it. Never throws (the caller still has the link to share). */
-export async function sendEmail(env: Env, m: { to: string; subject: string; text: string; html: string }): Promise<boolean> {
+export async function sendEmail(env: Env, m: { to: string; subject: string; text: string; html: string; replyTo?: string[] }): Promise<boolean> {
   if (!emailReady(env)) return false;
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ from: env.EMAIL_FROM, to: [m.to], subject: m.subject, text: m.text, html: m.html }),
+      body: JSON.stringify({ from: env.EMAIL_FROM, to: [m.to], subject: m.subject, text: m.text, html: m.html, ...(m.replyTo?.length ? { reply_to: m.replyTo } : {}) }),
     });
     return r.ok;
   } catch {
