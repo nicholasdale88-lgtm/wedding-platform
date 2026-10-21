@@ -1,4 +1,4 @@
-import { cssAspect, tableBox } from '@wp/shared';
+import { cssAspect, tableBox, type TableShape } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
@@ -29,7 +29,7 @@ interface Seating {
   aspect: string;
   /** Published to guests (else the couple's saved plan, which may still change). */
   published: boolean;
-  tables: { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number; guests: number; special: number; serious: boolean }[];
+  tables: { id: string; name: string; shape: TableShape; dir: 'h' | 'v'; len: number; x: number; y: number; seats: number; guests: number; special: number; serious: boolean }[];
   areas: { label: string; x: number; y: number; w: number; h: number }[];
   special: { table: string; seat: number; name: string; diet: string; meal: Meal; serious: boolean }[];
   notSeated: { name: string; diet: string; meal: Meal; serious: boolean }[];
