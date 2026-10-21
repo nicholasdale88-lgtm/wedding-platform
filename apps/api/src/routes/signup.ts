@@ -1,4 +1,4 @@
-import { zonedToUtc } from '@wp/shared';
+import { cleanRef, zonedToUtc } from '@wp/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { hashPasscode, passcodeProblem } from '../lib/auth';
@@ -26,6 +26,8 @@ const Signup = z
     guests: z.number().int().min(0).max(3000).default(0),
     plan: z.enum(PLANS).default('free'),
     marketing: z.boolean().default(false),
+    /** Where they came from: a wedding's "Made with" link (its address), or a campaign (?ref= or utm_source). */
+    ref: z.string().max(80).default(''),
     /** Left empty by people; filled in by bots. */
     website: z.string().max(200).default(''),
   })
@@ -75,7 +77,7 @@ export function signupRoutes() {
     // The person signing up is the main account: the plan and billing are theirs (partners join as owners).
     // The Accommodation section starts switched off: it was written for camping at a country venue, and
     // most couples won't need it (Setup → Sections switches it back on).
-    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }) });
+    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
@@ -86,7 +88,7 @@ export function signupRoutes() {
       db.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES (?, ?, 'owner')`).bind(weddingId, userId),
       db.prepare(`INSERT INTO event (id, wedding_id, key, name, pending_label, starts_at, sort) VALUES (?, ?, 'wedding', 'The wedding', 'the wedding', ?, 0)`).bind(crypto.randomUUID(), weddingId, startsAt),
       db.prepare(`INSERT INTO consent_log (id, user_id, kind, granted, source, at) VALUES (?, ?, 'marketing', ?, 'signup', ?)`).bind(crypto.randomUUID(), userId, b.marketing ? 1 : 0, now),
-      db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'account.signup', ?, ?, ?)`).bind(crypto.randomUUID(), weddingId, userId, weddingId, JSON.stringify({ plan: b.plan }), now),
+      db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'account.signup', ?, ?, ?)`).bind(crypto.randomUUID(), weddingId, userId, weddingId, JSON.stringify({ plan: b.plan, ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) }), now),
     ];
     try {
       await db.batch(stmts);

@@ -14,3 +14,4 @@ export * from './planner';
 export * from './help';
 export * from './plan';
 export * from './directory';
+export * from './company';

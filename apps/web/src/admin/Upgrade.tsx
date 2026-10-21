@@ -66,6 +66,11 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   const { plan, requested } = usePlan();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // A promo code: typed, then checked (the new price shows before paying).
+  const [codeOpen, setCodeOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [deal, setDeal] = useState<{ cents: number; off: number; code: string } | null>(null);
+  const [codeProblem, setCodeProblem] = useState('');
   // null until we know; the button waits rather than changing under the couple's finger.
   const [card, setCard] = useState<boolean | null>(null);
   useEffect(() => {
@@ -81,8 +86,18 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   const info = need === 'event' ? EVENT_ADDON : PLAN_INFO[need];
   const asked = requested === need || (requested === 'complete' && need === 'essentials');
   // What a card payment would be now: Essentials to Deluxe is only the difference.
-  const cents = chargeCents(plan, need);
+  const cents = deal ? deal.cents : chargeCents(plan, need);
   const price = cents === null ? info.price : dollars(cents);
+  const applyCode = async () => {
+    setCodeProblem('');
+    if (!code.trim()) return;
+    try {
+      setDeal(await api.promo(wid, need, code.trim()));
+    } catch (e) {
+      setDeal(null);
+      setCodeProblem((e as Error).message);
+    }
+  };
   // Just paid for this (or for Deluxe, which covers Essentials): say thanks while the webhook switches it on.
   const back = backFromPaying();
   const thanks = !!back?.paid && (back.bought === need || (back.bought === 'complete' && need === 'essentials'));
@@ -101,7 +116,7 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   const pay = async () => {
     setBusy(true);
     try {
-      const { url } = await api.checkout(wid, need);
+      const { url } = await api.checkout(wid, need, deal?.code ?? '');
       window.location.assign(url);
       // Stay busy while the browser leaves for Stripe, so a second tap doesn't open a second payment.
     } catch (e) {
@@ -121,10 +136,39 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
             ? "You've asked to upgrade: we'll email you a link to pay, and it switches on as soon as it's paid."
             : 'Everything you’ve added so far stays as it is.'}
       </span>
-      {!thanks && card === true && (
+      {!thanks && (card === true || deal?.cents === 0) && (
         <Pill kind="primary" className="self-start" disabled={busy} onClick={() => void pay()}>
-          {busy ? 'Opening the payment page…' : addon ? `Add an event: ${price} by card` : `Pay ${price} by card`}
+          {busy ? 'Opening the payment page…' : deal?.cents === 0 ? `Switch on ${addon ? 'the extra event' : info.name} free` : addon ? `Add an event: ${price} by card` : `Pay ${price} by card`}
         </Pill>
+      )}
+      {!thanks && (
+        <div className="flex flex-col gap-1 text-[13px]">
+          {deal ? (
+            <span className="text-[#3d4a2f] font-semibold">
+              Code {deal.code}: {dollars(deal.off)} off{deal.cents === 0 ? ', so it’s free' : ''}.
+            </span>
+          ) : codeOpen ? (
+            <span className="flex gap-2 items-center flex-wrap">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => e.key === 'Enter' && void applyCode()}
+                placeholder="Promo code"
+                aria-label="Promo code"
+                maxLength={24}
+                className="py-[6px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[15px] w-[160px] uppercase"
+              />
+              <Pill size="sm" onClick={() => void applyCode()}>
+                Apply
+              </Pill>
+            </span>
+          ) : (
+            <button type="button" onClick={() => setCodeOpen(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+              Have a promo code?
+            </button>
+          )}
+          {codeProblem && <span role="alert" className="text-[#7a4a37]">{codeProblem}</span>}
+        </div>
       )}
       {!thanks && card !== true && !asked && (
         <Pill kind="primary" className="self-start" disabled={busy || card === null} onClick={() => void ask()}>

@@ -50,6 +50,7 @@ const VendorPage = lazy(() => fresh(import('./guest/vendor/VendorPage')).then((m
 const DirectoryPage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.DirectoryPage })));
 const ListingPage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.ListingPage })));
 const VendorJoinPage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.VendorJoinPage })));
+const CompanyPortal = lazy(() => fresh(import('./company/CompanyPortal')).then((m) => ({ default: m.CompanyPortal })));
 const VendorHomePage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.VendorHomePage })));
 
 function Pages() {
@@ -57,6 +58,7 @@ function Pages() {
     <Suspense fallback={<div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />}>
       <Routes>
         <Route path="/admin/reset" element={<ResetPasscode />} />
+        <Route path="/company/*" element={<CompanyPortal />} />
         <Route path="/admin/*" element={<AdminRoot />} />
         <Route path="/w/:slug" element={<InvitationPage />} />
         <Route path="/w/:slug/tomorrow" element={<GuidePage />} />

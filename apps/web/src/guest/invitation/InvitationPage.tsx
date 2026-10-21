@@ -10,6 +10,7 @@ import { useInvitation } from './useInvitation';
 import { MessageUs } from '../MessageUs';
 import { EnvelopeExtras } from './EnvelopeExtras';
 import { BirthdayHero, sealFor, SOLO_HIDDEN } from './BirthdayHero';
+import { useSite } from '../../lib/site';
 
 /**
  * /w/:slug/?g=<token>: the invitation. The design view is generated (guest/generated/InvitationView);
@@ -46,6 +47,7 @@ function Loaded({ slug, data, preview, welcome = false }: { slug: string; data: 
     document.title = solo ? solo.name : `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
   }, [data.wedding, solo]);
   const token = !preview && guestToken;
+  const site = useSite();
   const th = themeOf(data.wedding.theme, data.content.custom);
   // Their names, as the envelope is addressed ("Ella & James"); none on the public page.
   const people = data.invitation?.people ?? [];
@@ -55,6 +57,14 @@ function Loaded({ slug, data, preview, welcome = false }: { slug: string; data: 
       <div className="dz">
         <InvitationView v={v} t={t} />
       </div>
+      {/* The app's quiet advert: every guest sees it once the envelope is open (switched off in the company portal). */}
+      {site?.madeWith && phase >= 3 && (
+        <p className="m-0 py-6 text-center text-[13px]" style={{ color: th.dg ?? '#33402f', opacity: 0.75 }}>
+          <a href={`/?ref=${encodeURIComponent(slug)}`} className="no-underline" style={{ color: 'inherit' }}>
+            Made with The Yes List · make your own
+          </a>
+        </p>
+      )}
       {solo && (
         <BirthdayHero
           name={solo.name}

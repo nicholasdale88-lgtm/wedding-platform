@@ -609,3 +609,10 @@ export const passcodeReset = sqliteTable('passcode_reset', {
   expiresAt: text('expires_at').notNull(),
   usedAt: text('used_at'),
 });
+
+// migration 0032: the company's own settings (the platform owner's portal): one JSON value per key
+export const platformSetting = sqliteTable('platform_setting', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});

@@ -165,9 +165,11 @@ export const api = {
   /** Whether paying by card (Stripe Checkout) is switched on. */
   planCard: (wid: string) => request<{ on: boolean }>(`${w(wid)}/plan/card`),
   /** Opens a Stripe Checkout page for a plan or another event; the browser goes to `url` to pay. */
-  checkout: (wid: string, what: 'essentials' | 'complete' | 'event') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what }),
+  checkout: (wid: string, what: 'essentials' | 'complete' | 'event', code = '') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what, code }),
+  /** What a promo code makes the price. */
+  promo: (wid: string, what: 'essentials' | 'complete' | 'event', code: string) => send<{ cents: number; off: number; code: string }>('POST', `${w(wid)}/plan/promo`, { what, code }),
   /** From the front page: a new account and wedding, signed in. */
-  signup: (b: { firstName: string; partnerName: string; email: string; passcode: string; date: string; guests?: number; plan: 'free' | 'essentials' | 'complete'; marketing: boolean; website: string }) =>
+  signup: (b: { firstName: string; partnerName: string; email: string; passcode: string; date: string; guests?: number; plan: 'free' | 'essentials' | 'complete'; marketing: boolean; website: string; ref?: string }) =>
     send<Me & { weddingId: string }>('POST', '/a/signup', b),
 
   overview: (wid: string, event?: string) => request<Overview>(`${w(wid)}/overview${event ? `?event=${encodeURIComponent(event)}` : ''}`),
@@ -833,4 +835,40 @@ export const messagesApi = {
   list: (wid: string) => request<{ threads: MessageThread[] }>(`${w(wid)}/messages`),
   open: (wid: string, inv: string) => request<Conversation>(`${w(wid)}/messages/${inv}`),
   reply: (wid: string, inv: string, body: string, sms: boolean) => send<{ ok: true; sentSms: boolean; smsLater?: boolean; messages: ThreadMessage[] }>('POST', `${w(wid)}/messages/${inv}`, { body, sms }),
+};
+
+/** The company portal (super admins only). */
+export interface CompanyStats {
+  weddings: number;
+  signups: { last7: number; last30: number; weekly: { weekOf: string; n: number }[] };
+  plans: Record<string, number>;
+  revenue: { total: number; thisMonth: number; payments: number };
+  requests: number;
+  guests: number;
+  replies: number;
+  directory: { listings: number; enquiries: number };
+  quoteRequests: number;
+  referrals: { ref: string; n: number; paid: number }[];
+  optIns: number;
+}
+export interface CompanyWedding { id: string; slug: string; names: string; plan: string; createdAt: string; requested: string; extraEvents: number; ref: string; day: string; guests: number; email: string }
+export interface CompanyListing { id: string; slug: string; name: string; category: string; region: string; email: string; hidden: boolean; created_at: string; enquiries: number }
+export interface CompanySettings {
+  social: { instagram: string; tiktok: string; facebook: string; pinterest: string; youtube: string };
+  supportEmail: string;
+  banner: { on: boolean; text: string; link: string };
+  madeWith: boolean;
+}
+export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
+export const companyApi = {
+  stats: () => request<CompanyStats>('/a/company/stats'),
+  weddings: (q: string, requests = false) => request<{ weddings: CompanyWedding[] }>(`/a/company/weddings?q=${encodeURIComponent(q)}${requests ? '&requests=1' : ''}`),
+  setPlan: (slug: string, body: { plan?: 'free' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),
+  listings: () => request<{ listings: CompanyListing[] }>('/a/company/listings'),
+  hideListing: (id: string, hidden: boolean) => send<{ ok: true }>('PUT', `/a/company/listings/${encodeURIComponent(id)}`, { hidden }),
+  settings: () => request<CompanySettings>('/a/company/settings'),
+  saveSettings: (s: CompanySettings) => send<CompanySettings>('PUT', '/a/company/settings', s),
+  promos: () => request<{ codes: CompanyPromo[] }>('/a/company/promos'),
+  savePromos: (codes: CompanyPromo[]) => send<{ codes: CompanyPromo[] }>('PUT', '/a/company/promos', { codes }),
+  optInsUrl: '/api/a/company/optins.csv',
 };

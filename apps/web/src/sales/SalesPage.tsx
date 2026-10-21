@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, type Feature } from '@wp/shared';
 import { api } from '../lib/api';
+import { rememberRef, savedRef, useSite } from '../lib/site';
 import { DriveArt, FEATURE_ICONS, Wordmark } from './Art';
 
 /**
@@ -133,7 +134,10 @@ const FAQ: [string, string][] = [
 
 export function SalesPage() {
   const [plan, setPlan] = useState<PlanKey>('essentials');
+  const site = useSite();
   useEffect(() => {
+    // Came from a wedding's "Made with" link or a post (?ref= / ?utm_source=): kept for sign-up.
+    rememberRef();
     document.title = `${BRAND} · Your guests reply by text. You stop chasing.`;
     // Arriving from another page with #start or #pricing (e.g. the sample invitation's "Start free").
     const id = window.location.hash.slice(1);
@@ -145,6 +149,17 @@ export function SalesPage() {
   };
   return (
     <div className="min-h-screen bg-[#f6f0e2]" style={{ color: INK, fontFamily: sans }}>
+      {site?.banner && (
+        <div className="px-4 py-2 text-center text-[14px]" style={{ background: INK, color: '#fbf8f2' }}>
+          {site.banner.link ? (
+            <a href={site.banner.link} className="!text-[#fbf8f2] underline underline-offset-2">
+              {site.banner.text}
+            </a>
+          ) : (
+            site.banner.text
+          )}
+        </div>
+      )}
       <header className="max-w-[1100px] mx-auto px-4 py-4 flex justify-between items-center gap-3">
         <span aria-label={BRAND}>
           <Wordmark size={24} />
@@ -438,6 +453,14 @@ export function SalesPage() {
         <Link to="/contact" style={{ color: SOFT }}>
           Contact
         </Link>
+        {site &&
+          (Object.entries(site.social) as [string, string][])
+            .filter(([, u]) => /^https:\/\//.test(u))
+            .map(([k, u]) => (
+              <a key={k} href={u} target="_blank" rel="noopener noreferrer" style={{ color: SOFT }}>
+                {k === 'tiktok' ? 'TikTok' : k === 'youtube' ? 'YouTube' : k.charAt(0).toUpperCase() + k.slice(1)}
+              </a>
+            ))}
       </footer>
     </div>
   );
@@ -455,7 +478,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
     if (f.passcode.length < 8) return setProblem('Use at least 8 characters for your passcode.');
     setBusy(true);
     try {
-      const r = await api.signup({ ...f, guests: Math.max(0, Math.min(3000, Math.round(Number(f.guests) || 0))), plan });
+      const r = await api.signup({ ...f, guests: Math.max(0, Math.min(3000, Math.round(Number(f.guests) || 0))), plan, ref: savedRef() });
       // Their own invitation first (with their names), then "Make it yours" takes them into the admin.
       const slug = r.weddings.find((x) => x.id === r.weddingId)?.slug;
       window.location.assign(slug ? `/w/${encodeURIComponent(slug)}/?preview=1&welcome=1` : `/admin/${encodeURIComponent(r.weddingId)}`);

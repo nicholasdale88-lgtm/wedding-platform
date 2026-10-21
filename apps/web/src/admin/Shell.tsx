@@ -345,6 +345,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
             <Link to={path('help', ALL_EVENTS)} className="text-[12px] underline !text-[#cfd8bb]">
               Help
             </Link>
+            <CompanyLink className="text-[12px] underline !text-[#cfd8bb]" />
             <button onClick={signOut} className="p-0 border-0 bg-transparent text-[#cfd8bb] text-[12px] underline cursor-pointer">
               Sign out
             </button>
@@ -510,6 +511,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
             <p className="m-0 text-[14px] text-[#5b6a52]">Nothing here yet.</p>
           )}
         </div>
+        <CompanyLink className="self-center text-[14px] underline !text-[#33402f]" />
         <Pill onClick={onSignOut} className="self-stretch">
           Sign out
         </Pill>
@@ -558,4 +560,24 @@ function looks(o: Overview | null, event: string): CSSProperties {
 export function useSectionName(): string {
   const { event, overview } = useAdmin();
   return overview?.events.find((e) => e.key === event)?.name ?? 'Account';
+}
+
+/** Whether the person signed in runs the company (a super admin): asked once per visit. */
+let superCache: Promise<boolean> | null = null;
+/** The company portal (/company), for the platform owner only. */
+function CompanyLink({ className }: { className: string }) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    superCache ??= api.me().then((m) => !!m.user.superAdmin, () => false);
+    let live = true;
+    void superCache.then((v) => live && setOn(v));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return on ? (
+    <Link to="/company" className={className}>
+      Company portal
+    </Link>
+  ) : null;
 }
