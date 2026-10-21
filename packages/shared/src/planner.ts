@@ -869,6 +869,54 @@ export function lineFor(v: Vendor, lines: BudgetLine[]): BudgetLine | undefined 
 }
 
 /**
+ * Where a booked vendor sits in the budget: the lines that name them (`linked`), or, when none do, the
+ * best line for their kind that names nobody yet (`suggest`, -1 for none: the photographer goes on
+ * "Photographer"); what you budgeted (those lines' estimates), what you've committed (the contract), what's
+ * paid and owing, and the difference (`diff`, over budget when positive; null with nothing budgeted).
+ */
+export function budgetFit(v: Vendor, lines: BudgetLine[]) {
+  const linked = lines.map((l, i) => ({ l, i })).filter((x) => same(x.l.vendor, v.name));
+  const kind = vendorKind(v);
+  const lineKind = (l: BudgetLine) => vendorKind({ category: l.item, name: l.category });
+  const free = lines.map((l, i) => ({ l, i })).filter((x) => !x.l.vendor.trim() && kind && lineKind(x.l) === kind);
+  const suggest = linked.length ? -1 : (free.find((x) => same(x.l.item, v.category))?.i ?? free[0]?.i ?? -1);
+  const budgeted = linked.reduce((a, x) => a + (x.l.estimate || x.l.quote), 0);
+  const m = moneyOf(v, lineFor(v, lines));
+  return { linked: linked.map((x) => x.i), suggest, budgeted, committed: m.total, paid: m.paid, owing: m.owing, diff: budgeted ? Math.round((m.total - budgeted) * 100) / 100 : null };
+}
+
+/** Each kind of supplier's budget category (BUDGET_SPLIT's). */
+const KIND_CATEGORY: Record<string, string> = {
+  Venue: 'Venue and catering',
+  Catering: 'Venue and catering',
+  'Band or DJ': 'Music and entertainment',
+  Photographer: 'Photography and video',
+  Videographer: 'Photography and video',
+  Celebrant: 'Celebrant',
+  'Hair and makeup': 'Hair and makeup',
+  Attire: 'Attire and rings',
+  Rings: 'Attire and rings',
+  Florist: 'Flowers and styling',
+  'Styling and hire': 'Flowers and styling',
+  Accommodation: 'Accommodation and extras',
+  Transport: 'Transport',
+  Stationery: 'Stationery',
+  Cake: 'Cake',
+};
+
+/**
+ * Put a booked vendor in the budget: on line `at` (their name on it, and their contract as its quote), or,
+ * with `at` -1, on a line of their own (its estimate is what they cost, in their kind's category).
+ */
+export function linkToBudget(v: Vendor, lines: BudgetLine[], at: number): BudgetLine[] {
+  const cost = commitmentOf(v).amount;
+  if (at >= 0 && lines[at]) return lines.map((l, i) => (i === at ? { ...l, vendor: v.name, quote: cost || l.quote } : l));
+  const kind = vendorKind(v) ?? '';
+  const category = KIND_CATEGORY[kind] ?? 'Other';
+  return [...lines, { category, item: v.category || v.name, estimate: cost, quote: cost, paid: 0, due: '', vendor: v.name, note: '', payer: '', perHead: 0 }];
+}
+
+/**
  * A vendor's payment schedule: the one you set; or, until then, what's known already (from its budget line:
  * paid so far and the rest; or from the accepted quote: the deposit and the balance).
  */

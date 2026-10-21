@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealWarning, menuFit, servedMeal } from '../src/planner';
-import { suggestedTasks, vendorKind, negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { budgetFit, linkToBudget, suggestedTasks, vendorKind, negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -499,6 +499,26 @@ describe('quote requests', () => {
     ]);
     expect(suggestedTasks(Vendor.parse({ id: 'x', name: 'Someone', category: 'Juggler' }), '')).toEqual([{ text: 'Leave them a review', due: '' }]);
     expect(vendorKind({ category: '', name: 'Bloom Florals' })).toBe('Florist');
+  });
+
+  it('a booked vendor in the budget: the line naming them, else the best free line for their kind; budgeted vs committed', () => {
+    const lines = [
+      BudgetLine.parse({ category: 'Photography and video', item: 'Videographer', estimate: 2500 }),
+      BudgetLine.parse({ category: 'Photography and video', item: 'Photographer', estimate: 3500 }),
+      BudgetLine.parse({ category: 'Flowers', item: 'Florist', estimate: 1800, vendor: 'Bloom' }),
+    ];
+    const lens = Vendor.parse({ id: 'p', name: 'Lens & Light', category: 'Photographer', status: 'booked', quotes: [{ id: 'q', amount: 3200 }], accepted: 'q' });
+    const fit = budgetFit(lens, lines);
+    expect(fit).toMatchObject({ linked: [], suggest: 1, budgeted: 0, committed: 3200, diff: null });
+    const linked = linkToBudget(lens, lines, fit.suggest);
+    expect(linked[1]).toMatchObject({ vendor: 'Lens & Light', quote: 3200, estimate: 3500 });
+    expect(budgetFit(lens, linked)).toMatchObject({ linked: [1], suggest: -1, budgeted: 3500, diff: -300 });
+    // Nothing free for their kind: a line of their own.
+    const cake = Vendor.parse({ id: 'c', name: 'Sweet Co', category: 'Cake', status: 'booked', quote: 650 });
+    expect(budgetFit(cake, lines).suggest).toBe(-1);
+    const own = linkToBudget(cake, lines, -1);
+    expect(own).toHaveLength(4);
+    expect(own[3]).toMatchObject({ item: 'Cake', estimate: 650, quote: 650, vendor: 'Sweet Co' });
   });
 
   it('has a standard email for each service, with the link to price it', () => {

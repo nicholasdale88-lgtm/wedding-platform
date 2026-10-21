@@ -1,4 +1,4 @@
-import { allPayments, commitmentOf, dateIn, lineFor, suggestedTasks, vendorKind, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, budgetFit, commitmentOf, dateIn, lineFor, linkToBudget, suggestedTasks, vendorKind, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
@@ -68,11 +68,28 @@ export function Vendors() {
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: VendorsDoc; version: number } | null>(null);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
-  // The budget's lines (read only here): a booked vendor's payment schedule starts from its budget line.
-  const [lines, setLines] = useState<BudgetDoc['lines']>([]);
+  // The budget: a booked vendor's payment schedule starts from its budget line, and Lock in puts each booked
+  // vendor on their line (what you budgeted against what you've committed).
+  const [budget, setBudget] = useState<{ data: BudgetDoc; version: number } | null>(null);
   useEffect(() => {
-    plannerApi.doc<BudgetDoc>(wid, 'budget').then((d) => setLines(d.data.lines), () => setLines([]));
+    plannerApi.doc<BudgetDoc>(wid, 'budget').then(setBudget, () => setBudget(null));
   }, [wid]);
+  const lines = budget?.data.lines ?? [];
+  const saveBudgetDoc = useDocSave<BudgetDoc>(wid, 'budget', '', budget?.version);
+  const putLines = async (next: BudgetDoc['lines'], done?: string) => {
+    if (!budget) return;
+    const before = budget;
+    setBudget({ ...budget, data: { ...budget.data, lines: next } });
+    try {
+      const res = await saveBudgetDoc({ ...budget.data, lines: next });
+      setBudget((b) => (b ? { ...b, version: res.version } : b));
+      if (done) toast(done);
+    } catch (e) {
+      setBudget(before);
+      toast((e as Error).message);
+    }
+  };
+  const linkVendor = (v: Vendor, at: number) => void putLines(linkToBudget(v, lines, at), at >= 0 ? `${v.name} is on your budget line “${lines[at]?.item || lines[at]?.category}”` : `${v.name} added to your budget`);
   const saveDoc = useDocSave<VendorsDoc>(wid, 'vendors', '', doc?.version);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -284,7 +301,7 @@ export function Vendors() {
           {doc.data.rfqs.some((r) => r.vendors.some((rv) => rv.answeredOn || rv.quoteId)) && (
             <QuoteRequests mode="lockin" list={list} rfqs={doc.data.rfqs} onSave={(l, r, msg) => save(l, msg, r)} onReload={load} onOpen={openVendor} onStep={goStep} />
           )}
-          <LockedIn list={list} lines={lines} today={today} weddingDay={weddingDay} onPatch={patch} onOpen={openVendor} onStep={goStep} />
+          <LockedIn list={list} lines={lines} budgetTotal={budget?.data.total ?? 0} today={today} weddingDay={weddingDay} onPatch={patch} onLink={linkVendor} onOpen={openVendor} onStep={goStep} />
           {booked.length > 0 && (
             <Pill kind="primary" className="self-start" onClick={() => goStep(5)}>
               Next: manage them to the day →
@@ -293,7 +310,7 @@ export function Vendors() {
         </>
       )}
 
-      {shown === 5 && <Manage list={list} lines={lines} today={today} weddingDay={weddingDay} onPatch={patch} onSaveList={(next, done) => void save(next, done)} onOpen={openVendor} onStep={goStep} />}
+      {shown === 5 && <Manage list={list} lines={lines} budgetTotal={budget?.data.total ?? 0} today={today} weddingDay={weddingDay} onPatch={patch} onSaveList={(next, done) => void save(next, done)} onOpen={openVendor} onStep={goStep} />}
     </div>
   );
 }
@@ -307,22 +324,28 @@ export function Vendors() {
 function LockedIn({
   list,
   lines,
+  budgetTotal,
   today,
   weddingDay,
   onPatch,
+  onLink,
   onOpen,
   onStep,
 }: {
   list: Vendor[];
   lines: BudgetDoc['lines'];
+  budgetTotal: number;
   today: string;
   weddingDay: string;
   onPatch: (id: string, p: Partial<Vendor>, done?: string) => void;
+  /** Put a vendor on budget line `at` (or, -1, a line of their own). */
+  onLink: (v: Vendor, at: number) => void;
   onOpen: (id: string) => void;
   onStep: (n: 1 | 2 | 3 | 4) => void;
 }) {
   const booked = list.filter((v) => v.status === 'booked');
-  const [schedule, setSchedule] = useState<string | null>(null);
+  // Each schedule is open until it's set (then folded, a tap to open): entering it is the point of this step.
+  const [shut, setShut] = useState<Record<string, boolean>>({});
   const meals = booked.reduce((a, v) => a + v.meals, 0);
   const caterers = booked.filter((v) => v.shareSeating || /cater|venue/i.test(`${v.category} ${v.name}`));
   if (!booked.length)
@@ -340,9 +363,13 @@ function LockedIn({
       {on ? '✓' : ''}
     </span>
   );
+  const fits = booked.map((v) => budgetFit(v, lines));
+  const committed = fits.reduce((a, f) => a + f.committed, 0);
+  const paidAll = fits.reduce((a, f) => a + f.paid, 0);
   return (
     <section aria-label="Booked vendors" className="flex flex-col gap-3">
       <H2>Your booked vendors</H2>
+      <MoneyLine budgetTotal={budgetTotal} committed={committed} paid={paidAll} />
       <div className="flex flex-col gap-1 p-3 rounded-[14px] bg-[#f3f6ea] border border-[#c9d4b0] text-[14px]">
         <strong>
           Vendor meals on the day: {meals} {meals === 1 ? 'meal' : 'meals'}
@@ -356,11 +383,12 @@ function LockedIn({
             : 'Tell your caterer: tick “Share the seating and special meals” on their card and they see it all on their page.'}
         </span>
       </div>
-      {booked.map((v) => {
+      {booked.map((v, vi) => {
         const m = moneyOf(v, lineFor(v, lines));
+        const fit = fits[vi]!;
         const depositDone = v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid;
         const scheduled = v.payments.length > 0;
-        const steps = [depositDone, scheduled, !!v.contractSigned, v.meals > 0 || !!v.arrival];
+        const steps = [fit.linked.length > 0, depositDone, scheduled, !!v.contractSigned, v.meals > 0 || !!v.arrival];
         const done = steps.filter(Boolean).length;
         return (
           <article key={v.id} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
@@ -370,10 +398,17 @@ function LockedIn({
                 {v.category && <span className="text-[13px] text-[#5b6a52]"> · {v.category}</span>}
               </span>
               <span className="text-[13px] text-[#5b6a52]">
-                {aud(m.total)} · {aud(m.paid)} paid · {done} of 4 done
+                {aud(m.total)} · {aud(m.paid)} paid · {done} of 5 done
               </span>
             </div>
             <ol className="m-0 p-0 list-none flex flex-col gap-3">
+              <li className="flex gap-3 items-start">
+                {tick(fit.linked.length > 0)}
+                <span className="flex-1 min-w-0 text-[15px]">
+                  <strong>Budget</strong>
+                  <BudgetRow v={v} fit={fit} lines={lines} onLink={(at) => onLink(v, at)} />
+                </span>
+              </li>
               <li className="flex gap-3 items-start">
                 {tick(depositDone)}
                 <span className="flex-1 text-[15px]">
@@ -392,14 +427,16 @@ function LockedIn({
                 {tick(scheduled)}
                 <span className="flex-1 min-w-0 text-[15px]">
                   <strong>Payment schedule</strong>
-                  <span className="block text-[13px] text-[#5b6a52]">{scheduled ? 'Set. You’ll get a nudge before each payment.' : 'The deposit and balance, or split into monthly payments. You’ll get a nudge before each.'}</span>
+                  <span className="block text-[13px] text-[#5b6a52]">
+                    {scheduled ? 'Set: each payment is in Money → Payments and the budget, with a nudge before it’s due.' : 'Enter each payment (the deposit, instalments, the balance), or tap a quick layout such as deposit + 3 monthly.'}
+                  </span>
                   <VendorSchedule
                     v={v}
                     lines={lines}
                     today={today}
                     wedding={weddingDay}
-                    open={schedule === v.id}
-                    onToggle={() => setSchedule(schedule === v.id ? null : v.id)}
+                    open={shut[v.id] === undefined ? !scheduled : !shut[v.id]}
+                    onToggle={() => setShut({ ...shut, [v.id]: shut[v.id] === undefined ? !scheduled : !shut[v.id] })}
                     edit={(fn) => onPatch(v.id, { payments: fn(ownSchedule(v, lines)) }, 'Payment schedule saved')}
                   />
                 </span>
@@ -454,6 +491,7 @@ function LockedIn({
 function Manage({
   list,
   lines,
+  budgetTotal,
   today,
   weddingDay,
   onPatch,
@@ -463,6 +501,7 @@ function Manage({
 }: {
   list: Vendor[];
   lines: BudgetDoc['lines'];
+  budgetTotal: number;
   today: string;
   weddingDay: string;
   onPatch: (id: string, p: Partial<Vendor>, done?: string) => void;
@@ -574,6 +613,8 @@ function Manage({
         ))}
       </div>
 
+      <MoneyLine budgetTotal={budgetTotal} committed={total} paid={paidSum} />
+
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-baseline gap-2 flex-wrap">
           <strong className="text-[16px]">{items.length ? `Needs you (${items.length})` : 'Nothing needs you right now ✓'}</strong>
@@ -627,6 +668,7 @@ function Manage({
           const m = moneyOf(v, lineFor(v, lines));
           const pct = m.total ? Math.round((m.paid / m.total) * 100) : 0;
           const tasks = v.tasks ?? [];
+          const fit = budgetFit(v, lines);
           const isOpen = openId === v.id;
           const mine = items.filter((i) => i.vendorId === v.id).length;
           return (
@@ -649,6 +691,7 @@ function Manage({
                 {aud(m.paid)} of {aud(m.total)} paid
                 {m.next ? ` · next ${aud(m.next.amount)} ${m.next.due ? shortDate(m.next.due) : '(no date)'}` : m.total ? ' · all paid ✓' : ''} · contract {v.contractSigned ? '✓' : 'not signed'} · {tasks.filter((t) => t.done).length}/{tasks.length} tasks
                 {v.meals ? ` · ${v.meals} team ${v.meals === 1 ? 'meal' : 'meals'}` : ''}
+                {fit.diff !== null ? <span className={fit.diff > 0 ? 'text-[#7a4a37]' : 'text-[#3d4a2f]'}>{` · ${aud(Math.abs(fit.diff))} ${fit.diff > 0 ? 'over' : 'under'} budget`}</span> : !fit.linked.length ? ' · not on your budget yet (Lock in)' : ''}
               </span>
               <div className="flex gap-2 flex-wrap text-[13px]">
                 {v.phone && (
@@ -721,6 +764,75 @@ function Manage({
         })}
       </ul>
     </section>
+  );
+}
+
+/** Booked vendors against the budget: what's committed of the total, what's paid, what's left to pay. */
+function MoneyLine({ budgetTotal, committed, paid }: { budgetTotal: number; committed: number; paid: number }) {
+  const left = budgetTotal - committed;
+  return (
+    <div className="flex flex-col gap-2 p-3 rounded-[14px] bg-white border border-[#e2d7bc] text-[14px]">
+      <div className="flex justify-between gap-2 flex-wrap">
+        <span>
+          <strong>{aud(committed)}</strong> committed to vendors{budgetTotal ? ` of your ${aud(budgetTotal)} budget` : ''} · <strong>{aud(paid)}</strong> paid · <strong>{aud(committed - paid)}</strong> to pay
+        </span>
+        {budgetTotal > 0 && <span className={left < 0 ? 'text-[#7a4a37] font-semibold' : 'text-[#3d4a2f]'}>{left < 0 ? `${aud(-left)} over budget` : `${aud(left)} left in the budget`}</span>}
+      </div>
+      {budgetTotal > 0 && (
+        <span className="flex h-[10px] rounded-full overflow-hidden bg-[#e9e2cc]" role="img" aria-label={`${aud(paid)} paid and ${aud(committed - paid)} still to pay of ${aud(budgetTotal)}`}>
+          <span className="bg-[#5d6b47]" style={{ width: `${Math.min(100, (paid / Math.max(budgetTotal, committed)) * 100)}%` }} />
+          <span className="bg-[#a9b98d]" style={{ width: `${Math.min(100, ((committed - paid) / Math.max(budgetTotal, committed)) * 100)}%` }} />
+        </span>
+      )}
+      {!budgetTotal && <span className="text-[12px] text-[#7a7466]">Set your total in Money → Budget to see what’s left.</span>}
+    </div>
+  );
+}
+
+/** A booked vendor's place in the budget: on its line (budgeted against booked), or put there in a tap. */
+function BudgetRow({ v, fit, lines, onLink }: { v: Vendor; fit: ReturnType<typeof budgetFit>; lines: BudgetDoc['lines']; onLink: (at: number) => void }) {
+  if (fit.linked.length) {
+    const names = fit.linked.map((i) => lines[i]!.item || lines[i]!.category).join(' and ');
+    return (
+      <span className="block text-[13px] text-[#5b6a52]">
+        On your budget as {names}
+        {fit.budgeted ? `: budgeted ${aud(fit.budgeted)}, booked ${aud(fit.committed)}` : ''}
+        {fit.diff !== null && <strong className={fit.diff > 0 ? 'text-[#7a4a37]' : 'text-[#3d4a2f]'}>{fit.diff === 0 ? ' · right on budget' : ` · ${aud(Math.abs(fit.diff))} ${fit.diff > 0 ? 'over' : 'under'}`}</strong>}
+        . Payments here keep the budget up to date.
+      </span>
+    );
+  }
+  const free = lines.map((l, i) => ({ l, i })).filter((x) => !x.l.vendor.trim());
+  const s = fit.suggest >= 0 ? lines[fit.suggest] : undefined;
+  return (
+    <span className="flex flex-col gap-2 mt-1">
+      <span className="text-[13px] text-[#5b6a52]">
+        Not on your budget yet: put {v.name} on a line so the budget shows what’s committed and paid.
+      </span>
+      <span className="flex gap-2 flex-wrap items-center">
+        {s ? (
+          <Pill size="sm" kind="primary" onClick={() => onLink(fit.suggest)}>
+            Put on “{s.item || s.category}”{s.estimate ? ` (${aud(s.estimate)} budgeted)` : ''}
+          </Pill>
+        ) : (
+          <Pill size="sm" kind="primary" onClick={() => onLink(-1)}>
+            Add to the budget ({aud(fit.committed)})
+          </Pill>
+        )}
+        {free.length > 0 && (
+          <select value="" aria-label={`Budget line for ${v.name}`} onChange={(e) => e.target.value !== '' && onLink(Number(e.target.value))} className={`${inputCls} py-[6px] w-auto max-w-[260px]`}>
+            <option value="">{s ? 'Or another line…' : 'Or put on a line…'}</option>
+            {free.map(({ l, i }) => (
+              <option key={i} value={i}>
+                {l.item || l.category}
+                {l.estimate ? ` (${aud(l.estimate)})` : ''}
+              </option>
+            ))}
+            {s && <option value={-1}>A line of its own</option>}
+          </select>
+        )}
+      </span>
+    </span>
   );
 }
 

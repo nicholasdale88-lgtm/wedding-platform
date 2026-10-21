@@ -1,4 +1,4 @@
-import { allPayments, dateIn, lineFor, moneyOf, type Budget as BudgetDoc, type DuePayment, type Payment, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, commitmentOf, dateIn, lineFor, moneyOf, type Budget as BudgetDoc, type DuePayment, type Payment, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { payRemindersApi, type PayReminders } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -153,12 +153,16 @@ export function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit 
   const m = moneyOf(v, lineFor(v, lines));
   const pct = m.total ? Math.round((m.paid / m.total) * 100) : 0;
   const set = (i: number, patch: Partial<Payment>) => edit((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));
-  /** Split what's not paid yet into equal payments a month apart, the last a month before the day (or from today). */
-  const split = (n: number) =>
+  /**
+   * Split what's not paid yet into equal payments a month apart (all paid by two weeks before the day), or,
+   * with a deposit, the deposit now and the rest in `n` monthly payments: "deposit + 3" is four payments.
+   */
+  const split = (n: number, deposit = 0) =>
     edit((ps) => {
       const kept = ps.filter((p) => p.paid);
-      const rest = m.total - kept.reduce((a, p) => a + p.amount, 0);
-      if (rest <= 0) return ps;
+      const dep = deposit > 0 && !kept.length ? [{ id: newId(), label: 'Deposit', amount: Math.min(deposit, m.total), due: today, paid: false, paidOn: '' }] : [];
+      const rest = m.total - kept.reduce((a, p) => a + p.amount, 0) - dep.reduce((a, p) => a + p.amount, 0);
+      if (rest <= 0) return [...kept, ...dep];
       const each = Math.floor((rest / n) * 100) / 100;
       // A month apart from next month, but all paid by two weeks before the wedding (closer together if need be).
       const start = Date.parse(`${today}T00:00:00Z`);
@@ -171,9 +175,10 @@ export function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit 
       const step = fits ? 0 : Math.max(86_400_000, (lastBy - start) / n);
       return [
         ...kept,
+        ...dep,
         ...Array.from({ length: n }, (_, i) => {
           const d = new Date(fits ? monthly(i) : start + step * (i + 1));
-          return { id: newId(), label: i === n - 1 ? 'Final payment' : `Instalment ${i + 1}`, amount: i === n - 1 ? Math.round((rest - each * (n - 1)) * 100) / 100 : each, due: d.toISOString().slice(0, 10), paid: false, paidOn: '' };
+          return { id: newId(), label: n === 1 ? 'Balance' : i === n - 1 ? 'Final payment' : `Instalment ${i + 1}`, amount: i === n - 1 ? Math.round((rest - each * (n - 1)) * 100) / 100 : each, due: d.toISOString().slice(0, 10), paid: false, paidOn: '' };
         }),
       ];
     });
@@ -221,18 +226,46 @@ export function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit 
               </button>
             </div>
           ))}
-          {m.unscheduled > 0 && <p className="m-0 text-[13px] text-[#8a6d2f]">{aud(m.unscheduled)} of the {aud(m.total)} isn’t in a payment yet.</p>}
+          {(() => {
+            // Do the payments add up to what they cost?
+            const sum = m.schedule.reduce((a, p) => a + p.amount, 0);
+            const gap = Math.round((m.total - sum) * 100) / 100;
+            return m.schedule.length > 0 ? (
+              <p className={`m-0 text-[13px] ${gap ? 'text-[#8a6d2f]' : 'text-[#3d4a2f]'}`}>
+                {m.schedule.length} {m.schedule.length === 1 ? 'payment' : 'payments'} adding up to {aud(sum)}
+                {gap > 0 ? `: ${aud(gap)} of the ${aud(m.total)} isn’t in a payment yet.` : gap < 0 ? `: ${aud(-gap)} more than the ${aud(m.total)} booked. Check the amounts.` : ` of ${aud(m.total)} ✓`}
+              </p>
+            ) : null;
+          })()}
           <div className="flex gap-2 flex-wrap">
-            <Pill kind="dashed" size="sm" onClick={() => edit((ps) => [...ps, { id: newId(), label: ps.length ? `Instalment ${ps.length}` : 'Deposit', amount: m.unscheduled, due: '', paid: false, paidOn: '' }])}>
+            <Pill kind="dashed" size="sm" onClick={() => edit((ps) => [...ps, { id: newId(), label: ps.length ? `Instalment ${ps.length}` : 'Deposit', amount: Math.max(0, m.unscheduled), due: '', paid: false, paidOn: '' }])}>
               + Add a payment
             </Pill>
-            {m.owing > 0 &&
-              [2, 3, 4].map((n) => (
-                <Pill key={n} size="sm" onClick={() => split(n)}>
-                  Split what’s owing into {n} monthly
-                </Pill>
-              ))}
           </div>
+          {m.owing > 0 && (
+            <div className="flex gap-2 flex-wrap items-center text-[13px]">
+              <span className="text-[#5b6a52]">Quick layouts:</span>
+              {(() => {
+                const dep = commitmentOf(v).deposit || Math.round(m.total * 0.25);
+                return (
+                  <>
+                    <Pill size="sm" onClick={() => split(1, dep)}>
+                      Deposit + balance
+                    </Pill>
+                    <Pill size="sm" onClick={() => split(3, dep)}>
+                      Deposit + 3 monthly (4 payments)
+                    </Pill>
+                    {[2, 3, 4].map((n) => (
+                      <Pill key={n} size="sm" onClick={() => split(n)}>
+                        {n} equal monthly
+                      </Pill>
+                    ))}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+          <p className="m-0 text-[12px] text-[#7a7466]">Each payment shows in Money → Payments and the budget, with a reminder before it’s due; tick it paid here or there.</p>
         </div>
       )}
     </div>
