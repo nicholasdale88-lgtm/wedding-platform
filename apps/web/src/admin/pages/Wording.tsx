@@ -20,6 +20,8 @@ const humanKey = (k: string) => fillName(k.split('.').pop() ?? k);
 export function Wording({ n, prefix, texts, onChange }: { n: number; prefix: string; texts: Record<string, string>; onChange: (key: string, value: string) => void }) {
   const [q, setQ] = useState('');
   const [onlyMine, setOnlyMine] = useState(false);
+  // The [placeholders] in the starting wording (the venue, the date) still to be replaced with their own.
+  const [onlyBlanks, setOnlyBlanks] = useState(false);
   const [found, setFound] = useState<Sentence[] | null>(null);
   useEffect(() => {
     let live = true;
@@ -52,12 +54,14 @@ export function Wording({ n, prefix, texts, onChange }: { n: number; prefix: str
 
   const needle = q.trim().toLowerCase();
   const isMine = (s: Sentence) => keysOf(s).some(changed);
-  const matches = (s: Sentence) => (!onlyMine || isMine(s)) && (!needle || keysOf(s).some((k) => `${ORIGINAL[k] ?? ''} ${val(k)}`.toLowerCase().includes(needle)));
+  const isBlank = (s: Sentence) => keysOf(s).some((k) => /\[[^\]\n]{2,}\]/.test(val(k)));
+  const matches = (s: Sentence) => (!onlyMine || isMine(s)) && (!onlyBlanks || isBlank(s)) && (!needle || keysOf(s).some((k) => `${ORIGINAL[k] ?? ''} ${val(k)}`.toLowerCase().includes(needle)));
   const total = sections.reduce((a, [, ss]) => a + ss.length, 0);
   const edited = sections.reduce((a, [, ss]) => a + ss.filter(isMine).length, 0);
+  const blanks = sections.reduce((a, [, ss]) => a + ss.filter(isBlank).length, 0);
 
   return (
-    <Rollup step={n} title="Every word guests read" now={`${edited ? `${edited} changed` : 'The design’s own wording'} · ${total} sentences`}>
+    <Rollup step={n} title="Every word guests read" now={`${blanks ? `${blanks} still to fill in · ` : ''}${edited ? `${edited} changed` : 'The design’s own wording'} · ${total} sentences`}>
       <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Tap any sentence to change it. Grey chips are filled in for each guest.</p>
       <div className="flex gap-[10px] items-center flex-wrap">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a word or sentence" className={`${inputCls} flex-1 min-w-[200px]`} aria-label="Search wording" />
@@ -65,6 +69,12 @@ export function Wording({ n, prefix, texts, onChange }: { n: number; prefix: str
           <input type="checkbox" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} className="w-[16px] h-[16px] accent-[#5d6b47]" />
           Changed only ({edited})
         </label>
+        {blanks > 0 && (
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer font-semibold text-[#6b4e12]">
+            <input type="checkbox" checked={onlyBlanks} onChange={(e) => setOnlyBlanks(e.target.checked)} className="w-[16px] h-[16px] accent-[#b39563]" />
+            Still to fill in ({blanks}): the [words in brackets]
+          </label>
+        )}
       </div>
       {!found && <div aria-busy="true" className="text-[13px] text-[#5b6a52]">Reading the page…</div>}
       {found && (onlyMine || needle) && !sections.some(([, ss]) => ss.some(matches)) && <div className="text-[14px] text-[#5b6a52]">{onlyMine && !needle ? 'Nothing changed yet: everything reads as the design wrote it.' : 'No wording matches that.'}</div>}
@@ -74,7 +84,7 @@ export function Wording({ n, prefix, texts, onChange }: { n: number; prefix: str
           if (!shown.length) return null;
           const mine = ss.filter(isMine).length;
           return (
-            <details key={name} open={!!needle || onlyMine} className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] [&[open]>summary>span:last-child]:rotate-90">
+            <details key={name} open={!!needle || onlyMine || onlyBlanks} className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] [&[open]>summary>span:last-child]:rotate-90">
               <summary className="list-none cursor-pointer flex justify-between items-center gap-3 py-3 px-4">
                 <span className="font-display text-[19px]">
                   {name}
