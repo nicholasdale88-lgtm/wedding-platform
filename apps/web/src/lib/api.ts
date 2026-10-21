@@ -113,6 +113,8 @@ export interface Overview {
   total: number;
   replied: number;
   awaiting: number;
+  /** About how many guests they expect (0 = not set). */
+  expectedGuests?: number;
   yesInv: number;
   noInv: number;
   seatsHeld: number;
@@ -165,7 +167,7 @@ export const api = {
   /** Opens a Stripe Checkout page for a plan or another event; the browser goes to `url` to pay. */
   checkout: (wid: string, what: 'essentials' | 'complete' | 'event') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what }),
   /** From the front page: a new account and wedding, signed in. */
-  signup: (b: { firstName: string; partnerName: string; email: string; passcode: string; date: string; plan: 'free' | 'essentials' | 'complete'; marketing: boolean; website: string }) =>
+  signup: (b: { firstName: string; partnerName: string; email: string; passcode: string; date: string; guests?: number; plan: 'free' | 'essentials' | 'complete'; marketing: boolean; website: string }) =>
     send<Me & { weddingId: string }>('POST', '/a/signup', b),
 
   overview: (wid: string, event?: string) => request<Overview>(`${w(wid)}/overview${event ? `?event=${encodeURIComponent(event)}` : ''}`),
@@ -311,6 +313,8 @@ export interface SettingsData {
 export type SettingsPut = Partial<Omit<SettingsData, 'version' | 'live' | 'timezone' | 'plan' | 'planTotalCents' | 'replies'> & { replies: Partial<SettingsData['replies']> }>;
 
 export const settingsApi = {
+  /** About how many guests they expect. */
+  setExpected: (wid: string, guests: number) => send<{ guests: number }>('PUT', `${w(wid)}/settings/expected`, { guests }),
   get: (wid: string) => request<SettingsData>(`${w(wid)}/settings`),
   save: (wid: string, version: number, body: SettingsPut) => send<SettingsData>('PUT', `${w(wid)}/settings`, body, version),
   backupUrl: (wid: string) => `/api${w(wid)}/settings/backup`,

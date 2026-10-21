@@ -271,6 +271,14 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     return c.json({ at: new Date().toISOString(), items });
   });
 
+  /** About how many guests they expect: seating lays out tables for it, the budget plans per guest with it. */
+  app.put('/expected', requireMember('owner', 'editor'), async (c) => {
+    const n = Number(((await readJson(c.req.raw)) as { guests?: unknown } | null)?.guests);
+    if (!Number.isInteger(n) || n < 0 || n > 3000) return err(c, 400, 'invalid', 'Enter a number of guests from 0 to 3,000.');
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.expectedGuests', ?) WHERE id = ? AND json_valid(content)`).bind(n, wid(c)).run();
+    return c.json({ guests: n });
+  });
+
   /** The daily summary email on or off. */
   app.get('/digest', requireMember('owner'), async (c) => {
     const r = await c.env.DB.prepare(`SELECT COALESCE(json_extract(content, '$.digestOff'), 0) AS off FROM wedding WHERE id = ? AND json_valid(content)`).bind(wid(c)).first<{ off: number }>();

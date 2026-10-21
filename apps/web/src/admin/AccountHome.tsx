@@ -1,11 +1,11 @@
 import { PLAN_INFO } from '@wp/shared';
 import { useEffect, useState, type ReactNode } from 'react';
-import { accountApi, photosApi, type Members, type Overview } from '../lib/api';
+import { accountApi, photosApi, settingsApi, type Members, type Overview } from '../lib/api';
 import { fmtEvent } from '../lib/format';
 import { Events } from './events/Events';
 import { ALL_EVENTS, useAdmin } from './Shell';
 import { usePlan } from './Upgrade';
-import { H2, PageHeader, Pill } from './ui';
+import { H2, inputCls, PageHeader, Pill, useToast } from './ui';
 
 type To = (link: string, event?: string) => void;
 
@@ -81,6 +81,8 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
           ))}
         </ol>
       </section>
+
+      <ExpectedGuests o={o} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Status label="Your plan" value={PLAN_INFO[plan].name} sub={plan === 'complete' ? 'Everything included' : 'See what upgrading adds'} go={() => settings('plan')} />
@@ -176,5 +178,44 @@ export function AddEventToggle({ children }: { children?: ReactNode }) {
       </Pill>
       {children}
     </>
+  );
+}
+
+/**
+ * About how many guests: one number the rest works from (seating lays out tables for it, the budget plans
+ * per guest with it), and how it compares with who has said yes so far.
+ */
+function ExpectedGuests({ o }: { o: Overview }) {
+  const { wid, reload } = useAdmin();
+  const toast = useToast();
+  const [n, setN] = useState(o.expectedGuests ? String(o.expectedGuests) : '');
+  const [busy, setBusy] = useState(false);
+  const coming = o.events[0]?.coming ?? 0;
+  const save = async () => {
+    const v = Math.max(0, Math.min(3000, Math.round(Number(n) || 0)));
+    setBusy(true);
+    try {
+      await settingsApi.setExpected(wid, v);
+      toast(v ? `Planning for about ${v} guests: seating and the budget will use it` : 'Cleared');
+      await reload();
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section aria-label="How many guests" className="flex flex-wrap items-end gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <label className="flex flex-col gap-1 text-[14px] font-semibold">
+        About how many guests?
+        <input type="number" inputMode="numeric" min={0} max={3000} value={n} onChange={(e) => setN(e.target.value)} placeholder="e.g. 120" className={`${inputCls} w-[140px]`} />
+      </label>
+      <Pill kind="outline" disabled={busy || Number(n || 0) === (o.expectedGuests ?? 0)} onClick={() => void save()}>
+        {busy ? 'Saving…' : 'Save'}
+      </Pill>
+      <span className="flex-1 min-w-[200px] text-[13px] text-[#5b6a52]">
+        {o.expectedGuests ? `${coming} of about ${o.expectedGuests} have said yes so far. ` : ''}A guess is fine: seating sets out tables for it, and the budget works per guest with it until you set your own.
+      </span>
+    </section>
   );
 }

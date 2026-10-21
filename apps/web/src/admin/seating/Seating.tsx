@@ -405,6 +405,21 @@ function SeatingPlan() {
     commit((d) => ({ ...d, tables: d.tables.map((t) => (name.has(t.id) ? { ...t, name: name.get(t.id)! } : t)) }));
     toast(`Tables numbered 1 to ${order.length}, row by row. Save to keep it.`);
   };
+  // The guests to seat: the couple's expected number (Account → Overview), or more if more have said yes.
+  const planFor = Math.max(overview?.expectedGuests ?? 0, s.people.filter((p) => p.coming).length);
+  const seatsNow = tables.reduce((n, t) => n + t.seats, 0);
+  const tablesShort = planFor > seatsNow ? Math.ceil((planFor - seatsNow) / DEFAULT_SEATS[shape]) : 0;
+  /** Enough tables of the chosen type for everyone expected, set out in rows (any already there stay). */
+  const setOutTables = () => {
+    let next = Math.max(0, ...tables.map((t) => Number(t.name)).filter((n) => Number.isFinite(n)));
+    const fresh = Array.from({ length: tablesShort }, () => ({ id: crypto.randomUUID(), name: String(++next), shape, dir: 'h' as const, len: 40, x: 50, y: 50, seats: DEFAULT_SEATS[shape] }));
+    const all = [...tables, ...fresh];
+    const cols = Math.max(1, Math.ceil(Math.sqrt(all.length * 1.4)));
+    const rows = Math.ceil(all.length / cols);
+    const pos = new Map(all.map((t, i) => [t.id, { x: round1(10 + ((i % cols) + 0.5) * (80 / cols)), y: round1(12 + (Math.floor(i / cols) + 0.5) * (76 / rows)) }]));
+    commit((d) => ({ ...d, tables: [...d.tables, ...fresh].map((t) => clampTable({ ...t, ...pos.get(t.id) }, d.aspect)) }));
+    toast(`${fresh.length} ${fresh.length === 1 ? 'table' : 'tables'} added for about ${planFor} guests. Move them where you like, then Save.`);
+  };
   const lineUp = () => {
     const sorted = [...tables].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
     const cols = Math.max(1, Math.ceil(Math.sqrt(sorted.length * 1.4)));
@@ -575,6 +590,11 @@ function SeatingPlan() {
         <Pill kind={adding ? 'outline' : 'secondary'} onClick={() => setAdding((a) => !a)}>
           {adding ? 'Done adding' : '+ Add tables'}
         </Pill>
+        {tablesShort > 0 && (
+          <Pill kind="primary" onClick={setOutTables}>
+            Set out {tablesShort} {tablesShort === 1 ? 'table' : 'tables'} for about {planFor} guests
+          </Pill>
+        )}
         <select
           value=""
           aria-label="Add an area"
@@ -679,7 +699,7 @@ function SeatingPlan() {
               />
             ))}
             {!tables.length && !adding && (
-              <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[15px] text-[#5b6a52]">No tables yet. Choose a table type and tap + Add tables.</div>
+              <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[15px] text-[#5b6a52]">No tables yet. Choose a table type, then Set out tables (for the guests you expect) or + Add tables to place them yourself.</div>
             )}
           </div>
         </div>

@@ -51,7 +51,7 @@ export function Budget() {
   useEffect(() => void load(), [load]);
 
   // Per-guest lines: the estimate is the price times the guests, worked out afresh (replies keep coming in).
-  const headcount = doc?.data.guests || overview?.perEvent?.[0]?.coming || 0;
+  const headcount = doc?.data.guests || overview?.expectedGuests || overview?.perEvent?.[0]?.coming || 0;
   const b = useMemo(() => {
     const d = doc?.data;
     return d && { ...d, split: d.split ?? {}, lines: d.lines.map((l) => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * headcount * 100) / 100 } : l)) };
@@ -95,7 +95,7 @@ export function Budget() {
   };
   const priced = (l: BudgetLine, n = headcount): BudgetLine => (l.perHead > 0 ? { ...l, estimate: Math.round(l.perHead * n * 100) / 100 } : l);
   const setLine = (i: number, patch: Partial<BudgetLine>) => edit({ ...b, lines: b.lines.map((l, j) => (j === i ? priced({ ...l, ...patch }) : l)) });
-  const setGuests = (n: number) => edit({ ...b, guests: n, lines: b.lines.map((l) => priced(l, n || overview?.perEvent?.[0]?.coming || 0)) });
+  const setGuests = (n: number) => edit({ ...b, guests: n, lines: b.lines.map((l) => priced(l, n || overview?.expectedGuests || overview?.perEvent?.[0]?.coming || 0)) });
   const save = async () => {
     setSaving(true);
     try {

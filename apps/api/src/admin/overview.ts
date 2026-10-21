@@ -27,6 +27,8 @@ export interface Overview {
   events: { key: string; name: string; startsAt: string; venue: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
   daysToGo: number | null;
+  /** About how many guests the couple expects (they set it; 0 = not yet): seating, the budget and the overview plan with it. */
+  expectedGuests: number;
   needsYou: NeedsYou[];
   nextUp: { campaignId: string; name: string; sendAt: string }[];
   latest: { id: string; name: string; at: string; summary: string; message: string }[];
@@ -197,6 +199,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     })),
     diet: { people: dietPeople.length, serious: dietPeople.filter((p) => isSerious(p.diet)).length, mealsSet },
     daysToGo: first ? daysBetween(now, new Date(first.startsAt), d.wedding.timezone) : null,
+    expectedGuests: Math.max(0, Math.round(Number(d.wedding.content.expectedGuests) || 0)),
     needsYou,
     nextUp,
     latest,

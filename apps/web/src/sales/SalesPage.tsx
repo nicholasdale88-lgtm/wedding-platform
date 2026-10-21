@@ -445,7 +445,7 @@ export function SalesPage() {
 
 /** Sign up: the two names, an email and passcode, the date if they have it, and the plan. */
 function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => void }) {
-  const [f, setF] = useState({ firstName: '', partnerName: '', email: '', passcode: '', date: '', marketing: false, website: '' });
+  const [f, setF] = useState({ firstName: '', partnerName: '', email: '', passcode: '', date: '', guests: '', marketing: false, website: '' });
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const set = (k: keyof typeof f) => (e: { target: { value: string; checked?: boolean; type?: string } }) => setF((x) => ({ ...x, [k]: e.target.type === 'checkbox' ? !!e.target.checked : e.target.value }));
@@ -455,7 +455,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
     if (f.passcode.length < 8) return setProblem('Use at least 8 characters for your passcode.');
     setBusy(true);
     try {
-      const r = await api.signup({ ...f, plan });
+      const r = await api.signup({ ...f, guests: Math.max(0, Math.min(3000, Math.round(Number(f.guests) || 0))), plan });
       // Their own invitation first (with their names), then "Make it yours" takes them into the admin.
       const slug = r.weddings.find((x) => x.id === r.weddingId)?.slug;
       window.location.assign(slug ? `/w/${encodeURIComponent(slug)}/?preview=1&welcome=1` : `/admin/${encodeURIComponent(r.weddingId)}`);
@@ -495,6 +495,10 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
       <label className="flex flex-col gap-1 text-[14px]">
         Wedding date (if you have one)
         <input type="date" value={f.date} onChange={set('date')} className={field} />
+      </label>
+      <label className="flex flex-col gap-1 text-[14px]">
+        About how many guests? (a guess is fine)
+        <input type="number" inputMode="numeric" min={0} max={3000} value={f.guests} onChange={set('guests')} placeholder="e.g. 120" className={field} />
       </label>
       <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">
         <legend className="text-[14px] mb-1">Plan</legend>

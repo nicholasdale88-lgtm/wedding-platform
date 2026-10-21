@@ -22,6 +22,8 @@ const Signup = z
     email: z.string().trim().toLowerCase().email('Check your email address.').max(200),
     passcode: z.string().max(200),
     date: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).default(''),
+    /** About how many guests (optional). */
+    guests: z.number().int().min(0).max(3000).default(0),
     plan: z.enum(PLANS).default('free'),
     marketing: z.boolean().default(false),
     /** Left empty by people; filled in by bots. */
@@ -73,7 +75,7 @@ export function signupRoutes() {
     // The person signing up is the main account: the plan and billing are theirs (partners join as owners).
     // The Accommodation section starts switched off: it was written for camping at a country venue, and
     // most couples won't need it (Setup → Sections switches it back on).
-    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...(b.date ? {} : { dateToBeSet: true }) });
+    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }) });
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,

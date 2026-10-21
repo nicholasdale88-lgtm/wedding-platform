@@ -79,6 +79,21 @@ describe('sign-up and plans', () => {
     expect(t['inv.8297e5e4']).toBe('Address: 1 Bellbird Road, Yarra Glen VIC. ');
   });
 
+  it('the guests they expect: asked at sign-up, shown in the overview, changed in settings', async () => {
+    const res = await call('/a/signup', { method: 'POST', body: JSON.stringify({ ...form, email: 'count@example.com', guests: 120 }), headers: { 'CF-Connecting-IP': '6.6.6.6' } });
+    expect(res.status).toBe(200);
+    const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
+    const { weddingId } = (await res.json()) as { weddingId: string };
+    const ov = async () => ((await (await call(`/a/w/${weddingId}/overview`, {}, cookie)).json()) as { expectedGuests: number }).expectedGuests;
+    expect(await ov()).toBe(120);
+    const put = (guests: unknown) => call(`/a/w/${weddingId}/settings/expected`, { method: 'PUT', body: JSON.stringify({ guests }) }, cookie);
+    expect((await put(90)).status).toBe(200);
+    expect(await ov()).toBe(90);
+    expect((await put(-1)).status).toBe(400);
+    expect((await put(5000)).status).toBe(400);
+    expect((await put('lots')).status).toBe(400);
+  });
+
   it('refuses a short passcode, says nothing useful to a bot, and limits sign-ups from one place', async () => {
     expect((await signup({ passcode: 'short' })).status).toBe(400);
     const bot = await signup({ website: 'http://spam.example', email: 'bot@example.com' });
