@@ -179,7 +179,7 @@ export const HELP: HelpArticle[] = [
     steps: [
       'Open Wedding planner → Money → Budget. Enter your total and guest count: it splits into the usual categories, per guest.',
       'Link each line to a vendor; booked vendors’ quotes become what you’ve committed.',
-      'Money → Payments shows every deposit and instalment by due date. Tick one when it’s paid; reminders can come by text.',
+      'Money → Payments shows every deposit and instalment by due date. Tick one when it’s paid; reminders go in your phone’s calendar.',
     ],
     also: 'money cost spend deposit instalment due paid owing reminder',
     go: { tab: 'planner', event: true, query: 'view=budget' },
