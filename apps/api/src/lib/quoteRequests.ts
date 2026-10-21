@@ -190,7 +190,14 @@ export async function runQuoteFollowUps(env: Env, now = new Date(), limit = 20) 
     const doc = await readDoc(env.DB, w.id, 'vendors', '');
     let touched = false;
     for (const rfq of doc.data.rfqs) {
-      const due = rfq.vendors.filter((rv) => rv.remindedOn !== today && (() => { const d = nextFollowUp(rfq, rv); return !!d && d <= today; })()).map((rv) => rv.vendorId);
+      // Only vendors with an email (the others are texted or sent their link by the couple).
+      const emailOf = (id: string) => doc.data.list.find((v) => v.id === id)?.email.trim() ?? '';
+      const due = rfq.vendors
+        .filter((rv) => {
+          const next = nextFollowUp(rfq, rv);
+          return rv.remindedOn !== today && !!next && next <= today && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailOf(rv.vendorId));
+        })
+        .map((rv) => rv.vendorId);
       if (!due.length) continue;
       touched = true;
       const r = await sendRequests(env, w.id, rfq.id, due, true, now);
