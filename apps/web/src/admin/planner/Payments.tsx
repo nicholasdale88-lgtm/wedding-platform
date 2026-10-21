@@ -149,7 +149,7 @@ export function Payments() {
 }
 
 /** One vendor: paid against the total, and (opened) its schedule to change. */
-function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit }: { v: Vendor; lines: BudgetDoc['lines']; today: string; wedding: string; open: boolean; onToggle: () => void; edit: (fn: (ps: Payment[]) => Payment[]) => void }) {
+export function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit }: { v: Vendor; lines: BudgetDoc['lines']; today: string; wedding: string; open: boolean; onToggle: () => void; edit: (fn: (ps: Payment[]) => Payment[]) => void }) {
   const m = moneyOf(v, lineFor(v, lines));
   const pct = m.total ? Math.round((m.paid / m.total) * 100) : 0;
   const set = (i: number, patch: Partial<Payment>) => edit((ps) => ps.map((p, j) => (j === i ? { ...p, ...patch } : p)));

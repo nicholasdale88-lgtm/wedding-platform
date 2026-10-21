@@ -1,8 +1,10 @@
-import { commitmentOf, dateIn, moneyOf, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, dateIn, lineFor, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
 import { QuoteFile } from './QuoteFile';
+import { VendorSchedule } from './Payments';
+import { ownSchedule } from './paying';
 import { saveContacts } from '../../lib/vcard';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
@@ -10,7 +12,9 @@ import { useDocSave } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
- * Wedding planner → Vendors: everyone you're talking to or have booked. File each quote (a PDF or photo;
+ * Wedding planner → Vendors, in four steps: 1 add your vendors, 2 get quotes (or enter ones you have),
+ * 3 compare (and negotiate), 4 lock in (book; deposit, payment schedule, contract, meals for vendor teams).
+ * Everyone you're talking to or have booked. File each quote (a PDF or photo;
  * the assistant can read the numbers out of it), accept one, and compare vendors side by side with the
  * assistant's view; get quotes from several at once (QuoteRequests).
  */
@@ -59,9 +63,15 @@ const safeUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : u ? `https://${u}`
 const bestQuote = (v: Vendor) => v.quotes.find((q) => q.id === v.accepted) ?? [...v.quotes].sort((a, b) => (a.amount || Infinity) - (b.amount || Infinity))[0];
 
 export function Vendors() {
-  const { wid } = useAdmin();
+  const { wid, overview } = useAdmin();
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: VendorsDoc; version: number } | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | null>(null);
+  // The budget's lines (read only here): a booked vendor's payment schedule starts from its budget line.
+  const [lines, setLines] = useState<BudgetDoc['lines']>([]);
+  useEffect(() => {
+    plannerApi.doc<BudgetDoc>(wid, 'budget').then((d) => setLines(d.data.lines), () => setLines([]));
+  }, [wid]);
   const saveDoc = useDocSave<VendorsDoc>(wid, 'vendors', '', doc?.version);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -101,8 +111,31 @@ export function Vendors() {
   const committed = booked.reduce((a, v) => a + moneyOf(v).total, 0);
   const paid = booked.reduce((a, v) => a + moneyOf(v).paid, 0);
 
+  // The step you're at: no vendors yet → add them; none quoted → get quotes; quotes in → compare; booked and nothing open → lock in.
+  const quotesIn = list.some((v) => v.quotes.length > 0);
+  const openWithQuotes = doc.data.rfqs.some((r) => !r.closed && r.vendors.some((rv) => rv.answeredOn || rv.quoteId));
+  const atStep: 1 | 2 | 3 | 4 = !list.length ? 1 : booked.length && !openWithQuotes ? 4 : quotesIn ? 3 : 2;
+  const shown = step ?? atStep;
+  const goStep = (n: 1 | 2 | 3 | 4) => {
+    setStep(n);
+    document.getElementById('vendor-steps')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const openVendor = (id: string) => {
+    setStep(1);
+    setOpen(id);
+    setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  };
+  const today = dateIn(overview?.wedding.timezone);
+  const weddingDay = overview?.events[0] ? dateIn(overview.wedding.timezone, new Date(overview.events[0].startsAt)) : '';
+  const STEP_INFO: [string, string, string][] = [
+    ['Add vendors', `${list.length} ${list.length === 1 ? 'vendor' : 'vendors'}`, 'Everyone you’re thinking of: add them yourself, or find them in the vendor directory.'],
+    ['Get quotes', `${list.filter((v) => v.quotes.length).length} quoted`, 'Ask several vendors to price the same list, or enter quotes you already have.'],
+    ['Compare', `${doc.data.rfqs.filter((r) => r.vendors.some((rv) => rv.answeredOn || rv.quoteId)).length} to compare`, 'Side by side, like for like. Then ask your favourite for a better price.'],
+    ['Lock in', `${booked.length} booked`, 'Book, then the deposit, the payment schedule, the contract, and meals for vendor teams (for your caterer).'],
+  ];
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <section aria-label="Vendor summary" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {[
           ['Vendors', String(list.length)],
@@ -117,84 +150,282 @@ export function Vendors() {
         ))}
       </section>
 
-      <QuoteRequests
-        list={list}
-        rfqs={doc.data.rfqs}
-        onSave={(l, r, msg) => save(l, msg, r)}
-        onReload={load}
-        onOpen={(id) => {
-          setOpen(id);
-          setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-        }}
-      />
-
-      <QuoteTracker
-        list={list}
-        onPatch={(id, p, msg) => patch(id, p, msg)}
-        onOpen={(id) => {
-          setOpen(id);
-          setTimeout(() => document.getElementById(`vendor-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-        }}
-      />
-
-      <Compare list={list} />
-
-      <section aria-label="Your vendors" className="flex flex-col gap-3">
-        <div className="flex justify-between items-end gap-3 flex-wrap">
-          <H2>Your vendors</H2>
-          <span className="flex gap-2 flex-wrap">
-          {list.some((v) => v.phone || v.email) && (
-            <Pill
-              onClick={() => {
-                const which = booked.some((v) => v.phone || v.email) ? booked : list;
-                saveContacts(
-                  which.map((v) => ({ name: v.contact ? `${v.contact} (${v.name})` : v.name, org: v.name, title: v.category, phone: v.phone, email: v.email, website: v.website, address: v.address, note: v.arrival ? `Arrives on the day: ${v.arrival}` : '' })),
-                  'wedding-vendors',
-                );
-                toast(`${which.length} ${which === booked ? 'booked ' : ''}vendors ready to add to your phone's contacts`);
-              }}
-            >
-              Save to phone contacts
-            </Pill>
-          )}
-          <Pill
-            kind="dashed"
-            onClick={() => {
-              const v = newVendor({ name: 'New vendor' });
-              setOpen(v.id);
-              void save([...list, v]);
-            }}
-          >
-            + Add a vendor yourself
-          </Pill>
-          </span>
-        </div>
-        {VENDOR_STATUS.slice()
-          .reverse()
-          .map((st) => {
-            const vs = list.filter((v) => v.status === st);
-            if (!vs.length) return null;
+      {/* The four steps: done ones ticked, where you're at in bold; tap any to go there. */}
+      <nav id="vendor-steps" aria-label="Vendor steps" className="scroll-mt-4">
+        <ol className="m-0 p-0 list-none grid grid-cols-4 gap-1 sm:gap-2">
+          {STEP_INFO.map(([label, count], i) => {
+            const n = (i + 1) as 1 | 2 | 3 | 4;
+            const here = n === shown;
+            const done = n < atStep;
             return (
-              <div key={st} className="flex flex-col gap-2">
-                <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">
-                  {STATUS_LABEL[st]} · {vs.length}
-                </div>
-                {vs.map((v) => (
-                  <VendorCard
-                    key={v.id}
-                    v={v}
-                    open={open === v.id}
-                    onToggle={() => setOpen(open === v.id ? null : v.id)}
-                    onChange={(p, done) => patch(v.id, p, done)}
-                    onRemove={() => window.confirm(`Remove ${v.name} from your vendors?`) && void save(list.filter((x) => x.id !== v.id), 'Removed')}
-                  />
-                ))}
-              </div>
+              <li key={label}>
+                <button
+                  type="button"
+                  aria-current={here ? 'step' : undefined}
+                  onClick={() => goStep(n)}
+                  className={`w-full h-full flex flex-col items-center gap-1 py-2 px-1 rounded-[12px] border cursor-pointer text-center leading-tight ${here ? 'border-[#33402f] bg-[#f3f6ea] text-[#33402f]' : 'border-[#e2d7bc] bg-[#fbf8f0] text-[#5b6a52]'}`}
+                >
+                  <span aria-hidden className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] font-semibold ${done ? 'bg-[#5d6b47] text-[#fbf8f0]' : n === atStep ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-[#efe7d3] text-[#7a7466]'}`}>
+                    {done ? '✓' : n}
+                  </span>
+                  <span className={`text-[12px] sm:text-[14px] ${here ? 'font-semibold' : ''}`}>{label}</span>
+                  <span className="hidden sm:block text-[11px] text-[#7a7466]">{count}</span>
+                </button>
+              </li>
             );
           })}
-        {!list.length && <p className="m-0 text-[14px] text-[#5b6a52]">No vendors yet. Find some near your venue above, or add your own.</p>}
-      </section>
+        </ol>
+        <p className="m-0 mt-2 text-[14px] text-[#5b6a52]">
+          <strong className="text-[#33402f]">
+            Step {shown}: {STEP_INFO[shown - 1]![0]}.
+          </strong>{' '}
+          {STEP_INFO[shown - 1]![2]}
+        </p>
+      </nav>
+
+      {shown === 1 && (
+        <section aria-label="Your vendors" className="flex flex-col gap-3">
+          <div className="flex justify-between items-end gap-3 flex-wrap">
+            <H2>Your vendors</H2>
+            <span className="flex gap-2 flex-wrap">
+              {list.some((v) => v.phone || v.email) && (
+                <Pill
+                  onClick={() => {
+                    const which = booked.some((v) => v.phone || v.email) ? booked : list;
+                    saveContacts(
+                      which.map((v) => ({ name: v.contact ? `${v.contact} (${v.name})` : v.name, org: v.name, title: v.category, phone: v.phone, email: v.email, website: v.website, address: v.address, note: v.arrival ? `Arrives on the day: ${v.arrival}` : '' })),
+                      'wedding-vendors',
+                    );
+                    toast(`${which.length} ${which === booked ? 'booked ' : ''}vendors ready to add to your phone's contacts`);
+                  }}
+                >
+                  Save to phone contacts
+                </Pill>
+              )}
+              <Pill
+                kind="primary"
+                onClick={() => {
+                  const v = newVendor({ name: 'New vendor' });
+                  setOpen(v.id);
+                  void save([...list, v]);
+                }}
+              >
+                + Add a vendor
+              </Pill>
+            </span>
+          </div>
+          <p className="m-0 text-[13px] text-[#5b6a52]">
+            Their name, what they do and an email or mobile is all a quote request needs. Looking for ideas?{' '}
+            <a href="/vendors" target="_blank" rel="noopener" className="!text-[#33402f]">
+              Browse the vendor directory
+            </a>
+            .
+          </p>
+          {VENDOR_STATUS.slice()
+            .reverse()
+            .map((st) => {
+              const vs = list.filter((v) => v.status === st);
+              if (!vs.length) return null;
+              return (
+                <div key={st} className="flex flex-col gap-2">
+                  <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">
+                    {STATUS_LABEL[st]} · {vs.length}
+                  </div>
+                  {vs.map((v) => (
+                    <VendorCard
+                      key={v.id}
+                      v={v}
+                      open={open === v.id}
+                      onToggle={() => setOpen(open === v.id ? null : v.id)}
+                      onChange={(p, done) => patch(v.id, p, done)}
+                      onRemove={() => window.confirm(`Remove ${v.name} from your vendors?`) && void save(list.filter((x) => x.id !== v.id), 'Removed')}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+          {!list.length && <p className="m-0 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] text-[14px] text-[#5b6a52]">No vendors yet. Tap + Add a vendor for each one you’re thinking of.</p>}
+          {list.length > 0 && (
+            <Pill kind="primary" className="self-start" onClick={() => goStep(2)}>
+              Next: get quotes →
+            </Pill>
+          )}
+        </section>
+      )}
+
+      {shown === 2 && (
+        <>
+          <QuoteRequests mode="quotes" list={list} rfqs={doc.data.rfqs} onSave={(l, r, msg) => save(l, msg, r)} onReload={load} onOpen={openVendor} onStep={goStep} />
+          <QuoteTracker list={list} onPatch={(id, p, msg) => patch(id, p, msg)} onOpen={openVendor} />
+          {quotesIn && (
+            <Pill kind="primary" className="self-start" onClick={() => goStep(3)}>
+              Next: compare quotes →
+            </Pill>
+          )}
+        </>
+      )}
+
+      {shown === 3 && (
+        <>
+          <QuoteRequests mode="compare" list={list} rfqs={doc.data.rfqs} onSave={(l, r, msg) => save(l, msg, r)} onReload={load} onOpen={openVendor} onStep={goStep} />
+          <Compare list={list} />
+          <Pill kind="primary" className="self-start" onClick={() => goStep(4)}>
+            Next: lock it in →
+          </Pill>
+        </>
+      )}
+
+      {shown === 4 && (
+        <>
+          {doc.data.rfqs.some((r) => r.vendors.some((rv) => rv.answeredOn || rv.quoteId)) && (
+            <QuoteRequests mode="lockin" list={list} rfqs={doc.data.rfqs} onSave={(l, r, msg) => save(l, msg, r)} onReload={load} onOpen={openVendor} onStep={goStep} />
+          )}
+          <LockedIn list={list} lines={lines} today={today} weddingDay={weddingDay} onPatch={patch} onOpen={openVendor} onStep={goStep} />
+        </>
+      )}
     </div>
+  );
+}
+
+/**
+ * Step 4 for every booked vendor: what's left to lock them in, ticked off as you go: the deposit, the
+ * payment schedule (split into instalments in a tap), the contract (signed, the file, cancellation), their
+ * page (with the seating and special meals for the caterer), and meals for their team on the day, which
+ * the caterer sees, all added up.
+ */
+function LockedIn({
+  list,
+  lines,
+  today,
+  weddingDay,
+  onPatch,
+  onOpen,
+  onStep,
+}: {
+  list: Vendor[];
+  lines: BudgetDoc['lines'];
+  today: string;
+  weddingDay: string;
+  onPatch: (id: string, p: Partial<Vendor>, done?: string) => void;
+  onOpen: (id: string) => void;
+  onStep: (n: 1 | 2 | 3 | 4) => void;
+}) {
+  const booked = list.filter((v) => v.status === 'booked');
+  const [schedule, setSchedule] = useState<string | null>(null);
+  const meals = booked.reduce((a, v) => a + v.meals, 0);
+  const caterers = booked.filter((v) => v.shareSeating || /cater|venue/i.test(`${v.category} ${v.name}`));
+  if (!booked.length)
+    return (
+      <p className="m-0 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] text-[14px] text-[#5b6a52]">
+        Nobody booked yet. Book from your quotes above, or{' '}
+        <button type="button" onClick={() => onStep(1)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+          mark a vendor as booked (step 1)
+        </button>
+        .
+      </p>
+    );
+  const tick = (on: boolean) => (
+    <span aria-hidden className={`flex-none w-6 h-6 rounded-full flex items-center justify-center text-[13px] ${on ? 'bg-[#5d6b47] text-[#fbf8f0]' : 'border-2 border-[#c6b794]'}`}>
+      {on ? '✓' : ''}
+    </span>
+  );
+  return (
+    <section aria-label="Booked vendors" className="flex flex-col gap-3">
+      <H2>Your booked vendors</H2>
+      <div className="flex flex-col gap-1 p-3 rounded-[14px] bg-[#f3f6ea] border border-[#c9d4b0] text-[14px]">
+        <strong>
+          Vendor meals on the day: {meals} {meals === 1 ? 'meal' : 'meals'}
+        </strong>
+        <span className="text-[#5b6a52]">
+          {meals
+            ? `${booked.filter((v) => v.meals).map((v) => `${v.name} ${v.meals}`).join(', ')}. `
+            : 'Add how many of each vendor’s team need a meal (below). '}
+          {caterers.length
+            ? `${caterers.map((v) => v.name).join(' and ')} ${caterers.length === 1 ? 'sees' : 'see'} this on their page, with the seating and special meals when you share them.`
+            : 'Tell your caterer: tick “Share the seating and special meals” on their card and they see it all on their page.'}
+        </span>
+      </div>
+      {booked.map((v) => {
+        const m = moneyOf(v, lineFor(v, lines));
+        const depositDone = v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid;
+        const scheduled = v.payments.length > 0;
+        const steps = [depositDone, scheduled, !!v.contractSigned, v.meals > 0 || !!v.arrival];
+        const done = steps.filter(Boolean).length;
+        return (
+          <article key={v.id} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+            <div className="flex justify-between items-baseline gap-2 flex-wrap">
+              <span>
+                <strong className="text-[17px]">{v.name}</strong>
+                {v.category && <span className="text-[13px] text-[#5b6a52]"> · {v.category}</span>}
+              </span>
+              <span className="text-[13px] text-[#5b6a52]">
+                {aud(m.total)} · {aud(m.paid)} paid · {done} of 4 done
+              </span>
+            </div>
+            <ol className="m-0 p-0 list-none flex flex-col gap-3">
+              <li className="flex gap-3 items-start">
+                {tick(depositDone)}
+                <span className="flex-1 text-[15px]">
+                  <strong>Deposit</strong>
+                  {scheduled ? (
+                    <span className="block text-[13px] text-[#5b6a52]">{depositDone ? 'Paid ✓ (in the schedule below).' : 'Tick it paid in the schedule below.'}</span>
+                  ) : (
+                    <label className="flex items-center gap-2 mt-1 text-[14px] cursor-pointer">
+                      <input type="checkbox" checked={v.depositPaid} onChange={(e) => onPatch(v.id, { depositPaid: e.target.checked }, e.target.checked ? `${v.name}: deposit paid ✓` : undefined)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+                      Paid{commitmentOf(v).deposit ? ` (${aud(commitmentOf(v).deposit)})` : ''}
+                    </label>
+                  )}
+                </span>
+              </li>
+              <li className="flex gap-3 items-start">
+                {tick(scheduled)}
+                <span className="flex-1 min-w-0 text-[15px]">
+                  <strong>Payment schedule</strong>
+                  <span className="block text-[13px] text-[#5b6a52]">{scheduled ? 'Set. You’ll get a nudge before each payment.' : 'The deposit and balance, or split into monthly payments. You’ll get a nudge before each.'}</span>
+                  <VendorSchedule
+                    v={v}
+                    lines={lines}
+                    today={today}
+                    wedding={weddingDay}
+                    open={schedule === v.id}
+                    onToggle={() => setSchedule(schedule === v.id ? null : v.id)}
+                    edit={(fn) => onPatch(v.id, { payments: fn(ownSchedule(v, lines)) }, 'Payment schedule saved')}
+                  />
+                </span>
+              </li>
+              <li className="flex gap-3 items-start">
+                {tick(!!v.contractSigned)}
+                <span className="flex-1 min-w-0 text-[15px]">
+                  <strong>Contract</strong>
+                  <span className="block text-[13px] text-[#5b6a52] mb-1">When it was signed, the file, and what happens if anyone cancels.</span>
+                  <Contract v={v} onChange={(p) => onPatch(v.id, p)} />
+                </span>
+              </li>
+              <li className="flex gap-3 items-start">
+                {tick(v.meals > 0 || !!v.arrival)}
+                <span className="flex-1 text-[15px]">
+                  <strong>On the day</strong>
+                  <span className="grid gap-2 grid-cols-2 mt-1 max-w-[420px]">
+                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                      Meals for their team
+                      <input type="number" min={0} max={50} value={v.meals} onChange={(e) => onPatch(v.id, { meals: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })} className={inputCls} />
+                    </label>
+                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                      Arriving at
+                      <input defaultValue={v.arrival} placeholder="e.g. 11:00am" onBlur={(e) => e.target.value !== v.arrival && onPatch(v.id, { arrival: e.target.value.slice(0, 20) })} className={inputCls} />
+                    </label>
+                  </span>
+                </span>
+              </li>
+            </ol>
+            <TheirPage v={v} onChange={(p, msg) => onPatch(v.id, p, msg)} />
+            <button type="button" onClick={() => onOpen(v.id)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+              Their details and notes
+            </button>
+          </article>
+        );
+      })}
+    </section>
   );
 }
 
@@ -550,7 +781,7 @@ function Compare({ list }: { list: Vendor[] }) {
   );
 }
 
-/** The contract: signed when, what happens if anyone cancels, whether the deposit comes back, the file, meals for their team. */
+/** The contract: signed when, what happens if anyone cancels, whether the deposit comes back, the file. */
 function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
@@ -565,10 +796,6 @@ function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) =
         <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
           Signed on
           <input type="date" value={v.contractSigned} onChange={(e) => onChange({ contractSigned: e.target.value })} className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
-          Meals for their team on the day
-          <input type="number" min={0} max={50} value={v.meals} onChange={(e) => onChange({ meals: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })} className={inputCls} />
         </label>
         <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] sm:col-span-2">
           If anyone cancels or postpones

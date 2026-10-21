@@ -17,10 +17,9 @@ import { QuoteFile } from './QuoteFile';
  * - Or enter the quotes yourself (ones you already have, by phone or email): the same screen without the
  *   email, then type each vendor's quote in (one total or item by item, with the PDF), and the same
  *   comparison. Any vendor can still be sent their link later.
- * - Each request walks through four steps, shown at the top: 1 Get quotes, 2 Compare, 3 Negotiate (what to
- *   raise with each vendor, worked out from the comparison, with a message ready to send, and their new
- *   price recorded: what you saved), 4 Lock in (book, then the deposit, the contract and a kind note to
- *   the others). It opens on the step you're at; any step can be looked at.
+ * - The Vendors page's steps show each request the way that step needs it (`mode`): Get quotes (who has
+ *   it, sending, reminders, entering quotes), Compare (side by side, then a plan to negotiate with your
+ *   favourite: targets, levers, messages), and Lock in (book; a kind note to the others).
  * - The comparison leads with a card per vendor, best first: the like-for-like total (a line someone left
  *   out counts at the middle price of the others), what's in and out, the deposit, your star ratings and a
  *   Book button. The full line-by-line table is one tap away, with an export.
@@ -51,15 +50,42 @@ function useSiteEmail() {
   return on;
 }
 
-export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: Vendor[]; rfqs: Rfq[]; onSave: Save; onReload: () => Promise<void>; onOpen: (vendorId: string) => void }) {
+export type QuoteMode = 'quotes' | 'compare' | 'lockin';
+export function QuoteRequests({
+  mode,
+  list,
+  rfqs,
+  onSave,
+  onReload,
+  onOpen,
+  onStep,
+}: {
+  mode: QuoteMode;
+  list: Vendor[];
+  rfqs: Rfq[];
+  onSave: Save;
+  onReload: () => Promise<void>;
+  onOpen: (vendorId: string) => void;
+  /** Go to another step of the Vendors page (3 compare, 4 lock in). */
+  onStep: (n: 1 | 2 | 3 | 4) => void;
+}) {
   const { overview, wid } = useAdmin();
   const toast = useToast();
   const siteEmail = useSiteEmail();
   const [making, setMaking] = useState<false | 'ask' | 'manual'>(false);
-  const [openId, setOpenId] = useState<string | null>(rfqs.find((r) => !r.closed)?.id ?? null);
+  const hasQuote = (r: Rfq) => r.vendors.some((rv) => rv.answeredOn || rv.quoteId);
+  const bookedIn = (r: Rfq) => r.vendors.some((rv) => list.find((v) => v.id === rv.vendorId)?.status === 'booked');
+  // What each step shows: every request (Get quotes); those with quotes (Compare); those with quotes not decided yet, and booked ones (Lock in).
+  const shownRfqs = mode === 'quotes' ? rfqs : mode === 'compare' ? rfqs.filter(hasQuote) : rfqs.filter((r) => hasQuote(r) && (!r.closed || bookedIn(r)));
+  const [openId, setOpenId] = useState<string | null>(shownRfqs.find((r) => !r.closed)?.id ?? shownRfqs[0]?.id ?? null);
   const today = dateIn(overview?.wedding.timezone);
-  const live = rfqs.filter((r) => !r.closed);
-  const done = rfqs.filter((r) => r.closed);
+  const live = shownRfqs.filter((r) => !r.closed);
+  const done = shownRfqs.filter((r) => r.closed);
+  const HEAD: Record<QuoteMode, [string, string]> = {
+    quotes: ['Get quotes', 'Send one list to a few vendors: they price it on a simple page or attach their own quote, and you’re emailed as each comes in. Already have quotes? Enter them yourself.'],
+    compare: ['Compare quotes', 'Side by side, best value first, like for like. Then ask your favourite for a better price: what to aim for, what to say.'],
+    lockin: ['Book', 'Choose who to book from each request. The others get a kind thank-you.'],
+  };
 
   /** Emails the request from the site to these vendors (those with an email), then shows what changed. */
   const sendNow = async (rfqId: string, vendorIds: string[], remind = false) => {
@@ -78,14 +104,14 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
   };
 
   return (
-    <section aria-label="Get quotes" className="flex flex-col gap-3 p-4 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label={HEAD[mode][0]} className="flex flex-col gap-3 p-4 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]">
       {/* Phones: the heading and words take the full width, the two buttons share a row under them. */}
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="w-full lg:w-auto lg:flex-1 min-w-0">
-          <h2 className="m-0 font-display text-[26px] leading-tight font-medium">Get quotes</h2>
-          <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">Send one list to a few vendors. They price it on a simple page or attach their own quote, you get an email as each comes in, and you see them side by side.</p>
+          <h2 className="m-0 font-display text-[26px] leading-tight font-medium">{HEAD[mode][0]}</h2>
+          <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">{HEAD[mode][1]}</p>
         </div>
-        {!making && (
+        {!making && mode === 'quotes' && (
           <div className="grid grid-cols-2 gap-2 w-full lg:w-auto lg:flex">
             <Pill kind="primary" className="px-3" onClick={() => setMaking('ask')}>
               + Get quotes
@@ -96,12 +122,20 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
           </div>
         )}
       </div>
-      {!rfqs.length && !making && (
+      {mode !== 'quotes' && !shownRfqs.length && (
+        <p className="m-0 p-3 rounded-[12px] bg-white border border-[#ece3cd] text-[14px] text-[#5b6a52]">
+          {mode === 'compare' ? 'No quotes in yet. ' : 'Nothing to book yet. '}
+          <button type="button" onClick={() => onStep(2)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+            Get quotes (step 2)
+          </button>
+        </p>
+      )}
+      {mode === 'quotes' && !rfqs.length && !making && (
         <ol className="m-0 p-0 list-none grid gap-2 sm:grid-cols-3">
           {[
             ['Pick what for', 'Florist, photographer, caterer… The usual things to price are filled in.'],
             ['Send it, or type them in', 'Vendors price it on their own link. Already have quotes? Enter them yourself.'],
-            ['Compare and book', 'Best value first, like for like. Book in a tap.'],
+            ['Then compare and book', 'Steps 3 and 4: best value first, like for like, then lock it in.'],
           ].map(([h, t], i) => (
             <li key={h} className="flex gap-3 p-3 rounded-[12px] bg-white border border-[#ece3cd]">
               <span aria-hidden className="flex-none w-7 h-7 rounded-full bg-[#33402f] text-[#fbf8f0] flex items-center justify-center text-[14px] font-semibold">
@@ -135,6 +169,8 @@ export function QuoteRequests({ list, rfqs, onSave, onReload, onOpen }: { list: 
       {[...live, ...done].map((r) => (
         <RequestCard
           key={r.id}
+          mode={mode}
+          onStep={onStep}
           rfq={r}
           list={list}
           today={today}
@@ -481,6 +517,8 @@ const TONE: Record<StateOf['tone'], string> = { muted: 'bg-[#efe7d3] text-[#5b6a
 
 /** One request: who has it and where they're at, sending and reminding, and the comparison. */
 function RequestCard({
+  mode,
+  onStep,
   rfq,
   list,
   today,
@@ -492,6 +530,8 @@ function RequestCard({
   onDelete,
   onOpenVendor,
 }: {
+  mode: QuoteMode;
+  onStep: (n: 1 | 2 | 3 | 4) => void;
   rfq: Rfq;
   list: Vendor[];
   today: string;
@@ -509,8 +549,9 @@ function RequestCard({
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState('');
   const stage = rfqStage(rfq, list);
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | null>(null);
-  const shown = step ?? stage;
+  const shown = mode === 'quotes' ? 1 : mode === 'compare' ? 2 : 4;
+  // Compare: the negotiation plan opens below the comparison (straight away once you've asked someone).
+  const [neg, setNeg] = useState(stage === 3);
   const answered = rfq.vendors.filter((v) => v.answeredOn).length;
   const declined = rfq.vendors.filter((v) => v.declinedOn && !v.answeredOn).length;
   const ev = overview?.events[0];
@@ -552,7 +593,6 @@ function RequestCard({
       ),
       `${col.v.name} booked: now lock it in`,
     );
-    setStep(null);
   };
   /** A quote that came some other way (an email, a PDF), added for them. */
   const enterQuote = (vendorId: string, q: Quote) => {
@@ -579,9 +619,7 @@ function RequestCard({
   const markAsked = (vendorId: string) => {
     if (rfq.vendors.find((v) => v.vendorId === vendorId)?.negotiatedOn === today) return;
     void onChange({ ...rfq, vendors: rfq.vendors.map((v) => (v.vendorId === vendorId ? { ...v, negotiatedOn: today } : v)) });
-    setStep(null);
   };
-  const patchVendor = (id: string, p: Partial<Vendor>, msg?: string) => void onChange(rfq, list.map((v) => (v.id === id ? { ...v, ...p } : v)), msg);
 
   return (
     <div className="flex flex-col gap-3 p-3 sm:p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
@@ -592,7 +630,7 @@ function RequestCard({
             {rfq.closed && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] bg-[#dfe5cc] text-[#3d4a2f] align-middle">Decided</span>}
           </span>
           <span className="block text-[13px] text-[#5b6a52]">
-            Step {stage} of 4: {STEPS[stage - 1]} · {answered} of {rfq.vendors.length} quoted{declined ? ` · ${declined} can’t` : ''}
+            {answered} of {rfq.vendors.length} quoted{declined ? ` · ${declined} can’t` : ''}
             {rfq.due && !rfq.closed ? <span className={late ? 'text-[#7a4a37] font-semibold' : ''}>{` · ${late ? 'were due' : 'due'} ${longDay(rfq.due)}`}</span> : ''}
           </span>
         </span>
@@ -600,8 +638,6 @@ function RequestCard({
       </button>
       {open && (
         <>
-          <Stepper stage={stage} shown={shown} onPick={(n) => setStep(n === stage ? null : n)} />
-          <p className="m-0 text-[14px] text-[#5b6a52]">{stepHelp(shown, !!rfq.manual)}</p>
           {shown === 1 && (
             <>
           {!rfq.closed && !rfq.manual && (
@@ -766,7 +802,7 @@ function RequestCard({
               </button>
             ))}
           {answered > 0 && !rfq.closed && (
-            <Pill kind="primary" className="self-start" onClick={() => setStep(2)}>
+            <Pill kind="primary" className="self-start" onClick={() => onStep(3)}>
               Next: compare {answered} {answered === 1 ? 'quote' : 'quotes'} →
             </Pill>
           )}
@@ -779,11 +815,13 @@ function RequestCard({
                 <Comparison rfq={rfq} cmp={cmp} today={today} onBook={book} onChange={(next, msg) => void onChange(next, undefined, msg)} />
                 {!rfq.closed && (
                   <div className="flex gap-2 flex-wrap items-center">
-                    <Pill kind="primary" onClick={() => setStep(3)}>
-                      Next: ask for a better deal →
-                    </Pill>
-                    <button type="button" onClick={() => setStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
-                      Happy with a price? Skip to booking
+                    {!neg && (
+                      <Pill kind="primary" onClick={() => setNeg(true)}>
+                        Ask for a better price →
+                      </Pill>
+                    )}
+                    <button type="button" onClick={() => onStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+                      Happy with a price? Go to Lock in (step 4)
                     </button>
                   </div>
                 )}
@@ -792,7 +830,7 @@ function RequestCard({
               <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">{rfq.manual ? 'Quotes appear here side by side as you enter them (step 1).' : 'Quotes appear here side by side as they come in. We’ll email you when each one lands.'}</p>
             ))}
 
-          {shown === 3 && (
+          {shown === 2 && neg && !rfq.closed && cmp.cols.some((c) => c.q) && (
             <Negotiate
               rfq={rfq}
               list={list}
@@ -804,11 +842,11 @@ function RequestCard({
               onSaveQuote={enterQuote}
               onAsked={markAsked}
               onPrefer={(id) => void onChange({ ...rfq, preferred: id })}
-              onNext={() => setStep(4)}
+              onNext={() => onStep(4)}
             />
           )}
 
-          {shown === 4 && <LockIn rfq={rfq} list={list} cmp={cmp} couple={couple} onBook={book} onPatch={patchVendor} onOpenVendor={onOpenVendor} />}
+          {shown === 4 && <LockIn rfq={rfq} list={list} cmp={cmp} couple={couple} onBook={book} />}
 
           <div className="flex gap-4 text-[13px] pt-1 flex-wrap">
             {rfq.closed ? (
@@ -827,47 +865,6 @@ function RequestCard({
         </>
       )}
     </div>
-  );
-}
-
-const STEPS = ['Get quotes', 'Compare', 'Negotiate', 'Lock in'] as const;
-function stepHelp(n: number, manual: boolean) {
-  return [
-    manual ? 'Type in each quote you have: one total or item by item, with the PDF if you have it.' : 'Send your list to each vendor. Their quotes come back here, and you’re emailed as each one lands. Remind anyone who’s slow.',
-    'Best value first, like for like. Check what’s left out, the deposit and when each price runs out, and rate them with the stars.',
-    'Before you book, ask for a better deal. Here’s what to raise with each one, worked out from the comparison, with a message ready to send.',
-    'Book your favourite, then pay the deposit, sign the contract and let the others know.',
-  ][n - 1]!;
-}
-
-/** The four steps: done ones ticked, where you're at in bold; tap any to look at it. */
-function Stepper({ stage, shown, onPick }: { stage: number; shown: number; onPick: (n: 1 | 2 | 3 | 4) => void }) {
-  return (
-    <ol aria-label="Steps" className="m-0 p-0 list-none grid grid-cols-4 gap-1">
-      {STEPS.map((label, i) => {
-        const n = (i + 1) as 1 | 2 | 3 | 4;
-        const done = n < stage;
-        const here = n === shown;
-        return (
-          <li key={label}>
-            <button
-              type="button"
-              aria-current={here ? 'step' : undefined}
-              onClick={() => onPick(n)}
-              className={`w-full flex flex-col items-center gap-1 py-2 px-1 rounded-[10px] border cursor-pointer text-[12px] leading-tight ${here ? 'border-[#33402f] bg-[#f3f6ea] font-semibold text-[#33402f]' : 'border-transparent bg-transparent text-[#5b6a52]'}`}
-            >
-              <span
-                aria-hidden
-                className={`w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-semibold ${done ? 'bg-[#5d6b47] text-[#fbf8f0]' : n === stage ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-[#efe7d3] text-[#7a7466]'}`}
-              >
-                {done ? '✓' : n}
-              </span>
-              {label}
-            </button>
-          </li>
-        );
-      })}
-    </ol>
   );
 }
 
@@ -1096,15 +1093,15 @@ function Negotiate({
       </details>
 
       <Pill kind="primary" className="self-start" onClick={onNext}>
-        Next: lock it in →
+        Next: Lock in (step 4) →
       </Pill>
     </div>
   );
 }
 
 /**
- * Step 4: book (with what to check first), then what locks it in: the deposit, the contract, the balance
- * date, and a kind note to the others.
+ * Lock in, for one request: book (with what to check first), then a kind note to the others. The deposit,
+ * contract, payments and meals are on the Vendors page's step 4, for every booked vendor.
  */
 function LockIn({
   rfq,
@@ -1112,16 +1109,12 @@ function LockIn({
   cmp,
   couple,
   onBook,
-  onPatch,
-  onOpenVendor,
 }: {
   rfq: Rfq;
   list: Vendor[];
   cmp: ReturnType<typeof tenderAnalysis>;
   couple: string;
   onBook: (vendorId: string) => void;
-  onPatch: (id: string, p: Partial<Vendor>, msg?: string) => void;
-  onOpenVendor: (id: string) => void;
 }) {
   const toast = useToast();
   const booked = cmp.cols.find((c) => c.v.status === 'booked');
@@ -1178,7 +1171,6 @@ function LockIn({
   const others = rfq.vendors.map((rv) => ({ rv, o: list.find((x) => x.id === rv.vendorId) })).filter((x) => x.o && x.o.id !== v.id && (x.rv.sentOn || x.rv.answeredOn));
   const thanks = (name: string) =>
     `Hi,\n\nThank you so much for your quote and your time. We've decided to go with someone else this time, but we really appreciated it and wish you all the best.\n\nKind regards,\n${couple}`.replace(/^Hi,/, `Hi ${name},`);
-  const depositDone = v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid;
   return (
     <div className="flex flex-col gap-3">
       <ol className="m-0 p-0 list-none flex flex-col gap-3">
@@ -1190,46 +1182,6 @@ function LockIn({
             {saved > 0 && <span className="block text-[13px] text-[#3d4a2f] font-semibold">You saved {aud(saved)} on their first quote.</span>}
           </span>
         </li>
-        <li className="flex gap-3 items-start">
-          {tick(depositDone)}
-          <span className="flex-1 text-[15px]">
-            <strong>Pay the deposit</strong>
-            {v.payments.length ? (
-              <span className="block text-[13px] text-[#5b6a52]">Your payment schedule is set: tick payments off in Money → Payments.</span>
-            ) : (
-              <label className="flex items-center gap-2 mt-1 text-[14px] cursor-pointer">
-                <input type="checkbox" checked={v.depositPaid} onChange={(e) => onPatch(v.id, { depositPaid: e.target.checked }, e.target.checked ? 'Deposit paid ✓' : undefined)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-                Paid{q?.deposit ? ` (${aud(q.deposit)})` : ''}
-              </label>
-            )}
-          </span>
-        </li>
-        <li className="flex gap-3 items-start">
-          {tick(!!v.contractSigned)}
-          <span className="flex-1 text-[15px]">
-            <strong>Sign the contract</strong>
-            <label className="flex items-center gap-2 mt-1 text-[13px] text-[#5b6a52] flex-wrap">
-              Signed on
-              <input type="date" value={v.contractSigned} onChange={(e) => onPatch(v.id, { contractSigned: e.target.value }, e.target.value ? 'Contract signed ✓' : undefined)} className={`${inputCls} py-[4px] max-w-[170px]`} />
-            </label>
-            <button type="button" onClick={() => onOpenVendor(v.id)} className="mt-1 p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
-              Add the contract file and cancellation terms on their card
-            </button>
-          </span>
-        </li>
-        {!v.payments.length && (
-          <li className="flex gap-3 items-start">
-            {tick(!!v.balanceDue)}
-            <span className="flex-1 text-[15px]">
-              <strong>When the rest is due</strong>
-              <label className="flex items-center gap-2 mt-1 text-[13px] text-[#5b6a52] flex-wrap">
-                Balance due
-                <input type="date" value={v.balanceDue} onChange={(e) => onPatch(v.id, { balanceDue: e.target.value })} className={`${inputCls} py-[4px] max-w-[170px]`} />
-              </label>
-              <span className="block text-[12px] text-[#7a7466]">You’ll get a nudge before it’s due. Paying in instalments? Set them in Money → Payments.</span>
-            </span>
-          </li>
-        )}
         {others.length > 0 && (
           <li className="flex gap-3 items-start">
             {tick(false)}

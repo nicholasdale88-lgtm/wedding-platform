@@ -28,7 +28,8 @@ export function vendorHubRoutes() {
     const db = c.env.DB;
     const w = await db.prepare(`SELECT id, name1, name2, timezone, guide, admin_mobile FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string; name1: string; name2: string; timezone: string; guide: string; admin_mobile: string | null }>();
     if (!w || !secret || c.req.param('key') !== (await vendorHubKey(secret, w.id, c.req.param('vid')))) return none();
-    const v = (await readDoc(db, w.id, 'vendors', '')).data.list.find((x) => x.id === c.req.param('vid'));
+    const all = (await readDoc(db, w.id, 'vendors', '')).data.list;
+    const v = all.find((x) => x.id === c.req.param('vid'));
     if (!v || v.status === 'declined') return none();
     const ev = await db.prepare(`SELECT id, key, name, starts_at, venue, address FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(w.id).first<{ id: string; key: string; name: string; starts_at: string; venue: string | null; address: string | null }>();
     // How many are coming, and what they can't eat (counts only, never names).
@@ -90,6 +91,8 @@ export function vendorHubRoutes() {
     return c.json({
       couple: `${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}`,
       seating,
+      // For the caterer: every booked vendor team's meals on the day, so they cook for them too.
+      vendorMeals: v.shareSeating ? all.filter((x) => x.status === 'booked' && x.meals > 0).map((x) => ({ name: x.name, meals: x.meals })) : [],
       vendor: { name: v.name, category: v.category, arrival: v.arrival, meals: v.meals, notes: '' },
       event: ev ? { name: ev.name, startsAt: ev.starts_at, venue: ev.venue ?? '', address: ev.address ?? '' } : null,
       timezone: w.timezone,

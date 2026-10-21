@@ -22,6 +22,8 @@ interface Data {
   payments: { label: string; amount: number; due: string; paid: boolean }[];
   contacts: { name: string; role: string; phone: string }[];
   seating?: Seating | null;
+  /** For the caterer: each booked vendor team's meals on the day. */
+  vendorMeals?: { name: string; meals: number }[];
 }
 type Meal = { e: string; m: string; d: string };
 interface Seating {
@@ -107,6 +109,11 @@ export function VendorPage() {
               {d.guests.coming} coming{d.guests.waiting ? ` · up to ${d.guests.waiting} more still to reply` : ''}
             </span>
             {d.vendor.meals > 0 && <span>Meals for your team: {d.vendor.meals}</span>}
+            {!!d.vendorMeals?.length && (
+              <span>
+                <strong>Vendor meals: {d.vendorMeals.reduce((a, x) => a + x.meals, 0)}</strong> ({d.vendorMeals.map((x) => `${x.name} ${x.meals}`).join(', ')})
+              </span>
+            )}
             {d.dietary.length > 0 && (
               <ul className="m-0 pl-5 text-[15px]">
                 {d.dietary.map((x) => (
