@@ -708,6 +708,13 @@ export const Quote = z.object({
   before: z.number().min(0).max(10_000_000).optional(),
 });
 export type Quote = z.infer<typeof Quote>;
+/** Something to do with a booked vendor (send the shot list, final numbers…), by a date. */
+export const VendorTask = z.object({ id: z.string().max(40), text: z.string().max(200), due: s(10), done: z.boolean().default(false) });
+export type VendorTask = z.infer<typeof VendorTask>;
+/** A note about a vendor: a call, an email, a meeting, anything agreed. */
+export const VendorNote = z.object({ id: z.string().max(40), on: s(10), kind: z.enum(['note', 'call', 'email', 'meeting']).default('note'), text: z.string().max(1000) });
+export type VendorNote = z.infer<typeof VendorNote>;
+
 export const Vendor = z.object({
   id: z.string().max(40),
   name: z.string().max(120),
@@ -746,6 +753,13 @@ export const Vendor = z.object({
   declinedWhy: s(200),
   /** Where it came from in the shared vendor directory (its id there), if it did. */
   dirId: s(80),
+  /** When they confirmed the final details (the check-in before the day). */
+  confirmedOn: z.string().max(10).optional(),
+  /** Booked vendors: what to do with them, by when (Manage), and notes of calls and what was agreed. */
+  tasks: z.array(VendorTask).max(60).optional(),
+  log: z.array(VendorNote).max(200).optional(),
+  /** After the day: the final balance settled, a review left, hired items back. */
+  wrapped: z.boolean().optional(),
   /** The payment schedule (deposit, instalments, balance), once you've set one; until then it comes from the quote. */
   payments: z.array(Payment).max(12).default([]),
 });
@@ -802,6 +816,45 @@ export function bookingTimeline(list: Vendor[], day: number, now: number, venueS
     const state: BookingRow['state'] = booked || (b.what === 'Venue' && venueSet) ? 'booked' : vs.length ? 'looking' : 'none';
     return { what: b.what, months: b.months, bookBy: by.toISOString().slice(0, 10), state, vendor: booked?.name ?? '', late: state !== 'booked' && by.getTime() <= now };
   }).sort((a, b) => b.months - a.months);
+}
+
+/** The kind of supplier a vendor is (a BOOKING_TIMELINE "what"), from what they do, then their name. */
+export const vendorKind = (v: Pick<Vendor, 'category' | 'name'>) => (BOOKING_TIMELINE.find((b) => b.match.test(v.category)) ?? BOOKING_TIMELINE.find((b) => b.match.test(v.name)))?.what;
+
+/**
+ * The usual things to do with each kind of booked vendor, and how many weeks before the day (a negative
+ * number is after it). Manage offers them as a vendor's task list, dated from the wedding day.
+ */
+export const VENDOR_TASKS: Record<string, [string, number][]> = {
+  Venue: [['Send the final guest numbers', 3], ['Send the floor plan and seating', 2], ['Confirm set-up and pack-down times', 2], ['Settle the final balance', 1]],
+  'Band or DJ': [['Send must-play and do-not-play songs', 4], ['Send the first dance and entrance songs', 3], ['Share the timeline and MC notes', 2]],
+  Photographer: [['Send the shot list', 4], ['Send the family group list', 3], ['Share the timeline and locations', 2]],
+  Videographer: [['Tell them the songs you like for the film', 3], ['Share the timeline and the speeches order', 2]],
+  Celebrant: [['Lodge the Notice of Intended Marriage (at least a month before)', 8], ['Approve the ceremony script', 4], ['Rehearsal', 1]],
+  Catering: [['Menu tasting', 10], ['Send final numbers and dietary needs', 3], ['Share the seating plan and special meals', 2], ['Confirm meals for vendor teams', 2]],
+  'Hair and makeup': [['Trial', 8], ['Send the getting-ready schedule', 3], ['Confirm the address and parking', 2]],
+  Attire: [['Final fitting', 3], ['Pick up and steam', 1]],
+  Florist: [['Approve the final design', 6], ['Send delivery addresses and times', 2], ['Return hired vases and stands', -1]],
+  Accommodation: [['Confirm the room list', 4], ['Send check-in details to guests', 2]],
+  Transport: [['Send pick-up addresses and times', 3], ['Get the driver’s mobile', 1]],
+  'Styling and hire': [['Confirm the item list', 4], ['Confirm delivery and pack-down times', 2], ['Return hired items', -1]],
+  Stationery: [['Approve the proofs', 10], ['Send the final seating for place cards', 2]],
+  Cake: [['Tasting and design', 12], ['Confirm delivery time and the cake table', 2]],
+  Rings: [['Engraving', 6], ['Pick up the rings', 2]],
+};
+/** For every booked vendor, whatever they are. */
+const EVERY_VENDOR: [string, number][] = [['Leave them a review', -1]];
+
+/**
+ * The usual tasks for this vendor not on their list yet (matched by wording), each due so many weeks
+ * before the day (`weddingDay` yyyy-mm-dd; no date when it isn't set).
+ */
+export function suggestedTasks(v: Pick<Vendor, 'category' | 'name' | 'tasks'>, weddingDay: string): { text: string; due: string }[] {
+  const kind = vendorKind(v);
+  const have = new Set((v.tasks ?? []).map((t) => t.text.trim().toLowerCase()));
+  return [...(kind ? (VENDOR_TASKS[kind] ?? []) : []), ...EVERY_VENDOR]
+    .filter(([text]) => !have.has(text.toLowerCase()))
+    .map(([text, weeks]) => ({ text, due: weddingDay ? plusDays(weddingDay, -weeks * 7) : '' }));
 }
 
 const same = (a: string, b: string) => !!a.trim() && a.trim().toLowerCase() === b.trim().toLowerCase();

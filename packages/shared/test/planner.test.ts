@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealWarning, menuFit, servedMeal } from '../src/planner';
-import { negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { suggestedTasks, vendorKind, negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -487,6 +487,18 @@ describe('quote requests', () => {
     expect(b.levers.map((l) => l.key)).toEqual(['extras', 'commit', 'early', 'date']);
     expect(b.levers.at(-1)!.title).toMatch(/peak date/);
     expect(negotiationPlan(rfq, list, 'nobody')).toBeNull();
+  });
+
+  it('booked vendors: the usual tasks for their kind, dated back from the day, without repeats', () => {
+    const v = Vendor.parse({ id: 'p', name: 'Lens & Light', category: 'Photographer', tasks: [{ id: 't1', text: 'Send the shot list', due: '2027-10-01' }] });
+    expect(vendorKind(v)).toBe('Photographer');
+    expect(suggestedTasks(v, '2027-11-18')).toEqual([
+      { text: 'Send the family group list', due: '2027-10-28' },
+      { text: 'Share the timeline and locations', due: '2027-11-04' },
+      { text: 'Leave them a review', due: '2027-11-25' },
+    ]);
+    expect(suggestedTasks(Vendor.parse({ id: 'x', name: 'Someone', category: 'Juggler' }), '')).toEqual([{ text: 'Leave them a review', due: '' }]);
+    expect(vendorKind({ category: '', name: 'Bloom Florals' })).toBe('Florist');
   });
 
   it('has a standard email for each service, with the link to price it', () => {

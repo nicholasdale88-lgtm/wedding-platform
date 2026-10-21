@@ -1,10 +1,10 @@
-import { commitmentOf, dateIn, lineFor, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, commitmentOf, dateIn, lineFor, suggestedTasks, vendorKind, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
 import { QuoteFile } from './QuoteFile';
 import { VendorSchedule } from './Payments';
-import { ownSchedule } from './paying';
+import { markPaid, ownSchedule } from './paying';
 import { saveContacts } from '../../lib/vcard';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
@@ -12,8 +12,9 @@ import { useDocSave } from './useDocSave';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
- * Wedding planner → Vendors, in four steps: 1 add your vendors, 2 get quotes (or enter ones you have),
- * 3 compare (and negotiate), 4 lock in (book; deposit, payment schedule, contract, meals for vendor teams).
+ * Wedding planner → Vendors, in five steps: 1 add your vendors, 2 get quotes (or enter ones you have),
+ * 3 compare (and negotiate), 4 lock in (book; deposit, payment schedule, contract, meals for vendor teams),
+ * 5 manage them to the day (payments due, the final check-in, the day's contact sheet).
  * Everyone you're talking to or have booked. File each quote (a PDF or photo;
  * the assistant can read the numbers out of it), accept one, and compare vendors side by side with the
  * assistant's view; get quotes from several at once (QuoteRequests).
@@ -66,7 +67,7 @@ export function Vendors() {
   const { wid, overview } = useAdmin();
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: VendorsDoc; version: number } | null>(null);
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   // The budget's lines (read only here): a booked vendor's payment schedule starts from its budget line.
   const [lines, setLines] = useState<BudgetDoc['lines']>([]);
   useEffect(() => {
@@ -114,9 +115,11 @@ export function Vendors() {
   // The step you're at: no vendors yet → add them; none quoted → get quotes; quotes in → compare; booked and nothing open → lock in.
   const quotesIn = list.some((v) => v.quotes.length > 0);
   const openWithQuotes = doc.data.rfqs.some((r) => !r.closed && r.vendors.some((rv) => rv.answeredOn || rv.quoteId));
-  const atStep: 1 | 2 | 3 | 4 = !list.length ? 1 : booked.length && !openWithQuotes ? 4 : quotesIn ? 3 : 2;
+  // Booked ones with the deposit paid and the contract signed are locked in: then it's managing them (step 5).
+  const lockedIn = booked.length > 0 && booked.every((v) => (v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid) && !!v.contractSigned);
+  const atStep: 1 | 2 | 3 | 4 | 5 = !list.length ? 1 : booked.length && !openWithQuotes ? (lockedIn ? 5 : 4) : quotesIn ? 3 : 2;
   const shown = step ?? atStep;
-  const goStep = (n: 1 | 2 | 3 | 4) => {
+  const goStep = (n: 1 | 2 | 3 | 4 | 5) => {
     setStep(n);
     document.getElementById('vendor-steps')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -132,6 +135,7 @@ export function Vendors() {
     ['Get quotes', `${list.filter((v) => v.quotes.length).length} quoted`, 'Ask several vendors to price the same list, or enter quotes you already have.'],
     ['Compare', `${doc.data.rfqs.filter((r) => r.vendors.some((rv) => rv.answeredOn || rv.quoteId)).length} to compare`, 'Side by side, like for like. Then ask your favourite for a better price.'],
     ['Lock in', `${booked.length} booked`, 'Book, then the deposit, the payment schedule, the contract, and meals for vendor teams (for your caterer).'],
+    ['Manage', `${booked.length} to the day`, 'Your booked vendors until the day: payments due, the final check-in with each, and the day’s contact sheet.'],
   ];
 
   return (
@@ -152,9 +156,9 @@ export function Vendors() {
 
       {/* The four steps: done ones ticked, where you're at in bold; tap any to go there. */}
       <nav id="vendor-steps" aria-label="Vendor steps" className="scroll-mt-4">
-        <ol className="m-0 p-0 list-none grid grid-cols-4 gap-1 sm:gap-2">
+        <ol className="m-0 p-0 list-none grid grid-cols-5 gap-1 sm:gap-2">
           {STEP_INFO.map(([label, count], i) => {
-            const n = (i + 1) as 1 | 2 | 3 | 4;
+            const n = (i + 1) as 1 | 2 | 3 | 4 | 5;
             const here = n === shown;
             const done = n < atStep;
             return (
@@ -168,7 +172,7 @@ export function Vendors() {
                   <span aria-hidden className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] font-semibold ${done ? 'bg-[#5d6b47] text-[#fbf8f0]' : n === atStep ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-[#efe7d3] text-[#7a7466]'}`}>
                     {done ? '✓' : n}
                   </span>
-                  <span className={`text-[12px] sm:text-[14px] ${here ? 'font-semibold' : ''}`}>{label}</span>
+                  <span className={`text-[11px] sm:text-[14px] ${here ? 'font-semibold' : ''}`}>{label}</span>
                   <span className="hidden sm:block text-[11px] text-[#7a7466]">{count}</span>
                 </button>
               </li>
@@ -281,8 +285,15 @@ export function Vendors() {
             <QuoteRequests mode="lockin" list={list} rfqs={doc.data.rfqs} onSave={(l, r, msg) => save(l, msg, r)} onReload={load} onOpen={openVendor} onStep={goStep} />
           )}
           <LockedIn list={list} lines={lines} today={today} weddingDay={weddingDay} onPatch={patch} onOpen={openVendor} onStep={goStep} />
+          {booked.length > 0 && (
+            <Pill kind="primary" className="self-start" onClick={() => goStep(5)}>
+              Next: manage them to the day →
+            </Pill>
+          )}
         </>
       )}
+
+      {shown === 5 && <Manage list={list} lines={lines} today={today} weddingDay={weddingDay} onPatch={patch} onSaveList={(next, done) => void save(next, done)} onOpen={openVendor} onStep={goStep} />}
     </div>
   );
 }
@@ -426,6 +437,508 @@ function LockedIn({
         );
       })}
     </section>
+  );
+}
+
+/**
+ * Step 5, Manage: your booked vendors from now to the day, and after it.
+ * - At a glance: days to go, what's paid and still owing, tasks done, vendors confirmed.
+ * - Needs you: payments due in the next month (Mark paid), tasks due in the next fortnight or overdue
+ *   (Done), contracts not signed, arrival times missing, the final check-in with each vendor in the last
+ *   three weeks; after the day, the wrap-up (final balances, hired items back, reviews).
+ * - Each vendor: call, text, email; what's paid and what's next; then, opened: their tasks (with the
+ *   usual ones for their kind, dated back from the day: the shot list for the photographer, final numbers
+ *   for the caterer…), notes of calls and what was agreed, payments, files, and the final check-in.
+ * - The day's contact sheet to print, and everyone to your phone's contacts.
+ */
+function Manage({
+  list,
+  lines,
+  today,
+  weddingDay,
+  onPatch,
+  onSaveList,
+  onOpen,
+  onStep,
+}: {
+  list: Vendor[];
+  lines: BudgetDoc['lines'];
+  today: string;
+  weddingDay: string;
+  onPatch: (id: string, p: Partial<Vendor>, done?: string) => void;
+  onSaveList: (next: Vendor[], done?: string) => void;
+  onOpen: (id: string) => void;
+  onStep: (n: 1 | 2 | 3 | 4 | 5) => void;
+}) {
+  const { overview } = useAdmin();
+  const toast = useToast();
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'tasks' | 'notes' | 'payments' | 'files' | 'checkin'>('tasks');
+  const [filter, setFilter] = useState<'all' | 'attention'>('all');
+  const booked = list.filter((v) => v.status === 'booked').sort((a, b) => (a.arrival || '99').localeCompare(b.arrival || '99') || a.name.localeCompare(b.name));
+  if (!booked.length)
+    return (
+      <p className="m-0 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] text-[14px] text-[#5b6a52]">
+        Once you’ve booked vendors, they’re all here to keep on track until the day.{' '}
+        <button type="button" onClick={() => onStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+          Lock in (step 4)
+        </button>
+      </p>
+    );
+  const days = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+  const plus = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+  const toGo = weddingDay ? days(today, weddingDay) : null;
+  const after = toGo !== null && toGo < 0;
+  const couple = overview ? `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}` : 'us';
+  const ev = overview?.events[0];
+  const guests = overview?.perEvent?.find((e) => e.key === ev?.key)?.coming ?? 0;
+  const dayText = ev ? new Date(ev.startsAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: overview?.wedding.timezone }) : 'the day';
+  const ctx = { couple, dayText, venue: ev?.venue ?? '', guests };
+  const pays = allPayments(lines, list).filter((p) => p.vendorId && !p.paid && p.amount > 0);
+  const money = booked.map((v) => moneyOf(v, lineFor(v, lines)));
+  const total = money.reduce((a, m) => a + m.total, 0);
+  const paidSum = money.reduce((a, m) => a + m.paid, 0);
+  const allTasks = booked.flatMap((v) => (v.tasks ?? []).map((t) => ({ v, t })));
+  const confirmed = booked.filter((v) => v.confirmedOn).length;
+  const checkInDue = toGo !== null && toGo <= 21 && toGo >= 0;
+
+  const setTasks = (v: Vendor, tasks: VendorTask[], done?: string) => onPatch(v.id, { tasks }, done);
+  const addNote = (v: Vendor, kind: VendorNote['kind'], text: string) => onPatch(v.id, { log: [{ id: newId(), on: today, kind, text: text.slice(0, 1000) }, ...(v.log ?? [])].slice(0, 200) }, 'Noted');
+  const open = (id: string, t: typeof tab) => {
+    setOpenId(id);
+    setTab(t);
+    setTimeout(() => document.getElementById(`manage-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  };
+
+  type Item = { key: string; vendorId: string; text: string; tone: 'late' | 'soon' | 'todo'; action: { label: string; run: () => void } };
+  const items: Item[] = [
+    ...pays
+      .filter((p) => p.due && p.due <= plus(today, 30))
+      .sort((a, b) => a.due.localeCompare(b.due))
+      .map(
+        (p): Item => ({
+          key: `pay:${p.key}`,
+          vendorId: p.vendorId,
+          text: `Pay ${p.who} ${aud(p.amount)}${p.label && p.label !== 'Payment' ? ` (${p.label.toLowerCase()})` : ''}: ${p.due < today ? `overdue since ${shortDate(p.due)}` : `due ${shortDate(p.due)}`}`,
+          tone: p.due < today ? 'late' : 'soon',
+          action: { label: 'Mark paid', run: () => onSaveList(markPaid(p, true, list, lines, today).vendors, `${p.who}: ${aud(p.amount)} paid ✓`) },
+        }),
+      ),
+    ...allTasks
+      .filter(({ t }) => !t.done && t.due && t.due <= plus(today, 14))
+      .sort((a, b) => a.t.due.localeCompare(b.t.due))
+      .map(
+        ({ v, t }): Item => ({
+          key: `task:${v.id}:${t.id}`,
+          vendorId: v.id,
+          text: `${v.name}: ${t.text} (${t.due < today ? `overdue since ${shortDate(t.due)}` : `by ${shortDate(t.due)}`})`,
+          tone: t.due < today ? 'late' : 'soon',
+          action: { label: 'Done', run: () => setTasks(v, (v.tasks ?? []).map((x) => (x.id === t.id ? { ...x, done: true } : x)), `${t.text} ✓`) },
+        }),
+      ),
+    ...booked.filter((v) => !v.contractSigned).map((v): Item => ({ key: `contract:${v.id}`, vendorId: v.id, text: `Sign ${v.name}’s contract`, tone: 'todo', action: { label: 'Lock in', run: () => onStep(4) } })),
+    ...(toGo !== null && toGo <= 60 && !after ? booked.filter((v) => !v.arrival).map((v): Item => ({ key: `arrive:${v.id}`, vendorId: v.id, text: `When does ${v.name} arrive on the day?`, tone: 'todo', action: { label: 'Add it', run: () => open(v.id, 'checkin') } })) : []),
+    ...(checkInDue ? booked.filter((v) => !v.confirmedOn).map((v): Item => ({ key: `confirm:${v.id}`, vendorId: v.id, text: `Final check-in with ${v.name}`, tone: 'soon', action: { label: 'Write it', run: () => open(v.id, 'checkin') } })) : []),
+    ...(after ? booked.filter((v) => !v.wrapped).map((v): Item => ({ key: `wrap:${v.id}`, vendorId: v.id, text: `Wrap up with ${v.name}: final balance, anything hired back, a thank-you or review`, tone: 'todo', action: { label: 'All done', run: () => onPatch(v.id, { wrapped: true }, `${v.name}: wrapped up ✓`) } })) : []),
+  ];
+  const TONE = { late: 'border-[#d9a99a] bg-[#f6e2db]', soon: 'border-[#ecd9ae] bg-[#fbf3e1]', todo: 'border-[#e2d7bc] bg-white' } as const;
+  const needs = new Set(items.map((i) => i.vendorId));
+  const shownVendors = filter === 'attention' ? booked.filter((v) => needs.has(v.id)) : booked;
+
+  /** The day's contact sheet, printed: who, what, when they arrive, and their numbers. */
+  const printSheet = () => {
+    const w = window.open('', '_blank');
+    if (!w) return toast('Allow pop-ups to print the contact sheet');
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>Vendor contacts</title><style>body{font:14px system-ui,sans-serif;color:#222;margin:24px}h1{font:400 26px Georgia,serif;margin:0 0 4px}p{margin:0 0 16px;color:#555}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #ccc;padding:8px 6px;text-align:left;vertical-align:top}th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#555}</style>
+<h1>Vendors on the day</h1><p>${esc(couple)} · ${esc(dayText)}${ev?.venue ? ` · ${esc(ev.venue)}` : ''}</p>
+<table><tr><th>Arrives</th><th>Vendor</th><th>Contact</th><th>Phone</th><th>Meals</th><th>Still to pay</th></tr>${booked
+      .map((v, i) => `<tr><td>${esc(v.arrival || '—')}</td><td><strong>${esc(v.name)}</strong><br>${esc(v.category)}</td><td>${esc(v.contact || '')}<br>${esc(v.email)}</td><td>${esc(v.phone)}</td><td>${v.meals || ''}</td><td>${money[i]!.owing ? esc(aud(money[i]!.owing)) : 'Paid'}</td></tr>`)
+      .join('')}</table><script>window.onload=()=>window.print()</script>`);
+    w.document.close();
+  };
+
+  return (
+    <section aria-label="Manage your vendors" className="flex flex-col gap-4">
+      <div className="grid gap-2 grid-cols-2 md:grid-cols-4">
+        {[
+          [toGo === null ? '—' : after ? 'Done' : String(toGo), toGo === null ? 'No date yet' : after ? 'The day has been' : toGo === 1 ? 'day to go' : 'days to go'],
+          [aud(total - paidSum), `still to pay of ${aud(total)}`],
+          [`${allTasks.filter((x) => x.t.done).length}/${allTasks.length}`, 'tasks done'],
+          [`${confirmed}/${booked.length}`, 'confirmed the details'],
+        ].map(([n, label]) => (
+          <div key={label} className="flex flex-col gap-1 p-3 rounded-[14px] border border-[#e2d7bc] bg-white">
+            <span className="font-display text-[26px] leading-none">{n}</span>
+            <span className="text-[12px] text-[#5b6a52]">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <div className="flex justify-between items-baseline gap-2 flex-wrap">
+          <strong className="text-[16px]">{items.length ? `Needs you (${items.length})` : 'Nothing needs you right now ✓'}</strong>
+          {!after && toGo !== null && toGo > 21 && <span className="text-[12px] text-[#7a7466]">The final check-ins appear here three weeks before the day.</span>}
+        </div>
+        {items.slice(0, 12).map((it) => (
+          <div key={it.key} className={`flex items-center gap-3 flex-wrap p-3 rounded-[12px] border text-[14px] ${TONE[it.tone]}`}>
+            <span className="flex-1 min-w-[180px]">{it.text}</span>
+            <Pill size="sm" kind={it.tone === 'late' ? 'primary' : 'secondary'} onClick={it.action.run}>
+              {it.action.label}
+            </Pill>
+          </div>
+        ))}
+        {items.length > 12 && <span className="text-[13px] text-[#5b6a52]">And {items.length - 12} more below, by vendor.</span>}
+      </div>
+
+      <div className="flex justify-between items-end gap-3 flex-wrap">
+        <div className="flex gap-1" role="radiogroup" aria-label="Show">
+          {(
+            [
+              ['all', `All ${booked.length}`],
+              ['attention', `Need you (${needs.size})`],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} type="button" role="radio" aria-checked={filter === k} onClick={() => setFilter(k)} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${filter === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="flex gap-2 flex-wrap">
+          <Pill
+            size="sm"
+            onClick={() => {
+              saveContacts(
+                booked.map((v) => ({ name: v.contact ? `${v.contact} (${v.name})` : v.name, org: v.name, title: v.category, phone: v.phone, email: v.email, website: v.website, address: v.address, note: v.arrival ? `Arrives on the day: ${v.arrival}` : '' })),
+                'wedding-vendors',
+              );
+              toast(`${booked.length} vendors ready to add to your phone's contacts`);
+            }}
+          >
+            Save to phone contacts
+          </Pill>
+          <Pill size="sm" onClick={printSheet}>
+            Print the day’s contact sheet
+          </Pill>
+        </span>
+      </div>
+
+      <ul className="m-0 p-0 list-none flex flex-col gap-3">
+        {shownVendors.map((v) => {
+          const m = moneyOf(v, lineFor(v, lines));
+          const pct = m.total ? Math.round((m.paid / m.total) * 100) : 0;
+          const tasks = v.tasks ?? [];
+          const isOpen = openId === v.id;
+          const mine = items.filter((i) => i.vendorId === v.id).length;
+          return (
+            <li key={v.id} id={`manage-${v.id}`} className={`flex flex-col gap-2 p-4 rounded-[16px] border scroll-mt-4 ${isOpen ? 'border-[#8a9670] bg-[#f6f8ef]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}>
+              <button type="button" aria-expanded={isOpen} onClick={() => (isOpen ? setOpenId(null) : open(v.id, 'tasks'))} className="flex justify-between items-baseline gap-2 flex-wrap p-0 border-0 bg-transparent text-left cursor-pointer text-[#33402f]">
+                <span>
+                  <strong className="text-[16px]">{v.name}</strong>
+                  {v.category && <span className="text-[13px] text-[#5b6a52]"> · {v.category}</span>}
+                  {mine > 0 && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] font-semibold bg-[#f4dfae] text-[#6b4f1d]">{mine} to do</span>}
+                  {v.confirmedOn && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] font-semibold bg-[#dfe5cc] text-[#3d4a2f]">Confirmed</span>}
+                </span>
+                <span className="text-[13px] text-[#5b6a52]">
+                  {v.arrival ? `Arrives ${v.arrival}` : 'Arrival not set'} {isOpen ? '▴' : '▾'}
+                </span>
+              </button>
+              <span className="h-[6px] rounded-full bg-[#e9e2cc] overflow-hidden">
+                <span className="block h-full bg-[#5d6b47]" style={{ width: `${pct}%` }} />
+              </span>
+              <span className="text-[13px] text-[#5b6a52]">
+                {aud(m.paid)} of {aud(m.total)} paid
+                {m.next ? ` · next ${aud(m.next.amount)} ${m.next.due ? shortDate(m.next.due) : '(no date)'}` : m.total ? ' · all paid ✓' : ''} · contract {v.contractSigned ? '✓' : 'not signed'} · {tasks.filter((t) => t.done).length}/{tasks.length} tasks
+                {v.meals ? ` · ${v.meals} team ${v.meals === 1 ? 'meal' : 'meals'}` : ''}
+              </span>
+              <div className="flex gap-2 flex-wrap text-[13px]">
+                {v.phone && (
+                  <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} onClick={() => addNote(v, 'call', 'Called')} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-white no-underline !text-[#33402f]">
+                    Call
+                  </a>
+                )}
+                {v.phone && (
+                  <a href={`sms:${v.phone.replace(/[^\d+]/g, '')}`} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-white no-underline !text-[#33402f]">
+                    Text
+                  </a>
+                )}
+                {v.email && (
+                  <a href={`mailto:${encodeURIComponent(v.email)}`} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-white no-underline !text-[#33402f]">
+                    Email
+                  </a>
+                )}
+              </div>
+
+              {isOpen && (
+                <div className="flex flex-col gap-3 pt-2 border-t border-[#e2d7bc]">
+                  <div role="tablist" aria-label={`${v.name}`} className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
+                    {(
+                      [
+                        ['tasks', `Tasks (${tasks.filter((t) => !t.done).length})`],
+                        ['notes', `Notes (${(v.log ?? []).length})`],
+                        ['payments', 'Payments'],
+                        ['files', 'Files'],
+                        ['checkin', 'Check-in'],
+                      ] as const
+                    ).map(([k, label]) => (
+                      <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`flex-none py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${tab === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {tab === 'tasks' && <Tasks v={v} today={today} weddingDay={weddingDay} onSet={(t, msg) => setTasks(v, t, msg)} />}
+                  {tab === 'notes' && <Notes v={v} onAdd={(k, t) => addNote(v, k, t)} onRemove={(id) => onPatch(v.id, { log: (v.log ?? []).filter((n) => n.id !== id) })} />}
+                  {tab === 'payments' && (
+                    <VendorSchedule v={v} lines={lines} today={today} wedding={weddingDay} open onToggle={() => setTab('tasks')} edit={(fn) => onPatch(v.id, { payments: fn(ownSchedule(v, lines)) }, 'Payment schedule saved')} />
+                  )}
+                  {tab === 'files' && <Files v={v} />}
+                  {tab === 'checkin' && (
+                    <CheckIn
+                      v={v}
+                      ctx={ctx}
+                      onArrival={(a) => onPatch(v.id, { arrival: a })}
+                      onDone={() => {
+                        onPatch(v.id, { confirmedOn: today, log: [{ id: newId(), on: today, kind: 'note' as const, text: 'Confirmed the final details' }, ...(v.log ?? [])].slice(0, 200) }, `${v.name}: confirmed ✓`);
+                        setTab('tasks');
+                      }}
+                      onClose={() => setTab('tasks')}
+                    />
+                  )}
+                  <div className="flex gap-4 flex-wrap text-[13px]">
+                    <TheirPage v={v} onChange={(p, msg) => onPatch(v.id, p, msg)} />
+                    <button type="button" onClick={() => onOpen(v.id)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+                      Their details
+                    </button>
+                    {after && !v.wrapped && (
+                      <button type="button" onClick={() => onPatch(v.id, { wrapped: true }, `${v.name}: wrapped up ✓`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+                        Mark wrapped up
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** A vendor's tasks: tick off, date, add your own, or add the usual ones for their kind in a tap. */
+function Tasks({ v, today, weddingDay, onSet }: { v: Vendor; today: string; weddingDay: string; onSet: (tasks: VendorTask[], msg?: string) => void }) {
+  const [text, setText] = useState('');
+  const [due, setDue] = useState('');
+  const tasks = [...(v.tasks ?? [])].sort((a, b) => Number(a.done) - Number(b.done) || (a.due || '9999').localeCompare(b.due || '9999'));
+  const usual = suggestedTasks(v, weddingDay);
+  const kind = vendorKind(v);
+  const set = (id: string, p: Partial<VendorTask>) => onSet((v.tasks ?? []).map((t) => (t.id === id ? { ...t, ...p } : t)));
+  return (
+    <div className="flex flex-col gap-2">
+      {usual.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap p-3 rounded-[12px] bg-white border border-dashed border-[#a9b98d] text-[14px]">
+          <span className="flex-1 min-w-[180px]">
+            The usual for {kind ? `a ${kind.toLowerCase().replace(/^band or dj$/, 'band or DJ')}` : 'any vendor'}: {usual.map((u) => u.text.toLowerCase()).join(', ')}.
+          </span>
+          <Pill size="sm" kind="primary" onClick={() => onSet([...(v.tasks ?? []), ...usual.map((u) => ({ id: newId(), text: u.text, due: u.due, done: false }))].slice(0, 60), `${usual.length} tasks added`)}>
+            Add {usual.length === 1 ? 'it' : `all ${usual.length}`}
+          </Pill>
+        </div>
+      )}
+      {tasks.length === 0 && <span className="text-[13px] text-[#5b6a52]">No tasks yet.</span>}
+      <ul className="m-0 p-0 list-none flex flex-col">
+        {tasks.map((t) => (
+          <li key={t.id} className="flex items-center gap-2 py-2 border-b border-[#efe6d0] text-[14px] flex-wrap">
+            <input type="checkbox" checked={t.done} aria-label={t.text} onChange={(e) => set(t.id, { done: e.target.checked })} className="w-[20px] h-[20px] accent-[#5d6b47]" />
+            <span className={`flex-1 min-w-[150px] ${t.done ? 'line-through text-[#9a9284]' : ''}`}>{t.text}</span>
+            <input
+              type="date"
+              value={t.due}
+              aria-label={`${t.text}: by when`}
+              onChange={(e) => set(t.id, { due: e.target.value })}
+              className={`py-[4px] px-2 rounded-[8px] border text-[13px] ${!t.done && t.due && t.due < today ? 'border-[#c98f78] bg-[#f6e2db]' : 'border-[#d3c6a4] bg-white'}`}
+            />
+            <button type="button" aria-label={`Remove ${t.text}`} onClick={() => onSet((v.tasks ?? []).filter((x) => x.id !== t.id))} className="w-8 h-8 rounded-full border border-[#d3c6a4] bg-white cursor-pointer text-[#7a4a37]">
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2 flex-wrap items-center">
+        <input value={text} maxLength={200} placeholder="Add a task, e.g. Send the run sheet" aria-label="New task" onChange={(e) => setText(e.target.value)} className={`${inputCls} flex-1 min-w-[200px]`} />
+        <input type="date" value={due} aria-label="New task: by when" onChange={(e) => setDue(e.target.value)} className={`${inputCls} w-[160px]`} />
+        <Pill
+          size="sm"
+          disabled={!text.trim()}
+          onClick={() => {
+            onSet([...(v.tasks ?? []), { id: newId(), text: text.trim(), due, done: false }].slice(0, 60), 'Task added');
+            setText('');
+            setDue('');
+          }}
+        >
+          Add
+        </Pill>
+      </div>
+    </div>
+  );
+}
+
+/** Notes of calls, emails, meetings and what was agreed, newest first. */
+function Notes({ v, onAdd, onRemove }: { v: Vendor; onAdd: (kind: VendorNote['kind'], text: string) => void; onRemove: (id: string) => void }) {
+  const [kind, setKind] = useState<VendorNote['kind']>('call');
+  const [text, setText] = useState('');
+  const LABEL: Record<VendorNote['kind'], string> = { call: 'Call', email: 'Email', meeting: 'Meeting', note: 'Note' };
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-1 flex-wrap" role="radiogroup" aria-label="What kind">
+        {(Object.keys(LABEL) as VendorNote['kind'][]).map((k) => (
+          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`py-[4px] px-3 rounded-full border text-[12px] cursor-pointer ${kind === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}>
+            {LABEL[k]}
+          </button>
+        ))}
+      </div>
+      <textarea rows={2} value={text} maxLength={1000} placeholder="What was said or agreed, e.g. Confirmed 11am arrival; they’ll bring their own extension leads" aria-label="New note" onChange={(e) => setText(e.target.value)} className={inputCls} />
+      <Pill
+        size="sm"
+        className="self-start"
+        disabled={!text.trim()}
+        onClick={() => {
+          onAdd(kind, text.trim());
+          setText('');
+        }}
+      >
+        Save note
+      </Pill>
+      <ul className="m-0 p-0 list-none flex flex-col">
+        {(v.log ?? []).map((n) => (
+          <li key={n.id} className="flex gap-2 py-2 border-b border-[#efe6d0] text-[14px]">
+            <span className="flex-none w-[92px] text-[12px] text-[#7a7466]">
+              {shortDate(n.on)}
+              <span className="block">{LABEL[n.kind]}</span>
+            </span>
+            <span className="flex-1 whitespace-pre-wrap">{n.text}</span>
+            <button type="button" aria-label="Remove note" onClick={() => onRemove(n.id)} className="p-0 border-0 bg-transparent cursor-pointer text-[#9a9284]">
+              ×
+            </button>
+          </li>
+        ))}
+        {!(v.log ?? []).length && <li className="text-[13px] text-[#5b6a52]">Nothing noted yet. Calls you make from here are noted for you.</li>}
+      </ul>
+    </div>
+  );
+}
+
+/** Everything filed for a vendor: their quotes (with the files they came with) and the contract. */
+function Files({ v }: { v: Vendor }) {
+  const { wid } = useAdmin();
+  const files = [
+    ...v.quotes.filter((q) => q.fileId).map((q) => ({ id: q.fileId, name: q.fileName || 'Quote', what: `Quote ${q.amount ? aud(q.amount) : ''}${q.id === v.accepted ? ' (accepted)' : ''}` })),
+    ...(v.contractFileId ? [{ id: v.contractFileId, name: v.contractFileName || 'Contract', what: `Contract${v.contractSigned ? `, signed ${shortDate(v.contractSigned)}` : ''}` }] : []),
+  ];
+  if (!files.length) return <span className="text-[13px] text-[#5b6a52]">No files yet. Quotes keep the PDF they came with; add the contract in Lock in (step 4).</span>;
+  return (
+    <ul className="m-0 p-0 list-none flex flex-col gap-2">
+      {files.map((f) => (
+        <li key={f.id} className="flex items-center gap-3 p-2 rounded-[10px] bg-white border border-[#ece3cd] text-[14px]">
+          <span aria-hidden>📎</span>
+          <span className="flex-1 min-w-0">
+            <span className="block truncate">{f.name}</span>
+            <span className="text-[12px] text-[#7a7466]">{f.what}</span>
+          </span>
+          <a href={plannerApi.fileUrl(wid, f.id)} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+            Open
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+type CheckCtx = { couple: string; dayText: string; venue: string; guests: number };
+/** The final check-in message: everything they need, for them to confirm. */
+const checkInText = (v: Vendor, c: CheckCtx, link: string) =>
+  [
+    `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''},`,
+    '',
+    `Not long now! Just confirming the details for ${c.couple}'s wedding on ${c.dayText}${c.venue ? ` at ${c.venue}` : ''}.`,
+    v.arrival ? `We have you arriving at ${v.arrival}.` : 'What time will you arrive?',
+    c.guests ? `We’re expecting ${c.guests} guests.` : '',
+    v.meals ? `There’ll be ${v.meals} ${v.meals === 1 ? 'meal' : 'meals'} for your team.` : '',
+    link ? `Everything else (the timeline, who to call on the day, your payments) is on your page, kept up to date: ${link}` : '',
+    '',
+    'Could you confirm all is good, and let us know if you need anything else from us?',
+    '',
+    'Thanks so much,',
+    c.couple,
+  ]
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
+
+/** The final check-in with one vendor: their arrival time, then the message to send, then "They confirmed". */
+function CheckIn({ v, ctx, onArrival, onDone, onClose }: { v: Vendor; ctx: CheckCtx; onArrival: (a: string) => void; onDone: () => void; onClose: () => void }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  // Their page, for the message (it works without it too).
+  const [link, setLink] = useState('');
+  const [edited, setEdited] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    plannerApi.vendorHub(wid, v.id).then(
+      (r) => live && setLink(r.url),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [wid, v.id]);
+  const text = edited ?? checkInText(v, ctx, link);
+  const small = 'py-[6px] px-3 rounded-full border border-[#c6b794] bg-white text-[13px] cursor-pointer no-underline !text-[#33402f]';
+  return (
+    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#8a9670] bg-white">
+      <label className="flex items-center gap-2 text-[13px] text-[#5b6a52] flex-wrap">
+        Arriving at
+        <input defaultValue={v.arrival} placeholder="e.g. 11:00am" onBlur={(e) => e.target.value !== v.arrival && onArrival(e.target.value.slice(0, 20))} className={`${inputCls} max-w-[150px] py-[6px]`} />
+      </label>
+      <textarea rows={9} value={text} onChange={(e) => setEdited(e.target.value)} aria-label={`Check-in message to ${v.name}`} className={`${inputCls} w-full`} />
+      <div className="flex gap-2 flex-wrap items-center">
+        {v.email && (
+          <a href={`mailto:${encodeURIComponent(v.email)}?subject=${encodeURIComponent('Confirming the wedding details')}&body=${encodeURIComponent(text)}`} className={small}>
+            Email it
+          </a>
+        )}
+        {v.phone && (
+          <a href={`sms:${v.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(text)}`} className={small}>
+            Text it
+          </a>
+        )}
+        <button
+          type="button"
+          className={small}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(text);
+              toast('Message copied');
+            } catch {
+              window.prompt('Copy this message', text);
+            }
+          }}
+        >
+          Copy
+        </button>
+        <Pill
+          size="sm"
+          kind="primary"
+          onClick={() => {
+            onDone();
+            onClose();
+          }}
+        >
+          They confirmed ✓
+        </Pill>
+        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          Close
+        </button>
+      </div>
+    </div>
   );
 }
 

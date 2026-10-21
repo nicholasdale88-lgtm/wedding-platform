@@ -198,13 +198,13 @@ export const HELP: HelpArticle[] = [
   },
   {
     id: 'quotes',
-    title: 'Vendors: add, get quotes, compare, lock in',
+    title: 'Vendors: add, get quotes, compare, lock in, manage',
     group: 'Planning',
     steps: [
       'Step 1, Add vendors: in Wedding planner → Vendors tap + Add a vendor for each one you’re thinking of (their name, what they do, an email or mobile). Ideas? Browse the vendor directory.',
       'Step 2, Get quotes: tap + Get quotes, tap what for, and Send. Each vendor prices it on their own link or attaches their own quote; slow ones are reminded automatically. Already have quotes? + Enter myself, and type them in.',
       'Step 3, Compare: best value first, like for like, with star ratings. Tap Ask for a better price for a plan for your favourite: what to aim for, the levers, and messages ready to send.',
-      'Step 4, Lock in: book, then tick off the deposit, set the payment schedule (split into monthly payments in a tap), sign the contract, and add meals for each vendor’s team: your caterer sees them all, with the seating and special meals when you share them.',
+      'Step 4, Lock in: book, then tick off the deposit, set the payment schedule (split into monthly payments in a tap), sign the contract, and add meals for each vendor’s team: your caterer sees them all, with the seating and special meals when you share them. Then step 5, Manage, where you’ll spend most of your time: what needs you (payments due, tasks due, contracts, check-ins), and each vendor’s tasks (the usual ones for their kind added in a tap: the shot list, final numbers…), notes of calls and what was agreed, payments, files, the final check-in, and the day’s contact sheet to print.',
     ],
     also: 'quote request rfq tender price compare comparison email draft manual enter type in myself negotiate discount better deal haggle book lock in deposit contract vendor meals caterer payment schedule add vendor',
     go: { tab: 'planner', event: true, query: 'view=vendors' },
