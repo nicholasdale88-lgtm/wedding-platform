@@ -417,10 +417,11 @@ const ICON: Record<string, ReactNode> = {
 
 /**
  * Phones: the menu. Account on its own, then the events; tapping one shows only that section's pages as
- * tiles with icons. Opens on the section you're in; Sign out at the end.
+ * tiles with icons. Opens on the section you're in; Sign out at the end. The sheet wears the tapped
+ * section's colours straight away (the birthday turns it blue), before you open one of its pages.
  */
 function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
-  const { path } = useAdmin();
+  const { path, overview: o } = useAdmin();
   const { groups, current, tab } = useSections();
   const go = useNavigate();
   const [picked, setPicked] = useState(current.key);
@@ -458,9 +459,9 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
   const grid = 'grid grid-cols-3 gap-2';
   const rest = shown.tabs;
   return (
-    <div className="fixed inset-0 z-[30] flex flex-col justify-start">
+    <div style={{ ...looks(o, shown.key), zoom: 1 }} className="fixed inset-0 z-[30] flex flex-col justify-start">
       <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.35)]" />
-      <div role="dialog" aria-modal="true" aria-label="Menu" className="relative max-h-[92vh] overflow-y-auto rounded-b-[22px] bg-[#f6f0e2] px-4 pt-[max(14px,env(safe-area-inset-top))] pb-5 flex flex-col gap-5 shadow-[0_12px_32px_rgba(51,64,47,.25)]">
+      <div role="dialog" aria-modal="true" aria-label="Menu" className="relative max-h-[92vh] overflow-y-auto rounded-b-[22px] bg-[var(--adm-bg,#f6f0e2)] text-[var(--adm-ink,#33402f)] transition-colors duration-300 px-4 pt-[max(14px,env(safe-area-inset-top))] pb-5 flex flex-col gap-5 shadow-[0_12px_32px_rgba(51,64,47,.25)]">
         <div className="flex items-center justify-between">
           <span className="font-display text-[24px]">Menu</span>
           <button type="button" aria-label="Close menu" onClick={onClose} className="w-10 h-10 rounded-full border border-[#c6b794] bg-[#fbf8f0] text-[20px] cursor-pointer">
