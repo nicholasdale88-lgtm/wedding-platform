@@ -4,8 +4,8 @@ import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { MAX_PLANNER_FILE, readJson, MAX_PLANNER_DOC } from '../lib/security';
-import { buttonEmail, emailReady, sendEmail } from '../lib/email';
-import { FILE_TYPES, fillRequest, ownerEmails, requestLink, storePlannerFile, weddingFacts } from '../lib/quoteRequests';
+import { emailReady } from '../lib/email';
+import { FILE_TYPES, sendRequests, storePlannerFile } from '../lib/quoteRequests';
 import { openPhoto } from '../photos/store';
 import { portalWho } from './partyPortal';
 import { partyCalKey } from './partyCalendar';
@@ -447,52 +447,9 @@ export function plannerRoutes() {
     if (!body.success) return err(c, 400, 'invalid', 'Choose who to send it to.');
     if (!emailReady(c.env)) return err(c, 400, 'off', 'Email isn’t set up on this site yet: use Email, Text or Copy link for each vendor.');
     if (!(await allow(c.env.DB, `rfq-send:${wid(c)}`, 60, 86_400_000))) return err(c, 429, 'slow_down', "That's a lot of emails today. Try again tomorrow, or copy the links.");
-    const f = await weddingFacts(c.env.DB, wid(c));
-    if (!f) return err(c, 404, 'not_found', 'Wedding not found.');
-    const doc = await readDoc(c.env.DB, wid(c), 'vendors', '');
-    const rfq = doc.data.rfqs.find((r) => r.id === c.req.param('id'));
-    if (!rfq) return err(c, 404, 'not_found', 'That quote request has gone.');
-    if (rfq.closed) return err(c, 409, 'closed', 'That request is decided: reopen it to send again.');
-    const replyTo = await ownerEmails(c.env.DB, wid(c));
-    const sent: string[] = [];
-    const skipped: string[] = [];
-    for (const id of body.data.vendorIds) {
-      const rv = rfq.vendors.find((x) => x.vendorId === id);
-      const v = doc.data.list.find((x) => x.id === id);
-      if (!rv || !v || !rv.key || rv.answeredOn || rv.declinedOn) continue;
-      const to = v.email.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
-        skipped.push(id);
-        continue;
-      }
-      const link = requestLink(c.env, f.w.slug, rv.key);
-      const remind = body.data.remind && !!rv.sentOn;
-      const subject = remind ? `Reminder: ${fillRequest(rfq.subject || 'Quote request: {couple}', f, rfq.due, link)}` : fillRequest(rfq.subject || 'Quote request: {couple}', f, rfq.due, link);
-      const intro = remind ? [`Just a friendly reminder from ${f.couple}: we'd still love your quote${rfq.due ? ` by ${fillRequest('{due}', f, rfq.due, link)}` : ''}.`, ''] : [];
-      const text = [...intro, fillRequest(rfq.message, f, rfq.due, link)].join('\n');
-      const m = buttonEmail({ heading: remind ? 'A quick reminder' : `A quote request from ${f.couple}`, lines: text.split('\n').filter((l) => l.trim() && !l.includes(link)), button: 'Price it here', link, footer: `Reply to this email to reach ${f.couple}.` });
-      if (await sendEmail(c.env, { to, subject: subject.slice(0, 200), ...m, replyTo })) sent.push(id);
-      else skipped.push(id);
-    }
-    const today = dateIn(f.w.timezone);
-    if (sent.length) {
-      await changeDoc(c.env.DB, wid(c), 'vendors', '', (d) => {
-        const r = d.rfqs.find((x) => x.id === rfq.id);
-        if (!r) return false;
-        for (const rv of r.vendors.filter((x) => sent.includes(x.vendorId))) {
-          if (body.data.remind && rv.sentOn) rv.remindedOn = today;
-          else rv.sentOn = rv.sentOn || today;
-        }
-        // The quote tracker knows they've been asked, and when the quote is due.
-        for (const v of d.list.filter((x) => sent.includes(x.id))) {
-          if (v.status === 'idea' || v.status === 'contacted') v.status = 'requested';
-          v.askedOn = v.askedOn || today;
-          v.quoteBy = v.quoteBy || r.due;
-          if (body.data.remind) v.chasedOn = today;
-        }
-      });
-    }
-    return c.json({ sent, skipped });
+    const r = await sendRequests(c.env, wid(c), c.req.param('id'), body.data.vendorIds, body.data.remind);
+    if ('error' in r) return err(c, r.status, r.error, r.message);
+    return c.json(r);
   });
 
   /** A planning file and its bytes (from the linked storage it lives in, or the database). */

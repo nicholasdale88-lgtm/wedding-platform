@@ -1,6 +1,6 @@
-import { commitmentOf, dateIn, moneyOf, QUOTE_STAGES, quoteStatus, VENDOR_SEARCH, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { commitmentOf, dateIn, moneyOf, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, plannerApi, type ListedHit, type VendorHit } from '../../lib/api';
+import { ApiError, plannerApi } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
 import { QuoteFile } from './QuoteFile';
 import { saveContacts } from '../../lib/vcard';
@@ -12,7 +12,7 @@ import { H2, inputCls, Pill, useToast } from '../ui';
 /**
  * Wedding planner → Vendors: everyone you're talking to or have booked. File each quote (a PDF or photo;
  * the assistant can read the numbers out of it), accept one, and compare vendors side by side with the
- * assistant's view. "Find vendors near the venue" searches OpenStreetMap within a radius you choose.
+ * assistant's view; get quotes from several at once (QuoteRequests).
  */
 
 const STATUS_LABEL: Record<Vendor['status'], string> = { idea: 'Idea', contacted: 'Contacted', requested: 'Pricing', quoted: 'Quote in', booked: 'Booked', declined: 'Not going ahead' };
@@ -138,8 +138,6 @@ export function Vendors() {
       />
 
       <Compare list={list} />
-
-      <Finder have={new Set(list.map((v) => v.name.toLowerCase()))} onAdd={(v) => void save([...list, v], `${v.name} added to your vendors`)} />
 
       <section aria-label="Your vendors" className="flex flex-col gap-3">
         <div className="flex justify-between items-end gap-3 flex-wrap">
@@ -548,154 +546,6 @@ function Compare({ list }: { list: Vendor[] }) {
         </p>
       )}
       {answer && <div className="p-4 rounded-[12px] bg-white border border-[#e2d7bc] whitespace-pre-wrap text-[15px] leading-[1.5]">{answer}</div>}
-    </section>
-  );
-}
-
-function Finder({ have, onAdd }: { have: Set<string>; onAdd: (v: Vendor) => void }) {
-  const { wid } = useAdmin();
-  const [category, setCategory] = useState('florist');
-  const [km, setKm] = useState(25);
-  const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<{ venue: string; listed: ListedHit[]; results: VendorHit[]; price: { low: number; typical: number; high: number; weddings: number } | null } | null>(null);
-  const [problem, setProblem] = useState('');
-  // Places from the map (OpenStreetMap) are patchy for wedding vendors: only when asked for.
-  const [map, setMap] = useState(false);
-  const search = async (withMap = map) => {
-    setBusy(true);
-    setProblem('');
-    try {
-      const r = await plannerApi.searchVendors(wid, category, km, withMap);
-      setRes({ venue: r.venue.event, listed: r.listed ?? [], results: r.results, price: r.price ?? null });
-    } catch (e) {
-      setRes(null);
-      setProblem((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <section aria-label="Find vendors near the venue" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-      <div className="flex justify-between items-baseline gap-2 flex-wrap">
-        <H2>Vendor directory near the venue</H2>
-        <a href="/vendors" target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
-          Browse the whole directory ↗
-        </a>
-      </div>
-      <p className="m-0 text-[13px] text-[#5b6a52]">Vendors who’ve listed themselves and work near your venue, with their prices and their own page: the ones couples book most come first.</p>
-      <div className="flex gap-3 flex-wrap items-end">
-        <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
-          Looking for
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
-            {Object.entries(VENDOR_SEARCH).map(([k, c]) => (
-              <option key={k} value={k}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52] min-w-[200px] flex-1">
-          Within {km} km
-          <input type="range" min={5} max={100} step={5} value={km} onChange={(e) => setKm(Number(e.target.value))} className="accent-[#5d6b47]" />
-        </label>
-        <Pill kind="primary" disabled={busy} onClick={() => void search()}>
-          {busy ? 'Searching…' : 'Search'}
-        </Pill>
-      </div>
-      <label className="flex items-center gap-2 text-[13px] text-[#5b6a52] cursor-pointer">
-        <input
-          type="checkbox"
-          checked={map}
-          onChange={(e) => {
-            setMap(e.target.checked);
-            if (res) void search(e.target.checked);
-          }}
-          className="accent-[#5d6b47]"
-        />
-        Also show businesses from the map (less reliable: check them before booking)
-      </label>
-      {problem && <p role="alert" className="m-0 text-[14px] text-[#7a4a37]">{problem}</p>}
-      {res && (
-        <div className="flex flex-col">
-          <span className="text-[13px] text-[#5b6a52] pb-2">
-            {res.listed.length ? `${res.listed.length} listed vendor${res.listed.length === 1 ? '' : 's'} working near ${res.venue}` : `No listed ${VENDOR_SEARCH[category]?.label.toLowerCase() ?? 'vendors'} near ${res.venue} yet.${map ? '' : ' Tick “Also show businesses from the map” for more leads.'}`}
-          </span>
-          {res.listed.map((h) => {
-            const added = have.has(h.name.toLowerCase());
-            return (
-              <div key={h.id} className="flex justify-between items-center gap-3 py-2 border-t border-[#e2d7bc]">
-                <span className="flex items-center gap-3 min-w-0">
-                  {h.photo ? <img src={h.photo} alt="" loading="lazy" className="w-12 h-12 rounded-[10px] object-cover flex-none bg-[#efe6d3]" /> : null}
-                  <span className="min-w-0">
-                    <span className="block font-medium truncate">{h.name}</span>
-                    <span className="block text-[13px] text-[#5b6a52] truncate">{[h.priceFrom > 0 ? `From ${aud(h.priceFrom)}` : '', h.about].filter(Boolean).join(' · ')}</span>
-                    {h.booked > 0 && (
-                      <span className="block text-[12px] text-[#3d4a2f] font-semibold">
-                        Booked by {h.booked} {h.booked === 1 ? 'couple' : 'couples'}
-                      </span>
-                    )}
-                  </span>
-                </span>
-                <span className="flex gap-3 items-center flex-none text-[13px]">
-                  <a href={`/vendors/${h.slug}`} target="_blank" rel="noopener" className="!text-[#33402f]">
-                    Their page
-                  </a>
-                  <Pill
-                    kind="outline"
-                    disabled={added}
-                    onClick={() => onAdd(newVendor({ name: h.name, category: VENDOR_SEARCH[category]!.label.replace(/s$/, ''), phone: h.phone, website: h.website, address: '', km: h.km, dirId: h.id }))}
-                  >
-                    {added ? 'Added' : '+ Add'}
-                  </Pill>
-                </span>
-              </div>
-            );
-          })}
-          {map && (
-            <span className="text-[13px] text-[#5b6a52] pt-3 pb-2">
-              {res.results.length ? `From the map: ${res.results.length} within ${km} km` : `Nothing from the map within ${km} km.`} · do check them before booking
-            </span>
-          )}
-          {res.price && (
-            <div className="mb-2 p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[14px]">
-              Couples nearby paid <strong className="font-semibold">{aud(res.price.low)}–{aud(res.price.high)}</strong> (typically {aud(res.price.typical)}) · from {res.price.weddings} weddings
-            </div>
-          )}
-          {res.results.map((h) => {
-            const added = have.has(h.name.toLowerCase());
-            return (
-              <div key={h.osm} className="flex justify-between items-center gap-3 py-2 border-t border-[#e2d7bc]">
-                <span className="min-w-0">
-                  <span className="block font-medium truncate">{h.name}</span>
-                  <span className="block text-[13px] text-[#5b6a52] truncate">{[`${h.km} km`, h.address, h.phone].filter(Boolean).join(' · ')}</span>
-                  {(h.booked ?? 0) > 0 && (
-                    <span className="block text-[12px] text-[#3d4a2f] font-semibold">
-                      Booked by {h.booked} {h.booked === 1 ? 'couple' : 'couples'} nearby
-                    </span>
-                  )}
-                </span>
-                <span className="flex gap-3 items-center flex-none text-[13px]">
-                  {h.website && (
-                    <a href={safeUrl(h.website)} target="_blank" rel="noopener noreferrer" className="!text-[#33402f]">
-                      Website
-                    </a>
-                  )}
-                  <a href={`https://maps.google.com/?q=${h.lat},${h.lon}`} target="_blank" rel="noopener noreferrer" className="!text-[#33402f]">
-                    Map
-                  </a>
-                  <Pill
-                    kind="outline"
-                    disabled={added}
-                    onClick={() => onAdd(newVendor({ name: h.name, category: VENDOR_SEARCH[category]!.label.replace(/s$/, ''), phone: h.phone, email: h.email, website: h.website, address: h.address, km: h.km, dirId: h.id ?? '' }))}
-                  >
-                    {added ? 'Added' : '+ Add'}
-                  </Pill>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </section>
   );
 }

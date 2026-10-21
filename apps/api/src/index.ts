@@ -18,6 +18,7 @@ import { albumAdminRoutes, albumGuestRoutes } from './routes/album';
 import { runCopies } from './photos/store';
 import { runBackups } from './lib/backup';
 import { runDigests } from './lib/digest';
+import { runQuoteFollowUps } from './lib/quoteRequests';
 import { rfqRoutes } from './routes/rfq';
 import { planRoutes, signupRoutes } from './routes/signup';
 import { billingRoutes, stripeHookRoutes } from './routes/billing';
@@ -120,8 +121,9 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   const backups = await runBackups(env).catch((e) => ({ error: String(e) }));
   // The couple's daily summary email, at about 6pm their time (only with news, only once a day).
   const digests = await runDigests(env).catch((e) => ({ error: String(e) }));
+  const quoteFollowUps = await runQuoteFollowUps(env).catch((e) => ({ error: String(e) }));
   await purgeExpired(env.DB, d.now()).catch(() => undefined);
-  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups, digests }));
+  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups, digests, quoteFollowUps }));
   return { swept, ...report };
 }
 

@@ -1,4 +1,4 @@
-import { beforeOf, dateIn, NEGOTIATION_TIPS, negotiationPoints, Quote, RFQ_LINES, rfqStage, rfqDraft, searchKeyOf, tenderAnalysis, tenderRows, TENDER_RATINGS, TENDER_WEIGHTS, Vendor, VENDOR_SEARCH, type Rfq, type RfqLine, type RfqVendor, type TenderRating } from '@wp/shared';
+import { awaitingReply, beforeOf, dateIn, NEGOTIATION_TIPS, negotiationPlan, negotiationPoints, nextFollowUp, Quote, RFQ_LINES, rfqStage, rfqDraft, searchKeyOf, tenderAnalysis, tenderRows, TENDER_RATINGS, TENDER_WEIGHTS, Vendor, VENDOR_SEARCH, type Rfq, type RfqLine, type RfqVendor, type TenderRating } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { plannerApi } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -34,7 +34,7 @@ const longDay = (ymd: string) => (ymd ? new Date(`${ymd}T12:00:00Z`).toLocaleDat
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 const SERVICES = Object.entries(VENDOR_SEARCH).filter(([k]) => k !== 'jewellery');
 /** A vendor's place on a request: their own private link, nothing sent yet. */
-const askOf = (vendorId: string): RfqVendor => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '', remindedOn: '', negotiatedOn: '', declinedOn: '', declinedWhy: '', scores: {} });
+const askOf = (vendorId: string): RfqVendor => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '', remindedOn: '', negotiatedOn: '', followUps: 0, declinedOn: '', declinedWhy: '', scores: {} });
 const small = 'py-[6px] px-3 rounded-full border border-[#c6b794] bg-white text-[13px] cursor-pointer no-underline !text-[#33402f] hover:bg-[#efe7d3] whitespace-nowrap';
 
 type Save = (list: Vendor[], rfqs: Rfq[], done?: string) => Promise<boolean>;
@@ -239,7 +239,9 @@ function NewRequest({
       createdOn: today,
       closed: false,
       budget: 0,
-      ...(manual ? { manual: true } : {}),
+      preferred: '',
+      // Vendors who haven't quoted are reminded automatically (it can be switched off on the request).
+      ...(manual ? { manual: true } : { autoFollow: true }),
     };
     await onMake(rfq, all, byEmail.map((v) => v.id));
     setBusy(false);
@@ -602,6 +604,23 @@ function RequestCard({
           <p className="m-0 text-[14px] text-[#5b6a52]">{stepHelp(shown, !!rfq.manual)}</p>
           {shown === 1 && (
             <>
+          {!rfq.closed && !rfq.manual && (
+            <label className="flex items-start gap-3 p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] cursor-pointer text-[14px]">
+              <input
+                type="checkbox"
+                checked={!!rfq.autoFollow}
+                onChange={(e) => void onChange({ ...rfq, autoFollow: e.target.checked }, undefined, e.target.checked ? 'Follow-ups on' : 'Follow-ups off')}
+                className="mt-[2px] w-[20px] h-[20px] accent-[#5d6b47]"
+              />
+              <span>
+                <strong className="font-semibold">Follow up automatically</strong>
+                <span className="block text-[13px] text-[#5b6a52]">
+                  Anyone who hasn’t quoted gets a friendly reminder by email: four days after it’s sent (sooner if your date is close), then the day after your date. Two at most.
+                  {!siteEmail && ' Needs the site’s email set up: until then, use Remind by each name.'}
+                </span>
+              </span>
+            </label>
+          )}
           {!rfq.closed && toEnter.length > 0 && (
             <div className="flex items-center gap-3 flex-wrap p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
               <span className="flex-1 min-w-[180px]">
@@ -661,6 +680,7 @@ function RequestCard({
                         {q && <strong className="text-[14px]">{aud(q.amount)}</strong>}
                         {q?.package && <span className="text-[11px] text-[#5b6a52]">one total</span>}
                         {st.when && <span className="text-[12px] text-[#7a7466]">{st.when}</span>}
+                        {siteEmail && isEmail(v.email) && nextFollowUp(rfq, rv) && <span className="text-[12px] text-[#5b6a52]">· next reminder {longDay(nextFollowUp(rfq, rv) < today ? today : nextFollowUp(rfq, rv))}</span>}
                       </span>
                     </span>
                     {!rfq.closed && (rfq.manual || q) && (
@@ -778,10 +798,12 @@ function RequestCard({
               list={list}
               today={today}
               couple={couple}
+              weddingDate={ev ? new Date(ev.startsAt).toLocaleDateString('en-CA', { timeZone: overview?.wedding.timezone }) : ''}
               entering={entering}
               onEnter={setEntering}
               onSaveQuote={enterQuote}
               onAsked={markAsked}
+              onPrefer={(id) => void onChange({ ...rfq, preferred: id })}
               onNext={() => setStep(4)}
             />
           )}
@@ -850,116 +872,229 @@ function Stepper({ stage, shown, onPick }: { stage: number; shown: number; onPic
 }
 
 /**
- * Step 3: for each vendor who has quoted (best value first), what to raise and a ready message to send
- * from your email or phone, then their new price recorded when they come back (what you saved shows).
+ * Step 3: a plan to get your favourite vendor's price down. Pick your favourite (your top-rated, else the
+ * best value, to start with); see what to open with, what to aim for and your limit; the levers that
+ * should work here, strongest first, each with what to say; and the messages in order (the ask, a
+ * follow-up if they go quiet, a counter when they come part of the way). Their new price is recorded when
+ * they come back (what you saved shows). The other vendors' points are below, folded away.
  */
 function Negotiate({
   rfq,
   list,
   today,
   couple,
+  weddingDate,
   entering,
   onEnter,
   onSaveQuote,
   onAsked,
+  onPrefer,
   onNext,
 }: {
   rfq: Rfq;
   list: Vendor[];
   today: string;
   couple: string;
+  weddingDate: string;
   entering: string | null;
   onEnter: (id: string | null) => void;
   onSaveQuote: (vendorId: string, q: Quote) => void;
   onAsked: (vendorId: string) => void;
+  onPrefer: (vendorId: string) => void;
   onNext: () => void;
 }) {
   const toast = useToast();
   const items = negotiationPoints(rfq, list, today).sort((a, b) => (a.levelled ?? Infinity) - (b.levelled ?? Infinity));
+  const t = tenderAnalysis(rfq, list);
+  const fav = items.find((n) => n.vendorId === rfq.preferred)?.vendorId ?? items.find((n) => n.vendorId === t.topScore?.id)?.vendorId ?? items[0]?.vendorId ?? '';
   const [msgs, setMsgs] = useState<Record<string, string>>({});
-  if (!items.length) return <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">Once a quote is in, this shows what to ask each vendor for.</p>;
+  const [which, setWhich] = useState<'opener' | 'followUp' | 'counter'>('opener');
+  if (!items.length) return <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">Once a quote is in, this builds your plan to get a better price.</p>;
+  const plan = negotiationPlan(rfq, list, fav, weddingDate);
+  const v = list.find((x) => x.id === fav);
+  const n = items.find((x) => x.vendorId === fav)!;
+  const quiet = awaitingReply(rfq, list, today).find((x) => x.vendorId === fav);
+  const saved = n.quote.before !== undefined && n.quote.before > n.quote.amount ? n.quote.before - n.quote.amount : 0;
+  const fill = (s: string) => s.replace(/\{couple\}/g, couple);
+  const key = `${fav}:${which}`;
+  const text = msgs[key] ?? fill(plan?.messages[which] ?? '');
+  const subject = `Your quote: ${couple}’s wedding`;
+  const sendBits = (body: string, vendor: Vendor | undefined, onSent: () => void) => (
+    <div className="flex gap-2 flex-wrap">
+      {vendor?.email && (
+        <a href={`mailto:${encodeURIComponent(vendor.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`} onClick={onSent} className={small}>
+          Email it
+        </a>
+      )}
+      {vendor?.phone && (
+        <a href={`sms:${vendor.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(body)}`} onClick={onSent} className={small}>
+          Text it
+        </a>
+      )}
+      <button
+        type="button"
+        className={small}
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(body);
+            toast('Message copied: paste it to them');
+          } catch {
+            window.prompt('Copy this message', body);
+          }
+          onSent();
+        }}
+      >
+        Copy
+      </button>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-3">
-      <details className="p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] text-[14px]">
-        <summary className="cursor-pointer font-semibold">How to ask nicely (and get more)</summary>
-        <ul className="m-0 mt-2 pl-5 flex flex-col gap-1 text-[#5b6a52]">
-          {NEGOTIATION_TIPS.map((t) => (
-            <li key={t}>{t}</li>
+      <div className="flex flex-col gap-2">
+        <strong className="text-[15px]">Who would you most like to book?</strong>
+        <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Your favourite">
+          {items.map((x) => (
+            <button
+              key={x.vendorId}
+              type="button"
+              role="radio"
+              aria-checked={x.vendorId === fav}
+              onClick={() => onPrefer(x.vendorId)}
+              className={`py-2 px-3 rounded-full border text-[14px] cursor-pointer ${x.vendorId === fav ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+            >
+              {x.name} · {aud(x.quote.amount)}
+            </button>
           ))}
+        </div>
+      </div>
+
+      {plan && (
+        <article className="flex flex-col gap-3 p-3 sm:p-4 rounded-[14px] border border-[#8a9670] bg-[#f6f8ef]">
+          <div className="flex justify-between items-baseline gap-2 flex-wrap">
+            <strong className="text-[17px]">Your plan for {plan.name}</strong>
+            {saved > 0 && <span className="text-[13px] text-[#3d4a2f] font-semibold">Was {aud(n.quote.before!)}: saved {aud(saved)} so far</span>}
+          </div>
+          <dl className="m-0 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {[
+              ['Their price', aud(plan.price), ''],
+              ['Open with', aud(plan.opening), 'what you ask for first'],
+              ['Aim for', aud(plan.target), 'a realistic result'],
+              ['Your limit', aud(plan.limit), rfq.budget > 0 ? 'your budget' : 'their price now'],
+            ].map(([k, val, sub]) => (
+              <div key={k} className={`flex flex-col p-2 rounded-[10px] ${k === 'Aim for' ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-white border border-[#e2d7bc]'}`}>
+                <dt className="text-[11px] uppercase tracking-[.12em] opacity-80">{k}</dt>
+                <dd className="m-0 font-display text-[24px] leading-tight">{val}</dd>
+                {sub && <span className="text-[11px] opacity-75">{sub}</span>}
+              </div>
+            ))}
+          </dl>
+          <p className="m-0 text-[14px] text-[#5b6a52]">
+            {plan.rival
+              ? `${plan.rival.name} is ${aud((plan.levelled ?? plan.price) - plan.rival.levelled)} cheaper like for like: that’s your strongest card. Ask ${plan.name} to get close to it, without naming who.`
+              : `${plan.name} is already the best value. Aim for about 10% off, or for extras included at the same price.`}
+          </p>
+
+          <div className="flex flex-col gap-2">
+            <strong className="text-[15px]">Your levers, strongest first</strong>
+            <ol className="m-0 pl-5 flex flex-col gap-2 text-[14px]">
+              {plan.levers.map((l) => (
+                <li key={l.key}>
+                  <strong className="font-semibold">{l.title}.</strong> <span className="text-[#5b6a52]">{l.why}</span>
+                  {l.say && <span className="block mt-1 pl-3 border-l-2 border-[#a9b98d] italic">“{l.say}”</span>}
+                </li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <strong className="text-[15px]">Your messages</strong>
+            {quiet && (
+              <span role="status" className="p-2 rounded-[10px] bg-[#fbf3e1] border border-[#ecd9ae] text-[13px]">
+                No reply in {quiet.days} days: time for the follow-up.
+              </span>
+            )}
+            <div role="tablist" className="grid grid-cols-3 gap-1">
+              {(
+                [
+                  ['opener', '1. Ask'],
+                  ['followUp', '2. If they go quiet'],
+                  ['counter', '3. They come part way'],
+                ] as const
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={which === k}
+                  onClick={() => setWhich(k)}
+                  className={`py-2 px-1 rounded-[10px] border text-[12px] sm:text-[13px] cursor-pointer leading-tight ${which === k ? 'bg-white border-[#33402f] font-semibold text-[#33402f]' : 'bg-transparent border-[#d3c6a4] text-[#5b6a52]'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <textarea rows={8} value={text} maxLength={3000} aria-label={`Message to ${plan.name}`} onChange={(e) => setMsgs({ ...msgs, [key]: e.target.value })} className={`${inputCls} w-full`} />
+            {sendBits(text, v, () => onAsked(fav))}
+            {n.askedOn && <span className="text-[12px] text-[#7a7466]">You asked {longDay(n.askedOn)}.</span>}
+          </div>
+
+          {!rfq.closed &&
+            (entering === fav && v ? (
+              <EnterQuote rfq={rfq} vendor={v} was={n.quote} onCancel={() => onEnter(null)} onSave={(q) => onSaveQuote(fav, q)} />
+            ) : (
+              <Pill size="sm" className="self-start" onClick={() => onEnter(fav)}>
+                They came back with a new price
+              </Pill>
+            ))}
+          {!rfq.manual && <span className="text-[12px] text-[#7a7466]">They can also change their price on their own link: it updates here, and you’re emailed.</span>}
+        </article>
+      )}
+
+      {items.length > 1 && (
+        <details className="p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[14px]">
+          <summary className="cursor-pointer font-semibold">The others: what to raise with each (keeps your options open)</summary>
+          <div className="flex flex-col gap-3 mt-2">
+            {items
+              .filter((x) => x.vendorId !== fav)
+              .map((x) => {
+                const ov = list.find((y) => y.id === x.vendorId);
+                const body = msgs[x.vendorId] ?? fill(x.message);
+                return (
+                  <div key={x.vendorId} className="flex flex-col gap-2 pt-2 border-t border-[#efe6d0]">
+                    <span>
+                      <strong>{x.name}</strong> · {aud(x.quote.amount)}
+                      {x.best && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] font-semibold bg-[#dfe5cc] text-[#3d4a2f]">Best value</span>}
+                    </span>
+                    {x.points.length ? (
+                      <ul className="m-0 pl-5 flex flex-col gap-1">
+                        {x.points.map((p) => (
+                          <li key={p.kind}>{p.text}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <span className="text-[#5b6a52]">Nothing stands out: ask if they’d include something extra.</span>
+                    )}
+                    <textarea rows={6} value={body} maxLength={3000} aria-label={`Message to ${x.name}`} onChange={(e) => setMsgs({ ...msgs, [x.vendorId]: e.target.value })} className={`${inputCls} w-full`} />
+                    {sendBits(body, ov, () => onAsked(x.vendorId))}
+                  </div>
+                );
+              })}
+          </div>
+        </details>
+      )}
+
+      <details className="p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] text-[14px]">
+        <summary className="cursor-pointer font-semibold">How to negotiate nicely (and get more)</summary>
+        <ul className="m-0 mt-2 pl-5 flex flex-col gap-1 text-[#5b6a52]">
+          {NEGOTIATION_TIPS.map((tip) => (
+            <li key={tip}>{tip}</li>
+          ))}
+          <li>Never say your limit first. Let them name the new price, then counter between that and your aim.</li>
+          <li>Get any new price in writing (their link, or an email) before you pay a deposit.</li>
         </ul>
       </details>
-      {items.map((n) => {
-        const v = list.find((x) => x.id === n.vendorId)!;
-        const text = msgs[n.vendorId] ?? n.message.replace(/\{couple\}/g, couple);
-        const subject = `Your quote: ${couple}’s wedding`;
-        const saved = n.quote.before !== undefined && n.quote.before > n.quote.amount ? n.quote.before - n.quote.amount : 0;
-        return (
-          <article key={n.vendorId} className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-white">
-            <div className="flex justify-between items-baseline gap-2 flex-wrap">
-              <strong className="text-[16px]">{n.name}</strong>
-              <span className="text-[14px]">
-                <strong>{aud(n.quote.amount)}</strong>
-                {saved > 0 && <span className="ml-2 text-[12px] text-[#3d4a2f] font-semibold">was {aud(n.quote.before!)}, saved {aud(saved)}</span>}
-                {n.best && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] font-semibold bg-[#dfe5cc] text-[#3d4a2f]">Best value</span>}
-              </span>
-            </div>
-            {n.points.length ? (
-              <ul className="m-0 pl-5 flex flex-col gap-1 text-[14px]">
-                {n.points.map((p) => (
-                  <li key={p.kind}>{p.text}</li>
-                ))}
-              </ul>
-            ) : (
-              <span className="text-[14px] text-[#5b6a52]">Already the best value. You can still ask if they’d include something extra.</span>
-            )}
-            <details className="text-[14px]" open={!n.askedOn}>
-              <summary className="cursor-pointer text-[#33402f]">{n.askedOn ? `Asked ${longDay(n.askedOn)}: see the message` : 'The message, ready to send'}</summary>
-              <textarea rows={8} value={text} maxLength={3000} aria-label={`Message to ${n.name}`} onChange={(e) => setMsgs({ ...msgs, [n.vendorId]: e.target.value })} className={`${inputCls} w-full mt-2`} />
-              <div className="flex gap-2 flex-wrap mt-2">
-                {v.email && (
-                  <a href={`mailto:${encodeURIComponent(v.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`} onClick={() => onAsked(n.vendorId)} className={small}>
-                    Email it
-                  </a>
-                )}
-                {v.phone && (
-                  <a href={`sms:${v.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(text)}`} onClick={() => onAsked(n.vendorId)} className={small}>
-                    Text it
-                  </a>
-                )}
-                <button
-                  type="button"
-                  className={small}
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(text);
-                      toast('Message copied: paste it to them');
-                    } catch {
-                      window.prompt('Copy this message', text);
-                    }
-                    onAsked(n.vendorId);
-                  }}
-                >
-                  Copy
-                </button>
-                {!n.askedOn && (
-                  <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]" onClick={() => onAsked(n.vendorId)}>
-                    I asked them another way
-                  </button>
-                )}
-              </div>
-            </details>
-            {!rfq.closed &&
-              (entering === n.vendorId ? (
-                <EnterQuote rfq={rfq} vendor={v} was={n.quote} onCancel={() => onEnter(null)} onSave={(q) => onSaveQuote(n.vendorId, q)} />
-              ) : (
-                <Pill size="sm" className="self-start" onClick={() => onEnter(n.vendorId)}>
-                  They came back with a new price
-                </Pill>
-              ))}
-            {!rfq.manual && n.askedOn && <span className="text-[12px] text-[#7a7466]">They can also change their quote on their own link: it updates here.</span>}
-          </article>
-        );
-      })}
+
       <Pill kind="primary" className="self-start" onClick={onNext}>
         Next: lock it in →
       </Pill>

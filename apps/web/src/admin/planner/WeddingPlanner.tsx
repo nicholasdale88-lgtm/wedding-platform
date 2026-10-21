@@ -23,7 +23,7 @@ import { Vendors } from './Vendors';
 /**
  * The wedding's own section → Wedding planner: everything for planning the day in one place. Overview
  * (days to go, money, who's booked, what's still to book, payments coming up), Budget, Vendors (quotes,
- * comparisons, the finder near the venue) and the planning assistant. ?view= picks the page.
+ * comparisons) and the planning assistant. ?view= picks the page.
  */
 
 type View = 'glance' | 'ideas' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
@@ -242,7 +242,7 @@ function Glance({ go }: { go: (v: View) => void }) {
             <span className="text-[14px] text-[#3d4a2f]">Everything usual is booked ✓</span>
           )}
           <button type="button" onClick={() => go('vendors')} className="self-start mt-1 p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
-            Find vendors near the venue
+            Get quotes from vendors
           </button>
         </section>
 

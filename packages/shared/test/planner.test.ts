@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealWarning, menuFit, servedMeal } from '../src/planner';
-import { beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -431,6 +431,62 @@ describe('quote requests', () => {
     expect(beforeOf({ amount: 1000 }, 900)).toBe(1000);
     expect(beforeOf({ amount: 900, before: 1000 }, 850)).toBe(1000);
     expect(beforeOf({ amount: 900 }, 900)).toBeUndefined();
+  });
+
+  it('follow-ups: automatic reminders four days after sending (sooner near the due date), then after the due date, two at most', () => {
+    const rfq = { closed: false, manual: false, autoFollow: true, due: '2027-03-20' };
+    const rv = { sentOn: '2027-03-01', answeredOn: '', declinedOn: '', followUps: 0, remindedOn: '' };
+    expect(nextFollowUp(rfq, rv)).toBe('2027-03-05');
+    expect(nextFollowUp({ ...rfq, due: '2027-03-04' }, rv)).toBe('2027-03-03'); // the day before it's due
+    expect(nextFollowUp({ ...rfq, due: '2027-03-02' }, rv)).toBe('2027-03-03'); // never sooner than two days in
+    expect(nextFollowUp(rfq, { ...rv, followUps: 1, remindedOn: '2027-03-05' })).toBe('2027-03-21'); // the day after the due date
+    expect(nextFollowUp({ ...rfq, due: '' }, { ...rv, followUps: 1, remindedOn: '2027-03-05' })).toBe('2027-03-10');
+    expect(nextFollowUp(rfq, { ...rv, followUps: 2 })).toBe('');
+    expect(nextFollowUp(rfq, { ...rv, answeredOn: '2027-03-02' })).toBe('');
+    expect(nextFollowUp({ ...rfq, autoFollow: false }, rv)).toBe('');
+    expect(nextFollowUp({ ...rfq, manual: true }, rv)).toBe('');
+    expect(nextFollowUp(rfq, { ...rv, sentOn: '' })).toBe('');
+
+    // Asked for a better price: chase after four days without a new quote.
+    const r = Rfq.parse({ id: 'r', vendors: [{ vendorId: 'x', quoteId: 'qx', negotiatedOn: '2027-03-01' }, { vendorId: 'y', quoteId: 'qy', negotiatedOn: '2027-03-01' }] });
+    const list = [Vendor.parse({ id: 'x', name: 'X', quotes: [{ id: 'qx', date: '2027-02-20', amount: 1 }] }), Vendor.parse({ id: 'y', name: 'Y', quotes: [{ id: 'qy', date: '2027-03-03', amount: 1 }] })];
+    expect(awaitingReply(r, list, '2027-03-04')).toEqual([]);
+    expect(awaitingReply(r, list, '2027-03-06')).toEqual([{ vendorId: 'x', name: 'X', days: 5 }]); // Y came back on the 3rd
+  });
+
+  it('a plan for your preferred vendor: target from the cheaper quote, levers strongest first, messages in order', () => {
+    const rfq = Rfq.parse({
+      id: 'r',
+      budget: 3000,
+      lines: [{ id: 'a', label: 'Bouquet' }, { id: 'b', label: 'Arbour' }, { id: 'c', label: 'Centrepieces' }],
+      vendors: [{ vendorId: 'x', quoteId: 'qx' }, { vendorId: 'y', quoteId: 'qy' }, { vendorId: 'z', quoteId: 'qz' }],
+    });
+    const q = (id: string, lines: [string, number | null][], extra = {}) => ({ id, rfq: 'r', amount: lines.reduce((a, [, n]) => a + (n ?? 0), 0), lines: lines.map(([lid, amount]) => ({ id: lid, amount })), ...extra });
+    const list = [
+      Vendor.parse({ id: 'x', name: 'Bloom', quotes: [q('qx', [['a', 300], ['b', 900], ['c', 700]], { deposit: 200 })] }),
+      Vendor.parse({ id: 'y', name: 'Petal', contact: 'Sam Lee', quotes: [q('qy', [['a', 320], ['b', 1400], ['c', null]], { deposit: 800 })] }),
+      Vendor.parse({ id: 'z', name: 'Fern', quotes: [q('qz', [['a', 310], ['b', 950], ['c', 720]], { deposit: 250 })] }),
+    ];
+    const p = negotiationPlan(rfq, list, 'y', '2027-07-18')!; // a Sunday in July
+    expect(p.rival).toEqual({ name: 'Bloom', levelled: 1900 });
+    expect(p.price).toBe(1720);
+    // Bloom is 530 cheaper like for like (Petal's 2430 includes the centrepieces they left out): aim to match, never below 80%.
+    expect(p.target).toBe(1400);
+    expect(p.opening).toBeLessThanOrEqual(p.target);
+    expect(p.limit).toBe(3000);
+    expect(p.levers.map((l) => l.key)).toEqual(['match', 'lines', 'include', 'commit', 'deposit', 'early', 'date']);
+    expect(p.levers.find((l) => l.key === 'date')!.why).toMatch(/Not a Saturday/);
+    expect(p.messages.opener).toMatch(/^Hi Sam,/);
+    expect(p.messages.opener).toContain('first choice');
+    expect(p.messages.followUp).toContain('following up');
+    expect(p.messages.counter).toContain('$1,400');
+    // The cheapest has no rival: aim for 10% off, ask for extras; a Saturday in October has little room.
+    const b = negotiationPlan(rfq, list, 'x', '2027-10-16')!;
+    expect(b.rival).toBeNull();
+    expect(b.target).toBe(1700);
+    expect(b.levers.map((l) => l.key)).toEqual(['extras', 'commit', 'early', 'date']);
+    expect(b.levers.at(-1)!.title).toMatch(/peak date/);
+    expect(negotiationPlan(rfq, list, 'nobody')).toBeNull();
   });
 
   it('has a standard email for each service, with the link to price it', () => {

@@ -962,6 +962,8 @@ export const RfqVendor = z.object({
   remindedOn: s(10),
   /** When you asked them for a better price (Negotiate). */
   negotiatedOn: s(10),
+  /** Reminders sent so far (by you or automatically): automatic ones stop at FOLLOW_UP.max. */
+  followUps: z.number().int().min(0).max(20).default(0),
   declinedOn: s(10),
   declinedWhy: s(200),
   /** The couple's own ratings, 1 to 5 (unset: not rated), for the weighted score. */
@@ -986,6 +988,10 @@ export const Rfq = z.object({
   closed: z.boolean().default(false),
   /** Filled in by the couple themselves (quotes they already have): nothing is sent unless they choose to. */
   manual: z.boolean().optional(),
+  /** Remind vendors who haven't quoted, by email from the site, on their own (see nextFollowUp). */
+  autoFollow: z.boolean().optional(),
+  /** The vendor you'd most like to book (Negotiate builds its plan around them). */
+  preferred: s(40),
 });
 export type Rfq = z.infer<typeof Rfq>;
 export type RfqLine = z.infer<typeof RfqLine>;
@@ -1164,6 +1170,40 @@ export function tenderRows(t: ReturnType<typeof tenderAnalysis>): (string | numb
   ];
 }
 
+/**
+ * Following up: vendors who haven't quoted are reminded automatically (when the request has it on): four
+ * days after it was sent (sooner when the date you asked for is close), then the day after that date; two
+ * at most. A vendor asked for a better price with no answer after four days is one for you to chase.
+ */
+export const FOLLOW_UP = { first: 4, gap: 3, max: 2, chaseAfter: 4 } as const;
+
+/** When the next automatic reminder goes to this vendor (yyyy-mm-dd), or '' when none will. */
+export function nextFollowUp(rfq: Pick<Rfq, 'closed' | 'manual' | 'autoFollow' | 'due'>, rv: Pick<RfqVendor, 'sentOn' | 'answeredOn' | 'declinedOn' | 'followUps' | 'remindedOn'>): string {
+  if (rfq.closed || rfq.manual || !rfq.autoFollow || !rv.sentOn || rv.answeredOn || rv.declinedOn || rv.followUps >= FOLLOW_UP.max) return '';
+  const max = (a: string, b: string) => (a > b ? a : b);
+  if (rv.followUps === 0) {
+    const d = plusDays(rv.sentOn, FOLLOW_UP.first);
+    return rfq.due && plusDays(rfq.due, -1) < d ? max(plusDays(rv.sentOn, 2), plusDays(rfq.due, -1)) : d;
+  }
+  const last = rv.remindedOn || rv.sentOn;
+  return max(plusDays(last, FOLLOW_UP.gap), rfq.due ? plusDays(rfq.due, 1) : plusDays(last, 5));
+}
+
+/** Vendors you asked for a better price who haven't come back in FOLLOW_UP.chaseAfter days: who, and how long. */
+export function awaitingReply(rfq: Rfq, list: Vendor[], today: string) {
+  if (rfq.closed) return [];
+  const days = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+  return rfq.vendors
+    .map((rv) => {
+      const v = list.find((x) => x.id === rv.vendorId);
+      const q = v?.quotes.find((x) => x.id === rv.quoteId);
+      if (!v || !rv.negotiatedOn || (q && q.date > rv.negotiatedOn)) return null;
+      const waited = days(rv.negotiatedOn, today);
+      return waited >= FOLLOW_UP.chaseAfter ? { vendorId: v.id, name: v.name, days: waited } : null;
+    })
+    .filter((x): x is { vendorId: string; name: string; days: number } => !!x);
+}
+
 /** A quote's first price, kept when a new one replaces it (what negotiating saved). */
 export const beforeOf = (was: Pick<Quote, 'amount' | 'before'> | undefined, amount: number) =>
   was ? (was.before ?? (was.amount && was.amount !== amount ? was.amount : undefined)) : undefined;
@@ -1248,6 +1288,139 @@ export function negotiationPoints(rfq: Rfq, list: Vendor[], today: string) {
       return { vendorId: c.v.id, name: c.v.name, email: c.v.email, phone: c.v.phone, quote: q, levelled: t.totals[i]!.levelled, best: t.bestValue?.id === c.v.id, points, message, askedOn: c.rv.negotiatedOn };
     })
     .filter((x): x is NonNullable<typeof x> => !!x);
+}
+
+/** One way to get a better deal from your preferred vendor: what it is, why it should work here, what to say. */
+export type Lever = { key: string; title: string; why: string; say: string };
+
+/**
+ * A plan to get your preferred vendor's price down, from the quotes you have:
+ * - the numbers: what to open with, what to aim for, and your limit (your budget, else their price now);
+ * - the levers, strongest first: a cheaper like-for-like quote to point to, items priced well above the
+ *   others, asking for things included rather than money off, committing quickly, the deposit, paying
+ *   early, and a quieter date (a Saturday in spring or autumn has least room; a weekday or winter, most);
+ * - the messages, in order: the opening ask, a follow-up when they go quiet, and a counter for when they
+ *   come part of the way.
+ * `weddingDate` is yyyy-mm-dd (the first event), for the date lever. Southern-hemisphere seasons.
+ */
+export function negotiationPlan(rfq: Rfq, list: Vendor[], vendorId: string, weddingDate = '') {
+  const t = tenderAnalysis(rfq, list);
+  const i = t.cols.findIndex((c) => c.v.id === vendorId);
+  const col = t.cols[i];
+  if (!col?.q) return null;
+  const q = col.q;
+  const price = q.amount;
+  const round = (n: number) => Math.round(n / 50) * 50;
+  // Cheaper like-for-like quotes from others: the strongest lever there is.
+  const rivals = t.cols
+    .map((c, j) => ({ c, lv: t.totals[j]!.levelled }))
+    .filter((x) => x.c.v.id !== vendorId && x.c.q && x.lv !== null && x.lv < (t.totals[i]!.levelled ?? price))
+    .sort((a, b) => a.lv! - b.lv!);
+  const rival = rivals[0];
+  const gap = rival ? (t.totals[i]!.levelled ?? price) - rival.lv! : 0;
+  // Aim: meet the cheaper quote (or 10% off when there's none), never below 80% of their price.
+  const target = round(Math.max(price * 0.8, rival ? price - gap : price * 0.9));
+  const opening = round(Math.max(price * 0.75, target - (price - target) * 0.5));
+  const limit = rfq.budget > 0 ? rfq.budget : price;
+  const levers: Lever[] = [];
+  if (rival) {
+    levers.push({
+      key: 'match',
+      title: 'Ask them to match a cheaper quote',
+      why: `You have a quote ${aud0(gap)} lower for the same things. Vendors would rather match than lose a booking.`,
+      say: `We’d love to go with you, but we have another quote that comes in about ${aud0(gap)} lower for the same things. Could you get closer to ${aud0(price - gap)}?`,
+    });
+  }
+  if (!q.package) {
+    const high = t.rows
+      .map((r) => ({ label: r.line.label, p: r.prices[i] ?? null, mid: r.mid, v: r.variance[i] ?? null, n: r.prices.filter((x) => x !== null).length }))
+      .filter((x) => x.p !== null && x.v !== null && x.v >= 15 && x.n > 1)
+      .sort((a, b) => b.v! - a.v!)
+      .slice(0, 2);
+    if (high.length) {
+      const save = high.reduce((a, x) => a + (x.p! - x.mid), 0);
+      levers.push({
+        key: 'lines',
+        title: 'Question the items priced high',
+        why: `${high.map((x) => `${x.label} is ${x.v}% above the typical price`).join('; ')}: about ${aud0(save)} between them.`,
+        say: `Could you look again at ${high.map((x) => x.label.toLowerCase()).join(' and ')}? Others have quoted around ${high.map((x) => aud0(x.mid)).join(' and ')}.`,
+      });
+    }
+    const missing = t.rows.filter((r) => r.prices[i] === null).map((r) => r.line.label.toLowerCase());
+    if (missing.length) {
+      levers.push({
+        key: 'include',
+        title: 'Ask for what’s missing to be included',
+        why: `Their price leaves out ${missing.join(', ')}. Getting it included is worth about ${aud0(t.totals[i]!.levelled! - price)} and is easier for them to say yes to than a discount.`,
+        say: `Would you be able to include ${missing.slice(0, 3).join(', ')} at that price?`,
+      });
+    }
+  }
+  if (!levers.some((l) => l.key === 'include')) {
+    levers.push({
+      key: 'extras',
+      title: 'Ask for more instead of less',
+      why: 'Extras (an extra hour, delivery, set-up, a second person) cost them little and are easier to give than money off.',
+      say: 'If the price has to stay where it is, is there anything you could add, like extra time or set-up included?',
+    });
+  }
+  levers.push({
+    key: 'commit',
+    title: 'Offer to book quickly',
+    why: 'A firm yes this week saves them chasing other couples: a fair trade for a better price.',
+    say: `If we can get to ${aud0(target)}, we’re ready to sign and pay the deposit this week.`,
+  });
+  const deposits = t.cols.filter((c) => c.v.id !== vendorId && c.q && c.q.deposit > 0).map((c) => c.q!.deposit);
+  if (q.deposit > 0 && deposits.length && Math.min(...deposits) <= q.deposit * 0.75) {
+    levers.push({
+      key: 'deposit',
+      title: 'Ask for a smaller deposit',
+      why: `Their deposit is ${aud0(q.deposit)}; others ask from ${aud0(Math.min(...deposits))}.`,
+      say: 'Would a smaller deposit, or paying it in two parts, be possible?',
+    });
+  }
+  levers.push({
+    key: 'early',
+    title: 'Offer to pay more up front',
+    why: 'Money sooner is worth something to a small business. Only if you’re comfortable, and only with a contract.',
+    say: 'Would there be any saving if we paid more of it up front?',
+  });
+  if (weddingDate) {
+    const d = new Date(`${weddingDate}T12:00:00Z`);
+    const day = d.getUTCDay();
+    const month = d.getUTCMonth() + 1;
+    const peakSeason = [3, 4, 9, 10, 11].includes(month);
+    const quiet = day !== 6 || [5, 6, 7, 8].includes(month);
+    levers.push(
+      quiet
+        ? {
+            key: 'date',
+            title: 'Use your quieter date',
+            why: `${day !== 6 ? 'Not a Saturday' : 'Winter'}: there are fewer bookings that day, so they have more room to move.`,
+            say: `As it’s a ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day]} in ${d.toLocaleDateString('en-AU', { month: 'long', timeZone: 'UTC' })}, is there an off-peak rate?`,
+          }
+        : {
+            key: 'date',
+            title: peakSeason ? 'A peak date: lean on the other levers' : 'A Saturday: lean on the other levers',
+            why: 'Saturdays in spring and autumn are their busiest: a discount is less likely, extras and a quick booking work better.',
+            say: '',
+          },
+    );
+  }
+  const hi = col.v.contact.trim().split(/\s+/)[0] || '';
+  const greet = `Hi${hi ? ` ${hi}` : ''},`;
+  const asks = levers.filter((l) => l.say && ['match', 'lines', 'include', 'extras', 'commit'].includes(l.key)).slice(0, 3).map((l) => l.say);
+  const opener = [greet, '', `Thank you so much for your quote. We really love your work and you’re our first choice.`, '', ...asks, '', 'Thanks so much,', '{couple}'].join('\n');
+  const followUp = [greet, '', `Just following up on our message about your quote. We’d love to book you and are keen to decide this week. Is there any room to move on the price, or anything extra you could include?`, '', 'Thanks again,', '{couple}'].join('\n');
+  const counter = [
+    greet,
+    '',
+    `Thank you for coming back to us, we really appreciate it. Could we meet at ${aud0(target)}${!q.package && t.rows.some((r) => r.prices[i] === null) ? ', or keep your new price and include what was left out' : ''}? If so, we’re ready to sign and pay the deposit.`,
+    '',
+    'Thanks so much,',
+    '{couple}',
+  ].join('\n');
+  return { vendorId, name: col.v.name, price, levelled: t.totals[i]!.levelled, target, opening, limit, rival: rival ? { name: rival.c.v.name, levelled: rival.lv! } : null, levers, messages: { opener, followUp, counter } };
 }
 
 /** What "Find vendors" can search for near the venue (OpenStreetMap tags). */

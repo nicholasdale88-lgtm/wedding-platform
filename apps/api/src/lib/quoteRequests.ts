@@ -1,4 +1,6 @@
+import { dateIn, nextFollowUp } from '@wp/shared';
 import type { Env } from '../env';
+import { changeDoc, readDoc } from '../routes/planner';
 import { keepDocument } from '../photos/store';
 import { buttonEmail, emailReady, sendEmail } from './email';
 import { MAX_PLANNER_FILE } from './security';
@@ -107,4 +109,93 @@ export async function tellCouple(env: Env, f: WeddingFacts, subject: string, lin
   } catch {
     /* the quote is saved either way */
   }
+}
+
+/**
+ * Emails a quote request (or a reminder) to these vendors, each with their own private link; replies go to
+ * the couple. Vendors who have answered or said they can't are left out; those without an email are
+ * listed back (to text or copy the link instead). Reminders are counted (automatic ones stop at two).
+ */
+export async function sendRequests(env: Env, weddingId: string, rfqId: string, vendorIds: string[], remindAsked: boolean) {
+  const f = await weddingFacts(env.DB, weddingId);
+  if (!f) return { error: 'not_found', status: 404 as const, message: 'Wedding not found.' };
+  const doc = await readDoc(env.DB, weddingId, 'vendors', '');
+  const rfq = doc.data.rfqs.find((r) => r.id === rfqId);
+  if (!rfq) return { error: 'not_found', status: 404 as const, message: 'That quote request has gone.' };
+  if (rfq.closed) return { error: 'closed', status: 409 as const, message: 'That request is decided: reopen it to send again.' };
+  const replyTo = await ownerEmails(env.DB, weddingId);
+  const sent: string[] = [];
+  const skipped: string[] = [];
+  for (const id of vendorIds) {
+    const rv = rfq.vendors.find((x) => x.vendorId === id);
+    const v = doc.data.list.find((x) => x.id === id);
+    if (!rv || !v || !rv.key || rv.answeredOn || rv.declinedOn) continue;
+    const to = v.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+      skipped.push(id);
+      continue;
+    }
+    const link = requestLink(env, f.w.slug, rv.key);
+    const remind = remindAsked && !!rv.sentOn;
+    const base = fillRequest(rfq.subject || 'Quote request: {couple}', f, rfq.due, link);
+    const subject = remind ? `Reminder: ${base}` : base;
+    const intro = remind ? [`Just a friendly reminder from ${f.couple}: we'd still love your quote${rfq.due ? ` by ${fillRequest('{due}', f, rfq.due, link)}` : ''}. It only takes a couple of minutes, and you can attach your own quote.`, ''] : [];
+    const text = [...intro, fillRequest(rfq.message, f, rfq.due, link)].join('\n');
+    const m = buttonEmail({ heading: remind ? 'A quick reminder' : `A quote request from ${f.couple}`, lines: text.split('\n').filter((l) => l.trim() && !l.includes(link)), button: 'Price it here', link, footer: `Reply to this email to reach ${f.couple}.` });
+    if (await sendEmail(env, { to, subject: subject.slice(0, 200), ...m, replyTo })) sent.push(id);
+    else skipped.push(id);
+  }
+  const today = dateIn(f.w.timezone);
+  if (sent.length) {
+    await changeDoc(env.DB, weddingId, 'vendors', '', (d) => {
+      const r = d.rfqs.find((x) => x.id === rfq.id);
+      if (!r) return false;
+      for (const rv of r.vendors.filter((x) => sent.includes(x.vendorId))) {
+        if (remindAsked && rv.sentOn) {
+          rv.remindedOn = today;
+          rv.followUps += 1;
+        } else rv.sentOn = rv.sentOn || today;
+      }
+      // The quote tracker knows they've been asked, and when the quote is due.
+      for (const v of d.list.filter((x) => sent.includes(x.id))) {
+        if (v.status === 'idea' || v.status === 'contacted') v.status = 'requested';
+        v.askedOn = v.askedOn || today;
+        v.quoteBy = v.quoteBy || r.due;
+        if (remindAsked) v.chasedOn = today;
+      }
+    });
+  }
+  return { sent, skipped };
+}
+
+/**
+ * The cron's follow-ups: every open request with automatic follow-ups on, each vendor whose next reminder
+ * is due (from 9am their time; never twice in a day) is reminded. A few weddings per run.
+ */
+export async function runQuoteFollowUps(env: Env, now = new Date(), limit = 20) {
+  if (!emailReady(env)) return { weddings: 0, sent: 0 };
+  const { results } = await env.DB.prepare(
+    `SELECT d.wedding_id AS id, w.timezone FROM planner_doc d JOIN wedding w ON w.id = d.wedding_id
+      WHERE d.kind = 'vendors' AND d.scope = '' AND w.deleted_at IS NULL AND d.data LIKE '%"autoFollow":true%'`,
+  ).all<{ id: string; timezone: string }>();
+  let sent = 0;
+  let weddings = 0;
+  for (const w of results) {
+    if (weddings >= limit) break;
+    const tz = w.timezone || 'Australia/Sydney';
+    const hour = Number(new Intl.DateTimeFormat('en-AU', { hour: 'numeric', hourCycle: 'h23', timeZone: tz }).format(now));
+    if (hour < 9 || hour >= 20) continue;
+    const today = dateIn(tz, now);
+    const doc = await readDoc(env.DB, w.id, 'vendors', '');
+    let touched = false;
+    for (const rfq of doc.data.rfqs) {
+      const due = rfq.vendors.filter((rv) => rv.remindedOn !== today && (() => { const d = nextFollowUp(rfq, rv); return !!d && d <= today; })()).map((rv) => rv.vendorId);
+      if (!due.length) continue;
+      touched = true;
+      const r = await sendRequests(env, w.id, rfq.id, due, true);
+      if (!('error' in r)) sent += r.sent.length;
+    }
+    if (touched) weddings++;
+  }
+  return { weddings, sent };
 }

@@ -201,9 +201,9 @@ export const HELP: HelpArticle[] = [
     title: 'Getting quotes, comparing, negotiating and booking',
     group: 'Planning',
     steps: [
-      'Get quotes: in Wedding planner → Vendors tap + Get quotes, tap what for, and Send. Each vendor prices it on their own link (or attaches their own quote), and you’re emailed as each lands. Already have quotes? + Enter myself, and type them in.',
+      'Get quotes: in Wedding planner → Vendors tap + Get quotes, tap what for, and Send. Each vendor prices it on their own link (or attaches their own quote), and you’re emailed as each lands. Anyone slow gets a friendly reminder automatically (twice at most). Already have quotes? + Enter myself, and type them in.',
       'Compare: step 2 shows a card per vendor, best value first, like for like (anything left out is counted at the typical price). Check the deposit and when each price runs out, and rate them with the stars.',
-      'Negotiate: step 3 shows what to raise with each vendor (above the best price, items priced high, things left out, a big deposit) with a kind message ready to email, text or copy. When they come back, tap They came back with a new price: you see what you saved.',
+      'Negotiate: step 3 builds a plan for your favourite: what to open with, what to aim for and your limit, the levers that should work (a cheaper quote to match, items priced high, extras instead of money off, booking quickly, a quieter date) and three messages: the ask, a follow-up if they go quiet, and a counter. When they come back, tap They came back with a new price: you see what you saved.',
       'Lock in: step 4 has what to check before you book, then Book. After that: pay the deposit, sign the contract, set when the rest is due, and send the others a thank-you.',
     ],
     also: 'quote request rfq tender price compare comparison email draft manual enter type in myself negotiate discount better deal haggle book lock in deposit contract',

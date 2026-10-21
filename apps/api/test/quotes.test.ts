@@ -4,6 +4,7 @@ import type { Env } from '../src/env';
 import { createApp } from '../src/index';
 import { hashPasscode } from '../src/lib/auth';
 import { buildSeed } from '../src/seed/build';
+import { runQuoteFollowUps } from '../src/lib/quoteRequests';
 import { testD1 } from './support/d1';
 
 /**
@@ -130,6 +131,25 @@ describe('quote requests: send, remind, attach, one total, decline', () => {
     // The page shows what they sent.
     const page = (await (await pub(`?k=${keys.a}`)).json()) as { answer: { package: boolean; amount: number; fileName: string } };
     expect(page.answer).toMatchObject({ package: true, amount: 3900, fileName: 'Lens & Light quote - quote.pdf' });
+  });
+
+  it('follows up automatically: a reminder once it’s due (from 9am their time), never twice a day, counted', async () => {
+    const cur = (await (await call('/doc/vendors')).json()) as { version: number; data: { list: unknown[]; rfqs: { autoFollow?: boolean; vendors: { vendorId: string; sentOn: string }[] }[] } };
+    const rfq = cur.data.rfqs[0]!;
+    rfq.autoFollow = true;
+    for (const rv of rfq.vendors) rv.sentOn = rv.vendorId === 'vb' ? '2027-01-09' : '2027-01-01';
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': String(cur.version) }, body: JSON.stringify(cur.data) })).status).toBe(200);
+    // 3am in Sydney: too early.
+    expect(await runQuoteFollowUps(env, new Date('2027-01-09T16:00:00Z'))).toEqual({ weddings: 0, sent: 0 });
+    // 11am: Lens & Light (sent nine days ago) is reminded; Snap Co (yesterday) not yet; no email for the third.
+    const at = new Date('2027-01-10T00:00:00Z');
+    expect(await runQuoteFollowUps(env, at)).toEqual({ weddings: 1, sent: 1 });
+    expect(mail.map((m) => m.to[0])).toEqual(['hello@lens.example']);
+    expect(mail[0]!.subject).toMatch(/^Reminder: /);
+    const d = (await doc()).data.rfqs[0]!.vendors.find((v) => v.vendorId === 'va')! as unknown as { followUps: number; remindedOn: string };
+    expect(d).toMatchObject({ followUps: 1, remindedOn: '2027-01-10' });
+    // Not twice in a day; the next waits for the day after the due date.
+    expect(await runQuoteFollowUps(env, new Date('2027-01-10T03:00:00Z'))).toEqual({ weddings: 0, sent: 0 });
   });
 
   it('a vendor can say they can’t quote: the couple stop waiting on them, and are told', async () => {
