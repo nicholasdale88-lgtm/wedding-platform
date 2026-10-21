@@ -20,6 +20,7 @@ import { runBackups } from './lib/backup';
 import { runDigests } from './lib/digest';
 import { rfqRoutes } from './routes/rfq';
 import { planRoutes, signupRoutes } from './routes/signup';
+import { billingRoutes, stripeHookRoutes } from './routes/billing';
 import { partyCalendarRoutes } from './routes/partyCalendar';
 import { vendorHubRoutes } from './routes/vendorHub';
 import { purgeExpired } from './lib/rateLimit';
@@ -46,12 +47,15 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   const app = new Hono<{ Bindings: Env }>().basePath('/api');
   app.use('*', hardening());
   app.get('/health', (c) => c.json({ ok: true }));
+  // Stripe signs its own requests: before /hooks, whose ?k= key is for the SMS providers.
+  app.route('/hooks/stripe', stripeHookRoutes());
   app.route('/hooks', hookRoutes(deps));
   // The vendor directory (public) and a vendor's own listing: before the admin's /a routes.
   app.route('/directory', directoryRoutes());
   app.route('/a/vendor', vendorAccountRoutes());
   app.route('/a/signup', signupRoutes());
   app.route('/a', planRoutes());
+  app.route('/a', billingRoutes());
   app.route('/a', authRoutes());
   app.route('/a', accountRoutes());
   app.route('/a/w/:wid/members', memberRoutes());

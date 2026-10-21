@@ -34,6 +34,23 @@ export const PLAN_INFO: Record<Plan, { name: string; price: string }> = {
   complete: { name: 'Deluxe', price: '$35' },
 };
 
+/** The same prices in cents (AUD), for paying by card. Keep these in step with PLAN_INFO and EVENT_ADDON. */
+export const PRICE_CENTS: Record<Plan, number> = { free: 0, essentials: 2800, complete: 3500 };
+export const EVENT_ADDON_CENTS = 3900;
+
+/** What can be bought by card: a plan, or one more event. */
+export type Purchase = 'essentials' | 'complete' | 'event';
+
+/**
+ * What buying `what` costs a wedding on `current`, in cents. Moving from Essentials to Deluxe is only the
+ * difference (they've paid for Essentials already). Null when there's nothing to buy: that plan or better.
+ */
+export function chargeCents(current: Plan, what: Purchase): number | null {
+  if (what === 'event') return EVENT_ADDON_CENTS;
+  if (RANK[current] >= RANK[what]) return null;
+  return PRICE_CENTS[what] - PRICE_CENTS[current];
+}
+
 /** What each locked feature is, in a couple's words (for the Upgrade card). */
 export const FEATURE_LABEL: Record<Feature, string> = {
   unlimitedGuests: 'More than 50 guests',

@@ -160,6 +160,10 @@ export const api = {
   setPrivate: (wid: string, on: boolean) => send<{ ok: true; private: boolean }>('PUT', `${w(wid)}/privacy`, { private: on }),
   /** Ask to upgrade (the platform owner sends a payment link). */
   requestPlan: (wid: string, plan: 'essentials' | 'complete' | 'event') => send<{ ok: true; requested: string }>('POST', `${w(wid)}/plan/request`, { plan }),
+  /** Whether paying by card (Stripe Checkout) is switched on. */
+  planCard: (wid: string) => request<{ on: boolean }>(`${w(wid)}/plan/card`),
+  /** Opens a Stripe Checkout page for a plan or another event; the browser goes to `url` to pay. */
+  checkout: (wid: string, what: 'essentials' | 'complete' | 'event') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what }),
   /** From the front page: a new account and wedding, signed in. */
   signup: (b: { firstName: string; partnerName: string; email: string; passcode: string; date: string; plan: 'free' | 'essentials' | 'complete'; marketing: boolean; website: string }) =>
     send<Me & { weddingId: string }>('POST', '/a/signup', b),
@@ -198,6 +202,8 @@ export interface PagesData {
   invitation: InvitationContent;
   guides: Record<string, GuideContent>;
   texts: Record<string, string>;
+  /** The starting wording's placeholders as guests see them, filled from the events (the date, the venue). */
+  filled?: Record<string, string>;
   samples: { token: string; label: string; invited: string[] }[];
 }
 export interface PageNames {

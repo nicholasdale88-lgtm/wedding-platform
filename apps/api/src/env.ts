@@ -34,6 +34,13 @@ export interface Env {
   /** Email through Resend (lib/email.ts): the API key, and who it's from ("Name <hello@your-domain>"). */
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  /**
+   * Stripe secret key (sk_live_… or sk_test_…), for paying by card (routes/billing.ts). Card payment is on
+   * only when this and STRIPE_WEBHOOK_SECRET are both set; otherwise couples ask for a payment link.
+   */
+  STRIPE_SECRET_KEY?: string;
+  /** Signing secret (whsec_…) of the Stripe webhook pointed at /api/hooks/stripe: it switches plans on once paid. */
+  STRIPE_WEBHOOK_SECRET?: string;
   /** Workers AI, for the planning assistant (bound by the deploy only when the account allows it). */
   AI?: {
     run(model: string, input: unknown): Promise<unknown>;

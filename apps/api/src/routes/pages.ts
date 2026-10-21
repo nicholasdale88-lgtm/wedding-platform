@@ -2,6 +2,7 @@ import { GuideContent, guidesOf, InvitationContent } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { readJson } from '../lib/security';
+import { fillsFor } from '../lib/defaultTexts';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -40,6 +41,7 @@ interface WRow {
   id: string;
   slug: string;
   theme: string;
+  timezone: string;
   name1: string;
   name2: string;
   monogram: string;
@@ -53,12 +55,12 @@ export function pagesRoutes() {
   app.use('*', jsonWritesOnly, requireUser, requireMember());
 
   const load = (c: C) =>
-    c.env.DB.prepare(`SELECT id, slug, theme, name1, name2, monogram, content, guide, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(c.req.param('wid')).first<WRow>();
+    c.env.DB.prepare(`SELECT id, slug, theme, timezone, name1, name2, monogram, content, guide, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(c.req.param('wid')).first<WRow>();
 
   async function payload(c: C, w: WRow) {
     const db = c.env.DB;
     const [events, people] = await db.batch([
-      db.prepare(`SELECT key, name FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w.id),
+      db.prepare(`SELECT key, name, starts_at, venue FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w.id),
       db.prepare(
         `SELECT i.token,
                 (SELECT GROUP_CONCAT(name, ' & ') FROM (SELECT name FROM person WHERE invitation_id = i.id AND deleted_at IS NULL ORDER BY idx)) AS names,
@@ -68,7 +70,8 @@ export function pagesRoutes() {
           ORDER BY names LIMIT 500`,
       ).bind(w.id),
     ]);
-    const evs = events!.results as { key: string; name: string }[];
+    const rows = events!.results as { key: string; name: string; starts_at: string; venue: string | null }[];
+    const evs = rows.map(({ key, name }) => ({ key, name }));
     const content = parse<Record<string, unknown>>(w.content, {});
     const inv = InvitationContent.safeParse(content.invitation ?? {});
     return {
@@ -82,6 +85,8 @@ export function pagesRoutes() {
       // The secret preview code (Setup → Share a preview), admins only.
       share: c.get('role') !== 'viewer' && typeof content.previewShare === 'string' ? content.previewShare : null,
       texts: (content.texts as Record<string, string> | undefined) ?? {},
+      // The starting wording's placeholders as guests see them, filled from the events (the date, the venue).
+      filled: fillsFor({ tz: w.timezone, events: rows, rsvpClose: inv.success ? inv.data.rsvpClose : undefined }),
       // Previewing as a real guest uses their link: owners and editors only.
       samples: (c.get('role') === 'viewer' ? [] : (people!.results as { token: string; names: string; invited: string | null }[])).map((r) => ({
         token: r.token,

@@ -17,7 +17,7 @@ const words = (s: string) => /[\p{L}\p{N}]/u.test(s);
 const keysOf = (s: Sentence) => s.pieces.flatMap((p) => ('key' in p ? [p.key] : []));
 const humanKey = (k: string) => fillName(k.split('.').pop() ?? k);
 
-export function Wording({ n, prefix, texts, onChange }: { n: number; prefix: string; texts: Record<string, string>; onChange: (key: string, value: string) => void }) {
+export function Wording({ n, prefix, texts, filled = {}, onChange }: { n: number; prefix: string; texts: Record<string, string>; filled?: Record<string, string>; onChange: (key: string, value: string) => void }) {
   const [q, setQ] = useState('');
   const [onlyMine, setOnlyMine] = useState(false);
   // The [placeholders] in the starting wording (the venue, the date) still to be replaced with their own.
@@ -33,7 +33,8 @@ export function Wording({ n, prefix, texts, onChange }: { n: number; prefix: str
     };
   }, [prefix]);
 
-  const val = (k: string) => texts[k] ?? ORIGINAL[k] ?? '';
+  // What guests read: their own words, else the starting wording with its placeholders filled in from the events.
+  const val = (k: string) => texts[k] ?? filled[k] ?? ORIGINAL[k] ?? '';
   const changed = (k: string) => ORIGINAL[k] !== undefined && texts[k] !== undefined && texts[k] !== ORIGINAL[k];
 
   // Every sentence on the page, then the per-guest sentences and anything the page didn't place.
