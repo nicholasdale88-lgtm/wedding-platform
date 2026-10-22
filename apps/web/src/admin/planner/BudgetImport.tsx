@@ -68,7 +68,7 @@ export function BudgetImport({ budget, prominent, onDone }: { budget: BudgetDoc;
   return (
     <section aria-label="Bring in a spreadsheet" className={`flex flex-col gap-3 p-4 rounded-[16px] border ${prominent || found ? 'border-[#8a9670] bg-[#f3f6ea]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}>
       <div className="flex justify-between items-center gap-3 flex-wrap">
-        <span className="min-w-0 flex-1">
+        <span className="w-full lg:w-auto lg:flex-1 min-w-0">
           <strong className="block text-[16px]">Keeping your budget in a spreadsheet?</strong>
           <span className="text-[13px] text-[#5b6a52]">Bring it in: your booked vendors and their payment schedules, the budget lines and your savings. Run it again whenever the spreadsheet changes.</span>
         </span>
