@@ -2,6 +2,7 @@ import { BUDGET_SPLIT, dateIn, moneyOf, savingsPlan, splitOf, standardLines, wit
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { useUnsavedChanges } from '../leave';
+import { BudgetImport } from './BudgetImport';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
@@ -144,6 +145,8 @@ export function Budget() {
           {saving ? 'Saving…' : dirty ? 'Save budget' : 'Saved'}
         </Pill>
       </header>
+
+      <BudgetImport budget={b} prominent={!b.lines.some((l) => l.quote || l.paid)} onDone={load} />
 
       <section aria-label="Totals" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <label className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">

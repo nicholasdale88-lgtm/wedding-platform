@@ -904,6 +904,9 @@ const KIND_CATEGORY: Record<string, string> = {
   Cake: 'Cake',
 };
 
+/** The budget category for a kind of supplier (a BOOKING_TIMELINE "what"); 'Other' when unknown. */
+export const budgetCategoryOf = (kind: string) => KIND_CATEGORY[kind] ?? 'Other';
+
 /**
  * Put a booked vendor in the budget: on line `at` (their name on it, and their contract as its quote), or,
  * with `at` -1, on a line of their own (its estimate is what they cost, in their kind's category).
@@ -911,8 +914,7 @@ const KIND_CATEGORY: Record<string, string> = {
 export function linkToBudget(v: Vendor, lines: BudgetLine[], at: number): BudgetLine[] {
   const cost = commitmentOf(v).amount;
   if (at >= 0 && lines[at]) return lines.map((l, i) => (i === at ? { ...l, vendor: v.name, quote: cost || l.quote } : l));
-  const kind = vendorKind(v) ?? '';
-  const category = KIND_CATEGORY[kind] ?? 'Other';
+  const category = budgetCategoryOf(vendorKind(v) ?? '');
   return [...lines, { category, item: v.category || v.name, estimate: cost, quote: cost, paid: 0, due: '', vendor: v.name, note: '', payer: '', perHead: 0 }];
 }
 
