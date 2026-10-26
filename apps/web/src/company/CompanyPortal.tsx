@@ -1,6 +1,8 @@
 import '@fontsource/cormorant-garamond/400.css';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { Login } from '../admin/Login';
+import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { api, companyApi, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyWedding } from '../lib/api';
 
 /**
@@ -56,6 +58,8 @@ export function CompanyPortal() {
   };
 
   if (who === 'loading') return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
+  // Signed out: the one sign-in, right here; the company's account lands straight in the portal.
+  if (who === 'out') return <Login onSignedIn={(m) => setWho(m.user.superAdmin ? 'yes' : 'no')} />;
   if (who !== 'yes')
     return (
       <main className="min-h-screen bg-[#f6f0e2] flex items-center justify-center p-6 text-center" style={{ color: INK, fontFamily: sans }}>
@@ -63,9 +67,9 @@ export function CompanyPortal() {
           <h1 className="m-0 text-[32px] font-normal" style={{ fontFamily: serif }}>
             Company portal
           </h1>
-          <p className="m-0 text-[16px]">{who === 'out' ? 'Sign in first, with the company’s account.' : 'This page is for the company only.'}</p>
-          <Link to="/admin" className="self-center py-[10px] px-5 rounded-full no-underline !text-[#fbf8f2]" style={{ background: INK }}>
-            {who === 'out' ? 'Sign in' : 'Back to your wedding'}
+          <p className="m-0 text-[16px]">This page is for the people who run the site. Your account can go to:</p>
+          <Link to="/admin?choose=1" className="self-center py-[10px] px-5 rounded-full no-underline !text-[#fbf8f2]" style={{ background: INK }}>
+            Your places
           </Link>
         </div>
       </main>
@@ -78,9 +82,7 @@ export function CompanyPortal() {
           <span className="text-[24px]" style={{ fontFamily: serif }}>
             Company portal
           </span>
-          <Link to="/admin" className="text-[13px] underline !text-[#f3ecd6]">
-            Back to admin
-          </Link>
+          <ProfileSwitch here="company" />
         </div>
         <nav aria-label="Company" className="max-w-[1100px] mx-auto flex gap-1 overflow-x-auto [scrollbar-width:none] mt-2 -mx-1 px-1">
           {TABS.map(([k, label]) => (

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
-import { coupleName } from '../lib/remember';
 import { GuestPlanningBar } from './GuestPlanning';
 import { Guests } from './Guests';
 import { Join } from './Join';
@@ -20,6 +19,7 @@ import { SmsTab } from './texts/SmsTab';
 import { Messages } from './messages/Messages';
 import { ACCOUNT, ALL_EVENTS, AdminDataProvider, lastSection, Shell, TABS, useAdmin } from './Shell';
 import { Eyebrow, Loading, Pill, ToastProvider } from './ui';
+import { lastPlace, placesOf, rememberPlace } from '../lib/places';
 
 type State = { kind: 'loading' } | { kind: 'signed-out' } | { kind: 'signed-in'; me: Me } | { kind: 'error'; message: string };
 
@@ -72,7 +72,7 @@ export function AdminRoot() {
   return (
     <ToastProvider>
       <Routes>
-        <Route index element={me.weddings.length === 1 ? <Navigate to={me.weddings[0]!.id} replace /> : <WeddingPicker me={me} onSignOut={signOut} />} />
+        <Route index element={<Places me={me} onSignOut={signOut} />} />
         <Route path=":wid" element={<Remembered />} />
         <Route path=":wid/:tab" element={<OldAddress />} />
         <Route path=":wid/:section/:tab" element={<WeddingAdmin me={me} onSignedOut={signedOut} onSignOut={signOut} />} />
@@ -103,6 +103,7 @@ const PLANNER_VIEWS = new Set<string>(['budget', 'vendors', 'assistant']);
 
 function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () => void; onSignOut: () => void }) {
   const { wid = '', section = ACCOUNT, tab = 'overview' } = useParams();
+  useEffect(() => rememberPlace(`w:${wid}`), [wid]);
   if (!me.weddings.some((w) => w.id === wid)) return <Navigate to="/admin" replace />;
   return (
     <AdminDataProvider wid={wid} section={section} onSignedOut={onSignedOut}>
@@ -187,20 +188,46 @@ function Planning({ children }: { children: ReactNode }) {
   );
 }
 
-function WeddingPicker({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
+/**
+ * Where to, after signing in: every place this account can go (each wedding, the company portal, a vendor
+ * listing). One place, or the one last chosen on this device: straight there (?choose=1 always asks).
+ */
+function Places({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
+  const { search } = useLocation();
+  const places = placesOf(me);
+  const choose = new URLSearchParams(search).get('choose') === '1';
+  const last = places.find((p) => p.key === lastPlace());
+  const straight = places.length === 1 ? places[0] : !choose ? last : undefined;
+  if (straight) return <Navigate to={straight.to} replace />;
+  const first = me.user.email.split('@')[0] ?? '';
   return (
-    <main className="min-h-screen p-6 max-w-[1180px] mx-auto">
-      <Eyebrow>Signed in as {me.user.email}</Eyebrow>
-      <h1 className="mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Your weddings</h1>
-      <ul className="list-none p-0 mt-4 flex flex-col">
-        {me.weddings.map((w) => (
-          <li key={w.id} className="py-3 border-t border-[#e2d7bc]">
-            <Link to={w.id} className="font-script text-[30px] leading-[1.15] no-underline !text-[#33402f]">{coupleName(w)}</Link>
+    <main className="min-h-screen p-6 max-w-[720px] mx-auto flex flex-col gap-5">
+      <div>
+        <Eyebrow>Signed in as {me.user.email}</Eyebrow>
+        <h1 className="mt-[6px] mb-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Where to{first ? `, ${first}` : ''}?</h1>
+        <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">One sign-in for everything. Switch any time from the top of each page.</p>
+      </div>
+      <ul className="list-none m-0 p-0 flex flex-col gap-3">
+        {places.map((p) => (
+          <li key={p.key}>
+            <Link
+              to={p.to}
+              onClick={() => rememberPlace(p.key)}
+              className="flex justify-between items-center gap-4 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] no-underline !text-[#33402f] hover:border-[#33402f]"
+            >
+              <span className="flex flex-col min-w-0">
+                <span className={p.kind === 'wedding' ? 'font-script text-[30px] leading-[1.15]' : 'font-display text-[26px] leading-[1.15]'}>{p.title}</span>
+                <span className="text-[14px] text-[#5b6a52]">{p.detail}</span>
+              </span>
+              <span aria-hidden className="text-[22px]">
+                →
+              </span>
+            </Link>
           </li>
         ))}
-        {me.weddings.length === 0 && <li className="py-3 border-t border-[#e2d7bc] text-[#5b6a52]">No weddings on this account yet.</li>}
+        {!places.length && <li className="p-4 rounded-[16px] border border-[#e2d7bc] text-[#5b6a52]">Nothing on this account yet. Start a wedding from the front page, or ask whoever invited you for a new link.</li>}
       </ul>
-      <Pill onClick={onSignOut} className="mt-4">
+      <Pill onClick={onSignOut} className="self-start">
         Sign out
       </Pill>
     </main>

@@ -69,7 +69,12 @@ export async function me(env: Env, user: SessionUser) {
   )
     .bind(user.id)
     .all<{ id: string; slug: string; name1: string; name2: string; role: Role }>();
-  return { user: { id: user.id, email: user.email, superAdmin: user.superAdmin }, weddings: results };
+  // Their vendor listing, if they have one: one sign-in reaches it too.
+  const vendor = await env.DB.prepare(`SELECT slug, name FROM vendor_listing WHERE user_id = ? ORDER BY created_at LIMIT 1`)
+    .bind(user.id)
+    .first<{ slug: string; name: string }>()
+    .catch(() => null);
+  return { user: { id: user.id, email: user.email, superAdmin: user.superAdmin }, weddings: results, vendor: vendor ?? null };
 }
 
 /** Start a session for this user (a cookie with a random token; only its HMAC is stored) and note the sign-in. */

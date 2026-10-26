@@ -47,6 +47,8 @@ export type Role = 'owner' | 'editor' | 'viewer';
 export interface Me {
   user: { id: string; email: string; superAdmin: boolean };
   weddings: { id: string; slug: string; name1: string; name2: string; role: Role }[];
+  /** Their vendor listing (the directory), when they have one. */
+  vendor?: { slug: string; name: string } | null;
 }
 
 export interface EventInfo {

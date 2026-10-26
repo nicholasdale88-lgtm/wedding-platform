@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { themeOf } from '../guest/themeKit';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
+import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { coupleName } from '../lib/remember';
 import { DEFAULT_LOOK, lookVars } from './AdminLook';
 import { confirmLeave, LeaveGuard } from './leave';
@@ -285,7 +286,7 @@ function MobileTabs({ tab, section, children }: { tab: string; section: string; 
 
 /** design/RSVP Admin.dc.html shell: 236px sidebar #33402f; under 760px a sticky top bar with scrolling nav pills. */
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
-  const { overview: o, event, path } = useAdmin();
+  const { wid, overview: o, event, path } = useAdmin();
   const mob = useMedia('(max-width: 759px)');
   const name = o ? o.wedding.adminName.trim() || coupleName(o.wedding) : '';
   const signOut = () => {
@@ -345,7 +346,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
             <Link to={path('help', ALL_EVENTS)} className="text-[12px] underline !text-[#cfd8bb]">
               Help
             </Link>
-            <CompanyLink className="text-[12px] underline !text-[#cfd8bb]" />
+            <ProfileSwitch here={`w:${wid}`} />
             <button onClick={signOut} className="p-0 border-0 bg-transparent text-[#cfd8bb] text-[12px] underline cursor-pointer">
               Sign out
             </button>
@@ -422,7 +423,7 @@ const ICON: Record<string, ReactNode> = {
  * section's colours straight away (the birthday turns it blue), before you open one of its pages.
  */
 function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
-  const { path, overview: o } = useAdmin();
+  const { wid, path, overview: o } = useAdmin();
   const { groups, current, tab } = useSections();
   const go = useNavigate();
   const [picked, setPicked] = useState(current.key);
@@ -511,7 +512,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
             <p className="m-0 text-[14px] text-[#5b6a52]">Nothing here yet.</p>
           )}
         </div>
-        <CompanyLink className="self-center text-[14px] underline !text-[#33402f]" />
+        <ProfileSwitch here={`w:${wid}`} tone="light" />
         <Pill onClick={onSignOut} className="self-stretch">
           Sign out
         </Pill>
@@ -562,22 +563,3 @@ export function useSectionName(): string {
   return overview?.events.find((e) => e.key === event)?.name ?? 'Account';
 }
 
-/** Whether the person signed in runs the company (a super admin): asked once per visit. */
-let superCache: Promise<boolean> | null = null;
-/** The company portal (/company), for the platform owner only. */
-function CompanyLink({ className }: { className: string }) {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    superCache ??= api.me().then((m) => !!m.user.superAdmin, () => false);
-    let live = true;
-    void superCache.then((v) => live && setOn(v));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return on ? (
-    <Link to="/company" className={className}>
-      Company portal
-    </Link>
-  ) : null;
-}

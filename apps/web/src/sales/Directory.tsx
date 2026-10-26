@@ -1,6 +1,7 @@
 import { regionOf, REGIONS, VENDOR_SEARCH, type Listing, type ListingCard, type ListingFields } from '@wp/shared';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { api, ApiError, directoryApi, type MyListing } from '../lib/api';
 import { BRAND } from './SalesPage';
 
@@ -41,6 +42,7 @@ function Frame({ children, title }: { children: ReactNode; title: string }) {
           <Link to="/vendors/me" className="no-underline" style={{ color: INK }}>
             Vendor sign-in
           </Link>
+          <ProfileSwitch here="vendor" tone="light" />
           <Link to="/vendors/join" className="py-[9px] px-4 rounded-full no-underline" style={{ background: INK, color: '#fbf8f2' }}>
             List your business
           </Link>

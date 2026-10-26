@@ -42,6 +42,19 @@ const renderAt = (path: string) => {
 };
 
 describe('admin shell', () => {
+  it('one sign-in, then where to: each wedding, the company portal and a vendor listing; the last choice opens next time', async () => {
+    localStorage.clear();
+    const me = { ...ME, user: { ...ME.user, superAdmin: true }, vendor: { slug: 'wild-flowers', name: 'Wild Flowers' } };
+    mockApi({ '/api/a/me': () => json(200, me) });
+    renderAt('/admin');
+    expect(await screen.findByRole('heading', { name: /^Where to/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Alex & Blair/ })).toHaveAttribute('href', '/admin/w1');
+    expect(screen.getByRole('link', { name: /Company portal/ })).toHaveAttribute('href', '/company');
+    expect(screen.getByRole('link', { name: /Wild Flowers/ })).toHaveAttribute('href', '/vendors/me');
+    await userEvent.click(screen.getByRole('link', { name: /Alex & Blair/ }));
+    expect(localStorage.getItem('wp-place')).toBe('w:w1');
+  });
+
   it('opens straight to the only wedding, with the couple name, nav badges, events and days to go', async () => {
     mockApi();
     renderAt('/admin');

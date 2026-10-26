@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, type Me } from '../lib/api';
+import { resetMeCache } from '../lib/ProfileSwitch';
 import { coupleName, readLast, writeLast } from '../lib/remember';
 
 /** Pill input, verbatim from the design's passcode field. */
@@ -44,6 +45,7 @@ export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
     setError('');
     try {
       const me = await api.login(email, passcode);
+      resetMeCache(); // the switcher in each header asks again, as this account
       const w = me.weddings[0];
       writeLast({ email: me.user.email, name: w ? coupleName(w) : (last?.name ?? '') });
       onSignedIn(me);
