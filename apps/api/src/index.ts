@@ -19,7 +19,7 @@ import { runCopies } from './photos/store';
 import { runBackups } from './lib/backup';
 import { runDigests } from './lib/digest';
 import { runQuoteFollowUps } from './lib/quoteRequests';
-import { companyRoutes, siteRoutes } from './routes/company';
+import { companyRoutes, feedbackRoutes, siteRoutes } from './routes/company';
 import { rfqRoutes } from './routes/rfq';
 import { planRoutes, signupRoutes } from './routes/signup';
 import { billingRoutes, stripeHookRoutes } from './routes/billing';
@@ -63,6 +63,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a', authRoutes());
   app.route('/a', accountRoutes());
   app.route('/a/w/:wid/members', memberRoutes());
+  app.route('/a/w/:wid/feedback', feedbackRoutes());
   app.route('/a/w/:wid/pages', pagesRoutes());
   app.route('/a/w/:wid/texts', textRoutes(deps));
   app.route('/a/w/:wid/messages', messageRoutes(deps));

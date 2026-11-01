@@ -103,4 +103,54 @@ describe('company portal', () => {
     const stats = (await (await call('/a/company/stats', {}, boss.cookie)).json()) as { revenue: { payments: number } };
     expect(stats.revenue.payments).toBe(1);
   });
+  it('a plan request: email the payment link, then mark it paid (switched on, money counted); or clear it', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const a = await signup('Alex', 'alex@example.com');
+    const slug = (await t.db.prepare(`SELECT slug FROM wedding WHERE id = ?`).bind(a.wid).first<{ slug: string }>())!.slug;
+    expect((await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, boss.cookie)).status).toBe(400); // no request yet
+    expect((await call(`/a/w/${a.wid}/plan/request`, { method: 'POST', body: JSON.stringify({ plan: 'complete' }) }, a.cookie)).status).toBe(200);
+    // No payment link saved yet: told where to add one.
+    const noLink = await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, boss.cookie);
+    expect(noLink.status).toBe(400);
+    expect((await call('/a/company/settings', { method: 'PUT', body: JSON.stringify({ paymentLinks: { complete: 'http://pay.example.com' } }) }, boss.cookie)).status).toBe(400);
+    expect((await call('/a/company/settings', { method: 'PUT', body: JSON.stringify({ paymentLinks: { complete: 'https://buy.stripe.com/deluxe' } }) }, boss.cookie)).status).toBe(200);
+    // The public settings never show the payment links.
+    expect(JSON.stringify(await (await call('/site')).json())).not.toContain('stripe');
+    expect((await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, a.cookie)).status).toBe(403);
+    const sent = (await (await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, boss.cookie)).json()) as { emailed: boolean; email: string; link: string; cents: number };
+    expect(sent).toEqual({ ok: true, emailed: false, email: 'alex@example.com', link: 'https://buy.stripe.com/deluxe', cents: 3500 });
+    let row = ((await (await call('/a/company/weddings?requests=1', {}, boss.cookie)).json()) as { weddings: { requested: string; linkSentAt: string; paidCents: number }[] }).weddings[0]!;
+    expect(row.requested).toBe('complete');
+    expect(row.linkSentAt).not.toBe('');
+    expect((await call(`/a/company/weddings/${slug}/paid`, { method: 'POST', body: JSON.stringify({ what: 'complete', cents: 3500 }) }, boss.cookie)).status).toBe(200);
+    expect((await t.db.prepare(`SELECT plan FROM wedding WHERE id = ?`).bind(a.wid).first<{ plan: string }>())!.plan).toBe('complete');
+    row = ((await (await call('/a/company/weddings?q=alex', {}, boss.cookie)).json()) as { weddings: { requested: string; linkSentAt: string; paidCents: number }[] }).weddings[0]!;
+    expect(row).toMatchObject({ requested: '', linkSentAt: '', paidCents: 3500 });
+    const stats = (await (await call('/a/company/stats', {}, boss.cookie)).json()) as { revenue: { total: number; payments: number }; requests: number };
+    expect(stats.revenue).toMatchObject({ total: 3500, payments: 1 });
+    expect(stats.requests).toBe(0);
+    // Not now: clears an extra-event request without changing anything.
+    await call(`/a/w/${a.wid}/plan/request`, { method: 'POST', body: JSON.stringify({ plan: 'event' }) }, a.cookie);
+    expect((await call(`/a/company/weddings/${slug}/plan`, { method: 'PUT', body: JSON.stringify({ extraEvents: 0 }) }, boss.cookie)).status).toBe(200);
+    expect(((await (await call('/a/company/stats', {}, boss.cookie)).json()) as { requests: number }).requests).toBe(0);
+  });
+
+  it('feedback: any member sends it; only the company reads it; planned notes show to every couple, never anyone’s words', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const a = await signup('Alex', 'alex@example.com');
+    const b = await signup('Bea', 'bea@example.com');
+    expect((await call(`/a/w/${a.wid}/feedback`, { method: 'POST', body: JSON.stringify({ kind: 'idea', text: 'Bigger rooms for seating' }) })).status).toBe(401);
+    expect((await call(`/a/w/${a.wid}/feedback`, { method: 'POST', body: JSON.stringify({ kind: 'idea', text: 'Bigger rooms for seating' }) }, b.cookie)).status).toBe(404); // not Bea's wedding
+    expect((await call(`/a/w/${a.wid}/feedback`, { method: 'POST', body: JSON.stringify({ kind: 'idea', text: 'x' }) }, a.cookie)).status).toBe(400);
+    expect((await call(`/a/w/${a.wid}/feedback`, { method: 'POST', body: JSON.stringify({ kind: 'idea', text: 'Bigger rooms for seating', page: 'help' }) }, a.cookie)).status).toBe(200);
+    expect((await call('/a/company/feedback', {}, a.cookie)).status).toBe(403);
+    const list = (await (await call('/a/company/feedback', {}, boss.cookie)).json()) as { feedback: { id: string; text: string; names: string; email: string; status: string }[]; counts: Record<string, number> };
+    expect(list.counts).toEqual({ new: 1 });
+    expect(list.feedback[0]).toMatchObject({ text: 'Bigger rooms for seating', email: 'alex@example.com', status: 'new' });
+    expect((await call(`/a/company/feedback/${list.feedback[0]!.id}`, { method: 'PUT', body: '{}' }, boss.cookie)).status).toBe(400);
+    expect((await call(`/a/company/feedback/${list.feedback[0]!.id}`, { method: 'PUT', body: JSON.stringify({ status: 'planned', note: 'Seating: room sizes up to 4x' }) }, boss.cookie)).status).toBe(200);
+    const updates = (await (await call(`/a/w/${b.wid}/feedback/updates`, {}, b.cookie)).json()) as { updates: { text: string; done: boolean }[] };
+    expect(updates.updates).toEqual([{ text: 'Seating: room sizes up to 4x', done: false, at: expect.any(String) }]);
+    expect(JSON.stringify(updates)).not.toContain('Bigger rooms');
+  });
 });

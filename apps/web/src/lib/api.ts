@@ -853,14 +853,16 @@ export interface CompanyStats {
   referrals: { ref: string; n: number; paid: number }[];
   optIns: number;
 }
-export interface CompanyWedding { id: string; slug: string; names: string; plan: string; createdAt: string; requested: string; extraEvents: number; ref: string; day: string; guests: number; email: string }
+export interface CompanyWedding { id: string; slug: string; names: string; plan: string; createdAt: string; requested: string; requestedAt: string; linkSentAt: string; paidCents: number; extraEvents: number; ref: string; day: string; guests: number; email: string }
 export interface CompanyListing { id: string; slug: string; name: string; category: string; region: string; email: string; hidden: boolean; created_at: string; enquiries: number }
 export interface CompanySettings {
   social: { instagram: string; tiktok: string; facebook: string; pinterest: string; youtube: string };
   supportEmail: string;
   banner: { on: boolean; text: string; link: string };
   madeWith: boolean;
+  paymentLinks: { essentials: string; complete: string; event: string };
 }
+export interface CompanyFeedback { id: string; kind: 'idea' | 'problem' | 'love'; text: string; page: string; status: 'new' | 'planned' | 'done' | 'not_now'; note: string; createdAt: string; names: string; slug: string; email: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
 export const companyApi = {
   stats: () => request<CompanyStats>('/a/company/stats'),
@@ -872,5 +874,14 @@ export const companyApi = {
   saveSettings: (s: CompanySettings) => send<CompanySettings>('PUT', '/a/company/settings', s),
   promos: () => request<{ codes: CompanyPromo[] }>('/a/company/promos'),
   savePromos: (codes: CompanyPromo[]) => send<{ codes: CompanyPromo[] }>('PUT', '/a/company/promos', { codes }),
+  sendLink: (slug: string) => send<{ ok: true; emailed: boolean; email: string; link: string; cents: number }>('POST', `/a/company/weddings/${encodeURIComponent(slug)}/send-link`, {}),
+  markPaid: (slug: string, what: 'essentials' | 'complete' | 'event', cents: number) => send<{ ok: true }>('POST', `/a/company/weddings/${encodeURIComponent(slug)}/paid`, { what, cents }),
+  feedback: () => request<{ feedback: CompanyFeedback[]; counts: Record<string, number> }>('/a/company/feedback'),
+  setFeedback: (id: string, body: { status?: CompanyFeedback['status']; note?: string }) => send<{ ok: true }>('PUT', `/a/company/feedback/${encodeURIComponent(id)}`, body),
   optInsUrl: '/api/a/company/optins.csv',
+};
+/** Help → Tell us: a couple's idea, problem or love note, and what's planned from everyone's. */
+export const feedbackApi = {
+  send: (wid: string, body: { kind: 'idea' | 'problem' | 'love'; text: string; page?: string }) => send<{ ok: true }>('POST', `/a/w/${encodeURIComponent(wid)}/feedback`, body),
+  updates: (wid: string) => request<{ updates: { text: string; done: boolean; at: string }[] }>(`/a/w/${encodeURIComponent(wid)}/feedback/updates`),
 };

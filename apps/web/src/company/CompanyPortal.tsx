@@ -3,17 +3,22 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
-import { api, companyApi, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyWedding } from '../lib/api';
+import { chargeCents, planOf } from '@wp/shared';
+import { api, companyApi, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyWedding } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
- * - Overview: sign-ups (this week, this month, a 12-week chart), plans, money taken, plan requests
- *   waiting, guests and replies, the vendor directory, quote requests.
- * - Weddings: find any wedding (names, address, email); plan requests first; set a plan or extra events.
+ * - Overview: what needs doing first (plan requests, new feedback), then sign-ups (this week, this month,
+ *   a 12-week chart), plans, money taken, guests and replies, the vendor directory, quote requests.
+ * - Couples: find any wedding (names, address, email); plan requests first, each with its two steps:
+ *   email the payment link, then mark it paid (switched on, and the money counted in Overview).
+ * - Feedback: what couples told us (Help → Tell us): new → planned → done, or not now. A note on a
+ *   planned or done one shows to every couple under "Coming from your feedback".
  * - Promote: promo codes (made here, used when couples pay), the front-page banner, campaign links and
  *   where sign-ups came from, ready-to-post social captions, and the marketing list (who said yes to news).
  * - Vendors: the directory's listings, hide or show.
- * - Settings: social links (shown on the front page), the support email, the "Made with" link on guest pages.
+ * - Settings: payment links (emailed for plan requests), social links (shown on the front page), the
+ *   support email, the "Made with" link on guest pages.
  */
 
 const INK = '#33402f';
@@ -28,7 +33,8 @@ const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en-AU', { 
 const PLAN_NAME: Record<string, string> = { free: 'Free', essentials: 'Essentials', complete: 'Deluxe', trial: 'Founders (everything)' };
 const TABS = [
   ['overview', 'Overview'],
-  ['weddings', 'Weddings'],
+  ['weddings', 'Couples'],
+  ['feedback', 'Feedback'],
   ['promote', 'Promote'],
   ['vendors', 'Vendors'],
   ['settings', 'Settings'],
@@ -101,6 +107,7 @@ export function CompanyPortal() {
       <main className="max-w-[1100px] mx-auto px-4 py-5 pb-24 flex flex-col gap-4">
         {tab === 'overview' && <Overview onGo={go} />}
         {tab === 'weddings' && <Weddings onNote={setNote} />}
+        {tab === 'feedback' && <Feedback onNote={setNote} />}
         {tab === 'promote' && <Promote onNote={setNote} />}
         {tab === 'vendors' && <Vendors onNote={setNote} />}
         {tab === 'settings' && <Settings onNote={setNote} />}
@@ -152,20 +159,34 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
 
 function Overview({ onGo }: { onGo: (t: Tab) => void }) {
   const { data: s, error } = useLoad(companyApi.stats);
+  const fb = useLoad(companyApi.feedback);
   if (error) return <Problem text={error} />;
   if (!s) return <p className="text-[#5b6a52]">Loading…</p>;
   const max = Math.max(1, ...s.signups.weekly.map((w) => w.n));
   const paidPlans = (s.plans.essentials ?? 0) + (s.plans.complete ?? 0);
+  const fresh = fb.data?.counts.new ?? 0;
+  const todo = [
+    s.requests > 0 && { to: 'weddings' as Tab, text: `${s.requests} plan ${s.requests === 1 ? 'request' : 'requests'}`, sub: 'Send the payment link, then mark it paid.' },
+    fresh > 0 && { to: 'feedback' as Tab, text: `${fresh} new feedback`, sub: 'Read it, then plan it, or not now.' },
+  ].filter((x): x is { to: Tab; text: string; sub: string } => !!x);
   return (
     <>
-      {s.requests > 0 && (
-        <button type="button" onClick={() => onGo('weddings')} className="flex items-center justify-between gap-3 p-4 rounded-[16px] border border-[#ecd9ae] bg-[#fbf3e1] text-left cursor-pointer text-[#33402f]">
-          <span>
-            <strong>{s.requests} {s.requests === 1 ? 'couple is' : 'couples are'} waiting for a payment link.</strong> Send it, then set their plan.
-          </span>
-          <span aria-hidden>→</span>
-        </button>
-      )}
+      <section className={card} aria-label="To do">
+        <H>To do</H>
+        {todo.length ? (
+          todo.map((t) => (
+            <button key={t.to} type="button" onClick={() => onGo(t.to)} className="flex items-center justify-between gap-3 p-3 rounded-[12px] border border-[#ecd9ae] bg-[#fbf3e1] text-left cursor-pointer text-[#33402f]">
+              <span>
+                <strong className="block text-[16px]">{t.text}</strong>
+                <span className="text-[14px] text-[#5b6a52]">{t.sub}</span>
+              </span>
+              <span aria-hidden>→</span>
+            </button>
+          ))
+        ) : (
+          <p className="m-0 text-[15px] text-[#5b6a52]">All done: no plan requests or new feedback waiting.</p>
+        )}
+      </section>
       <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Tile label="Weddings" value={String(s.weddings)} sub={`${s.signups.last7} this week · ${s.signups.last30} this month`} />
         <Tile label="Paying" value={String(paidPlans)} sub={`${s.weddings ? Math.round((paidPlans / s.weddings) * 100) : 0}% of weddings`} />
@@ -248,7 +269,7 @@ function Weddings({ onNote }: { onNote: (s: string) => void }) {
   }, [load]);
   return (
     <section className="flex flex-col gap-3">
-      <H sub="Plan requests first, then the newest. Search by names, the wedding’s address, or an email.">Weddings</H>
+      <H sub="Plan requests first, then the newest. Search by names, the wedding’s address, or an email.">Couples</H>
       <div className="flex gap-2 flex-wrap items-center">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search weddings" className={`${input} max-w-[360px]`} />
         <label className="flex items-center gap-2 text-[14px] cursor-pointer">
@@ -307,7 +328,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
         </span>
       </div>
       <span className="text-[13px] text-[#5b6a52] break-words">
-        {[w.day && `Day ${day(w.day)}`, `${w.guests} guests`, `joined ${day(w.createdAt)}`, w.ref && `from ${w.ref}`].filter(Boolean).join(' · ')}
+        {[w.day && `Day ${day(w.day)}`, `${w.guests} guests`, `joined ${day(w.createdAt)}`, w.paidCents > 0 && `paid ${money(w.paidCents)}`, w.ref && `from ${w.ref}`].filter(Boolean).join(' · ')}
         {w.email && (
           <>
             {' · '}
@@ -317,9 +338,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
           </>
         )}
       </span>
-      {w.requested && (
-        <span className="text-[14px] font-semibold text-[#6b4f1d]">Asked for {w.requested === 'event' ? 'an extra event' : (PLAN_NAME[w.requested] ?? w.requested)}: send a payment link, then set it here.</span>
-      )}
+      {w.requested && <RequestSteps w={w} onDone={onSaved} />}
       <div className="flex gap-2 flex-wrap items-center">
         <select value={plan} aria-label={`Plan for ${w.names}`} onChange={(e) => setPlan(e.target.value)} className={`${input} w-auto`}>
           <option value="free">Free</option>
@@ -330,12 +349,179 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
           Extra events
           <input type="number" min={0} max={20} value={extra} onChange={(e) => setExtra(Math.max(0, Math.min(20, Number(e.target.value) || 0)))} className={`${input} w-[80px]`} />
         </label>
-        <button type="button" className={primary} disabled={!changed || busy} onClick={() => void save()}>
-          {busy ? 'Saving…' : 'Save'}
+        <button type="button" className={w.requested ? btn : primary} disabled={!changed || busy} onClick={() => void save()}>
+          {busy ? 'Saving…' : w.requested ? 'Change without payment' : 'Save'}
         </button>
         <a href={`/w/${encodeURIComponent(w.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
           Their page
         </a>
+      </div>
+      {problem && <Problem text={problem} />}
+    </li>
+  );
+}
+
+const WHAT_NAME: Record<string, string> = { essentials: 'Essentials', complete: 'Deluxe', event: 'an extra event' };
+
+/** A plan request's two steps: 1. email the payment link, 2. mark it paid (or say not now). */
+function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) => void }) {
+  const what = w.requested as 'essentials' | 'complete' | 'event';
+  const price = chargeCents(planOf(w.plan), what) ?? 0;
+  const [dollars, setDollars] = useState(String(price / 100));
+  const [sent, setSent] = useState(w.linkSentAt);
+  const [byHand, setByHand] = useState<{ email: string; link: string } | null>(null);
+  const [busy, setBusy] = useState('');
+  const [problem, setProblem] = useState('');
+  const run = async (key: string, fn: () => Promise<void>) => {
+    setBusy(key);
+    setProblem('');
+    try {
+      await fn();
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+  const sendLink = () =>
+    run('link', async () => {
+      const r = await companyApi.sendLink(w.slug);
+      setSent(new Date().toISOString());
+      setByHand(r.emailed ? null : { email: r.email, link: r.link });
+      if (r.emailed) onDone(`Payment link emailed to ${r.email}`);
+    });
+  const paid = () =>
+    run('paid', async () => {
+      const cents = Math.round((Number(dollars) || 0) * 100);
+      await companyApi.markPaid(w.slug, what, cents);
+      onDone(`${w.names}: ${WHAT_NAME[what]} switched on, ${money(cents)} counted`);
+    });
+  const notNow = () => run('no', async () => {
+    await companyApi.setPlan(w.slug, { extraEvents: w.extraEvents });
+    onDone(`${w.names}: request cleared`);
+  });
+  const step = 'flex flex-wrap items-center gap-2 p-2 rounded-[10px] bg-white border border-[#ecd9ae]';
+  const num = 'flex-none w-6 h-6 rounded-full grid place-items-center text-[12px] font-semibold';
+  return (
+    <div className="flex flex-col gap-2" aria-label="Plan request">
+      <span className="text-[14px] font-semibold text-[#6b4f1d]">
+        Asked for {WHAT_NAME[what] ?? what}
+        {w.requestedAt ? ` on ${day(w.requestedAt)}` : ''}
+        {price ? ` · ${money(price)}` : ''}
+      </span>
+      <div className={step}>
+        <span className={num} style={{ background: sent ? '#a9b98d' : '#ecd9ae' }}>{sent ? '✓' : '1'}</span>
+        <span className="flex-1 min-w-[160px] text-[14px]">{sent ? `Payment link sent ${day(sent)}` : 'Send the payment link'}</span>
+        <button type="button" className={sent ? btn : primary} disabled={!!busy} onClick={() => void sendLink()}>
+          {busy === 'link' ? 'Sending…' : sent ? 'Send again' : 'Email it'}
+        </button>
+      </div>
+      {byHand && (
+        <p className="m-0 text-[13px] text-[#6b4f1d] break-words">
+          Email isn’t set up, so send it yourself:{' '}
+          <a href={`mailto:${byHand.email}?subject=${encodeURIComponent('Your payment link')}&body=${encodeURIComponent(byHand.link)}`} className="!text-[#33402f]">
+            email {byHand.email}
+          </a>{' '}
+          with {byHand.link}
+        </p>
+      )}
+      <div className={step}>
+        <span className={num} style={{ background: '#ecd9ae' }}>2</span>
+        <span className="flex-1 min-w-[160px] text-[14px]">When they’ve paid, switch it on</span>
+        <label className="flex items-center gap-1 text-[14px]">
+          $
+          <input type="number" min={0} step="1" value={dollars} onChange={(e) => setDollars(e.target.value)} aria-label="Amount paid" className={`${input} w-[90px]`} />
+        </label>
+        <button type="button" className={primary} disabled={!!busy} onClick={() => void paid()}>
+          {busy === 'paid' ? 'Saving…' : 'Mark paid'}
+        </button>
+      </div>
+      <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]" disabled={!!busy} onClick={() => void notNow()}>
+        Not now: clear the request
+      </button>
+      {problem && <Problem text={problem} />}
+    </div>
+  );
+}
+
+const FB_STATUS: [CompanyFeedback['status'], string][] = [
+  ['new', 'New'],
+  ['planned', 'Planned'],
+  ['done', 'Done'],
+  ['not_now', 'Not now'],
+];
+const FB_KIND: Record<string, string> = { idea: 'Idea', problem: 'Problem', love: 'Love' };
+
+/** What couples told us; each moves new → planned → done (or not now), with a note couples see. */
+function Feedback({ onNote }: { onNote: (s: string) => void }) {
+  const { data, error, reload } = useLoad(companyApi.feedback);
+  const [show, setShow] = useState<CompanyFeedback['status']>('new');
+  if (error) return <Problem text={error} />;
+  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  const list = data.feedback.filter((f) => f.status === show);
+  return (
+    <section className="flex flex-col gap-3">
+      <H sub="From Help → Tell us. Plan it with a short note (“Seating: bigger rooms”) and every couple sees it under “Coming from your feedback”.">Feedback and updates</H>
+      <div className="flex gap-1 flex-wrap" role="tablist" aria-label="Feedback by status">
+        {FB_STATUS.map(([k, label]) => (
+          <button key={k} type="button" role="tab" aria-selected={show === k} onClick={() => setShow(k)} className={`py-[7px] px-4 rounded-full border text-[14px] cursor-pointer ${show === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[#c6b794] bg-white text-[#33402f]'}`}>
+            {label} {data.counts[k] ?? 0}
+          </button>
+        ))}
+      </div>
+      {!list.length ? (
+        <p className="text-[#5b6a52]">{show === 'new' ? 'Nothing new. Couples send feedback from Help → Tell us.' : 'None here.'}</p>
+      ) : (
+        <ul className="m-0 p-0 list-none flex flex-col gap-2">
+          {list.map((f) => (
+            <FeedbackRow
+              key={f.id}
+              f={f}
+              onSaved={(msg) => {
+                onNote(msg);
+                reload();
+              }}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function FeedbackRow({ f, onSaved }: { f: CompanyFeedback; onSaved: (msg: string) => void }) {
+  const [note, setNote] = useState(f.note);
+  const [problem, setProblem] = useState('');
+  const save = async (status: CompanyFeedback['status']) => {
+    setProblem('');
+    try {
+      await companyApi.setFeedback(f.id, { status, note });
+      onSaved(`Moved to ${FB_STATUS.find(([k]) => k === status)![1].toLowerCase()}`);
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  return (
+    <li className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <span className="text-[13px] text-[#5b6a52]">
+        {[FB_KIND[f.kind] ?? f.kind, f.names, day(f.createdAt)].filter(Boolean).join(' · ')}
+        {f.email && (
+          <>
+            {' · '}
+            <a href={`mailto:${f.email}`} className="!text-[#33402f]">
+              {f.email}
+            </a>
+          </>
+        )}
+      </span>
+      <p className="m-0 text-[16px] whitespace-pre-wrap break-words">{f.text}</p>
+      <input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="What we’ll do (couples see this once it’s planned)" aria-label="What we’ll do" className={input} />
+      <div className="flex gap-2 flex-wrap">
+        {FB_STATUS.filter(([k]) => k !== 'new' || f.status !== 'new').map(([k, label]) => (
+          <button key={k} type="button" className={k === 'planned' && f.status === 'new' ? primary : btn} onClick={() => void save(k)}>
+            {k === f.status ? 'Save note' : label}
+          </button>
+        ))}
       </div>
       {problem && <Problem text={problem} />}
     </li>
@@ -655,8 +841,24 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
     ['pinterest', 'Pinterest', 'https://pinterest.com/…'],
     ['youtube', 'YouTube', 'https://youtube.com/@…'],
   ] as const;
+  const LINKS = [
+    ['essentials', 'Essentials'],
+    ['complete', 'Deluxe'],
+    ['event', 'Extra event'],
+  ] as const;
   return (
     <>
+      <section className={card} aria-label="Payment links">
+        <H sub="When a couple asks for a plan, Couples → Email it sends the matching link. Make one per plan in Stripe (Payment Links) or your bank; they start with https://.">Payment links</H>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {LINKS.map(([k, label]) => (
+            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+              {label}
+              <input value={s.paymentLinks[k]} placeholder="https://buy.stripe.com/…" onChange={(e) => setS({ ...s, paymentLinks: { ...s.paymentLinks, [k]: e.target.value.trim() } })} className={input} />
+            </label>
+          ))}
+        </div>
+      </section>
       <section className={card} aria-label="Social links">
         <H sub="Shown at the foot of the front page. Leave any blank to hide it.">Social accounts</H>
         <div className="grid gap-3 sm:grid-cols-2">

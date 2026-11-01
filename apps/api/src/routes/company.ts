@@ -1,16 +1,22 @@
-import { dateIn, Promo, Promos, SiteSettings, type PROMO_FOR } from '@wp/shared';
+import { chargeCents, dateIn, FeedbackIn, FeedbackUpdate, PLAN_INFO, planOf, Promo, Promos, SiteSettings, type PROMO_FOR } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
+import { buttonEmail, sendEmail } from '../lib/email';
+import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
-import { jsonWritesOnly, requireUser, type AdminEnv } from './auth';
+import { mainAccountOf } from './accounts';
+import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { applyPurchase } from './billing';
 import { PLANS } from './signup';
 
 /**
  * The company portal (/api/a/company): for the platform owner (super admins: SUPER_ADMINS) only.
  * - stats: sign-ups by week, plans, money taken, plan requests waiting, guests and replies, the vendor
  *   directory, quote requests, where sign-ups came from (referrals and campaigns), marketing opt-ins;
- * - weddings: find one, see its plan and size, set its plan (after a payment link, say);
+ * - weddings: find one, see its plan and size, set its plan; a plan request's two steps: email the payment
+ *   link (Settings → Payment links), then mark it paid (switched on and counted, like a card payment);
+ * - feedback: what couples told us (Help → Tell us), new → planned → done (or not now), with a note;
  * - the directory's vendor listings: hide or show;
  * - settings: social links, the front-page banner, the "Made with" link on guest pages;
  * - promo codes: made here, used when couples pay (billing.ts), counted from payments;
@@ -19,7 +25,7 @@ import { PLANS } from './signup';
  */
 
 type C = Context<AdminEnv>;
-const err = (c: C, status: 400 | 403 | 404, code: string, message: string) => c.json({ error: { code, message } }, status);
+const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
 export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos', schema: S): Promise<z.output<S>> {
@@ -128,6 +134,9 @@ export function companyRoutes() {
     const { results } = await c.env.DB.prepare(
       `SELECT w.id, w.slug, w.name1, w.name2, w.plan, w.created_at,
               COALESCE(json_extract(w.content, '$.planRequested'), '') AS requested,
+              COALESCE(json_extract(w.content, '$.planRequestedAt'), '') AS requested_at,
+              COALESCE(json_extract(w.content, '$.planLinkSentAt'), '') AS link_sent_at,
+              (SELECT COALESCE(SUM(json_extract(a.detail, '$.amount')), 0) FROM audit a WHERE a.wedding_id = w.id AND a.action = 'plan.paid' AND json_valid(a.detail)) AS paid_cents,
               COALESCE(json_extract(w.content, '$.extraEvents'), 0) AS extra_events,
               COALESCE(json_extract(w.content, '$.ref'), '') AS ref,
               (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL) AS day,
@@ -142,9 +151,9 @@ export function companyRoutes() {
         LIMIT 100`,
     )
       .bind(q, onlyRequests ? 1 : 0)
-      .all<{ id: string; slug: string; name1: string; name2: string; plan: string; created_at: string; requested: string; extra_events: number; ref: string; day: string | null; guests: number; email: string | null }>();
+      .all<{ id: string; slug: string; name1: string; name2: string; plan: string; created_at: string; requested: string; requested_at: string; link_sent_at: string; paid_cents: number; extra_events: number; ref: string; day: string | null; guests: number; email: string | null }>();
     return c.json({
-      weddings: results.map((r) => ({ id: r.id, slug: r.slug, names: `${r.name1} & ${r.name2}`, plan: r.plan, createdAt: r.created_at, requested: r.requested, extraEvents: r.extra_events, ref: r.ref, day: r.day ?? '', guests: r.guests, email: r.email ?? '' })),
+      weddings: results.map((r) => ({ id: r.id, slug: r.slug, names: `${r.name1} & ${r.name2}`, plan: r.plan, createdAt: r.created_at, requested: r.requested, requestedAt: r.requested_at, linkSentAt: r.link_sent_at, paidCents: r.paid_cents, extraEvents: r.extra_events, ref: r.ref, day: r.day ?? '', guests: r.guests, email: r.email ?? '' })),
     });
   });
 
@@ -154,7 +163,7 @@ export function companyRoutes() {
     if (!b.success || (b.data.plan === undefined && b.data.extraEvents === undefined)) return err(c, 400, 'invalid', 'A plan (or extra events), please.');
     const r = await c.env.DB.prepare(
       `UPDATE wedding SET plan = COALESCE(?1, plan),
-              content = json_remove(CASE WHEN ?2 IS NULL THEN content ELSE json_set(content, '$.extraEvents', ?2) END, '$.planRequested', '$.planRequestedAt'),
+              content = json_remove(CASE WHEN ?2 IS NULL THEN content ELSE json_set(content, '$.extraEvents', ?2) END, '$.planRequested', '$.planRequestedAt', '$.planLinkSentAt'),
               updated_at = ?3
         WHERE slug = ?4 AND deleted_at IS NULL AND json_valid(content)`,
     )
@@ -164,6 +173,72 @@ export function companyRoutes() {
     await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) SELECT ?, id, ?, 'company.plan', slug, ?, ? FROM wedding WHERE slug = ?`)
       .bind(crypto.randomUUID(), c.get('user').id, JSON.stringify(b.data), new Date().toISOString(), c.req.param('slug'))
       .run();
+    return c.json({ ok: true });
+  });
+
+  /** A plan request, step 1: email the couple's main account the payment link for what they asked for. */
+  app.post('/weddings/:slug/send-link', async (c) => {
+    const w = await c.env.DB.prepare(`SELECT id, name1, name2, plan, COALESCE(json_extract(content, '$.planRequested'), '') AS requested FROM wedding WHERE slug = ? AND deleted_at IS NULL AND json_valid(content)`)
+      .bind(c.req.param('slug'))
+      .first<{ id: string; name1: string; name2: string; plan: string; requested: string }>();
+    if (!w) return err(c, 404, 'not_found', 'No wedding at that address.');
+    if (!w.requested) return err(c, 400, 'no_request', 'They haven’t asked for a plan.');
+    const what = w.requested as 'essentials' | 'complete' | 'event';
+    const site = await readSetting(c.env.DB, 'site', SiteSettings);
+    const link = site.paymentLinks[what];
+    if (!link) return err(c, 400, 'no_link', 'Add your payment links first (Settings → Payment links).');
+    const main = await mainAccountOf(c.env.DB, w.id);
+    const to = main ? await c.env.DB.prepare(`SELECT email, first_name FROM user WHERE id = ?`).bind(main).first<{ email: string; first_name: string | null }>() : null;
+    if (!to) return err(c, 404, 'not_found', 'That wedding has no account to email.');
+    const name = what === 'event' ? 'an extra event' : PLAN_INFO[what].name;
+    const cents = chargeCents(planOf(w.plan), what);
+    const m = buttonEmail({
+      heading: `Your ${what === 'event' ? 'extra event' : name} payment link`,
+      lines: [`Hi ${to.first_name || w.name1},`, `Thanks for asking for ${name}${cents ? ` ($${(cents / 100).toFixed(0)} AUD, once)` : ''}. Pay with the button below and we’ll switch it on for ${w.name1} & ${w.name2}, usually within a day.`],
+      button: 'Pay now',
+      link,
+      footer: 'Questions? Just reply to this email.',
+    });
+    const emailed = await sendEmail(c.env, { to: to.email, subject: `Your payment link: ${name}`, ...m, ...(site.supportEmail ? { replyTo: [site.supportEmail] } : {}) });
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.planLinkSentAt', ?) WHERE id = ? AND json_valid(content)`).bind(new Date().toISOString(), w.id).run();
+    // Not emailed (email isn't set up, or it failed): the portal shows the link and address to send by hand.
+    return c.json({ ok: true, emailed, email: to.email, link, cents: cents ?? 0 });
+  });
+
+  /** A plan request, step 2: they paid (by the link, a transfer, cash): switch it on and count the money. */
+  app.post('/weddings/:slug/paid', async (c) => {
+    const b = z.object({ what: z.enum(['essentials', 'complete', 'event']), cents: z.number().int().min(0).max(1_000_000) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'What did they pay for, and how much?');
+    const w = await c.env.DB.prepare(`SELECT id FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string }>();
+    if (!w) return err(c, 404, 'not_found', 'No wedding at that address.');
+    await applyPurchase(c.env.DB, w.id, b.data.what, `manual:${crypto.randomUUID()}`, { amount: b.data.cents, currency: 'aud', manual: true });
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_remove(content, '$.planLinkSentAt') WHERE id = ? AND json_valid(content) AND json_extract(content, '$.planRequested') IS NULL`).bind(w.id).run();
+    return c.json({ ok: true });
+  });
+
+  /** Feedback, newest first (?status= to filter), with counts by status. */
+  app.get('/feedback', async (c) => {
+    const status = c.req.query('status') ?? '';
+    const { results } = await c.env.DB.prepare(
+      `SELECT f.id, f.kind, f.text, f.page, f.status, f.note, f.created_at, COALESCE(w.name1 || ' & ' || w.name2, '') AS names, COALESCE(w.slug, '') AS slug, COALESCE(u.email, '') AS email
+         FROM feedback f LEFT JOIN wedding w ON w.id = f.wedding_id LEFT JOIN user u ON u.id = f.user_id
+        WHERE (?1 = '' OR f.status = ?1) ORDER BY f.created_at DESC LIMIT 300`,
+    )
+      .bind(status)
+      .all<{ id: string; kind: string; text: string; page: string; status: string; note: string; created_at: string; names: string; slug: string; email: string }>();
+    const { results: counts } = await c.env.DB.prepare(`SELECT status, COUNT(*) AS n FROM feedback GROUP BY status`).all<{ status: string; n: number }>();
+    return c.json({
+      feedback: results.map((r) => ({ id: r.id, kind: r.kind, text: r.text, page: r.page, status: r.status, note: r.note, createdAt: r.created_at, names: r.names, slug: r.slug, email: r.email })),
+      counts: Object.fromEntries(counts.map((r) => [r.status, r.n])),
+    });
+  });
+  app.put('/feedback/:id', async (c) => {
+    const b = FeedbackUpdate.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check that.');
+    const r = await c.env.DB.prepare(`UPDATE feedback SET status = COALESCE(?1, status), note = COALESCE(?2, note), updated_at = ?3 WHERE id = ?4`)
+      .bind(b.data.status ?? null, b.data.note ?? null, new Date().toISOString(), c.req.param('id'))
+      .run();
+    if (!r.meta.changes) return err(c, 404, 'not_found', 'Not found.');
     return c.json({ ok: true });
   });
 
@@ -188,7 +263,7 @@ export function companyRoutes() {
   app.put('/settings', async (c) => {
     const b = SiteSettings.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the settings.');
-    const bad = Object.values(b.data.social).find((u) => u && !/^https:\/\//.test(u)) ?? (b.data.banner.link && !/^(https:\/\/|\/)/.test(b.data.banner.link) ? b.data.banner.link : '');
+    const bad = [...Object.values(b.data.social), ...Object.values(b.data.paymentLinks)].find((u) => u && !/^https:\/\//.test(u)) ?? (b.data.banner.link && !/^(https:\/\/|\/)/.test(b.data.banner.link) ? b.data.banner.link : '');
     if (bad) return err(c, 400, 'invalid', `Links start with https:// (check ${bad.slice(0, 60)}).`);
     await writeSetting(c.env.DB, 'site', b.data);
     return c.json(b.data);
@@ -234,6 +309,30 @@ export function siteRoutes() {
   app.get('/', async (c) => {
     const s = await readSetting(c.env.DB, 'site', SiteSettings);
     return c.json({ social: s.social, supportEmail: s.supportEmail, banner: s.banner.on && s.banner.text ? { text: s.banner.text, link: s.banner.link } : null, madeWith: s.madeWith }, 200, { 'cache-control': 'public, max-age=300' });
+  });
+  return app;
+}
+
+/** A couple tells us something (Help → Tell us): any member, a few a day. Mounted at /a/w/:wid/feedback. */
+export function feedbackRoutes() {
+  const app = new Hono<AdminEnv>();
+  app.use('*', jsonWritesOnly, requireUser, requireMember());
+  app.post('/', async (c) => {
+    const b = FeedbackIn.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check that.');
+    if (!(await allow(c.env.DB, `feedback:${c.get('user').id}`, 10, 86_400_000))) return err(c, 429, 'slow_down', 'Thanks! That’s plenty for today: send more tomorrow.');
+    const at = new Date().toISOString();
+    await c.env.DB.prepare(`INSERT INTO feedback (id, wedding_id, user_id, kind, text, page, status, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'new', '', ?, ?)`)
+      .bind(crypto.randomUUID(), c.req.param('wid'), c.get('user').id, b.data.kind, b.data.text, b.data.page, at, at)
+      .run();
+    return c.json({ ok: true });
+  });
+  /** What's planned or done from everyone's feedback: the company's own notes only, never anyone's words. */
+  app.get('/updates', async (c) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT note, MAX(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done, MAX(updated_at) AS at FROM feedback WHERE status IN ('planned', 'done') AND note != '' GROUP BY note ORDER BY at DESC LIMIT 30`,
+    ).all<{ note: string; done: number; at: string }>();
+    return c.json({ updates: results.map((r) => ({ text: r.note, done: !!r.done, at: r.at })) });
   });
   return app;
 }

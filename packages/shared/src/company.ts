@@ -17,6 +17,8 @@ export const SiteSettings = z.object({
   banner: z.object({ on: z.boolean().default(false), text: z.string().trim().max(160).default(''), link: z.string().trim().max(300).default('') }).default({}),
   /** "Made with The Yes List" at the foot of guest pages, linking to the front page with the wedding as referrer. */
   madeWith: z.boolean().default(true),
+  /** Payment links (Stripe Payment Links, say) the portal emails a couple who asked for a plan. Company-only. */
+  paymentLinks: z.object({ essentials: url, complete: url, event: url }).default({}),
 });
 export type SiteSettings = z.infer<typeof SiteSettings>;
 
@@ -59,3 +61,12 @@ export function promoPrice(cents: number, promo: Promo | undefined, what: (typeo
 
 /** A referral or campaign source as kept on a sign-up: letters, numbers, dots, dashes, underscores. */
 export const cleanRef = (s: string | null | undefined) => (s ?? '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60);
+
+/** What a couple tells us (Help → Tell us), and what we do about it (the company portal's Feedback). */
+export const FEEDBACK_KINDS = ['idea', 'problem', 'love'] as const;
+export const FEEDBACK_STATUS = ['new', 'planned', 'done', 'not_now'] as const;
+export const FeedbackIn = z.object({ kind: z.enum(FEEDBACK_KINDS).default('idea'), text: z.string().trim().min(3, 'A few words, please.').max(2000), page: z.string().trim().max(120).default('') }).strict();
+export const FeedbackUpdate = z
+  .object({ status: z.enum(FEEDBACK_STATUS).optional(), note: z.string().trim().max(500).optional() })
+  .strict()
+  .refine((v) => v.status !== undefined || v.note !== undefined, 'A status or a note, please.');
