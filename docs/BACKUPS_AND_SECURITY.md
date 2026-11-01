@@ -74,3 +74,12 @@ A couple's backup includes every part of their wedding: guests, replies, texts, 
    - Write the attack as a test (`it.fails` while open).
    - Fix it, and turn the test into a normal `it`.
    - Note it in `docs/LAUNCH_READINESS.md`.
+
+## Accepted advisory: zod memory use on huge arrays (GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404)
+
+Accepted by the owner on 2026-11-01, to be fixed straight after launch. It was raised to "high" on 2026-10-23 and covers
+every zod below 4.6.6 (this app uses zod 3), so the CI audit step ignores this one advisory (root package.json →
+pnpm.auditConfig). The risk is a huge array in a request making validation use a lot of memory. Here it's bounded:
+every request body is capped before it's parsed (100 KB normally; imports and planner documents have their own caps),
+and most arrays in the schemas have a `.max()`. To do: move to zod 4.6.6 or later (its API differs: z.record needs a key
+schema, error maps changed), then remove the exception.
