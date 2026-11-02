@@ -59,12 +59,12 @@ const isPrivate = (w: { content: string }) => json<Record<string, unknown>>(w.co
 const PRIVATE = (c: C) => c.json({ error: { code: 'private', message: 'This invitation is private. Please open it from the link in your text.' } }, 404);
 
 interface WeddingRow {
-  id: string; slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string; content: string; guide: string; music_key: string | null;
+  id: string; slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string; content: string; guide: string; music_key: string | null; plan: string;
 }
 interface EventRow { id: string; key: string; name: string; starts_at: string; sort: number; questions: string; venue: string | null; address: string | null }
 
 async function wedding(c: C) {
-  return c.env.DB.prepare(`SELECT id, slug, name1, name2, monogram, theme, timezone, content, guide, music_key FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
+  return c.env.DB.prepare(`SELECT id, slug, name1, name2, monogram, theme, timezone, content, guide, music_key, plan FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
     .bind(c.req.param('slug'))
     .first<WeddingRow>();
 }
@@ -143,6 +143,8 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
   const shuttles = new Set(withShuttles.map((r) => r.scope));
   return {
     wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
+    // The small "Made with" line under the invitation: Free plans only. Paid invitations carry no advert.
+    branded: w.plan === 'free',
     // Music is the link set in Setup (MP3 or YouTube): there are no uploaded music files to point at.
     content: { ...(inv.success ? inv.data : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
     texts: textsFor('inv', withDefaults(content.texts as Record<string, string> | undefined, { tz: w.timezone, events: content.dateToBeSet ? events.map((e) => ({ ...e, starts_at: '' })) : events, rsvpClose: inv.success ? inv.data.rsvpClose : undefined }), slots),

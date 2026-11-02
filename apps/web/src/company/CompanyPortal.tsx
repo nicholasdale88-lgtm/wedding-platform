@@ -875,10 +875,10 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
         </div>
       </section>
       <section className={card} aria-label="Made with">
-        <H sub="Every guest who opens an invitation sees a small “Made with The Yes List · make your own” at the bottom, linking here with the wedding counted as the referrer. It’s the app’s best advert.">On guest pages</H>
+        <H sub="Free-plan invitations carry a small “Made with The Yes List · make your own” at the bottom, linking here with the wedding counted as the referrer. Paid plans (Essentials, Deluxe, Founders) never show it.">On guest pages</H>
         <label className="flex items-center gap-2 text-[15px] cursor-pointer">
           <input type="checkbox" checked={s.madeWith} onChange={(e) => setS({ ...s, madeWith: e.target.checked })} className="w-[20px] h-[20px] accent-[#5d6b47]" />
-          Show “Made with The Yes List” on invitations
+          Show “Made with The Yes List” on Free-plan invitations
         </label>
       </section>
       {problem && <Problem text={problem} />}

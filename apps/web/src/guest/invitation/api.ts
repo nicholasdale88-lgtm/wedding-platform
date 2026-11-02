@@ -16,6 +16,8 @@ export interface GuestInvitation {
 
 export interface InvitePayload {
   wedding: { slug: string; name1: string; name2: string; monogram: string; theme: string; timezone: string };
+  /** Free plan: the small "Made with" line shows under the invitation (never on a paid one). */
+  branded?: boolean;
   content: {
     initials?: string; rsvpBy?: string; rideTime?: string; directionsUrl?: string; registryUrl?: string; giftAccount?: string;
     giftAccountLabel?: string; audioUrl?: string; rsvpEmail?: string; seal?: 'Sandstone' | 'Dusty rose' | 'Daphne blue';

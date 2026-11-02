@@ -57,8 +57,8 @@ function Loaded({ slug, data, preview, welcome = false }: { slug: string; data: 
       <div className="dz">
         <InvitationView v={v} t={t} />
       </div>
-      {/* The app's quiet advert: every guest sees it once the envelope is open (switched off in the company portal). */}
-      {site?.madeWith && phase >= 3 && (
+      {/* The app's quiet advert, on Free plans only, once the envelope is open (switched off for all in the company portal). */}
+      {site?.madeWith && data.branded && phase >= 3 && (
         <p className="m-0 py-6 text-center text-[13px]" style={{ color: th.dg ?? '#33402f', opacity: 0.75 }}>
           <a href={`/?ref=${encodeURIComponent(slug)}`} className="no-underline" style={{ color: 'inherit' }}>
             Made with The Yes List · make your own
