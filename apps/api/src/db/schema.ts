@@ -616,3 +616,17 @@ export const platformSetting = sqliteTable('platform_setting', {
   value: text('value').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+/** What couples tell the company (Help → Tell us), triaged in the company portal. */
+export const feedback = sqliteTable('feedback', {
+  id: text('id').primaryKey(),
+  weddingId: text('wedding_id').references(() => wedding.id),
+  userId: text('user_id').references(() => user.id),
+  kind: text('kind').notNull().default('idea'),
+  text: text('text').notNull(),
+  page: text('page').notNull().default(''),
+  status: text('status').notNull().default('new'),
+  note: text('note').notNull().default(''),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
