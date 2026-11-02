@@ -34,6 +34,62 @@ const at = (day: string, t: string) => {
   return d.getTime();
 };
 
+const HOW: Record<string, string> = { buy: 'Buying', hire: 'Hiring', own: 'Wearing your own' };
+const shortDay = (d: string) => {
+  try {
+    return new Intl.DateTimeFormat('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(`${d}T12:00`));
+  } catch {
+    return d;
+  }
+};
+
+/** What they're wearing: bought, hired or their own, the look, their size and fitting, and the dates that matter. */
+function Outfit({ me, gold }: { me: PartyMine; gold: string }) {
+  const o = me.outfit;
+  if (!o || !(o.how || o.what || o.size || o.fitting)) return null;
+  const rows: [string, string][] = [
+    ['How', HOW[o.how] ?? ''],
+    ['The look', [o.what, o.colour].filter(Boolean).join(', ')],
+    ['From', o.where],
+    ['Your size', o.size],
+    ['Fitting', o.fitting ? shortDay(o.fitting) : ''],
+    [o.how === 'hire' ? 'Pick up by' : 'Order by', o.orderBy ? shortDay(o.orderBy) : ''],
+    ['Return by', o.how === 'hire' && o.returnBy ? shortDay(o.returnBy) : ''],
+  ];
+  return (
+    <section id="outfit" aria-label="Your outfit" className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border scroll-mt-20" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
+      <div className="flex justify-between items-baseline gap-2">
+        <h2 className="m-0 font-normal text-[28px]">{`${first(me.name)}’s outfit`}</h2>
+        {o.collected && <span className="text-[15px] italic" style={{ color: gold }}>Collected ✓</span>}
+      </div>
+      <dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-1 text-[18px] leading-[1.35]">
+        {rows
+          .filter(([, v]) => v)
+          .map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="opacity-70">{k}</dt>
+              <dd className="m-0">{v}</dd>
+            </div>
+          ))}
+      </dl>
+      {o.notes && <p className="m-0 text-[17px] leading-[1.4] whitespace-pre-wrap">{o.notes}</p>}
+      {o.how === 'hire' && o.returnBy && <p className="m-0 text-[16px] italic opacity-80">Hired: it goes back by {shortDay(o.returnBy)}, so keep the receipt and the bag.</p>}
+    </section>
+  );
+}
+
+/** Their side's night out (the hens or the bucks). */
+function Night({ night }: { night: NonNullable<PartyMine['night']> }) {
+  return (
+    <section aria-label={night.title || 'The night out'} className="flex flex-col gap-1 p-4 rounded-[16px] text-[18px]" style={{ background: 'rgba(179,149,99,.14)' }}>
+      <h2 className="m-0 font-normal text-[28px]">{night.title || 'The night out'}</h2>
+      {night.date && <span>{fmtDay(`${night.date}T12:00`)}</span>}
+      {night.place && <span className="italic">{night.place}</span>}
+      {night.organiser && <span className="text-[16px] opacity-80">Organised by {night.organiser}</span>}
+    </section>
+  );
+}
+
 type Act = (body: Omit<PartyAct, 'token'>, apply: (m: PartyMine) => PartyMine) => void;
 
 /** Their packing list: the couple's list for them plus anything they add, ticked off and saved for them. */
@@ -97,7 +153,7 @@ function Todos({ me, act, gold, many, canAdd }: { me: PartyMine; act: Act; gold:
   const left = me.tasks.filter((t) => !t.done).length;
   const fmt = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '');
   return (
-    <section aria-label={`${first(me.name)}’s to-dos`} className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
+    <section id="todos" aria-label={`${first(me.name)}’s to-dos`} className="scroll-mt-20 flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
       <div className="flex justify-between items-baseline">
         <h2 className="m-0 font-normal text-[28px]">{many ? `${first(me.name)}’s to-dos` : 'Your to-dos'}</h2>
         <span className="text-[15px] italic opacity-75">{me.tasks.length ? (left ? `${left} to go` : 'All done ✓') : ''}</span>
@@ -326,6 +382,23 @@ export function PartyPage() {
           ink={ink}
         />
 
+        <nav aria-label="On this page" className="sticky top-0 z-10 -mx-5 px-5 py-2 flex gap-2 overflow-x-auto [scrollbar-width:none] bg-[#f6f0e2]/95 backdrop-blur" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          {(
+            [
+              [(!perms || perms.tasks) && mine.some((m) => m.tasks.length || !perms || perms.addTasks), 'todos', 'To-dos'],
+              [mine.some((m) => m.outfit && (m.outfit.how || m.outfit.what || m.outfit.size || m.outfit.fitting)), 'outfit', 'Outfit'],
+              [data.events.length > 0, 'runsheet', 'The day'],
+              [true, 'whos-who', 'Who’s who'],
+            ] as const
+          )
+            .filter(([on]) => on)
+            .map(([, id, label]) => (
+              <a key={id} href={`#${id}`} className="flex-none py-[6px] px-4 rounded-full border no-underline text-[14px]" style={{ borderColor: gold, color: ink }}>
+                {label}
+              </a>
+            ))}
+        </nav>
+
         <NowNext data={data} now={now} gold={gold} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
 
         {note && (
@@ -358,13 +431,19 @@ export function PartyPage() {
         )}
         {(!perms || perms.tasks) &&
           mine.map((m) => <Todos key={m.personId} me={m} act={act} gold={gold} many={mine.length > 1} canAdd={!perms || perms.addTasks} />)}
+        {mine.map((m) => (
+          <Outfit key={`o-${m.personId}`} me={m} gold={gold} />
+        ))}
+        {[...new Map(mine.filter((m) => m.night).map((m) => [JSON.stringify(m.night), m.night!])).values()].map((n) => (
+          <Night key={`${n.title}-${n.date}`} night={n} />
+        ))}
 
         {data.events.map((e) => {
           const times = e.items.map((it) => at(e.startsAt, it.time));
           // On the day: the latest line that has started is "now"; the one after it is "next".
           const current = times.reduce<number>((acc, t, i) => (t !== null && t <= now && new Date(e.startsAt).toDateString() === new Date(now).toDateString() ? i : acc), -1);
           return (
-            <section key={e.key} aria-label={e.name} className="flex flex-col gap-3">
+            <section key={e.key} id={e.key === data.events[0]?.key ? 'runsheet' : undefined} aria-label={e.name} className="scroll-mt-20 flex flex-col gap-3">
               <div className="text-center">
                 <h2 className="m-0 font-normal text-[34px]">{e.name}</h2>
                 <div className="text-[17px] opacity-80">{fmtDay(e.startsAt)}</div>
@@ -415,7 +494,7 @@ export function PartyPage() {
         })}
         {!data.events.length && <p className="m-0 text-center text-[19px] italic">Your run sheet is on its way. Check back closer to the day.</p>}
 
-        <section aria-label="Who's who" className="flex flex-col gap-3 pt-2">
+        <section id="whos-who" aria-label="Who's who" className="scroll-mt-20 flex flex-col gap-3 pt-2">
           <h2 className="m-0 font-normal text-[30px] text-center">Who's who</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             {sides

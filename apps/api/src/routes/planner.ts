@@ -751,6 +751,11 @@ export function partyGuestRoutes() {
         tasks: perms.tasks ? doc.tasks.filter((t) => t.person === m.id || (perms.sideTasks && !t.person && side)).map((t) => ({ id: t.id, text: t.text, due: t.due, done: t.done, mine: t.person === m.id })) : [],
         packed: perms.packing ? (p?.packed ?? []) : [],
         pack: perms.packing ? (p?.pack ?? []) : [],
+        // What they're wearing (their side's look, and their own size and fitting) and their side's night out.
+        outfit: side
+          ? { how: doc.attire.how, what: doc.attire.what, colour: doc.attire.colour, where: doc.attire.where, orderBy: doc.attire.orderBy, returnBy: doc.attire.returnBy, notes: doc.attire.notes, size: p?.size ?? '', fitting: p?.fitting ?? '', collected: !!p?.collected }
+          : null,
+        night: side && (doc.party.date || doc.party.place) ? { title: doc.party.title, date: doc.party.date, place: doc.party.place, organiser: doc.party.organiser } : null,
         // Their own calendar to subscribe to: their jobs, fittings, the hens or bucks, and their moments on the day.
         calendar: c.env.SESSION_SECRET
           ? `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/p/${encodeURIComponent(c.req.param('slug') ?? '')}/party/cal/${m.id}/${await partyCalKey(c.env.SESSION_SECRET, m.id)}.ics`

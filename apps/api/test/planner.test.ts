@@ -99,6 +99,20 @@ describe('planner: wedding party', () => {
     expect((await app.request(url.pathname.replace(/\/[^/]+\.ics$/, '/wrongwrongwrongwrongwron.ics'), {}, env, ctx)).status).toBe(404);
   });
 
+  it('a party member sees their outfit (hired, with the return date, their size and fitting) and their side’s night out', async () => {
+    const ella = await personOf('Ella Thompson');
+    await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });
+    await call('/doc/party-p1', {
+      method: 'PUT',
+      headers: { 'If-Match': '0' },
+      body: JSON.stringify({ attire: { how: 'hire', what: 'Long chiffon', colour: 'Sage', returnBy: '2027-11-22' }, people: { [ella.id]: { size: '10', fitting: '2027-10-01' } }, party: { title: 'The hens', date: '2027-10-15', place: 'Wine tour', budget: 400 } }),
+    });
+    const me = (await (await page(ella.token)).json()) as { mine: { outfit: Record<string, unknown> | null; night: Record<string, unknown> | null }[] };
+    expect(me.mine[0]!.outfit).toMatchObject({ how: 'hire', what: 'Long chiffon', colour: 'Sage', returnBy: '2027-11-22', size: '10', fitting: '2027-10-01', collected: false });
+    expect(me.mine[0]!.night).toEqual({ title: 'The hens', date: '2027-10-15', place: 'Wine tour', organiser: '' });
+    expect(JSON.stringify(me)).not.toContain('400'); // the night's budget stays with the couple
+  });
+
   it('party members tick and add their own to-dos and packing (saved with their side); a paused member is turned away', async () => {
     const ella = await personOf('Ella Thompson');
     await call(`/people/${ella.id}/role`, { method: 'PUT', body: JSON.stringify({ role: 'Bridesmaid' }) });

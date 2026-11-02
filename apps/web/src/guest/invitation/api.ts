@@ -214,6 +214,10 @@ export interface PartyMine {
   pack: { text: string; done: boolean }[];
   /** Their own calendar feed (https …/x.ics): subscribe on their phone. */
   calendar?: string;
+  /** Their side's look (bought, hired or their own) with their size and fitting; null when not on a side. */
+  outfit?: { how: '' | 'buy' | 'hire' | 'own'; what: string; colour: string; where: string; orderBy: string; returnBy: string; notes: string; size: string; fitting: string; collected: boolean } | null;
+  /** Their side's hens or bucks night, once there's a date or place. */
+  night?: { title: string; date: string; place: string; organiser: string } | null;
 }
 
 export interface PartyPayload {
