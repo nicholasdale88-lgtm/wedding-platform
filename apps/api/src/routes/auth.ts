@@ -20,7 +20,7 @@ const err = (c: Context, status: 400 | 401 | 403 | 404 | 415 | 429 | 500, code: 
 
 const Login = z.object({ email: z.string().trim().toLowerCase().email().max(200), passcode: z.string().min(1).max(200) });
 
-const superAdmins = (env: Env) => new Set((env.SUPER_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
+export const superAdmins = (env: Env) => new Set((env.SUPER_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 
 /** Forms can't send JSON cross-site without a CORS preflight, so requiring it blocks CSRF on writes. */
 export const jsonWritesOnly: MiddlewareHandler<AdminEnv> = async (c, next) => {

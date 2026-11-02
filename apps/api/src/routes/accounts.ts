@@ -1,10 +1,11 @@
 import { toE164 } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { hashPasscode, newSessionToken, passcodeProblem, sessionId, verifyPasscode } from '../lib/auth';
+import { getCookie } from 'hono/cookie';
+import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
-import { jsonWritesOnly, requireMember, requireUser, signIn, type AdminEnv, type Role } from './auth';
+import { jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv, type Role } from './auth';
 
 /**
  * Customer accounts (Settings → Your details, People). The signed-in person's own details, kept the way a
@@ -143,9 +144,15 @@ export function accountRoutes() {
     if (!(await allow(c.env.DB, `email:${user.id}`, 5, 15 * 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Wait 15 minutes and try again.');
     const row = await c.env.DB.prepare(`SELECT pass_hash FROM user WHERE id = ?`).bind(user.id).first<{ pass_hash: string | null }>();
     if (!(await verifyPasscode(body.data.passcode, row?.pass_hash ?? null))) return err(c, 400, 'bad_passcode', 'Your passcode is not right.');
-    const taken = await c.env.DB.prepare(`SELECT 1 FROM user WHERE email = ? AND id != ?`).bind(body.data.email, user.id).first();
+    // The company's own sign-in is tied to its address (SUPER_ADMINS): it can't move, and no one can move onto it.
+    if (user.superAdmin) return err(c, 403, 'company_account', 'The company account’s email is fixed. Change SUPER_ADMINS first.');
+    const taken = superAdmins(c.env).has(body.data.email) || (await c.env.DB.prepare(`SELECT 1 FROM user WHERE email = ? AND id != ?`).bind(body.data.email, user.id).first());
     if (taken) return err(c, 409, 'taken', 'That email already has an account.');
-    await c.env.DB.prepare(`UPDATE user SET email = ?, updated_at = ? WHERE id = ?`).bind(body.data.email, now(), user.id).run();
+    // M3: a new sign-in email signs out every other device (as a passcode change does).
+    await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE user SET email = ?, updated_at = ? WHERE id = ?`).bind(body.data.email, now(), user.id),
+      c.env.DB.prepare(`DELETE FROM session WHERE user_id = ? AND id != ?`).bind(user.id, await sessionId(getCookie(c, SESSION_COOKIE) ?? '', c.env.SESSION_SECRET!)),
+    ]);
     return c.json({ ok: true, email: body.data.email });
   });
 

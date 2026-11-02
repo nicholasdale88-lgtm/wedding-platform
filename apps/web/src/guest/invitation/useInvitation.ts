@@ -286,7 +286,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     setLookErr(t('inv.dyn.lookupBusy'));
     try {
       const res = await guestApi.find(slug, q);
-      setLookErr(res.texted ? tx('inv.dyn.lookupTexted', { ending: res.ending ?? '' }) : t('inv.dyn.lookupNoPhone'));
+      setLookErr(res.texted ? tx('inv.dyn.lookupTexted', { ending: '' }).replace(/ ending in\s*(?=\.)/, '') : t('inv.dyn.lookupNoPhone'));
     } catch (e) {
       setLookErr(e instanceof GuestApiError && e.status === 404 ? t('inv.dyn.lookupMiss') : (e as Error).message);
     }

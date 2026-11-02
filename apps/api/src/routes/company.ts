@@ -293,7 +293,8 @@ export function companyRoutes() {
               (SELECT MIN(e.starts_at) FROM membership m JOIN event e ON e.wedding_id = m.wedding_id WHERE m.user_id = u.id AND e.deleted_at IS NULL) AS day
          FROM user u WHERE u.marketing_opt_in = 1 ORDER BY u.created_at DESC`,
     ).all<{ first_name: string | null; email: string; created_at: string; plan: string | null; day: string | null }>();
-    const cell = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    // A leading = + - @ would run as a formula in a spreadsheet: a ' keeps it text.
+    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
     const csv = [['First name', 'Email', 'Signed up', 'Plan', 'Wedding day'], ...results.map((r) => [r.first_name ?? '', r.email, r.created_at.slice(0, 10), r.plan ?? '', (r.day ?? '').slice(0, 10)])]
       .map((row) => row.map(cell).join(','))
       .join('\r\n');

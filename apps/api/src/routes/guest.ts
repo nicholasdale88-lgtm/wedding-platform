@@ -497,10 +497,9 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     )
       .bind(hit.invitation_id)
       .first<{ id: string; token: string; phone: string | null; sms_optout: number; opted_out: number }>();
-    const ending = (inv?.phone ?? '').replace(/\D/g, '').slice(-3);
     const ws = await c.env.DB.prepare(`SELECT sms_sender, sms_paused FROM wedding WHERE id = ?`).bind(w.id).first<{ sms_sender: string | null; sms_paused: number }>();
     if (!inv?.phone || inv.sms_optout || inv.opted_out || !ws?.sms_sender || ws.sms_paused) return c.json({ found: true, texted: false });
-    if (!(await allow(c.env.DB, `findtext:${inv.id}`, 3, 86_400_000))) return c.json({ found: true, texted: true, ending, again: true });
+    if (!(await allow(c.env.DB, `findtext:${inv.id}`, 3, 86_400_000))) return c.json({ found: true, texted: true, again: true });
     const link = `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/w/${w.slug}?g=${inv.token}`;
     try {
       const r = await sendReply(deps(c.env), w.id, inv.id, inv.phone, `Here is your invitation from ${w.name1.split(' ')[0]} & ${w.name2.split(' ')[0]}: ${link}`, `find:${inv.id}:${Date.now()}`);
@@ -508,7 +507,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     } catch {
       return c.json({ found: true, texted: false });
     }
-    return c.json({ found: true, texted: true, ending });
+    return c.json({ found: true, texted: true });
   });
 
   app.post('/rsvp', async (c) => {
