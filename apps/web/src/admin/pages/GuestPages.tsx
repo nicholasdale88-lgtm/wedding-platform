@@ -12,6 +12,7 @@ import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/genera
 import { ORIGINAL, Wording } from './Wording';
 import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
 import { checkMusic } from '../../guest/audio';
+import { SaveToPhone } from '../../lib/SaveToPhone';
 
 /**
  * Admin → Setup (Account: the shared invitation and photo page; an event: its details, timeline and night-before page and text). Pick a page (the invitation, each
@@ -251,6 +252,8 @@ export function GuestPages() {
           }}
         />
       )}
+
+      <SaveToPhone url={`${window.location.origin}/admin/${encodeURIComponent(wid)}`} />
 
       <div className="flex gap-2 flex-wrap items-center">
         <nav aria-label="Setup" className={subNavCls}>

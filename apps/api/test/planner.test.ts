@@ -110,7 +110,7 @@ describe('planner: wedding party', () => {
     const me = (await (await page(ella.token)).json()) as { mine: { outfit: Record<string, unknown> | null; night: Record<string, unknown> | null }[] };
     expect(me.mine[0]!.outfit).toMatchObject({ how: 'hire', what: 'Long chiffon', colour: 'Sage', returnBy: '2027-11-22', size: '10', fitting: '2027-10-01', collected: false });
     expect(me.mine[0]!.night).toEqual({ title: 'The hens', date: '2027-10-15', place: 'Wine tour', organiser: '' });
-    expect(JSON.stringify(me)).not.toContain('400'); // the night's budget stays with the couple
+    expect(JSON.stringify(me)).not.toContain('budget'); // the night's budget stays with the couple
   });
 
   it('party members tick and add their own to-dos and packing (saved with their side); a paused member is turned away', async () => {
