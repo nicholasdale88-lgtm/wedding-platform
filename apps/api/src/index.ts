@@ -19,7 +19,7 @@ import { runCopies } from './photos/store';
 import { runBackups } from './lib/backup';
 import { runDigests } from './lib/digest';
 import { runQuoteFollowUps } from './lib/quoteRequests';
-import { companyRoutes, feedbackRoutes, siteRoutes } from './routes/company';
+import { companyRoutes, feedbackRoutes, siteRoutes, staffJoinRoutes } from './routes/company';
 import { rfqRoutes } from './routes/rfq';
 import { planRoutes, signupRoutes } from './routes/signup';
 import { billingRoutes, stripeHookRoutes } from './routes/billing';
@@ -57,6 +57,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/vendor', vendorAccountRoutes());
   app.route('/a/signup', signupRoutes());
   app.route('/a/company', companyRoutes());
+  app.route('/a/staff-join', staffJoinRoutes());
   app.route('/site', siteRoutes());
   app.route('/a', planRoutes());
   app.route('/a', billingRoutes());

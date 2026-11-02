@@ -15,10 +15,11 @@ export interface Place {
 }
 
 const ROLE: Record<string, string> = { owner: 'You run it', editor: 'You can edit', viewer: 'You can view' };
+const STAFF_NAME: Record<string, string> = { owner: 'Owner', manager: 'Manager', support: 'Support', developer: 'Developer', marketing: 'Marketing' };
 
 export function placesOf(me: Me): Place[] {
   const out: Place[] = me.weddings.map((w) => ({ key: `w:${w.id}`, kind: 'wedding', title: coupleName(w), detail: `Wedding admin · ${ROLE[w.role] ?? w.role}`, to: `/admin/${w.id}` }));
-  if (me.user.superAdmin) out.push({ key: 'company', kind: 'company', title: 'Company portal', detail: 'Sign-ups, plans and money, promotions, the vendor directory', to: '/company' });
+  if (me.user.staff || me.user.superAdmin) out.push({ key: 'company', kind: 'company', title: 'Company portal', detail: `The team · ${STAFF_NAME[me.user.staff ?? 'owner'] ?? 'Staff'}`, to: '/company' });
   if (me.vendor) out.push({ key: 'vendor', kind: 'vendor', title: me.vendor.name, detail: 'Your vendor listing and enquiries', to: '/vendors/me' });
   return out;
 }

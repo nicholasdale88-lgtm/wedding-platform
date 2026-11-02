@@ -629,4 +629,23 @@ export const feedback = sqliteTable('feedback', {
   note: text('note').notNull().default(''),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
+  assignee: text('assignee'),
+  updatedBy: text('updated_by'),
+});
+
+/** The people who run the app, and their role in the company portal. */
+export const staff = sqliteTable('staff', {
+  userId: text('user_id').primaryKey().references(() => user.id),
+  role: text('role').notNull(),
+  addedBy: text('added_by'),
+  createdAt: text('created_at').notNull(),
+});
+export const staffInvite = sqliteTable('staff_invite', {
+  id: text('id').primaryKey(),
+  hash: text('hash').notNull().unique(),
+  email: text('email').notNull(),
+  role: text('role').notNull(),
+  invitedBy: text('invited_by'),
+  expiresAt: text('expires_at').notNull(),
+  createdAt: text('created_at').notNull(),
 });

@@ -1,10 +1,10 @@
 import '@fontsource/cormorant-garamond/400.css';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
-import { chargeCents, planOf } from '@wp/shared';
-import { api, companyApi, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyWedding } from '../lib/api';
+import { chargeCents, planOf, STAFF_INFO, STAFF_ROLES, staffCan, type StaffPerm, type StaffRole } from '@wp/shared';
+import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -19,6 +19,9 @@ import { api, companyApi, type CompanyFeedback, type CompanyListing, type Compan
  * - Vendors: the directory's listings, hide or show.
  * - Settings: payment links (emailed for plan requests), social links (shown on the front page), the
  *   support email, the "Made with" link on guest pages.
+ * - Team (owners): who works on the app and their role; invite by email. Activity: who did what.
+ * Each person sees only the tabs their role allows (STAFF_CAN in @wp/shared): a developer sees feedback,
+ * marketing sees promotions, support sees couples and feedback, and so on.
  */
 
 const INK = '#33402f';
@@ -32,23 +35,42 @@ const money = (cents: number) => `$${(cents / 100).toLocaleString('en-AU', { min
 const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const PLAN_NAME: Record<string, string> = { free: 'Free', essentials: 'Essentials', complete: 'Deluxe', trial: 'Founders (everything)' };
 const TABS = [
-  ['overview', 'Overview'],
-  ['weddings', 'Couples'],
-  ['feedback', 'Feedback'],
-  ['promote', 'Promote'],
-  ['vendors', 'Vendors'],
-  ['settings', 'Settings'],
-] as const;
+  ['overview', 'Overview', 'overview'],
+  ['weddings', 'Couples', 'couples'],
+  ['feedback', 'Feedback', 'feedback'],
+  ['promote', 'Promote', 'promote'],
+  ['vendors', 'Vendors', 'vendors'],
+  ['team', 'Team', 'team'],
+  ['activity', 'Activity', 'activity'],
+  ['settings', 'Settings', 'settings'],
+] as const satisfies readonly (readonly [string, string, StaffPerm])[];
 type Tab = (typeof TABS)[number][0];
 
+/** The signed-in person's company role, for every tab. */
+const RoleCtx = createContext<StaffRole | null>(null);
+const useCan = () => {
+  const role = useContext(RoleCtx);
+  return (p: StaffPerm) => staffCan(role, p);
+};
+
 export function CompanyPortal() {
+  // An invitation to join the team: its own page, signed in or not.
+  if (window.location.pathname.replace(/\/+$/, '') === '/company/join') return <JoinTeam />;
+  return <Portal />;
+}
+
+function Portal() {
   const [who, setWho] = useState<'loading' | 'out' | 'no' | 'yes'>('loading');
+  const [role, setRole] = useState<StaffRole | null>(null);
   const [tab, setTab] = useState<Tab>(() => (TABS.find(([k]) => `#${k}` === window.location.hash)?.[0] ?? 'overview'));
   const [note, setNote] = useState('');
   useEffect(() => {
     document.title = 'Company portal';
     api.me().then(
-      (m) => setWho(m.user.superAdmin ? 'yes' : 'no'),
+      (m) => {
+        setRole(m.user.staff ?? null);
+        setWho(m.user.staff ? 'yes' : 'no');
+      },
       () => setWho('out'),
     );
   }, []);
@@ -65,7 +87,15 @@ export function CompanyPortal() {
 
   if (who === 'loading') return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
   // Signed out: the one sign-in, right here; the company's account lands straight in the portal.
-  if (who === 'out') return <Login onSignedIn={(m) => setWho(m.user.superAdmin ? 'yes' : 'no')} />;
+  if (who === 'out')
+    return (
+      <Login
+        onSignedIn={(m) => {
+          setRole(m.user.staff ?? null);
+          setWho(m.user.staff ? 'yes' : 'no');
+        }}
+      />
+    );
   if (who !== 'yes')
     return (
       <main className="min-h-screen bg-[#f6f0e2] flex items-center justify-center p-6 text-center" style={{ color: INK, fontFamily: sans }}>
@@ -81,23 +111,29 @@ export function CompanyPortal() {
       </main>
     );
 
+  const tabs = TABS.filter(([, , perm]) => staffCan(role, perm));
+  const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
   return (
+    <RoleCtx.Provider value={role}>
     <div className="min-h-screen bg-[#f6f0e2]" style={{ color: INK, fontFamily: sans }}>
       <header className="sticky top-0 z-10 bg-[#33402f] text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] pb-2 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
         <div className="max-w-[1100px] mx-auto flex items-center justify-between gap-3">
-          <span className="text-[24px]" style={{ fontFamily: serif }}>
-            Company portal
+          <span className="flex items-baseline gap-2 min-w-0">
+            <span className="text-[24px]" style={{ fontFamily: serif }}>
+              Company portal
+            </span>
+            {role && <span className="text-[13px] opacity-80">{STAFF_INFO[role].name}</span>}
           </span>
           <ProfileSwitch here="company" />
         </div>
         <nav aria-label="Company" className="max-w-[1100px] mx-auto flex gap-1 overflow-x-auto [scrollbar-width:none] mt-2 -mx-1 px-1">
-          {TABS.map(([k, label]) => (
+          {tabs.map(([k, label]) => (
             <button
               key={k}
               type="button"
-              aria-current={tab === k ? 'page' : undefined}
+              aria-current={shown === k ? 'page' : undefined}
               onClick={() => go(k)}
-              className={`flex-none py-[7px] px-4 rounded-full border-0 text-[14px] cursor-pointer ${tab === k ? 'bg-[#f3ecd6] text-[#33402f] font-semibold' : 'bg-transparent text-[#f3ecd6]'}`}
+              className={`flex-none py-[7px] px-4 rounded-full border-0 text-[14px] cursor-pointer ${shown === k ? 'bg-[#f3ecd6] text-[#33402f] font-semibold' : 'bg-transparent text-[#f3ecd6]'}`}
             >
               {label}
             </button>
@@ -105,12 +141,14 @@ export function CompanyPortal() {
         </nav>
       </header>
       <main className="max-w-[1100px] mx-auto px-4 py-5 pb-24 flex flex-col gap-4">
-        {tab === 'overview' && <Overview onGo={go} />}
-        {tab === 'weddings' && <Weddings onNote={setNote} />}
-        {tab === 'feedback' && <Feedback onNote={setNote} />}
-        {tab === 'promote' && <Promote onNote={setNote} />}
-        {tab === 'vendors' && <Vendors onNote={setNote} />}
-        {tab === 'settings' && <Settings onNote={setNote} />}
+        {shown === 'overview' && <Overview onGo={go} />}
+        {shown === 'weddings' && <Weddings onNote={setNote} />}
+        {shown === 'feedback' && <Feedback onNote={setNote} />}
+        {shown === 'promote' && <Promote onNote={setNote} />}
+        {shown === 'vendors' && <Vendors onNote={setNote} />}
+        {shown === 'team' && <Team onNote={setNote} />}
+        {shown === 'activity' && <Activity />}
+        {shown === 'settings' && <Settings onNote={setNote} />}
       </main>
       {note && (
         <div role="status" className="fixed z-20 inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] mx-auto max-w-[460px] py-3 px-4 rounded-[14px] bg-[#33402f] text-[#fbf8f2] text-[15px] text-center shadow-[0_8px_24px_rgba(0,0,0,.25)]">
@@ -118,6 +156,7 @@ export function CompanyPortal() {
         </div>
       )}
     </div>
+    </RoleCtx.Provider>
   );
 }
 
@@ -158,16 +197,18 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 function Overview({ onGo }: { onGo: (t: Tab) => void }) {
+  const can = useCan();
+  const seeFeedback = can('feedback');
   const { data: s, error } = useLoad(companyApi.stats);
-  const fb = useLoad(companyApi.feedback);
+  const fb = useLoad(useCallback(() => (seeFeedback ? companyApi.feedback() : Promise.resolve({ feedback: [] as CompanyFeedback[], counts: {} as Record<string, number> })), [seeFeedback]));
   if (error) return <Problem text={error} />;
   if (!s) return <p className="text-[#5b6a52]">Loading…</p>;
   const max = Math.max(1, ...s.signups.weekly.map((w) => w.n));
   const paidPlans = (s.plans.essentials ?? 0) + (s.plans.complete ?? 0);
   const fresh = fb.data?.counts.new ?? 0;
   const todo = [
-    s.requests > 0 && { to: 'weddings' as Tab, text: `${s.requests} plan ${s.requests === 1 ? 'request' : 'requests'}`, sub: 'Send the payment link, then mark it paid.' },
-    fresh > 0 && { to: 'feedback' as Tab, text: `${fresh} new feedback`, sub: 'Read it, then plan it, or not now.' },
+    can('couples') && s.requests > 0 && { to: 'weddings' as Tab, text: `${s.requests} plan ${s.requests === 1 ? 'request' : 'requests'}`, sub: 'Send the payment link, then mark it paid.' },
+    can('feedback') && fresh > 0 && { to: 'feedback' as Tab, text: `${fresh} new feedback`, sub: 'Read it, then plan it, or not now.' },
   ].filter((x): x is { to: Tab; text: string; sub: string } => !!x);
   return (
     <>
@@ -301,6 +342,7 @@ function Weddings({ onNote }: { onNote: (s: string) => void }) {
 }
 
 function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) => void }) {
+  const can = useCan();
   const [plan, setPlan] = useState(w.plan === 'trial' ? 'complete' : w.plan);
   const [extra, setExtra] = useState(w.extraEvents);
   const [busy, setBusy] = useState(false);
@@ -340,6 +382,8 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
       </span>
       {w.requested && <RequestSteps w={w} onDone={onSaved} />}
       <div className="flex gap-2 flex-wrap items-center">
+        {can('money') && (
+          <>
         <select value={plan} aria-label={`Plan for ${w.names}`} onChange={(e) => setPlan(e.target.value)} className={`${input} w-auto`}>
           <option value="free">Free</option>
           <option value="essentials">Essentials</option>
@@ -352,6 +396,8 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
         <button type="button" className={w.requested ? btn : primary} disabled={!changed || busy} onClick={() => void save()}>
           {busy ? 'Saving…' : w.requested ? 'Change without payment' : 'Save'}
         </button>
+          </>
+        )}
         <a href={`/w/${encodeURIComponent(w.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
           Their page
         </a>
@@ -365,6 +411,7 @@ const WHAT_NAME: Record<string, string> = { essentials: 'Essentials', complete: 
 
 /** A plan request's two steps: 1. email the payment link, 2. mark it paid (or say not now). */
 function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) => void }) {
+  const can = useCan();
   const what = w.requested as 'essentials' | 'complete' | 'event';
   const price = chargeCents(planOf(w.plan), what) ?? 0;
   const [dollars, setDollars] = useState(String(price / 100));
@@ -427,18 +474,24 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
       )}
       <div className={step}>
         <span className={num} style={{ background: '#ecd9ae' }}>2</span>
-        <span className="flex-1 min-w-[160px] text-[14px]">When they’ve paid, switch it on</span>
-        <label className="flex items-center gap-1 text-[14px]">
-          $
-          <input type="number" min={0} step="1" value={dollars} onChange={(e) => setDollars(e.target.value)} aria-label="Amount paid" className={`${input} w-[90px]`} />
-        </label>
-        <button type="button" className={primary} disabled={!!busy} onClick={() => void paid()}>
-          {busy === 'paid' ? 'Saving…' : 'Mark paid'}
-        </button>
+        <span className="flex-1 min-w-[160px] text-[14px]">{can('money') ? 'When they’ve paid, switch it on' : 'When they’ve paid, a manager or owner switches it on'}</span>
+        {can('money') && (
+          <>
+            <label className="flex items-center gap-1 text-[14px]">
+              $
+              <input type="number" min={0} step="1" value={dollars} onChange={(e) => setDollars(e.target.value)} aria-label="Amount paid" className={`${input} w-[90px]`} />
+            </label>
+            <button type="button" className={primary} disabled={!!busy} onClick={() => void paid()}>
+              {busy === 'paid' ? 'Saving…' : 'Mark paid'}
+            </button>
+          </>
+        )}
       </div>
-      <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]" disabled={!!busy} onClick={() => void notNow()}>
-        Not now: clear the request
-      </button>
+      {can('money') && (
+        <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]" disabled={!!busy} onClick={() => void notNow()}>
+          Not now: clear the request
+        </button>
+      )}
       {problem && <Problem text={problem} />}
     </div>
   );
@@ -447,18 +500,30 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
 const FB_STATUS: [CompanyFeedback['status'], string][] = [
   ['new', 'New'],
   ['planned', 'Planned'],
+  ['in_progress', 'In progress'],
   ['done', 'Done'],
   ['not_now', 'Not now'],
 ];
+/** What each status leads to next (the buttons on a piece of feedback). */
+const FB_NEXT: Record<CompanyFeedback['status'], CompanyFeedback['status'][]> = {
+  new: ['planned', 'not_now'],
+  planned: ['in_progress', 'not_now'],
+  in_progress: ['done', 'planned'],
+  done: ['in_progress'],
+  not_now: ['planned'],
+};
 const FB_KIND: Record<string, string> = { idea: 'Idea', problem: 'Problem', love: 'Love' };
 
 /** What couples told us; each moves new → planned → done (or not now), with a note couples see. */
 function Feedback({ onNote }: { onNote: (s: string) => void }) {
   const { data, error, reload } = useLoad(companyApi.feedback);
+  const team = useLoad(companyApi.staff);
   const [show, setShow] = useState<CompanyFeedback['status']>('new');
+  const [mine, setMine] = useState(false);
   if (error) return <Problem text={error} />;
   if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
-  const list = data.feedback.filter((f) => f.status === show);
+  const meId = team.data?.me.id ?? '';
+  const list = data.feedback.filter((f) => f.status === show && (!mine || f.assignee === meId));
   return (
     <section className="flex flex-col gap-3">
       <H sub="From Help → Tell us. Plan it with a short note (“Seating: bigger rooms”) and every couple sees it under “Coming from your feedback”.">Feedback and updates</H>
@@ -468,6 +533,10 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
             {label} {data.counts[k] ?? 0}
           </button>
         ))}
+        <label className="flex items-center gap-2 text-[14px] cursor-pointer ml-auto">
+          <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+          Only mine
+        </label>
       </div>
       {!list.length ? (
         <p className="text-[#5b6a52]">{show === 'new' ? 'Nothing new. Couples send feedback from Help → Tell us.' : 'None here.'}</p>
@@ -477,6 +546,8 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
             <FeedbackRow
               key={f.id}
               f={f}
+              team={team.data?.staff ?? []}
+              meId={meId}
               onSaved={(msg) => {
                 onNote(msg);
                 reload();
@@ -489,18 +560,20 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
   );
 }
 
-function FeedbackRow({ f, onSaved }: { f: CompanyFeedback; onSaved: (msg: string) => void }) {
+function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { id: string; name: string; role: string }[]; meId: string; onSaved: (msg: string) => void }) {
   const [note, setNote] = useState(f.note);
   const [problem, setProblem] = useState('');
-  const save = async (status: CompanyFeedback['status']) => {
+  const update = async (body: { status?: CompanyFeedback['status']; note?: string; assignee?: string }, msg: string) => {
     setProblem('');
     try {
-      await companyApi.setFeedback(f.id, { status, note });
-      onSaved(`Moved to ${FB_STATUS.find(([k]) => k === status)![1].toLowerCase()}`);
+      await companyApi.setFeedback(f.id, body);
+      onSaved(msg);
     } catch (e) {
       setProblem((e as Error).message);
     }
   };
+  const save = (status: CompanyFeedback['status']) =>
+    update({ status, note, ...(status === 'in_progress' && !f.assignee && meId ? { assignee: meId } : {}) }, `Moved to ${FB_STATUS.find(([k]) => k === status)![1].toLowerCase()}`);
   return (
     <li className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
       <span className="text-[13px] text-[#5b6a52]">
@@ -515,13 +588,34 @@ function FeedbackRow({ f, onSaved }: { f: CompanyFeedback; onSaved: (msg: string
         )}
       </span>
       <p className="m-0 text-[16px] whitespace-pre-wrap break-words">{f.text}</p>
+      <label className="flex items-center gap-2 text-[14px]">
+        Who’s on it
+        <select value={f.assignee} onChange={(e) => void update({ assignee: e.target.value }, e.target.value ? `Given to ${team.find((m) => m.id === e.target.value)?.name ?? 'them'}` : 'Unassigned')} className={`${input} w-auto`}>
+          <option value="">Nobody yet</option>
+          {team.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} ({STAFF_INFO[m.role as StaffRole]?.name ?? m.role})
+            </option>
+          ))}
+        </select>
+        {!f.assignee && meId && (
+          <button type="button" className={btn} onClick={() => void update({ assignee: meId }, 'It’s yours')}>
+            Take it
+          </button>
+        )}
+      </label>
       <input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="What we’ll do (couples see this once it’s planned)" aria-label="What we’ll do" className={input} />
       <div className="flex gap-2 flex-wrap">
-        {FB_STATUS.filter(([k]) => k !== 'new' || f.status !== 'new').map(([k, label]) => (
-          <button key={k} type="button" className={k === 'planned' && f.status === 'new' ? primary : btn} onClick={() => void save(k)}>
-            {k === f.status ? 'Save note' : label}
+        {FB_NEXT[f.status].map((k, i) => (
+          <button key={k} type="button" className={i === 0 ? primary : btn} onClick={() => void save(k)}>
+            {FB_STATUS.find(([s]) => s === k)![1]}
           </button>
         ))}
+        {note !== f.note && (
+          <button type="button" className={btn} onClick={() => void update({ note }, 'Note saved')}>
+            Save note
+          </button>
+        )}
       </div>
       {problem && <Problem text={problem} />}
     </li>
@@ -736,7 +830,7 @@ function BannerCard({ s, onSaved }: { s: CompanySettings; onSaved: (s: CompanySe
     setBusy(true);
     setProblem('');
     try {
-      onSaved(await companyApi.saveSettings({ ...s, banner: b }));
+      onSaved(await companyApi.saveBanner(b));
     } catch (e) {
       setProblem((e as Error).message);
     } finally {
@@ -886,5 +980,245 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
         {busy ? 'Saving…' : 'Save settings'}
       </button>
     </>
+  );
+}
+
+const ACTION: Record<string, string> = {
+  'company.plan': 'Changed the plan',
+  'company.link': 'Sent a payment link',
+  'company.paid': 'Marked paid',
+  'plan.paid': 'Paid',
+  'company.feedback': 'Updated feedback',
+  'company.settings': 'Changed settings',
+  'company.banner': 'Changed the banner',
+  'company.promos': 'Changed promo codes',
+  'company.vendor.hide': 'Hid a vendor',
+  'company.vendor.show': 'Showed a vendor',
+  'company.team.invite': 'Invited',
+  'company.team.join': 'Joined the team',
+  'company.team.role': 'Changed a role',
+  'company.team.remove': 'Removed from the team',
+};
+
+/** Who works on the app, their roles, and invitations. Owners only. */
+function Team({ onNote }: { onNote: (s: string) => void }) {
+  const { data, error, reload } = useLoad(companyApi.team);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<StaffRole>('support');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  const [link, setLink] = useState('');
+  const run = async (fn: () => Promise<unknown>, msg: string) => {
+    setProblem('');
+    try {
+      await fn();
+      onNote(msg);
+      reload();
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  const invite = async () => {
+    setBusy(true);
+    setProblem('');
+    setLink('');
+    try {
+      const r = await companyApi.invite(email, role);
+      if (r.emailed) onNote(`Invitation emailed to ${email}`);
+      else setLink(r.link);
+      setEmail('');
+      reload();
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (error) return <Problem text={error} />;
+  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  return (
+    <>
+      <section className={card} aria-label="Invite someone">
+        <H sub="They get a link (a week, once) to set up their sign-in. Each role sees only its part of the portal.">Invite someone</H>
+        <div className="flex gap-2 flex-wrap items-end">
+          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52] flex-1 min-w-[220px]">
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value.trim())} placeholder="name@…" className={input} />
+          </label>
+          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+            Role
+            <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={`${input} w-auto`}>
+              {STAFF_ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {STAFF_INFO[r].name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" className={primary} disabled={busy || !/^\S+@\S+\.\S+$/.test(email)} onClick={() => void invite()}>
+            {busy ? 'Inviting…' : 'Invite'}
+          </button>
+        </div>
+        <p className="m-0 text-[14px] text-[#5b6a52]">{STAFF_INFO[role].does}</p>
+        {link && (
+          <p className="m-0 text-[14px] break-all">
+            Email isn’t set up, so send them this link yourself: <strong>{link}</strong>
+          </p>
+        )}
+        {problem && <Problem text={problem} />}
+      </section>
+      <section className={card} aria-label="The team">
+        <H>The team</H>
+        <ul className="m-0 p-0 list-none flex flex-col gap-2">
+          {data.staff.map((m: CompanyStaff) => (
+            <li key={m.id} className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-white border border-[#ece3cd]">
+              <span className="flex-1 min-w-[200px]">
+                <strong className="block text-[15px]">{m.name}</strong>
+                <span className="text-[13px] text-[#5b6a52]">
+                  {m.email}
+                  {m.lastIn ? ` · last in ${day(m.lastIn)}` : ' · not signed in yet'}
+                </span>
+              </span>
+              {m.founder ? (
+                <span className="text-[14px]">Owner (founder)</span>
+              ) : (
+                <>
+                  <select value={m.role} aria-label={`Role for ${m.name}`} onChange={(e) => void run(() => companyApi.setRole(m.id, e.target.value), `${m.name}: ${STAFF_INFO[e.target.value as StaffRole].name}`)} className={`${input} w-auto`}>
+                    {STAFF_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {STAFF_INFO[r].name}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="button" className={btn} onClick={() => {
+                      if (window.confirm(`Remove ${m.name} from the team? They’re signed out straight away.`)) void run(() => companyApi.setRole(m.id, ''), `${m.name} removed`);
+                    }}>
+                    Remove
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+        {data.invites.length > 0 && (
+          <>
+            <h3 className="m-0 text-[13px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Invited, not joined yet</h3>
+            <ul className="m-0 p-0 list-none flex flex-col gap-2">
+              {data.invites.map((i) => (
+                <li key={i.id} className="flex flex-wrap items-center gap-3 text-[14px]">
+                  <span className="flex-1">
+                    {i.email} · {STAFF_INFO[i.role as StaffRole]?.name ?? i.role} · until {day(i.expiresAt)}
+                  </span>
+                  <button type="button" className={btn} onClick={() => void run(() => companyApi.cancelInvite(i.id), 'Invitation cancelled')}>
+                    Cancel
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </section>
+      <section className={card} aria-label="What each role can do">
+        <H>What each role can do</H>
+        <dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[14px]">
+          {STAFF_ROLES.map((r) => (
+            <div key={r} className="contents">
+              <dt className="font-semibold">{STAFF_INFO[r].name}</dt>
+              <dd className="m-0">{STAFF_INFO[r].does}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+    </>
+  );
+}
+
+/** Who did what: plans, payments, links, feedback, settings and the team. */
+function Activity() {
+  const { data, error } = useLoad(companyApi.activity);
+  if (error) return <Problem text={error} />;
+  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  return (
+    <section className="flex flex-col gap-3">
+      <H sub="Every change in the portal, with who made it. Card payments show as Card payment.">Activity</H>
+      {!data.activity.length ? (
+        <p className="text-[#5b6a52]">Nothing yet.</p>
+      ) : (
+        <ul className="m-0 p-0 list-none flex flex-col gap-1">
+          {data.activity.map((a: CompanyActivity) => (
+            <li key={a.id} className="flex flex-wrap gap-x-3 py-2 border-b border-[#ece3cd] text-[14px]">
+              <span className="w-[130px] flex-none text-[#5b6a52]">{new Date(a.at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>
+              <strong className="flex-none">{a.who || 'Someone'}</strong>
+              <span className="flex-1 min-w-[180px]">
+                {ACTION[a.action] ?? a.action}
+                {a.names ? ` · ${a.names}` : a.target && !/^[0-9a-f-]{36}$/.test(a.target) ? ` · ${a.target}` : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** /company/join?t=…: an invitation to the team. New here: a name and passcode; have an account: its passcode. */
+function JoinTeam() {
+  const token = new URLSearchParams(window.location.search).get('t') ?? '';
+  const [inv, setInv] = useState<{ email: string; roleName: string; hasAccount: boolean } | null>(null);
+  const [error, setError] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [passcode, setPasscode] = useState('');
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    document.title = 'Join the team';
+    staffJoinApi.get(token).then(setInv, (e: Error) => setError(e.message));
+  }, [token]);
+  const join = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await staffJoinApi.accept(token, passcode, firstName);
+      window.location.replace('/company');
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <main className="min-h-screen bg-[#f6f0e2] flex items-center justify-center p-6" style={{ color: INK, fontFamily: sans }}>
+      <div className="flex flex-col gap-3 w-full max-w-[420px]">
+        <h1 className="m-0 text-[34px] font-normal text-center" style={{ fontFamily: serif }}>
+          Join the team
+        </h1>
+        {!inv && !error && <p className="text-center text-[#5b6a52]">Loading…</p>}
+        {inv && (
+          <form
+            className={card}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void join();
+            }}
+          >
+            <p className="m-0 text-[16px]">
+              You’re joining as <strong>{inv.roleName}</strong>, signing in as <strong>{inv.email}</strong>.
+            </p>
+            {!inv.hasAccount && (
+              <label className="flex flex-col gap-1 text-[14px]">
+                Your first name
+                <input value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" className={input} />
+              </label>
+            )}
+            <label className="flex flex-col gap-1 text-[14px]">
+              {inv.hasAccount ? 'Your passcode (you already have an account)' : 'Choose a passcode (8 or more characters)'}
+              <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} autoComplete={inv.hasAccount ? 'current-password' : 'new-password'} className={input} />
+            </label>
+            <button type="submit" className={primary} disabled={busy || !passcode || (!inv.hasAccount && !firstName.trim())}>
+              {busy ? 'Joining…' : 'Join'}
+            </button>
+          </form>
+        )}
+        {error && <Problem text={error} />}
+      </div>
+    </main>
   );
 }

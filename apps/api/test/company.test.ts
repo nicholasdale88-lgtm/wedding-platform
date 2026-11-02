@@ -153,4 +153,64 @@ describe('company portal', () => {
     expect(updates.updates).toEqual([{ text: 'Seating: room sizes up to 4x', done: false, at: expect.any(String) }]);
     expect(JSON.stringify(updates)).not.toContain('Bigger rooms');
   });
+  it('staff: an owner invites by email; each role sees only its part; feedback is taken and worked; removing someone signs them out; all logged', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const a = await signup('Alex', 'alex@example.com');
+    const slug = (await t.db.prepare(`SELECT slug FROM wedding WHERE id = ?`).bind(a.wid).first<{ slug: string }>())!.slug;
+    const invite = async (email: string, role: string) => {
+      const r = (await (await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email, role }) }, boss.cookie)).json()) as { emailed: boolean; link: string };
+      expect(r.emailed).toBe(false);
+      return new URL(r.link).searchParams.get('t')!;
+    };
+    // A developer, new here: name and passcode.
+    const devToken = await invite('dev@example.com', 'developer');
+    expect(await (await call(`/a/staff-join/${devToken}`)).json()).toMatchObject({ email: 'dev@example.com', role: 'developer', hasAccount: false });
+    expect((await call(`/a/staff-join/${devToken}`, { method: 'POST', body: JSON.stringify({ passcode: 'long-enough-2' }) })).status).toBe(400); // no name
+    const joined = await call(`/a/staff-join/${devToken}`, { method: 'POST', body: JSON.stringify({ passcode: 'long-enough-2', firstName: 'Dev' }) });
+    expect(joined.status).toBe(200);
+    expect(((await joined.json()) as { user: { staff: string } }).user.staff).toBe('developer');
+    const dev = (joined.headers.get('set-cookie') ?? '').split(';')[0]!;
+    expect((await call(`/a/staff-join/${devToken}`)).status).toBe(404); // once only
+    // Support: an existing account (a couple's) signs in with its own passcode.
+    const supToken = await invite('alex@example.com', 'support');
+    expect((await call(`/a/staff-join/${supToken}`, { method: 'POST', body: JSON.stringify({ passcode: 'wrong-passcode' }) })).status).toBe(400);
+    const sup = ((await call(`/a/staff-join/${supToken}`, { method: 'POST', body: JSON.stringify({ passcode: 'long-enough-1' }) })).headers.get('set-cookie') ?? '').split(';')[0]!;
+
+    // What each can reach.
+    expect((await call('/a/company/stats', {}, dev)).status).toBe(200);
+    expect((await call('/a/company/weddings', {}, dev)).status).toBe(403);
+    expect((await call('/a/company/promos', {}, dev)).status).toBe(403);
+    expect((await call('/a/company/team', {}, dev)).status).toBe(403);
+    expect((await call('/a/company/weddings', {}, sup)).status).toBe(200);
+    expect((await call('/a/company/settings', { method: 'PUT', body: JSON.stringify({}) }, sup)).status).toBe(403);
+    expect((await call('/a/company/team', {}, sup)).status).toBe(403);
+    await call(`/a/w/${a.wid}/plan/request`, { method: 'POST', body: JSON.stringify({ plan: 'essentials' }) }, a.cookie);
+    expect((await call(`/a/company/weddings/${slug}/paid`, { method: 'POST', body: JSON.stringify({ what: 'essentials', cents: 2800 }) }, sup)).status).toBe(403); // money is a manager's or owner's
+
+    // Feedback: the developer sees the words, not who sent them; takes it and works it.
+    await call(`/a/w/${a.wid}/feedback`, { method: 'POST', body: JSON.stringify({ kind: 'problem', text: 'Seating page is slow' }) }, a.cookie);
+    const fb = (await (await call('/a/company/feedback', {}, dev)).json()) as { feedback: { id: string; email: string; text: string }[] };
+    expect(fb.feedback[0]).toMatchObject({ text: 'Seating page is slow', email: '' });
+    const team = (await (await call('/a/company/staff', {}, dev)).json()) as { staff: { id: string; name: string }[]; me: { id: string } };
+    expect(team.staff.map((m) => m.name).sort()).toEqual(['Alex', 'Boss', 'Dev']);
+    expect((await call(`/a/company/feedback/${fb.feedback[0]!.id}`, { method: 'PUT', body: JSON.stringify({ assignee: 'not-staff' }) }, dev)).status).toBe(400);
+    expect((await call(`/a/company/feedback/${fb.feedback[0]!.id}`, { method: 'PUT', body: JSON.stringify({ status: 'in_progress', assignee: team.me.id }) }, dev)).status).toBe(200);
+    const after = (await (await call('/a/company/feedback', {}, boss.cookie)).json()) as { feedback: { status: string; assignee: string }[] };
+    expect(after.feedback[0]).toMatchObject({ status: 'in_progress', assignee: team.me.id });
+
+    // The founder can't be changed; others can; removing signs them out at once.
+    const list = (await (await call('/a/company/team', {}, boss.cookie)).json()) as { staff: { id: string; email: string; founder: boolean }[] };
+    const founder = list.staff.find((m) => m.founder)!;
+    expect(founder.email).toBe('boss@example.com');
+    const devId = list.staff.find((m) => m.email === 'dev@example.com')!.id;
+    expect((await call(`/a/company/team/${devId}`, { method: 'PUT', body: JSON.stringify({ role: '' }) }, boss.cookie)).status).toBe(200);
+    expect((await call('/a/company/stats', {}, dev)).status).toBe(401);
+    expect(((await (await call('/a/company/feedback', {}, boss.cookie)).json()) as { feedback: { assignee: string }[] }).feedback[0]!.assignee).toBe('');
+
+    // Activity: who did what.
+    const act = (await (await call('/a/company/activity', {}, boss.cookie)).json()) as { activity: { action: string; who: string }[] };
+    expect(act.activity.map((x) => x.action)).toEqual(expect.arrayContaining(['company.team.invite', 'company.team.join', 'company.feedback', 'company.team.remove']));
+    expect(act.activity.find((x) => x.action === 'company.feedback')!.who).toBe('Dev');
+    expect((await call('/a/company/activity', {}, sup)).status).toBe(403);
+  });
 });

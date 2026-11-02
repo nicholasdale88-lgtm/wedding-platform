@@ -6,12 +6,16 @@ import type { Env } from '../env';
 import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { buttonEmail, emailReady, sendEmail } from '../lib/email';
+import { STAFF_ROLES, type StaffRole } from '@wp/shared';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface SessionUser {
   id: string;
   email: string;
+  /** Owner or manager of the company: the platform-wide switches (plans, integrations). */
   superAdmin: boolean;
+  /** Their role in the company portal, if they work on the app. */
+  staff: StaffRole | null;
 }
 export type AdminEnv = { Bindings: Env; Variables: { user: SessionUser; role: Role } };
 
@@ -20,6 +24,15 @@ const err = (c: Context, status: 400 | 401 | 403 | 404 | 415 | 429 | 500, code: 
 
 const Login = z.object({ email: z.string().trim().toLowerCase().email().max(200), passcode: z.string().min(1).max(200) });
 
+/** A user's company role: the SUPER_ADMINS address is always an owner; others come from the staff table. */
+export function staffOf(env: Env, email: string, tableRole: string | null | undefined): StaffRole | null {
+  if (superAdmins(env).has(email.toLowerCase())) return 'owner';
+  return (STAFF_ROLES as readonly string[]).includes(tableRole ?? '') ? (tableRole as StaffRole) : null;
+}
+const asUser = (env: Env, row: { id: string; email: string; staff_role?: string | null }): SessionUser => {
+  const staff = staffOf(env, row.email, row.staff_role);
+  return { id: row.id, email: row.email, staff, superAdmin: staff === 'owner' || staff === 'manager' };
+};
 export const superAdmins = (env: Env) => new Set((env.SUPER_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 
 /** Forms can't send JSON cross-site without a CORS preflight, so requiring it blocks CSRF on writes. */
@@ -37,12 +50,12 @@ export const requireUser: MiddlewareHandler<AdminEnv> = async (c, next) => {
   const token = getCookie(c, SESSION_COOKIE);
   if (!token || !c.env.SESSION_SECRET) return err(c, 401, 'signed_out', 'Please sign in.');
   const row = await c.env.DB.prepare(
-    `SELECT u.id, u.email FROM session s JOIN user u ON u.id = s.user_id WHERE s.id = ? AND s.expires_at > ?`,
+    `SELECT u.id, u.email, st.role AS staff_role FROM session s JOIN user u ON u.id = s.user_id LEFT JOIN staff st ON st.user_id = u.id WHERE s.id = ? AND s.expires_at > ?`,
   )
     .bind(await sessionId(token, c.env.SESSION_SECRET), new Date().toISOString())
-    .first<{ id: string; email: string }>();
+    .first<{ id: string; email: string; staff_role: string | null }>();
   if (!row) return err(c, 401, 'signed_out', 'Please sign in.');
-  c.set('user', { ...row, superAdmin: superAdmins(c.env).has(row.email) });
+  c.set('user', asUser(c.env, row));
   await next();
 };
 
@@ -74,7 +87,7 @@ export async function me(env: Env, user: SessionUser) {
     .bind(user.id)
     .first<{ slug: string; name: string }>()
     .catch(() => null);
-  return { user: { id: user.id, email: user.email, superAdmin: user.superAdmin }, weddings: results, vendor: vendor ?? null };
+  return { user: { id: user.id, email: user.email, superAdmin: user.superAdmin, staff: user.staff }, weddings: results, vendor: vendor ?? null };
 }
 
 /** Start a session for this user (a cookie with a random token; only its HMAC is stored) and note the sign-in. */
@@ -86,7 +99,8 @@ export async function signIn(c: Context<AdminEnv>, user: { id: string; email: st
     c.env.DB.prepare(`UPDATE user SET last_login_at = ? WHERE id = ?`).bind(new Date().toISOString(), user.id),
   ]);
   setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', expires });
-  return me(c.env, { id: user.id, email: user.email, superAdmin: superAdmins(c.env).has(user.email) });
+  const role = await c.env.DB.prepare(`SELECT role FROM staff WHERE user_id = ?`).bind(user.id).first<{ role: string }>().catch(() => null);
+  return me(c.env, asUser(c.env, { id: user.id, email: user.email, staff_role: role?.role ?? null }));
 }
 
 export function authRoutes() {

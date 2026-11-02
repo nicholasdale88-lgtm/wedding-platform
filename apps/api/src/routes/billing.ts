@@ -193,7 +193,7 @@ const parseJson = (raw: string): unknown => {
  * written, so the same session delivered twice (or two deliveries at once) changes nothing the second time.
  * A plan only ever goes up: Essentials paid for on a Deluxe wedding leaves it Deluxe.
  */
-export async function applyPurchase(db: D1Database, wid: string, what: Purchase, sessionId: string, paid: { amount: number | null; currency: string | null; promo?: string; manual?: boolean }) {
+export async function applyPurchase(db: D1Database, wid: string, what: Purchase, sessionId: string, paid: { amount: number | null; currency: string | null; promo?: string; manual?: boolean; by?: string }) {
   const at = new Date().toISOString();
   const fresh = `NOT EXISTS (SELECT 1 FROM audit WHERE action = 'plan.paid' AND target = ?1)`;
   const update =

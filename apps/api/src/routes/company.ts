@@ -1,17 +1,21 @@
-import { chargeCents, dateIn, FeedbackIn, FeedbackUpdate, PLAN_INFO, planOf, Promo, Promos, SiteSettings, type PROMO_FOR } from '@wp/shared';
+import { chargeCents, dateIn, FeedbackIn, FeedbackUpdate, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
-import { buttonEmail, sendEmail } from '../lib/email';
+import type { MiddlewareHandler } from 'hono';
+import { hashPasscode, passcodeProblem, sessionId, verifyPasscode } from '../lib/auth';
+import { buttonEmail, emailReady, sendEmail } from '../lib/email';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { mainAccountOf } from './accounts';
-import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv } from './auth';
 import { applyPurchase } from './billing';
 import { PLANS } from './signup';
 
 /**
- * The company portal (/api/a/company): for the platform owner (super admins: SUPER_ADMINS) only.
+ * The company portal (/api/a/company): for the people who run the app (staff), each route gated by what
+ * their role can do (STAFF_CAN: owner, manager, support, developer, marketing). Every change is logged with
+ * who made it (audit 'company.*': the Activity tab).
  * - stats: sign-ups by week, plans, money taken, plan requests waiting, guests and replies, the vendor
  *   directory, quote requests, where sign-ups came from (referrals and campaigns), marketing opt-ins;
  * - weddings: find one, see its plan and size, set its plan; a plan request's two steps: email the payment
@@ -62,11 +66,11 @@ export type PromoFor = (typeof PROMO_FOR)[number];
 export function companyRoutes() {
   const app = new Hono<AdminEnv>();
   app.use('*', jsonWritesOnly, requireUser, async (c, next) => {
-    if (!c.get('user').superAdmin) return err(c, 403, 'forbidden', 'This is for the company only.');
+    if (!c.get('user').staff) return err(c, 403, 'forbidden', 'This is for the company only.');
     await next();
   });
 
-  app.get('/stats', async (c) => {
+  app.get('/stats', can('overview'), async (c) => {
     const db = c.env.DB;
     const now = new Date();
     const weeksBack = 12;
@@ -128,7 +132,7 @@ export function companyRoutes() {
   });
 
   /** Weddings, newest first: search by names, address or the owner's email; ?requests=1 for plan requests only. */
-  app.get('/weddings', async (c) => {
+  app.get('/weddings', can('couples'), async (c) => {
     const q = `%${(c.req.query('q') ?? '').trim().toLowerCase().replace(/[%_]/g, '')}%`;
     const onlyRequests = c.req.query('requests') === '1';
     const { results } = await c.env.DB.prepare(
@@ -158,7 +162,7 @@ export function companyRoutes() {
   });
 
   /** Set a wedding's plan (and extra events), by its address: clears its request. */
-  app.put('/weddings/:slug/plan', async (c) => {
+  app.put('/weddings/:slug/plan', can('money'), async (c) => {
     const b = z.object({ plan: z.enum(PLANS).optional(), extraEvents: z.number().int().min(0).max(20).optional() }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success || (b.data.plan === undefined && b.data.extraEvents === undefined)) return err(c, 400, 'invalid', 'A plan (or extra events), please.');
     const r = await c.env.DB.prepare(
@@ -177,7 +181,7 @@ export function companyRoutes() {
   });
 
   /** A plan request, step 1: email the couple's main account the payment link for what they asked for. */
-  app.post('/weddings/:slug/send-link', async (c) => {
+  app.post('/weddings/:slug/send-link', can('couples'), async (c) => {
     const w = await c.env.DB.prepare(`SELECT id, name1, name2, plan, COALESCE(json_extract(content, '$.planRequested'), '') AS requested FROM wedding WHERE slug = ? AND deleted_at IS NULL AND json_valid(content)`)
       .bind(c.req.param('slug'))
       .first<{ id: string; name1: string; name2: string; plan: string; requested: string }>();
@@ -201,49 +205,123 @@ export function companyRoutes() {
     });
     const emailed = await sendEmail(c.env, { to: to.email, subject: `Your payment link: ${name}`, ...m, ...(site.supportEmail ? { replyTo: [site.supportEmail] } : {}) });
     await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.planLinkSentAt', ?) WHERE id = ? AND json_valid(content)`).bind(new Date().toISOString(), w.id).run();
+    await logCompany(c, 'company.link', c.req.param('slug'), { what, emailed }, w.id);
     // Not emailed (email isn't set up, or it failed): the portal shows the link and address to send by hand.
     return c.json({ ok: true, emailed, email: to.email, link, cents: cents ?? 0 });
   });
 
   /** A plan request, step 2: they paid (by the link, a transfer, cash): switch it on and count the money. */
-  app.post('/weddings/:slug/paid', async (c) => {
+  app.post('/weddings/:slug/paid', can('money'), async (c) => {
     const b = z.object({ what: z.enum(['essentials', 'complete', 'event']), cents: z.number().int().min(0).max(1_000_000) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'What did they pay for, and how much?');
     const w = await c.env.DB.prepare(`SELECT id FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string }>();
     if (!w) return err(c, 404, 'not_found', 'No wedding at that address.');
-    await applyPurchase(c.env.DB, w.id, b.data.what, `manual:${crypto.randomUUID()}`, { amount: b.data.cents, currency: 'aud', manual: true });
+    await applyPurchase(c.env.DB, w.id, b.data.what, `manual:${crypto.randomUUID()}`, { amount: b.data.cents, currency: 'aud', manual: true, by: c.get('user').id });
+    await logCompany(c, 'company.paid', c.req.param('slug'), b.data, w.id);
     await c.env.DB.prepare(`UPDATE wedding SET content = json_remove(content, '$.planLinkSentAt') WHERE id = ? AND json_valid(content) AND json_extract(content, '$.planRequested') IS NULL`).bind(w.id).run();
     return c.json({ ok: true });
   });
 
   /** Feedback, newest first (?status= to filter), with counts by status. */
-  app.get('/feedback', async (c) => {
+  app.get('/feedback', can('feedback'), async (c) => {
     const status = c.req.query('status') ?? '';
     const { results } = await c.env.DB.prepare(
-      `SELECT f.id, f.kind, f.text, f.page, f.status, f.note, f.created_at, COALESCE(w.name1 || ' & ' || w.name2, '') AS names, COALESCE(w.slug, '') AS slug, COALESCE(u.email, '') AS email
+      `SELECT f.id, f.kind, f.text, f.page, f.status, f.note, f.created_at, COALESCE(f.assignee, '') AS assignee, COALESCE(w.name1 || ' & ' || w.name2, '') AS names, COALESCE(w.slug, '') AS slug, COALESCE(u.email, '') AS email
          FROM feedback f LEFT JOIN wedding w ON w.id = f.wedding_id LEFT JOIN user u ON u.id = f.user_id
         WHERE (?1 = '' OR f.status = ?1) ORDER BY f.created_at DESC LIMIT 300`,
     )
       .bind(status)
-      .all<{ id: string; kind: string; text: string; page: string; status: string; note: string; created_at: string; names: string; slug: string; email: string }>();
+      .all<{ id: string; kind: string; text: string; page: string; status: string; note: string; created_at: string; assignee: string; names: string; slug: string; email: string }>();
     const { results: counts } = await c.env.DB.prepare(`SELECT status, COUNT(*) AS n FROM feedback GROUP BY status`).all<{ status: string; n: number }>();
     return c.json({
-      feedback: results.map((r) => ({ id: r.id, kind: r.kind, text: r.text, page: r.page, status: r.status, note: r.note, createdAt: r.created_at, names: r.names, slug: r.slug, email: r.email })),
+      // Developers see what was said and where, not who said it (no couple's email or names).
+      feedback: results.map((r) => ({ id: r.id, kind: r.kind, text: r.text, page: r.page, status: r.status, note: r.note, createdAt: r.created_at, assignee: r.assignee, ...(staffCan(c.get('user').staff, 'couples') ? { names: r.names, slug: r.slug, email: r.email } : { names: '', slug: '', email: '' }) })),
       counts: Object.fromEntries(counts.map((r) => [r.status, r.n])),
     });
   });
-  app.put('/feedback/:id', async (c) => {
+  app.put('/feedback/:id', can('feedback'), async (c) => {
     const b = FeedbackUpdate.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check that.');
-    const r = await c.env.DB.prepare(`UPDATE feedback SET status = COALESCE(?1, status), note = COALESCE(?2, note), updated_at = ?3 WHERE id = ?4`)
-      .bind(b.data.status ?? null, b.data.note ?? null, new Date().toISOString(), c.req.param('id'))
+    // Who's on it: a staff member (or '' for nobody).
+    if (b.data.assignee && !(await staffList(c.env)).some((m) => m.id === b.data.assignee)) return err(c, 400, 'invalid', 'That person isn’t on the team.');
+    const r = await c.env.DB.prepare(
+      `UPDATE feedback SET status = COALESCE(?1, status), note = COALESCE(?2, note), assignee = CASE WHEN ?3 IS NULL THEN assignee ELSE NULLIF(?3, '') END, updated_at = ?4, updated_by = ?5 WHERE id = ?6`,
+    )
+      .bind(b.data.status ?? null, b.data.note ?? null, b.data.assignee ?? null, new Date().toISOString(), c.get('user').id, c.req.param('id'))
       .run();
     if (!r.meta.changes) return err(c, 404, 'not_found', 'Not found.');
+    await logCompany(c, 'company.feedback', c.req.param('id'), b.data);
     return c.json({ ok: true });
   });
 
+  /** Who's on the team (for "who's on it"), any staff member. */
+  app.get('/staff', async (c) => c.json({ staff: (await staffList(c.env)).map(({ id, name, role }) => ({ id, name, role })), me: { id: c.get('user').id, role: c.get('user').staff } }));
+
+  /** The team: everyone with a role, and invitations not yet taken up. */
+  app.get('/team', can('team'), async (c) => {
+    const { results: invites } = await c.env.DB.prepare(`SELECT id, email, role, expires_at, created_at FROM staff_invite WHERE expires_at > ? ORDER BY created_at DESC`)
+      .bind(new Date().toISOString())
+      .all<{ id: string; email: string; role: string; expires_at: string; created_at: string }>();
+    return c.json({ staff: await staffList(c.env), invites: invites.map((i) => ({ id: i.id, email: i.email, role: i.role, expiresAt: i.expires_at })) });
+  });
+  /** Invite someone by email: a link (a week, once) that signs them in, or sets up their sign-in. */
+  app.post('/team/invite', can('team'), async (c) => {
+    const b = StaffInviteIn.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'An email and a role, please.');
+    if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in isn’t set up.');
+    const token = randomToken(32);
+    const now = new Date();
+    await c.env.DB.batch([
+      c.env.DB.prepare(`DELETE FROM staff_invite WHERE email = ?`).bind(b.data.email),
+      c.env.DB.prepare(`INSERT INTO staff_invite (id, hash, email, role, invited_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(
+        crypto.randomUUID(), await sessionId(token, c.env.SESSION_SECRET), b.data.email, b.data.role, c.get('user').id, new Date(now.getTime() + 7 * 86_400_000).toISOString(), now.toISOString(),
+      ),
+    ]);
+    const link = `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/company/join?t=${token}`;
+    const info = STAFF_INFO[b.data.role];
+    const m = buttonEmail({ heading: 'Join the team', lines: [`You’ve been invited to help run The Yes List as ${info.name}.`, info.does, 'The link works once, for a week.'], button: 'Join', link });
+    const emailed = await sendEmail(c.env, { to: b.data.email, subject: 'Join The Yes List team', ...m });
+    await logCompany(c, 'company.team.invite', b.data.email, { role: b.data.role });
+    return c.json({ ok: true, emailed, link, emailReady: emailReady(c.env) });
+  });
+  app.delete('/team/invites/:id', can('team'), async (c) => {
+    await c.env.DB.prepare(`DELETE FROM staff_invite WHERE id = ?`).bind(c.req.param('id')).run();
+    return c.json({ ok: true });
+  });
+  /** Change someone's role, or remove them (role ''). The founder (SUPER_ADMINS) and you yourself can't be changed here. */
+  app.put('/team/:userId', can('team'), async (c) => {
+    const b = z.object({ role: z.enum([...STAFF_ROLES, '']) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Choose a role.');
+    const id = c.req.param('userId');
+    if (id === c.get('user').id) return err(c, 400, 'invalid', 'Ask another owner to change your own role.');
+    const who = (await staffList(c.env)).find((m) => m.id === id);
+    if (!who) return err(c, 404, 'not_found', 'Not on the team.');
+    if (who.founder) return err(c, 400, 'invalid', 'The founder’s account is set by SUPER_ADMINS.');
+    if (b.data.role) await c.env.DB.prepare(`UPDATE staff SET role = ? WHERE user_id = ?`).bind(b.data.role, id).run();
+    else
+      await c.env.DB.batch([
+        c.env.DB.prepare(`DELETE FROM staff WHERE user_id = ?`).bind(id),
+        // Removed: signed out everywhere, so the portal closes for them straight away.
+        c.env.DB.prepare(`DELETE FROM session WHERE user_id = ?`).bind(id),
+        c.env.DB.prepare(`UPDATE feedback SET assignee = NULL WHERE assignee = ?`).bind(id),
+      ]);
+    await logCompany(c, b.data.role ? 'company.team.role' : 'company.team.remove', who.email, { role: b.data.role });
+    return c.json({ ok: true });
+  });
+
+  /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
+  app.get('/activity', can('activity'), async (c) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT a.id, a.action, a.target, a.detail, a.at, COALESCE(u.first_name, u.name, u.email, '') AS who, COALESCE(w.name1 || ' & ' || w.name2, '') AS names
+         FROM audit a LEFT JOIN user u ON u.id = a.user_id LEFT JOIN wedding w ON w.id = a.wedding_id
+        WHERE a.action LIKE 'company.%' OR a.action = 'plan.paid'
+        ORDER BY a.at DESC LIMIT 200`,
+    ).all<{ id: string; action: string; target: string | null; detail: string | null; at: string; who: string; names: string }>();
+    return c.json({ activity: results.map((r) => ({ id: r.id, action: r.action, target: r.target ?? '', detail: r.detail ?? '', at: r.at, who: r.action === 'plan.paid' && !r.who ? 'Card payment' : r.who, names: r.names })) });
+  });
+
   /** The directory's vendor listings, newest first, hidden ones included. */
-  app.get('/listings', async (c) => {
+  app.get('/listings', can('vendors'), async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT l.id, l.slug, l.name, l.category, l.region, l.email, l.hidden, l.created_at,
               (SELECT COUNT(*) FROM vendor_enquiry e WHERE e.listing_id = l.id) AS enquiries
@@ -251,29 +329,41 @@ export function companyRoutes() {
     ).all<{ id: string; slug: string; name: string; category: string; region: string; email: string; hidden: number; created_at: string; enquiries: number }>();
     return c.json({ listings: results.map((r) => ({ ...r, hidden: !!r.hidden })) });
   });
-  app.put('/listings/:id', async (c) => {
+  app.put('/listings/:id', can('vendors'), async (c) => {
     const b = z.object({ hidden: z.boolean() }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Hidden or not?');
     const r = await c.env.DB.prepare(`UPDATE vendor_listing SET hidden = ?, updated_at = ? WHERE id = ?`).bind(b.data.hidden ? 1 : 0, new Date().toISOString(), c.req.param('id')).run();
     if (!r.meta.changes) return err(c, 404, 'not_found', 'Listing not found.');
+    await logCompany(c, b.data.hidden ? 'company.vendor.hide' : 'company.vendor.show', c.req.param('id'), {});
     return c.json({ ok: true });
   });
 
-  app.get('/settings', async (c) => c.json(await readSetting(c.env.DB, 'site', SiteSettings)));
-  app.put('/settings', async (c) => {
+  app.get('/settings', can('settings', 'promote'), async (c) => c.json(await readSetting(c.env.DB, 'site', SiteSettings)));
+  /** The front-page banner on its own, for marketing (who can't change the rest of the settings). */
+  app.put('/banner', can('promote'), async (c) => {
+    const b = SiteSettings.shape.banner.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Please check the banner.');
+    if (b.data.link && !/^(https:\/\/|\/)/.test(b.data.link)) return err(c, 400, 'invalid', 'Links start with https:// or /.');
+    const site = { ...(await readSetting(c.env.DB, 'site', SiteSettings)), banner: b.data };
+    await writeSetting(c.env.DB, 'site', site);
+    await logCompany(c, 'company.banner', 'site', { on: b.data.on });
+    return c.json(site);
+  });
+  app.put('/settings', can('settings'), async (c) => {
     const b = SiteSettings.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the settings.');
     const bad = [...Object.values(b.data.social), ...Object.values(b.data.paymentLinks)].find((u) => u && !/^https:\/\//.test(u)) ?? (b.data.banner.link && !/^(https:\/\/|\/)/.test(b.data.banner.link) ? b.data.banner.link : '');
     if (bad) return err(c, 400, 'invalid', `Links start with https:// (check ${bad.slice(0, 60)}).`);
     await writeSetting(c.env.DB, 'site', b.data);
+    await logCompany(c, 'company.settings', 'site', {});
     return c.json(b.data);
   });
 
-  app.get('/promos', async (c) => {
+  app.get('/promos', can('promote'), async (c) => {
     const [all, uses] = await Promise.all([readSetting(c.env.DB, 'promos', Promos), promoUses(c.env.DB)]);
     return c.json({ codes: all.codes.map((p) => ({ ...p, used: uses[p.code] ?? 0 })) });
   });
-  app.put('/promos', async (c) => {
+  app.put('/promos', can('promote'), async (c) => {
     const raw = (await readJson(c.req.raw)) as { codes?: unknown[] } | null;
     // `used` comes back from the list; it's counted from payments, never stored.
     const codes = Array.isArray(raw?.codes) ? raw.codes.map((x) => (x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'used')) : x)) : null;
@@ -281,12 +371,13 @@ export function companyRoutes() {
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the codes.');
     if (new Set(b.data.codes.map((p) => p.code)).size !== b.data.codes.length) return err(c, 400, 'invalid', 'Each code can only be listed once.');
     await writeSetting(c.env.DB, 'promos', b.data);
+    await logCompany(c, 'company.promos', 'promos', { codes: b.data.codes.map((x) => x.code) });
     const uses = await promoUses(c.env.DB);
     return c.json({ codes: b.data.codes.map((p) => ({ ...p, used: uses[p.code] ?? 0 })) });
   });
 
   /** Who said yes to news (at sign-up): name, email, wedding date and plan, as CSV for a mailing tool. */
-  app.get('/optins.csv', async (c) => {
+  app.get('/optins.csv', can('promote'), async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT u.first_name, u.email, u.created_at,
               (SELECT w.plan FROM membership m JOIN wedding w ON w.id = m.wedding_id WHERE m.user_id = u.id AND w.deleted_at IS NULL LIMIT 1) AS plan,
@@ -334,6 +425,89 @@ export function feedbackRoutes() {
       `SELECT note, MAX(CASE WHEN status = 'done' THEN 1 ELSE 0 END) AS done, MAX(updated_at) AS at FROM feedback WHERE status IN ('planned', 'done') AND note != '' GROUP BY note ORDER BY at DESC LIMIT 30`,
     ).all<{ note: string; done: number; at: string }>();
     return c.json({ updates: results.map((r) => ({ text: r.note, done: !!r.done, at: r.at })) });
+  });
+  return app;
+}
+
+/** Only staff whose role can do one of these. */
+const can =
+  (...perms: StaffPerm[]): MiddlewareHandler<AdminEnv> =>
+  async (c, next) => {
+    if (!perms.some((p) => staffCan(c.get('user').staff, p))) return err(c as C, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
+    await next();
+  };
+
+/** Notes a company action, with who did it (the Activity tab). */
+async function logCompany(c: C, action: string, target: string, detail: unknown, weddingId: string | null = null) {
+  await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .bind(crypto.randomUUID(), weddingId, c.get('user').id, action, target, JSON.stringify(detail), new Date().toISOString())
+    .run();
+}
+
+/** Everyone on the team: the staff table, and the founder's account (SUPER_ADMINS) as an owner. */
+async function staffList(env: Env): Promise<{ id: string; name: string; email: string; role: string; founder: boolean; since: string; lastIn: string }[]> {
+  const founders = [...superAdmins(env)];
+  const { results } = await env.DB.prepare(
+    `SELECT u.id, COALESCE(u.first_name, u.name, '') AS name, u.email, COALESCE(st.role, 'owner') AS role, COALESCE(st.created_at, u.created_at) AS since, COALESCE(u.last_login_at, '') AS last_in
+       FROM user u LEFT JOIN staff st ON st.user_id = u.id
+      WHERE st.user_id IS NOT NULL OR lower(u.email) IN (SELECT value FROM json_each(?))
+      ORDER BY since`,
+  )
+    .bind(JSON.stringify(founders))
+    .all<{ id: string; name: string; email: string; role: string; since: string; last_in: string }>();
+  return results.map((r) => {
+    const founder = founders.includes(r.email.toLowerCase());
+    return { id: r.id, name: r.name || r.email, email: r.email, role: founder ? 'owner' : r.role, founder, since: r.since, lastIn: r.last_in };
+  });
+}
+
+/**
+ * Joining the team from an invitation (/company/join?t=…), mounted at /a/staff-join. No account yet: their
+ * name and a passcode make one. Already have one (a couple's, say): their passcode signs them in. Either
+ * way they're signed in, with their role.
+ */
+export function staffJoinRoutes() {
+  const app = new Hono<AdminEnv>();
+  app.use('*', jsonWritesOnly);
+  const open = async (c: C) => {
+    if (!c.env.SESSION_SECRET) return null;
+    return c.env.DB.prepare(`SELECT id, email, role FROM staff_invite WHERE hash = ? AND expires_at > ?`)
+      .bind(await sessionId(c.req.param('token') ?? '', c.env.SESSION_SECRET), new Date().toISOString())
+      .first<{ id: string; email: string; role: string }>();
+  };
+  app.get('/:token', async (c) => {
+    if (!(await allow(c.env.DB, `sjoin:${c.req.header('CF-Connecting-IP') ?? 'local'}`, 30, 15 * 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Wait 15 minutes.');
+    const inv = await open(c);
+    if (!inv) return err(c, 404, 'not_found', 'This invitation has expired or was already used. Ask for a new one.');
+    const has = await c.env.DB.prepare(`SELECT 1 FROM user WHERE email = ?`).bind(inv.email).first();
+    return c.json({ email: inv.email, role: inv.role, roleName: STAFF_INFO[inv.role as keyof typeof STAFF_INFO]?.name ?? inv.role, hasAccount: !!has });
+  });
+  app.post('/:token', async (c) => {
+    if (!(await allow(c.env.DB, `sjoin:${c.req.header('CF-Connecting-IP') ?? 'local'}`, 30, 15 * 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Wait 15 minutes.');
+    const b = z.object({ passcode: z.string().min(1).max(200), firstName: z.string().trim().max(60).default('') }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Your passcode, please.');
+    const inv = await open(c);
+    if (!inv) return err(c, 404, 'not_found', 'This invitation has expired or was already used. Ask for a new one.');
+    const now = new Date().toISOString();
+    let user = await c.env.DB.prepare(`SELECT id, email, pass_hash FROM user WHERE email = ?`).bind(inv.email).first<{ id: string; email: string; pass_hash: string | null }>();
+    if (user) {
+      if (!(await verifyPasscode(b.data.passcode, user.pass_hash))) return err(c, 400, 'bad_passcode', 'That passcode isn’t right for this email.');
+    } else {
+      if (!b.data.firstName) return err(c, 400, 'invalid', 'Your first name, please.');
+      const weak = passcodeProblem(b.data.passcode);
+      if (weak) return err(c, 400, 'weak_passcode', weak);
+      const id = crypto.randomUUID();
+      await c.env.DB.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`)
+        .bind(id, inv.email, b.data.firstName, await hashPasscode(b.data.passcode), b.data.firstName, now, now, now)
+        .run();
+      user = { id, email: inv.email, pass_hash: null };
+    }
+    await c.env.DB.batch([
+      c.env.DB.prepare(`INSERT INTO staff (user_id, role, added_by, created_at) VALUES (?1, ?2, NULL, ?3) ON CONFLICT (user_id) DO UPDATE SET role = ?2`).bind(user.id, inv.role, now),
+      c.env.DB.prepare(`DELETE FROM staff_invite WHERE id = ?`).bind(inv.id),
+      c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, NULL, ?, 'company.team.join', ?, ?, ?)`).bind(crypto.randomUUID(), user.id, inv.email, JSON.stringify({ role: inv.role }), now),
+    ]);
+    return c.json(await signIn(c, { id: user.id, email: user.email }));
   });
   return app;
 }

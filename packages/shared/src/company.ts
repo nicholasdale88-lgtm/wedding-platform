@@ -64,9 +64,40 @@ export const cleanRef = (s: string | null | undefined) => (s ?? '').trim().toLow
 
 /** What a couple tells us (Help → Tell us), and what we do about it (the company portal's Feedback). */
 export const FEEDBACK_KINDS = ['idea', 'problem', 'love'] as const;
-export const FEEDBACK_STATUS = ['new', 'planned', 'done', 'not_now'] as const;
+export const FEEDBACK_STATUS = ['new', 'planned', 'in_progress', 'done', 'not_now'] as const;
 export const FeedbackIn = z.object({ kind: z.enum(FEEDBACK_KINDS).default('idea'), text: z.string().trim().min(3, 'A few words, please.').max(2000), page: z.string().trim().max(120).default('') }).strict();
 export const FeedbackUpdate = z
-  .object({ status: z.enum(FEEDBACK_STATUS).optional(), note: z.string().trim().max(500).optional() })
+  .object({ status: z.enum(FEEDBACK_STATUS).optional(), note: z.string().trim().max(500).optional(), assignee: z.string().max(40).optional() })
   .strict()
-  .refine((v) => v.status !== undefined || v.note !== undefined, 'A status or a note, please.');
+  .refine((v) => v.status !== undefined || v.note !== undefined || v.assignee !== undefined, 'A status, a note or who’s on it, please.');
+
+/**
+ * The people who run the app (the company portal), each with a role:
+ * - owner: everything, including the team and money;
+ * - manager: everything but the team;
+ * - support: couples (find them, send payment links), feedback, vendors;
+ * - developer: feedback (problems and ideas: take one, in progress, done);
+ * - marketing: promotions, codes, the marketing list, vendors.
+ * The address in SUPER_ADMINS is always an owner (the founder's account; it can't be removed here).
+ */
+export const STAFF_ROLES = ['owner', 'manager', 'support', 'developer', 'marketing'] as const;
+export type StaffRole = (typeof STAFF_ROLES)[number];
+export const STAFF_PERMS = ['overview', 'couples', 'money', 'feedback', 'promote', 'vendors', 'settings', 'team', 'activity'] as const;
+export type StaffPerm = (typeof STAFF_PERMS)[number];
+export const STAFF_CAN: Record<StaffRole, readonly StaffPerm[]> = {
+  owner: STAFF_PERMS,
+  manager: ['overview', 'couples', 'money', 'feedback', 'promote', 'vendors', 'settings', 'activity'],
+  support: ['overview', 'couples', 'feedback', 'vendors'],
+  developer: ['overview', 'feedback'],
+  marketing: ['overview', 'promote', 'vendors'],
+};
+export const STAFF_INFO: Record<StaffRole, { name: string; does: string }> = {
+  owner: { name: 'Owner', does: 'Everything, including the team, plans and money.' },
+  manager: { name: 'Manager', does: 'Everything except adding or removing people.' },
+  support: { name: 'Support', does: 'Helps couples: finds weddings, sends payment links, answers feedback, checks vendors.' },
+  developer: { name: 'Developer', does: 'Works through feedback: takes problems and ideas, marks them in progress and done.' },
+  marketing: { name: 'Marketing', does: 'Promo codes, the front-page banner, campaign links, the marketing list and vendors.' },
+};
+export const staffCan = (role: StaffRole | null | undefined, perm: StaffPerm) => !!role && STAFF_CAN[role].includes(perm);
+export const StaffInviteIn = z.object({ email: z.string().trim().toLowerCase().email().max(200), role: z.enum(STAFF_ROLES) }).strict();
+

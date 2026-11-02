@@ -145,7 +145,7 @@ export function accountRoutes() {
     const row = await c.env.DB.prepare(`SELECT pass_hash FROM user WHERE id = ?`).bind(user.id).first<{ pass_hash: string | null }>();
     if (!(await verifyPasscode(body.data.passcode, row?.pass_hash ?? null))) return err(c, 400, 'bad_passcode', 'Your passcode is not right.');
     // The company's own sign-in is tied to its address (SUPER_ADMINS): it can't move, and no one can move onto it.
-    if (user.superAdmin) return err(c, 403, 'company_account', 'The company account’s email is fixed. Change SUPER_ADMINS first.');
+    if (superAdmins(c.env).has(user.email.toLowerCase())) return err(c, 403, 'company_account', 'The company account’s email is fixed. Change SUPER_ADMINS first.');
     const taken = superAdmins(c.env).has(body.data.email) || (await c.env.DB.prepare(`SELECT 1 FROM user WHERE email = ? AND id != ?`).bind(body.data.email, user.id).first());
     if (taken) return err(c, 409, 'taken', 'That email already has an account.');
     // M3: a new sign-in email signs out every other device (as a passcode change does).

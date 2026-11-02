@@ -45,7 +45,8 @@ const send = <T>(method: string, path: string, body?: unknown, version?: number)
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface Me {
-  user: { id: string; email: string; superAdmin: boolean };
+  /** staff: their role in the company portal, when they work on the app. */
+  user: { id: string; email: string; superAdmin: boolean; staff?: 'owner' | 'manager' | 'support' | 'developer' | 'marketing' | null };
   weddings: { id: string; slug: string; name1: string; name2: string; role: Role }[];
   /** Their vendor listing (the directory), when they have one. */
   vendor?: { slug: string; name: string } | null;
@@ -862,7 +863,9 @@ export interface CompanySettings {
   madeWith: boolean;
   paymentLinks: { essentials: string; complete: string; event: string };
 }
-export interface CompanyFeedback { id: string; kind: 'idea' | 'problem' | 'love'; text: string; page: string; status: 'new' | 'planned' | 'done' | 'not_now'; note: string; createdAt: string; names: string; slug: string; email: string }
+export interface CompanyFeedback { id: string; kind: 'idea' | 'problem' | 'love'; text: string; page: string; status: 'new' | 'planned' | 'in_progress' | 'done' | 'not_now'; note: string; createdAt: string; assignee: string; names: string; slug: string; email: string }
+export interface CompanyStaff { id: string; name: string; email: string; role: string; founder: boolean; since: string; lastIn: string }
+export interface CompanyActivity { id: string; action: string; target: string; detail: string; at: string; who: string; names: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
 export const companyApi = {
   stats: () => request<CompanyStats>('/a/company/stats'),
@@ -877,8 +880,20 @@ export const companyApi = {
   sendLink: (slug: string) => send<{ ok: true; emailed: boolean; email: string; link: string; cents: number }>('POST', `/a/company/weddings/${encodeURIComponent(slug)}/send-link`, {}),
   markPaid: (slug: string, what: 'essentials' | 'complete' | 'event', cents: number) => send<{ ok: true }>('POST', `/a/company/weddings/${encodeURIComponent(slug)}/paid`, { what, cents }),
   feedback: () => request<{ feedback: CompanyFeedback[]; counts: Record<string, number> }>('/a/company/feedback'),
-  setFeedback: (id: string, body: { status?: CompanyFeedback['status']; note?: string }) => send<{ ok: true }>('PUT', `/a/company/feedback/${encodeURIComponent(id)}`, body),
+  setFeedback: (id: string, body: { status?: CompanyFeedback['status']; note?: string; assignee?: string }) => send<{ ok: true }>('PUT', `/a/company/feedback/${encodeURIComponent(id)}`, body),
+  saveBanner: (b: CompanySettings['banner']) => send<CompanySettings>('PUT', '/a/company/banner', b),
+  staff: () => request<{ staff: { id: string; name: string; role: string }[]; me: { id: string; role: string } }>('/a/company/staff'),
+  team: () => request<{ staff: CompanyStaff[]; invites: { id: string; email: string; role: string; expiresAt: string }[] }>('/a/company/team'),
+  invite: (email: string, role: string) => send<{ ok: true; emailed: boolean; link: string }>('POST', '/a/company/team/invite', { email, role }),
+  cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
+  setRole: (userId: string, role: string) => send<{ ok: true }>('PUT', `/a/company/team/${encodeURIComponent(userId)}`, { role }),
+  activity: () => request<{ activity: CompanyActivity[] }>('/a/company/activity'),
   optInsUrl: '/api/a/company/optins.csv',
+};
+/** Joining the company team from an emailed invitation. */
+export const staffJoinApi = {
+  get: (token: string) => request<{ email: string; role: string; roleName: string; hasAccount: boolean }>(`/a/staff-join/${encodeURIComponent(token)}`),
+  accept: (token: string, passcode: string, firstName = '') => send<Me>('POST', `/a/staff-join/${encodeURIComponent(token)}`, { passcode, firstName }),
 };
 /** Help → Tell us: a couple's idea, problem or love note, and what's planned from everyone's. */
 export const feedbackApi = {
