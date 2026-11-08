@@ -837,7 +837,8 @@ describe('seating tab', () => {
     await userEvent.click(screen.getByRole('link', { name: 'Guest list' }));
     expect(ask).toHaveBeenCalledWith('You have seating changes that are not saved. Leave without saving them?');
     expect(location).toBe('/admin/w1/wedding/seating');
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    // A concept plan (nothing sent yet): Jo, not replied, is pencilled in too.
+    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
     ask.mockReturnValue(true);
     await userEvent.click(screen.getByRole('link', { name: 'Guest list' }));
     await waitFor(() => expect(location).toBe('/admin/w1/wedding/guests'));
@@ -849,11 +850,11 @@ describe('seating tab', () => {
     renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument(); // the concept plan pencils in Jo too
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
     expect(screen.getByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Redo' }));
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
   });
 
   it('undo puts back a room size change, with the tables it moved, and Save sends the room as it was', async () => {
