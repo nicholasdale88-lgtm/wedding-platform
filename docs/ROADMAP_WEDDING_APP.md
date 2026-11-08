@@ -69,6 +69,10 @@ A planner card is added to the Account Overview, showing:
 
 ## Not now
 
+## Future improvements
+
+- **iPhone contacts in one tap (an App Store app).** Safari won't let a website show iPhone's "Allow access to Contacts?" prompt (its Contact Picker is off unless each person switches it on in Settings). The Yes List as an iPhone app (Capacitor around the same site, plus a contacts plugin) would: tap, permission prompt, straight into Contacts. Needs the Apple Developer Program (US$99 a year, about A$150) and a Mac or a cloud build service. Parked on 9 Nov 2026; for now iPhone uses AutoFill Contact or a contacts file.
+
 - The sales side (landing page, sign-up, payments) stays paused until the couple has used the planner themselves.
 
 ## Research (19 Oct 2026): features we're missing

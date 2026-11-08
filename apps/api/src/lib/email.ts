@@ -11,13 +11,17 @@ const ENTITY: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;',
 export const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ENTITY[ch] ?? ch);
 
 /** A short, warm email with one button: plain text and a simple HTML version. */
-export function buttonEmail(o: { heading: string; lines: string[]; button: string; link: string; footer?: string }) {
-  const text = [o.heading, '', ...o.lines, '', `${o.button}: ${o.link}`, ...(o.footer ? ['', o.footer] : [])].join('\n');
+export function buttonEmail(o: { heading: string; lines: string[]; button: string; link: string; footer?: string; brand?: boolean }) {
+  const tag = 'The Yes List · weddings, beautifully organised';
+  const text = [...(o.brand ? ['The Yes List', ''] : []), o.heading, '', ...o.lines, '', `${o.button}: ${o.link}`, ...(o.footer ? ['', o.footer] : []), ...(o.brand ? ['', tag] : [])].join('\n');
+  // From The Yes List itself (not a couple's own message): its wordmark at the top and a line at the foot.
+  const mark = o.brand ? `<p style="margin:0 0 22px;font-family:Arial,sans-serif;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#7a7466">The Yes List</p>\n` : '';
+  const foot = o.brand ? `\n<p style="margin:28px 0 0;padding-top:14px;border-top:1px solid #e2d7bc;font-family:Arial,sans-serif;font-size:12px;color:#7a7466">${tag}</p>` : '';
   const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:28px 20px;color:#33402f;background:#fbf8f2">
-<h1 style="font-weight:normal;font-size:28px;margin:0 0 16px">${esc(o.heading)}</h1>
+${mark}<h1 style="font-weight:normal;font-size:28px;margin:0 0 16px">${esc(o.heading)}</h1>
 ${o.lines.map((l) => `<p style="font-size:17px;line-height:1.5;margin:0 0 12px">${esc(l)}</p>`).join('\n')}
 <p style="margin:24px 0"><a href="${esc(o.link)}" style="display:inline-block;padding:12px 26px;border-radius:999px;background:#33402f;color:#fbf8f2;text-decoration:none;font-family:Arial,sans-serif;font-size:16px">${esc(o.button)}</a></p>
-${o.footer ? `<p style="font-size:13px;color:#7a7466;margin:0">${esc(o.footer)}</p>` : ''}
+${o.footer ? `<p style="font-size:13px;color:#7a7466;margin:0">${esc(o.footer)}</p>` : ''}${foot}
 </div>`;
   return { text, html };
 }

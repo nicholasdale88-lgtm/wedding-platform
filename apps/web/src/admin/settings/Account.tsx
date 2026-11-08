@@ -192,6 +192,7 @@ export function TheWedding() {
     try {
       const r = await accountApi.invite(wid, email.trim(), role, relation);
       setLink(r.link);
+      if (r.emailed) toast(`Invitation emailed to ${email.trim()}. You can also share the link below.`);
       setEmail('');
       await load();
     } catch (e) {

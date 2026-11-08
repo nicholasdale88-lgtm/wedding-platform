@@ -3,6 +3,7 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { getCookie } from 'hono/cookie';
 import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, sessionId, verifyPasscode } from '../lib/auth';
+import { buttonEmail, sendEmail } from '../lib/email';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv, type Role } from './auth';
@@ -275,6 +276,7 @@ export function memberRoutes() {
     if (!(await allow(c.env.DB, `member-invite:${wid(c)}`, 30, 24 * 3_600_000))) return err(c, 429, 'slow_down', 'That’s a lot of invitations today. Try again tomorrow.');
     const already = await c.env.DB.prepare(`SELECT 1 FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = ? AND u.email = ?`).bind(wid(c), body.data.email).first();
     if (already) return err(c, 409, 'member', 'They can already sign in to this wedding.');
+    const w = await c.env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(wid(c)).first<{ name1: string; name2: string }>();
     const token = newSessionToken();
     const expires = new Date(Date.now() + INVITE_DAYS * 86_400_000).toISOString();
     await c.env.DB.batch([
@@ -292,7 +294,25 @@ export function memberRoutes() {
         now(),
       ),
     ]);
-    return c.json({ link: `${base(c)}/admin/join?t=${token}`, expiresAt: expires });
+    // The invitation goes straight to their inbox, from The Yes List: who asked, for whose wedding, and a Join button.
+    const link = `${base(c)}/admin/join?t=${token}`;
+    const couple = w ? [first(w.name1 ?? ''), first(w.name2 ?? '')].filter(Boolean).join(' & ') : '';
+    const me = c.get('user') as { name?: string | null; email?: string | null };
+    const who = (me.name ?? '').trim() || me.email || 'Someone';
+    const can = body.data.role === 'viewer' ? 'see' : 'help run';
+    const m = buttonEmail({
+      brand: true,
+      heading: couple ? `Join ${couple}’s wedding` : 'You’re invited to help plan a wedding',
+      lines: [
+        `${who} has invited you to ${can} ${couple ? `${couple}’s` : 'their'} wedding on The Yes List: the guest list, replies, seating and the plan, all in one place.`,
+        `Tap Join to set your own password. It takes a minute, and the link works for ${INVITE_DAYS} days.`,
+      ],
+      button: 'Join',
+      link,
+      footer: 'Not expecting this? You can ignore it: nothing happens unless you tap Join.',
+    });
+    const emailed = await sendEmail(c.env, { to: body.data.email, subject: couple ? `${couple} invited you to The Yes List` : 'You’re invited to The Yes List', ...m });
+    return c.json({ link, expiresAt: expires, emailed });
   });
 
   app.delete('/invites/:id', owner, async (c) => {
