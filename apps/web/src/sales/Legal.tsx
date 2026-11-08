@@ -219,6 +219,13 @@ export function TermsPage() {
         isn’t serious we’ll talk to you first.
       </P>
 
+      <H2>Our work</H2>
+      <P>
+        {BRAND}’s name, logo, designs, invitation templates, wording, help guides, videos and software are ours and protected by copyright and trade mark law. You
+        may use them for your own events through the service. Please don’t copy, resell, scrape, frame or reverse-engineer them, or use them to build a competing
+        product. What you make with them (your words, photos and guest list) stays yours.
+      </P>
+
       <H2>Your own storage</H2>
       <P>
         If you connect Google Drive, Dropbox or OneDrive, files are saved into your account there. That provider’s terms apply to those files, and keeping enough
