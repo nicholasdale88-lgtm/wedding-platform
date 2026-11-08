@@ -16,6 +16,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { setUpInstall } from './lib/install';
+import { keepViewportSteady } from './lib/viewport';
 
 // The guest page designs ask for 'DM Sans'; the package registers it as 'DM Sans Variable'. Same file, both names.
 if (typeof FontFace !== 'undefined' && document.fonts) {
@@ -27,6 +28,8 @@ if (typeof FontFace !== 'undefined' && document.fonts) {
 
 // The right home-screen app for this page (the admin, or the wedding for its guests).
 setUpInstall();
+// iPhone: no page left half off the screen after switching apps.
+keepViewportSteady();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
