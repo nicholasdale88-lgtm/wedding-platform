@@ -221,7 +221,10 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
 
       {d.canSetUp && notReady.length > 0 && (
         <details className="p-3 rounded-[10px] bg-white border border-dashed border-[var(--adm-line,#c6b794)]">
-          <summary className="cursor-pointer text-[13px] font-semibold">Site setup (only you see this): switch on {notReady.map((p) => p.name).join(', ')}</summary>
+          <summary className="cursor-pointer text-[13px] font-semibold">Only you see this: {notReady.map((p) => p.name).join(', ')} {notReady.length === 1 ? 'needs' : 'need'} switching on once for the whole site</summary>
+          <p className="m-0 pt-2 text-[13px] text-[var(--adm-muted,#5b6a52)]">
+            Couples will only ever tap Connect, sign in and allow access. Before that works, the site itself has to be registered with each company, once, free (about 10 minutes each). Ask Claude to do it with you, or follow the technical steps below.
+          </p>
           <div className="flex gap-2 flex-wrap pt-2">
             {notReady.map((p) => (
               <button
