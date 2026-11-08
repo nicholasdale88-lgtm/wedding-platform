@@ -658,7 +658,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
 /** Typical costs elsewhere as bars, against ours. */
 function CostBars() {
   const ours = dollars(PLAN_INFO.essentials.price);
-  const total = COSTS.reduce((a, c) => [a[0] + c.low, a[1] + c.high], [0, 0]);
+  const total = COSTS.reduce<[number, number]>((a, c) => [a[0] + c.low, a[1] + c.high], [0, 0]);
   const max = total[1];
   const w = (n: number) => `${Math.max(2, (n / max) * 100)}%`;
   return (
