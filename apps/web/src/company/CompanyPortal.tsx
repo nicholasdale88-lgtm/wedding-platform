@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { Link } from 'react-router-dom';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
+import { Wordmark } from '../sales/Art';
 import { chargeCents, planOf, STAFF_INFO, STAFF_ROLES, staffCan, type StaffPerm, type StaffRole } from '@wp/shared';
 import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
@@ -28,9 +29,9 @@ const INK = '#33402f';
 const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 const input = 'w-full py-[9px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px] sm:text-[15px] text-[#33402f]';
-const btn = 'py-[9px] px-4 rounded-full border border-[#c6b794] bg-white text-[14px] cursor-pointer text-[#33402f] disabled:opacity-60';
-const primary = 'py-[9px] px-4 rounded-full border-0 bg-[#33402f] text-[#fbf8f2] text-[14px] cursor-pointer disabled:opacity-60';
-const card = 'flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]';
+const btn = 'py-[9px] px-4 rounded-[10px] border border-[#d5d8cf] bg-white text-[14px] font-medium cursor-pointer text-[#1b2218] hover:bg-[#f3f4ef] disabled:opacity-60';
+const primary = 'py-[9px] px-4 rounded-[10px] border-0 bg-[#1b2218] text-[#f3ecd6] text-[14px] font-semibold cursor-pointer hover:bg-[#2c3828] disabled:opacity-60';
+const card = 'flex flex-col gap-3 p-5 rounded-[14px] border border-[#e4e6df] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)]';
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const PLAN_NAME: Record<string, string> = { free: 'Free', essentials: 'Essentials', complete: 'Deluxe', trial: 'Founders (everything)' };
@@ -85,7 +86,7 @@ function Portal() {
     window.scrollTo({ top: 0 });
   };
 
-  if (who === 'loading') return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
+  if (who === 'loading') return <div className="fixed inset-0 bg-[#f3f4ef]" aria-busy="true" />;
   // Signed out: the one sign-in, right here; the company's account lands straight in the portal.
   if (who === 'out')
     return (
@@ -98,7 +99,7 @@ function Portal() {
     );
   if (who !== 'yes')
     return (
-      <main className="min-h-screen bg-[#f6f0e2] flex items-center justify-center p-6 text-center" style={{ color: INK, fontFamily: sans }}>
+      <main className="min-h-screen bg-[#f3f4ef] flex items-center justify-center p-6 text-center" style={{ color: INK, fontFamily: sans }}>
         <div className="flex flex-col gap-3 max-w-[420px]">
           <h1 className="m-0 text-[32px] font-normal" style={{ fontFamily: serif }}>
             Company portal
@@ -115,25 +116,26 @@ function Portal() {
   const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
   return (
     <RoleCtx.Provider value={role}>
-    <div className="min-h-screen bg-[#f6f0e2]" style={{ color: INK, fontFamily: sans }}>
-      <header className="sticky top-0 z-10 bg-[#33402f] text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] pb-2 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
+    <div className="min-h-screen bg-[#f3f4ef]" style={{ color: INK, fontFamily: sans }}>
+      <header className="sticky top-0 z-10 text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] shadow-[0_2px_12px_rgba(0,0,0,.18)]" style={{ background: 'linear-gradient(90deg, #1b2218, #263021)' }}>
         <div className="max-w-[1100px] mx-auto flex items-center justify-between gap-3">
-          <span className="flex items-baseline gap-2 min-w-0">
-            <span className="text-[24px]" style={{ fontFamily: serif }}>
-              Company portal
+          <span className="flex items-center gap-3 min-w-0">
+            <span className="rounded-full px-3 py-1 bg-[#f6f0e2]" aria-label="The Yes List">
+              <Wordmark size={18} />
             </span>
-            {role && <span className="text-[13px] opacity-80">{STAFF_INFO[role].name}</span>}
+            <span className="hidden sm:inline text-[13px] font-semibold tracking-[.16em] uppercase text-[#e6cf9e]">Company</span>
+            {role && <span className="text-[12px] py-[2px] px-2 rounded-full border border-[rgba(230,207,158,.5)] text-[#e6cf9e]">{STAFF_INFO[role].name}</span>}
           </span>
           <ProfileSwitch here="company" />
         </div>
-        <nav aria-label="Company" className="max-w-[1100px] mx-auto flex gap-1 overflow-x-auto [scrollbar-width:none] mt-2 -mx-1 px-1">
+        <nav aria-label="Company" className="max-w-[1100px] mx-auto flex gap-1 overflow-x-auto [scrollbar-width:none] mt-3 -mx-1 px-1">
           {tabs.map(([k, label]) => (
             <button
               key={k}
               type="button"
               aria-current={shown === k ? 'page' : undefined}
               onClick={() => go(k)}
-              className={`flex-none py-[7px] px-4 rounded-full border-0 text-[14px] cursor-pointer ${shown === k ? 'bg-[#f3ecd6] text-[#33402f] font-semibold' : 'bg-transparent text-[#f3ecd6]'}`}
+              className={`flex-none py-[10px] px-3 border-0 border-b-[3px] bg-transparent text-[14px] cursor-pointer ${shown === k ? 'border-b-[#e6cf9e] text-[#fbf8f2] font-semibold' : 'border-b-transparent text-[#c9c4b2] hover:text-[#fbf8f2]'}`}
             >
               {label}
             </button>
@@ -177,20 +179,16 @@ const Problem = ({ text }: { text: string }) => (
 );
 const H = ({ children, sub }: { children: ReactNode; sub?: string }) => (
   <div>
-    <h2 className="m-0 text-[26px] font-normal leading-tight" style={{ fontFamily: serif }}>
-      {children}
-    </h2>
-    {sub && <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">{sub}</p>}
+    <h2 className="m-0 text-[19px] font-semibold leading-tight tracking-[-.01em]">{children}</h2>
+    {sub && <p className="m-0 mt-1 text-[14px] text-[#5f6a58]">{sub}</p>}
   </div>
 );
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-      <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">{label}</span>
-      <span className="text-[30px] leading-none" style={{ fontFamily: serif }}>
-        {value}
-      </span>
+    <div className="flex flex-col gap-1 p-4 rounded-[14px] border border-[#e4e6df] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)] border-t-[3px] border-t-[#c8a46a]">
+      <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[#5f6a58]">{label}</span>
+      <span className="text-[30px] leading-none font-semibold tracking-[-.02em] text-[#1b2218]">{value}</span>
       {sub && <span className="text-[12px] text-[#5b6a52]">{sub}</span>}
     </div>
   );
@@ -361,7 +359,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
     }
   };
   return (
-    <li className={`flex flex-col gap-2 p-3 rounded-[14px] border ${w.requested ? 'border-[#ecd9ae] bg-[#fbf3e1]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}>
+    <li className={`flex flex-col gap-2 p-3 rounded-[14px] border ${w.requested ? 'border-[#ecd9ae] bg-[#fbf3e1]' : 'border-[#e4e6df] bg-white'}`}>
       <div className="flex justify-between items-baseline gap-2 flex-wrap">
         <strong className="text-[16px]">{w.names}</strong>
         <span className="text-[13px] text-[#5b6a52]">
@@ -575,7 +573,7 @@ function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { i
   const save = (status: CompanyFeedback['status']) =>
     update({ status, note, ...(status === 'in_progress' && !f.assignee && meId ? { assignee: meId } : {}) }, `Moved to ${FB_STATUS.find(([k]) => k === status)![1].toLowerCase()}`);
   return (
-    <li className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <li className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#e4e6df] bg-white">
       <span className="text-[13px] text-[#5b6a52]">
         {[FB_KIND[f.kind] ?? f.kind, f.names, day(f.createdAt)].filter(Boolean).join(' · ')}
         {f.email && (
@@ -881,7 +879,7 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
       ) : (
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {data.listings.map((l) => (
-            <li key={l.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-[14px] border ${l.hidden ? 'border-[#e8d6cf] bg-[#f6ece8]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}>
+            <li key={l.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-[14px] border ${l.hidden ? 'border-[#e8d6cf] bg-[#f6ece8]' : 'border-[#e4e6df] bg-white'}`}>
               <span className="flex-1 min-w-[200px]">
                 <strong className="block text-[15px]">{l.name}</strong>
                 <span className="text-[13px] text-[#5b6a52]">
@@ -1185,7 +1183,7 @@ function JoinTeam() {
     }
   };
   return (
-    <main className="min-h-screen bg-[#f6f0e2] flex items-center justify-center p-6" style={{ color: INK, fontFamily: sans }}>
+    <main className="min-h-screen bg-[#f3f4ef] flex items-center justify-center p-6" style={{ color: INK, fontFamily: sans }}>
       <div className="flex flex-col gap-3 w-full max-w-[420px]">
         <h1 className="m-0 text-[34px] font-normal text-center" style={{ fontFamily: serif }}>
           Join the team
