@@ -136,6 +136,7 @@ export const seatTable = sqliteTable('seat_table', {
   x: real('x').notNull(),
   y: real('y').notNull(),
   seats: integer('seats').notNull().default(10),
+  sizeM: real('size_m'),
   version: version(),
   deletedAt: text('deleted_at'),
 });
@@ -158,7 +159,7 @@ export const person = sqliteTable('person', {
 // migration 0011: one seat per person per event
 export const seat = sqliteTable(
   'seat',
-  { personId: text('person_id').notNull(), eventId: text('event_id').notNull(), tableId: text('table_id').notNull() },
+  { personId: text('person_id').notNull(), eventId: text('event_id').notNull(), tableId: text('table_id').notNull(), chair: integer('chair') },
   (t) => ({ pk: primaryKey({ columns: [t.personId, t.eventId] }) }),
 );
 
