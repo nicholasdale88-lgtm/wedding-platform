@@ -357,6 +357,15 @@ export function Guests() {
         <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] ml-auto">
           {shown.length === guests.length ? `${guests.length} invitations` : `${shown.length} of ${guests.length} invitations`}
         </span>
+        {/* One tap: the list grouped by side (the bride's, the groom's, both, not set), each with a heading. */}
+        <button
+          type="button"
+          aria-pressed={state.sort === 'side'}
+          onClick={() => set({ sort: state.sort === 'side' ? '' : 'side' })}
+          className={`py-[6px] px-3 rounded-full border text-[12px] cursor-pointer ${state.sort === 'side' ? 'border-[#33402f] bg-[#33402f] text-[#f3ecd6]' : 'border-[#c6b794] bg-transparent text-[#33402f]'}`}
+        >
+          {state.sort === 'side' ? 'Grouped by side ✓' : 'Group by side'}
+        </button>
         {anyFilter && (
           <button onClick={() => set(Object.fromEntries(FILTER_KEYS.map((k) => [k, ''])))} className="py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[#5d6b47] text-[12px] cursor-pointer">
             Clear filters
