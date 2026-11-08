@@ -32,6 +32,9 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   const [tip, setTip] = useState(false);
   // Wedding party: each member's email (their own page's sign-in), typed here before choosing their role.
   const [partyEmail, setPartyEmail] = useState<Record<string, string>>({});
+  // The wedding party section stays open or closed as you left it (it used to snap shut as you typed).
+  const [partyOpen, setPartyOpen] = useState<boolean | null>(null);
+  const [roleBusy, setRoleBusy] = useState(''); // whose role is saving (their menu waits, no double changes)
   const phoneBox = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState('');
   const [table, setTable] = useState('');
@@ -322,7 +325,11 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         <Pill kind="dashed" className="self-start" onClick={() => setNames([...names, ''])}>+ Add person</Pill>
         {/* The wedding party: a role here puts them in it (and Wedding party → add puts new people here). */}
         {g.people.some((p) => p.name.trim()) && (
-          <details className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]" open={g.people.some((p) => p.role)}>
+          <details
+            className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]"
+            open={partyOpen ?? g.people.some((p) => p.role)}
+            onToggle={(e) => setPartyOpen((e.currentTarget as HTMLDetailsElement).open)}
+          >
             <summary className="cursor-pointer py-2 px-3 text-[14px] font-medium">
               Wedding party{g.people.some((p) => p.role) ? `: ${g.people.filter((p) => p.role).map((p) => `${p.name.split(' ')[0]} (${p.role})`).join(', ')}` : ''}
             </summary>
@@ -342,10 +349,11 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
                     <select
                       aria-label={`${p.name}'s wedding party role`}
                       value={p.role ?? ''}
-                      disabled={!p.role && !okMail}
+                      disabled={roleBusy === p.id || (!p.role && !okMail)}
                       title={!p.role && !okMail ? 'Add their email first' : undefined}
                       onChange={async (e) => {
                         const role = e.target.value;
+                        setRoleBusy(p.id);
                         try {
                           await plannerApi.setRole(wid, p.id, role);
                           // Joining: straight onto the wedding party page, and the join email goes to them.
@@ -359,11 +367,12 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
                             }
                           }
                           await load();
-                          await onChanged();
+                          changedSoon();
                           toast(role ? `${p.name} is in the wedding party.${sent}` : `${p.name} is no longer in the wedding party`);
                         } catch (err) {
                           toast((err as Error).message);
                         }
+                        setRoleBusy('');
                       }}
                       className={`${inputCls} !py-[6px] !text-[14px] w-auto`}
                     >
