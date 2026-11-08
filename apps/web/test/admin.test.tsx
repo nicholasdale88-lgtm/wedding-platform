@@ -755,6 +755,23 @@ describe('seating tab', () => {
     expect(body!.seats).toMatchObject({ p1: T1, p2: T1 });
   });
 
+  it('tapping a table opens it big, seat by seat: choose who sits in each seat, shuffle with up and down, then back to the room', async () => {
+    mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
+    const big = screen.getByRole('dialog', { name: 'Table 1, seat by seat' });
+    expect(within(big).getByRole('button', { name: 'Seat 1: Robin Hart' })).toBeInTheDocument();
+    await userEvent.click(within(big).getByRole('button', { name: 'Change who sits where' }));
+    await userEvent.click(within(big).getByRole('button', { name: 'Seat 3: empty' }));
+    await userEvent.selectOptions(within(big).getByRole('combobox', { name: 'Who sits in seat 3' }), 'p2');
+    expect(within(big).getByRole('button', { name: 'Seat 3: Sam Hart' })).toBeInTheDocument();
+    await userEvent.click(within(big).getByRole('button', { name: 'Move Sam Hart up a seat' }));
+    expect(within(big).getByRole('button', { name: 'Seat 2: Sam Hart' })).toBeInTheDocument();
+    await userEvent.click(within(big).getByRole('button', { name: 'Back to the room' }));
+    expect(screen.queryByRole('dialog', { name: 'Table 1, seat by seat' })).toBeNull();
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+  });
+
   it('a table can be given its size in metres, and the room its real size', async () => {
     let body: { aspect: string; tables: { size: number | null }[] } | null = null;
     mockApi({

@@ -93,6 +93,10 @@ function SeatingPlan() {
   const press = useRef<{ timer: number; x: number; y: number } | null>(null);
   // What a finger has picked up (after a hold), drawn lifted.
   const [lifted, setLifted] = useState<string | number | null>(null);
+  // One table opened up big: every chair with its name, to choose exactly who sits where. Back to the room minimises it.
+  const [focus, setFocus] = useState<string | null>(null);
+  // A table dragged just now: the click that ends the drag doesn't also open it.
+  const dragged = useRef(false);
   const guestDrag = useGuestDrag();
   // The room's shape and size are part of the plan (and its undo history), saved with it.
   const { aspect, tables, areas, seats, chairs } = doc;
@@ -289,6 +293,7 @@ function SeatingPlan() {
     if (!d) return;
     if (!d.moved) checkpoint(); // one undo step per drag, none for a tap
     d.moved = true;
+    dragged.current = true;
     const p = at(e);
     const x = snapTo(p.x - d.dx);
     const y = snapTo(p.y - d.dy);
@@ -303,7 +308,11 @@ function SeatingPlan() {
   /** A tap on a table (mouse or finger, looking or editing) opens it; a tap on an area selects it while editing. */
   const tap = (kind: Drag['kind'], key: string | number) => (e: MouseEvent) => {
     e.stopPropagation();
+    const wasDrag = dragged.current;
+    dragged.current = false;
     if (kind === 'table' || editingRef.current) select(kind, key);
+    // Looking, or seating guests: the table opens up big, chair by chair (moving tables is under Tables).
+    if (kind === 'table' && !wasDrag && (!editingRef.current || tool === 'guests')) setFocus(key as string);
   };
   const planClick = (e: MouseEvent) => {
     if (!adding) return setSel(null);
@@ -592,6 +601,7 @@ function SeatingPlan() {
   const tapTarget = (on: boolean): CSSProperties | undefined => (on ? { minWidth: TAP, minHeight: TAP } : undefined);
   const metres = roomMetres(aspect);
   const roomM = roomSizeM(aspect);
+  const focusTable = focus ? tables.find((t) => t.id === focus) : undefined;
   const toolRow = 'flex gap-2 flex-wrap items-center p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f2]';
   /** A table's usual size in metres, shown greyed in its size box. */
   const usualSize = (t: SeatTable) => {
@@ -986,6 +996,9 @@ function SeatingPlan() {
                   ×
                 </button>
               </div>
+              <Pill size="sm" kind="primary" className="self-start" onClick={() => setFocus(selTable.id)}>
+                Open this table: who sits in each seat
+              </Pill>
               <TableSummary people={byTable.get(selTable.id) ?? []} />
               {roomTools && (
               <div className="grid grid-cols-2 gap-3">
@@ -1075,6 +1088,7 @@ function SeatingPlan() {
                     </span>
                     {editing ? (
                       <span className="flex items-center gap-1 flex-wrap justify-end">
+                        <UpDown name={p.name} at={i + 1} seats={selTable.seats} mob={mob} onMove={(k) => placeAt(p.id, selTable.id, k)} />
                         <ChairPick p={p} at={i + 1} layout={chairMap.get(selTable.id) ?? []} seats={selTable.seats} onPick={(k) => placeAt(p.id, selTable.id, k)} />
                         <MoveTo p={p} here={selTable.id} tables={tables} byTable={byTable} onMove={(ids, to) => seat(ids, to)} />
                         <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className={`${mob ? 'w-10 h-10' : 'w-[30px] h-[30px]'} flex-none rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer`}>
@@ -1239,6 +1253,29 @@ function SeatingPlan() {
         </PrintPlan>,
         document.body,
       )}
+
+      {focusTable &&
+        createPortal(
+          <TableFocus
+            t={focusTable}
+            layout={chairMap.get(focusTable.id) ?? []}
+            editing={editing}
+            unseated={unseatedAll}
+            elsewhere={s.people.filter((x) => seats[x.id] && seats[x.id] !== focusTable.id)}
+            tableName={(id) => tables.find((t) => t.id === id)?.name ?? ''}
+            seats={seats}
+            mob={mob}
+            onPlace={(pid, k) => placeAt(pid, focusTable.id, k)}
+            onUnseat={(pid) => seat([pid], null)}
+            onEdit={() => {
+              editingRef.current = true;
+              setEditing(true);
+              setTool('guests');
+            }}
+            onClose={() => setFocus(null)}
+          />,
+          document.body,
+        )}
 
       {/* The name being dragged follows the pointer (above the finger, so it can be read). */}
       {guestDrag.ghost &&
@@ -1967,5 +2004,187 @@ function SeatHere({
         </optgroup>
       )}
     </select>
+  );
+}
+
+/** Move someone one seat earlier or later at their table (swapping with whoever is there). */
+function UpDown({ name, at, seats, mob, onMove }: { name: string; at: number; seats: number; mob: boolean; onMove: (k: number) => void }) {
+  const btn = `${mob ? 'w-10 h-10' : 'w-[30px] h-[30px]'} flex-none rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer text-[13px] disabled:opacity-30`;
+  return (
+    <>
+      <button type="button" aria-label={`Move ${name} up a seat`} disabled={at <= 1 || at > seats} onClick={() => onMove(at - 1)} className={btn}>
+        ↑
+      </button>
+      <button type="button" aria-label={`Move ${name} down a seat`} disabled={at >= seats} onClick={() => onMove(at + 1)} className={btn}>
+        ↓
+      </button>
+    </>
+  );
+}
+
+/**
+ * One table opened up big: drawn in its shape with every chair numbered and named. Tap a chair to choose who
+ * sits there (someone at this table swaps, someone not seated or from another table moves in) or to empty it.
+ * The list underneath says the same, seat by seat, with up and down to shuffle. Back to the room minimises it.
+ */
+function TableFocus({
+  t,
+  layout,
+  editing,
+  unseated,
+  elsewhere,
+  tableName,
+  seats,
+  mob,
+  onPlace,
+  onUnseat,
+  onEdit,
+  onClose,
+}: {
+  t: SeatTable;
+  layout: (Person | null)[];
+  editing: boolean;
+  unseated: Person[];
+  elsewhere: Person[];
+  tableName: (id: string) => string;
+  seats: Record<string, string | null>;
+  mob: boolean;
+  onPlace: (pid: string, k: number) => void;
+  onUnseat: (pid: string) => void;
+  onEdit: () => void;
+  onClose: () => void;
+}) {
+  const [chair, setChair] = useState<number | null>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const shape = t.shape as TableShape;
+  const wide = STRETCHES(shape) || shape === 'sweetheart';
+  // The table in the middle of the drawing, chairs round it (positions in % of the table, as on the plan).
+  const box = wide ? { w: 76, h: shape === 'sweetheart' ? 26 : 22 } : shape === 'oval' ? { w: 58, h: 40 } : { w: 46, h: 46 };
+  const spots = seatSpots({ shape, dir: 'h', sides: t.sides }, t.seats);
+  const here = layout.filter((p): p is Person => !!p);
+  const who = chair ? layout[chair - 1] : null;
+  const label = /^\d+$/.test(t.name) ? `Table ${t.name}` : t.name;
+  const first = (n: string) => n.split(' ')[0] ?? n;
+  return (
+    <div role="dialog" aria-modal="true" aria-label={`${label}, seat by seat`} className="fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center bg-[rgba(27,34,24,.5)] sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="w-full sm:max-w-[760px] max-h-full overflow-y-auto bg-[#fbf8f2] sm:rounded-[18px] p-4 flex flex-col gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="font-display text-[24px] flex-1">
+            {label} · {here.length} of {t.seats}
+          </span>
+          <Pill kind="primary" onClick={onClose}>
+            Back to the room
+          </Pill>
+        </div>
+        <span className="text-[13px] text-[#5b6a52]">{editing ? 'Tap a chair to choose who sits there. Taking someone’s seat swaps them.' : 'Who sits where at this table.'}</span>
+        {!editing && (
+          <Pill size="sm" className="self-start" onClick={onEdit}>
+            Change who sits where
+          </Pill>
+        )}
+        <div className="relative w-full mx-auto" style={{ maxWidth: wide ? 720 : 480, aspectRatio: wide ? '16 / 9' : '1 / 1' }}>
+          <div
+            aria-hidden
+            className="absolute flex items-center justify-center border border-[#c6b794] bg-[#f3ecd6] font-display text-[18px] text-[#33402f]"
+            style={{ left: `${50 - box.w / 2}%`, top: `${50 - box.h / 2}%`, width: `${box.w}%`, height: `${box.h}%`, borderRadius: shape === 'round' || shape === 'oval' ? '50%' : 8 }}
+          >
+            {label}
+          </div>
+          {spots.map((sp, i) => {
+            const p = layout[i];
+            const on = chair === i + 1;
+            return (
+              <button
+                key={i}
+                type="button"
+                aria-label={`Seat ${i + 1}: ${p ? p.name : 'empty'}`}
+                aria-pressed={on}
+                disabled={!editing}
+                onClick={() => setChair(on ? null : i + 1)}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center rounded-full border text-center leading-tight cursor-pointer disabled:cursor-default ${mob ? 'w-[52px] h-[52px] text-[10px]' : 'w-[64px] h-[64px] text-[11px]'} ${
+                  on ? 'border-[#33402f] border-2 bg-[#33402f] text-[#f3ecd6]' : p ? 'border-transparent bg-[#5d6b47] text-white' : 'border-dashed border-[#c6b794] bg-white text-[#7a7466]'
+                }`}
+                style={{ left: `${50 - box.w / 2 + (sp.x / 100) * box.w}%`, top: `${50 - box.h / 2 + (sp.y / 100) * box.h}%`, opacity: p && !p.coming ? 0.6 : undefined }}
+              >
+                <span className="font-semibold">{i + 1}</span>
+                <span className="block max-w-full px-1 truncate">{p ? first(p.name) : 'Empty'}</span>
+              </button>
+            );
+          })}
+        </div>
+        {editing && chair && (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] border border-[#33402f] bg-white">
+            <strong className="text-[14px]">Seat {chair}:</strong>
+            <select
+              aria-label={`Who sits in seat ${chair}`}
+              value={who?.id ?? ''}
+              onChange={(e) => {
+                if (e.target.value) onPlace(e.target.value, chair);
+                setChair(null);
+              }}
+              className={`${inputCls} !py-2 flex-1 min-w-[180px]`}
+            >
+              <option value="">{who ? who.name : 'Empty: choose someone'}</option>
+              {here.filter((p) => p.id !== who?.id).length > 0 && (
+                <optgroup label="At this table (swap seats)">
+                  {here
+                    .filter((p) => p.id !== who?.id)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {unseated.length > 0 && (
+                <optgroup label="Not seated yet">
+                  {unseated.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {elsewhere.length > 0 && (
+                <optgroup label="Move from another table">
+                  {elsewhere.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {`${p.name} (table ${tableName(seats[p.id] ?? '')})`}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {who && (
+              <Pill
+                size="sm"
+                onClick={() => {
+                  onUnseat(who.id);
+                  setChair(null);
+                }}
+              >
+                Empty this seat
+              </Pill>
+            )}
+          </div>
+        )}
+        <ol aria-label="Seats" className="m-0 p-0 list-none flex flex-col border-t border-[#ece3cc]">
+          {layout.map((p, i) => (
+            <li key={p?.id ?? `e${i}`} className="flex items-center gap-2 py-[6px] border-b border-[#ece3cc] text-[14px]">
+              <span className={`w-[52px] flex-none text-[12px] ${i < t.seats ? 'text-[#7a7466]' : 'text-[#7a4a37] font-semibold'}`}>{i < t.seats ? `Seat ${i + 1}` : 'No chair'}</span>
+              <span className={`flex-1 min-w-0 ${p ? '' : 'italic text-[#7a7466]'}`}>
+                {p ? p.name : 'Empty'}
+                {p?.diet && <span className={`block text-[12px] ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span>}
+              </span>
+              {editing && p && <UpDown name={p.name} at={i + 1} seats={t.seats} mob={mob} onMove={(k) => onPlace(p.id, k)} />}
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
   );
 }
