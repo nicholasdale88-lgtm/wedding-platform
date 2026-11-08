@@ -24,9 +24,11 @@ export interface InvitePayload {
     envelope?: EnvelopeOptions;
     /** How the envelope opens (one of OPENINGS); the classic lift when unset. */
     opening?: string;
-    custom?: { paper?: string; ink?: string; accent?: string; soft?: string; envelope?: string; names?: 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair' };
+    custom?: { paper?: string; ink?: string; accent?: string; soft?: string; envelope?: string; names?: 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair'; nameSize?: number };
     images?: Record<string, string>;
     hidden?: Record<string, boolean>;
+    /** The couple's own order of the sections, by the design's section name. */
+    order?: string[];
     lists?: Record<string, { q: string; a: string[] }[]>;
     timeline?: TimelineItem[];
     timelines?: Record<string, TimelineItem[]>;

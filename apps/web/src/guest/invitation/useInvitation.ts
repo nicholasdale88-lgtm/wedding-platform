@@ -158,7 +158,9 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       // The admin's preview reloads after every save (&stay=1): then it stays open, where it was. Opened
       // afresh (or Replay), the envelope plays every time.
       try {
-        if (new URLSearchParams(window.location.search).get('stay') === '1' && sessionStorage.getItem(`wp-preview-open-${slug}`)) {
+        const q = new URLSearchParams(window.location.search);
+        // Reloaded after a save, or being edited in place: open already.
+        if ((q.get('stay') === '1' && sessionStorage.getItem(`wp-preview-open-${slug}`)) || q.get('edit') === '1') {
           setP(4);
           setMuted(true); // opened already, so no tap has started the music: the button starts it
           setTimeout(() => {

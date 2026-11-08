@@ -1,7 +1,7 @@
 import '@fontsource/cormorant-garamond/400.css';
 import { themeOf } from '../themeKit';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
 import { InvitationView } from '../generated/InvitationView';
@@ -11,6 +11,7 @@ import { MessageUs } from '../MessageUs';
 import { EnvelopeExtras } from './EnvelopeExtras';
 import { BirthdayHero, sealFor, SOLO_HIDDEN } from './BirthdayHero';
 import { useSite } from '../../lib/site';
+import { LiveEditor, markedT, orderCss, useLiveState } from './LiveEdit';
 
 /**
  * /w/:slug/?g=<token>: the invitation. The design view is generated (guest/generated/InvitationView);
@@ -23,6 +24,8 @@ export function InvitationPage() {
   const preview = params.get('preview') === '1';
   // Straight after signing up: their own invitation first, then "Make it yours".
   const welcome = preview && params.get('welcome') === '1';
+  // Setup → "Edit on the invitation": the admin's preview, editable in place.
+  const editing = preview && params.get('edit') === '1';
   const [data, setData] = useState<InvitePayload | null>(null);
   const [error, setError] = useState('');
 
@@ -35,11 +38,19 @@ export function InvitationPage() {
 
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
-  return <Loaded slug={slug} data={data} preview={preview} welcome={welcome} />;
+  return <Loaded slug={slug} data={data} preview={preview} welcome={welcome} editing={editing} />;
 }
 
-function Loaded({ slug, data, preview, welcome = false }: { slug: string; data: InvitePayload; preview: boolean; welcome?: boolean }) {
-  const { v: base, t, phase, guestToken, inParty } = useInvitation(slug, data, preview);
+function Loaded({ slug, data: saved, preview, welcome = false, editing = false }: { slug: string; data: InvitePayload; preview: boolean; welcome?: boolean; editing?: boolean }) {
+  // While editing, the card shows the admin's state as it is now (sent after every change), not the saved page.
+  const [live, setLive] = useLiveState(editing);
+  const data = useMemo<InvitePayload>(() => (live ? { ...saved, content: { ...saved.content, ...(live.invitation as Partial<InvitePayload['content']>) } } : saved), [saved, live]);
+  const { v: core, t: tSaved, phase, guestToken, inParty } = useInvitation(slug, data, preview);
+  const keys = useRef<string[]>([]);
+  const tLive = (k: string) => live?.texts[k] ?? tSaved(k);
+  const t = editing ? markedT(tLive, keys.current) : tSaved;
+  // While editing, each photo says which slot it fills (so a photo can be dropped onto it).
+  const base = editing ? { ...core, image: (id: string) => `${core.image(id)}#wp-slot=${id}` } : core;
   // Invited only to the second event (the birthday): its own invitation, without the wedding's sections.
   const solo = data.invitation && !data.events.some((e) => e.slot === 0) ? data.events.find((e) => e.slot === 1) : undefined;
   const v = solo ? { ...base, hide: (label: string) => SOLO_HIDDEN.has(label) || base.hide(label), initialsFull: sealFor(solo.name) } : base;
@@ -57,6 +68,9 @@ function Loaded({ slug, data, preview, welcome = false }: { slug: string; data: 
       <div className="dz">
         <InvitationView v={v} t={t} />
       </div>
+      {/* The couple's own order of the sections (none: the design's). */}
+      {orderCss(data.content.order) && <style>{orderCss(data.content.order)}</style>}
+      {editing && <LiveEditor keys={keys.current} text={tLive} onText={(k, value) => live && setLive({ ...live, texts: { ...live.texts, [k]: value } })} />}
       {/* The app's quiet advert, on Free plans only, once the envelope is open (switched off for all in the company portal). */}
       {site?.madeWith && data.branded && phase >= 3 && (
         <p className="m-0 py-6 text-center text-[13px]" style={{ color: th.dg ?? '#33402f', opacity: 0.75 }}>

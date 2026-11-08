@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
 import { DesignBuilder } from './DesignBuilder';
+import { LiveEditBar } from './LiveEditBar';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, Rollup, subNavCls, tabCls, useMedia, useToast } from '../ui';
@@ -37,6 +38,7 @@ export function GuestPages() {
   const [previewKey, setPreviewKey] = useState(0);
   const [sharing, setSharing] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false); // phones: the preview opens full screen
+  const [liveEdit, setLiveEdit] = useState(false); // "Edit on the invitation": the preview is the editor
   const [device, setDevice] = useDevice();
 
   // Pending edits: section -> generation, so an edit made while saving is saved next time.
@@ -177,7 +179,8 @@ export function GuestPages() {
     );
   const base = `/w/${data.slug}`;
   const path = page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
-  const previewUrl = `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}preview=1`;
+  const editingCard = liveEdit && page === 'invitation';
+  const previewUrl = `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
   const shareUrl = `${window.location.origin}${base}${path}${sample ? `?g=${encodeURIComponent(sample.token)}` : ''}`;
 
   const guide = eventKey ? doc.guides[eventKey] : undefined;
@@ -218,7 +221,26 @@ export function GuestPages() {
   const preview = (
     <div className={`flex flex-col gap-3 ${wide ? 'sticky top-6' : ''}`}>
       <DevicePicker device={device} onChange={setDevice} />
-      <DevicePreview device={device} src={previewUrl} url={shareUrl.replace(/^https?:\/\//, '')} title="Guest page preview" frameKey={`${previewUrl}#${previewKey}`} stay={previewKey > 0} />
+      {page === 'invitation' &&
+        (editingCard ? (
+          <LiveEditBar
+            inv={doc.invitation}
+            texts={doc.texts}
+            original={ORIGINAL}
+            setInv={setInv}
+            setText={setText}
+            onDone={() => {
+              setLiveEdit(false);
+              setPreviewKey((k) => k + 1);
+            }}
+          />
+        ) : (
+          <Pill kind="outline" onClick={() => setLiveEdit(true)} className="self-center">
+            Edit on the invitation
+          </Pill>
+        ))}
+      {/* While editing in place the card isn't reloaded after saves: it's sent each change instead. */}
+      <DevicePreview device={device} src={previewUrl} url={shareUrl.replace(/^https?:\/\//, '')} title="Guest page preview" frameKey={editingCard ? previewUrl : `${previewUrl}#${previewKey}`} stay={!editingCard && previewKey > 0} />
       <div className="flex gap-2 flex-wrap justify-center">
         <a href={previewUrl} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-[#c6b794] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]">
           Open full screen

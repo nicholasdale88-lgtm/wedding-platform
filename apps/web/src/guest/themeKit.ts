@@ -23,6 +23,8 @@ export interface ThemeCustom {
   envelope?: string;
   /** How the names are set: a script, classic spaced capitals, or an elegant serif. */
   names?: NamesStyle;
+  /** The names a little smaller or larger (1 is as the style sets them). */
+  nameSize?: number;
 }
 
 export type NamesStyle = 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair';
@@ -189,5 +191,8 @@ export function themeOf(name: string | undefined, custom?: ThemeCustom): Record<
     void _nsz;
     t = rest;
   }
+  // Their own size for the names: the style's size, scaled.
+  const k = custom?.nameSize;
+  if (typeof k === 'number' && k >= 0.6 && k <= 1.5 && k !== 1) t = { ...t, nsz: `calc(${t.nsz ?? 'clamp(38px,10.5vw,50px)'} * ${k})` };
   return t;
 }

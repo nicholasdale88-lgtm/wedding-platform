@@ -2,6 +2,9 @@ import { z } from 'zod';
 import { OPENINGS } from './designs';
 import { INV_SCOPES } from './generated/invScopes';
 
+/** A photo dropped onto the invitation is kept with it, made small enough to load quickly (characters of its data link). */
+export const PHOTO_MAX = 85_000;
+
 /** Pictures a timeline row can carry (drawn as in the design); "end" is the closing diamond. */
 export const TIMELINE_ICONS = [
   'arrive', 'rings', 'camera', 'drinks', 'sunset', 'dinner', 'music', 'speech', 'cake', 'heart', 'sparkle', 'car', 'end',
@@ -45,6 +48,8 @@ export const InvitationContent = z
         soft: z.string().regex(/^#[0-9a-f]{6}$/i),
         envelope: z.string().regex(/^#[0-9a-f]{6}$/i),
         names: z.enum(['script', 'caps', 'vibes', 'parisienne', 'playfair']),
+        /** The names a little smaller or larger than the style sets them (1 is as designed). */
+        nameSize: z.number().min(0.6).max(1.5),
       })
       .partial(),
     /** The last day replies can be changed online ("2027-08-01"); after it, guests are asked to email. */
@@ -66,8 +71,10 @@ export const InvitationContent = z
     opening: z.enum(OPENINGS),
     /** What the couple started from and the wording tone they chose, so the builder shows their picks. */
     design: z.object({ template: z.string().max(60), tone: z.string().max(40) }).partial(),
-    /** Photos in the design's picture slots, by slot id (e.g. "lookout"). */
-    images: z.record(z.string().max(500)),
+    /** Photos in the design's picture slots, by slot id (e.g. "lookout"): a link, or a small photo dropped onto the card. */
+    images: z.record(z.union([z.string().max(500), z.string().max(PHOTO_MAX).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/)])),
+    /** The couple's own order of the sections (by the design's section name); the design's order when unset. */
+    order: z.array(z.string().max(80)).max(40),
     /** Sections switched off, by the design's section name ("11 FAQ"). */
     hidden: z.record(z.string().max(80), z.boolean()),
     /** The couple's own questions for an accordion list ("11 FAQ#1"), replacing the design's. */
