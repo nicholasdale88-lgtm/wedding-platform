@@ -44,7 +44,7 @@ export const HELP_SAY: Record<string, HelpSay> = {
     intro: 'Here’s how to add your guests.',
     steps: [
       'Open Guests, and tap Add guest. Add one household at a time. Everyone on the same invitation shares one link.',
-      'Got a spreadsheet? Import it instead. Just use one row per invitation, with names, a mobile, and which events they’re invited to.',
+      'Got a spreadsheet, or your phone’s contacts? Import them instead. Addresses come too, so you can post printed invitations, and print the address labels.',
       'Then say who each guest is to you. Whose side they’re on, how they know you, like uni friend or ex-work, and their circles, the people they know. Seating uses all of it.',
       'Doing lots at once? Tap Select, tick your guests, and set their side, or add a circle, in one go.',
     ],

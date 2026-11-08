@@ -76,6 +76,16 @@ export function dropdowns(events: EventInfo[], ties?: { sides: Record<string, st
       test: (g, v) => (v === '3' ? g.people.length >= 3 : g.people.length === Number(v)),
     },
     {
+      key: 'by', label: 'Invitation by',
+      options: [['', 'Any'], ['printed', 'Printed (post or both)'], ['post', 'Post only'], ['digital', 'Digital only'], ['noaddress', 'Printed, no address yet']],
+      test: (g, v) => {
+        const d = g.delivery ?? 'digital';
+        if (v === 'printed') return d === 'post' || d === 'both';
+        if (v === 'noaddress') return (d === 'post' || d === 'both') && !(g.address?.street.trim() || g.address?.postcode.trim());
+        return d === v;
+      },
+    },
+    {
       key: 'side', label: 'Side',
       options: [['', 'Any'], ...(['p1', 'p2', 'both'] as const).map((k) => [k, ties?.sides[k] ?? k] as [string, string]), ['none', 'Not set']],
       test: (g, v) => (v === 'none' ? !g.side : g.side === v),

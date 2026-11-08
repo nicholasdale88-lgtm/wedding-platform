@@ -30,11 +30,11 @@ export type Channel = '' | 'text' | 'email' | 'both';
 
 /** This guest gets emails: an email address, and email (or both) chosen, or no mobile to text. */
 export const emailable = (r: Recipient, c?: Pick<Campaign, 'excluded'>): boolean =>
-  !!r.email && (r.channel === 'email' || r.channel === 'both' || (!r.channel && !r.phone)) && !(c?.excluded.includes(r.id) ?? false);
+  !r.post && !!r.email && (r.channel === 'email' || r.channel === 'both' || (!r.channel && !r.phone)) && !(c?.excluded.includes(r.id) ?? false);
 
 /** This guest's messages are sent by the couple from their own phone (a mobile, not opted out, not excluded). */
 export const phoneable = (r: Recipient, c?: Pick<Campaign, 'excluded'>): boolean =>
-  !!r.phone && r.channel === 'phone' && !r.optOut && !(c?.excluded.includes(r.id) ?? false);
+  !r.post && !!r.phone && r.channel === 'phone' && !r.optOut && !(c?.excluded.includes(r.id) ?? false);
 
 /** Who a campaign goes to from the couple's own phone right now. */
 export const phoneRecipientsFor = (c: Campaign, all: Recipient[], invitedBefore: Set<string>) => all.filter((r) => phoneable(r, c) && matches(c.audience, r, invitedBefore));

@@ -115,6 +115,12 @@ export const invitation = sqliteTable('invitation', {
   side: text('side').notNull().default(''), // migration 0040: 'p1', 'p2', 'both' or ''
   relation: text('relation').notNull().default(''), // migration 0040: how they know the couple
   circles: text('circles').notNull().default(''), // migration 0040: who knows who, "Uni crew,Acme work"
+  addressStreet: text('address_street').notNull().default(''), // migration 0041: postal address (one per household)
+  addressSuburb: text('address_suburb').notNull().default(''),
+  addressState: text('address_state').notNull().default(''),
+  addressPostcode: text('address_postcode').notNull().default(''),
+  addressCountry: text('address_country').notNull().default(''),
+  delivery: text('delivery', { enum: ['digital', 'post', 'both'] }).notNull().default('digital'), // migration 0041
 });
 
 export const seatTable = sqliteTable('seat_table', {

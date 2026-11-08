@@ -1,6 +1,7 @@
 import { strFromU8, unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { exportRows, exportSheets, toImportRows } from '../src/admin/guestImport';
+import { exportRows, exportSheets, labelRows, toImportRows } from '../src/admin/guestImport';
+import { reviewRows } from '../src/admin/ImportContacts';
 import { parseTable } from '../src/lib/csv';
 import { readTableFile, readXlsx, writeXlsx } from '../src/lib/xlsx';
 import { events, guests } from './fixtures';
@@ -79,6 +80,27 @@ describe('Excel files (.xlsx)', () => {
     const { rows, columns } = toImportRows([['Name', 'Side', 'Relationship', 'Knows'], ['Pat Solo', 'Bride', 'Old work', 'Acme work; Netball']], events);
     expect(columns).toMatchObject({ side: 1, relation: 2, circles: 3, party: -1 });
     expect(rows[0]).toEqual({ people: ['Pat Solo'], side: 'Bride', relation: 'Old work', circles: 'Acme work; Netball' });
+  });
+
+  it('reads Address and Invitation by columns, and makes address labels for printed invitations', () => {
+    const { rows } = toImportRows([['Name', 'Address', 'Suburb', 'State', 'Postcode', 'Invitation by'], ['Pat Solo', '1 King St', 'Perth', 'WA', '6000', 'Post']], events);
+    expect(rows[0]).toEqual({ people: ['Pat Solo'], street: '1 King St', suburb: 'Perth', state: 'WA', postcode: '6000', delivery: 'post' });
+    const posted = guests.map((g, i) => (i === 0 ? { ...g, delivery: 'both' as const, address: { street: '1 King St', suburb: 'Perth', state: 'WA', postcode: '6000', country: '' } } : g));
+    expect(labelRows(posted)).toEqual([{ to: 'Robin Hart & Sam Hart', lines: ['1 King St', 'Perth WA 6000'] }]);
+  });
+
+  it('contacts to add: anyone already on the list (same mobile or name) starts unticked', () => {
+    const r = reviewRows(
+      [
+        { name: 'Robin Hart', phones: [], emails: [], address: null },
+        { name: 'New Person', phones: ['0412 000 001'], emails: [], address: null },
+        { name: 'Fresh Face', phones: ['0499 123 456', '02 9555 0000'], emails: ['FRESH@example.com', 'bad'], address: null },
+        { name: '', phones: [], emails: [], address: null },
+      ],
+      guests,
+    );
+    expect(r.map((x) => x.note)).toEqual(['Already on your list', 'Already on your list', '', 'No name']);
+    expect(r[2]).toMatchObject({ phone: '+61499123456', email: 'fresh@example.com' });
   });
 
   it('refuses things that are not workbooks, in plain English', async () => {

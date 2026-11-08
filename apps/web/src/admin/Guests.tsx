@@ -3,10 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
-import { fileName } from '../lib/csv';
+import { downloadCsv, fileName } from '../lib/csv';
 import { downloadDressed } from './exportLook';
 import { GuestDrawer } from './GuestDrawer';
-import { exportSheets } from './guestImport';
+import { exportSheets, labelRows } from './guestImport';
+import { ImportContacts } from './ImportContacts';
 import { ImportGuests } from './ImportGuests';
 import { ManualSend } from './ManualSend';
 import { answerLabel, applyFilters, dropdowns, quickFilters, shortAnswer, type FilterState } from './guestFilters';
@@ -15,7 +16,7 @@ import { useOpenParam } from './openParam';
 import { useAdmin, useSectionName } from './Shell';
 import { Eyebrow, Pill, StatusPill, useAutoRefresh, useMedia, useToast } from './ui';
 
-const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'side', 'rel', 'circle', 'sort'] as const;
+const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'by', 'side', 'rel', 'circle', 'sort'] as const;
 
 /** design/RSVP Admin.dc.html → Guests. Filters live in the address bar, so they survive a reload and can be shared. */
 export function Guests() {
@@ -28,6 +29,7 @@ export function Guests() {
   const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> } | null>(null);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [contacts, setContacts] = useState(false); // Import contacts (phone or a contacts file)
   const [manual, setManual] = useState<false | 'unreachable' | 'phone'>(false);
   const [fresh, setFresh] = useState(''); // the guest "Add guest" just made
   const [more, setMore] = useState(false); // phones: Import, Export and Send without SMS under More
@@ -139,6 +141,8 @@ export function Guests() {
   }
 
   if (error) return <p role="alert" className="text-[#8a5a45]">{error}</p>;
+  const labels = labelRows(guests);
+  const byPost = guests.filter((g) => g.delivery === 'post').length;
   const seatsHeld = guests.reduce((n, g) => n + g.seatsHeld, 0);
   const cols = `minmax(200px,1.5fr) 128px ${events.length === 2 ? '118px ' : ''}${events.map(() => '104px').join(' ')} 84px ${questions.map(() => '82px').join(' ')} minmax(170px,1.4fr) 150px`;
 
@@ -150,6 +154,13 @@ export function Guests() {
           <h1 className="mt-[6px] mb-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] min-h-[43px]">
             {data ? (guests.length ? `${seatsHeld} guests on ${guests.length} invitations` : 'Your guest list') : ''}
           </h1>
+          {labels.length > 0 && (
+            <span className="block mt-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">
+              {labels.length} printed {labels.length === 1 ? 'invitation' : 'invitations'}
+              {byPost ? ` · ${byPost} by post only (no texts or emails)` : ''}
+              {labels.some((l) => !l.lines.length) ? ` · ${labels.filter((l) => !l.lines.length).length} still need an address` : ''}
+            </span>
+          )}
         </div>
         <div className="relative flex gap-[10px] flex-wrap">
           {/* Phones: one main action, the rest under More. */}
@@ -158,6 +169,13 @@ export function Guests() {
               <Pill onClick={() => (setMore(false), setManual((x) => (x === 'phone' ? false : 'phone')))}>Text from my own phone (free)</Pill>
               <Pill onClick={() => (setMore(false), setManual((x) => (x === 'unreachable' ? false : 'unreachable')))}>Share invitation links yourself</Pill>
               <Pill onClick={() => (setMore(false), setImporting((x) => !x))}>Import</Pill>
+              <Pill onClick={() => (setMore(false), setContacts((x) => !x))}>Import contacts</Pill>
+              <Pill disabled={!labels.length} onClick={() => (setMore(false), printLabels(labels, overview?.wedding.slug ?? 'wedding'))} title="A printable A4 sheet of address labels for everyone getting a printed invitation">
+                Address labels
+              </Pill>
+              <Pill disabled={!labels.length} onClick={() => (setMore(false), downloadCsv(fileName(overview?.wedding.slug ?? 'wedding', 'address-labels'), [['To', 'Address line 1', 'Address line 2', 'Address line 3', 'Address line 4'], ...labels.map((l) => [l.to, ...l.lines])]))}>
+                Address labels (CSV)
+              </Pill>
               <Pill
                 disabled={!guests.length}
                 onClick={() => {
@@ -181,6 +199,7 @@ export function Guests() {
         </div>
       </header>
 
+      {contacts && data && <ImportContacts guests={data.guests} events={data.events} focus={focusEv} onClose={() => setContacts(false)} onDone={changed} />}
       {importing && data && <ImportGuests events={data.events} focus={focusEv} onClose={() => setImporting(false)} onDone={changed} />}
       {manual && data && <ManualSend key={manual} mode={manual} guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
 
@@ -371,6 +390,24 @@ function seats(g: Guest): string {
   const n = yes.length ? Math.max(...yes.map(([, r]) => r.count)) : null;
   const table = g.people.find((p) => p.table)?.table;
   return `${n ?? '–'}/${g.seatsHeld}${table ? ` · T${table}` : ''}`;
+}
+
+/** A printable A4 sheet of address labels (3 across, 7 down: the usual 21-label sheet). */
+function printLabels(labels: { to: string; lines: string[] }[], slug: string) {
+  const w = window.open('', '_blank');
+  if (!w) return;
+  const ent: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ent[c] ?? c);
+  const cells = labels.map((l) => `<div class="l"><strong>${esc(l.to)}</strong>${l.lines.map((x) => `<br>${esc(x)}`).join('')}</div>`).join('');
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${esc(slug)} address labels</title><style>
+@page{size:A4;margin:15mm 7mm}body{margin:0;font:11pt/1.35 Georgia,serif;color:#000}
+.s{display:grid;grid-template-columns:repeat(3,63.5mm);grid-auto-rows:38.1mm;column-gap:2.5mm}
+.l{padding:5mm 4mm;overflow:hidden;box-sizing:border-box;break-inside:avoid}
+@media screen{.l{outline:1px dashed #ccc}}
+</style></head><body><div class="s">${cells}</div><script>window.onload=function(){window.print()}</script></body></html>`,
+  );
+  w.document.close();
 }
 
 /** No guests yet: what to do first, not "No guests match". */

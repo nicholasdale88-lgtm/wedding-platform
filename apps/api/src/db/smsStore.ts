@@ -40,7 +40,7 @@ export class D1SmsStore implements SmsStore {
     const [events, invitations, people, invites, rsvps] = await this.db.batch([
       q(`SELECT id, key, name, pending_label, sort FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
       // The wedding's way of sending (Settings → Texting); not chosen: the texting number when there is one, else their own phone.
-      q(`SELECT i.id, i.token, i.phone, i.email, i.channel, i.seats_held, i.sms_optout, o.phone IS NOT NULL AS stopped,
+      q(`SELECT i.id, i.token, i.phone, i.email, i.channel, i.delivery, i.seats_held, i.sms_optout, o.phone IS NOT NULL AS stopped,
                 COALESCE(json_extract(w.content, '$.sendVia'), CASE WHEN w.sms_sender IS NOT NULL THEN 'service' ELSE 'phone' END) AS via
            FROM invitation i JOIN wedding w ON w.id = i.wedding_id LEFT JOIN opt_out o ON o.phone = i.phone
           WHERE i.wedding_id = ? AND i.deleted_at IS NULL`),
@@ -61,10 +61,10 @@ export class D1SmsStore implements SmsStore {
     ]);
 
     const byId = new Map<string, Recipient>();
-    for (const i of invitations!.results as (InvitationRow & { email: string | null; channel: string | null; via: string | null })[]) {
+    for (const i of invitations!.results as (InvitationRow & { email: string | null; channel: string | null; delivery: string | null; via: string | null })[]) {
       byId.set(i.id, {
         id: i.id, token: i.token, phone: i.phone, optOut: !!i.sms_optout || !!i.stopped, people: [], seatsHeld: i.seats_held,
-        invited: [], rsvp: {}, rsvpUpdatedAt: null, tableName: null, email: i.email, channel: channelOf(i.channel, i.phone, i.email, i.via),
+        invited: [], rsvp: {}, rsvpUpdatedAt: null, tableName: null, email: i.email, channel: channelOf(i.channel, i.phone, i.email, i.via), post: i.delivery === 'post',
       });
     }
     for (const p of people!.results as { invitation_id: string; name: string; table_name: string | null }[]) {

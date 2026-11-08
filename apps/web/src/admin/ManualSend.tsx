@@ -24,7 +24,7 @@ export function ManualSend({ guests, links, onClose, mode = 'unreachable' }: { g
       return [];
     }
   });
-  const queue = useMemo(() => guests.filter((g) => (own ? !!g.phone && !g.optOut : !g.phone || g.optOut) && links[g.id]), [guests, links, own]);
+  const queue = useMemo(() => guests.filter((g) => g.delivery !== 'post' && (own ? !!g.phone && !g.optOut : !g.phone || g.optOut) && links[g.id]), [guests, links, own]);
   const left = queue.filter((g) => !done.includes(g.id));
   const g = left[0];
   const w = overview?.wedding;

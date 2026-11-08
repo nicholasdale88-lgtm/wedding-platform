@@ -18,9 +18,9 @@ export function matches(a: Audience, r: Recipient, invitedBefore: Set<string>): 
   return true;
 }
 
-/** Always required, whatever the campaign: a mobile, not opted out, not excluded, and not by email or the couple's own phone. */
+/** Always required, whatever the campaign: a mobile, not opted out, not excluded, not by email or the couple's own phone, and not invited by post only. */
 export const textable = (r: Recipient, c?: Pick<Campaign, 'excluded'>): boolean =>
-  !!r.phone && !r.optOut && r.channel !== 'email' && r.channel !== 'phone' && !(c?.excluded.includes(r.id) ?? false);
+  !r.post && !!r.phone && !r.optOut && r.channel !== 'email' && r.channel !== 'phone' && !(c?.excluded.includes(r.id) ?? false);
 
 /**
  * How a guest hears from the couple: their own choice (guest page), else the wedding's way of sending

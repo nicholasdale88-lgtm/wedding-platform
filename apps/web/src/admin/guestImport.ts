@@ -1,4 +1,4 @@
-import { isSerious, relationLabel, sideShort } from '@wp/shared';
+import { addressLines, isSerious, printed, relationLabel, sideShort } from '@wp/shared';
 import type { EventInfo, Guest } from '../lib/api';
 import { shortLabel } from '../lib/format';
 import type { Sheet } from '../lib/xlsx';
@@ -20,6 +20,13 @@ export interface ImportRow {
   relation?: string;
   /** Circles separated by commas: "Uni crew, Netball". */
   circles?: string;
+  /** Postal address, and "post" / "both" for a printed invitation. */
+  street?: string;
+  suburb?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+  delivery?: 'digital' | 'post' | 'both';
   invited?: string[];
 }
 
@@ -39,10 +46,26 @@ export function mapColumns(header: string[], events: EventInfo[]) {
   const side = h.findIndex((x) => /^(side|whose side|bride or groom|guest of)$/.test(x));
   const relation = h.findIndex((x) => /^(relationship|relation|relationship to (the )?couple|how (they|we) know (them|us)|connection)$/.test(x));
   const circles = h.findIndex((x) => /^(circles?|knows|who they know|friend groups?|tags?)$/.test(x));
+  const street = h.findIndex((x) => /^(address|street|street address|address line 1|postal address|mailing address)$/.test(x));
+  const suburb = h.findIndex((x) => /^(suburb|city|town|locality)$/.test(x));
+  const state = h.findIndex((x) => /^(state|region|state territory)$/.test(x));
+  const postcode = h.findIndex((x) => /^(postcode|post code|postal code|zip|zip code)$/.test(x));
+  const country = h.findIndex((x) => /^(country|country region)$/.test(x));
+  const delivery = h.findIndex((x) => /^(invitation by|delivery|printed|printed invitation|send by|by post)$/.test(x));
   const eventCols = events
     .map((e) => ({ key: e.key, i: h.findIndex((x) => x === norm(e.name) || x === norm(e.key) || x === norm(shortLabel(e.name))) }))
     .filter((e) => e.i >= 0);
-  return { main: main >= 0 ? main : 0, extra, phone, email, seats, party, side, relation, circles, eventCols };
+  return { main: main >= 0 ? main : 0, extra, phone, email, seats, party, side, relation, circles, street, suburb, state, postcode, country, delivery, eventCols };
+}
+
+/** "Post", "Printed", "Both", "Yes" (a printed one), "Digital", "Text", "Email". */
+function deliveryOf(v: string): ImportRow['delivery'] | undefined {
+  const x = v.trim().toLowerCase();
+  if (!x) return undefined;
+  if (/both|post and|printed and|\+/.test(x)) return 'both';
+  if (/^(post|posted|mail|printed|print|paper|yes|y|x|printed only|by post)/.test(x)) return 'post';
+  if (/^(digital|text|sms|email|e-mail|no|n)/.test(x)) return 'digital';
+  return undefined;
 }
 
 /** Excel stores mobiles as numbers and drops the leading 0 (412345678): put it back. */
@@ -63,6 +86,14 @@ export function toImportRows(table: string[][], events: EventInfo[]): { rows: Im
     if (columns.side >= 0 && r[columns.side]?.trim()) row.side = r[columns.side]!.trim();
     if (columns.relation >= 0 && r[columns.relation]?.trim()) row.relation = r[columns.relation]!.trim();
     if (columns.circles >= 0 && r[columns.circles]?.trim()) row.circles = r[columns.circles]!.trim();
+    for (const k of ['street', 'suburb', 'state', 'postcode', 'country'] as const) {
+      const v = columns[k] >= 0 ? r[columns[k]]?.trim() : '';
+      if (v) row[k] = v;
+    }
+    if (columns.delivery >= 0) {
+      const d = deliveryOf(r[columns.delivery] ?? '');
+      if (d) row.delivery = d;
+    }
     if (columns.eventCols.length) row.invited = columns.eventCols.filter((e) => YES.test((r[e.i] ?? '').trim())).map((e) => e.key);
     return row;
   });
@@ -82,7 +113,7 @@ export function exportSheets(guests: Guest[], events: EventInfo[], links: Record
     name: 'Invitations',
     rows: [
       [
-        'Main contact', 'Others', 'Mobile', 'Email', 'Group', 'Side', 'Relationship', 'Circles', 'Seats held',
+        'Main contact', 'Others', 'Mobile', 'Email', 'Group', 'Side', 'Relationship', 'Circles', 'Invitation by', 'Address', 'Suburb', 'State', 'Postcode', 'Country', 'Seats held',
         ...events.flatMap((e) => [shortLabel(e.name), `${shortLabel(e.name)}: coming`]),
         ...questions.map(({ e, q }) => `${shortLabel(e.name)}: ${q.label}`),
         'Dietary', 'Message', 'Table', 'Replied', 'Opened invitation', 'Texts allowed', 'Last text', 'Personal link',
@@ -96,6 +127,12 @@ export function exportSheets(guests: Guest[], events: EventInfo[], links: Record
         g.side ? sideShort(g.side, names) : '',
         g.relation ? relationLabel(g.relation) : '',
         (g.circles ?? []).join(', '),
+        g.delivery === 'post' ? 'Post' : g.delivery === 'both' ? 'Both' : 'Digital',
+        g.address?.street ?? '',
+        g.address?.suburb ?? '',
+        g.address?.state ?? '',
+        g.address?.postcode ?? '',
+        g.address?.country ?? '',
         g.seatsHeld,
         ...events.flatMap((e) => [replyOf(g, e), g.rsvp[e.key]?.attending ? g.rsvp[e.key]!.count : '']),
         ...questions.map(({ e, q }) => g.rsvp[e.key]?.answers[q.key] ?? ''),
@@ -138,6 +175,14 @@ export function exportSheets(guests: Guest[], events: EventInfo[], links: Record
     ],
   };
   return [invitations, people, summary];
+}
+
+/** Address labels for everyone getting a printed invitation: who it's to, and their address lines. */
+export function labelRows(guests: Guest[]): { to: string; lines: string[] }[] {
+  return guests
+    .filter((g) => printed(g.delivery))
+    .map((g) => ({ to: g.people.map((p) => p.name).filter(Boolean).join(' & '), lines: addressLines(g.address) }))
+    .sort((a, b) => a.to.localeCompare(b.to));
 }
 
 /** Kept for CSV export (same columns as the Invitations sheet). */

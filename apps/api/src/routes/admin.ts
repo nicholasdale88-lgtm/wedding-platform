@@ -1,4 +1,4 @@
-import { allows, GUEST_SIDES, joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164 } from '@wp/shared';
+import { allows, DELIVERY, GUEST_SIDES, joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164 } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
@@ -37,6 +37,9 @@ const GuestPatch = z
     side: z.enum(GUEST_SIDES),
     relation: z.union([z.literal(''), z.enum(RELATION_KEYS)]),
     circles: z.array(z.string().max(80)).max(MAX_CIRCLES * 2),
+    /** Their postal address (one per household), for a printed invitation; and how the invitation reaches them. */
+    address: z.object({ street: z.string().trim().max(300), suburb: z.string().trim().max(80), state: z.string().trim().max(40), postcode: z.string().trim().max(12), country: z.string().trim().max(60) }).partial(),
+    delivery: z.enum(DELIVERY),
     invited: z.array(z.string()).max(20),
     table: z.string().trim().max(40).nullable(),
     /** The event the table is for (the section it was typed in): only that event's tables and seats. */
@@ -222,6 +225,13 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       side: z.string().trim().max(60).optional(),
       relation: z.string().trim().max(60).optional(),
       circles: z.string().max(400).optional(),
+      /** A postal address (from a contacts file or the Address columns), and "post" / "both" for a printed invitation. */
+      street: z.string().trim().max(300).optional(),
+      suburb: z.string().trim().max(80).optional(),
+      state: z.string().trim().max(40).optional(),
+      postcode: z.string().trim().max(12).optional(),
+      country: z.string().trim().max(60).optional(),
+      delivery: z.enum(DELIVERY).optional(),
       invited: z.array(z.string().max(40)).max(20).optional(),
     });
     const body = z.object({ rows: z.array(Row).min(1).max(1000) }).strict().safeParse(await readJson(c.req.raw, MAX_IMPORT));
@@ -252,7 +262,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const names = new Set(existing.map((e) => norm(e.name ?? '')).filter(Boolean));
     const byKey = new Map(events.map((e) => [e.key, e.id]));
 
-    const ok: { people: string[]; phone: string | null; email: string | null; seats: number; party: string; side: string; relation: string; circles: string; eventIds: string[] }[] = [];
+    const ok: { people: string[]; phone: string | null; email: string | null; seats: number; party: string; side: string; relation: string; circles: string; address: [string, string, string, string, string]; delivery: string; eventIds: string[] }[] = [];
     const skipped: { row: number; name: string; reason: string }[] = [];
     const problems: { row: number; name: string; reason: string }[] = [];
     body.data.rows.forEach((r, i) => {
@@ -272,7 +282,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       // A "Side" that isn't one of the couple (an older sheet's "Side: Family") is kept as the group.
       const side = parseSide(r.side, couple_, sideNames);
       const party = r.party ?? (side === null ? (r.side ?? '') : '');
-      ok.push({ people, phone, email, seats: r.seats ?? people.length, party, side: side ?? '', relation: parseRelation(r.relation), circles: joinCircles(parseCircles(r.circles)), eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
+      ok.push({ people, phone, email, seats: r.seats ?? people.length, party, side: side ?? '', relation: parseRelation(r.relation), circles: joinCircles(parseCircles(r.circles)), address: [r.street ?? '', r.suburb ?? '', r.state ?? '', r.postcode ?? '', r.country ?? ''], delivery: r.delivery ?? 'digital', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
     });
 
     if (c.req.query('dry') || problems.length) {
@@ -303,7 +313,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     for (const g of ok) {
       const invId = id();
       const one = [
-        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, email, seats_held, party, side, relation, circles, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, g.email, Math.max(g.seats, g.people.length), g.party, g.side, g.relation, g.circles, t, t),
+        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, email, seats_held, party, side, relation, circles, address_street, address_suburb, address_state, address_postcode, address_country, delivery, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, g.email, Math.max(g.seats, g.people.length), g.party, g.side, g.relation, g.circles, ...g.address, g.delivery, t, t),
         ...g.people.map((p, idx) => db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, ?, ?)`).bind(id(), invId, idx, p)),
         ...g.eventIds.map((e) => db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, e)),
       ];
@@ -417,6 +427,15 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (p.side !== undefined) stmts.push(db.prepare(`UPDATE invitation SET side = ? WHERE id = ?`).bind(p.side, invId));
     if (p.relation !== undefined) stmts.push(db.prepare(`UPDATE invitation SET relation = ? WHERE id = ?`).bind(p.relation, invId));
     if (p.circles !== undefined) stmts.push(db.prepare(`UPDATE invitation SET circles = ? WHERE id = ?`).bind(joinCircles(p.circles), invId));
+    if (p.delivery !== undefined) stmts.push(db.prepare(`UPDATE invitation SET delivery = ? WHERE id = ?`).bind(p.delivery, invId));
+    if (p.address) {
+      const a = p.address;
+      stmts.push(
+        db
+          .prepare(`UPDATE invitation SET address_street = COALESCE(?, address_street), address_suburb = COALESCE(?, address_suburb), address_state = COALESCE(?, address_state), address_postcode = COALESCE(?, address_postcode), address_country = COALESCE(?, address_country) WHERE id = ?`)
+          .bind(a.street ?? null, a.suburb ?? null, a.state ?? null, a.postcode ?? null, a.country ?? null, invId),
+      );
+    }
     if (p.people) {
       const names = p.people.map((n, i) => n || (i === 0 ? '' : 'Guest'));
       names.forEach((name, idx) =>

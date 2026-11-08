@@ -115,7 +115,7 @@ export const HELP: HelpArticle[] = [
     group: 'Guests and replies',
     steps: [
       'Open Guests. Tap Add guest for one household at a time: everyone on one invitation shares a link.',
-      'Or import a spreadsheet: one row per invitation, with names, a mobile and which events they’re invited to.',
+      'Or import a spreadsheet: one row per invitation, with names, a mobile and which events they’re invited to. Or Import contacts: From this phone (Android) or From a contacts file (iPhone, Android or Outlook), tick who to add, then Add. Postal addresses come too: set Invitation by to Printed for a posted invitation (post only means no texts or emails), and print Address labels.',
       'Say who each guest is to you, for seating: whose side (yours, your partner’s or both), how they know you (immediate or extended family, school, uni or childhood friend, sport or club, work or ex-work colleague, neighbour, plus-one) and their circles, who they know (“Uni crew”, “Acme work”, “Netball”). Set it on the guest, or import Side, Relationship and Circles (or Knows) columns. Groups (e.g. “Alex’s side”) still work too.',
       'Many at once: tap Select, tick guests (or Tick everyone shown), and set their side, how they know you, or add or take off a circle in one go. They show as chips on the list, and you can filter by side, relationship or circle.',
     ],

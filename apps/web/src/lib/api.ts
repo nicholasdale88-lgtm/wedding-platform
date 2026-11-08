@@ -100,6 +100,9 @@ export interface Guest {
   side?: '' | 'p1' | 'p2' | 'both';
   relation?: string;
   circles?: string[];
+  /** Postal address (printed invitations), and how the invitation reaches them: digital, post (printed only) or both. */
+  address?: { street: string; suburb: string; state: string; postcode: string; country: string };
+  delivery?: 'digital' | 'post' | 'both';
   optOut: boolean;
   version: number;
   createdAt: string;
@@ -153,6 +156,8 @@ export interface GuestPatch {
   side?: '' | 'p1' | 'p2' | 'both';
   relation?: string;
   circles?: string[];
+  address?: Partial<{ street: string; suburb: string; state: string; postcode: string; country: string }>;
+  delivery?: 'digital' | 'post' | 'both';
   invited?: string[];
   table?: string | null;
   /** The event the table is for (the section it was typed in). */

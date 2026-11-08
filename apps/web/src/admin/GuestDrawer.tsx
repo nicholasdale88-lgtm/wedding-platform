@@ -1,4 +1,4 @@
-import { joinDiet, PARTY_ROLES } from '@wp/shared';
+import { DELIVERY, DELIVERY_LABEL, joinDiet, PARTY_ROLES, type Delivery } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
@@ -344,6 +344,44 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
           </div>
           <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Circles: who they know (“Uni crew”, “Acme work”). Guests who share a circle sit together.</span>
           <CirclesInput value={g.circles ?? []} options={circleOptions} onChange={(circles) => void patch({ circles })} />
+        </fieldset>
+        {/* A printed invitation: their postal address (one per household), and whether they get a digital one too. */}
+        <fieldset className="flex flex-col gap-2 m-0 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)]">
+          <legend className="px-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">Invitation by</legend>
+          <select aria-label="Invitation by" value={g.delivery ?? 'digital'} onChange={(e) => void patch({ delivery: e.target.value as Delivery })} className={inputCls}>
+            {DELIVERY.map((k) => (
+              <option key={k} value={k}>
+                {DELIVERY_LABEL[k]}
+              </option>
+            ))}
+          </select>
+          {g.delivery === 'post' && <span className="text-[12px] text-[#8a5a45]">Printed only: no texts or emails go to them. You can still record their reply here, or they can use their link.</span>}
+          <Label text="Postal address">
+            <textarea
+              rows={2}
+              defaultValue={g.address?.street ?? ''}
+              key={`street-${g.version}`}
+              placeholder="12 Rose Street"
+              onBlur={(e) => e.target.value.trim() !== (g.address?.street ?? '') && void patch({ address: { street: e.target.value.trim() } })}
+              className={inputCls}
+            />
+          </Label>
+          <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            {(
+              [
+                ['suburb', 'Suburb', 'Newtown'],
+                ['state', 'State', 'NSW'],
+                ['postcode', 'Postcode', '2042'],
+              ] as const
+            ).map(([k, label, ph]) => (
+              <Label key={k} text={label}>
+                <input defaultValue={g.address?.[k] ?? ''} key={`${k}-${g.version}`} placeholder={ph} onBlur={(e) => e.target.value.trim() !== (g.address?.[k] ?? '') && void patch({ address: { [k]: e.target.value.trim() } as NonNullable<GuestPatch['address']> })} className={inputCls} />
+              </Label>
+            ))}
+          </div>
+          <Label text="Country (if not Australia)">
+            <input defaultValue={g.address?.country ?? ''} key={`country-${g.version}`} onBlur={(e) => e.target.value.trim() !== (g.address?.country ?? '') && void patch({ address: { country: e.target.value.trim() } })} className={inputCls} />
+          </Label>
         </fieldset>
         {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any texts.</div>}
         {g.optOut && <div className="text-[13px] text-[#8a5a45]">Opted out of texts (replied STOP).</div>}

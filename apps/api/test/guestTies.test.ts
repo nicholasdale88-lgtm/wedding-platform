@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import seedJson from '../../../seed/sophie-nicholas.json';
 import type { Env } from '../src/env';
 import { createApp } from '../src/index';
+import { D1SmsStore } from '../src/db/smsStore';
+import { emailable, phoneable } from '../src/mail/campaigns';
+import { textable } from '../src/sms/audience';
 import { hashPasscode } from '../src/lib/auth';
 import { buildSeed } from '../src/seed/build';
 import { testD1 } from './support/d1';
@@ -16,7 +19,7 @@ describe('guest ties and the who-knows-who plan', () => {
   const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
   const call = (path: string, init: RequestInit = {}) => app.request(`/api/a/w/${wid}${path}`, { ...init, headers: { 'content-type': 'application/json', cookie, ...init.headers } }, env, ctx);
   const post = (path: string, body: unknown, headers: Record<string, string> = {}) => call(path, { method: 'POST', body: JSON.stringify(body), headers });
-  type G = { id: string; version: number; side: string; relation: string; circles: string[]; party: string; people: { name: string }[] };
+  type G = { id: string; version: number; side: string; relation: string; circles: string[]; party: string; people: { name: string }[]; address: Record<string, string>; delivery: string; phone: string | null };
   const guests = async () => ((await (await call('/guests')).json()) as { guests: G[] }).guests;
   const byName = async (name: string) => (await guests()).find((g) => g.people[0]?.name === name)!;
 
@@ -86,5 +89,32 @@ describe('guest ties and the who-knows-who plan', () => {
     // A table from somewhere else is refused.
     const bad = await post('/seating/versions/suggest', { event: s.event.key, name: 'X', seats: { [s.people[0]!.id]: crypto.randomUUID() } });
     expect(bad.status).toBe(400);
+  });
+  it('imports contacts with postal addresses, and a printed-only invitation gets nothing digital', async () => {
+    const rows = [
+      { people: ['Pia Post'], phone: '+61 412 777 001', email: 'pia@example.com', street: '12 Rose St', suburb: 'Newtown', state: 'NSW', postcode: '2042', country: 'Australia', delivery: 'post' },
+      { people: ['Ben Both'], phone: '0412 777 002', street: '1 King St', suburb: 'Perth', state: 'WA', postcode: '6000', delivery: 'both' },
+      { people: ['Dee Digital'], phone: '0412 777 003', email: 'dee@example.com' },
+    ];
+    expect((await post('/guests/import', { rows })).status).toBe(200);
+    const pia = await byName('Pia Post');
+    expect(pia).toMatchObject({ delivery: 'post', phone: '+61412777001', address: { street: '12 Rose St', suburb: 'Newtown', state: 'NSW', postcode: '2042', country: 'Australia' } });
+    expect(await byName('Ben Both')).toMatchObject({ delivery: 'both', address: { suburb: 'Perth' } });
+    expect(await byName('Dee Digital')).toMatchObject({ delivery: 'digital', address: { street: '' } });
+
+    const { recipients } = await new D1SmsStore(t.db, '').audience(wid);
+    const r = (name: string) => recipients.find((x) => x.people[0] === name)!;
+    expect(r('Pia Post').post).toBe(true);
+    // Whatever way the wedding sends (a texting number, email, or the couple's own phone), post only gets none of it.
+    const via = (name: string, channel: 'text' | 'email' | 'phone') => ({ ...r(name), channel });
+    expect([textable(via('Pia Post', 'text')), emailable(via('Pia Post', 'email')), phoneable(via('Pia Post', 'phone'))]).toEqual([false, false, false]);
+    expect([textable(via('Ben Both', 'text')), phoneable(via('Ben Both', 'phone'))]).toEqual([true, true]);
+    expect([textable(via('Dee Digital', 'text')), emailable(via('Dee Digital', 'email'))]).toEqual([true, true]);
+
+    // Changed on the guest: back to digital, a new address line.
+    const res = await call(`/guests/${pia.id}`, { method: 'PATCH', headers: { 'If-Match': String(pia.version) }, body: JSON.stringify({ delivery: 'digital', address: { street: '14 Rose St' } }) });
+    expect(((await res.json()) as { guest: G }).guest).toMatchObject({ delivery: 'digital', address: { street: '14 Rose St', suburb: 'Newtown' } });
+    expect((await new D1SmsStore(t.db, '').audience(wid)).recipients.find((x) => x.people[0] === 'Pia Post')!.post).toBe(false);
+    expect((await post('/guests/import', { rows: [{ people: ['Bad Way'], delivery: 'pigeon' }] })).status).toBe(400);
   });
 });
