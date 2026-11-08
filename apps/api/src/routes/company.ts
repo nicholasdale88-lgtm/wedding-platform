@@ -409,7 +409,7 @@ export function companyRoutes() {
     const fy = Number(c.req.query('fy')) || financialYear(new Date().toISOString().slice(0, 10));
     const r = await app.request(`/money?fy=${fy}`, { headers: c.req.raw.headers }, c.env);
     const m = (await r.json()) as { sales: { at: string; names: string; what: string; cents: number; fee: number; gst: number; promo: string; manual: boolean }[]; expenses: Expense[] };
-    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
     const $ = (n: number) => (n / 100).toFixed(2);
     const rows = [
       ['Type', 'Date', 'Who / what', 'Item', 'Amount', 'GST in it', 'Card fee', 'Notes'],
@@ -787,7 +787,7 @@ export function companyRoutes() {
     const fy = Number(c.req.query('fy')) || financialYear(new Date().toISOString().slice(0, 10));
     const r = await app.request(`/money?fy=${fy}`, { headers: c.req.raw.headers }, c.env);
     const m = (await r.json()) as { sales: { at: string; names: string; what: string; cents: number; fee: number; manual: boolean }[]; expenses: Expense[] };
-    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
     const $ = (n: number) => (n / 100).toFixed(2);
     const d = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
     const rows: string[][] = [['*Date', '*Amount', 'Payee', 'Description', 'Reference']];
@@ -879,7 +879,7 @@ export function companyRoutes() {
          FROM user u WHERE u.marketing_opt_in = 1 ORDER BY u.created_at DESC`,
     ).all<{ first_name: string | null; email: string; created_at: string; plan: string | null; day: string | null }>();
     // A leading = + - @ would run as a formula in a spreadsheet: a ' keeps it text.
-    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
     const csv = [['First name', 'Email', 'Signed up', 'Plan', 'Wedding day'], ...results.map((r) => [r.first_name ?? '', r.email, r.created_at.slice(0, 10), r.plan ?? '', (r.day ?? '').slice(0, 10)])]
       .map((row) => row.map(cell).join(','))
       .join('\r\n');
