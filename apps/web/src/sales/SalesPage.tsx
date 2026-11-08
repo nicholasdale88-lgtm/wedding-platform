@@ -6,6 +6,8 @@ import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, 
 import { api } from '../lib/api';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { DriveArt, FEATURE_ICONS, Wordmark } from './Art';
+import { HeroInvite } from './HeroInvite';
+import { Foil, PhoneFan, ShowcaseStyles, Sprig } from './Showcase';
 
 /**
  * The front page (/): what the app is, the plans, and signing up (or in). Written plainly, the way a
@@ -93,8 +95,27 @@ const deluxeExtra = (() => {
   return Number.isFinite(d) && d > 0 ? `$${Number.isInteger(d) ? d : d.toFixed(2)} more` : 'A little more';
 })();
 
-/** The four highlights under the headline. */
-const HIGHLIGHTS = ['Replies by text, on autopilot', 'Dietary needs sorted to menus', 'Seating that follows your rules', 'Photos straight to your Drive'];
+/** The promises under the headline. */
+const HIGHLIGHTS = ['Unlimited guests', 'Pay once, no subscription', 'Free to start', 'Made in Australia'];
+
+/** Three ways to send it, two of them free. */
+const SEND: { how: string; cost: string; text: string; tag?: string }[] = [
+  { how: 'Your own wedding email', cost: 'Free', tag: 'New', text: 'Every wedding gets its own address, like alex-and-sam@ our site. Send every invitation from it, and every reply lands back in the app, sorted by guest. Read it in Outlook or Apple Mail too.' },
+  { how: 'Your own link', cost: 'Free', text: 'Each guest has their own link. Send it any way you like: WhatsApp, Messenger, Instagram, your own texts.' },
+  { how: 'By text, for you', cost: 'About 2c a guest', text: 'We text everyone their invitation, then gently remind anyone who hasn’t replied. You see the cost before anything goes.' },
+];
+
+/**
+ * What the same jobs usually cost elsewhere (AUD, typical, for about 100 guests), next to ours. Rounded and
+ * conservative: printed suites run $4 to $8 each with postage; animated digital invitations are sold one-off
+ * at $90 to $150; planning and seating apps charge $10 to $20 a month for the year before.
+ */
+const COSTS: { what: string; low: number; high: number; note: string }[] = [
+  { what: 'Printed invitations and postage', low: 400, high: 800, note: '100 guests, about $4 to $8 each' },
+  { what: 'Animated digital invitation', low: 90, high: 150, note: 'One-off, invitation and RSVP only' },
+  { what: 'Wedding website and RSVP service', low: 60, high: 200, note: 'A year of a site builder' },
+  { what: 'Planning and seating apps', low: 120, high: 240, note: '$10 to $20 a month for a year' },
+];
 
 /** What couples bring, and what it usually costs on top of their plan (AUD). */
 const BYO: { what: string; cost: string; detail: string; good: string }[] = [
@@ -127,6 +148,7 @@ const FAQ: [string, string][] = [
   ['What do texts cost?', 'Texts are at cost, about 2c each, on top of your plan. Before anything is sent you see how many it goes to and what it costs.'],
   ['Do guests need to download anything?', 'No. They get a text with a link. No app, no account, no password.'],
   ['Is it a subscription?', 'No. You pay once for your wedding, and start free until you’re ready to send invitations.'],
+  ['Can we send it without paying for texts?', 'Yes. Send from your wedding’s own email address, or share each guest’s link on WhatsApp, Messenger or your own texts. Both are free, and replies land in the same list.'],
   ['Who can see our guest list?', 'Only the two of you and anyone you invite to help. Each wedding is kept separate, and we never share or sell your data.'],
   ['What if we have a welcome drinks or a recovery brunch too?', 'Add them as extra events. Guests are invited to the ones you pick and reply to each.'],
   ['What happens to our photos and files afterwards?', 'If you connect your own Drive, Dropbox or OneDrive, they’re already there, in folders. You can also download everything at any time.'],
@@ -138,7 +160,7 @@ export function SalesPage() {
   useEffect(() => {
     // Came from a wedding's "Made with" link or a post (?ref= / ?utm_source=): kept for sign-up.
     rememberRef();
-    document.title = `${BRAND} · Your guests reply by text. You stop chasing.`;
+    document.title = `${BRAND} · Wedding invitations they’ll open, and the whole plan, for one payment`;
     // Arriving from another page with #start or #pricing (e.g. the sample invitation's "Start free").
     const id = window.location.hash.slice(1);
     if (id) document.getElementById(id)?.scrollIntoView({ block: 'start' });
@@ -149,6 +171,7 @@ export function SalesPage() {
   };
   return (
     <div className="min-h-screen bg-[#f6f0e2]" style={{ color: INK, fontFamily: sans }}>
+      <ShowcaseStyles />
       {site?.banner && (
         <div className="px-4 py-2 text-center text-[14px]" style={{ background: INK, color: '#fbf8f2' }}>
           {site.banner.link ? (
@@ -160,9 +183,10 @@ export function SalesPage() {
           )}
         </div>
       )}
-      <header className="max-w-[1100px] mx-auto px-4 py-4 flex justify-between items-center gap-3">
-        <span aria-label={BRAND}>
-          <Wordmark size={24} />
+      <div style={{ background: '#1b2218' }}>
+      <header className="max-w-[1100px] mx-auto px-4 py-4 flex justify-between items-center gap-3 [&_a]:!text-[#f3ecd6]">
+        <span aria-label={BRAND} className="rounded-full px-3 py-1 bg-[#f6f0e2]">
+          <Wordmark size={22} />
         </span>
         <nav className="flex items-center gap-4 text-[15px]">
           <a href="#pricing" className="no-underline hidden sm:inline" style={{ color: INK }}>
@@ -174,59 +198,124 @@ export function SalesPage() {
           <Link to="/admin" className="no-underline" style={{ color: INK }}>
             Sign in
           </Link>
-          <a href="#start" className="py-[9px] px-4 rounded-full no-underline text-[15px]" style={{ background: INK, color: '#fbf8f2' }}>
-            Start free
+          <a href="#start" className="py-[9px] px-4 rounded-full no-underline text-[15px] font-semibold" style={{ background: '#e6cf9e' }}>
+            <span style={{ color: '#1b2218' }}>Start free</span>
           </a>
         </nav>
       </header>
+      </div>
 
       <main>
-        <section className="max-w-[1100px] mx-auto px-4 pt-8 pb-14 grid gap-10 md:grid-cols-[1.2fr_1fr] items-center">
-          <div className="flex flex-col gap-5">
-            <h1 className="m-0 text-[clamp(38px,6.5vw,62px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
-              Your guests reply by text. You stop chasing.
-            </h1>
-            <p className="m-0 text-[18px] leading-[1.6] max-w-[540px]" style={{ color: SOFT }}>
-              We started building this for our own wedding, when the spreadsheet of who’d replied, who was vegetarian and who sat where got out of hand. Now it does the chasing for us. It can for you too.
-            </p>
-            <div className="flex gap-3 flex-wrap items-center pt-1">
-              <a href="#start" className="py-[14px] px-7 rounded-full no-underline text-[16px] font-medium" style={{ background: INK, color: '#fbf8f2' }}>
-                Start free
-              </a>
-              <Link to="/demo" className="py-[13px] px-6 rounded-full no-underline text-[16px]" style={{ color: INK, border: `1px solid ${INK}` }}>
-                See a sample invitation
-              </Link>
-            </div>
-            <span className="text-[14px] -mt-2" style={{ color: SOFT }}>
-              No card needed. Pay once when you’re ready.
-            </span>
-            <ul aria-label="Highlights" className="m-0 p-0 list-none grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
-              {HIGHLIGHTS.map((h) => (
-                <li key={h} className="flex items-center gap-2 text-[15px]">
-                  <span aria-hidden className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] shrink-0" style={{ background: '#e6ecd8', color: INK }}>
-                    ✓
-                  </span>
-                  {h}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div aria-hidden className="mx-auto w-[270px] rounded-[38px] p-3 shadow-[0_24px_50px_rgba(51,64,47,.22)]" style={{ background: INK }}>
-            <div className="rounded-[28px] bg-[#fbf8f2] px-4 py-6 flex flex-col gap-3 text-[14px]">
-              <span className="text-[12px] text-center" style={{ color: SOFT }}>
-                Today 6:42pm
+        <section className="relative overflow-hidden" style={{ background: 'radial-gradient(120% 90% at 80% 10%, #3f4f39 0%, #263021 55%, #1b2218 100%)', color: '#f3ecd6' }}>
+          <div aria-hidden className="absolute -top-24 -left-24 w-[360px] h-[360px] rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #c8a46a, transparent 70%)' }} />
+          <Sprig className="absolute -left-6 bottom-0 w-[150px] opacity-40 hidden md:block" />
+          <Sprig className="absolute right-[38%] -top-10 w-[110px] opacity-25 hidden md:block rotate-180" flip />
+          <div className="relative max-w-[1100px] mx-auto px-4 pt-10 pb-16 md:pb-20 grid gap-12 md:grid-cols-[1.15fr_1fr] items-center">
+            <div className="flex flex-col gap-5">
+              <span className="self-start py-[5px] px-3 rounded-full text-[12px] tracking-[.16em] uppercase" style={{ border: '1px solid rgba(200,164,106,.6)', color: '#e6cf9e' }}>
+                Invitations · RSVPs · the whole plan
               </span>
-              <span className="self-start max-w-[85%] py-2 px-3 rounded-[16px] rounded-bl-[4px] bg-[#e9e3d3]">
-                Hi Jo, Alex and Sam would love you at their wedding on Saturday 13 March. Your invitation:{' '}
-                <span className="underline underline-offset-2" style={{ color: '#2f5f8a' }}>
-                  tap here
+              <h1 className="m-0 text-[clamp(40px,7vw,68px)] leading-[1.02] font-normal" style={{ fontFamily: serif }}>
+                The invitation they’ll{' '}
+                <em>
+                  <Foil>actually</Foil>
+                </em>{' '}
+                open.
+              </h1>
+              <p className="m-0 text-[18px] leading-[1.6] max-w-[540px]" style={{ color: '#d9d2bf' }}>
+                A wax-sealed envelope that opens on their phone. Replies, meals and plus-ones land straight in your guest list. Then seating, budget, vendors and the day itself, all in one place.
+              </p>
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <span className="text-[44px] leading-none" style={{ fontFamily: serif, color: '#fbf8f2' }}>
+                  {PLAN_INFO.essentials.price}
                 </span>
-              </span>
-              <span className="self-end max-w-[85%] py-2 px-3 rounded-[16px] rounded-br-[4px] text-[#fbf8f2]" style={{ background: INK }}>
-                Yes! Both of us. Sam’s vegetarian
-              </span>
-              <span className="self-start max-w-[85%] py-2 px-3 rounded-[16px] rounded-bl-[4px] bg-[#e9e3d3]">Wonderful, Jo! You’re both down as coming. We’ve noted vegetarian for Sam.</span>
+                <span className="text-[15px]" style={{ color: '#d9d2bf' }}>
+                  once, for your whole wedding. Not a subscription. Start free.
+                </span>
+              </div>
+              <div className="flex gap-3 flex-wrap items-center pt-1">
+                <a href="#start" className="py-[15px] px-8 rounded-full no-underline text-[16px] font-semibold shadow-[0_10px_24px_rgba(0,0,0,.25)]" style={{ background: '#e6cf9e', color: '#1b2218' }}>
+                  Start free
+                </a>
+                <Link to="/demo" className="py-[14px] px-6 rounded-full no-underline text-[16px]" style={{ color: '#fbf8f2', border: '1px solid rgba(243,236,214,.5)' }}>
+                  Open a sample invitation
+                </Link>
+              </div>
+              <ul aria-label="Highlights" className="m-0 p-0 list-none flex flex-wrap gap-x-5 gap-y-2 pt-1">
+                {HIGHLIGHTS.map((h) => (
+                  <li key={h} className="flex items-center gap-2 text-[14px]" style={{ color: '#d9d2bf' }}>
+                    <span aria-hidden style={{ color: '#e6cf9e' }}>
+                      ✓
+                    </span>
+                    {h}
+                  </li>
+                ))}
+              </ul>
             </div>
+            <div className="flex justify-center md:justify-end">
+              <HeroInvite />
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="after" className="relative overflow-hidden pt-16 pb-6 bg-[#fbf8f2]">
+          <Sprig className="absolute right-0 top-6 w-[120px] opacity-50" flip />
+          <div className="max-w-[1100px] mx-auto px-4 flex flex-col gap-3 text-center">
+            <h2 id="after" className="m-0 text-[clamp(30px,5vw,44px)] font-normal" style={{ fontFamily: serif }}>
+              And everything after the yes
+            </h2>
+            <p className="m-0 text-[16px] max-w-[640px] mx-auto" style={{ color: SOFT }}>
+              Every reply fills your guest list as it happens. Then the seating plan follows your rules and the budget keeps every deposit on time.
+            </p>
+          </div>
+          <PhoneFan />
+        </section>
+
+        <section aria-labelledby="send" className="py-16">
+          <div className="max-w-[1100px] mx-auto px-4 flex flex-col gap-8">
+            <div className="text-center flex flex-col gap-2">
+              <h2 id="send" className="m-0 text-[clamp(30px,5vw,42px)] font-normal" style={{ fontFamily: serif }}>
+                Send it free
+              </h2>
+              <p className="m-0 text-[16px] max-w-[640px] mx-auto" style={{ color: SOFT }}>
+                No stamps, no printer, no per-guest fees. Pick how it reaches your guests; replies come back to one list either way.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {SEND.map((x) => (
+                <article key={x.how} className="relative flex flex-col gap-3 p-6 rounded-[20px] bg-white border border-[#e2d7bc]">
+                  {x.tag && (
+                    <span className="absolute top-4 right-4 py-[2px] px-2 rounded-full text-[11px] font-semibold tracking-[.08em] uppercase" style={{ background: '#e6cf9e', color: '#1b2218' }}>
+                      {x.tag}
+                    </span>
+                  )}
+                  <h3 className="m-0 text-[19px] font-semibold">{x.how}</h3>
+                  <span className="text-[32px] leading-none" style={{ fontFamily: serif }}>
+                    {x.cost}
+                  </span>
+                  <p className="m-0 text-[15px] leading-[1.55]" style={{ color: SOFT }}>
+                    {x.text}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="costs" className="py-16" style={{ background: '#1f271b', color: '#f3ecd6' }}>
+          <div className="max-w-[1000px] mx-auto px-4 flex flex-col gap-8">
+            <div className="flex flex-col gap-2 text-center">
+              <h2 id="costs" className="m-0 text-[clamp(30px,5vw,44px)] font-normal" style={{ fontFamily: serif }}>
+                Everything, for less than the stamps
+              </h2>
+              <p className="m-0 text-[16px] max-w-[660px] mx-auto" style={{ color: '#d9d2bf' }}>
+                What couples usually pay for the same jobs, for about 100 guests, against one payment here.
+              </p>
+            </div>
+            <CostBars />
+            <p className="m-0 text-center text-[13px]" style={{ color: '#a9a38f' }}>
+              Typical Australian prices in 2026, rounded. Yours may differ; ours doesn’t: {PLAN_INFO.essentials.price} or {PLAN_INFO.complete.price}, once.
+            </p>
           </div>
         </section>
 
@@ -563,5 +652,55 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
         </Link>
       </span>
     </form>
+  );
+}
+
+/** Typical costs elsewhere as bars, against ours. */
+function CostBars() {
+  const ours = dollars(PLAN_INFO.essentials.price);
+  const total = COSTS.reduce((a, c) => [a[0] + c.low, a[1] + c.high], [0, 0]);
+  const max = total[1];
+  const w = (n: number) => `${Math.max(2, (n / max) * 100)}%`;
+  return (
+    <div className="flex flex-col gap-4">
+      {COSTS.map((c) => (
+        <div key={c.what} className="grid gap-1 sm:grid-cols-[230px_minmax(0,1fr)] sm:items-center sm:gap-4">
+          <span className="text-[15px]">
+            {c.what}
+            <span className="block text-[12px]" style={{ color: '#a9a38f' }}>
+              {c.note}
+            </span>
+          </span>
+          <span className="flex items-center gap-3">
+            <span className="h-[14px] rounded-full" style={{ width: w(c.high), background: 'linear-gradient(90deg, #7c6f55, #a2916c)' }} />
+            <span className="text-[14px] whitespace-nowrap">
+              ${c.low}–${c.high}
+            </span>
+          </span>
+        </div>
+      ))}
+      <div className="grid gap-1 sm:grid-cols-[230px_minmax(0,1fr)] sm:items-center sm:gap-4 pt-3 border-t border-[rgba(243,236,214,.15)]">
+        <span className="text-[15px]" style={{ color: '#a9a38f' }}>
+          Bought separately
+        </span>
+        <span className="text-[22px]" style={{ fontFamily: serif }}>
+          ${total[0].toLocaleString('en-AU')} to ${total[1].toLocaleString('en-AU')}
+        </span>
+      </div>
+      <div className="grid gap-1 sm:grid-cols-[230px_minmax(0,1fr)] sm:items-center sm:gap-4 p-4 rounded-[16px]" style={{ background: 'rgba(230,207,158,.12)', border: '1px solid rgba(230,207,158,.45)' }}>
+        <strong className="text-[16px]" style={{ color: '#e6cf9e' }}>
+          {BRAND}, all of it
+        </strong>
+        <span className="flex items-center gap-3">
+          <span className="h-[14px] rounded-full" style={{ width: w(ours), background: '#e6cf9e' }} />
+          <span className="text-[30px] leading-none" style={{ fontFamily: serif, color: '#fbf8f2' }}>
+            {PLAN_INFO.essentials.price}
+          </span>
+          <span className="text-[14px]" style={{ color: '#d9d2bf' }}>
+            once · save ${(total[0] - ours).toLocaleString('en-AU')}+
+          </span>
+        </span>
+      </div>
+    </div>
   );
 }
