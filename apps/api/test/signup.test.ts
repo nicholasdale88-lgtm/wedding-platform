@@ -179,6 +179,11 @@ describe('sign-up and plans', () => {
     const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     const { weddingId: wid } = (await res.json()) as { weddingId: string };
     const page = (path: string, ck = '') => call(`/p/alex-and-sam${path}`, {}, ck);
+    // Not paid yet: guests can't open it at all (the couple, signed in, still can).
+    const notLive = await page('/invite');
+    expect(notLive.status).toBe(403);
+    expect(((await notLive.json()) as { error: { code: string } }).error.code).toBe('not_live');
+    await t.db.prepare(`UPDATE wedding SET plan = 'basic' WHERE id = ?`).bind(wid).run();
     const shut = await page('/invite');
     expect(shut.status).toBe(404);
     expect(((await shut.json()) as { error: { code: string } }).error.code).toBe('private');

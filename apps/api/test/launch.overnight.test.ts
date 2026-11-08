@@ -354,7 +354,7 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
     expect(money.total).toMatchObject({ gross: payments.reduce((a, p) => a + p.cents, 0), sales: payments.length });
     for (const w of weddings.filter((x) => x.n % 7 === 0)) {
       const found = await json<{ weddings: { slug: string; paidCents: number; plan: string }[] }>(await company(`/weddings?q=${w.slug}`));
-      expect(found.weddings.find((x) => x.slug === w.slug), w.tag).toMatchObject({ paidCents: w.paidCents, plan: w.plan });
+      expect(found.weddings.find((x) => x.slug === w.slug), w.tag).toMatchObject({ paidCents: w.paidCents, plan: w.plan === 'free' ? 'basic' : w.plan });
     }
     await healthy('sign-ups and plans');
   });

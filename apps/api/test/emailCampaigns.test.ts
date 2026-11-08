@@ -37,7 +37,7 @@ describe('the texts’ messages by email', () => {
       }
       return new Response('unexpected', { status: 500 });
     });
-    // i1, i2: no mobile, so email. i3: a mobile and no choice, so text. i4: email only. i5: both.
+    // i1, i2: no mobile, so email. i3: a mobile, an email and no choice: automatic is text and email. i4: email only. i5: both.
     await setEmail('i1', 'g1@example.com');
     await setEmail('i2', 'g2@example.com');
     await setEmail('i3', 'g3@example.com');
@@ -51,8 +51,8 @@ describe('the texts’ messages by email', () => {
 
   it('invitations go by email to guests who get email, from the wedding address, never twice; email-only guests get no texts', async () => {
     const r = await run();
-    expect(r.sent).toBe(4);
-    expect(to()).toEqual(['g1@example.com', 'g2@example.com', 'g4@example.com', 'g5@example.com']);
+    expect(r.sent).toBe(5);
+    expect(to()).toEqual(['g1@example.com', 'g2@example.com', 'g3@example.com', 'g4@example.com', 'g5@example.com']);
     const g1 = sent.find((s) => s.to[0] === 'g1@example.com')!;
     expect(g1.from).toBe('"Sophie Bloor & Nicholas Dale" <sophie-and-nicholas@mail.example>');
     expect(g1.reply_to).toEqual(['sophie-and-nicholas@mail.example']);
@@ -79,10 +79,10 @@ describe('the texts’ messages by email', () => {
     await t.db.prepare(`INSERT INTO rate_limit (k, n, reset_at) VALUES ('mail:w1', 38, ?)`).bind(new Date(Date.now() + 3_600_000).toISOString()).run();
     const r = await run();
     expect(r.sent).toBe(2);
-    expect(r.waiting).toBe(2);
+    expect(r.waiting).toBe(3);
     expect(sent.every((s) => /gentle reminder/.test(s.text))).toBe(true);
     const waiting = await queued();
-    expect(waiting).toHaveLength(2);
+    expect(waiting).toHaveLength(3);
     // One of those waiting replies on the website; the next day only the other is reminded.
     await replyD1(t.db, waiting[0]!.invitation_id, 'e1', true, clock.now());
     await replyD1(t.db, waiting[0]!.invitation_id, 'e2', true, clock.now());
@@ -90,7 +90,7 @@ describe('the texts’ messages by email', () => {
     sent = [];
     clock.set('2027-06-19T09:00');
     await run();
-    expect(sent.filter((s) => /gentle reminder/.test(s.text))).toHaveLength(1); // (the one who replied gets the thank-you instead)
+    expect(sent.filter((s) => /gentle reminder/.test(s.text))).toHaveLength(2); // (the one who replied gets the thank-you instead)
     expect(await queued()).toHaveLength(0);
     const cancelled = await t.db.prepare(`SELECT COUNT(*) AS n FROM email_out WHERE status = 'cancelled'`).first<{ n: number }>();
     expect(cancelled!.n).toBe(1);
@@ -123,9 +123,9 @@ describe('the texts’ messages by email', () => {
     const res = await call('/c-rain/send', { method: 'POST', body: '{}' });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { sent: number; email: { sent: number } };
-    expect(body.email.sent).toBe(1); // i1 (coming, email); i3 is texted, not emailed
+    expect(body.email.sent).toBe(2); // i1 and i3 (coming, with an email; automatic is text and email)
     expect(body.sent).toBe(0); // the Free plan sends no texts
-    expect(to()).toEqual(['g1@example.com']);
+    expect(to()).toEqual(['g1@example.com', 'g3@example.com']);
     const list = (await (await call('')).json()) as { email: { on: boolean }; campaigns: { key: string; count: number; email: { count: number; sent: number } }[]; people: { id: string; email: boolean }[] };
     expect(list.email.on).toBe(true);
     expect(list.campaigns.find((c) => c.key === 'rain')!.email).toMatchObject({ count: 1, sent: 1 });
