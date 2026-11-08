@@ -10,6 +10,7 @@ import { readJson } from '../lib/security';
 import { mainAccountOf } from './accounts';
 import { jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv } from './auth';
 import { applyPurchase } from './billing';
+import { CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
 import { PLANS } from './signup';
 
 /**
@@ -499,6 +500,21 @@ export function companyRoutes() {
     } catch {
       return err(c, 400, 'failed', 'The assistant didn’t answer. Try again in a minute.');
     }
+  });
+
+  /** The site's connections (owners only): which services are set up, never the keys themselves. */
+  app.get('/connections', async (c) => {
+    if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can see the connections.');
+    return c.json({ status: await connectionStatus(c.env), redirectUri: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/oauth/callback`, stripeHook: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/hooks/stripe` });
+  });
+  app.put('/connections', async (c) => {
+    if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can change the connections.');
+    const b = z.record(z.enum(CONNECTION_KEYS), z.string().max(400)).safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Please check what you pasted.');
+    if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in isn’t set up.');
+    await saveConnections(c.env, b.data);
+    await logCompany(c, 'company.connections', Object.keys(b.data).join(', '), {});
+    return c.json({ status: await connectionStatus(c.env) });
   });
 
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */

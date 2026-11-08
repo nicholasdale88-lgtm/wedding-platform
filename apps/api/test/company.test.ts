@@ -264,4 +264,19 @@ describe('company portal', () => {
     const { key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Dev bot', role: 'developer' }) }, boss.cookie)).json()) as { key: string };
     expect((await call('/a/company/assistant', { method: 'POST', body: JSON.stringify({ task: 'posts' }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
   });
+  it('connections: an owner pastes a service key in the portal; it is kept encrypted, never shown, and used straight away', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const before = (await (await call('/a/company/connections', {}, boss.cookie)).json()) as { status: Record<string, string> };
+    expect(before.status.STRIPE_SECRET_KEY).toBe('deploy'); // this test's env sets it, like a GitHub secret
+    expect(before.status.DROPBOX_APP_KEY).toBe('');
+    expect((await call('/a/company/connections', { method: 'PUT', body: JSON.stringify({ DROPBOX_APP_KEY: 'dbx-key-123', DROPBOX_APP_SECRET: 'dbx-secret-456' }) }, boss.cookie)).status).toBe(200);
+    const after = (await (await call('/a/company/connections', {}, boss.cookie)).json()) as { status: Record<string, string> };
+    expect(after.status.DROPBOX_APP_KEY).toBe('saved');
+    expect(JSON.stringify(after)).not.toContain('dbx-secret-456');
+    const row = await t.db.prepare(`SELECT value FROM platform_setting WHERE key = 'connections'`).first<{ value: string }>();
+    expect(row!.value).not.toContain('dbx-secret-456'); // encrypted
+    expect(env.DROPBOX_APP_KEY).toBe('dbx-key-123'); // used straight away
+    const couple = await signup('Alex', 'alex@example.com');
+    expect((await call('/a/company/connections', {}, couple.cookie)).status).toBe(403);
+  });
 });

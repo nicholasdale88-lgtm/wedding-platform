@@ -19,6 +19,7 @@ import { runCopies } from './photos/store';
 import { runBackups } from './lib/backup';
 import { runDigests } from './lib/digest';
 import { runQuoteFollowUps } from './lib/quoteRequests';
+import { applyConnections } from './lib/connections';
 import { companyRoutes, feedbackRoutes, siteRoutes, staffJoinRoutes } from './routes/company';
 import { rfqRoutes } from './routes/rfq';
 import { planRoutes, signupRoutes } from './routes/signup';
@@ -50,6 +51,11 @@ import { sweepInbound } from './sms/inbound';
 export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   const app = new Hono<{ Bindings: Env }>().basePath('/api');
   app.use('*', hardening());
+  // The site's connections pasted in the company portal (Google, Dropbox, Stripe, Resend, texting), over env.
+  app.use('*', async (c, next) => {
+    await applyConnections(c.env);
+    await next();
+  });
   app.get('/health', (c) => c.json({ ok: true }));
   // Stripe signs its own requests: before /hooks, whose ?k= key is for the SMS providers.
   app.route('/hooks/stripe', stripeHookRoutes());
@@ -118,6 +124,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
 
 /** Cron, every 15 minutes: finish any unprocessed replies, then run the autopilot. */
 export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engineDeps) {
+  await applyConnections(env).catch(() => undefined);
   const d = deps(env);
   const swept = await sweepInbound(d);
   const report = await runAutopilot(d);
@@ -145,6 +152,7 @@ export default {
   /** Emails to the event's address (Cloudflare Email Routing → this Worker): kept in Messages → Email. */
   email: async (message: ForwardableEmailMessage, env: Env) => {
     try {
+      await applyConnections(env).catch(() => undefined);
       await receiveEmail(message, env);
     } catch (e) {
       console.error('email', e);

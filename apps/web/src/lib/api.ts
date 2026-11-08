@@ -96,6 +96,10 @@ export interface Guest {
   channel?: '' | 'text' | 'email' | 'both';
   seatsHeld: number;
   party: string;
+  /** Whose side they're on ('p1', 'p2', 'both' or ''), how they know the couple, and their circles (who knows who). */
+  side?: '' | 'p1' | 'p2' | 'both';
+  relation?: string;
+  circles?: string[];
   optOut: boolean;
   version: number;
   createdAt: string;
@@ -146,6 +150,9 @@ export interface GuestPatch {
   channel?: '' | 'text' | 'email' | 'both';
   seatsHeld?: number;
   party?: string;
+  side?: '' | 'p1' | 'p2' | 'both';
+  relation?: string;
+  circles?: string[];
   invited?: string[];
   table?: string | null;
   /** The event the table is for (the section it was typed in). */
@@ -192,6 +199,9 @@ export const api = {
   restoreGuest: (wid: string, id: string) => send<GuestDetail>('POST', `${w(wid)}/guests/${id}/restore`),
   estimateOne: (wid: string, id: string, campaignId: string) =>
     send<{ count: number; parts: number; costCents: number; sample: string | null; quiet: boolean }>('POST', `${w(wid)}/guests/${id}/send?dry=1`, { campaignId }),
+  /** Several guests at once: their side, how they know you, circles added or taken away. */
+  bulkGuests: (wid: string, b: { ids: string[]; side?: '' | 'p1' | 'p2' | 'both'; relation?: string; addCircles?: string[]; removeCircles?: string[] }) =>
+    send<{ updated: number }>('POST', `${w(wid)}/guests/bulk`, b),
   importGuests: (wid: string, rows: unknown[], dry: boolean) => send<ImportResult>('POST', `${w(wid)}/guests/import${dry ? '?dry=1' : ''}`, { rows }),
   setAdminLook: (wid: string, look: { palette: string; eventColours: boolean; large: boolean }) => send<{ ok: true }>('PUT', `${w(wid)}/look`, look),
   setAdminName: (wid: string, name: string) => send<{ ok: true; name: string }>('PUT', `${w(wid)}/admin-name`, { name }),
@@ -429,7 +439,7 @@ export interface SeatingData {
   planImg: string;
   tables: SeatTable[];
   areas: SeatArea[];
-  people: { id: string; invitationId: string; name: string; party: string; role?: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
+  people: { id: string; invitationId: string; name: string; party: string; side?: string; relation?: string; circles?: string[]; role?: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
 }
 export interface SeatingSave {
   event: string;
@@ -444,6 +454,9 @@ export const seatingApi = {
   save: (wid: string, version: number, body: SeatingSave) => send<SeatingData>('PUT', `${w(wid)}/seating`, body, version),
   publish: (wid: string, version: number, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/publish`, { event }, version),
   saveVersion: (wid: string, event: string, name: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions`, { event, name }),
+  /** A suggested plan kept as a new version beside the current one (it doesn't become current). */
+  suggestVersion: (wid: string, event: string, name: string, seats: Record<string, string | null>) =>
+    send<SeatingData & { created: string }>('POST', `${w(wid)}/seating/versions/suggest`, { event, name, seats }),
   version: (wid: string, id: string) => request<{ id: string; name: string; aspect: string; tables: SeatTable[]; areas: SeatArea[]; seats: Record<string, string> }>(`${w(wid)}/seating/versions/${encodeURIComponent(id)}`),
   renameVersion: (wid: string, id: string, name: string) => send<SeatingData>('PATCH', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, { name }),
   deleteVersion: (wid: string, id: string) => send<SeatingData>('DELETE', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, {}),
@@ -959,6 +972,8 @@ export const companyApi = {
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
   setRole: (userId: string, role: string) => send<{ ok: true }>('PUT', `/a/company/team/${encodeURIComponent(userId)}`, { role }),
   activity: () => request<{ activity: CompanyActivity[] }>('/a/company/activity'),
+  connections: () => request<{ status: Record<string, 'deploy' | 'saved' | ''>; redirectUri: string; stripeHook: string }>('/a/company/connections'),
+  saveConnections: (keys: Record<string, string>) => send<{ status: Record<string, 'deploy' | 'saved' | ''> }>('PUT', '/a/company/connections', keys),
   assistantOn: () => request<{ on: boolean }>('/a/company/assistant'),
   assistant: (task: 'brief' | 'feedback' | 'posts' | 'outreach' | 'ask', note = '', id = '') => send<{ text: string }>('POST', '/a/company/assistant', { task, note, id }),
   bots: () => request<{ bots: { id: string; name: string; role: string; createdAt: string; lastUsedAt: string; revoked: boolean }[] }>('/a/company/bots'),

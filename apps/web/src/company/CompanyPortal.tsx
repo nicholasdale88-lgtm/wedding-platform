@@ -1004,6 +1004,7 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
   ] as const;
   return (
     <>
+      <Connections onNote={onNote} />
       <section className={card} aria-label="Payment links">
         <H sub="When a couple asks for a plan, Couples → Email it sends the matching link. Make one per plan in Stripe (Payment Links) or your bank; they start with https://.">Payment links</H>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -1065,6 +1066,7 @@ const ACTION: Record<string, string> = {
   'company.bot.add': 'Added a bot',
   'company.bot.revoke': 'Turned off a bot',
   'company.assistant': 'Asked the assistant',
+  'company.connections': 'Changed a connection',
 };
 
 /** Who works on the app, their roles, and invitations. Owners only. */
@@ -1740,5 +1742,160 @@ function DraftReply({ id }: { id: string }) {
     <button type="button" className={`${btn} self-start`} disabled={busy} onClick={() => void draft()}>
       {busy ? 'Drafting…' : 'Draft a reply'}
     </button>
+  );
+}
+
+/** Each outside service the site uses: what it's for, where to get its keys, and a box to paste them. */
+const SERVICES: { id: string; name: string; does: string; open: string; openLabel: string; steps: string[]; keys: [key: string, label: string, secret: boolean][]; copy?: 'redirect' | 'hook' }[] = [
+  {
+    id: 'google',
+    name: 'Google Drive and Google Photos',
+    does: 'Couples tap Connect, sign in to their own Google account and allow access: their photos and files go to their own Drive or Photos.',
+    open: 'https://console.cloud.google.com/auth/clients/create',
+    openLabel: 'Open Google Cloud',
+    steps: [
+      'Use a business Google account (its email is shown to couples), make a project, and on the consent screen choose External and Publish.',
+      'Create an OAuth client: Web application, with the return address below.',
+      'Paste its Client ID and Client secret here.',
+    ],
+    keys: [
+      ['GOOGLE_CLIENT_ID', 'Client ID', false],
+      ['GOOGLE_CLIENT_SECRET', 'Client secret', true],
+    ],
+    copy: 'redirect',
+  },
+  {
+    id: 'dropbox',
+    name: 'Dropbox',
+    does: 'The same for couples who use Dropbox: Connect, sign in, allow.',
+    open: 'https://www.dropbox.com/developers/apps/create',
+    openLabel: 'Open Dropbox',
+    steps: ['Create app, Scoped access, App folder; tick files.content.write, files.content.read and account_info.read.', 'Add the return address below on Settings.', 'Paste the App key and App secret here.'],
+    keys: [
+      ['DROPBOX_APP_KEY', 'App key', false],
+      ['DROPBOX_APP_SECRET', 'App secret', true],
+    ],
+    copy: 'redirect',
+  },
+  {
+    id: 'stripe',
+    name: 'Card payments (Stripe)',
+    does: 'Couples pay by card and their plan switches on by itself. Stripe pays into your bank.',
+    open: 'https://dashboard.stripe.com/apikeys',
+    openLabel: 'Open Stripe',
+    steps: ['Copy the Secret key (sk_live_…).', 'Webhooks: add an endpoint with the address below and the event checkout.session.completed, then copy its Signing secret.'],
+    keys: [
+      ['STRIPE_SECRET_KEY', 'Secret key', true],
+      ['STRIPE_WEBHOOK_SECRET', 'Webhook signing secret', true],
+    ],
+    copy: 'hook',
+  },
+  {
+    id: 'email',
+    name: 'Email (Resend)',
+    does: 'Sign-in links, payment links, and every wedding’s own email address. Free for 3,000 emails a month.',
+    open: 'https://resend.com/api-keys',
+    openLabel: 'Open Resend',
+    steps: ['Add and verify your domain in Resend.', 'Create an API key and paste it with the From address, e.g. The Yes List <hello@your-domain>.'],
+    keys: [
+      ['RESEND_API_KEY', 'API key', true],
+      ['EMAIL_FROM', 'From address', false],
+      ['INBOX_DOMAIN', 'Domain for wedding addresses', false],
+    ],
+  },
+  {
+    id: 'texts',
+    name: 'Automatic texts (Mobile Message)',
+    does: 'Optional: texts sent for couples automatically. Without it, couples send free from their own phone or by email.',
+    open: 'https://mobilemessage.com.au',
+    openLabel: 'Open Mobile Message',
+    steps: ['Sign up, then copy your API username and password from the account settings.'],
+    keys: [
+      ['MM_USER', 'API username', false],
+      ['MM_PASS', 'API password', true],
+    ],
+  },
+];
+
+/** Settings → Connections (owners): one card per service, the keys pasted once, working straight away. */
+function Connections({ onNote }: { onNote: (s: string) => void }) {
+  const role = useContext(RoleCtx);
+  const load = useCallback(() => (role === 'owner' ? companyApi.connections() : Promise.resolve(null)), [role]);
+  const { data, error, reload } = useLoad(load);
+  const [open, setOpen] = useState('');
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [problem, setProblem] = useState('');
+  if (role !== 'owner') return null;
+  if (error) return <Problem text={error} />;
+  if (!data) return null;
+  const save = async (keys: string[]) => {
+    setProblem('');
+    try {
+      await companyApi.saveConnections(Object.fromEntries(keys.filter((k) => vals[k] !== undefined).map((k) => [k, vals[k] ?? ''])));
+      setVals({});
+      onNote('Saved. It works straight away.');
+      reload();
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  return (
+    <section className={card} aria-label="Connections">
+      <H sub="Paste each service’s keys here once: kept encrypted, never shown again, and working straight away. Only owners see this.">Connections</H>
+      {SERVICES.map((s) => {
+        const states = s.keys.map(([k]) => data.status[k] ?? '');
+        const on = states.every(Boolean);
+        const copy = s.copy === 'redirect' ? data.redirectUri : s.copy === 'hook' ? data.stripeHook : '';
+        return (
+          <div key={s.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e4e6df]">
+            <button type="button" aria-expanded={open === s.id} onClick={() => setOpen(open === s.id ? '' : s.id)} className="flex items-center justify-between gap-3 p-0 border-0 bg-transparent text-left cursor-pointer">
+              <span>
+                <strong className="block text-[15px]">{s.name}</strong>
+                <span className="text-[13px] text-[#5f6a58]">{s.does}</span>
+              </span>
+              <span className={`flex-none py-[3px] px-2 rounded-full text-[12px] font-semibold ${on ? 'bg-[#dfe7cf] text-[#2f6b3a]' : 'bg-[#f3e6c6] text-[#6b4f1d]'}`}>{on ? 'Connected' : 'Not set up'}</span>
+            </button>
+            {open === s.id && (
+              <div className="flex flex-col gap-2">
+                <ol className="m-0 pl-5 text-[14px] flex flex-col gap-1">
+                  {s.steps.map((t) => (
+                    <li key={t}>{t}</li>
+                  ))}
+                </ol>
+                <a href={s.open} target="_blank" rel="noopener noreferrer" className={`${btn} self-start no-underline`}>
+                  {s.openLabel} ↗
+                </a>
+                {copy && (
+                  <span className="text-[13px]">
+                    {s.copy === 'hook' ? 'Webhook address' : 'Return address'}: <code className="break-all select-all bg-[#f3f4ef] px-1 rounded">{copy}</code>
+                  </span>
+                )}
+                {s.keys.map(([k, label, secret], i) => (
+                  <label key={k} className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+                    {label}
+                    {states[i] === 'deploy' ? (
+                      <span className="text-[14px] text-[#1b2218]">Set in GitHub</span>
+                    ) : (
+                      <input
+                        type={secret ? 'password' : 'text'}
+                        autoComplete="off"
+                        value={vals[k] ?? ''}
+                        placeholder={states[i] === 'saved' ? 'Saved (paste to replace)' : 'Paste here'}
+                        onChange={(e) => setVals({ ...vals, [k]: e.target.value })}
+                        className={input}
+                      />
+                    )}
+                  </label>
+                ))}
+                <button type="button" className={`${primary} self-start`} disabled={!s.keys.some(([k]) => vals[k])} onClick={() => void save(s.keys.map(([k]) => k))}>
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {problem && <Problem text={problem} />}
+    </section>
   );
 }
