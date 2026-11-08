@@ -1539,6 +1539,7 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
         </p>
       </section>
 
+      <Targets data={data} tax={tax} setTax={setTax} onSave={onSave} running={running} each={each} />
       <section className={card} aria-label="Running costs">
         <H sub="What the business pays every month: the Grok bot, Claude, hosting, email, and yearly costs divided by 12. Used in every profit figure.">Running costs each month</H>
         {costs.map((c, i) => (
@@ -1994,6 +1995,100 @@ function TodoList({ onGo }: { onGo: (t: Tab) => void }) {
         {showDone ? 'Hide done' : `Show done (${data.items.length - left.length})`}
       </button>
       {problem && <Problem text={problem} />}
+    </section>
+  );
+}
+
+/**
+ * Sales targets: a profit goal a month (e.g. $4,000), reached over a few months. Each month's profit target
+ * climbs evenly to the goal; the weddings needed come from the running costs and what each sale leaves.
+ */
+function Targets({ data, tax, setTax, onSave, running, each }: { data: CompanyMoney; tax: CompanyMoney['tax']; setTax: (t: CompanyMoney['tax']) => void; onSave: () => void; running: number; each: number }) {
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const from = tax.targetFrom || thisMonth;
+  const goal = tax.targetProfitCents;
+  const steps = Math.max(1, tax.targetMonths);
+  const monthsOut = (ym: string) => {
+    const [y, m] = from.split('-').map(Number) as [number, number];
+    const [y2, m2] = ym.split('-').map(Number) as [number, number];
+    return (y2 - y) * 12 + (m2 - m);
+  };
+  const addMonths = (k: number) => {
+    const [y, m] = from.split('-').map(Number) as [number, number];
+    const d = new Date(Date.UTC(y, m - 1 + k, 1));
+    return d.toISOString().slice(0, 7);
+  };
+  // The climb: month 1 is 1/steps of the goal, month `steps` is the goal, and it stays there.
+  const targetFor = (k: number) => Math.round((goal * Math.min(steps, Math.max(1, k + 1))) / steps);
+  const needFor = (profit: number) => (each > 0 ? Math.ceil((profit + running) / each) : 0);
+  const plan = Array.from({ length: steps + 1 }, (_, k) => ({ ym: addMonths(k), profit: targetFor(k), weddings: needFor(targetFor(k)) }));
+  const now = data.months.find((m) => m.month === thisMonth);
+  const k = monthsOut(thisMonth);
+  const target = k < 0 ? 0 : targetFor(k);
+  const day = new Date().getUTCDate();
+  const daysIn = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0)).getUTCDate();
+  const pace = now ? Math.round((now.profit / Math.max(1, day)) * daysIn) : 0;
+  const pct = target > 0 && now ? Math.max(0, Math.min(100, (now.profit / target) * 100)) : 0;
+  const label = (ym: string) => new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-AU', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return (
+    <section className={card} aria-label="Sales targets">
+      <H sub="Your profit goal a month (after running costs, before tax), and how fast to get there. The weddings needed come from your prices and running costs.">Sales targets</H>
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          Profit goal a month ($)
+          <input type="number" min={0} step={100} value={goal / 100} onChange={(e) => setTax({ ...tax, targetProfitCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          Reached after (months)
+          <input type="number" min={1} max={24} value={steps} onChange={(e) => setTax({ ...tax, targetMonths: Math.max(1, Math.min(24, Number(e.target.value) || 1)) })} className={input} />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          Starting
+          <input type="month" value={from} onChange={(e) => setTax({ ...tax, targetFrom: e.target.value })} className={input} />
+        </label>
+      </div>
+      {k >= 0 && (
+        <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f3f4ef]">
+          <div className="flex justify-between gap-3 flex-wrap text-[15px]">
+            <strong>{label(thisMonth)}: {money(now?.profit ?? 0)} of {money(target)}</strong>
+            <span className={pace >= target ? 'text-[#2f6b3a] font-semibold' : 'text-[#9a3b2a] font-semibold'}>{pace >= target ? 'On pace' : `On pace for ${money(pace)}`}</span>
+          </div>
+          <div className="h-[10px] rounded-full bg-[#e4e6df] overflow-hidden">
+            <div className="h-full" style={{ width: `${pct}%`, background: pct >= 100 ? '#2f6b3a' : '#c8a46a' }} />
+          </div>
+          <span className="text-[13px] text-[#5f6a58]">
+            {now?.sales ?? 0} weddings sold this month · {needFor(target)} needed · {Math.max(0, needFor(target) - (now?.sales ?? 0))} to go
+          </span>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-[14px] border-collapse">
+          <thead>
+            <tr className="text-left text-[#5f6a58]">
+              <th className="py-2 pr-3 font-semibold">Month</th>
+              <th className="py-2 pr-3 font-semibold">Profit target</th>
+              <th className="py-2 pr-3 font-semibold">Weddings needed</th>
+              <th className="py-2 pr-3 font-semibold">About a week</th>
+            </tr>
+          </thead>
+          <tbody>
+            {plan.map((p) => (
+              <tr key={p.ym} className={`border-t border-[#e4e6df] ${p.ym === thisMonth ? 'font-semibold' : ''}`}>
+                <td className="py-2 pr-3">{label(p.ym)}</td>
+                <td className="py-2 pr-3">{money(p.profit)}</td>
+                <td className="py-2 pr-3">{p.weddings}</td>
+                <td className="py-2 pr-3">{Math.ceil(p.weddings / 4.3)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="m-0 text-[13px] text-[#5f6a58]">
+        At {money(Math.round(each))} kept per sale and {money(running)} running costs a month, {money(goal)} a month means about {needFor(goal)} paying weddings a month, roughly {Math.ceil(needFor(goal) / 4.3)} a week.
+      </p>
+      <button type="button" className={`${primary} self-start`} onClick={onSave}>
+        Save targets
+      </button>
     </section>
   );
 }

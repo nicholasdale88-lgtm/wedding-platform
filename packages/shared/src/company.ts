@@ -118,6 +118,11 @@ export const TaxSettings = z.object({
   feeCents: z.number().int().min(0).max(500).default(30),
   /** What running the business costs every month (Grok, Claude, hosting, email, the domain spread over the year…). */
   monthlyCosts: z.array(z.object({ what: z.string().trim().min(1).max(80), cents: z.number().int().min(0).max(10_000_000) })).max(40).default([]),
+  /** The goal: this much profit a month (after running costs, before tax), reached this many months after the start month. */
+  targetProfitCents: z.number().int().min(0).max(100_000_000).default(400_000),
+  targetMonths: z.number().int().min(1).max(24).default(3),
+  /** The first month of the climb (yyyy-mm); empty: this month. */
+  targetFrom: z.string().regex(/^(\d{4}-\d{2})?$/).default(''),
 });
 export type TaxSettings = z.infer<typeof TaxSettings>;
 export const EXPENSE_KINDS = ['hosting', 'domain', 'sms', 'email', 'ads', 'software', 'fees', 'other'] as const;

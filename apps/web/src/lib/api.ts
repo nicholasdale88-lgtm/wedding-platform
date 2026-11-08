@@ -90,6 +90,9 @@ export interface Guest {
   id: string;
   phone: string | null;
   phoneDisplay: string;
+  /** A second mobile on the invitation (the other person on it), or null. */
+  phone2?: string | null;
+  phone2Display?: string;
   /** The main contact's email ('' when none). */
   email?: string;
   /** How they hear from you: '' (text when there's a mobile, otherwise email), text, email or both. */
@@ -149,6 +152,7 @@ export interface Overview {
 export interface GuestPatch {
   people?: string[];
   phone?: string | null;
+  phone2?: string | null;
   email?: string | null;
   channel?: '' | 'text' | 'email' | 'both' | 'phone';
   seatsHeld?: number;
@@ -959,7 +963,7 @@ export interface CompanyStaff { id: string; name: string; email: string; role: s
 type MoneyQuarter = { q: number; sales: number; gross: number; fees: number; gstCollected: number; gstPaid: number; gstOwed: number; spent: number; profit: number; setAside: number };
 export interface CompanyMoney {
   fy: number;
-  tax: { abn: string; gstRegistered: boolean; gstFrom: string; setAsidePct: number; feePct: number; feeCents: number; monthlyCosts: { what: string; cents: number }[] };
+  tax: { abn: string; gstRegistered: boolean; gstFrom: string; setAsidePct: number; feePct: number; feeCents: number; monthlyCosts: { what: string; cents: number }[]; targetProfitCents: number; targetMonths: number; targetFrom: string };
   months: { month: string; sales: number; essentials: number; deluxe: number; events: number; gross: number; fees: number; running: number; oneOff: number; profit: number }[];
   prices: { essentials: number; deluxe: number; event: number };
   quarters: MoneyQuarter[];
