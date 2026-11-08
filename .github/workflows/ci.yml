@@ -56,6 +56,9 @@ jobs:
             exit 1
           fi
 
+      - name: Database changes never lose data
+        run: bash scripts/check-migrations.sh
+
       - name: No secrets committed
         run: |
           if git grep -nIE '(-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{40,}|sk_live_[A-Za-z0-9]{16,}|xox[bap]-[A-Za-z0-9-]{10,})' -- . ':!pnpm-lock.yaml'; then
