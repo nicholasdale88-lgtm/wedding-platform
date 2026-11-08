@@ -109,6 +109,7 @@ export const invitation = sqliteTable('invitation', {
   updatedAt: text('updated_at').notNull(),
   version: version(),
   deletedAt: text('deleted_at'),
+  email: text('email'), // migration 0035
 });
 
 export const seatTable = sqliteTable('seat_table', {
@@ -389,6 +390,10 @@ export const inboxEmail = sqliteTable('inbox_email', {
   receivedAt: text('received_at').notNull(),
   readAt: text('read_at'),
   archivedAt: text('archived_at'),
+  // migration 0035: sent from the wedding's address
+  direction: text('direction', { enum: ['in', 'out'] }).notNull().default('in'),
+  toAddr: text('to_addr').notNull().default(''),
+  inReplyTo: text('in_reply_to'),
 });
 
 // migration 0014: song requests for the DJ
