@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
-import { chargeCents, PERM_INFO, permsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
+import { chargeCents, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
 import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
 /**
@@ -81,7 +81,7 @@ function Portal() {
     api.me().then(
       (m) => {
         setRole(m.user.staff ?? null);
-        setPerms(m.user.perms ?? permsOf(m.user.staff, []));
+        setPerms(m.user.perms ?? staffPermsOf(m.user.staff, []));
         setRoleLabel(m.user.staffName ?? '');
         setWho(m.user.staff ? 'yes' : 'no');
       },
@@ -107,7 +107,7 @@ function Portal() {
         tone="company"
         onSignedIn={(m) => {
           setRole(m.user.staff ?? null);
-          setPerms(m.user.perms ?? permsOf(m.user.staff, []));
+          setPerms(m.user.perms ?? staffPermsOf(m.user.staff, []));
           setRoleLabel(m.user.staffName ?? '');
           setWho(m.user.staff ? 'yes' : 'no');
         }}

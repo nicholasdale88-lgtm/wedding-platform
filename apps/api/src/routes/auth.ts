@@ -6,7 +6,7 @@ import type { Env } from '../env';
 import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { buttonEmail, emailReady, sendEmail } from '../lib/email';
-import { CustomRoles, isBuiltInRole, permsOf, roleName, type CustomRole, type StaffPerm } from '@wp/shared';
+import { CustomRoles, isBuiltInRole, staffPermsOf, roleName, type CustomRole, type StaffPerm } from '@wp/shared';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface SessionUser {
@@ -44,7 +44,7 @@ export async function customRoles(db: D1Database): Promise<CustomRole[]> {
 }
 const asUser = async (env: Env, row: { id: string; email: string; staff_role?: string | null }): Promise<SessionUser> => {
   const staff = staffOf(env, row.email, row.staff_role);
-  const perms = permsOf(staff, staff?.startsWith('custom:') ? await customRoles(env.DB) : []);
+  const perms = staffPermsOf(staff, staff?.startsWith('custom:') ? await customRoles(env.DB) : []);
   return { id: row.id, email: row.email, staff, perms, superAdmin: staff === 'owner' || staff === 'manager' };
 };
 export const superAdmins = (env: Env) => new Set((env.SUPER_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
@@ -73,7 +73,7 @@ async function botUser(c: Context<AdminEnv>): Promise<SessionUser | null> {
   await c.env.DB.prepare(`UPDATE bot_key SET last_used_at = ? WHERE id = ?`).bind(new Date().toISOString(), row.id).run();
   // A bot is never an owner: it can't change the team or its own key.
   const staff = row.role && row.role !== 'owner' && (isBuiltInRole(row.role) || row.role.startsWith('custom:')) ? row.role : null;
-  const perms = permsOf(staff, staff?.startsWith('custom:') ? await customRoles(c.env.DB) : []).filter((x) => x !== 'team');
+  const perms = staffPermsOf(staff, staff?.startsWith('custom:') ? await customRoles(c.env.DB) : []).filter((x) => x !== 'team');
   return { id: row.user_id, email: row.email, staff, perms, superAdmin: false };
 }
 

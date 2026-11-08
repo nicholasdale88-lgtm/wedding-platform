@@ -227,7 +227,7 @@ export const CustomRoles = z.object({ roles: z.array(CustomRole).max(20).default
 export const isBuiltInRole = (role: string): role is StaffRole => (STAFF_ROLES as readonly string[]).includes(role);
 
 /** What a role reaches: a built-in role's set, or a made role's (never the team). */
-export function permsOf(role: string | null | undefined, custom: readonly CustomRole[]): StaffPerm[] {
+export function staffPermsOf(role: string | null | undefined, custom: readonly CustomRole[]): StaffPerm[] {
   if (!role) return [];
   if (isBuiltInRole(role)) return [...STAFF_CAN[role]];
   const made = role.startsWith('custom:') ? custom.find((r) => `custom:${r.id}` === role) : undefined;
@@ -261,3 +261,24 @@ export const PersonTarget = z.object({
   work: z.string().trim().max(200).default(''),
 });
 export const PersonTargets = z.object({ people: z.array(PersonTarget).max(100).default([]) });
+
+/** A vendor's partner code for their couples: their name, then the discount ("BLOOMCO10"). */
+export function vendorCode(name: string, percent = 10): string {
+  const base = name.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12) || 'VENDOR';
+  return `${base}${percent}`.slice(0, 24);
+}
+/** A vendor we'd like in the directory (Company portal → Vendors → Invite vendors). */
+export const VendorProspect = z.object({
+  id: z.string().max(40),
+  business: z.string().trim().min(1).max(120),
+  contact: z.string().trim().max(80).default(''),
+  email: z.string().trim().toLowerCase().email().max(200),
+  category: z.string().trim().max(60).default(''),
+  region: z.string().trim().max(80).default(''),
+  website: z.string().trim().max(200).default(''),
+  status: z.enum(['new', 'invited', 'joined', 'stopped']).default('new'),
+  invitedAt: z.string().max(40).default(''),
+  note: z.string().trim().max(300).default(''),
+});
+export type VendorProspect = z.infer<typeof VendorProspect>;
+export const VendorProspects = z.object({ list: z.array(VendorProspect).max(3000).default([]) });
