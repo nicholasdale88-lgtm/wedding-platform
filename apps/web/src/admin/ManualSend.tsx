@@ -72,7 +72,7 @@ export function ManualSend({ guests, links, onClose, mode = 'unreachable' }: { g
                 Text from my phone
               </a>
             )}
-            <Pill onClick={() => sendWhatsApp(own ? g.phone : null, text)}>WhatsApp</Pill>
+            <Pill onClick={() => sendWhatsApp(own ? (g.phone ?? null) : null, text)}>WhatsApp</Pill>
             <Pill onClick={async () => (await sendMessenger(links[g.id]!, text)) === 'copied' && toast('Message copied: paste it into Messenger')}>Messenger</Pill>
             {canShareNative() && <Pill onClick={() => void shareNative(text, links[g.id]!)}>Share…</Pill>}
             <Pill onClick={() => void navigator.clipboard?.writeText(text).then(() => toast('Message copied'))}>Copy message</Pill>
