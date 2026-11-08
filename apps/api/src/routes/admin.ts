@@ -389,10 +389,18 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (!body.success) return err(c, 400, 'invalid', 'Check the details and try again.');
     const p = body.data;
     const invId = c.req.param('id');
+    // Seats held follow the people on the invitation: add a second person and 2 seats are held. Extra seats
+    // set by hand (a +1 not yet named) are kept; seats held set in this same change win.
+    let seatsFollow: number | undefined;
     if (p.people) {
-      const had = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM person WHERE invitation_id = ? AND deleted_at IS NULL`).bind(invId).first<{ n: number }>();
+      const had = await c.env.DB.prepare(`SELECT (SELECT COUNT(*) FROM person WHERE invitation_id = ?1 AND deleted_at IS NULL) AS n, (SELECT seats_held FROM invitation WHERE id = ?1) AS held`)
+        .bind(invId)
+        .first<{ n: number; held: number | null }>();
       const more = p.people.length - (had?.n ?? 0);
       if (more > 0 && !(await roomFor(c.env.DB, wid(c), more))) return needsUpgrade(c, 'unlimitedGuests');
+      const held = had?.held ?? 1;
+      const n = Math.max(1, p.people.length);
+      if (p.seatsHeld === undefined && (held < n || held === Math.max(1, had?.n ?? 0))) seatsFollow = Math.min(60, n);
     }
 
     let phone: string | null | undefined;
@@ -439,6 +447,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (p.email !== undefined) stmts.push(db.prepare(`UPDATE invitation SET email = ? WHERE id = ?`).bind(p.email || null, invId));
     if (p.channel !== undefined) stmts.push(db.prepare(`UPDATE invitation SET channel = ? WHERE id = ?`).bind(p.channel, invId));
     if (p.seatsHeld !== undefined) stmts.push(db.prepare(`UPDATE invitation SET seats_held = ? WHERE id = ?`).bind(p.seatsHeld, invId));
+    else if (seatsFollow !== undefined) stmts.push(db.prepare(`UPDATE invitation SET seats_held = ? WHERE id = ?`).bind(seatsFollow, invId));
     if (p.party !== undefined) stmts.push(db.prepare(`UPDATE invitation SET party = ? WHERE id = ?`).bind(p.party, invId));
     if (p.side !== undefined) stmts.push(db.prepare(`UPDATE invitation SET side = ? WHERE id = ?`).bind(p.side, invId));
     if (p.relation !== undefined) stmts.push(db.prepare(`UPDATE invitation SET relation = ? WHERE id = ?`).bind(p.relation, invId));

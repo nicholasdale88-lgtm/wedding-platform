@@ -91,7 +91,12 @@ describe('admin API', () => {
 
     // Removing a person, then adding them back, reuses the slot.
     const r2 = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(guest.version) }, body: JSON.stringify({ people: ['Ella Thompson'] }) });
-    expect((await json<{ guest: { people: unknown[] } }>(r2)).guest.people).toHaveLength(1);
+    const g2 = (await json<{ guest: { people: unknown[]; seatsHeld: number; version: number } }>(r2)).guest;
+    expect(g2.people).toHaveLength(1);
+    expect(g2.seatsHeld).toBe(1); // seats held follow the people
+    // Adding a partner holds a second seat by itself (and counts in the totals).
+    const r3 = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g2.version) }, body: JSON.stringify({ people: ['Ella Thompson', 'Sam Lee'] }) });
+    expect((await json<{ guest: { seatsHeld: number } }>(r3)).guest.seatsHeld).toBe(2);
   });
 
   it('docs/05 test 3: a stale edit gets 409 and the guest\'s own reply is kept', async () => {
