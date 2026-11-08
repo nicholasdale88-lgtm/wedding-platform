@@ -459,7 +459,7 @@ export function inboxRoutes() {
     } else {
       const s = await sortEmail(db, wid(c), [...to][0]!, '', subject);
       kind = s.kind;
-      invitationId = 'invitationId' in s ? s.invitationId : null;
+      invitationId = ('invitationId' in s ? s.invitationId : null) ?? null; // the inferred union has invitationId?: undefined
       vendorId = 'vendor' in s && s.vendor ? s.vendor.id : null;
     }
     const r = await sendOut(c.env, wid(c), addr, { to: [...to], subject, text: d.body, kind, invitationId, vendorId, inReplyTo: orig ? { id: orig.id, messageId: orig.message_id } : null });
