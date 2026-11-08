@@ -31,7 +31,8 @@ export function channelOf(raw: string | null, phone: string | null, email: strin
   if (raw === 'text' || raw === 'email' || raw === 'both' || raw === 'phone') return raw;
   if (via === 'email') return email ? 'email' : phone ? 'phone' : '';
   if (via === 'phone') return phone ? 'phone' : email ? 'email' : '';
-  return phone ? 'text' : email ? 'email' : '';
+  // Automatic: text and email when they have both (texts use the couple's text credits), else whichever they have.
+  return phone && email ? 'both' : phone ? 'text' : email ? 'email' : '';
 }
 
 export function recipientsFor(c: Campaign, all: Recipient[], invitedBefore: Set<string>): Recipient[] {

@@ -1,4 +1,4 @@
-import { DELIVERY, DELIVERY_LABEL, joinDiet, PARTY_ROLES, printed, toE164, type Delivery } from '@wp/shared';
+import { DELIVERY, DELIVERY_LABEL, joinDiet, PARTY_ROLES, printed, TEXT_CREDIT_ALL_IN, toE164, type Delivery } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, partyAccountsApi, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
@@ -407,13 +407,22 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         </Label>
         <Label text="Send them messages by">
           <select value={g.channel ?? ''} onChange={(e) => void patch({ channel: e.target.value as NonNullable<typeof g.channel> })} className={inputCls}>
-            <option value="">{g.phone ? 'Text' : 'Email'} (automatic)</option>
+            <option value="">{g.phone && g.email ? 'Text and email' : g.phone ? 'Text' : 'Email'} (automatic)</option>
             <option value="text">Text only</option>
             <option value="email">Email only (free)</option>
             <option value="both">Text and email</option>
             <option value="phone">From my own phone (free)</option>
           </select>
         </Label>
+        {/* Texts are bought as text credits: one tap to buy them (emails and your own phone are free). */}
+        {g.phone && (g.channel ?? '') !== 'email' && (g.channel ?? '') !== 'phone' && (
+          <span className="-mt-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
+            Texts use text credits ({TEXT_CREDIT_ALL_IN}c each, all-in).{' '}
+            <a href={`/admin/${encodeURIComponent(wid)}/settings?view=texting`} className="underline text-[#33402f]">
+              Buy text credits
+            </a>
+          </span>
+        )}
         <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-3">
           <Label text="Group (for seating)">
             <input

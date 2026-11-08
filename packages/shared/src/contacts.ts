@@ -35,7 +35,7 @@ export const printed = (delivery: string | null | undefined) => delivery === 'po
 /** How messages reach a guest: '' automatic (text with a mobile, else email), text, email, both, or from the couple's own phone. */
 export const CHANNELS = ['', 'text', 'email', 'both', 'phone'] as const;
 export const CHANNEL_LABEL: Record<(typeof CHANNELS)[number], string> = {
-  '': 'Automatic (text, or email without a mobile)',
+  '': 'Automatic: text and email (texts use text credits)',
   text: 'Text only',
   email: 'Email only (free)',
   both: 'Text and email',

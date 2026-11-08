@@ -228,7 +228,7 @@ export function howOf(r: Recipient, f: Pick<RehearsalFacts, 'via'>): How {
   if (r.channel === 'email') return email ? 'email' : 'none';
   if (r.channel === 'phone') return r.phone ? 'phone' : 'none';
   if (r.channel === 'both') return r.phone ? 'text+email' : email ? 'email' : 'none';
-  if (r.phone) return f.via === 'phone' ? 'phone' : f.via === 'email' ? (email ? 'email' : 'phone') : 'text';
+  if (r.phone) return f.via === 'phone' ? 'phone' : f.via === 'email' ? (email ? 'email' : 'phone') : email ? 'text+email' : 'text';
   return email ? 'email' : 'none';
 }
 
