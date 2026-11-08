@@ -106,7 +106,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         void onChanged();
       }
     },
-    [], // eslint-disable-line react-hooks/exhaustive-deps
+    [], // once, when the drawer closes
   );
 
   const load = useCallback(async () => {
