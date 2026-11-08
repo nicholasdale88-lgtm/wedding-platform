@@ -811,7 +811,7 @@ describe('seating tab', () => {
     });
     renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
-    await userEvent.click(await screen.findByRole('button', { name: /^The rules \(4 on, 1 of your own\)/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /^The rules \(7 on, 1 of your own\)/ }));
     const invite = screen.getByRole('checkbox', { name: /People invited together sit together/ });
     expect(invite).toBeChecked();
     await waitFor(() => expect(invite).toBeEnabled());
