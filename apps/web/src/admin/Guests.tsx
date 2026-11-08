@@ -72,7 +72,13 @@ export function Guests() {
   const one = params.get('show') !== 'all' && !!focusEv;
   const events = one ? [focusEv!] : (data?.events ?? []);
   // In an event, each guest is shown as invited to this event only, so Awaiting, Declined and the rest mean this event.
-  const guests = (data?.guests ?? []).filter((g) => !one || g.invited.includes(focusEv!.key)).map((g) => (one ? { ...g, invited: [focusEv!.key] } : g));
+  // A guest still blank (just added: no name, mobile or email) isn't listed or counted until something's typed
+  // in; their details are open to fill in, and a blank one is removed when closed.
+  const blank = (g: Guest) => !g.people.some((p) => p.name.trim()) && !g.phone && !(g.email ?? '').trim();
+  const guests = (data?.guests ?? [])
+    .filter((g) => !blank(g))
+    .filter((g) => !one || g.invited.includes(focusEv!.key))
+    .map((g) => (one ? { ...g, invited: [focusEv!.key] } : g));
   const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]);
   const quick = quickFilters(events);
   const circles = circleSuggestions((data?.guests ?? []).map((g) => g.circles ?? []));
