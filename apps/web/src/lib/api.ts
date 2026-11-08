@@ -133,7 +133,7 @@ export interface GuestDetail {
 }
 
 export interface Overview {
-  wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string; adminLook?: { palette?: string; eventColours?: boolean; large?: boolean }; plan?: 'free' | 'essentials' | 'complete'; planRequested?: string; private?: boolean };
+  wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string; adminLook?: { palette?: string; eventColours?: boolean; large?: boolean }; plan?: 'free' | 'basic' | 'essentials' | 'complete'; planRequested?: string; private?: boolean };
   total: number;
   replied: number;
   awaiting: number;
