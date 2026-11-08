@@ -1404,6 +1404,9 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
         <a href={companyApi.moneyCsv(fy)} className={`${btn} no-underline`}>
           Spreadsheet for the accountant
         </a>
+        <a href={companyApi.xeroCsv(fy)} className={`${btn} no-underline`} title="Xero → Accounting → Bank accounts → Import a statement">
+          For Xero
+        </a>
       </div>
       {near && (
         <p role="alert" className="m-0 p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">

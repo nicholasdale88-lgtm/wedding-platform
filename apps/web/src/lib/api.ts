@@ -1058,6 +1058,7 @@ export const companyApi = {
   addExpense: (e: Omit<CompanyMoney['expenses'][number], 'id'>) => send<CompanyMoney['expenses'][number]>('POST', '/a/company/money/expenses', e),
   removeExpense: (id: string) => send<{ ok: true }>('DELETE', `/a/company/money/expenses/${encodeURIComponent(id)}`),
   moneyCsv: (fy: number) => `/api/a/company/money.csv?fy=${fy}`,
+  xeroCsv: (fy: number) => `/api/a/company/money.xero.csv?fy=${fy}`,
   optInsUrl: '/api/a/company/optins.csv',
 };
 /** Joining the company team from an emailed invitation. */

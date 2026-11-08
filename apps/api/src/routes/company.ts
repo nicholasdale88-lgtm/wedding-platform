@@ -779,6 +779,28 @@ export function companyRoutes() {
     return c.json({ sent, skipped });
   });
 
+  /**
+   * The same year for Xero (Accounting → Bank statements → Import): its statement CSV layout, one line per
+   * sale, card fee, refund and expense, so it can be reconciled and used for BAS.
+   */
+  app.get('/money.xero.csv', can('money'), async (c) => {
+    const fy = Number(c.req.query('fy')) || financialYear(new Date().toISOString().slice(0, 10));
+    const r = await app.request(`/money?fy=${fy}`, { headers: c.req.raw.headers }, c.env);
+    const m = (await r.json()) as { sales: { at: string; names: string; what: string; cents: number; fee: number; manual: boolean }[]; expenses: Expense[] };
+    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    const $ = (n: number) => (n / 100).toFixed(2);
+    const d = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+    const rows: string[][] = [['*Date', '*Amount', 'Payee', 'Description', 'Reference']];
+    for (const s of m.sales) {
+      rows.push([d(s.at), $(s.cents), s.names || 'Couple', s.cents < 0 ? 'Refund' : `The Yes List ${s.what}`, s.manual ? 'Payment link or transfer' : 'Card (Stripe)']);
+      if (s.fee) rows.push([d(s.at), $(-s.fee), 'Stripe', 'Card fee', s.names]);
+    }
+    for (const e of m.expenses) rows.push([d(e.date), $(-e.cents), e.what, e.kind, e.gstCents ? `GST ${$(e.gstCents)}` : '']);
+    return new Response(rows.map((row) => row.map(cell).join(',')).join('\r\n'), {
+      headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="the-yes-list-xero-FY${fy}.csv"`, 'cache-control': 'no-store' },
+    });
+  });
+
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
   app.get('/activity', can('activity'), async (c) => {
     const { results } = await c.env.DB.prepare(
