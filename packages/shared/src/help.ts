@@ -111,6 +111,19 @@ export const HELP: HelpArticle[] = [
     go: { tab: 'pages', event: true },
   },
   {
+    id: 'seal',
+    title: 'Your wax seal and envelope',
+    group: 'Getting started',
+    steps: [
+      'Open Setup → Invitation → Extras → Envelope and seal (or step 3, Envelope & seal, of Design it your way). A small envelope shows your choice as it is now.',
+      'Pick the wax colour: Sandstone, dusty rose, Daphne blue, rose gold, gold, silver, champagne, pearl white, burgundy, forest green, sage, navy, black, terracotta or lilac. Then the seal design: classic initials, a floral emboss, initials in a wreath, a single initial, a heart, or your wedding date (like 20.03.27).',
+      'Choose script or serif capitals for the letters, or type your own words for the seal (up to 12, e.g. one initial or “2027”); empty, it shows the initials from your monogram.',
+      'Pick the envelope colour: cream, ivory, champagne, blush pink, dusty rose, sage, eucalyptus, dusty blue, navy, midnight black, terracotta or kraft (or your look’s own), plus the liner and ribbon. The preview follows as it saves: tap the envelope to watch it open.',
+    ],
+    also: 'wax seal stamp initials monogram letters emboss floral wreath heart date script serif rose gold silver champagne pearl burgundy navy black envelope colour color paper kraft blush cream ivory sage liner ribbon',
+    go: { tab: 'pages', event: true },
+  },
+  {
     id: 'guests',
     title: 'Adding guests',
     group: 'Guests and replies',
@@ -474,6 +487,12 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Photos', 'Photo settings'], tap: 'Connect Dropbox', then: 'A backup goes to Backups every day ✓' },
     { at: ['Settings', 'Backup'], rows: ['Last backup: today, 3:02am'], tap: 'Back up now', then: 'Backed up ✓' },
     { at: ['Settings', 'System check'], rows: ['✓ Texts', '✓ Dropbox', '✓ Daily backups'], tap: 'Check again', then: 'Everything working ✓' },
+  ],
+  seal: [
+    { at: ['Setup', 'Invitation'], rows: ['Extras', 'Envelope and seal · Sandstone seal'], tap: 'Change', then: 'Every seal and envelope option' },
+    { at: ['Setup', 'Invitation'], rows: ['Wax colour: Rose gold ✓', 'Seal design: Initials in a wreath ✓'], then: 'The seal turns rose gold, with a wreath ✓' },
+    { at: ['Setup', 'Invitation'], rows: ['Letters: Serif capitals ✓'], fields: [['Words on the seal', 'A & S']], then: 'Saved: your own words on the seal ✓' },
+    { at: ['Setup', 'Invitation'], rows: ['Envelope colour: Navy ✓', 'Liner: Gold foil'], tap: 'Preview', then: 'Your seal and envelope, just as guests see them' },
   ],
   helpers: [
     { at: ['Settings', 'Who can sign in'], fields: [['Their email', 'sam@example.com'], ['They can', 'Change things (editor)']], tap: 'Invite', then: 'Invite sent ✓' },

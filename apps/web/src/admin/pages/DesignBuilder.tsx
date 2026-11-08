@@ -16,6 +16,8 @@ import { useState } from 'react';
 import { isHex, NAMES_STYLES, paletteOf, themeOf, type NamesStyle } from '../../guest/themeKit';
 import { inputCls, Label, Pill } from '../ui';
 import { Grid, TextField } from './fields';
+import { SealPicker } from './SealPicker';
+import { sealSwatch } from '../../guest/invitation/WaxSeal';
 
 /**
  * Setup → Invitation → "Design it your way": start from a template, then mix and match each part on its own
@@ -24,7 +26,6 @@ import { Grid, TextField } from './fields';
  * themselves are never replaced without asking.
  */
 
-type Seal = NonNullable<InvitationContent['seal']>;
 type Env = NonNullable<InvitationContent['envelope']>;
 
 /** The parts a "short and sweet" invitation leaves out (the welcome, the day, the timeline and the RSVP stay). */
@@ -35,7 +36,8 @@ export function templatePatch(t: DesignTemplate, inv: InvitationContent): Partia
   return {
     custom: { names: t.names }, // the template's own colours, with its names font
     seal: t.envelope.seal,
-    envelope: { ...inv.envelope, liner: t.envelope.liner, ribbon: t.envelope.ribbon, shimmer: t.envelope.shimmer, sprig: t.envelope.sprig },
+    // A whole look: the template's seal and its own envelope colour (any paper chosen before is cleared).
+    envelope: { ...inv.envelope, liner: t.envelope.liner, ribbon: t.envelope.ribbon, shimmer: t.envelope.shimmer, sprig: t.envelope.sprig, paper: undefined },
     opening: t.opening,
     hidden: sectionsPatch(inv, t.sections === 'short'),
     design: { template: t.name, tone: t.tone },
@@ -52,7 +54,6 @@ const LINERS: [Env['liner'] & string, string][] = [
   ['foil', 'Gold foil'],
   ['none', 'Plain'],
 ];
-const SEAL_DOT: Record<Seal, string> = { Sandstone: '#c9a46a', 'Dusty rose': '#9c4a57', 'Daphne blue': '#c9d6e6' };
 const pick = <T,>(xs: readonly T[]) => xs[Math.floor(Math.random() * xs.length)]!;
 
 const chip = (on: boolean) =>
@@ -70,6 +71,7 @@ export function DesignBuilder({
   inv,
   texts,
   original,
+  initials = ['A', 'B'],
   setTheme,
   setInv,
   setTexts,
@@ -79,6 +81,8 @@ export function DesignBuilder({
   texts: Record<string, string>;
   /** The design's own wording (the starting words). */
   original: Record<string, string>;
+  /** Their two initials, for the seal's swatches. */
+  initials?: [string, string];
   setTheme: (t: string) => void;
   setInv: (p: Partial<InvitationContent>) => void;
   setTexts: (changes: Record<string, string>) => void;
@@ -273,21 +277,15 @@ export function DesignBuilder({
             <div role="radiogroup" aria-label="Envelope from a template" className="flex gap-2 flex-wrap">
               {TEMPLATES.map((t) => (
                 <button key={t.name} type="button" role="radio" aria-checked={sameEnvelope(t)} onClick={() => envelopeOf(t)} className={`flex items-center gap-2 py-[5px] px-3 rounded-full border text-[12px] cursor-pointer bg-white ${sameEnvelope(t) ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[#d3c6a4]'}`}>
-                  <span aria-hidden className="w-3 h-3 rounded-full" style={{ background: SEAL_DOT[t.envelope.seal] }} />
+                  <span aria-hidden className="w-3 h-3 rounded-full" style={{ background: sealSwatch(t.envelope.seal) }} />
                   {t.name}: {LINERS.find(([k]) => k === t.envelope.liner)?.[1].toLowerCase()}
                   {t.envelope.ribbon !== 'none' ? `, ${t.envelope.ribbon === 'silk' ? 'silk ribbon' : 'twine'}` : ''}
                 </button>
               ))}
             </div>
             <span className="text-[13px] font-semibold text-[#33402f]">Or your own</span>
+            <SealPicker inv={inv} theme={theme} initials={initials} setInv={setInv} />
             <Grid>
-              <Label text="Wax seal">
-                <select value={seal} onChange={(e) => setInv({ seal: e.target.value as Seal })} className={inputCls}>
-                  {(['Sandstone', 'Dusty rose', 'Daphne blue'] as const).map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </Label>
               <Label text="Envelope liner">
                 <select value={inv.envelope?.liner ?? 'floral'} onChange={(e) => setInv({ envelope: { ...inv.envelope, liner: e.target.value as Env['liner'] } })} className={inputCls}>
                   {LINERS.map(([k, l]) => (

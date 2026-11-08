@@ -217,6 +217,16 @@ export const HELP_SAY: Record<string, HelpSay> = {
     ],
     outro: 'That’s it. Your celebrant always has the final word on the paperwork.',
   },
+  seal: {
+    intro: 'Here’s how to choose your wax seal, and the colour of your envelope.',
+    steps: [
+      'Open Setup, then Invitation. Under Extras, tap Envelope and seal. A little envelope shows your choice as it is now.',
+      'Pick the wax colour, from classic sandstone to rose gold, silver, navy or black. Then the design: your initials, a pressed flower, a wreath, one initial, a heart, or your wedding date.',
+      'Choose flowing script or serif capitals for the letters. Or type your own words for the seal. Leave it empty, and it shows your initials.',
+      'Last, the envelope colour. Cream, blush pink, sage, navy, kraft and more. The preview follows as it saves, so tap the envelope to watch it open.',
+    ],
+    outro: 'That’s it — your seal, your colours.',
+  },
   helpers: {
     intro: 'Here’s how to share the admin with your partner, or your planner.',
     steps: [

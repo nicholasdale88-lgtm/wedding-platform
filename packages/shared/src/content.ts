@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OPENINGS } from './designs';
+import { ENVELOPE_PAPERS, OPENINGS, SEAL_COLOURS, SEAL_LETTERS, SEAL_STYLES } from './designs';
 import { INV_SCOPES } from './generated/invScopes';
 
 /** A photo dropped onto the invitation is kept with it, made small enough to load quickly (characters of its data link). */
@@ -54,7 +54,17 @@ export const InvitationContent = z
       .partial(),
     /** The last day replies can be changed online ("2027-08-01"); after it, guests are asked to email. */
     rsvpClose: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
-    seal: z.enum(['Sandstone', 'Dusty rose', 'Daphne blue']),
+    /** The wax seal's colour or finish (Sandstone when unset). */
+    seal: z.enum(SEAL_COLOURS),
+    /** What is pressed into the seal and how: classic initials when unset, in the flowing italic, reading the couple's initials. */
+    sealDesign: z
+      .object({
+        style: z.enum(SEAL_STYLES),
+        letters: z.enum(SEAL_LETTERS),
+        /** Their own words on the seal ("O & J", "B", "20.03.27"); empty: their initials (or the date for the date seal). */
+        text: z.string().max(12),
+      })
+      .partial(),
     /** The envelope's finishing touches: the liner inside the flap, the guest's name, gold leaves above the seal, a ribbon, a shimmer. */
     envelope: z
       .object({
@@ -65,6 +75,8 @@ export const InvitationContent = z
         sprig: z.boolean(),
         ribbon: z.enum(['none', 'silk', 'twine']),
         shimmer: z.boolean(),
+        /** The envelope's paper colour by name; the look's own envelope colour when unset. */
+        paper: z.enum(ENVELOPE_PAPERS),
       })
       .partial(),
     /** How the envelope opens (Setup → Design it your way); the classic lift when unset. */

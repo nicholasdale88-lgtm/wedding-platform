@@ -9,6 +9,7 @@ import { guestApi, type InvitePayload } from './api';
 import { useInvitation } from './useInvitation';
 import { MessageUs } from '../MessageUs';
 import { EnvelopeExtras } from './EnvelopeExtras';
+import { paperHex, SealOverlay } from './WaxSeal';
 import { BirthdayHero, sealFor, SOLO_HIDDEN } from './BirthdayHero';
 import { useSite } from '../../lib/site';
 import { LiveEditor, markedT, orderCss, useLiveState } from './LiveEdit';
@@ -45,7 +46,7 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
   // While editing, the card shows the admin's state as it is now (sent after every change), not the saved page.
   const [live, setLive] = useLiveState(editing);
   const data = useMemo<InvitePayload>(() => (live ? { ...saved, content: { ...saved.content, ...(live.invitation as Partial<InvitePayload['content']>) } } : saved), [saved, live]);
-  const { v: core, t: tSaved, phase, guestToken, inParty } = useInvitation(slug, data, preview);
+  const { v: core, t: tSaved, phase, guestToken, inParty, seal } = useInvitation(slug, data, preview);
   const keys = useRef<string[]>([]);
   const tLive = (k: string) => live?.texts[k] ?? tSaved(k);
   const t = editing ? markedT(tLive, keys.current) : tSaved;
@@ -91,11 +92,13 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
       <EnvelopeExtras
         phase={phase}
         opts={data.content.envelope ?? {}}
-        colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: th.e1 ?? '#e6dcc4' }}
+        colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
         guestName={guestName}
         music={!!data.content.audioUrl?.trim()}
         opening={data.content.opening}
       />
+      {/* A seal other than the design's own: a newer colour or design, or their own words on it. */}
+      {seal && <SealOverlay seal={seal} phase={phase} />}
       {/* Once the envelope is open: a guest with their own link can write to the couple (Account → Messages), and
           the wedding party has a link to their own run sheet. */}
       {welcome && phase >= 3 && (

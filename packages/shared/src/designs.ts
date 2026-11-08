@@ -8,7 +8,45 @@
  */
 
 export type NamesFont = 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair';
-export type SealColour = 'Sandstone' | 'Dusty rose' | 'Daphne blue';
+/** The wax seal's colours and finishes (the first three are the originals; the rest are newer). */
+export const SEAL_COLOURS = [
+  'Sandstone', 'Dusty rose', 'Daphne blue', 'Rose gold', 'Gold', 'Silver', 'Champagne', 'Pearl white',
+  'Burgundy', 'Forest green', 'Sage', 'Navy', 'Black', 'Terracotta', 'Lilac',
+] as const;
+export type SealColour = (typeof SEAL_COLOURS)[number];
+/** What is pressed into the seal: the couple's initials (classic), a flower, initials in a wreath, one letter, a heart, or the date. */
+export const SEAL_STYLES = ['classic', 'floral', 'wreath', 'single', 'heart', 'date'] as const;
+export type SealStyle = (typeof SEAL_STYLES)[number];
+export const SEAL_STYLE_INFO: Record<SealStyle, { label: string; hint: string }> = {
+  classic: { label: 'Classic initials', hint: 'Your initials, as on a traditional seal' },
+  floral: { label: 'Floral emboss', hint: 'A pressed flower with leaves' },
+  wreath: { label: 'Initials in a wreath', hint: 'Your initials inside a ring of leaves' },
+  single: { label: 'Single initial', hint: 'One letter, large' },
+  heart: { label: 'Heart', hint: 'A raised heart' },
+  date: { label: 'The date', hint: 'Your wedding date, like 20.03.27' },
+};
+/** How the letters on the seal are cut: flowing italic (as it always was) or upright serif capitals. */
+export const SEAL_LETTERS = ['script', 'serif'] as const;
+export type SealLetters = (typeof SEAL_LETTERS)[number];
+/** The envelope's paper, by name (unset: the look's own envelope colour). */
+export const ENVELOPE_PAPERS = [
+  'cream', 'ivory', 'champagne', 'blush', 'dustyrose', 'sage', 'eucalyptus', 'dustyblue', 'navy', 'midnight', 'terracotta', 'kraft',
+] as const;
+export type EnvelopePaper = (typeof ENVELOPE_PAPERS)[number];
+export const ENVELOPE_PAPER_INFO: Record<EnvelopePaper, { label: string; hex: string }> = {
+  cream: { label: 'Cream', hex: '#efe5d1' },
+  ivory: { label: 'Ivory', hex: '#f7f3e8' },
+  champagne: { label: 'Champagne', hex: '#e8d8b9' },
+  blush: { label: 'Blush pink', hex: '#f1d8d3' },
+  dustyrose: { label: 'Dusty rose', hex: '#d6aaa7' },
+  sage: { label: 'Sage', hex: '#c3cdb2' },
+  eucalyptus: { label: 'Eucalyptus', hex: '#93ab9f' },
+  dustyblue: { label: 'Dusty blue', hex: '#b4c4d3' },
+  navy: { label: 'Navy', hex: '#24334f' },
+  midnight: { label: 'Midnight black', hex: '#1e1e23' },
+  terracotta: { label: 'Terracotta', hex: '#c27458' },
+  kraft: { label: 'Kraft', hex: '#c3a479' },
+};
 export type Liner = 'none' | 'floral' | 'eucalyptus' | 'stripes' | 'confetti' | 'foil';
 export type Ribbon = 'none' | 'silk' | 'twine';
 export type ToneFeel = 'Formal' | 'Relaxed' | 'Warm' | 'Playful' | 'Poetic';

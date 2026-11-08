@@ -8,6 +8,7 @@ import { previewNow } from '../previewClock';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
 import { openingOf, openingTimes, openingValues, prefersLessMotion } from './openings';
 import { shownRows, TIMELINE_ROWS, TimelineRows } from './Timeline';
+import { initialsOf, isDesignSeal, paperVars, sealDate, sealWords, type SealShown } from './WaxSeal';
 
 /**
  * The invitation's behaviour, ported from the design's logic (design/extracted/invitation.html, renderVals).
@@ -127,10 +128,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
 
   // The wax seal's two letters are always the couple's own initials (from the monogram, else their names),
   // never the starter wording's.
-  const initials = useMemo(() => {
-    const m = /^\s*(\S)\S*\s*&\s*(\S)/.exec(data.wedding.monogram ?? '');
-    return m ? [m[1]!, m[2]!] : [data.wedding.name1.trim().charAt(0), data.wedding.name2.trim().charAt(0)];
-  }, [data.wedding.monogram, data.wedding.name1, data.wedding.name2]);
+  const initials = useMemo(() => initialsOf(data.wedding.monogram, data.wedding.name1, data.wedding.name2), [data.wedding.monogram, data.wedding.name1, data.wedding.name2]);
   const t = useCallback((k: string) => (k === 'inv.5dbc98dc' ? initials[0] || (texts[k] ?? '') : k === 'inv.8d9c307c' ? initials[1] || (texts[k] ?? '') : (texts[k] ?? '')), [texts, initials]);
   const tx = (k: string, vars: Record<string, string | number> = {}) => fillTags(t(k), vars);
   const [e0, e1] = slots(data);
@@ -140,7 +138,9 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   // ---------------------------------------------------------------- theme
   // Before the first paint: otherwise the design's own (green) colours flash up, every time the preview reloads.
   useLayoutEffect(() => {
-    const th = themeOf(data.wedding.theme, data.content.custom);
+    const look = themeOf(data.wedding.theme, data.content.custom);
+    // Their own envelope paper (Setup → Invitation → Envelope and seal) over the look's envelope colour.
+    const th = { ...look, ...paperVars(data.content.envelope?.paper, look.dg ?? '#33402f') };
     const st = document.documentElement.style;
     Object.entries(th).forEach(([k, val]) => st.setProperty(`--${k}`, val));
     const blush = data.wedding.theme === 'Bridgerton Blush';
@@ -151,7 +151,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       document.documentElement.classList.remove('pg-inv');
       Object.keys(th).concat(['pgbg', 'pgbg2']).forEach((k) => st.removeProperty(`--${k}`));
     };
-  }, [data.wedding.theme, JSON.stringify(data.content.custom ?? {})]); // eslint-disable-line
+  }, [data.wedding.theme, JSON.stringify(data.content.custom ?? {}), data.content.envelope?.paper]); // eslint-disable-line
 
   // ---------------------------------------------------------------- music (plays once, from the tap)
   useEffect(() => {
@@ -532,7 +532,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     sealPearl: seal === 'Daphne blue',
     sealGold: seal === 'Sandstone',
     sealWine: seal === 'Dusty rose',
-    sealInk: SEAL_INK[seal],
+    sealInk: SEAL_INK[seal] ?? '#ffffff',
     topT: p >= 2 ? 'rotateX(-165deg)' : 'rotateX(0deg)',
     topOp: p >= 2 ? 0 : 1,
     sealT: p >= 2 ? 'translate(-50%,-50%) translateY(-85vh) rotate(-45deg) scale(1.4)' : p >= 1 ? 'translate(-50%,-50%) scale(1.25) rotate(-8deg)' : 'translate(-50%,-50%)',
@@ -604,9 +604,18 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     v,
     openingValues(openingOf(data.content.opening), p, { paper: look.b1 ?? '#fbf8f2', ink: look.dg ?? '#33402f', accent: look.acc ?? '#c8a46a', soft: look.b2 ?? '#efe6d3' }, { burst: v.burst }, prefersLessMotion()),
   );
+  // Any seal but the design's own (a newer colour, another design, their own words): drawn over the
+  // envelope by SealOverlay, moving just as the design's would, and the design's one is hidden.
+  let sealShown: SealShown | null = null;
+  if (!isDesignSeal(seal, data.content.sealDesign)) {
+    const date = sealDate((e0 ?? data.events[0])?.startsAt, data.wedding.timezone);
+    sealShown = { colour: seal, design: data.content.sealDesign, words: sealWords(data.content.sealDesign, initials, date), t: String(v.sealT), op: Number(v.sealOp), zoom: String(v.envZoom), envOp: Number(v.envOp) };
+    v.sealOp = 0;
+  }
   return {
     v,
     t,
+    seal: sealShown,
     phase: p,
     /** The guest this page is for now (null after "Not me"): their link drives Message us. */
     guestToken: guest?.token ?? null,

@@ -1,6 +1,6 @@
 import type { EnvelopeOptions } from './EnvelopeExtras';
 /** Guest API: the invitation, the night-before guides and the photo page. */
-import type { DayoutGuide, Forecast, ReceptionGuide, TableShape, TimelineItem } from '@wp/shared';
+import type { DayoutGuide, Forecast, ReceptionGuide, SealColour, SealLetters, SealStyle, TableShape, TimelineItem } from '@wp/shared';
 
 export interface GuestInvitation {
   token: string;
@@ -20,7 +20,9 @@ export interface InvitePayload {
   branded?: boolean;
   content: {
     initials?: string; rsvpBy?: string; rideTime?: string; directionsUrl?: string; registryUrl?: string; giftAccount?: string;
-    giftAccountLabel?: string; audioUrl?: string; rsvpEmail?: string; seal?: 'Sandstone' | 'Dusty rose' | 'Daphne blue';
+    giftAccountLabel?: string; audioUrl?: string; rsvpEmail?: string; seal?: SealColour;
+    /** What is pressed into the seal, how the letters are cut, and their own words on it. */
+    sealDesign?: { style?: SealStyle; letters?: SealLetters; text?: string };
     envelope?: EnvelopeOptions;
     /** How the envelope opens (one of OPENINGS); the classic lift when unset. */
     opening?: string;

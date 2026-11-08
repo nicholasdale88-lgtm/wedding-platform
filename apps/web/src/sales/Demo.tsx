@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { InvitationView } from '../guest/generated/InvitationView';
 import { EnvelopeExtras } from '../guest/invitation/EnvelopeExtras';
+import { paperHex, SealOverlay } from '../guest/invitation/WaxSeal';
 import { useInvitation } from '../guest/invitation/useInvitation';
 import { themeOf } from '../guest/themeKit';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
@@ -41,7 +42,7 @@ export function DemoPage() {
 /** The guest invitation for the sample wedding: the generated design view, run by the real invitation logic. */
 export function SampleInvitation() {
   const data = SAMPLE_INVITE;
-  const { v: core, t, phase } = useInvitation(data.wedding.slug, data, true);
+  const { v: core, t, phase, seal } = useInvitation(data.wedding.slug, data, true);
   // No "Add to your calendar" links: there's no real wedding behind them.
   const v = { ...core, after: () => undefined };
   const th = themeOf(data.wedding.theme, data.content.custom);
@@ -53,10 +54,11 @@ export function SampleInvitation() {
       <EnvelopeExtras
         phase={phase}
         opts={data.content.envelope ?? {}}
-        colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: th.e1 ?? '#e6dcc4' }}
+        colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
         guestName={SAMPLE.guests}
         opening={data.content.opening}
       />
+      {seal && <SealOverlay seal={seal} phase={phase} />}
     </>
   );
 }

@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
 import { DesignBuilder } from './DesignBuilder';
+import { SealPicker } from './SealPicker';
+import { initialsOf } from '../../guest/invitation/WaxSeal';
+import { ENVELOPE_PAPER_INFO, SEAL_STYLE_INFO } from '@wp/shared';
 import { LiveEditBar } from './LiveEditBar';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -366,7 +369,7 @@ function MusicCheck({ src }: { src: string }) {
 }
 
 const INV_FIELDS: { key: keyof InvitationContent & string; label: string; ph?: string; hint?: string; type?: 'date' }[] = [
-  { key: 'initials', label: 'Initials on the seal and sign-off', ph: 'A & B' },
+  { key: 'initials', label: 'Initials for the sign-off', ph: 'A & B' },
   { key: 'rsvpBy', label: 'Reply-by line', ph: 'Kindly reply by 1 August' },
   { key: 'rsvpClose', label: 'Replies close on', type: 'date', hint: 'Guests can change their reply online until the end of this day. After it, they’re asked to email you (the backup RSVP email).' },
   { key: 'rsvpEmail', label: 'Backup RSVP email', ph: 'you@example.com' },
@@ -415,10 +418,13 @@ function InvitationEditor({
   const liner = LINERS.find(([k]) => k === (inv.envelope?.liner ?? 'floral'))?.[1] ?? 'Floral';
   const ribbon = inv.envelope?.ribbon && inv.envelope.ribbon !== 'none' ? (inv.envelope.ribbon === 'silk' ? ' · silk ribbon' : ' · twine') : '';
   const set = (s?: string) => !!s?.trim();
+  const initials = doc.names ? initialsOf(doc.names.monogram, doc.names.name1, doc.names.name2) : (['A', 'B'] as [string, string]);
+  const sealStyle = inv.sealDesign?.style ?? 'classic';
+  const paper = inv.envelope?.paper ? ` · ${ENVELOPE_PAPER_INFO[inv.envelope.paper].label.toLowerCase()} envelope` : '';
   return (
     <>
       <Section n={n()} title="Design it your way" hint="Start from a template, then mix and match: any look with any names font, envelope, opening and words. The preview follows as it saves.">
-        <DesignBuilder theme={doc.theme} inv={inv} texts={doc.texts} original={ORIGINAL} setTheme={setTheme} setInv={setInv} setTexts={setTexts} />
+        <DesignBuilder theme={doc.theme} inv={inv} texts={doc.texts} original={ORIGINAL} initials={initials} setTheme={setTheme} setInv={setInv} setTexts={setTexts} />
       </Section>
 
       <Section n={n()} title="The essentials" hint="Pick a look, add your names and when replies close. That’s all your invitation needs: everything under Extras is optional.">
@@ -446,15 +452,9 @@ function InvitationEditor({
 
       <Section n={n()} title="Extras" hint="Each shows what’s set now. Tap Change to make it yours; anything you leave keeps the design’s own.">
         <div className="flex flex-col gap-2">
-          <Rollup title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
+          <Rollup title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal${sealStyle === 'classic' ? '' : ` (${SEAL_STYLE_INFO[sealStyle].label.toLowerCase()})`}${paper} · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
+            <SealPicker inv={inv} theme={doc.theme} initials={initials} setInv={setInv} />
             <Grid>
-              <Label text="Wax seal">
-                <select value={inv.seal ?? 'Sandstone'} onChange={(e) => setInv({ seal: e.target.value as InvitationContent['seal'] })} className={inputCls}>
-                  {['Sandstone', 'Dusty rose', 'Daphne blue'].map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </Label>
               <Label text="Envelope liner">
                 <select value={inv.envelope?.liner ?? 'floral'} onChange={(e) => setInv({ envelope: { ...inv.envelope, liner: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['liner']> } })} className={inputCls}>
                   {LINERS.map(([k, l]) => (

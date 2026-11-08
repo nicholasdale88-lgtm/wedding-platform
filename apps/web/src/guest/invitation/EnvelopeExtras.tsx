@@ -1,3 +1,4 @@
+import type { EnvelopePaper } from '@wp/shared';
 import type { CSSProperties } from 'react';
 import { prefersLessMotion } from './openings';
 
@@ -17,6 +18,8 @@ export interface EnvelopeOptions {
   sprig?: boolean;
   ribbon?: 'none' | 'silk' | 'twine';
   shimmer?: boolean;
+  /** The envelope's paper colour by name (ENVELOPE_PAPERS); the look's own when unset. */
+  paper?: EnvelopePaper;
 }
 interface Colours {
   paper: string;
