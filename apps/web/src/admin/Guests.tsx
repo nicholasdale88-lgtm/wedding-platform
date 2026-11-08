@@ -38,6 +38,7 @@ export function Guests() {
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [gapsOpen, setGapsOpen] = useState(false); // the missing-details banner: one line until opened
   const { labels: sideNames } = useSideLabels();
 
   const load = useCallback(async () => {
@@ -211,9 +212,9 @@ export function Guests() {
 
       {gapped.length > 0 && (
         // Rolled up to one line: how many can't be reached and why; expand for each guest (tap one to fix it).
-        <details className="group rounded-[12px] border border-[#d9b8a6] bg-[#f6ebe4] text-[14px]">
-          <summary aria-label="Guests who can't be reached" className="flex gap-2 items-center flex-wrap py-2 px-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
-            <span aria-hidden className="text-[#7a4a37] transition-transform group-open:rotate-90">▸</span>
+        <section aria-label="Guests who can't be reached" className="rounded-[12px] border border-[#d9b8a6] bg-[#f6ebe4] text-[14px]">
+          <button type="button" aria-expanded={gapsOpen} onClick={() => setGapsOpen((x) => !x)} className="w-full flex gap-2 items-center flex-wrap py-2 px-3 border-0 bg-transparent text-left cursor-pointer">
+            <span aria-hidden className={`text-[#7a4a37] transition-transform ${gapsOpen ? 'rotate-90' : ''}`}>▸</span>
             <strong className="font-semibold text-[#7a4a37]">
               {gapped.length} {gapped.length === 1 ? 'guest' : 'guests'} missing details
             </strong>
@@ -224,9 +225,9 @@ export function Guests() {
                 .map(([k, n]) => `${n} ${GAP_LABEL[k].replace(/^Needs /, 'need ').toLowerCase()}`)
                 .join(' · ')}
             </span>
-            <span className="ml-auto text-[12px] underline text-[#7a4a37] group-open:hidden">Show</span>
-            <span className="ml-auto text-[12px] underline text-[#7a4a37] hidden group-open:inline">Hide</span>
-          </summary>
+            <span className="ml-auto text-[12px] underline text-[#7a4a37]">{gapsOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {gapsOpen && (
           <div className="flex flex-col gap-2 px-3 pb-3">
             <span className="text-[13px]">Tap a guest to add what’s missing, or change how their invitation goes (Select, then Invitation by or Messages by).</span>
             <ul className="m-0 p-0 list-none flex flex-col max-h-[40vh] overflow-y-auto border-t border-[#e6cdbf]">
@@ -240,7 +241,8 @@ export function Guests() {
               ))}
             </ul>
           </div>
-        </details>
+          )}
+        </section>
       )}
 
       {picking && (
