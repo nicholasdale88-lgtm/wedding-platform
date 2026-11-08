@@ -108,7 +108,11 @@ export function Guests() {
     }
   }
   // Who can't be reached the way their invitation is set to go (no mobile for texts, no email, no address for post).
-  const gapped = guests.map((g) => ({ g, gaps: contactGaps({ ...g, phone: g.phone ?? null }) })).filter((x) => x.gaps.length);
+  // A guest just added and not filled in yet (no name) isn't flagged: they're still being typed in.
+  const gapped = guests
+    .filter((g) => g.people.some((p) => p.name.trim()))
+    .map((g) => ({ g, gaps: contactGaps({ ...g, phone: g.phone ?? null }) }))
+    .filter((x) => x.gaps.length);
   const anyFilter = FILTER_KEYS.some((k) => k !== 'sort' && k !== 'filter' && state[k]) || state.filter !== 'all';
   const questions = events.flatMap((e) => e.questions.filter((q) => q.type === 'choice').map((q) => ({ event: e.key, key: q.key })));
 
@@ -119,9 +123,10 @@ export function Guests() {
   async function addGuest() {
     try {
       const d = await api.addGuest(wid, focusEv ? [focusEv.key] : undefined);
-      await changed();
+      // Their full details open at once; the list catches up behind them (no waiting, no jumping about).
       setFresh(d.guest.id);
       openGuest(d.guest.id);
+      void changed();
     } catch (e) {
       toast((e as Error).message);
     }
@@ -350,7 +355,7 @@ export function Guests() {
                 {events.map((e) => <StatusPill key={e.key} invited={g.invited.includes(e.key)} attending={g.rsvp[e.key]?.attending} />)}
               </span>
               <TieChips g={g} />
-              {contactGaps(g).length > 0 && <span className="text-[12px] font-semibold text-[#7a4a37]">{contactGaps(g).map((k) => GAP_LABEL[k]).join(' · ')}</span>}
+              {g.people.some((p) => p.name.trim()) && contactGaps(g).length > 0 && <span className="text-[12px] font-semibold text-[#7a4a37]">{contactGaps(g).map((k) => GAP_LABEL[k]).join(' · ')}</span>}
             </button>
           ))}
           {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match. Clear the search or filters to see everyone.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
