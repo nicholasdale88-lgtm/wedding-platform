@@ -1,9 +1,8 @@
-import '@fontsource/cormorant-garamond/400.css';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
-import { Wordmark } from '../sales/Art';
+import { LogoMark } from '../sales/Art';
 import { chargeCents, planOf, STAFF_INFO, STAFF_ROLES, staffCan, type StaffPerm, type StaffRole } from '@wp/shared';
 import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
@@ -26,7 +25,6 @@ import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyMoney,
  */
 
 const INK = '#33402f';
-const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 const input = 'w-full py-[9px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px] sm:text-[15px] text-[#33402f]';
 const btn = 'py-[9px] px-4 rounded-[10px] border border-[#d5d8cf] bg-white text-[14px] font-medium cursor-pointer text-[#1b2218] hover:bg-[#f3f4ef] disabled:opacity-60';
@@ -92,6 +90,7 @@ function Portal() {
   if (who === 'out')
     return (
       <Login
+        tone="company"
         onSignedIn={(m) => {
           setRole(m.user.staff ?? null);
           setWho(m.user.staff ? 'yes' : 'no');
@@ -102,7 +101,7 @@ function Portal() {
     return (
       <main className="min-h-screen bg-[#f3f4ef] flex items-center justify-center p-6 text-center" style={{ color: INK, fontFamily: sans }}>
         <div className="flex flex-col gap-3 max-w-[420px]">
-          <h1 className="m-0 text-[32px] font-normal" style={{ fontFamily: serif }}>
+          <h1 className="m-0 text-[28px] font-semibold">
             Company portal
           </h1>
           <p className="m-0 text-[16px]">This page is for the people who run the site. Your account can go to:</p>
@@ -115,54 +114,100 @@ function Portal() {
 
   const tabs = TABS.filter(([, , perm]) => staffCan(role, perm));
   const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
+  const label = tabs.find(([k]) => k === shown)?.[1] ?? '';
+  const navItem = (k: Tab, text: string) => (
+    <button
+      key={k}
+      type="button"
+      aria-current={shown === k ? 'page' : undefined}
+      onClick={() => go(k)}
+      className={`flex items-center gap-3 w-full py-[9px] px-3 rounded-[10px] border-0 text-left text-[14px] cursor-pointer ${shown === k ? 'bg-[rgba(230,207,158,.14)] text-[#fbf8f2] font-semibold shadow-[inset_3px_0_0_#e6cf9e]' : 'bg-transparent text-[#c9c4b2] hover:bg-[rgba(255,255,255,.05)] hover:text-[#fbf8f2]'}`}
+    >
+      <span aria-hidden className="w-5 text-center opacity-90">
+        {ICON[k]}
+      </span>
+      {text}
+    </button>
+  );
   return (
     <RoleCtx.Provider value={role}>
-    <div className="min-h-screen bg-[#f3f4ef]" style={{ color: INK, fontFamily: sans }}>
-      <header className="sticky top-0 z-10 text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))] shadow-[0_2px_12px_rgba(0,0,0,.18)]" style={{ background: 'linear-gradient(90deg, #1b2218, #263021)' }}>
-        <div className="max-w-[1100px] mx-auto flex items-center justify-between gap-3">
-          <span className="flex items-center gap-3 min-w-0">
-            <span className="rounded-full px-3 py-1 bg-[#f6f0e2]" aria-label="The Yes List">
-              <Wordmark size={18} />
+      <div className="min-h-screen bg-[#f3f4ef] md:grid md:grid-cols-[248px_minmax(0,1fr)]" style={{ color: '#1b2218', fontFamily: sans }}>
+        {/* Wide screens: a dark sidebar. Phones: a dark bar with the sections in a scrolling row. */}
+        <aside className="hidden md:flex flex-col gap-1 sticky top-0 h-screen p-4 text-[#f3ecd6]" style={{ background: 'linear-gradient(180deg, #1b2218, #232c1f)' }}>
+          <div className="flex items-center gap-3 px-1 pb-4 mb-2 border-b border-[rgba(243,236,214,.12)]">
+            <span className="rounded-[12px] p-[5px] bg-[#f6f0e2]">
+              <LogoMark size={30} />
             </span>
-            <span className="hidden sm:inline text-[13px] font-semibold tracking-[.16em] uppercase text-[#e6cf9e]">Company</span>
-            {role && <span className="text-[12px] py-[2px] px-2 rounded-full border border-[rgba(230,207,158,.5)] text-[#e6cf9e]">{STAFF_INFO[role].name}</span>}
-          </span>
-          <ProfileSwitch here="company" />
+            <span className="flex flex-col leading-tight">
+              <strong className="text-[15px] font-semibold">The Yes List</strong>
+              <span className="text-[11px] tracking-[.18em] uppercase text-[#e6cf9e]">Company</span>
+            </span>
+          </div>
+          <nav aria-label="Company" className="flex flex-col gap-[2px] flex-1 overflow-y-auto">
+            {tabs.map(([k, text]) => navItem(k, text))}
+          </nav>
+          <div className="pt-3 border-t border-[rgba(243,236,214,.12)] flex flex-col gap-2">
+            {role && <span className="text-[12px] text-[#c9c4b2]">Signed in as {STAFF_INFO[role].name}</span>}
+            <ProfileSwitch here="company" />
+          </div>
+        </aside>
+        <div className="min-w-0">
+          <header className="md:hidden sticky top-0 z-10 text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))]" style={{ background: '#1b2218' }}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2">
+                <span className="rounded-[10px] p-[3px] bg-[#f6f0e2]">
+                  <LogoMark size={24} />
+                </span>
+                <strong className="text-[15px] font-semibold">Company</strong>
+              </span>
+              <ProfileSwitch here="company" />
+            </div>
+            <nav aria-label="Company sections" className="flex gap-1 overflow-x-auto [scrollbar-width:none] mt-2 -mx-1 px-1">
+              {tabs.map(([k, text]) => (
+                <button
+                  key={k}
+                  type="button"
+                  aria-current={shown === k ? 'page' : undefined}
+                  onClick={() => go(k)}
+                  className={`flex-none py-[10px] px-3 border-0 border-b-[3px] bg-transparent text-[14px] cursor-pointer ${shown === k ? 'border-b-[#e6cf9e] text-[#fbf8f2] font-semibold' : 'border-b-transparent text-[#c9c4b2]'}`}
+                >
+                  {text}
+                </button>
+              ))}
+            </nav>
+          </header>
+          <div className="hidden md:flex items-center justify-between gap-3 px-8 py-4 border-b border-[#e4e6df] bg-white">
+            <span className="text-[13px] text-[#5f6a58]">
+              Company <span aria-hidden>›</span> <strong className="text-[#1b2218] font-semibold">{label}</strong>
+            </span>
+            <a href="/" target="_blank" rel="noopener" className="text-[13px] !text-[#5f6a58]">
+              View the front page ↗
+            </a>
+          </div>
+          <main className="max-w-[1160px] px-4 md:px-8 py-6 pb-24 flex flex-col gap-4">
+            {shown === 'overview' && <Overview onGo={go} />}
+            {shown === 'weddings' && <Weddings onNote={setNote} />}
+            {shown === 'feedback' && <Feedback onNote={setNote} />}
+            {shown === 'promote' && <Promote onNote={setNote} />}
+            {shown === 'vendors' && <Vendors onNote={setNote} />}
+            {shown === 'money' && <Money onNote={setNote} />}
+            {shown === 'team' && <Team onNote={setNote} />}
+            {shown === 'activity' && <Activity />}
+            {shown === 'settings' && <Settings onNote={setNote} />}
+          </main>
         </div>
-        <nav aria-label="Company" className="max-w-[1100px] mx-auto flex gap-1 overflow-x-auto [scrollbar-width:none] mt-3 -mx-1 px-1">
-          {tabs.map(([k, label]) => (
-            <button
-              key={k}
-              type="button"
-              aria-current={shown === k ? 'page' : undefined}
-              onClick={() => go(k)}
-              className={`flex-none py-[10px] px-3 border-0 border-b-[3px] bg-transparent text-[14px] cursor-pointer ${shown === k ? 'border-b-[#e6cf9e] text-[#fbf8f2] font-semibold' : 'border-b-transparent text-[#c9c4b2] hover:text-[#fbf8f2]'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-      </header>
-      <main className="max-w-[1100px] mx-auto px-4 py-5 pb-24 flex flex-col gap-4">
-        {shown === 'overview' && <Overview onGo={go} />}
-        {shown === 'weddings' && <Weddings onNote={setNote} />}
-        {shown === 'feedback' && <Feedback onNote={setNote} />}
-        {shown === 'promote' && <Promote onNote={setNote} />}
-        {shown === 'vendors' && <Vendors onNote={setNote} />}
-        {shown === 'money' && <Money onNote={setNote} />}
-        {shown === 'team' && <Team onNote={setNote} />}
-        {shown === 'activity' && <Activity />}
-        {shown === 'settings' && <Settings onNote={setNote} />}
-      </main>
-      {note && (
-        <div role="status" className="fixed z-20 inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] mx-auto max-w-[460px] py-3 px-4 rounded-[14px] bg-[#33402f] text-[#fbf8f2] text-[15px] text-center shadow-[0_8px_24px_rgba(0,0,0,.25)]">
-          {note}
-        </div>
-      )}
-    </div>
+        {note && (
+          <div role="status" className="fixed z-20 inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] mx-auto max-w-[460px] py-3 px-4 rounded-[12px] bg-[#1b2218] text-[#f3ecd6] text-[15px] text-center shadow-[0_8px_24px_rgba(0,0,0,.25)]">
+            {note}
+          </div>
+        )}
+      </div>
     </RoleCtx.Provider>
   );
 }
+
+/** A small symbol for each section in the sidebar. */
+const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', activity: '≡', settings: '⚙' };
 
 /** Loads something once (and again on reload()), with an error if it fails. */
 function useLoad<T>(fn: () => Promise<T>) {
@@ -1189,7 +1234,7 @@ function JoinTeam() {
   return (
     <main className="min-h-screen bg-[#f3f4ef] flex items-center justify-center p-6" style={{ color: INK, fontFamily: sans }}>
       <div className="flex flex-col gap-3 w-full max-w-[420px]">
-        <h1 className="m-0 text-[34px] font-normal text-center" style={{ fontFamily: serif }}>
+        <h1 className="m-0 text-[28px] font-semibold text-center">
           Join the team
         </h1>
         {!inv && !error && <p className="text-center text-[#5b6a52]">Loading…</p>}

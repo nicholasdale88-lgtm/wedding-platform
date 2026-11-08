@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { api, ApiError, type Me } from '../lib/api';
 import { resetMeCache } from '../lib/ProfileSwitch';
 import { coupleName, readLast, writeLast } from '../lib/remember';
+import { LogoMark } from '../sales/Art';
 
 /** Pill input, verbatim from the design's passcode field. */
 const pill =
@@ -10,8 +11,17 @@ const pill =
 /**
  * Sign-in screen: design/RSVP Admin.dc.html passcode screen (DESIGN_LOCK).
  * The email field is an addition for real accounts (docs/DESIGN_DEVIATIONS.md #1).
+ * tone 'company': the same sign-in dressed as The Yes List's own (the company portal), not a wedding's.
  */
-export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
+export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) => void; tone?: 'wedding' | 'company' }) {
+  const co = tone === 'company';
+  const screen = co ? 'fixed inset-0 z-50 flex items-center justify-center p-6 text-[#f3ecd6]' : 'fixed inset-0 z-50 bg-[#f6f0e2] flex items-center justify-center p-6';
+  const screenStyle = co ? { background: 'radial-gradient(120% 90% at 80% 10%, #3f4f39 0%, #263021 55%, #1b2218 100%)', fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" } : undefined;
+  const field = co ? 'w-full py-3 px-4 border border-[rgba(243,236,214,.3)] rounded-[12px] bg-[rgba(255,255,255,.06)] text-[16px] text-[#fbf8f2] placeholder:text-[#c9c4b2]' : pill;
+  const go = co
+    ? 'w-full py-3 px-[18px] rounded-[12px] border-0 bg-[#e6cf9e] text-[#1b2218] text-[15px] font-semibold cursor-pointer hover:bg-[#f1dcaa] disabled:opacity-70 disabled:cursor-wait'
+    : 'w-full py-3 px-[18px] rounded-full border border-[#5d6b47] bg-[#5d6b47] text-[#fbf8f2] text-[15px] font-medium cursor-pointer hover:bg-[#46543a] disabled:opacity-70 disabled:cursor-wait';
+  const linkCls = co ? 'p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#e6cf9e]' : 'p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]';
   const last = readLast();
   const [email, setEmail] = useState(last?.email ?? '');
   const [passcode, setPasscode] = useState('');
@@ -59,19 +69,19 @@ export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
 
   if (forgot)
     return (
-      <main className="fixed inset-0 z-50 bg-[#f6f0e2] flex items-center justify-center p-6">
+      <main className={screen} style={screenStyle}>
         <form onSubmit={askReset} noValidate className="w-[min(380px,100%)] flex flex-col items-center gap-[14px] text-center">
           <h1 className="m-0 font-display font-medium text-[32px] leading-[1.15]">Forgot your passcode?</h1>
           <p className="m-0 text-[14px] text-[#5b6a52]">We’ll email you a link to set a new one.</p>
           <label className="sr-only" htmlFor="forgot-email">Email</label>
-          <input id="forgot-email" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className={`mt-[10px] ${pill}`} />
+          <input id="forgot-email" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className={`mt-[10px] ${field}`} />
           <div role="alert" aria-live="polite" className="min-h-[18px] text-[13px] text-[#8a5a45]">
             {error}
           </div>
           {sent ? (
             <p role="status" className="m-0 text-[14px] text-[#33402f]">{sent}</p>
           ) : (
-            <button type="submit" disabled={busy} className="w-full py-3 px-[18px] rounded-full border border-[#5d6b47] bg-[#5d6b47] text-[#fbf8f2] text-[15px] font-medium cursor-pointer hover:bg-[#46543a] disabled:opacity-70 disabled:cursor-wait">
+            <button type="submit" disabled={busy} className={go}>
               {busy ? 'Sending…' : 'Email me a link'}
             </button>
           )}
@@ -79,7 +89,7 @@ export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
               setForgot(false);
               setSent('');
               setError('');
-            }} className="p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]">
+            }} className={linkCls}>
             Back to sign in
           </button>
         </form>
@@ -87,10 +97,22 @@ export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
     );
 
   return (
-    <main className="fixed inset-0 z-50 bg-[#f6f0e2] flex items-center justify-center p-6">
+    <main className={screen} style={screenStyle}>
       <form onSubmit={submit} noValidate className="w-[min(380px,100%)] flex flex-col items-center gap-[14px] text-center">
-        <h1 className="m-0 font-script font-normal text-[40px] leading-[1.15]">{last?.name || 'Welcome back'}</h1>
-        <p className="m-0 text-[11px] font-semibold tracking-[.24em] uppercase text-[#5b6a52]">RSVP admin · private</p>
+        {co ? (
+          <>
+            <span className="rounded-[18px] p-2 bg-[#f6f0e2]">
+              <LogoMark size={44} />
+            </span>
+            <h1 className="m-0 text-[28px] font-semibold tracking-[-.01em]">Company portal</h1>
+            <p className="m-0 text-[11px] font-semibold tracking-[.24em] uppercase text-[#e6cf9e]">The Yes List team</p>
+          </>
+        ) : (
+          <>
+            <h1 className="m-0 font-script font-normal text-[40px] leading-[1.15]">{last?.name || 'Welcome back'}</h1>
+            <p className="m-0 text-[11px] font-semibold tracking-[.24em] uppercase text-[#5b6a52]">RSVP admin · private</p>
+          </>
+        )}
         <label className="sr-only" htmlFor="email">Email</label>
         <input
           id="email"
@@ -100,7 +122,7 @@ export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className={`mt-[10px] ${pill}`}
+          className={`mt-[10px] ${field}`}
         />
         <label className="sr-only" htmlFor="passcode">Passcode</label>
         <input
@@ -110,7 +132,7 @@ export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
           value={passcode}
           onChange={(e) => setPasscode(e.target.value)}
           placeholder="Passcode"
-          className={pill}
+          className={field}
         />
         <div role="alert" aria-live="polite" className="min-h-[18px] text-[13px] text-[#8a5a45]">
           {error}
@@ -118,19 +140,21 @@ export function Login({ onSignedIn }: { onSignedIn: (me: Me) => void }) {
         <button
           type="submit"
           disabled={busy}
-          className="w-full py-3 px-[18px] rounded-full border border-[#5d6b47] bg-[#5d6b47] text-[#fbf8f2] text-[15px] font-medium cursor-pointer hover:bg-[#46543a] disabled:opacity-70 disabled:cursor-wait"
+          className={go}
         >
-          {busy ? 'Opening…' : 'Open admin'}
+          {busy ? 'Opening…' : co ? 'Open the portal' : 'Open admin'}
         </button>
         <button type="button" onClick={() => {
             setForgot(true);
             setError('');
-          }} className="p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]">
+          }} className={linkCls}>
           Forgot your passcode?
         </button>
-        <a href="/" className="text-[14px] !text-[#5b6a52]">
-          New here? Start free
-        </a>
+        {!co && (
+          <a href="/" className="text-[14px] !text-[#5b6a52]">
+            New here? Start free
+          </a>
+        )}
       </form>
     </main>
   );
