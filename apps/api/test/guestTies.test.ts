@@ -69,7 +69,7 @@ describe('guest ties and the who-knows-who plan', () => {
     expect((await post('/guests/bulk', { ids: [] })).status).toBe(400);
   });
 
-  it('sets how invitations go for several guests at once, and flags anyone it can't reach', async () => {
+  it("sets how invitations go for several guests at once, and flags anyone it can't reach", async () => {
     const [a, b] = await guests();
     await call(`/guests/${a!.id}`, { method: 'PATCH', headers: { 'If-Match': String(a!.version) }, body: JSON.stringify({ phone: null, email: null, address: { street: '' } }) });
     const r = await post('/guests/bulk', { ids: [a!.id, b!.id], delivery: 'post', channel: 'email' });

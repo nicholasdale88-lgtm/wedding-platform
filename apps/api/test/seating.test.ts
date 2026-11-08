@@ -61,7 +61,7 @@ describe('seating API', () => {
     expect(after.people.filter((p) => p.tableId === gone.id)).toHaveLength(0);
   });
 
-  it('keeps each guest's chosen chair and each table's size in metres, and the room can be measured in metres', async () => {
+  it("keeps each guest's chosen chair and each table's size in metres, and the room can be measured in metres", async () => {
     const s = await get();
     const tbl = s.tables[0]!;
     const two = s.people.filter((p) => p.coming).slice(0, 2);

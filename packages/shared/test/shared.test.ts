@@ -155,7 +155,7 @@ describe('chairs', () => {
 });
 
 describe('contact gaps', () => {
-  it('flags a guest the chosen way can't reach', async () => {
+  it("flags a guest the chosen way can't reach", async () => {
     const { contactGaps } = await import('../src/contacts');
     expect(contactGaps({ phone: '+61412000111', channel: '' })).toEqual([]);
     expect(contactGaps({ channel: '' })).toEqual(['contact']);
