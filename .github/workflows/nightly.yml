@@ -117,7 +117,7 @@ jobs:
 
   stress:
     # The overnight stress run at full size (apps/api/test/launch.overnight.test.ts): 500 sample weddings in one
-    # database, through every flow, with the invariants checked after each phase. Every push runs it with 60.
+    # database, through every flow, with the invariants checked after each phase. Every push runs it with 12.
     # Once a day (the 2am run), or by hand with any number.
     if: ${{ github.event.schedule != '0 4 * * *' }}
     runs-on: ubuntu-24.04

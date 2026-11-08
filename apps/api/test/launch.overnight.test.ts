@@ -9,7 +9,7 @@ import { testD1 } from './support/d1';
 import { fakeClock, FakeProvider } from './support/fakes';
 
 /**
- * The overnight run: 60 sample weddings on every push (500 in the Nightly workflow) in ONE database, built from a seed so any failure reproduces, taken
+ * The overnight run: 12 sample weddings on every push (500 in the Nightly workflow) in ONE database, built from a seed so any failure reproduces, taken
  * through a couple's whole year phase by phase (each phase an `it`, in order). Sizes 10 to 350 guests, one to
  * three events, Free, Essentials and Deluxe (upgraded by the platform, a promo code, a card payment and a
  * payment link), guest lists with odd data, a concept seating plan before the invitations, invitations by text
@@ -26,10 +26,10 @@ function rng(seed: number) {
   return () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 }
 
-/** 60 on every push; the Nightly workflow runs 500 (STRESS_WEDDINGS=500). */
-const WEDDINGS = Math.max(30, Number(process.env.STRESS_WEDDINGS) || 60);
+/** 12 on every push (the push CI has a 15-minute limit); the Nightly workflow runs 500 (STRESS_WEDDINGS=500). */
+const WEDDINGS = Math.max(12, Number(process.env.STRESS_WEDDINGS) || 12);
 /** Each phase gets more time as the number of weddings grows. */
-const PHASE_MS = Math.round(300_000 * Math.max(1, WEDDINGS / 60));
+const PHASE_MS = Math.round(240_000 * Math.max(1, WEDDINGS / 40));
 const BOSS = 'boss@overnight.example';
 const PASSCODE = 'overnight-2027';
 const WHSEC = 'whsec_overnight';
@@ -790,7 +790,7 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
     // Feedback from 25 couples: all there, new.
     for (const w of weddings.slice(0, 25)) expect((await post(w, '/feedback', { kind: w.n % 2 ? 'idea' : 'problem', text: `Overnight note from wedding ${w.n}` })).status, w.tag).toBe(200);
     const fb = await json<{ feedback: { text: string }[]; counts: Record<string, number> }>(await company('/feedback'));
-    expect(fb.counts.new).toBe(25);
+    expect(fb.counts.new).toBe(Math.min(25, weddings.length));
     // A couple can't reach the company portal.
     expect((await call('/a/company/stats', {}, weddings[0]!.cookie)).status).toBe(403);
     // Staff: support sees couples, not money.
