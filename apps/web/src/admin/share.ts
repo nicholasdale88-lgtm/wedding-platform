@@ -30,6 +30,15 @@ export async function sendMessenger(link: string, text: string): Promise<'app' |
   return 'copied';
 }
 
+/**
+ * Your own phone's Messages app, with their number and the message filled in: free, from your own number,
+ * no texting service needed. iPhones read "&body=", other phones "?body=".
+ */
+export function smsHref(phoneE164: string, text: string): string {
+  const ios = typeof navigator !== 'undefined' && /iphone|ipad|ipod|macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 0;
+  return `sms:${phoneE164}${ios ? '&' : '?'}body=${encodeURIComponent(text)}`;
+}
+
 /** The phone's own share sheet (WhatsApp, Messenger, Instagram, email…). False if not available. */
 export async function shareNative(text: string, link: string): Promise<boolean> {
   if (typeof navigator.share !== 'function') return false;

@@ -26,7 +26,7 @@ export function Guests() {
   const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> } | null>(null);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
-  const [manual, setManual] = useState(false);
+  const [manual, setManual] = useState<false | 'unreachable' | 'phone'>(false);
   const [fresh, setFresh] = useState(''); // the guest "Add guest" just made
   const [more, setMore] = useState(false); // phones: Import, Export and Send without SMS under More
   const [filtersOpen, setFiltersOpen] = useState(false); // phones: the dropdown filters under Filters (n)
@@ -121,7 +121,8 @@ export function Guests() {
           {/* Phones: one main action, the rest under More. */}
           {(!mob || more) && (
             <div className={mob ? 'absolute right-0 top-[calc(100%+6px)] z-[14] flex flex-col gap-2 p-3 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f2)] shadow-[0_8px_24px_rgba(51,64,47,.16)] min-w-[220px]' : 'contents'}>
-              <Pill onClick={() => (setMore(false), setManual((x) => !x))}>Share invitation links yourself</Pill>
+              <Pill onClick={() => (setMore(false), setManual((x) => (x === 'phone' ? false : 'phone')))}>Text from my own phone (free)</Pill>
+              <Pill onClick={() => (setMore(false), setManual((x) => (x === 'unreachable' ? false : 'unreachable')))}>Share invitation links yourself</Pill>
               <Pill onClick={() => (setMore(false), setImporting((x) => !x))}>Import</Pill>
               <Pill
                 disabled={!guests.length}
@@ -144,7 +145,7 @@ export function Guests() {
       </header>
 
       {importing && data && <ImportGuests events={data.events} focus={focusEv} onClose={() => setImporting(false)} onDone={changed} />}
-      {manual && data && <ManualSend guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
+      {manual && data && <ManualSend key={manual} mode={manual} guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
 
       {data && data.events.length > 1 && focusEv && (
         <div role="radiogroup" aria-label="Guest list" className="flex gap-2 flex-wrap">
