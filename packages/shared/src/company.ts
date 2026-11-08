@@ -251,3 +251,13 @@ export const PERM_INFO: Record<StaffPerm, string> = {
   team: 'Team: people, bots and roles (owners only)',
   activity: 'Activity: who did what',
 };
+
+/** Each person's or bot's weekly target (Team → Targets): paying weddings to help win, and the work that gets there. */
+export const PersonTarget = z.object({
+  userId: z.string().max(40),
+  /** Paying weddings a week this person or bot is answerable for (sales: from their outreach and partners). */
+  weddings: z.number().int().min(0).max(1000).default(0),
+  /** The work a week: e.g. 100 partner emails, 4 posts, every plan request answered within 4 hours. */
+  work: z.string().trim().max(200).default(''),
+});
+export const PersonTargets = z.object({ people: z.array(PersonTarget).max(100).default([]) });

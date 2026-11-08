@@ -1027,6 +1027,15 @@ export const companyApi = {
   saveConnections: (keys: Record<string, string>) => send<{ status: Record<string, 'deploy' | 'saved' | ''> }>('PUT', '/a/company/connections', keys),
   refund: (slug: string, cents: number, reason: string, downgrade: boolean) => send<{ ok: true; stripe: boolean }>('POST', `/a/company/weddings/${encodeURIComponent(slug)}/refund`, { cents, reason, downgrade }),
   replyFeedback: (id: string, text: string) => send<{ ok: true; to: string }>('POST', `/a/company/feedback/${encodeURIComponent(id)}/reply`, { text }),
+  goals: () =>
+    request<{
+      goal: { at_least: number; ideally: number; then_a_year: number; by: string; profitSoFar: number };
+      week: { paidWeddings: number; needed: number; neededForIdeal: number };
+      keptPerWedding: number;
+      people: { userId: string; name: string; weddings: number; work: string }[];
+      mine: { userId: string; weddings: number; work: string } | null;
+    }>('/a/company/goals'),
+  saveTargets: (people: { userId: string; weddings: number; work: string }[]) => send<{ people: unknown[] }>('PUT', '/a/company/goals/people', { people }),
   assistantOn: () => request<{ on: boolean }>('/a/company/assistant'),
   assistant: (task: 'brief' | 'feedback' | 'posts' | 'outreach' | 'ask', note = '', id = '') => send<{ text: string }>('POST', '/a/company/assistant', { task, note, id }),
   bots: () => request<{ bots: { id: string; name: string; role: string; roleName?: string; createdAt: string; lastUsedAt: string; revoked: boolean }[] }>('/a/company/bots'),

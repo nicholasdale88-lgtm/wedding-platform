@@ -281,6 +281,7 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
           ['ask', 'Ask', 'e.g. What should I focus on to get 20 weddings this month?'],
         ]}
       />
+      <Goals onGo={onGo} />
       <TodoList onGo={onGo} />
       <section className={card} aria-label="To do">
         <H>To do</H>
@@ -1086,6 +1087,7 @@ const ACTION: Record<string, string> = {
   'company.assistant': 'Asked the assistant',
   'company.connections': 'Changed a connection',
   'company.refund': 'Refunded',
+  'company.targets': 'Set the weekly targets',
   'plan.refund': 'Refund',
   'company.feedback.reply': 'Replied to feedback',
 };
@@ -1209,6 +1211,7 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
           </>
         )}
       </section>
+      <PeopleTargets onNote={onNote} />
       <Roles onNote={onNote} />
       <Bots onNote={onNote} />
       <section className={card} aria-label="What each role can do">
@@ -2346,5 +2349,119 @@ function Refund({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) => voi
       </div>
       {problem && <Problem text={problem} />}
     </div>
+  );
+}
+
+/** The goals, at the top of Overview for everyone: the big goal, this week's number, and each person's target. */
+function Goals({ onGo }: { onGo: (t: Tab) => void }) {
+  const { data } = useLoad(companyApi.goals);
+  const can = useCan();
+  if (!data) return null;
+  const g = data.goal;
+  const pct = (n: number) => (n > 0 ? Math.max(0, Math.min(100, (g.profitSoFar / n) * 100)) : 0);
+  const by = g.by ? new Date(`${g.by}T00:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : '';
+  const bar = (label: string, n: number, colour: string) => (
+    <div className="flex flex-col gap-1">
+      <div className="flex justify-between text-[14px]">
+        <span>{label}</span>
+        <strong>
+          {money(Math.max(0, g.profitSoFar))} of {money(n)}
+        </strong>
+      </div>
+      <div className="h-[10px] rounded-full bg-[#e4e6df] overflow-hidden">
+        <div className="h-full" style={{ width: `${pct(n)}%`, background: colour }} />
+      </div>
+    </div>
+  );
+  const onPace = data.week.paidWeddings >= data.week.needed;
+  return (
+    <section className={card} aria-label="Goals">
+      <div className="flex justify-between items-baseline gap-3 flex-wrap">
+        <H sub={`Profit by ${by}, then ${money(g.then_a_year)} a year. Everyone on the team, people and bots, works to these.`}>Goals</H>
+        {can('money') && (
+          <button type="button" className={btn} onClick={() => onGo('money')}>
+            Change the goals
+          </button>
+        )}
+      </div>
+      {bar('At least', g.at_least, '#c8a46a')}
+      {g.ideally > g.at_least && bar('Ideally', g.ideally, '#2f6b3a')}
+      <div className={`flex justify-between gap-3 flex-wrap p-3 rounded-[12px] ${onPace ? 'bg-[#e9f1e3]' : 'bg-[#fbf3e1]'}`}>
+        <strong className="text-[16px]">
+          This week: {data.week.paidWeddings} of {data.week.needed} paying weddings
+        </strong>
+        <span className="text-[14px]">{onPace ? 'On pace ✓' : `${data.week.needed - data.week.paidWeddings} to go (${data.week.neededForIdeal} a week for the ideal)`}</span>
+      </div>
+      {data.people.length > 0 && (
+        <ul className="m-0 p-0 list-none flex flex-col">
+          {data.people.map((p) => (
+            <li key={p.userId} className="flex justify-between gap-3 flex-wrap py-2 border-t border-[#e4e6df] text-[14px]">
+              <strong>{p.name}</strong>
+              <span className="text-[#5f6a58]">
+                {p.weddings ? `${p.weddings} paying weddings a week` : ''}
+                {p.weddings && p.work ? ' · ' : ''}
+                {p.work}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** Team → Targets: each person's and bot's weekly target (owners). */
+function PeopleTargets({ onNote }: { onNote: (s: string) => void }) {
+  const goals = useLoad(companyApi.goals);
+  const team = useLoad(companyApi.team);
+  const [rows, setRows] = useState<{ userId: string; weddings: number; work: string }[] | null>(null);
+  const [problem, setProblem] = useState('');
+  useEffect(() => {
+    if (goals.data && team.data && !rows) {
+      const have = new Map(goals.data.people.map((p) => [p.userId, p]));
+      setRows(team.data.staff.map((m) => ({ userId: m.id, weddings: have.get(m.id)?.weddings ?? 0, work: have.get(m.id)?.work ?? '' })));
+    }
+  }, [goals.data, team.data, rows]);
+  if (!rows || !team.data) return null;
+  const nameOf = (id: string) => team.data!.staff.find((m) => m.id === id);
+  const save = async () => {
+    setProblem('');
+    try {
+      await companyApi.saveTargets(rows.filter((r) => r.weddings || r.work));
+      onNote('Targets saved');
+      goals.reload();
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  const needed = goals.data?.week.needed ?? 0;
+  const given = rows.reduce((a, r) => a + r.weddings, 0);
+  return (
+    <section className={card} aria-label="Weekly targets">
+      <H sub={`Give each person and bot a weekly target. The team needs about ${needed} paying weddings a week for the goal; ${given} are given out.`}>Weekly targets</H>
+      {rows.map((r, i) => {
+        const m = nameOf(r.userId);
+        return (
+          <div key={r.userId} className="grid gap-2 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,2fr)] items-end py-2 border-t border-[#e4e6df]">
+            <span className="text-[14px]">
+              <strong className="block">{m?.name ?? 'Someone'}</strong>
+              <span className="text-[12px] text-[#5f6a58]">{m?.roleName ?? m?.role}</span>
+            </span>
+            <label className="flex flex-col gap-1 text-[12px] text-[#5f6a58]">
+              Weddings a week
+              <input type="number" min={0} value={r.weddings} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, weddings: Math.max(0, Number(e.target.value) || 0) } : x)))} className={input} />
+            </label>
+            <label className="flex flex-col gap-1 text-[12px] text-[#5f6a58]">
+              The work a week
+              <input value={r.work} maxLength={200} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, work: e.target.value } : x)))} placeholder="e.g. 100 partner emails, 5 partners signed" className={input} />
+            </label>
+          </div>
+        );
+      })}
+      {problem && <Problem text={problem} />}
+      <button type="button" className={`${primary} self-start`} onClick={() => void save()}>
+        Save targets
+      </button>
+    </section>
   );
 }

@@ -1,4 +1,4 @@
-import { CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -33,7 +33,7 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
-export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo', schema: S): Promise<z.output<S>> {
+export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
   try {
@@ -663,6 +663,48 @@ export function companyRoutes() {
     await c.env.DB.prepare(`UPDATE feedback SET updated_at = ?, updated_by = ? WHERE id = ?`).bind(new Date().toISOString(), c.get('user').id, c.req.param('id')).run();
     await logCompany(c, 'company.feedback.reply', c.req.param('id'), { chars: b.data.text.length });
     return c.json({ ok: true, to: f.email });
+  });
+
+  /**
+   * The goals, for everyone on the team and every bot (no money details beyond the goal): the big goal and
+   * how far along, this week's paying weddings against the weekly number, and each person's own target.
+   * A bot reads this first on every run (docs/GROK_PLAYBOOK.md).
+   */
+  app.get('/goals', async (c) => {
+    const db = c.env.DB;
+    const tax = await readSetting(db, 'tax', TaxSettings);
+    const from = tax.targetFrom || new Date().toISOString().slice(0, 7);
+    const { results } = await db.prepare(`SELECT at, detail FROM audit WHERE action IN ('plan.paid', 'plan.refund') AND json_valid(detail) AND at >= ?`).bind(`${from}-01`).all<{ at: string; detail: string }>();
+    const fee = (cents: number, manual: boolean) => (!manual && cents > 0 ? Math.round((cents * tax.feePct) / 100 + tax.feeCents) : 0);
+    const rows = results.map((r) => ({ at: r.at, d: safeDetail(r.detail) })).map((r) => ({ at: r.at, cents: typeof r.d.amount === 'number' ? r.d.amount : 0, manual: !!r.d.manual }));
+    const running = tax.monthlyCosts.reduce((a, m) => a + m.cents, 0);
+    const monthsSince = Math.max(1, new Set(rows.map((r) => r.at.slice(0, 7))).size || 1);
+    const kept = rows.reduce((a, r) => a + r.cents - fee(r.cents, r.manual), 0);
+    const profit = kept - running * monthsSince;
+    const sales = rows.filter((r) => r.cents > 0);
+    // What each paying wedding leaves, from the real sales (or the price list until there are some).
+    const each = sales.length ? Math.round(sales.reduce((a, r) => a + r.cents - fee(r.cents, r.manual), 0) / sales.length) : Math.round(PRICE_CENTS.essentials * 0.98 - 30);
+    const by = tax.goalBy ? Date.parse(`${tax.goalBy}T00:00:00Z`) : Date.now() + 365 * 86_400_000;
+    const weeksLeft = Math.max(1, (by - Date.now()) / (7 * 86_400_000));
+    const weekly = (goal: number) => Math.ceil(((goal - profit) / weeksLeft + (running * 12) / 52) / Math.max(1, each));
+    const weekStart = new Date(Date.now() - ((new Date().getUTCDay() + 6) % 7) * 86_400_000).toISOString().slice(0, 10);
+    const thisWeek = sales.filter((r) => r.at >= weekStart).length;
+    const people = await readSetting(db, 'targets', PersonTargets);
+    const team = await staffList(c.env);
+    return c.json({
+      goal: { at_least: tax.goalCents, ideally: tax.stretchCents, then_a_year: tax.longTermCents, by: tax.goalBy, profitSoFar: profit },
+      week: { paidWeddings: thisWeek, needed: Math.max(0, weekly(tax.goalCents)), neededForIdeal: Math.max(0, weekly(tax.stretchCents)) },
+      keptPerWedding: each,
+      people: people.people.map((p) => ({ ...p, name: team.find((m) => m.id === p.userId)?.name ?? 'Removed' })),
+      mine: people.people.find((p) => p.userId === c.get('user').id) ?? null,
+    });
+  });
+  app.put('/goals/people', can('team'), async (c) => {
+    const b = PersonTargets.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Please check the targets.');
+    await writeSetting(c.env.DB, 'targets', b.data);
+    await logCompany(c, 'company.targets', `${b.data.people.length} people`, {});
+    return c.json(b.data);
   });
 
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */

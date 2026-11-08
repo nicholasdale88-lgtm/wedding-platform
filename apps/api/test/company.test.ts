@@ -346,4 +346,16 @@ describe('company portal', () => {
     expect(sent.status).toBe(200);
     expect(((await sent.json()) as { to: string }).to).toBe('alex@example.com');
   });
+  it('goals: everyone (bots too) reads the goal, this week’s number and their own weekly target', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const { key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Grok Sales', role: 'marketing' }) }, boss.cookie)).json()) as { key: string };
+    const staff = (await (await call('/a/company/staff', {}, boss.cookie)).json()) as { staff: { id: string; name: string }[] };
+    const bot = staff.staff.find((m) => m.name === 'Grok Sales')!;
+    expect((await call('/a/company/goals/people', { method: 'PUT', body: JSON.stringify({ people: [{ userId: bot.id, weddings: 10, work: '100 partner emails' }] }) }, boss.cookie)).status).toBe(200);
+    const g = (await (await call('/a/company/goals', { headers: { authorization: `Bearer ${key}` } })).json()) as { goal: { at_least: number; by: string }; week: { needed: number }; mine: { weddings: number; work: string } };
+    expect(g.goal).toMatchObject({ at_least: 2_500_000, by: '2027-11-18' });
+    expect(g.week.needed).toBeGreaterThan(0);
+    expect(g.mine).toMatchObject({ weddings: 10, work: '100 partner emails' });
+    expect((await call('/a/company/goals/people', { method: 'PUT', body: JSON.stringify({ people: [] }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
+  });
 });

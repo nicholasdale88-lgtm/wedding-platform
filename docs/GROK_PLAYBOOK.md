@@ -21,6 +21,7 @@ It never touches couples' wedding data, can't change the team, and is never an o
 
 | Ask for | Address | Role needed |
 |---|---|---|
+| The goals, this week's number and your own weekly target | `GET /goals` | any |
 | Reply to whoever sent a piece of feedback (by email, from the support address) | `POST /feedback/<id>/reply` `{text}` | Support, Developer, Manager |
 | Refund a couple (card refunds go through Stripe; bots up to $98 and 3 a day) | `POST /weddings/<address>/refund` `{cents, reason, downgrade}` | Manager (Money) |
 | Add an idea or a problem to Feedback (it lands as New, with your source) | `POST /ideas` `{kind: "idea"|"problem", text, source}` | Developer, Support, Marketing, Manager |
@@ -48,7 +49,7 @@ All amounts are in cents (8800 = $88). Dates are `yyyy-mm-dd`.
 The numbers live in Company portal → Money & tax: monthly targets, the big goal and the long-term goal. Any Manager key reads them at `GET /money`: `tax.targetProfitCents`, `goalCents`, `stretchCents`, `longTermCents`, `goalBy`, and the month-by-month `months` profit.
 
 Every bot starts its run the same way:
-1. Read `/money`.
+1. Read `GET /goals` (any key): the goal, how far along, **this week's paying weddings against the number needed**, and `mine`: **this bot's own weekly target**, set by an owner in Team → Weekly targets.
 2. Work out **paying weddings needed this week**: (target profit + running costs) ÷ kept per sale ÷ 4.3.
 3. Compare with this week so far.
 4. Spend the run on whatever closes that gap fastest.
