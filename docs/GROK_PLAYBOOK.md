@@ -21,6 +21,8 @@ It never touches couples' wedding data, can't change the team, and is never an o
 
 | Ask for | Address | Role needed |
 |---|---|---|
+| Reply to whoever sent a piece of feedback (by email, from the support address) | `POST /feedback/<id>/reply` `{text}` | Support, Developer, Manager |
+| Refund a couple (card refunds go through Stripe; bots up to $98 and 3 a day) | `POST /weddings/<address>/refund` `{cents, reason, downgrade}` | Manager (Money) |
 | Add an idea or a problem to Feedback (it lands as New, with your source) | `POST /ideas` `{kind: "idea"|"problem", text, source}` | Developer, Support, Marketing, Manager |
 | Sign-ups, plans, revenue, guests, referrals | `GET /stats` | any |
 | Find couples, plan requests waiting | `GET /weddings?q=&requests=1` | Support, Manager |
@@ -55,7 +57,7 @@ Every bot starts its run the same way:
 
 | When | Bot | Job |
 |---|---|---|
-| Every hour | Customer support | Answer couples' emails; anything about money, refunds or bugs goes to you |
+| Every hour | Customer support | Answer couples' emails and reply to new feedback (`/feedback/<id>/reply`); refund a cancelled wedding when they ask, up to one plan's price (`/refund`, with the reason); anything bigger, or a dispute, goes to you |
 | Every 4 hours | Bookings | Send payment links for new plan requests; chase links older than 3 days (once) |
 | 7am daily | IT support | Site up, CI green, backups ran |
 | 8am daily | Business manager | **Daily huddle**: yesterday's sign-ups and sales against the weekly number. Ahead, on pace or behind, and the one thing to change today |
