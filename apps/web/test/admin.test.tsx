@@ -722,7 +722,7 @@ describe('seating tab', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
     expect(await screen.findByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Table 1, 1 of 4' }));
-    expect(screen.getByText('Nut allergy')).toBeInTheDocument(); // who sits there, with their diet
+    expect(screen.getAllByText('Nut allergy').length).toBeGreaterThan(0); // who sits there, with their diet (and on the caterer's printout)
     await userEvent.click(screen.getByRole('button', { name: 'Sam Hart' }));
     expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
