@@ -166,6 +166,17 @@ export const HELP_SAY: Record<string, HelpSay> = {
     ],
     outro: 'That’s it. Fewer questions on the day.',
   },
+  rehearsal: {
+    intro: 'Here’s how to rehearse your whole wedding, without sending a single thing.',
+    steps: [
+      'Tap Rehearse your wedding day on the Overview. It runs your wedding as a dry run, with your real guests and words. Nothing is sent, and nothing is saved.',
+      'The checklist shows each area in green, amber or red. Tap Fix it beside anything that would go wrong, and it takes you straight there.',
+      'Now move along the timeline. From the invitations going out, through reminders and the night before, to the ceremony and the morning after.',
+      'At each moment you see every message, in its real words. Pick a guest who said yes, said no, or hasn’t replied, and see their page as it looks then.',
+      'You’ll see what the wedding party and your coordinator see, too. Run it again after each fix, until it’s all green.',
+    ],
+    outro: 'That’s your dress rehearsal done. No surprises on the day.',
+  },
   calendar: {
     intro: 'Here’s how to get everything into everyone’s calendars.',
     steps: [

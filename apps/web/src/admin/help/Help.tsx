@@ -76,7 +76,7 @@ export function Help() {
       </label>
       {q.trim().length >= 3 && (
         <section aria-label="Answers" className="flex flex-col gap-3">
-          {found.length ? found.map((a, i) => card(a, i === 0)) : <p className="m-0 text-[15px] text-[#5b6a52]">Nothing in the guides matches that yet.</p>}
+          {found.length ? found.map((a, i) => card(a, i === 0)) : <p className="m-0 text-[15px] text-[#5b6a52]">Nothing in the guides matches that yet. Try one or two words, like “seating”, “texts” or “budget”.</p>}
           {first && (
             <p className="m-0 text-[14px] text-[#5b6a52]">
               Not it?{' '}

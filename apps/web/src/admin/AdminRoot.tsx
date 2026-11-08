@@ -11,6 +11,7 @@ import { Dietary } from './diet/Dietary';
 import { Photos } from './photos/Photos';
 import { Settings } from './settings/Settings';
 import { Help } from './help/Help';
+import { Rehearsal } from './Rehearsal';
 import { EventDayChecklist } from './checklists/EventDayChecklist';
 import { Party } from './party/Party';
 import { WeddingPlanner } from './planner/WeddingPlanner';
@@ -96,7 +97,7 @@ function OldAddress() {
 }
 
 /** Pages that belong to Account only, or to an event only; the rest (Overview, SMS) exist in both. */
-const ACCOUNT_ONLY = new Set<string>(['settings', 'events', 'look', 'help']);
+const ACCOUNT_ONLY = new Set<string>(['settings', 'events', 'look', 'help', 'rehearsal']);
 const EVENT_ONLY = new Set<string>(['guests', 'dietary', 'seating', 'party', 'day', 'photos', 'pages', 'planner']);
 /** Budget, Vendors and the assistant were Account pages; they're views of the Wedding planner now. */
 const PLANNER_VIEWS = new Set<string>(['budget', 'vendors', 'assistant']);
@@ -173,6 +174,8 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
       return <Settings />;
     case 'help':
       return <Help />;
+    case 'rehearsal':
+      return <Rehearsal />;
     default:
       return <WeddingPlanner />;
   }

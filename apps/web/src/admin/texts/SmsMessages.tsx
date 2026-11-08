@@ -100,7 +100,7 @@ export function SmsMessages() {
           <div className="mt-1 text-[15px] text-[#5b6a52]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
           {!data.live && (
             <div className="mt-1 text-[14px] text-[#7a4a37]">
-              Texts won't really send until texting is set up.{' '}
+              Texts won’t send by themselves until you choose how they go: free from your own phone or by email, or a texting number.{' '}
               <button type="button" onClick={() => go(`${path('settings', ALL_EVENTS)}?view=texting`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#7a4a37] text-[14px]">
                 Set up texting →
               </button>

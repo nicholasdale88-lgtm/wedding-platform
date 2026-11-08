@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { previewNow } from '../previewClock';
 
 /** Wedding sections a guest invited only to the second event (the birthday) doesn't see. */
 export const SOLO_HIDDEN = new Set(['01 Welcome', '01b Countdown', '02 The Wedding', '03 Timeline', '07 Dress Code', '08 Accommodation', '09 Gift Registry']);
@@ -19,9 +20,9 @@ const p2 = (n: number) => String(n).padStart(2, '0');
  */
 export function BirthdayHero({ name, startsAt, timezone, greet, colours }: { name: string; startsAt: string; timezone: string; greet: string; colours: { bg: string; ink: string; accent: string } }) {
   const [host, setHost] = useState<HTMLElement | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => previewNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(previewNow()), 1000);
     return () => clearInterval(id);
   }, []);
   useEffect(() => {

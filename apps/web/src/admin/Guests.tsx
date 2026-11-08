@@ -166,7 +166,7 @@ export function Guests() {
           {/* Phones: one main action, the rest under More. */}
           {(!mob || more) && (
             <div className={mob ? 'absolute right-0 top-[calc(100%+6px)] z-[14] flex flex-col gap-2 p-3 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f2)] shadow-[0_8px_24px_rgba(51,64,47,.16)] min-w-[220px]' : 'contents'}>
-              <Pill onClick={() => (setMore(false), setManual((x) => (x === 'phone' ? false : 'phone')))}>Text from my own phone (free)</Pill>
+              <Pill onClick={() => (setMore(false), setManual((x) => (x === 'phone' ? false : 'phone')))}>Send from my own phone (free)</Pill>
               <Pill onClick={() => (setMore(false), setManual((x) => (x === 'unreachable' ? false : 'unreachable')))}>Share invitation links yourself</Pill>
               <Pill onClick={() => (setMore(false), setImporting((x) => !x))}>Import</Pill>
               <Pill onClick={() => (setMore(false), setContacts((x) => !x))}>Import contacts</Pill>
@@ -310,7 +310,7 @@ export function Guests() {
               <TieChips g={g} />
             </button>
           ))}
-          {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
+          {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match. Clear the search or filters to see everyone.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
         </div>
       ) : (
         <div className="bg-[var(--adm-card,#fbf8f2)] border border-[var(--adm-line,#e2d7bc)] rounded-[14px] overflow-x-auto">
@@ -365,7 +365,7 @@ export function Guests() {
                 <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{g.lastSms ? `${g.lastSms.name} · ${fmtWhen(g.lastSms.at, tz)}` : g.phone ? 'Not invited yet' : 'No mobile'}</span>
               </div>
             ))}
-            {data && shown.length === 0 && (guests.length ? <div className="py-10 px-[18px] text-center text-[var(--adm-muted,#5b6a52)]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
+            {data && shown.length === 0 && (guests.length ? <div className="py-10 px-[18px] text-center text-[var(--adm-muted,#5b6a52)]">No guests match. Clear the search or filters to see everyone.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
           </div>
         </div>
       )}
@@ -415,7 +415,7 @@ function FirstGuests({ onAdd, onImport }: { onAdd: () => void; onImport: () => v
   return (
     <div className="py-10 px-[18px] flex flex-col items-center gap-3 text-center">
       <strong className="text-[17px] font-semibold text-[var(--adm-text,#33402f)]">No guests yet</strong>
-      <span className="text-[15px] text-[var(--adm-muted,#5b6a52)] max-w-[420px]">Add your first household (everyone on one invitation shares a link), or bring your whole list in from a spreadsheet.</span>
+      <span className="text-[15px] text-[var(--adm-muted,#5b6a52)] max-w-[420px]">Add your first household (everyone on one invitation shares a link), bring your whole list in from a spreadsheet, or use Import contacts to pick people from your phone.</span>
       <span className="flex gap-2 flex-wrap justify-center">
         <Pill kind="primary" onClick={onAdd}>
           Add your first guests

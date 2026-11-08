@@ -70,7 +70,7 @@ export function SmsSetup() {
         <div>
           <div className="font-display text-[24px]">{!s.live ? 'Not set up yet' : s.paused ? 'All texts are paused' : 'Texts are live'}</div>
           <div className="text-[14px] text-[#5b6a52]">
-            {!s.live ? 'Add your Mobile Message number below to start sending.' : s.paused ? 'Nothing goes out until you resume. Replies still arrive.' : `Sending from ${s.sender}, ${hourLabel(s.quietStart)} to ${hourLabel(s.quietEnd)} your time.`}
+            {!s.live ? 'Only for automatic texts from a texting number. Sending free from your own phone or by email? You can skip this.' : s.paused ? 'Nothing goes out until you resume. Replies still arrive.' : `Sending from ${s.sender}, ${hourLabel(s.quietStart)} to ${hourLabel(s.quietEnd)} your time.`}
           </div>
         </div>
         {s.live && (
@@ -253,7 +253,7 @@ function TestSend({ wid, hasMobile, connected }: { wid: string; hasMobile: boole
           setBusy(true);
           try {
             const r = await textsApi.test(wid, 'This is a test from your wedding admin. If you got this, texts are working.');
-            toast(r.stopped ? (r.stopped.reason === 'auth' ? 'Not sent: the texting service isn’t connected yet. Use “Text from my own phone” meanwhile.' : r.stopped.reason === 'credits' ? 'Not sent: the texting account is out of credit.' : `Not sent: ${r.stopped.error}`) : 'Test sent to your mobile');
+            toast(r.stopped ? (r.stopped.reason === 'auth' ? 'Not sent: the texting service isn’t connected yet. Choose “Send from my own phone (free)” meanwhile.' : r.stopped.reason === 'credits' ? 'Not sent: the texting account is out of credit.' : `Not sent: ${r.stopped.error}`) : 'Test sent to your mobile');
           } catch (e) {
             toast((e as Error).message);
           } finally {

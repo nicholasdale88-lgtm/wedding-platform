@@ -932,6 +932,59 @@ export interface TestSendResult {
 export const testSendApi = {
   send: (wid: string, b: TestSendIn) => send<TestSendResult>('POST', `${w(wid)}/test-send`, b),
 };
+
+/** The D-Day rehearsal (Account → Rehearsal): the wedding run as a simulation on the real data. Read-only. */
+export type RehearsalStepKey = 'invites' | 'replies' | 'reminders' | 'rsvp' | 'seating' | 'night' | 'morning' | 'ceremony' | 'reception' | 'after';
+export type RehearsalLevel = 'green' | 'amber' | 'red';
+export type RehearsalPersona = 'yes' | 'no' | 'waiting';
+export interface RehearsalFix {
+  tab: string;
+  event?: boolean;
+  query?: string;
+}
+export interface RehearsalCheck {
+  key: string;
+  area: string;
+  level: 'amber' | 'red';
+  title: string;
+  detail: string;
+  fix: RehearsalFix;
+  step: RehearsalStepKey;
+}
+export interface RehearsalMessage {
+  campaignId: string;
+  name: string;
+  sendAt: string | null;
+  enabled: boolean;
+  sent: boolean;
+  quiet: boolean;
+  reach: Record<string, number>;
+  gets: { persona: RehearsalPersona; how: string | null; text: string | null; why: string }[];
+}
+export interface RehearsalStep {
+  key: RehearsalStepKey;
+  label: string;
+  at: string;
+  past: boolean;
+  messages: RehearsalMessage[];
+  guests: { persona: RehearsalPersona; name: string; standIn: boolean; page: { kind: 'invitation' | 'guide' | 'photos'; path: string }; sees: string[] }[];
+  party: string[];
+  coordinator: string[];
+  checks: string[];
+}
+export interface RehearsalData {
+  now: string;
+  asOf: string;
+  current: RehearsalStepKey;
+  timezone: string;
+  steps: RehearsalStep[];
+  manual: { campaignId: string; name: string }[];
+  checks: RehearsalCheck[];
+  areas: { area: string; label: string; level: RehearsalLevel; count: number }[];
+}
+export const rehearsalApi = {
+  get: (wid: string, asOf?: string) => request<RehearsalData>(`${w(wid)}/rehearsal${asOf ? `?asOf=${encodeURIComponent(asOf)}` : ''}`),
+};
 /** Messages to send from the couple's own phone, one guest at a time. */
 export const ownPhoneApi = {
   get: (wid: string) => request<OwnPhoneData>(`${w(wid)}/own-phone`),

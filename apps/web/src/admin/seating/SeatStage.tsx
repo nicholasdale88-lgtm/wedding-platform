@@ -56,7 +56,7 @@ export function StageBar({ stage, data, next, busy, onChoose }: { stage: SeatSta
           onChange={(e) => onChoose((e.target.value || null) as SeatStage | null)}
           className="py-[6px] px-2 rounded-[10px] border border-[#d3c6a4] bg-[#fbf8f2] text-[13px] text-[#33402f]"
         >
-          <option value="">Stage: worked out for me ({SEAT_STAGES.find((x) => x.key === st?.auto)?.label ?? 'Draft'})</option>
+          <option value="">Stage: worked out for me ({SEAT_STAGES.find((x) => x.key === st?.auto)?.label ?? 'Concept plan'})</option>
           {SEAT_STAGES.map((x) => (
             <option key={x.key} value={x.key}>
               Stage: {x.label}

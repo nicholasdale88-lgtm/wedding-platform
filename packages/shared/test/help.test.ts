@@ -13,6 +13,13 @@ describe('help', () => {
     expect(searchHelp('special menus vegan')[0]?.id).toBe('dietary');
     expect(searchHelp('keep apart at tables')[0]?.id).toBe('seating');
     expect(searchHelp('how to make the most of it')[0]?.id).toBe('bestuse');
+    // In couples' own words (docs/UX_AUDIT.md).
+    expect(searchHelp('rehearse my wedding')[0]?.id).toBe('rehearsal');
+    expect(searchHelp('what happens on the day')[0]?.id).toBe('rehearsal');
+    expect(searchHelp('who hasn’t replied')[0]?.id).toBe('invitations');
+    expect(searchHelp('add a bridesmaid')[0]?.id).toBe('party');
+    expect(searchHelp('change the invitation wording')[0]?.id).toBe('start');
+    expect(searchHelp('how do I send invites')[0]?.id).toBe('invitations');
     expect(searchHelp('xyzzy')).toEqual([]);
   });
 

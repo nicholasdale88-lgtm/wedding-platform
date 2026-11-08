@@ -100,8 +100,10 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     if (cond) needsYou.push(item);
   };
 
-  add(!d.wedding.sender, {
-    kind: 'sms-setup', title: 'Texts are not set up yet', detail: 'Add your SMS number under Account so texts really send.', cta: 'Set up', link: 'texts', event: 'all',
+  // Texts go somewhere: a texting number, or the couple chose their own phone or email (both free).
+  const reachable = !!d.wedding.sender || d.wedding.content.sendVia === 'phone' || d.wedding.content.sendVia === 'email';
+  add(!reachable, {
+    kind: 'sms-setup', title: 'Choose how your invitations go', detail: 'Free from your own phone or by email, or a texting number: pick one in Settings → Texting.', cta: 'Set up', link: 'texts', event: 'all',
   });
   add(d.phoneReady, {
     kind: 'own-phone', title: `${d.phoneReady} ${d.phoneReady === 1 ? 'message' : 'messages'} ready to send from your phone`,
@@ -226,7 +228,7 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
       guests: d.guests.length,
       dietary: dietPeople.length,
       autopilot: d.campaigns.filter((c) => c.enabled && c.mode !== 'manual').length,
-      smsLive: !!d.wedding.sender,
+      smsLive: reachable,
       messages: d.inboxNeedsYou, // unread messages from guests (Account → Messages)
     },
   };

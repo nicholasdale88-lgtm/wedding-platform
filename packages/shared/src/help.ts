@@ -40,6 +40,7 @@ export const HELP_PLACES: Record<string, string> = {
   party: 'Wedding party',
   photos: 'Photos',
   settings: 'Settings',
+  rehearsal: 'Rehearsal',
 };
 
 /** The tour for someone new: the guides to play one after another. */
@@ -106,7 +107,7 @@ export const HELP: HelpArticle[] = [
       'Choose a look for the invitation: colours, envelope and wording. Tap Preview to see exactly what guests will get.',
       'Add your guests (see “Adding guests”), then send the invitations from Texts.',
     ],
-    also: 'begin first steps onboarding new',
+    also: 'begin first steps onboarding new invitation design look wording words change edit colours envelope template theme photo music',
     go: { tab: 'pages', event: true },
   },
   {
@@ -131,7 +132,7 @@ export const HELP: HelpArticle[] = [
       'Tap + Add a reminder for a gentle nudge to everyone still to reply, or + Last call before RSVPs close to schedule one a week before your reply-by date.',
       'Every text shows how many it goes to and what it costs before it’s sent. Send me a test sends exactly what a guest gets (filled in with a sample guest, marked TEST) to your own mobile, from your own phone, or to your email; with nothing connected it shows the preview and what to set up. Tests never count against guests or the day’s limits.',
     ],
-    also: 'rsvp sms text message remind nudge reply by deadline last call autopilot own phone my phone free imessage messages app email',
+    also: 'rsvp sms text message remind nudge reply by deadline last call autopilot own phone my phone free imessage messages app email replied hasn’t haven’t not yet waiting outstanding chase test try sample',
     go: { tab: 'texts', event: true },
   },
   {
@@ -242,7 +243,7 @@ export const HELP: HelpArticle[] = [
   },
   {
     id: 'party',
-    title: 'Your wedding party',
+    title: 'Your wedding party: bridesmaids, groomsmen and MC',
     group: 'Planning',
     steps: [
       'Open Wedding party. Under each side, tap + Add, choose their role and type their name: pick them from your guest list, or add someone new (they join the guest list too). In the guest list, a person’s “Wedding party” choice does the same.',
@@ -273,7 +274,7 @@ export const HELP: HelpArticle[] = [
       'Print table numbers or Snap & share cards (Wedding planner → The day → Cards & signs): each has a QR code.',
       'Guests scan it, give their name, pick a frame, and take photos straight into your album. No app needed.',
     ],
-    also: 'camera qr code album frames filters upload drive dropbox onedrive table cards',
+    also: 'camera qr code album frames filters upload drive dropbox onedrive table cards print printing place cards signs welcome sign menu cards',
     go: { tab: 'photos', event: true },
   },
   {
@@ -287,6 +288,20 @@ export const HELP: HelpArticle[] = [
     ],
     also: 'guide night before parking faq menu run sheet directions',
     go: { tab: 'pages', event: true },
+  },
+  {
+    id: 'rehearsal',
+    title: 'Rehearse your wedding day',
+    group: 'On the day',
+    steps: [
+      'Tap Rehearse your wedding day on the Overview (or Take me there below). It runs your whole wedding as a dry run on your real guests, words and settings. Nothing is sent and nothing is saved.',
+      'The Rehearsal checklist shows each area in green, amber or red: texts, replies, seating, the night before, the day, photos and the wedding party. Tap Fix it beside anything that would go wrong.',
+      'Move along the timeline, or tap a moment: invitations out, replies coming in, reminders, replies close, final seating, the night before, the morning, the ceremony, the reception and the day after.',
+      'At each moment you see every message that goes out, in its real words. Choose Said yes, Said no or Not replied to see what that guest gets, and their page as it looks then: their table, meal, night-before guide and photo page.',
+      'It shows what the wedding party and your coordinator see, too. Run it again after each fix until it’s all green, then use Send me a test in Texts to get a real one on your own phone.',
+    ],
+    also: 'rehearse rehearsal dry run practice simulate simulation trial run preview check ready readiness d-day day of what happens happen what will guests see go wrong break timeline before the day final check',
+    go: { tab: 'rehearsal' },
   },
   {
     id: 'calendar',
@@ -421,6 +436,13 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Setup', 'Night-before'], fields: [['Arrive by', '2:30pm'], ['Parking', 'Free, beside the lawn']], rows: ['Run sheet', 'Menu', 'Your FAQ'], tap: 'Save', then: 'Saved ✓' },
     { at: ['Texts'], rows: ['The night before · 6:00pm', 'Goes to everyone coming: 96'], then: 'Each gets their table, the menu and the map' },
     { at: ['Setup', 'Night-before'], fields: [['Question', 'What should I wear?'], ['Answer', 'Cocktail: flats suit the grass']], tap: 'Save', then: 'Texted questions answered from this ✓' },
+  ],
+  rehearsal: [
+    { at: ['Overview'], rows: ['Will it all work on the day?', 'Rehearse your wedding day'], tap: 'Start the rehearsal', then: 'A dry run: nothing is sent' },
+    { at: ['Rehearsal', 'Checklist'], rows: ['● Invitations and texts · Ready', '● Seating · Fix: 1', '12 guests have no table'], tap: 'Fix it', then: 'Straight to Seating' },
+    { at: ['Rehearsal', 'Timeline'], rows: ['Invitations go out', 'Reminders', 'The night before'], tap: 'The night before', then: 'Fri 13 Mar, 5:00pm' },
+    { at: ['Rehearsal', 'Said yes'], rows: ['Hi Jordan, see you tomorrow! Your table, menu and parking…', 'Their table: Table 4'], then: 'Exactly what Jordan gets and sees' },
+    { at: ['Rehearsal'], rows: ['On now: 2:30pm Photos', 'Coordinator has the run sheet'], tap: 'Run it again', then: 'Everything checks out ✓' },
   ],
   calendar: [
     { at: ['Guest’s invitation'], rows: ['Add to calendar'], tap: 'All my events, kept up to date', then: 'In their calendar, updating itself ✓' },

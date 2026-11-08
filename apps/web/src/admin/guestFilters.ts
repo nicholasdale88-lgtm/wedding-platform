@@ -28,7 +28,7 @@ export function quickFilters(events: EventInfo[]): QuickFilter[] {
   );
   return [
     { key: 'all', label: 'All', test: () => true },
-    { key: 'awaiting', label: 'Awaiting', test: isAwaiting },
+    { key: 'awaiting', label: 'Still to reply', test: isAwaiting },
     ...events.map((e) => ({ key: `attending:${e.key}`, label: `${shortLabel(e.name)}: attending`, test: (g: Guest) => attends(g, e.key) })),
     { key: 'declined', label: 'Declined', test: declinedAll },
     ...yesAnswers,

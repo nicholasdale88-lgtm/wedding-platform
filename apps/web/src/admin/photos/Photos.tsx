@@ -208,7 +208,7 @@ export function Photos() {
         })}
       </div>
       {!data.items.length && data.enabled && (
-        <div className="text-[15px] text-[#5b6a52]">No photos yet. The QR code is on every night-before guide, and the "share your photos" text goes out the morning after.</div>
+        <div className="text-[15px] text-[#5b6a52]">No photos yet. The QR code is on every night-before guide and on the table cards you print from Wedding planner → The day → Cards & signs. The "share your photos" text goes out the morning after.</div>
       )}
 
       {/* Set once: where photos are kept, the photo looks, the live wall, sharing the album, WhatsApp import. */}

@@ -524,7 +524,7 @@ export function Members({ d, onChange, sideName, only }: { d: PartyData; onChang
                   </span>
                 </div>
               ))}
-              {!ms.length && <span className="text-[13px] text-[#7a7466]">No one yet.</span>}
+              {!ms.length && <span className="text-[13px] text-[#7a7466]">No one yet. Tap + Add to choose someone.</span>}
               <AddToSide
                 roles={roles.length ? roles : ['MC']}
                 people={people.filter((p) => !inParty.has(p.id))}

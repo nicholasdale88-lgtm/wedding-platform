@@ -123,14 +123,14 @@ export function testSendRoutes(deps: (env: Env) => EngineDeps) {
     if (!(await allow(c.env.DB, `test:${w.id}`, TESTS_PER_DAY, DAY))) return out('preview', `That’s ${TESTS_PER_DAY} tests today, the most for one day. Here’s what it looks like instead.`);
 
     if (channel === 'email') {
-      if (!emailReady(c.env)) return out('preview', 'Email isn’t switched on for the site yet, so here’s exactly what they’d get. (The site owner adds the email service: Resend.)');
+      if (!emailReady(c.env)) return out('preview', 'Email isn’t switched on yet, so here’s exactly what they’d get.');
       const address = await ensureAddress(c.env, w.id).catch(() => '');
       const from = await senderOf(c.env, w.id, address);
       const ok = await sendEmail(c.env, { to: me, from: from.from, replyTo: from.replyTo, subject: preview.subject ?? 'TEST', text: preview.text, html: preview.html ?? plainHtml(preview.text) });
       return ok ? out('sent', `Test email sent to ${me}.`, { to: me }) : out('preview', 'The email service didn’t take it just now. Here’s what it looks like; try again in a minute.');
     }
     const mobile = w.adminMobile;
-    if (!mobile) return out('preview', 'Add your mobile in Settings → Texting to text yourself a test. Here’s exactly what they’d get.');
+    if (!mobile) return out('preview', 'Add your mobile in Settings → Texting (Your numbers) to text yourself a test. Here’s exactly what they’d get.');
     const texts = channel === 'text' && !!w.sender && !w.paused && allows(await weddingPlan(c.env.DB, w.id), 'texts');
     if (texts) {
       const res = await sendTest(d, w.id, mobile, preview.text).catch(() => null);

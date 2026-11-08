@@ -36,7 +36,7 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
     { done: !!(o.wedding.name1.trim() && o.wedding.name2.trim() && first), title: 'Your names and the date', detail: 'As your invitation shows them (in the first event’s Setup).', go: () => to('pages', first) },
     { done: o.events.length > 0, title: 'Your events', detail: 'Each celebration, with its date and place.', go: () => document.getElementById('your-events')?.scrollIntoView({ behavior: 'smooth' }) },
     { done: o.nav.guests > 0, title: 'Your guests', detail: 'Import your list, or add guests one by one.', go: () => to('guests', first) },
-    { done: o.nav.smsLive, title: 'Texting', detail: 'Your SMS number, so invitations and reminders send.', go: () => settings('texting') },
+    { done: o.nav.smsLive, title: 'Texting', detail: 'How invitations go: free from your own phone or by email, or a texting number.', go: () => settings('texting') },
     { done: photos, title: 'Where guests’ photos go', detail: 'Link Google Drive, Dropbox or OneDrive (free).', go: () => to('photos', first) },
     { done: members ? owners > 1 || members.invites.length > 0 : null, title: 'Add your partner or a helper', detail: 'So you can both run it, each with your own sign-in.', go: () => to('settings?view=people&invite=1', ALL_EVENTS) },
     { done: !!o.wedding.private, title: 'Keep it private', detail: 'Pages open only with each guest’s own link.', go: () => settings('privacy') },
@@ -96,6 +96,8 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
       </div>
 
       <NeedsYou o={o} to={to} />
+
+      <RehearseCard to={to} />
 
       <section id="your-events" aria-label="Your events" className="flex flex-col gap-3">
         <H2>Your events</H2>
@@ -164,6 +166,18 @@ export function NeedsYou({ o, to }: { o: Overview; to: To }) {
       ))}
       {o.needsYou.length === 0 && <div className="py-4 border-t border-[#e2d7bc] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>}
     </section>
+  );
+}
+
+/** The D-Day rehearsal, one tap from each Overview: the whole wedding as a dry run, nothing sent. */
+export function RehearseCard({ to }: { to: To }) {
+  return (
+    <button type="button" onClick={() => to('rehearsal', ALL_EVENTS)} className="flex flex-col gap-1 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6]">
+      <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Will it all work on the day?</span>
+      <span className="font-display text-[26px] leading-tight">Rehearse your wedding day</span>
+      <span className="text-[14px] text-[#5b6a52]">Run the whole thing with your real guests: every text, each guest’s page and anything that would go wrong, from the invitations to the morning after. Nothing is sent.</span>
+      <span className="text-[13px] font-medium underline">Start the rehearsal</span>
+    </button>
   );
 }
 

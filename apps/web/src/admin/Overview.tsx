@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtWhen, shortLabel } from '../lib/format';
-import { AccountHome, NeedsYou } from './AccountHome';
+import { AccountHome, NeedsYou, RehearseCard } from './AccountHome';
 import { Hub } from './hub/Hub';
 import { useAdmin, useSectionOverview } from './Shell';
 import { ErrorState, Eyebrow, H2, Loading, useMedia, useToast } from './ui';
@@ -73,6 +73,8 @@ export function Overview() {
 
       <NeedsYou o={o} to={to} />
 
+      <RehearseCard to={to} />
+
       <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-[34px]">
         <section className="flex flex-col" aria-label="Latest replies">
           <div className="mb-2"><H2>Latest replies</H2></div>
@@ -122,6 +124,12 @@ function Today({ o, to, event }: { o: NonNullable<ReturnType<typeof useAdmin>['o
   const toast = useToast();
   const unread = o.nav.messages ?? 0;
   const share = async () => {
+    // A private wedding's page opens only with each guest's own link: the shared address would say "private".
+    if (o.wedding.private) {
+      toast('Your invitation is private, so each guest needs their own link: tap a guest in the Guest list to share theirs.');
+      to('guests', event);
+      return;
+    }
     const url = `${window.location.origin}/w/${o.wedding.slug}/`;
     try {
       if (navigator.share) await navigator.share({ title: 'Our wedding', url });

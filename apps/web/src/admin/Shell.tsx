@@ -113,6 +113,7 @@ export const TABS = [
   { key: 'seating', label: 'Seating' },
   { key: 'events', label: 'Events' },
   { key: 'look', label: 'Admin look' }, // now Settings → Admin look
+  { key: 'rehearsal', label: 'Rehearsal' }, // the D-Day dry run: linked from the Overviews and Help
 ] as const;
 /** Pages reached inside Guest planning: the menu shows them as that one entry. */
 const navKey = (tab: string) => (tab === 'dietary' || tab === 'seating' ? 'guests' : tab);

@@ -4,6 +4,7 @@ import { playerFor } from '../audio';
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { SECTION_PARTS } from '../generated/InvitationView.meta';
 import type { ViewValues } from '../types';
+import { previewNow } from '../previewClock';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
 import { openingOf, openingTimes, openingValues, prefersLessMotion } from './openings';
 import { shownRows, TIMELINE_ROWS, TimelineRows } from './Timeline';
@@ -114,7 +115,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   const [dressIn, setDressIn] = useState(false);
   const [fanSel, setFanSel] = useState<number | null>(null);
   const [cue, setCue] = useState({ sc: false, end: false, dark: false });
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => previewNow());
   const [texts] = useState(data.texts);
   const fanTouched = useRef(false);
   const sending = useRef(false);
@@ -191,7 +192,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   }, [openKey, preview]);
 
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const id = setInterval(() => setNow(previewNow()), 1000);
     const dress = setTimeout(() => setDressIn(true), 600);
     return () => {
       clearInterval(id);

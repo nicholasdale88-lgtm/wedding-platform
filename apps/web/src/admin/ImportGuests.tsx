@@ -53,7 +53,7 @@ export function ImportGuests({ events, onClose, onDone, focus }: { events: Event
     setBusy(true);
     try {
       const r = await api.importGuests(wid, scoped(rows), false);
-      toast(`Added ${r.added} ${r.added === 1 ? 'invitation' : 'invitations'}${r.skipped.length ? `, skipped ${r.skipped.length} already on your list` : ''}`);
+      toast(`Added ${r.added} ${r.added === 1 ? 'invitation' : 'invitations'}${r.skipped.length ? `, skipped ${r.skipped.length} already on your list` : ''}. Next: Texts, to choose how their invitations go`);
       await onDone();
       onClose();
     } catch (e) {

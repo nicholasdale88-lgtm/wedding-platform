@@ -512,7 +512,7 @@ function SeatingPlan() {
     const ppl = s.people.map((p) => ({ ...p, coming: canSeat(p) }));
     const r = suggestSeating(ppl, tables, seatRules.rules);
     if (!r.seated) {
-      toast(r.notes[0] ?? 'Nobody to seat yet.');
+      toast(r.notes[0] ?? 'Nobody to seat yet: add guests, or choose Everyone invited to start a concept plan.');
       return;
     }
     const line = compareLine(planSummary(ppl, tables, seats, seatRules.rules), planSummary(ppl, tables, r.seats, seatRules.rules));
