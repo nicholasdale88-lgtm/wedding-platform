@@ -88,6 +88,8 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     return {
       version: w.version,
       provider: texto ? 'Texto' : 'Mobile Message',
+      // The site's own texting account: without its key nothing can be texted automatically (send from your own phone or by email meanwhile).
+      connected: texto ? !!c.env.TEXTO_API_KEY : !!(c.env.MM_USER && c.env.MM_PASS),
       live: !!w.sms_sender,
       sender: w.sms_sender ? displayPhone(w.sms_sender) : '',
       adminMobile: w.admin_mobile ? displayPhone(w.admin_mobile) : '',

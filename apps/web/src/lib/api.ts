@@ -315,6 +315,8 @@ export interface SettingsData {
   version: number;
   /** Which SMS service sends (set by the platform: SMS_PROVIDER). */
   provider: string;
+  /** False when the site's texting account has no key yet (nothing can be texted automatically). */
+  connected?: boolean;
   live: boolean;
   sender: string;
   adminMobile: string;
@@ -594,6 +596,8 @@ export const plannerApi = {
     return send<{ id: string; name: string; where?: string }>('POST', `${w(wid)}/planner/files`, { name: file.name.slice(0, 160), type: file.type, data: btoa(bin) });
   },
   fileUrl: (wid: string, id: string) => `/api${w(wid)}/planner/files/${encodeURIComponent(id)}`,
+  /** The ceremony page's people: who's signed in (private vows), their role and relation, and the celebrant(s). */
+  ceremonyPeople: (wid: string) => request<{ me: string; role: Role; relation: string; celebrants: { name: string; email: string }[] }>(`${w(wid)}/planner/ceremony/people`),
   readQuote: (wid: string, id: string) =>
     send<{ amount: number; deposit: number; validUntil: string; date: string; includes: string; excludes: string; extract: string }>('POST', `${w(wid)}/planner/files/${encodeURIComponent(id)}/read`, {}),
   compare: (wid: string, vendorIds: string[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/compare`, { vendorIds }),

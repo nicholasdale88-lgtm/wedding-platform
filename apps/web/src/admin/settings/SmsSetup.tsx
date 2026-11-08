@@ -87,13 +87,21 @@ export function SmsSetup() {
           title="Your numbers"
           now={s.live ? `Guests text ${s.sender} · replies that need you go to ${s.adminMobile || 'nobody yet'}` : 'Add your number and your mobile to start (then send yourself a test)'}
         >
+          {s.connected === false && (
+            <div role="status" className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
+              <strong>Automatic texts aren’t switched on for this site yet.</strong>
+              <span>
+                The site’s texting service ({s.provider}) isn’t connected, so a test can’t go out. You don’t need it to start: send every guest their invitation free from your own phone (Guests → More → Text from my own phone), or by email from your wedding’s address. Replies still land in your guest list.
+              </span>
+            </div>
+          )}
           <Label text={`Your ${s.provider} number (guests see this and reply to it)`}>
             <input value={val('sender')} onChange={(e) => edit({ sender: e.target.value })} placeholder="04xx xxx xxx" className={inputCls} />
           </Label>
           <Label text="Your mobile (replies that need you are forwarded here; tests go here)">
             <input value={val('adminMobile')} onChange={(e) => edit({ adminMobile: e.target.value })} placeholder="04xx xxx xxx" className={inputCls} />
           </Label>
-          <TestSend wid={wid} hasMobile={!!s.adminMobile} />
+          <TestSend wid={wid} hasMobile={!!s.adminMobile} connected={s.connected !== false} />
         </Rollup>
 
         <Rollup step={2} title="When texts go out" now={`${hourLabel(s.quietStart)} to ${hourLabel(s.quietEnd)} your time · up to ${s.dailyCap} a day · with the opt-out line`}>
@@ -234,18 +242,18 @@ export function Backup() {
   );
 }
 
-function TestSend({ wid, hasMobile }: { wid: string; hasMobile: boolean }) {
+function TestSend({ wid, hasMobile, connected }: { wid: string; hasMobile: boolean; connected: boolean }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <Pill
-        disabled={busy || !hasMobile}
+        disabled={busy || !hasMobile || !connected}
         onClick={async () => {
           setBusy(true);
           try {
             const r = await textsApi.test(wid, 'This is a test from your wedding admin. If you got this, texts are working.');
-            toast(r.stopped ? `Not sent: ${r.stopped.error}` : 'Test sent to your mobile');
+            toast(r.stopped ? (r.stopped.reason === 'auth' ? 'Not sent: the texting service isn’t connected yet. Use “Text from my own phone” meanwhile.' : r.stopped.reason === 'credits' ? 'Not sent: the texting account is out of credit.' : `Not sent: ${r.stopped.error}`) : 'Test sent to your mobile');
           } catch (e) {
             toast((e as Error).message);
           } finally {
@@ -255,7 +263,11 @@ function TestSend({ wid, hasMobile }: { wid: string; hasMobile: boolean }) {
       >
         Send a test to my mobile
       </Pill>
-      {!hasMobile && <span className="text-[13px] text-[#7a7466]">Save your mobile first.</span>}
+      {!connected ? (
+        <span className="text-[13px] text-[#7a7466]">Not available until the texting service is connected.</span>
+      ) : (
+        !hasMobile && <span className="text-[13px] text-[#7a7466]">Save your mobile first.</span>
+      )}
     </div>
   );
 }
