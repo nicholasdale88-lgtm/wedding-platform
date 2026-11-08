@@ -35,6 +35,7 @@ import m0032 from '../../migrations/0032_platform_setting.sql?raw';
 import m0033 from '../../migrations/0033_feedback.sql?raw';
 import m0034 from '../../migrations/0034_staff.sql?raw';
 import m0035 from '../../migrations/0035_email_out.sql?raw';
+import m0036 from '../../migrations/0036_help_audio.sql?raw';
 import { CAMPAIGNS, phoneOf, SENDER, ADMIN } from './fixture';
 import { TZ } from './fakes';
 
@@ -42,7 +43,7 @@ import { TZ } from './fakes';
 export async function testD1() {
   const mf = new Miniflare({ modules: true, script: 'export default {}', d1Databases: { DB: crypto.randomUUID() } });
   const db = (await mf.getD1Database('DB')) as unknown as D1Database;
-  for (const stmt of [m0001, m0002, m0003, m0004, m0005, m0006, m0007, m0008, m0009, m0010, m0011, m0012, m0013, m0014, m0015, m0016, m0017, m0018, m0019, m0020, m0021, m0022, m0023, m0024, m0025, m0026, m0027, m0028, m0029, m0030, m0031, m0032, m0033, m0034, m0035].flatMap(statements)) await db.prepare(stmt).run();
+  for (const stmt of [m0001, m0002, m0003, m0004, m0005, m0006, m0007, m0008, m0009, m0010, m0011, m0012, m0013, m0014, m0015, m0016, m0017, m0018, m0019, m0020, m0021, m0022, m0023, m0024, m0025, m0026, m0027, m0028, m0029, m0030, m0031, m0032, m0033, m0034, m0035, m0036].flatMap(statements)) await db.prepare(stmt).run();
   return { db, dispose: () => mf.dispose() };
 }
 

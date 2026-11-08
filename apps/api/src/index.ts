@@ -37,6 +37,7 @@ import { coordinatorAdminRoutes, coordinatorPageRoutes } from './routes/coordina
 import { plannerCalendarAdminRoutes, plannerCalendarFeed } from './routes/plannerCalendar';
 import { paymentReminderRoutes, runPaymentReminders } from './routes/paymentReminders';
 import { myTaskRoutes } from './routes/myTasks';
+import { helpRoutes } from './routes/help';
 import { directoryRoutes, vendorAccountRoutes } from './routes/vendorListings';
 import { manifestRoutes } from './routes/manifest';
 import { partyAccountRoutes, partyPortalRoutes } from './routes/partyPortal';
@@ -59,6 +60,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/company', companyRoutes());
   app.route('/a/staff-join', staffJoinRoutes());
   app.route('/site', siteRoutes());
+  app.route('/a/help', helpRoutes());
   app.route('/a', planRoutes());
   app.route('/a', billingRoutes());
   app.route('/a', authRoutes());

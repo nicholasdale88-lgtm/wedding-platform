@@ -34,6 +34,7 @@ A step-by-step list of every account this platform uses, in the order you'll nee
    - Go to **My Profile → API Tokens → Create Token**.
    - Use the **"Edit Cloudflare Workers"** template.
    - Add these permissions: **Account → D1 → Edit**, **Account → Workers R2 Storage → Edit**, **Account → Cloudflare Pages → Edit**.
+   - Optional, free: **Account → Workers AI → Read** (or Edit). It switches on the planning assistant and Help's natural narration voice (Workers AI text to speech, within the free daily allowance; each spoken line is made once and kept in the database, so replays are free). Without it, Help uses the device's own voice.
    - Account Resources: your account. Zone Resources: **All zones** (or just your domain once you have one).
    - Click **Continue → Create Token** and copy the token. It's shown **once only**.
 4. **Put both into GitHub, not into chat:**

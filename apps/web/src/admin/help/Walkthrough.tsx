@@ -1,55 +1,111 @@
-import { HELP_PLACES, HELP_SCENES, videoEmbed, type HelpArticle, type HelpScene } from '@wp/shared';
+import { HELP_PLACES, HELP_SCENES, helpSayLine, helpVoiceUrl, speakable, videoEmbed, type HelpArticle, type HelpScene } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+
+const SPEEDS = [0.9, 1, 1.25] as const;
+const remembered = (key: string, fallback: string) => {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
+const remember = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* private browsing: just this time */
+  }
+};
 
 /**
  * Help's video walkthroughs. A recorded video plays when a guide has one (`video`); otherwise an animated
  * walkthrough plays like a short video. For each step the phone shows that step's own screen (HELP_SCENES):
  * the menu item and page tab lit up, what's on the page, the fields being typed into, the button being
- * tapped and what happens. The step is the caption, with a progress bar per step, narrated (the most natural
- * voice the device has, free; on unless turned off). At the end: Take me there. Several guides in a row make the tour.
+ * tapped and what happens. The step is on screen, with a progress bar per step, and it's narrated in a
+ * natural voice (HELP_SAY, recorded once by Workers AI and kept: /api/a/help/voice), with captions. The
+ * phone's animation stretches to fit the voice, and the next step's voice loads while this one plays. No
+ * natural voice (not switched on, or it fails): the device's best voice reads the same words, and with no
+ * voice at all it plays on by itself. At the end: Take me there. Several guides in a row make the tour.
  */
 export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[]; where: (a: HelpArticle) => string; onClose: () => void }) {
   const scenes = guides.flatMap((a) => [{ a, step: -1 }, ...a.steps.map((_, step) => ({ a, step }))]);
   const [at, setAt] = useState(0);
   const [playing, setPlaying] = useState(true);
-  // Narrated by default (the device's most natural voice), unless they turned it off before. A device with
-  // no voice plays it silent, moving on by itself.
-  const [voice, setVoiceState] = useState(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return false;
-    try {
-      return localStorage.getItem('wp-help-voice') !== 'off';
-    } catch {
-      return true;
-    }
-  });
+  // Narrated by default, unless they turned it off before.
+  const [voice, setVoiceState] = useState(() => remembered('wp-help-voice', 'on') !== 'off');
   const setVoice = (on: boolean) => {
     setVoiceState(on);
-    try {
-      localStorage.setItem('wp-help-voice', on ? 'on' : 'off');
-    } catch {
-      /* private browsing: just this time */
-    }
+    remember('wp-help-voice', on ? 'on' : 'off');
   };
+  const [speed, setSpeedState] = useState<number>(() => SPEEDS.find((s) => String(s) === remembered('wp-help-speed', '1')) ?? 1);
+  const setSpeed = (s: number) => {
+    setSpeedState(s);
+    remember('wp-help-speed', String(s));
+  };
+  const [captions, setCaptionsState] = useState(() => remembered('wp-help-captions', 'on') !== 'off');
+  const setCaptions = (on: boolean) => {
+    setCaptionsState(on);
+    remember('wp-help-captions', on ? 'on' : 'off');
+  };
+  // The natural voice, until it turns out not to be there (then the device's voice for the rest); a step
+  // whose recording fails on its own is read by the device's voice, and the next step tries again.
+  const [natural, setNatural] = useState(true);
+  const [deviceFor, setDeviceFor] = useState<number | null>(null);
+  const [voiceMs, setVoiceMs] = useState<number | null>(null); // how long this step's recording plays
   const [left, setLeft] = useState(1); // share of this scene still to play
   const closeRef = useRef<HTMLButtonElement>(null);
   const done = at >= scenes.length;
   const scene = scenes[Math.min(at, scenes.length - 1)]!;
   const text = scene.step < 0 ? scene.a.title : scene.a.steps[scene.step]!;
+  const said = speakable(helpSayLine(scene.a.id, scene.step) ?? text);
+  const url = helpVoiceUrl(scene.a.id, scene.step);
   const recorded = guides.length === 1 ? videoEmbed(guides[0]!.video) : null;
   const still = typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
   const shot = scene.step >= 0 ? HELP_SCENES[scene.a.id]?.[scene.step] : undefined;
+  const hasSpeech = typeof speechSynthesis !== 'undefined';
+  const mode: 'natural' | 'device' | 'quiet' = !voice || recorded || done ? 'quiet' : natural && url && deviceFor !== at ? 'natural' : hasSpeech ? 'device' : 'quiet';
+  // The phone's animation, stretched to the length of the voice (never rushed).
+  const pace = shot && voiceMs ? Math.min(3, Math.max(1, (voiceMs * 0.85) / playOut(shot).end)) : 1;
   // Long enough to read (about a third of a second a word) and to watch the step play out on the phone.
-  const ms = scene.step < 0 ? 2600 : Math.max(4500, text.split(/\s+/).length * 330, shot ? playOut(shot).end + 1800 : 0);
+  const ms = (scene.step < 0 ? 2600 : Math.max(4500, text.split(/\s+/).length * 330, shot ? playOut(shot).end + 1800 : 0)) / speed;
   const voices = useVoices();
   const [voiceName, setVoiceName] = useState('');
   const chosen = voices.find((v) => v.name === voiceName) ?? voices[0];
   const shownAt = useRef(Date.now());
   shownAt.current = useMemo(() => Date.now(), [at]); // eslint-disable-line
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const resume = useRef<{ at: number; t: number } | null>(null);
+  const loaded = useRef(new Map<string, Promise<string>>());
   const go = useCallback((n: number) => {
     setAt(Math.max(0, Math.min(n, scenes.length)));
     setLeft(1);
+    setVoiceMs(null);
+    resume.current = null;
   }, [scenes.length]);
+
+  /** A recording, fetched once (the browser keeps it a week) and played from memory. */
+  const load = useCallback((src: string) => {
+    let p = loaded.current.get(src);
+    if (!p) {
+      p = fetch(src, { credentials: 'same-origin' })
+        .then((r) => {
+          if (!r.ok) throw Object.assign(new Error('voice'), { status: r.status });
+          return r.blob();
+        })
+        .then((b) => URL.createObjectURL(b));
+      loaded.current.set(src, p);
+      p.catch(() => loaded.current.delete(src));
+    }
+    return p;
+  }, []);
+  useEffect(
+    () => () => {
+      audioRef.current?.pause();
+      for (const p of loaded.current.values()) p.then((u) => URL.revokeObjectURL(u)).catch(() => undefined);
+    },
+    [],
+  );
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -68,9 +124,9 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
     return () => window.removeEventListener('keydown', onKey);
   }, [at, go, onClose]);
 
-  // The clock: ticks the progress bar, then moves on (with the voice on, when it has finished speaking).
+  // The clock with no voice: ticks the progress bar, then moves on.
   useEffect(() => {
-    if (recorded || done || !playing || voice) return;
+    if (recorded || done || !playing || mode !== 'quiet') return;
     const started = Date.now() - (1 - left) * ms;
     const id = window.setInterval(() => {
       const share = 1 - (Date.now() - started) / ms;
@@ -78,31 +134,114 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
       else setLeft(share);
     }, 80);
     return () => window.clearInterval(id);
-  }, [at, playing, voice, done, recorded, ms]);
+  }, [at, playing, mode, done, recorded, ms]); // eslint-disable-line
 
+  // Move on once the voice has finished and the phone has finished showing the step.
+  const afterVoice = useCallback(
+    (then: () => void) => {
+      const rest = (shot ? playOut(shot, pace).end + 1200 : 0) - (Date.now() - shownAt.current);
+      return setTimeout(then, Math.max(600, rest));
+    },
+    [shot, pace],
+  );
+  // The latest timing, read when the voice ends (so the phone's timing settling never restarts the voice).
+  const afterRef = useRef(afterVoice);
+  afterRef.current = afterVoice;
+
+  // The natural voice: this step's recording, the progress bar following it.
   useEffect(() => {
-    if (recorded || done || !playing || !voice || typeof speechSynthesis === 'undefined') return;
-    const u = new SpeechSynthesisUtterance(text.replace(/[“”]/g, '').replace(/→/g, ', then '));
+    if (mode !== 'natural' || !playing || !url) return;
+    let off = false;
+    let wait: ReturnType<typeof setTimeout> | undefined;
+    const a = (audioRef.current ??= new Audio());
+    const fail = (status?: number) => {
+      if (off) return;
+      // Not there at all (not switched on, signed out): the device's voice from now on. Otherwise just this step.
+      if (status === 503 || status === 401 || status === 403 || status === 404) setNatural(false);
+      else setDeviceFor(at);
+    };
+    load(url)
+      .then((src) => {
+        if (off) return;
+        a.onloadedmetadata = () => {
+          if (Number.isFinite(a.duration)) setVoiceMs((a.duration * 1000) / speed);
+          if (resume.current?.at === at) a.currentTime = resume.current.t;
+        };
+        a.ontimeupdate = () => {
+          if (a.duration) setLeft(1 - a.currentTime / a.duration);
+        };
+        a.onended = () => {
+          resume.current = null;
+          setLeft(0);
+          wait = afterRef.current(() => go(at + 1));
+        };
+        a.onerror = () => fail();
+        // Paused after it had finished: just carry on to the next step.
+        if (a.src === src && a.ended) {
+          wait = afterRef.current(() => go(at + 1));
+          return;
+        }
+        if (a.src !== src) a.src = src;
+        else if (resume.current?.at === at) a.currentTime = resume.current.t;
+        a.playbackRate = speed;
+        a.play()?.catch((e: Error) => {
+          if (off) return;
+          // The browser wants a tap first: pause, and Play starts it.
+          if (e?.name === 'NotAllowedError') setPlaying(false);
+          else if (e?.name !== 'AbortError') fail();
+        });
+      })
+      .catch((e: { status?: number }) => fail(e?.status));
+    return () => {
+      off = true;
+      clearTimeout(wait);
+      if (!a.ended && a.currentTime > 0) resume.current = { at, t: a.currentTime };
+      a.onloadedmetadata = a.ontimeupdate = a.onended = a.onerror = null;
+      a.pause();
+    };
+  }, [mode, playing, url, at, speed, load, go]);
+
+  // While one step plays, the next step's recording loads.
+  useEffect(() => {
+    if (mode !== 'natural') return;
+    const next = scenes[at + 1];
+    const src = next && helpVoiceUrl(next.a.id, next.step);
+    if (src) load(src).catch(() => undefined);
+  }, [at, mode]); // eslint-disable-line
+
+  // The device's own voice, when there's no natural one.
+  useEffect(() => {
+    if (mode !== 'device' || !playing) return;
+    const u = new SpeechSynthesisUtterance(said);
     if (chosen) u.voice = chosen;
     u.lang = chosen?.lang ?? 'en-AU';
-    u.rate = 0.97;
-    // Move on when it's said and the phone has finished showing the step.
+    u.rate = 0.97 * speed;
     let wait: ReturnType<typeof setTimeout> | undefined;
-    u.onend = () => {
-      const rest = (shot ? playOut(shot).end + 1200 : 0) - (Date.now() - shownAt.current);
-      wait = setTimeout(() => go(at + 1), Math.max(600, rest));
+    // Said, or the speech failed (blocked, no voice): move on either way.
+    const next = () => {
+      wait = afterRef.current(() => go(at + 1));
     };
+    u.onend = next;
+    u.onerror = next;
     speechSynthesis.cancel();
     speechSynthesis.speak(u);
     setLeft(0.5);
     return () => {
       u.onend = null;
-      u.onerror = u.onend; // speech that fails (blocked, no voice) moves on too
+      u.onerror = null;
       clearTimeout(wait);
       speechSynthesis.cancel();
     };
-  }, [at, playing, voice, done, recorded, text, go, chosen, shot]);
+  }, [at, playing, mode, said, go, chosen, speed]);
   useEffect(() => () => void (typeof speechSynthesis !== 'undefined' && speechSynthesis.cancel()), []);
+
+  /** Play pressed: start the recording inside the tap itself, which phones ask for before sound plays. */
+  const play = () => {
+    if (done) go(0);
+    const next = done || !playing;
+    if (next && mode === 'natural' && audioRef.current?.src) audioRef.current.play()?.catch(() => undefined);
+    setPlaying(next);
+  };
 
   const last = guides[guides.length - 1]!;
   const place = HELP_PLACES[scene.a.go.tab] ?? 'Menu';
@@ -136,7 +275,7 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
               ))}
             </div>
             <div className="flex-1 grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] max-[560px]:grid-cols-1 gap-6 items-center px-6 py-6 min-h-[340px]">
-              <Phone key={at} place={place} view={view} step={scene.step} still={still} shot={done ? undefined : shot} playing={playing} />
+              <Phone key={at} place={place} view={view} step={scene.step} still={still} shot={done ? undefined : shot} playing={playing} pace={pace} />
               <div aria-live="polite" className="flex flex-col gap-3 max-[560px]:text-center">
                 {done ? (
                   <>
@@ -162,37 +301,45 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
                 )}
               </div>
             </div>
+            {/* Captions: the words being said. */}
+            {voice && captions && !done && (
+              <p aria-hidden data-testid="captions" className="mx-4 mb-3 py-2 px-4 rounded-[10px] bg-[rgba(0,0,0,.35)] text-[15px] leading-snug text-center text-[#fbf8f2]">
+                {said}
+              </p>
+            )}
             <div className="flex items-center justify-between gap-2 flex-wrap px-4 pb-4">
               <div className="flex gap-2">
                 <Ctl label="Back" onClick={() => go(at - 1)} disabled={at === 0}>
                   ‹
                 </Ctl>
-                <Ctl label={playing ? 'Pause' : 'Play'} onClick={() => {
-                    if (done) go(0);
-                    setPlaying(done || !playing);
-                  }}>
+                <Ctl label={playing ? 'Pause' : 'Play'} onClick={play}>
                   {done ? '↺' : playing ? '❚❚' : '▶'}
                 </Ctl>
                 <Ctl label="Next" onClick={() => go(at + 1)} disabled={done}>
                   ›
                 </Ctl>
               </div>
-              {typeof speechSynthesis !== 'undefined' && (
-                <span className="flex items-center gap-2 flex-wrap">
-                  {voice && voices.length > 1 && (
-                    <select aria-label="Voice" value={chosen?.name ?? ''} onChange={(e) => setVoiceName(e.target.value)} className="max-w-[180px] py-[7px] px-2 rounded-full bg-[#2a2f27] text-[#fbf8f2] border border-[rgba(255,255,255,.25)] text-[13px]">
-                      {voices.slice(0, 8).map((v) => (
-                        <option key={v.name} value={v.name}>
-                          {v.name.replace(/^(Microsoft|Google)\s+/, '').replace(/\s*-\s*English.*$/, '')}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  <button type="button" aria-pressed={voice} onClick={() => setVoice(!voice)} className={`py-[8px] px-4 rounded-full border text-[14px] cursor-pointer ${voice ? 'bg-[#e9c97c] text-[#1d211b] border-[#e9c97c]' : 'bg-transparent text-[#fbf8f2] border-[rgba(255,255,255,.3)]'}`}>
-                    {voice ? '🔊 Reading aloud' : '🔈 Read it aloud'}
-                  </button>
-                </span>
-              )}
+              <span className="flex items-center gap-2 flex-wrap">
+                {/* The device's voices, only when it's reading (no natural voice). */}
+                {mode === 'device' && voices.length > 1 && (
+                  <select aria-label="Voice" value={chosen?.name ?? ''} onChange={(e) => setVoiceName(e.target.value)} className="max-w-[160px] py-[7px] px-2 rounded-full bg-[#2a2f27] text-[#fbf8f2] border border-[rgba(255,255,255,.25)] text-[13px]">
+                    {voices.slice(0, 8).map((v) => (
+                      <option key={v.name} value={v.name}>
+                        {v.name.replace(/^(Microsoft|Google)\s+/, '').replace(/\s*-\s*English.*$/, '')}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <button type="button" aria-label={`Speed: ${speed}×`} onClick={() => setSpeed(SPEEDS[(SPEEDS.indexOf(speed as (typeof SPEEDS)[number]) + 1) % SPEEDS.length]!)} className="min-w-[56px] py-[8px] px-3 rounded-full border border-[rgba(255,255,255,.3)] bg-transparent text-[#fbf8f2] text-[14px] cursor-pointer">
+                  {speed}×
+                </button>
+                <button type="button" aria-pressed={captions} aria-label="Captions" onClick={() => setCaptions(!captions)} className={`py-[8px] px-3 rounded-full border text-[13px] font-semibold cursor-pointer ${captions ? 'bg-[#fbf8f2] text-[#1d211b] border-[#fbf8f2]' : 'bg-transparent text-[#fbf8f2] border-[rgba(255,255,255,.3)]'}`}>
+                  CC
+                </button>
+                <button type="button" aria-pressed={voice} onClick={() => setVoice(!voice)} className={`py-[8px] px-4 rounded-full border text-[14px] cursor-pointer ${voice ? 'bg-[#e9c97c] text-[#1d211b] border-[#e9c97c]' : 'bg-transparent text-[#fbf8f2] border-[rgba(255,255,255,.3)]'}`}>
+                  {voice ? '🔊 Reading aloud' : '🔈 Read it aloud'}
+                </button>
+              </span>
             </div>
           </>
         )}
@@ -239,10 +386,10 @@ function useVoices() {
 }
 
 /** When each part of a step plays on the phone (ms from the start): each field typed in turn, then the tap, then what happens. */
-function playOut(shot: HelpScene) {
-  const fields = (shot.fields ?? []).map((_, i) => 500 + i * 1500);
-  const tap = 500 + (shot.fields?.length ?? 0) * 1500 + (shot.fields?.length ? 300 : 700);
-  const then = shot.tap ? tap + 1100 : tap;
+function playOut(shot: HelpScene, pace = 1) {
+  const fields = (shot.fields ?? []).map((_, i) => (500 + i * 1500) * pace);
+  const tap = (500 + (shot.fields?.length ?? 0) * 1500 + (shot.fields?.length ? 300 : 700)) * pace;
+  const then = shot.tap ? tap + 1100 * pace : tap;
   return { fields, tap, then, end: shot.then ? then + 600 : tap + 900 };
 }
 
@@ -250,7 +397,7 @@ function playOut(shot: HelpScene) {
  * The phone: the admin's menu with the right place lit up, the page's own tab, and the step played out on
  * the page itself: its rows, the fields being typed into, the button pressed, then what happens.
  */
-function Phone({ place, view, step, still, shot, playing }: { place: string; view?: string; step: number; still: boolean; shot?: HelpScene; playing: boolean }) {
+function Phone({ place, view, step, still, shot, playing, pace = 1 }: { place: string; view?: string; step: number; still: boolean; shot?: HelpScene; playing: boolean; pace?: number }) {
   const [t, setT] = useState(still ? 1e9 : 0);
   useEffect(() => {
     if (still || !playing) return;
@@ -261,7 +408,7 @@ function Phone({ place, view, step, still, shot, playing }: { place: string; vie
   const at = shot?.at ?? [place, ...(view ? [view[0]!.toUpperCase() + view.slice(1)] : [])];
   const top = at[0]!;
   const menu = [...new Set(['Overview', top, top === 'Guest list' ? 'Texts' : 'Guest list'])].slice(0, 3);
-  const plan = shot ? playOut(shot) : null;
+  const plan = shot ? playOut(shot, pace) : null;
   const typed = (i: number, value: string) => {
     if (!plan) return value;
     const share = Math.max(0, Math.min(1, (t - plan.fields[i]!) / 1100));

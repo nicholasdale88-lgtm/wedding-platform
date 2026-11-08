@@ -13,6 +13,7 @@ export * from './seatRules';
 export * from './planner';
 export * from './seatStage';
 export * from './help';
+export * from './helpSay';
 export * from './plan';
 export * from './directory';
 export * from './company';

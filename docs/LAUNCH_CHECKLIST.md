@@ -35,8 +35,12 @@ admin then shows each one as working.
    `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `DROPBOX_APP_KEY`/`DROPBOX_APP_SECRET`,
    `MS_CLIENT_ID`/`MS_CLIENT_SECRET` (docs/SETUP_ACCOUNTS.md → "Photo storage links"). Google needs its
    app verified before strangers can connect (allow a few days); Dropbox and OneDrive are quicker.
-9. **The planning assistant.** Add the Workers AI permission to the Cloudflare API token used by the
-   deploy (free daily allowance).
+9. **The planning assistant and Help's natural voice.** Add the Workers AI permission to the Cloudflare
+   API token used by the deploy (free daily allowance). The same permission gives Help's walkthroughs a
+   natural Australian voice (Deepgram Aura 2 "Theia" on Workers AI). Each spoken line is made once and
+   kept in the database (`help_audio`), so replays cost nothing; new lines are capped at about 3,500
+   characters a day to stay inside the free allowance (all the guides are recorded within a few days of
+   people watching them). Until then, or without the permission, the device's own voice reads the same words.
 
 ## Try it yourself once everything's on (20 minutes)
 

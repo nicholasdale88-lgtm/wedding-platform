@@ -654,3 +654,14 @@ export const staffInvite = sqliteTable('staff_invite', {
   expiresAt: text('expires_at').notNull(),
   createdAt: text('created_at').notNull(),
 });
+
+// migration 0036: Help's walkthrough narration (Workers AI text to speech), made once per line and kept
+export const helpAudio = sqliteTable('help_audio', {
+  key: text('key').primaryKey(),
+  model: text('model').notNull(),
+  speaker: text('speaker').notNull(),
+  chars: integer('chars').notNull(),
+  mime: text('mime').notNull(),
+  audio: blob('audio').notNull(),
+  createdAt: text('created_at').notNull(),
+});
