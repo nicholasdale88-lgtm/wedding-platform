@@ -1,4 +1,4 @@
-import { chargeCents, dateIn, FeedbackIn, FeedbackUpdate, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { basQuarter, chargeCents, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -32,7 +32,7 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
-export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos', schema: S): Promise<z.output<S>> {
+export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
   try {
@@ -309,6 +309,90 @@ export function companyRoutes() {
     return c.json({ ok: true });
   });
 
+  /** Money and tax for one financial year (?fy=2027 is Jul 2026 to Jun 2027): sales, fees, GST, expenses, what to set aside. */
+  app.get('/money', can('money'), async (c) => {
+    const db = c.env.DB;
+    const tax = await readSetting(db, 'tax', TaxSettings);
+    const fy = Number(c.req.query('fy')) || financialYear(new Date().toISOString().slice(0, 10));
+    const from = `${fy - 1}-07-01`;
+    const to = `${fy}-07-01`;
+    const { results } = await db
+      .prepare(
+        `SELECT a.at, a.detail, COALESCE(w.name1 || ' & ' || w.name2, '') AS names FROM audit a LEFT JOIN wedding w ON w.id = a.wedding_id
+          WHERE a.action = 'plan.paid' AND json_valid(a.detail) AND a.at >= ? AND a.at < ? ORDER BY a.at`,
+      )
+      .bind(from, to)
+      .all<{ at: string; detail: string; names: string }>();
+    const sales = results.map((r) => {
+      const d = safeDetail(r.detail);
+      const cents = typeof d.amount === 'number' ? d.amount : 0;
+      const card = !d.manual && cents > 0;
+      const fee = card ? Math.round((cents * tax.feePct) / 100 + tax.feeCents) : 0;
+      const gst = tax.gstRegistered && tax.gstFrom && r.at.slice(0, 10) >= tax.gstFrom ? Math.round(cents / 11) : 0;
+      return { at: r.at, names: r.names, what: String(d.what ?? ''), cents, fee, gst, promo: String(d.promo ?? ''), manual: !!d.manual };
+    });
+    const expenses = (await readSetting(db, 'expenses', Expenses)).list.filter((e) => e.date >= from && e.date < to).sort((a, b) => a.date.localeCompare(b.date));
+    const quarters = [1, 2, 3, 4].map((q) => {
+      const s = sales.filter((x) => basQuarter(x.at) === q);
+      const e = expenses.filter((x) => basQuarter(x.date) === q);
+      const sum = <T,>(xs: T[], f: (x: T) => number) => xs.reduce((a, x) => a + f(x), 0);
+      const gross = sum(s, (x) => x.cents);
+      const fees = sum(s, (x) => x.fee);
+      const gstCollected = sum(s, (x) => x.gst);
+      const spent = sum(e, (x) => x.cents);
+      const gstPaid = tax.gstRegistered ? sum(e, (x) => (tax.gstFrom && x.date >= tax.gstFrom ? x.gstCents : 0)) : 0;
+      const profit = gross - gstCollected - fees - (spent - gstPaid);
+      return { q, sales: s.length, gross, fees, gstCollected, gstPaid, gstOwed: Math.max(0, gstCollected - gstPaid), spent, profit, setAside: Math.max(0, Math.round((profit * tax.setAsidePct) / 100)) };
+    });
+    const total = quarters.reduce(
+      (a, q) => ({ sales: a.sales + q.sales, gross: a.gross + q.gross, fees: a.fees + q.fees, gstCollected: a.gstCollected + q.gstCollected, gstPaid: a.gstPaid + q.gstPaid, gstOwed: a.gstOwed + q.gstOwed, spent: a.spent + q.spent, profit: a.profit + q.profit, setAside: 0 }),
+      { sales: 0, gross: 0, fees: 0, gstCollected: 0, gstPaid: 0, gstOwed: 0, spent: 0, profit: 0, setAside: 0 },
+    );
+    total.setAside = Math.max(0, Math.round((total.profit * tax.setAsidePct) / 100));
+    // GST registration is required once turnover reaches $75,000 in 12 months: warn from $60,000.
+    const yearAgo = new Date(Date.now() - 365 * 86_400_000).toISOString();
+    const last12 = (await db.prepare(`SELECT COALESCE(SUM(json_extract(detail, '$.amount')), 0) AS n FROM audit WHERE action = 'plan.paid' AND json_valid(detail) AND at >= ?`).bind(yearAgo).first<{ n: number }>())?.n ?? 0;
+    return c.json({ fy, tax, quarters, total, sales, expenses, last12Cents: last12, gstThresholdCents: 7_500_000 });
+  });
+  app.put('/money/settings', can('money'), async (c) => {
+    const b = TaxSettings.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check that.');
+    if (b.data.gstRegistered && !b.data.gstFrom) return err(c, 400, 'invalid', 'The date your GST registration started, please.');
+    await writeSetting(c.env.DB, 'tax', b.data);
+    await logCompany(c, 'company.tax', 'tax', { gstRegistered: b.data.gstRegistered, setAsidePct: b.data.setAsidePct });
+    return c.json(b.data);
+  });
+  app.post('/money/expenses', can('money'), async (c) => {
+    const b = Expense.omit({ id: true }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'A date, what it was and the amount, please.');
+    const all = await readSetting(c.env.DB, 'expenses', Expenses);
+    const e = { ...b.data, id: crypto.randomUUID().slice(0, 12) };
+    await writeSetting(c.env.DB, 'expenses', { list: [...all.list, e].slice(-2000) });
+    await logCompany(c, 'company.expense', e.what, { cents: e.cents });
+    return c.json(e);
+  });
+  app.delete('/money/expenses/:id', can('money'), async (c) => {
+    const all = await readSetting(c.env.DB, 'expenses', Expenses);
+    await writeSetting(c.env.DB, 'expenses', { list: all.list.filter((e) => e.id !== c.req.param('id')) });
+    return c.json({ ok: true });
+  });
+  /** The year for the accountant: every sale and expense, as a spreadsheet (CSV). */
+  app.get('/money.csv', can('money'), async (c) => {
+    const fy = Number(c.req.query('fy')) || financialYear(new Date().toISOString().slice(0, 10));
+    const r = await app.request(`/money?fy=${fy}`, { headers: c.req.raw.headers }, c.env);
+    const m = (await r.json()) as { sales: { at: string; names: string; what: string; cents: number; fee: number; gst: number; promo: string; manual: boolean }[]; expenses: Expense[] };
+    const cell = (s: string) => `"${(/^[=+\-@\t\r]/.test(s) ? `'${s}` : s).replace(/"/g, '""')}"`;
+    const $ = (n: number) => (n / 100).toFixed(2);
+    const rows = [
+      ['Type', 'Date', 'Who / what', 'Item', 'Amount', 'GST in it', 'Card fee', 'Notes'],
+      ...m.sales.map((s) => ['Sale', s.at.slice(0, 10), s.names, s.what, $(s.cents), $(s.gst), $(s.fee), [s.manual ? 'paid by link/transfer' : 'card', s.promo && `code ${s.promo}`].filter(Boolean).join(', ')]),
+      ...m.expenses.map((e) => ['Expense', e.date, e.what, e.kind, $(e.cents), $(e.gstCents), '', '']),
+    ];
+    return new Response(rows.map((row) => row.map(cell).join(',')).join('\r\n'), {
+      headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="the-yes-list-FY${fy}.csv"`, 'cache-control': 'no-store' },
+    });
+  });
+
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
   app.get('/activity', can('activity'), async (c) => {
     const { results } = await c.env.DB.prepare(
@@ -510,4 +594,14 @@ export function staffJoinRoutes() {
     return c.json(await signIn(c, { id: user.id, email: user.email }));
   });
   return app;
+}
+
+/** A payment's audit detail, or {} if it can't be read. */
+function safeDetail(s: string): Record<string, unknown> {
+  try {
+    const v: unknown = JSON.parse(s);
+    return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
 }

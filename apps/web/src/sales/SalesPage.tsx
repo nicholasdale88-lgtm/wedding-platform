@@ -381,7 +381,7 @@ export function SalesPage() {
                 Pricing
               </h2>
               <p className="m-0 text-[16px]" style={{ color: SOFT }}>
-                In Australian dollars, GST included. One payment per wedding, not a subscription.
+                In Australian dollars. One payment per wedding, not a subscription.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3 items-stretch">

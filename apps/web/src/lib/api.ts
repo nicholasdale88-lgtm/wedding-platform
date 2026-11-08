@@ -1,4 +1,4 @@
-import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, Side, TableShape, TaskTotals } from '@wp/shared';
+import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -393,8 +393,12 @@ export interface SeatArea {
   h: number;
 }
 export interface SeatingData {
-  /** The plan guests see; null until first published. changes = edits saved since. */
-  published: { at: string; changes: number } | null;
+  /** The plan guests see; null until first published. changes = edits saved since; saidNo = shown at a table, can't come now. */
+  published: { at: string; changes: number; saidNo?: string[] } | null;
+  /** Where the plan is in its life (worked out, or chosen), with the facts behind it. */
+  stage?: { auto: SeatStage; chosen: SeatStage | null; sent: boolean; invited: number; replied: number; closed: boolean; published: boolean };
+  /** What changed since the plan was last saved (null: nothing). */
+  sinceSave?: ({ at: string } & SeatChanges) | null;
   /** Named versions, newest first. */
   versions?: { id: string; name: string; at: string; tables: number; seated: number }[];
   /** The version nominated as the current arrangement, and saved edits since. */
@@ -425,6 +429,8 @@ export const seatingApi = {
   renameVersion: (wid: string, id: string, name: string) => send<SeatingData>('PATCH', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, { name }),
   deleteVersion: (wid: string, id: string) => send<SeatingData>('DELETE', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, {}),
   makeCurrent: (wid: string, version: number, id: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions/${encodeURIComponent(id)}/current`, {}, version),
+  setStage: (wid: string, event: string, stage: SeatStage | null) => send<SeatingData>('PUT', `${w(wid)}/seating/stage`, { event, stage }),
+  seen: (wid: string, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/seen`, { event }),
 };
 
 // ---------------------------------------------------------------- Photos
@@ -865,6 +871,17 @@ export interface CompanySettings {
 }
 export interface CompanyFeedback { id: string; kind: 'idea' | 'problem' | 'love'; text: string; page: string; status: 'new' | 'planned' | 'in_progress' | 'done' | 'not_now'; note: string; createdAt: string; assignee: string; names: string; slug: string; email: string }
 export interface CompanyStaff { id: string; name: string; email: string; role: string; founder: boolean; since: string; lastIn: string }
+type MoneyQuarter = { q: number; sales: number; gross: number; fees: number; gstCollected: number; gstPaid: number; gstOwed: number; spent: number; profit: number; setAside: number };
+export interface CompanyMoney {
+  fy: number;
+  tax: { abn: string; gstRegistered: boolean; gstFrom: string; setAsidePct: number; feePct: number; feeCents: number };
+  quarters: MoneyQuarter[];
+  total: MoneyQuarter;
+  sales: { at: string; names: string; what: string; cents: number; fee: number; gst: number; promo: string; manual: boolean }[];
+  expenses: { id: string; date: string; what: string; kind: 'hosting' | 'domain' | 'sms' | 'email' | 'ads' | 'software' | 'fees' | 'other'; cents: number; gstCents: number }[];
+  last12Cents: number;
+  gstThresholdCents: number;
+}
 export interface CompanyActivity { id: string; action: string; target: string; detail: string; at: string; who: string; names: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
 export const companyApi = {
@@ -888,6 +905,11 @@ export const companyApi = {
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
   setRole: (userId: string, role: string) => send<{ ok: true }>('PUT', `/a/company/team/${encodeURIComponent(userId)}`, { role }),
   activity: () => request<{ activity: CompanyActivity[] }>('/a/company/activity'),
+  money: (fy?: number) => request<CompanyMoney>(`/a/company/money${fy ? `?fy=${fy}` : ''}`),
+  saveTax: (t: CompanyMoney['tax']) => send<CompanyMoney['tax']>('PUT', '/a/company/money/settings', t),
+  addExpense: (e: Omit<CompanyMoney['expenses'][number], 'id'>) => send<CompanyMoney['expenses'][number]>('POST', '/a/company/money/expenses', e),
+  removeExpense: (id: string) => send<{ ok: true }>('DELETE', `/a/company/money/expenses/${encodeURIComponent(id)}`),
+  moneyCsv: (fy: number) => `/api/a/company/money.csv?fy=${fy}`,
   optInsUrl: '/api/a/company/optins.csv',
 };
 /** Joining the company team from an emailed invitation. */

@@ -213,4 +213,21 @@ describe('company portal', () => {
     expect(act.activity.find((x) => x.action === 'company.feedback')!.who).toBe('Dev');
     expect((await call('/a/company/activity', {}, sup)).status).toBe(403);
   });
+  it('money and tax: sales, fees, expenses and what to put aside by quarter; GST only once registered; a spreadsheet', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const a = await signup('Alex', 'alex@example.com');
+    const slug = (await t.db.prepare(`SELECT slug FROM wedding WHERE id = ?`).bind(a.wid).first<{ slug: string }>())!.slug;
+    await call(`/a/company/weddings/${slug}/paid`, { method: 'POST', body: JSON.stringify({ what: 'essentials', cents: 2800 }) }, boss.cookie);
+    expect((await call('/a/company/money/expenses', { method: 'POST', body: JSON.stringify({ date: new Date().toISOString().slice(0, 10), what: 'Domain', kind: 'domain', cents: 1500 }) }, boss.cookie)).status).toBe(200);
+    type M = { total: { gross: number; fees: number; spent: number; profit: number; setAside: number; gstOwed: number }; expenses: unknown[] };
+    let m = (await (await call('/a/company/money', {}, boss.cookie)).json()) as M;
+    expect(m.total).toMatchObject({ gross: 2800, fees: 0, spent: 1500, profit: 1300, setAside: 390, gstOwed: 0 }); // paid by link: no card fee
+    expect((await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true }) }, boss.cookie)).status).toBe(400); // needs the date
+    await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true, gstFrom: '2020-01-01', setAsidePct: 30 }) }, boss.cookie);
+    m = (await (await call('/a/company/money', {}, boss.cookie)).json()) as M;
+    expect(m.total.gstOwed).toBe(255); // 2800 / 11
+    const csv = await (await call('/a/company/money.csv', {}, boss.cookie)).text();
+    expect(csv).toContain('"Sale"');
+    expect(csv).toContain('"Domain"');
+  });
 });

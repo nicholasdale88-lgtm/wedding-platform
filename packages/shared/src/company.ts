@@ -101,3 +101,40 @@ export const STAFF_INFO: Record<StaffRole, { name: string; does: string }> = {
 export const staffCan = (role: StaffRole | null | undefined, perm: StaffPerm) => !!role && STAFF_CAN[role].includes(perm);
 export const StaffInviteIn = z.object({ email: z.string().trim().toLowerCase().email().max(200), role: z.enum(STAFF_ROLES) }).strict();
 
+
+/**
+ * Money and tax (company portal → Money): what the business keeps aside. Not tax advice: the numbers an
+ * accountant asks for. GST only once registered (from gstFrom); a share of profit set aside for income tax.
+ */
+export const TaxSettings = z.object({
+  abn: z.string().trim().max(20).default(''),
+  gstRegistered: z.boolean().default(false),
+  /** The day GST registration started (yyyy-mm-dd): sales from then include GST (1/11 of the price). */
+  gstFrom: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).default(''),
+  /** How much of profit to put aside for income tax, in percent. */
+  setAsidePct: z.number().int().min(0).max(60).default(30),
+  /** Card fees: percent and fixed cents per card payment (Stripe Australia: 1.7% + 30c for local cards). */
+  feePct: z.number().min(0).max(10).default(1.7),
+  feeCents: z.number().int().min(0).max(500).default(30),
+});
+export type TaxSettings = z.infer<typeof TaxSettings>;
+export const EXPENSE_KINDS = ['hosting', 'domain', 'sms', 'email', 'ads', 'software', 'fees', 'other'] as const;
+export const Expense = z.object({
+  id: z.string().max(40),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  what: z.string().trim().min(1).max(120),
+  kind: z.enum(EXPENSE_KINDS).default('other'),
+  cents: z.number().int().min(0).max(100_000_000),
+  /** GST included in it (claimable once registered). */
+  gstCents: z.number().int().min(0).max(100_000_000).default(0),
+});
+export type Expense = z.infer<typeof Expense>;
+export const Expenses = z.object({ list: z.array(Expense).max(2000).default([]) });
+
+/** The Australian financial year a date falls in: 2027 means 1 July 2026 to 30 June 2027. */
+export const financialYear = (iso: string) => {
+  const y = Number(iso.slice(0, 4));
+  return Number(iso.slice(5, 7)) >= 7 ? y + 1 : y;
+};
+/** The BAS quarter (1 to 4: Jul–Sep, Oct–Dec, Jan–Mar, Apr–Jun). */
+export const basQuarter = (iso: string) => [3, 3, 3, 4, 4, 4, 1, 1, 1, 2, 2, 2][Number(iso.slice(5, 7)) - 1]!;

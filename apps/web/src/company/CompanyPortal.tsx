@@ -5,7 +5,7 @@ import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { Wordmark } from '../sales/Art';
 import { chargeCents, planOf, STAFF_INFO, STAFF_ROLES, staffCan, type StaffPerm, type StaffRole } from '@wp/shared';
-import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
+import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -41,6 +41,7 @@ const TABS = [
   ['feedback', 'Feedback', 'feedback'],
   ['promote', 'Promote', 'promote'],
   ['vendors', 'Vendors', 'vendors'],
+  ['money', 'Money & tax', 'money'],
   ['team', 'Team', 'team'],
   ['activity', 'Activity', 'activity'],
   ['settings', 'Settings', 'settings'],
@@ -148,6 +149,7 @@ function Portal() {
         {shown === 'feedback' && <Feedback onNote={setNote} />}
         {shown === 'promote' && <Promote onNote={setNote} />}
         {shown === 'vendors' && <Vendors onNote={setNote} />}
+        {shown === 'money' && <Money onNote={setNote} />}
         {shown === 'team' && <Team onNote={setNote} />}
         {shown === 'activity' && <Activity />}
         {shown === 'settings' && <Settings onNote={setNote} />}
@@ -996,6 +998,8 @@ const ACTION: Record<string, string> = {
   'company.team.join': 'Joined the team',
   'company.team.role': 'Changed a role',
   'company.team.remove': 'Removed from the team',
+  'company.tax': 'Changed tax settings',
+  'company.expense': 'Added an expense',
 };
 
 /** Who works on the app, their roles, and invitations. Owners only. */
@@ -1218,5 +1222,188 @@ function JoinTeam() {
         {error && <Problem text={error} />}
       </div>
     </main>
+  );
+}
+
+const QUARTER = ['', 'Jul–Sep', 'Oct–Dec', 'Jan–Mar', 'Apr–Jun'];
+const EXPENSE_KIND: Record<string, string> = { hosting: 'Hosting', domain: 'Domain', sms: 'Texts (SMS)', email: 'Email', ads: 'Advertising', software: 'Software', fees: 'Fees', other: 'Other' };
+
+/**
+ * Money and tax: each financial year's sales, card fees, GST (once registered), expenses, profit, and what
+ * to put aside for tax, by BAS quarter; a spreadsheet for the accountant. A guide, not tax advice.
+ */
+function Money({ onNote }: { onNote: (s: string) => void }) {
+  const thisFy = (() => {
+    const d = new Date();
+    return d.getMonth() >= 6 ? d.getFullYear() + 1 : d.getFullYear();
+  })();
+  const [fy, setFy] = useState(thisFy);
+  const load = useCallback(() => companyApi.money(fy), [fy]);
+  const { data, error, reload } = useLoad(load);
+  const [tax, setTax] = useState<CompanyMoney['tax'] | null>(null);
+  const [exp, setExp] = useState({ date: new Date().toISOString().slice(0, 10), what: '', kind: 'other' as CompanyMoney['expenses'][number]['kind'], dollars: '', gst: false });
+  const [problem, setProblem] = useState('');
+  useEffect(() => {
+    if (data) setTax(data.tax);
+  }, [data]);
+  if (error) return <Problem text={error} />;
+  if (!data || !tax) return <p className="text-[#5b6a52]">Loading…</p>;
+  const t = data.total;
+  const near = !data.tax.gstRegistered && data.last12Cents >= 6_000_000;
+  const saveTax = async () => {
+    setProblem('');
+    try {
+      await companyApi.saveTax(tax);
+      onNote('Tax settings saved');
+      reload();
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  const addExpense = async () => {
+    setProblem('');
+    const cents = Math.round((Number(exp.dollars) || 0) * 100);
+    try {
+      await companyApi.addExpense({ date: exp.date, what: exp.what.trim(), kind: exp.kind, cents, gstCents: exp.gst ? Math.round(cents / 11) : 0 });
+      setExp({ ...exp, what: '', dollars: '' });
+      onNote('Expense added');
+      reload();
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  return (
+    <>
+      <div className="flex items-center gap-3 flex-wrap">
+        <H sub="Sales, card fees, GST and expenses, by quarter, and what to put aside for tax. A guide for you and your accountant, not tax advice.">Money and tax</H>
+        <label className="ml-auto flex items-center gap-2 text-[14px]">
+          Financial year
+          <select value={fy} onChange={(e) => setFy(Number(e.target.value))} className={`${input} w-auto`}>
+            {[thisFy + 1, thisFy, thisFy - 1, thisFy - 2].map((y) => (
+              <option key={y} value={y}>
+                {y - 1}–{String(y).slice(2)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <a href={companyApi.moneyCsv(fy)} className={`${btn} no-underline`}>
+          Spreadsheet for the accountant
+        </a>
+      </div>
+      {near && (
+        <p role="alert" className="m-0 p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
+          Sales in the last 12 months are {money(data.last12Cents)}. At {money(data.gstThresholdCents)} you must register for GST (within 21 days). Talk to your accountant now.
+        </p>
+      )}
+      <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+        <Tile label="Sales" value={money(t.gross)} sub={`${t.sales} payments`} />
+        <Tile label="Card fees" value={money(t.fees)} sub="Estimated from your rate" />
+        <Tile label="Profit" value={money(t.profit)} sub={`After ${money(t.spent)} of expenses`} />
+        <Tile label="Put aside" value={money(t.setAside + t.gstOwed)} sub={`${money(t.setAside)} income tax${data.tax.gstRegistered ? ` + ${money(t.gstOwed)} GST` : ''}`} />
+      </section>
+      <section className={card} aria-label="By quarter">
+        <H sub="The same quarters as a BAS. Move the “put aside” amount to a separate savings account each quarter.">By quarter</H>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[14px] border-collapse">
+            <thead>
+              <tr className="text-left text-[#5f6a58]">
+                {['Quarter', 'Sales', 'Card fees', data.tax.gstRegistered ? 'GST to pay' : '', 'Expenses', 'Profit', 'Put aside']
+                  .filter(Boolean)
+                  .map((h) => (
+                    <th key={h} className="py-2 pr-3 font-semibold">
+                      {h}
+                    </th>
+                  ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.quarters.map((q) => (
+                <tr key={q.q} className="border-t border-[#e4e6df]">
+                  <td className="py-2 pr-3">{QUARTER[q.q]}</td>
+                  <td className="py-2 pr-3">{money(q.gross)}</td>
+                  <td className="py-2 pr-3">{money(q.fees)}</td>
+                  {data.tax.gstRegistered && <td className="py-2 pr-3">{money(q.gstOwed)}</td>}
+                  <td className="py-2 pr-3">{money(q.spent)}</td>
+                  <td className="py-2 pr-3">{money(q.profit)}</td>
+                  <td className="py-2 pr-3 font-semibold">{money(q.setAside + q.gstOwed)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className={card} aria-label="Expenses">
+        <H sub="Domain, texts, ads, software: anything the business pays for. Keep the receipts.">Expenses</H>
+        <div className="grid gap-2 sm:grid-cols-[150px_minmax(0,1fr)_150px_120px_auto_auto] items-end">
+          <input type="date" value={exp.date} onChange={(e) => setExp({ ...exp, date: e.target.value })} aria-label="Date" className={input} />
+          <input value={exp.what} maxLength={120} onChange={(e) => setExp({ ...exp, what: e.target.value })} placeholder="What it was" aria-label="What it was" className={input} />
+          <select value={exp.kind} onChange={(e) => setExp({ ...exp, kind: e.target.value as typeof exp.kind })} aria-label="Kind" className={input}>
+            {Object.entries(EXPENSE_KIND).map(([k, l]) => (
+              <option key={k} value={k}>
+                {l}
+              </option>
+            ))}
+          </select>
+          <input type="number" min={0} step="0.01" value={exp.dollars} onChange={(e) => setExp({ ...exp, dollars: e.target.value })} placeholder="$" aria-label="Amount" className={input} />
+          <label className="flex items-center gap-1 text-[13px]">
+            <input type="checkbox" checked={exp.gst} onChange={(e) => setExp({ ...exp, gst: e.target.checked })} />
+            Incl. GST
+          </label>
+          <button type="button" className={primary} disabled={!exp.what.trim() || !Number(exp.dollars)} onClick={() => void addExpense()}>
+            Add
+          </button>
+        </div>
+        {data.expenses.length > 0 && (
+          <ul className="m-0 p-0 list-none flex flex-col">
+            {data.expenses.map((e) => (
+              <li key={e.id} className="flex flex-wrap items-center gap-3 py-2 border-t border-[#e4e6df] text-[14px]">
+                <span className="w-[90px] text-[#5f6a58]">{day(e.date)}</span>
+                <span className="flex-1 min-w-[160px]">
+                  {e.what} <span className="text-[#5f6a58]">· {EXPENSE_KIND[e.kind]}</span>
+                </span>
+                <strong>{money(e.cents)}</strong>
+                <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => void companyApi.removeExpense(e.id).then(reload, (er: Error) => setProblem(er.message))}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className={card} aria-label="Tax settings">
+        <H sub="Not registered for GST: no GST is in your prices. Registered: 1/11 of each sale from that day is GST to pay.">Tax settings</H>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+            ABN
+            <input value={tax.abn} maxLength={20} onChange={(e) => setTax({ ...tax, abn: e.target.value })} placeholder="11 digits" className={input} />
+          </label>
+          <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+            Put aside for income tax (% of profit)
+            <input type="number" min={0} max={60} value={tax.setAsidePct} onChange={(e) => setTax({ ...tax, setAsidePct: Math.max(0, Math.min(60, Number(e.target.value) || 0)) })} className={input} />
+          </label>
+          <label className="flex items-center gap-2 text-[14px]">
+            <input type="checkbox" checked={tax.gstRegistered} onChange={(e) => setTax({ ...tax, gstRegistered: e.target.checked })} className="w-[18px] h-[18px]" />
+            Registered for GST
+          </label>
+          {tax.gstRegistered && (
+            <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+              Registered from
+              <input type="date" value={tax.gstFrom} onChange={(e) => setTax({ ...tax, gstFrom: e.target.value })} className={input} />
+            </label>
+          )}
+          <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+            Card fee (% + cents per payment)
+            <span className="flex gap-2">
+              <input type="number" min={0} max={10} step="0.1" value={tax.feePct} onChange={(e) => setTax({ ...tax, feePct: Number(e.target.value) || 0 })} aria-label="Card fee percent" className={input} />
+              <input type="number" min={0} max={500} value={tax.feeCents} onChange={(e) => setTax({ ...tax, feeCents: Number(e.target.value) || 0 })} aria-label="Card fee cents" className={input} />
+            </span>
+          </label>
+        </div>
+        {problem && <Problem text={problem} />}
+        <button type="button" className={`${primary} self-start`} onClick={() => void saveTax()}>
+          Save tax settings
+        </button>
+      </section>
+    </>
   );
 }
