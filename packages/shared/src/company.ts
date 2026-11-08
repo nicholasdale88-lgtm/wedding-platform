@@ -140,3 +140,18 @@ export const financialYear = (iso: string) => {
 };
 /** The BAS quarter (1 to 4: Jul–Sep, Oct–Dec, Jan–Mar, Apr–Jun). */
 export const basQuarter = (iso: string) => [3, 3, 3, 4, 4, 4, 1, 1, 1, 2, 2, 2][Number(iso.slice(5, 7)) - 1]!;
+
+/** Who someone helping run a wedding is to the couple (Settings → People). Planners and celebrants are partners too. */
+export const MEMBER_RELATIONS = ['partner', 'family', 'planner', 'celebrant', 'venue', 'party', 'friend', 'vendor', 'other'] as const;
+export type MemberRelation = (typeof MEMBER_RELATIONS)[number];
+export const RELATION_LABEL: Record<MemberRelation, string> = {
+  partner: 'Partner (getting married)',
+  family: 'Family',
+  planner: 'Wedding planner',
+  celebrant: 'Celebrant',
+  venue: 'Venue coordinator',
+  party: 'Wedding party',
+  friend: 'Friend helping out',
+  vendor: 'Vendor',
+  other: 'Someone else',
+};

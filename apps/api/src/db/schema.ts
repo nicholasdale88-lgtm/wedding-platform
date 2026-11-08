@@ -72,6 +72,7 @@ export const membership = sqliteTable(
     weddingId: text('wedding_id').notNull(),
     userId: text('user_id').notNull(),
     role: text('role', { enum: ['owner', 'editor', 'viewer'] }).notNull(),
+    relation: text('relation').notNull().default(''),
   },
   (t) => ({ pk: primaryKey({ columns: [t.weddingId, t.userId] }) }),
 );
@@ -509,6 +510,7 @@ export const memberInvite = sqliteTable('member_invite', {
   expiresAt: text('expires_at').notNull(),
   acceptedAt: text('accepted_at'),
   createdAt: text('created_at').notNull(),
+  relation: text('relation').notNull().default(''),
 });
 
 // migration 0025: the shared vendor directory, the areas searched, and each wedding's use of it

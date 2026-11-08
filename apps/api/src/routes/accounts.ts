@@ -1,4 +1,4 @@
-import { toE164 } from '@wp/shared';
+import { MEMBER_RELATIONS, toE164 } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { getCookie } from 'hono/cookie';
@@ -202,11 +202,9 @@ export function accountRoutes() {
     const claim = await c.env.DB.prepare(`UPDATE member_invite SET accepted_at = ? WHERE id = ? AND accepted_at IS NULL`).bind(stamp, inv.id).run();
     if (!claim.meta.changes) return err(c, 410, 'gone', 'This invitation was already used.');
     stmts.push(
-      c.env.DB.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES (?, ?, ?) ON CONFLICT (wedding_id, user_id) DO UPDATE SET role = CASE WHEN membership.role = 'owner' THEN 'owner' ELSE excluded.role END`).bind(
-        inv.wedding_id,
-        user.id,
-        inv.role,
-      ),
+      c.env.DB.prepare(
+        `INSERT INTO membership (wedding_id, user_id, role, relation) VALUES (?, ?, ?, ?) ON CONFLICT (wedding_id, user_id) DO UPDATE SET role = CASE WHEN membership.role = 'owner' THEN 'owner' ELSE excluded.role END, relation = CASE WHEN excluded.relation = '' THEN membership.relation ELSE excluded.relation END`,
+      ).bind(inv.wedding_id, user.id, inv.role, inv.relation),
     );
     await c.env.DB.batch(stmts);
     return c.json(await signIn(c, user));
@@ -220,11 +218,11 @@ const first = (n: string) => n.trim().split(/\s+/)[0] ?? n;
 async function openInvite(c: C, token: string) {
   if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) return null;
   return c.env.DB.prepare(
-    `SELECT i.id, i.wedding_id, i.email, i.role, w.name1, w.name2 FROM member_invite i JOIN wedding w ON w.id = i.wedding_id AND w.deleted_at IS NULL
+    `SELECT i.id, i.wedding_id, i.email, i.role, i.relation, w.name1, w.name2 FROM member_invite i JOIN wedding w ON w.id = i.wedding_id AND w.deleted_at IS NULL
       WHERE i.token_hash = ? AND i.accepted_at IS NULL AND i.expires_at > ?`,
   )
     .bind(await inviteHash(c, token), now())
-    .first<{ id: string; wedding_id: string; email: string; role: Role; name1: string; name2: string }>();
+    .first<{ id: string; wedding_id: string; email: string; role: Role; relation: string; name1: string; name2: string }>();
 }
 
 /** /api/a/w/:wid/members: who runs this wedding, and (owners) inviting and managing them. */
@@ -236,19 +234,19 @@ export function memberRoutes() {
 
   app.get('/', async (c) => {
     const { results: members } = await c.env.DB.prepare(
-      `SELECT u.id, u.email, u.first_name, u.last_name, u.name, u.last_login_at, m.role FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = ? ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'editor' THEN 1 ELSE 2 END, u.created_at`,
+      `SELECT u.id, u.email, u.first_name, u.last_name, u.name, u.last_login_at, m.role, m.relation FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = ? ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'editor' THEN 1 ELSE 2 END, u.created_at`,
     )
       .bind(wid(c))
-      .all<{ id: string; email: string; first_name: string | null; last_name: string | null; name: string | null; last_login_at: string | null; role: Role }>();
+      .all<{ id: string; email: string; first_name: string | null; last_name: string | null; name: string | null; last_login_at: string | null; role: Role; relation: string }>();
     const self = c.get('user').id;
     const isOwner = c.get('role') === 'owner';
     const main = await mainAccountOf(c.env.DB, wid(c));
     const invites = isOwner
       ? (
-          await c.env.DB.prepare(`SELECT id, email, role, expires_at FROM member_invite WHERE wedding_id = ? AND accepted_at IS NULL AND expires_at > ? ORDER BY created_at DESC`)
+          await c.env.DB.prepare(`SELECT id, email, role, relation, expires_at FROM member_invite WHERE wedding_id = ? AND accepted_at IS NULL AND expires_at > ? ORDER BY created_at DESC`)
             .bind(wid(c), now())
-            .all<{ id: string; email: string; role: Role; expires_at: string }>()
-        ).results.map((i) => ({ id: i.id, email: i.email, role: i.role, expiresAt: i.expires_at }))
+            .all<{ id: string; email: string; role: Role; relation: string; expires_at: string }>()
+        ).results.map((i) => ({ id: i.id, email: i.email, role: i.role, relation: i.relation, expiresAt: i.expires_at }))
       : [];
     return c.json({
       you: { id: self, role: c.get('role'), main: self === main },
@@ -259,6 +257,7 @@ export function memberRoutes() {
         email: isOwner || m.id === self ? m.email : '',
         name: [m.first_name, m.last_name].filter(Boolean).join(' ') || m.name || '',
         role: m.role,
+        relation: m.relation,
         lastLoginAt: isOwner ? m.last_login_at : null,
       })),
       invites,
@@ -266,8 +265,12 @@ export function memberRoutes() {
   });
 
   app.post('/invite', owner, async (c) => {
-    const body = z.object({ email: z.string().trim().toLowerCase().email().max(200), role: z.enum(['owner', 'editor', 'viewer']) }).strict().safeParse(await readJson(c.req.raw));
-    if (!body.success) return err(c, 400, 'invalid', 'Enter their email and choose what they can do.');
+    // Who they are to the couple (a planner, a celebrant, family…): every helper is someone.
+    const body = z
+      .object({ email: z.string().trim().toLowerCase().email().max(200), role: z.enum(['owner', 'editor', 'viewer']), relation: z.enum([...MEMBER_RELATIONS, '']).default('') })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Enter their email, who they are, and what they can do.');
     if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in is not set up yet.');
     if (!(await allow(c.env.DB, `member-invite:${wid(c)}`, 30, 24 * 3_600_000))) return err(c, 429, 'slow_down', 'That’s a lot of invitations today. Try again tomorrow.');
     const already = await c.env.DB.prepare(`SELECT 1 FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = ? AND u.email = ?`).bind(wid(c), body.data.email).first();
@@ -277,11 +280,12 @@ export function memberRoutes() {
     await c.env.DB.batch([
       // One live invitation per email: a new link replaces the old one.
       c.env.DB.prepare(`DELETE FROM member_invite WHERE wedding_id = ? AND email = ? AND accepted_at IS NULL`).bind(wid(c), body.data.email),
-      c.env.DB.prepare(`INSERT INTO member_invite (id, wedding_id, email, role, token_hash, invited_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+      c.env.DB.prepare(`INSERT INTO member_invite (id, wedding_id, email, role, relation, token_hash, invited_by, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         crypto.randomUUID(),
         wid(c),
         body.data.email,
         body.data.role,
+        body.data.relation,
         await inviteHash(c, token),
         c.get('user').id,
         expires,
@@ -298,12 +302,20 @@ export function memberRoutes() {
 
   /** Change what someone can do. A wedding always keeps at least one owner. */
   app.patch('/:uid', owner, async (c) => {
-    const body = z.object({ role: z.enum(['owner', 'editor', 'viewer']) }).strict().safeParse(await readJson(c.req.raw));
+    const body = z
+      .object({ role: z.enum(['owner', 'editor', 'viewer']).optional(), relation: z.enum(MEMBER_RELATIONS).optional() })
+      .strict()
+      .refine((v) => v.role !== undefined || v.relation !== undefined)
+      .safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose what they can do.');
     const uid = c.req.param('uid');
+    if (body.data.role === undefined) {
+      const r = await c.env.DB.prepare(`UPDATE membership SET relation = ? WHERE wedding_id = ? AND user_id = ?`).bind(body.data.relation!, wid(c), uid).run();
+      return r.meta.changes ? c.json({ ok: true }) : err(c, 404, 'not_found', 'They aren’t part of this wedding.');
+    }
     if (uid === (await mainAccountOf(c.env.DB, wid(c))) && uid !== c.get('user').id) return err(c, 403, 'main_account', 'The main account (payments) stays an owner.');
     if (body.data.role !== 'owner' && (await lastOwner(c, uid))) return err(c, 409, 'last_owner', 'Someone else must be an owner first.');
-    const r = await c.env.DB.prepare(`UPDATE membership SET role = ? WHERE wedding_id = ? AND user_id = ?`).bind(body.data.role, wid(c), uid).run();
+    const r = await c.env.DB.prepare(`UPDATE membership SET role = ?, relation = COALESCE(?, relation) WHERE wedding_id = ? AND user_id = ?`).bind(body.data.role, body.data.relation ?? null, wid(c), uid).run();
     return r.meta.changes ? c.json({ ok: true }) : err(c, 404, 'not_found', 'They aren’t part of this wedding.');
   });
 

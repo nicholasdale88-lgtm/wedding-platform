@@ -92,6 +92,8 @@ export interface Guest {
   phoneDisplay: string;
   /** The main contact's email ('' when none). */
   email?: string;
+  /** How they hear from you: '' (text when there's a mobile, otherwise email), text, email or both. */
+  channel?: '' | 'text' | 'email' | 'both';
   seatsHeld: number;
   party: string;
   optOut: boolean;
@@ -141,6 +143,7 @@ export interface GuestPatch {
   people?: string[];
   phone?: string | null;
   email?: string | null;
+  channel?: '' | 'text' | 'email' | 'both';
   seatsHeld?: number;
   party?: string;
   invited?: string[];
@@ -247,6 +250,8 @@ export interface Campaign {
   custom: boolean;
   version: number;
   count: number;
+  /** The same message by email: who it would go to now, sent, waiting for tomorrow, failed. */
+  email?: { count: number; sent: number; waiting: number; failed: number };
   slots: { id: string; sendAt: string; status: string; error: string | null }[];
 }
 export interface TextsData {
@@ -264,7 +269,9 @@ export interface TextsData {
   events: { key: string; name: string }[];
   audiences: { key: string; label: string; audience: Audience }[];
   presets: { k: string; label: string; text: string }[];
-  people: { id: string; name: string; phone: boolean; optOut: boolean }[];
+  people: { id: string; name: string; phone: boolean; optOut: boolean; email?: boolean }[];
+  /** Sending by email: switched on for the site, and how many emails are left today. */
+  email?: { on: boolean; left: number };
   campaigns: Campaign[];
   inbox: { id: string; at: string; name: string; body: string; action: string; handled: boolean }[];
   history: { at: string; name: string; count: number; sent: number; failed: number; sample: string }[];
@@ -281,6 +288,10 @@ export interface SendResult {
   queued: number;
   sent: number;
   failed: number;
+  /** The same message by email. */
+  email?: { queued: number; sent: number; failed: number; waiting: number };
+  /** Set when today's emails ran out (the rest go tomorrow morning). */
+  emailNote?: string;
   stopped?: { reason: string; error: string };
 }
 export type CampaignPatch = Partial<{ name: string; body: string; enabled: boolean; audience: Audience; excluded: string[]; dates: string[] }>;
@@ -351,6 +362,8 @@ export interface Member {
   email: string;
   name: string;
   role: Role;
+  /** Who they are to the couple: partner, planner, celebrant… ('' for older accounts). */
+  relation?: string;
   lastLoginAt: string | null;
 }
 export interface Members {
@@ -359,14 +372,15 @@ export interface Members {
   /** The main account's user id: the person who signed up (payments). */
   main?: string | null;
   members: Member[];
-  invites: { id: string; email: string; role: Role; expiresAt: string }[];
+  invites: { id: string; email: string; role: Role; relation?: string; expiresAt: string }[];
 }
 export const accountApi = {
   profile: () => request<{ profile: Profile; states: string[]; heardFrom: string[] }>('/a/me/profile'),
   saveProfile: (body: ProfilePut) => send<{ profile: Profile }>('PUT', '/a/me/profile', body),
   changeEmail: (email: string, passcode: string) => send<{ ok: true; email: string }>('POST', '/a/me/email', { email, passcode }),
   members: (wid: string) => request<Members>(`${w(wid)}/members`),
-  invite: (wid: string, email: string, role: Role) => send<{ link: string; expiresAt: string }>('POST', `${w(wid)}/members/invite`, { email, role }),
+  invite: (wid: string, email: string, role: Role, relation: string) => send<{ link: string; expiresAt: string }>('POST', `${w(wid)}/members/invite`, { email, role, relation }),
+  setRelation: (wid: string, uid: string, relation: string) => send<{ ok: true }>('PATCH', `${w(wid)}/members/${encodeURIComponent(uid)}`, { relation }),
   cancelInvite: (wid: string, id: string) => send<{ ok: true }>('DELETE', `${w(wid)}/members/invites/${encodeURIComponent(id)}`),
   setRole: (wid: string, uid: string, role: Role) => send<{ ok: true }>('PATCH', `${w(wid)}/members/${encodeURIComponent(uid)}`, { role }),
   remove: (wid: string, uid: string) => send<{ ok: true }>('DELETE', `${w(wid)}/members/${encodeURIComponent(uid)}`),

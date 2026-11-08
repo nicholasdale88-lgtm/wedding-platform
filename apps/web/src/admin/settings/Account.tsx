@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { accountApi, type Members, type Profile, type ProfilePut, type Role } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
-import { PLAN_INFO } from '@wp/shared';
+import { MEMBER_RELATIONS, PLAN_INFO, RELATION_LABEL, type MemberRelation } from '@wp/shared';
 import { useUnsavedChanges } from '../leave';
 import { Upgrade, usePlan } from '../Upgrade';
 import { useAdmin } from '../Shell';
@@ -155,6 +155,7 @@ export function TheWedding() {
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Role>('owner');
+  const [relation, setRelation] = useState<MemberRelation | ''>('');
   const [link, setLink] = useState('');
   const [inviting, setInviting] = useState(false); // one link per tap, however fast the taps
   // Arriving from "Add your partner" (?invite=1): straight to the email box.
@@ -189,7 +190,7 @@ export function TheWedding() {
     if (inviting) return;
     setInviting(true);
     try {
-      const r = await accountApi.invite(wid, email.trim(), role);
+      const r = await accountApi.invite(wid, email.trim(), role, relation);
       setLink(r.link);
       setEmail('');
       await load();
@@ -229,8 +230,25 @@ export function TheWedding() {
                   {x.id === m.main && <span className="ml-2 align-middle py-[2px] px-2 rounded-full bg-[#efe7d3] text-[11px] font-sans font-semibold text-[#5b6a52]">Main account (payments)</span>}
                 </span>
                 <span className="block text-[13px] text-[#5b6a52] truncate">
-                  {[x.email && x.name ? x.email : '', ROLE[x.role].what, x.lastLoginAt ? `last in ${fmtWhen(x.lastLoginAt, 'Australia/Sydney')}` : ''].filter(Boolean).join(' · ')}
+                  {[x.relation ? RELATION_LABEL[x.relation as MemberRelation] : '', x.email && x.name ? x.email : '', ROLE[x.role].what, x.lastLoginAt ? `last in ${fmtWhen(x.lastLoginAt, 'Australia/Sydney')}` : ''].filter(Boolean).join(' · ')}
                 </span>
+                {owner && (
+                  <select
+                    aria-label={`Who ${x.name || x.email || 'they'} ${you ? 'are' : 'is'}`}
+                    value={x.relation ?? ''}
+                    onChange={(e) => void run(() => accountApi.setRelation(wid, x.id, e.target.value), 'Saved')}
+                    className={`${inputCls} !py-1 !text-[13px] mt-1 max-w-[220px]`}
+                  >
+                    <option value="" disabled>
+                      Who are they?
+                    </option>
+                    {MEMBER_RELATIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {RELATION_LABEL[r]}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </span>
               <span className="flex items-center gap-2">
                 {owner && !you && x.id !== m.main ? (
@@ -265,7 +283,7 @@ export function TheWedding() {
             <span className="min-w-0">
               <span className="block font-semibold truncate">{i.email}</span>
               <span className="block text-[13px] text-[#5b6a52]">
-                Invited · {ROLE[i.role].label} · link works until {fmtWhen(i.expiresAt, 'Australia/Sydney')}
+                Invited{i.relation ? ` · ${RELATION_LABEL[i.relation as MemberRelation]}` : ''} · {ROLE[i.role].label} · link works until {fmtWhen(i.expiresAt, 'Australia/Sydney')}
               </span>
             </span>
             <Pill size="sm" onClick={() => void run(() => accountApi.cancelInvite(wid, i.id), 'Invitation cancelled')}>
@@ -280,7 +298,7 @@ export function TheWedding() {
           <H2>Add your partner or a helper</H2>
           <p className="m-0 text-[14px] text-[#5b6a52]">They get a link to set their own passcode (or, if they already have an account, to add this wedding to it). It works once, for 14 days.</p>
           <form
-            className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_180px_auto] gap-3 items-end"
+            className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_190px_180px_auto] gap-3 items-end"
             onSubmit={(e) => {
               e.preventDefault();
               void invite();
@@ -289,6 +307,18 @@ export function TheWedding() {
             <Label text="Their email">
               <input ref={emailBox} type="email" required value={email} autoComplete="off" onChange={(e) => setEmail(e.target.value)} className={inputCls} />
             </Label>
+            <Label text="Who are they?">
+              <select required value={relation} onChange={(e) => setRelation(e.target.value as MemberRelation)} className={inputCls}>
+                <option value="" disabled>
+                  Choose…
+                </option>
+                {MEMBER_RELATIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {RELATION_LABEL[r]}
+                  </option>
+                ))}
+              </select>
+            </Label>
             <Label text="They can">
               <select value={role} onChange={(e) => setRole(e.target.value as Role)} className={inputCls}>
                 <option value="owner">Do everything (owner)</option>
@@ -296,7 +326,7 @@ export function TheWedding() {
                 <option value="viewer">Only view</option>
               </select>
             </Label>
-            <Pill kind="primary" type="submit" disabled={!email.includes('@') || inviting}>
+            <Pill kind="primary" type="submit" disabled={!email.includes('@') || !relation || inviting}>
               {inviting ? 'Creating…' : 'Create the link'}
             </Pill>
           </form>

@@ -64,7 +64,8 @@ describe('customer accounts', () => {
 
   it('an owner invites their partner: a one-time link sets up their account and adds them to the wedding', async () => {
     const owner = await login('owner@example.com', 'valley-2027');
-    const inv = await call('/api/a/w/w1/members/invite', json('POST', { email: 'partner@example.com', role: 'owner' }), owner);
+    expect((await call('/api/a/w/w1/members/invite', json('POST', { email: 'partner@example.com', role: 'owner', relation: 'aunt' }), owner)).status).toBe(400);
+    const inv = await call('/api/a/w/w1/members/invite', json('POST', { email: 'partner@example.com', role: 'owner', relation: 'partner' }), owner);
     expect(inv.status).toBe(200);
     const { link } = (await inv.json()) as { link: string };
     expect(link).toMatch(/^https:\/\/example\.com\/admin\/join\?t=[A-Za-z0-9_-]{43}$/);
@@ -78,6 +79,11 @@ describe('customer accounts', () => {
     expect(accepted.status).toBe(200);
     expect(await accepted.json()).toMatchObject({ user: { email: 'partner@example.com' }, weddings: [{ id: 'w1', role: 'owner' }] });
     expect(cookieOf(accepted)).toMatch(/^wp_session=/);
+    // Who they are carries over from the invitation, and can be changed.
+    const list = (await (await call('/api/a/w/w1/members', {}, owner)).json()) as { members: { email: string; id: string; relation: string }[] };
+    const sam = list.members.find((m) => m.email === 'partner@example.com')!;
+    expect(sam.relation).toBe('partner');
+    expect((await call(`/api/a/w/w1/members/${sam.id}`, json('PATCH', { relation: 'planner' }), owner)).status).toBe(200);
     // Once only.
     expect((await call(`/api/a/invite/${token}`, json('POST', { passcode: 'partner-pass-1', firstName: 'Sam' }))).status).toBe(410);
 
