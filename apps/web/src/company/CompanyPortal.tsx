@@ -4,7 +4,7 @@ import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
 import { chargeCents, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
-import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
+import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -953,7 +953,8 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
   };
   return (
     <section className="flex flex-col gap-3">
-      <H sub="Vendors who listed themselves in the directory. Hide anything that shouldn’t be there.">Vendor directory</H>
+      <InviteVendors onNote={onNote} />
+      <H sub="Vendors who listed themselves in the directory. Each gets a partner code: their couples get 10% off, and you see how many used it. Hide anything that shouldn’t be there.">Vendor directory</H>
       {error && <Problem text={error} />}
       {!data ? (
         <p className="text-[#5b6a52]">Loading…</p>
@@ -972,6 +973,24 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
                   </a>
                 </span>
               </span>
+              {l.code ? (
+                <span className="text-[13px]">
+                  Code <strong>{l.code}</strong> · used {l.codeUses ?? 0}×
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className={btn}
+                  onClick={() =>
+                    void companyApi.vendorCode(l.id).then(
+                      (r) => (setData({ listings: data!.listings.map((x) => (x.id === l.id ? { ...x, code: r.code, codeUses: 0 } : x)) }), onNote(`${l.name}: code ${r.code}`)),
+                      (e: Error) => onNote(e.message),
+                    )
+                  }
+                >
+                  Make their code
+                </button>
+              )}
               <a href={`/vendors/${encodeURIComponent(l.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
                 View
               </a>
@@ -1087,6 +1106,8 @@ const ACTION: Record<string, string> = {
   'company.assistant': 'Asked the assistant',
   'company.connections': 'Changed a connection',
   'company.refund': 'Refunded',
+  'company.vendor.code': 'Made a vendor code',
+  'company.vendor.invite': 'Invited vendors',
   'company.targets': 'Set the weekly targets',
   'plan.refund': 'Refund',
   'company.feedback.reply': 'Replied to feedback',
@@ -1532,6 +1553,13 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
     <>
       <section className={card} aria-label="Are we making money">
         <H sub="From real payments this month, card fees, your running costs and one-off expenses.">Are we making money?</H>
+        <div className="flex flex-col gap-1 p-4 rounded-[12px] bg-[#1b2218] text-[#f3ecd6]">
+          <span className="text-[12px] tracking-[.14em] uppercase text-[#e6cf9e]">Move to your tax savings account</span>
+          <span className="text-[28px] font-semibold">{money(Math.max(0, Math.round((now.profit * tax.setAsidePct) / 100)))} this month</span>
+          <span className="text-[13px] text-[#c9c4b2]">
+            {tax.setAsidePct}% of this month’s profit for income tax{tax.gstRegistered ? ', plus the GST shown by quarter below' : ''}. This financial year so far: {money(Math.max(0, data.total.setAside + data.total.gstOwed))}. Change the % in Tax settings; your accountant can tell you the right one.
+          </span>
+        </div>
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <Tile label="This month" value={money(now.profit)} sub={ok ? `Profit · ${money(keep(Math.max(0, now.profit)))} after tax` : 'Loss so far this month'} />
           <Tile label="Weddings sold" value={String(now.sales)} sub={`${now.essentials} Essentials · ${now.deluxe} Deluxe`} />
@@ -2462,6 +2490,118 @@ function PeopleTargets({ onNote }: { onNote: (s: string) => void }) {
       <button type="button" className={`${primary} self-start`} onClick={() => void save()}>
         Save targets
       </button>
+    </section>
+  );
+}
+
+/**
+ * Vendors → Invite vendors: celebrants, venues, photographers… we'd like in the directory. Add them (or paste
+ * a list), invite in one go (free listing + their own 10% code for their couples), and see who joined. Every
+ * email says who it's from and has a one-click "don't email me again".
+ */
+function InviteVendors({ onNote }: { onNote: (s: string) => void }) {
+  const { data, error, setData } = useLoad(companyApi.prospects);
+  const [add, setAdd] = useState({ business: '', contact: '', email: '', category: '', region: '' });
+  const [paste, setPaste] = useState('');
+  const [picked, setPicked] = useState<string[]>([]);
+  const [show, setShow] = useState<'new' | 'invited' | 'joined' | 'stopped'>('new');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  if (error) return <Problem text={error} />;
+  if (!data) return null;
+  const blank = (p: Partial<VendorProspect>): VendorProspect => ({ id: crypto.randomUUID().slice(0, 12), business: '', contact: '', email: '', category: '', region: '', website: '', status: 'new', invitedAt: '', note: '', ...p });
+  const save = async (list: VendorProspect[]) => {
+    setProblem('');
+    try {
+      setData({ ...data, ...(await companyApi.saveProspects(list)) });
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  const addOne = () => {
+    if (!add.business.trim() || !/^\S+@\S+\.\S+$/.test(add.email)) return;
+    void save([...data.list, blank({ ...add, email: add.email.trim().toLowerCase() })]);
+    setAdd({ business: '', contact: '', email: '', category: '', region: '' });
+  };
+  // A pasted list: one per line, "Business, email, category, region, contact" (commas or tabs).
+  const addPasted = () => {
+    const rows = paste
+      .split('\n')
+      .map((l) => l.split(/\t|,/).map((x) => x.trim()))
+      .filter((c) => c[0] && c[1] && /^\S+@\S+\.\S+$/.test(c[1]));
+    if (!rows.length) return setProblem('Each line: business, email, category, region, contact.');
+    void save([...data.list, ...rows.map((c) => blank({ business: c[0]!, email: c[1]!.toLowerCase(), category: c[2] ?? '', region: c[3] ?? '', contact: c[4] ?? '' }))]);
+    setPaste('');
+  };
+  const invite = async () => {
+    setBusy(true);
+    setProblem('');
+    try {
+      const r = await companyApi.inviteProspects(picked);
+      onNote(`${r.sent} invited${r.skipped.length ? `, ${r.skipped.length} skipped` : ''}`);
+      setPicked([]);
+      setData({ ...data, ...(await companyApi.prospects()) });
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const counts = (s: VendorProspect['status']) => data.list.filter((p) => p.status === s).length;
+  const list = data.list.filter((p) => p.status === show);
+  return (
+    <section className={card} aria-label="Invite vendors">
+      <H sub="Celebrants, planners, venues and photographers you’d like in the directory. They list free and get their own code: 10% off The Yes List for their couples. Up to 50 invitations a day; each email has a one-click opt-out.">Invite vendors</H>
+      {!data.emailOn && <p className="m-0 p-3 rounded-[12px] bg-[#fbf3e1] text-[14px]">Email isn’t set up yet (Settings → Connections → Email). You can build the list now and invite once it is.</p>}
+      <div className="grid gap-2 grid-cols-1 sm:grid-cols-5">
+        <input value={add.business} onChange={(e) => setAdd({ ...add, business: e.target.value })} placeholder="Business" aria-label="Business" className={input} />
+        <input value={add.email} onChange={(e) => setAdd({ ...add, email: e.target.value.trim() })} placeholder="Email (their business address)" aria-label="Email" className={input} />
+        <input value={add.category} onChange={(e) => setAdd({ ...add, category: e.target.value })} placeholder="e.g. Celebrant" aria-label="Category" className={input} />
+        <input value={add.region} onChange={(e) => setAdd({ ...add, region: e.target.value })} placeholder="Region" aria-label="Region" className={input} />
+        <button type="button" className={btn} onClick={addOne}>
+          Add
+        </button>
+      </div>
+      <details>
+        <summary className="cursor-pointer text-[13px] text-[#5f6a58]">Paste a list</summary>
+        <textarea value={paste} rows={4} onChange={(e) => setPaste(e.target.value)} placeholder="Business, email, category, region, contact (one per line)" aria-label="Paste a list" className={`${input} mt-2`} />
+        <button type="button" className={`${btn} mt-2`} onClick={addPasted}>
+          Add them
+        </button>
+      </details>
+      <div className="flex gap-1 flex-wrap" role="tablist" aria-label="Vendors by status">
+        {(['new', 'invited', 'joined', 'stopped'] as const).map((s) => (
+          <button key={s} type="button" role="tab" aria-selected={show === s} onClick={() => (setShow(s), setPicked([]))} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === s ? 'border-[#1b2218] bg-[#1b2218] text-[#f3ecd6]' : 'border-[#d5d8cf] bg-white text-[#1b2218]'}`}>
+            {s === 'new' ? 'To invite' : s === 'invited' ? 'Invited' : s === 'joined' ? 'Joined' : 'Opted out'} {counts(s)}
+          </button>
+        ))}
+      </div>
+      {list.length > 0 && (
+        <ul className="m-0 p-0 list-none flex flex-col">
+          {list.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 py-2 border-t border-[#e4e6df] text-[14px]">
+              {show === 'new' && (
+                <input type="checkbox" aria-label={`Invite ${p.business}`} checked={picked.includes(p.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((x) => x !== p.id))} />
+              )}
+              <span className="flex-1 min-w-0">
+                <strong>{p.business}</strong> <span className="text-[#5f6a58]">· {[p.category, p.region, p.email].filter(Boolean).join(' · ')}</span>
+                {p.invitedAt && <span className="block text-[12px] text-[#5f6a58]">Invited {day(p.invitedAt)}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {show === 'new' && list.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button type="button" className={btn} onClick={() => setPicked(list.slice(0, 50).map((p) => p.id))}>
+            Pick {Math.min(50, list.length)}
+          </button>
+          <button type="button" className={primary} disabled={!picked.length || busy || !data.emailOn} onClick={() => void invite()}>
+            {busy ? 'Inviting…' : `Invite ${picked.length}`}
+          </button>
+        </div>
+      )}
+      {problem && <Problem text={problem} />}
     </section>
   );
 }

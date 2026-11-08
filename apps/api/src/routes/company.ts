@@ -1,4 +1,4 @@
-import { PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -33,7 +33,7 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
-export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets', schema: S): Promise<z.output<S>> {
+export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets' | 'prospects', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
   try {
@@ -707,6 +707,78 @@ export function companyRoutes() {
     return c.json(b.data);
   });
 
+  /** A listing's partner code (10% off for their couples), made if it hasn't one; uses counted from payments. */
+  app.post('/listings/:id/code', can('vendors', 'promote'), async (c) => {
+    const l = await c.env.DB.prepare(`SELECT id, name FROM vendor_listing WHERE id = ?`).bind(c.req.param('id')).first<{ id: string; name: string }>();
+    if (!l) return err(c, 404, 'not_found', 'Listing not found.');
+    const code = await ensureVendorCode(c.env.DB, l.id, l.name);
+    await logCompany(c, 'company.vendor.code', l.name, { code });
+    return c.json({ code });
+  });
+
+  /** Vendors we'd like in the directory: who, where, and where they're up to. */
+  app.get('/prospects', can('vendors', 'promote'), async (c) => {
+    const all = await readSetting(c.env.DB, 'prospects', VendorProspects);
+    // Joined: a listing now uses their email.
+    const { results } = await c.env.DB.prepare(`SELECT lower(email) AS e FROM vendor_listing`).all<{ e: string }>();
+    const joined = new Set(results.map((r) => r.e));
+    return c.json({ list: all.list.map((p) => (joined.has(p.email) && p.status !== 'stopped' ? { ...p, status: 'joined' as const } : p)), emailOn: emailReady(c.env) });
+  });
+  app.put('/prospects', can('vendors', 'promote'), async (c) => {
+    const b = VendorProspects.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the list.');
+    // One per email; anyone who asked not to hear from us stays that way.
+    const before = await readSetting(c.env.DB, 'prospects', VendorProspects);
+    const stopped = new Set(before.list.filter((p) => p.status === 'stopped').map((p) => p.email));
+    const seen = new Set<string>();
+    const list = b.data.list.filter((p) => !seen.has(p.email) && !!seen.add(p.email)).map((p) => (stopped.has(p.email) ? { ...p, status: 'stopped' as const } : p));
+    await writeSetting(c.env.DB, 'prospects', { list });
+    return c.json({ list });
+  });
+  /** Invite some to list free (and to give their couples 10% off with their own code). At most 50 a day. */
+  app.post('/prospects/invite', can('vendors', 'promote'), async (c) => {
+    const b = z.object({ ids: z.array(z.string().max(40)).min(1).max(50) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Choose who to invite.');
+    if (!emailReady(c.env) || !c.env.SESSION_SECRET) return err(c, 400, 'no_email', 'Email isn’t set up yet (Settings → Connections → Email).');
+    const all = await readSetting(c.env.DB, 'prospects', VendorProspects);
+    const base = c.env.PUBLIC_BASE_URL.replace(/\/$/, '');
+    const site = await readSetting(c.env.DB, 'site', SiteSettings);
+    let sent = 0;
+    const skipped: string[] = [];
+    for (const p of all.list.filter((x) => b.data.ids.includes(x.id))) {
+      if (p.status === 'stopped' || p.status === 'joined') {
+        skipped.push(p.business);
+        continue;
+      }
+      if (!(await allow(c.env.DB, 'vendor-invites', 50, 86_400_000))) {
+        skipped.push(p.business);
+        continue;
+      }
+      const stop = `${base}/api/site/unsubscribe?p=${encodeURIComponent(p.id)}.${(await sessionId(`vendor-stop:${p.id}`, c.env.SESSION_SECRET)).slice(0, 16)}`;
+      const m = buttonEmail({
+        heading: `List ${p.business} free on The Yes List`,
+        lines: [
+          `Hi ${p.contact || 'there'},`,
+          `The Yes List is a new Australian wedding invitation and planning app. Couples planning their weddings look for ${p.category ? `${p.category.toLowerCase()}s` : 'vendors'}${p.region ? ` around ${p.region}` : ''} in our directory, and we’d love ${p.business} to be there.`,
+          'Listing is free. You also get your own code that gives your couples 10% off The Yes List: a small thank-you you can pass on.',
+          `From The Yes List team. If you’d rather not hear from us again: ${stop}`,
+        ],
+        button: 'List my business free',
+        link: `${base}/vendors/join?ref=${encodeURIComponent(p.id)}`,
+        footer: 'The Yes List, made in Australia.',
+      });
+      const ok = await sendEmail(c.env, { to: p.email, subject: `List ${p.business} free on The Yes List`, ...m, ...(site.supportEmail ? { replyTo: [site.supportEmail] } : {}) });
+      if (ok) {
+        sent++;
+        p.status = 'invited';
+        p.invitedAt = new Date().toISOString();
+      } else skipped.push(p.business);
+    }
+    await writeSetting(c.env.DB, 'prospects', all);
+    await logCompany(c, 'company.vendor.invite', `${sent} invited`, { sent, skipped: skipped.length });
+    return c.json({ sent, skipped });
+  });
+
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
   app.get('/activity', can('activity'), async (c) => {
     const { results } = await c.env.DB.prepare(
@@ -725,7 +797,9 @@ export function companyRoutes() {
               (SELECT COUNT(*) FROM vendor_enquiry e WHERE e.listing_id = l.id) AS enquiries
          FROM vendor_listing l ORDER BY l.created_at DESC LIMIT 300`,
     ).all<{ id: string; slug: string; name: string; category: string; region: string; email: string; hidden: number; created_at: string; enquiries: number }>();
-    return c.json({ listings: results.map((r) => ({ ...r, hidden: !!r.hidden })) });
+    const [codes, uses] = await Promise.all([readSetting(c.env.DB, 'promos', Promos), promoUses(c.env.DB)]);
+    const codeOf = new Map(codes.codes.filter((p) => p.note.startsWith('vendor:')).map((p) => [p.note.slice(7), p.code]));
+    return c.json({ listings: results.map((r) => ({ ...r, hidden: !!r.hidden, code: codeOf.get(r.id) ?? '', codeUses: uses[codeOf.get(r.id) ?? ''] ?? 0 })) });
   });
   app.put('/listings/:id', can('vendors'), async (c) => {
     const b = z.object({ hidden: z.boolean() }).strict().safeParse(await readJson(c.req.raw));
@@ -796,6 +870,12 @@ export function companyRoutes() {
 /** Public: what the front page and guest pages show (social links, the banner, the "Made with" link). */
 export function siteRoutes() {
   const app = new Hono<{ Bindings: Env }>();
+  app.get('/unsubscribe', async (c) => {
+    const ok = await stopProspect(c.env, c.req.query('p') ?? '');
+    return c.html(
+      `<!doctype html><meta name="viewport" content="width=device-width"><title>The Yes List</title><body style="font-family:Georgia,serif;max-width:480px;margin:60px auto;padding:0 16px;color:#33402f"><h1 style="font-weight:normal">${ok ? 'Done: we won’t email you again.' : 'That link didn’t work.'}</h1><p>${ok ? 'Sorry to have bothered you.' : 'Reply to the email and we’ll take you off by hand.'}</p></body>`,
+    );
+  });
   app.get('/', async (c) => {
     const s = await readSetting(c.env.DB, 'site', SiteSettings);
     return c.json({ social: s.social, supportEmail: s.supportEmail, banner: s.banner.on && s.banner.text ? { text: s.banner.text, link: s.banner.link } : null, madeWith: s.madeWith }, 200, { 'cache-control': 'public, max-age=300' });
@@ -926,4 +1006,29 @@ function safeDetail(s: string): Record<string, unknown> {
 async function roleExists(env: Env, role: string): Promise<boolean> {
   if (isBuiltInRole(role)) return true;
   return role.startsWith('custom:') && (await customRoles(env.DB)).some((r) => `custom:${r.id}` === role);
+}
+
+/** A vendor's partner code (10% off for their couples), made once and kept in the promo codes. */
+export async function ensureVendorCode(db: D1Database, listingId: string, name: string): Promise<string> {
+  const all = await readSetting(db, 'promos', Promos);
+  const had = all.codes.find((p) => p.note === `vendor:${listingId}`);
+  if (had) return had.code;
+  let code = vendorCode(name);
+  for (let n = 2; all.codes.some((p) => p.code === code); n++) code = `${vendorCode(name).replace(/10$/, '')}${n}10`.slice(0, 24);
+  if (all.codes.length >= 200) return '';
+  await writeSetting(db, 'promos', { codes: [...all.codes, Promo.parse({ code, percentOff: 10, note: `vendor:${listingId}`, on: true })] });
+  return code;
+}
+
+/** Vendor invitations' "don't email me again" link (public, signed). */
+export async function stopProspect(env: Env, token: string): Promise<boolean> {
+  const [id, sig] = token.split('.');
+  if (!id || !sig || !env.SESSION_SECRET) return false;
+  if ((await sessionId(`vendor-stop:${id}`, env.SESSION_SECRET)).slice(0, 16) !== sig) return false;
+  const all = await readSetting(env.DB, 'prospects', VendorProspects);
+  const p = all.list.find((x) => x.id === id);
+  if (!p) return false;
+  p.status = 'stopped';
+  await writeSetting(env.DB, 'prospects', all);
+  return true;
 }

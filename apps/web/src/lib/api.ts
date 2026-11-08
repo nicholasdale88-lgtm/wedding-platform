@@ -547,6 +547,8 @@ export type ListedHit = ListingCard & { id: string; km: number; phone: string; w
 
 /** The vendor directory: vendors who've signed up (public), and a vendor's own listing (signed in). */
 export interface MyListing {
+  /** Their partner code: their couples get this much off The Yes List; how many have used it. */
+  partner?: { code: string; percentOff: number; uses: number } | null;
   listing: Listing & { email: string; hidden: boolean };
   enquiries: { id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: boolean; at: string }[];
 }
@@ -906,6 +908,8 @@ export interface OwnPhoneData {
   ready: { id: string; invitationId: string | null; campaignId: string | null; name: string; phone: string; message: string; body: string; at: string }[];
   batches: { message: string; count: number }[];
   sent: number;
+  /** "Send from my own number (automatic)": available when the site's texting service is connected. */
+  ownNumber: { available: boolean; number?: string; status?: 'pending' | 'active' | 'expired' | 'lost'; requestedAt?: string };
 }
 /** "Send me a test": what to test, and how it went (sent, a link to text yourself, or a preview only). */
 export interface TestSendIn {
@@ -933,6 +937,9 @@ export const ownPhoneApi = {
   get: (wid: string) => request<OwnPhoneData>(`${w(wid)}/own-phone`),
   setVia: (wid: string, sendVia: SendVia) => send<{ via: SendVia }>('PUT', `${w(wid)}/own-phone/send-via`, { sendVia }),
   mark: (wid: string, id: string, what: 'sent' | 'skip') => send<{ ok: true }>('POST', `${w(wid)}/own-phone/${encodeURIComponent(id)}/${what}`, {}),
+  requestOwn: (wid: string, mobile: string) => send<{ number: string; status: string }>('POST', `${w(wid)}/own-phone/own-number`, { mobile }),
+  checkOwn: (wid: string) => send<{ status: string }>('POST', `${w(wid)}/own-phone/own-number/check`, {}),
+  removeOwn: (wid: string) => send<{ ok: true }>('DELETE', `${w(wid)}/own-phone/own-number`, {}),
 };
 export const inboxApi = {
   list: (wid: string, show: 'inbox' | 'archived' | 'sent' = 'inbox') =>
@@ -971,7 +978,8 @@ export interface CompanyStats {
   optIns: number;
 }
 export interface CompanyWedding { id: string; slug: string; names: string; plan: string; createdAt: string; requested: string; requestedAt: string; linkSentAt: string; paidCents: number; extraEvents: number; ref: string; day: string; guests: number; email: string }
-export interface CompanyListing { id: string; slug: string; name: string; category: string; region: string; email: string; hidden: boolean; created_at: string; enquiries: number }
+export interface CompanyListing { id: string; slug: string; name: string; category: string; region: string; email: string; hidden: boolean; created_at: string; enquiries: number; code?: string; codeUses?: number }
+export interface VendorProspect { id: string; business: string; contact: string; email: string; category: string; region: string; website: string; status: 'new' | 'invited' | 'joined' | 'stopped'; invitedAt: string; note: string }
 export interface CompanySettings {
   social: { instagram: string; tiktok: string; facebook: string; pinterest: string; youtube: string };
   supportEmail: string;
@@ -1036,6 +1044,10 @@ export const companyApi = {
       mine: { userId: string; weddings: number; work: string } | null;
     }>('/a/company/goals'),
   saveTargets: (people: { userId: string; weddings: number; work: string }[]) => send<{ people: unknown[] }>('PUT', '/a/company/goals/people', { people }),
+  vendorCode: (id: string) => send<{ code: string }>('POST', `/a/company/listings/${encodeURIComponent(id)}/code`, {}),
+  prospects: () => request<{ list: VendorProspect[]; emailOn: boolean }>('/a/company/prospects'),
+  saveProspects: (list: VendorProspect[]) => send<{ list: VendorProspect[] }>('PUT', '/a/company/prospects', { list }),
+  inviteProspects: (ids: string[]) => send<{ sent: number; skipped: string[] }>('POST', '/a/company/prospects/invite', { ids }),
   assistantOn: () => request<{ on: boolean }>('/a/company/assistant'),
   assistant: (task: 'brief' | 'feedback' | 'posts' | 'outreach' | 'ask', note = '', id = '') => send<{ text: string }>('POST', '/a/company/assistant', { task, note, id }),
   bots: () => request<{ bots: { id: string; name: string; role: string; roleName?: string; createdAt: string; lastUsedAt: string; revoked: boolean }[] }>('/a/company/bots'),

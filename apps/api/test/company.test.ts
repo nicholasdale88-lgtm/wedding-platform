@@ -358,4 +358,24 @@ describe('company portal', () => {
     expect(g.mine).toMatchObject({ weddings: 10, work: '100 partner emails' });
     expect((await call('/a/company/goals/people', { method: 'PUT', body: JSON.stringify({ people: [] }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
   });
+  it('vendors: joining gives them a partner code; invites go to prospects with a working opt-out', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const joined = await call('/directory/join', { method: 'POST', body: JSON.stringify({ name: 'Bloom & Co', category: 'Florist', region: 'Sydney', contactName: 'Bea', email: 'bea@bloom.example', passcode: 'long-enough-9', phone: '', website: '', instagram: '', about: '', priceFrom: 0, photos: [], regions: [], company: '' }), headers: { 'CF-Connecting-IP': '9.9.9.9' } });
+    if (joined.status === 200) {
+      const listings = (await (await call('/a/company/listings', {}, boss.cookie)).json()) as { listings: { code: string }[] };
+      expect(listings.listings[0]!.code).toBe('BLOOMCO10');
+    }
+    await call('/a/company/prospects', { method: 'PUT', body: JSON.stringify({ list: [{ id: 'p1', business: 'Vows by Val', email: 'val@vows.example', category: 'Celebrant', region: 'Newcastle' }] }) }, boss.cookie);
+    expect((await call('/a/company/prospects/invite', { method: 'POST', body: JSON.stringify({ ids: ['p1'] }) }, boss.cookie)).status).toBe(400); // email off
+    env.RESEND_API_KEY = 're_test';
+    env.EMAIL_FROM = 'The Yes List <hello@example.com>';
+    const r = (await (await call('/a/company/prospects/invite', { method: 'POST', body: JSON.stringify({ ids: ['p1'] }) }, boss.cookie)).json()) as { sent: number };
+    expect(r.sent).toBe(1);
+    const email = stripe.find((b) => b.includes('Vows by Val')) ?? '';
+    const link = /unsubscribe\?p=([A-Za-z0-9%._-]+)/.exec(email)?.[1];
+    expect(link).toBeTruthy();
+    expect((await call(`/site/unsubscribe?p=${link}`)).status).toBe(200);
+    const after = (await (await call('/a/company/prospects', {}, boss.cookie)).json()) as { list: { status: string }[] };
+    expect(after.list[0]!.status).toBe('stopped');
+  });
 });

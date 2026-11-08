@@ -1,4 +1,4 @@
-import { Enquiry, ListingFields, ListingJoin, regionOf, REGIONS, type Listing, type ListingCard } from '@wp/shared';
+import { Enquiry, ListingFields, ListingJoin, Promos, regionOf, REGIONS, type Listing, type ListingCard } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { hashPasscode, passcodeProblem } from '../lib/auth';
 import { cellOf, kmBetween } from '../lib/directory';
@@ -7,6 +7,7 @@ import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { jsonWritesOnly, requireUser, signIn, type AdminEnv } from './auth';
 import { slugPart } from './signup';
+import { ensureVendorCode, promoUses, readSetting } from './company';
 
 /**
  * The vendor directory of vendors who've signed up (/api/directory, public) and a vendor's own listing
@@ -184,6 +185,8 @@ export function directoryRoutes() {
     } catch {
       return err(c, 409, 'exists', 'There is already an account with that email. Sign in instead.');
     }
+    // Their partner code for their couples (10% off), made straight away.
+    await ensureVendorCode(db, id, f.name).catch(() => '');
     await signIn(c, { id: userId, email: f.email });
     return c.json({ slug });
   });
@@ -204,7 +207,11 @@ export function vendorAccountRoutes() {
     const { results } = await c.env.DB.prepare(`SELECT id, name, email, phone, date, guests, message, read, created_at FROM vendor_enquiry WHERE listing_id = ? ORDER BY created_at DESC LIMIT 200`)
       .bind(r.id)
       .all<{ id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: number; created_at: string }>();
+    const codes = await readSetting(c.env.DB, 'promos', Promos);
+    const code = codes.codes.find((p) => p.note === `vendor:${r.id}`)?.code ?? '';
+    const uses = code ? ((await promoUses(c.env.DB))[code] ?? 0) : 0;
     return c.json({
+      partner: code ? { code, percentOff: 10, uses } : null,
       listing: { ...full(r), email: r.email, hidden: !!r.hidden },
       enquiries: results.map((e) => ({ id: e.id, name: e.name, email: e.email, phone: e.phone, date: e.date, guests: e.guests, message: e.message, read: !!e.read, at: e.created_at })),
     });
