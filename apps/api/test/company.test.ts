@@ -236,8 +236,7 @@ describe('company portal', () => {
     expect(csv).toContain('"Sale"');
     expect(csv).toContain('"Domain"');
     const xero = await (await call('/a/company/money.xero.csv', {}, boss.cookie)).text();
-    expect(xero.split('
-')[0]).toBe('"*Date","*Amount","Payee","Description","Reference"');
+    expect(xero.split('\r\n')[0]).toBe('"*Date","*Amount","Payee","Description","Reference"');
     expect(xero).toContain('"-15.00"'); // the domain, money out
   });
   it('bots: an owner makes a key with a role; the bot works by its role, never as owner; actions logged under its name; switched off at once', async () => {
