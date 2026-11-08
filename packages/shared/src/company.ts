@@ -127,6 +127,8 @@ export const TaxSettings = z.object({
   /** The big goal: total profit by a date (the minimum, and the stretch), e.g. $25,000 and $50,000 by 18 Nov 2027. */
   goalCents: z.number().int().min(0).max(1_000_000_000).default(2_500_000),
   stretchCents: z.number().int().min(0).max(1_000_000_000).default(5_000_000),
+  /** Where it's heading after that: e.g. $100,000 a year. */
+  longTermCents: z.number().int().min(0).max(1_000_000_000).default(10_000_000),
   goalBy: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).default('2027-11-18'),
 });
 export type TaxSettings = z.infer<typeof TaxSettings>;

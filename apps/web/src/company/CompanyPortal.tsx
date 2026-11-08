@@ -2166,6 +2166,15 @@ function Goal({ data, tax, setTax, onSave, running, each }: { data: CompanyMoney
       </div>
       {row('At least', tax.goalCents)}
       {tax.stretchCents > tax.goalCents && row('Ideally', tax.stretchCents)}
+      <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58] max-w-[280px]">
+        Then, a year ($)
+        <input type="number" min={0} step={5000} value={tax.longTermCents / 100} onChange={(e) => setTax({ ...tax, longTermCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
+      </label>
+      {tax.longTermCents > 0 && (
+        <p className="m-0 text-[14px]">
+          <strong>{money(tax.longTermCents)} a year</strong> means about {money(Math.round(tax.longTermCents / 12))} profit a month: about {each > 0 ? Math.ceil((tax.longTermCents / 12 + running) / each) : 0} paying weddings a month ({each > 0 ? Math.ceil((tax.longTermCents / 12 + running) / each / 4.3) : 0} a week).
+        </p>
+      )}
       <p className="m-0 text-[13px] text-[#5f6a58]">
         {Math.round(monthsLeft)} months to go. Every paying wedding leaves about {money(Math.round(each))}; the Grok sales bot, partner codes and the ads plan are how the weekly number gets reached.
       </p>
