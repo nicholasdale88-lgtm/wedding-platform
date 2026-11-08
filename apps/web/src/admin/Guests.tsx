@@ -1,5 +1,5 @@
 import { circleSuggestions, contactGaps, GAP_LABEL } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
@@ -119,6 +119,19 @@ export function Guests() {
   const changed = async () => {
     await Promise.all([load(), reloadOverview()]);
   };
+
+  /** Swiped left and tapped Delete: the whole invitation goes (after a yes). */
+  async function removeGuest(g: Guest) {
+    const who = g.people.map((p) => p.name.trim()).filter(Boolean).join(' & ') || 'this guest';
+    if (!window.confirm(`Delete ${who} from your guest list? Their reply and seat go too.`)) return;
+    try {
+      await api.removeGuest(wid, g.id);
+      toast(`Deleted ${who}`);
+      await changed();
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
 
   async function addGuest() {
     try {
@@ -344,7 +357,8 @@ export function Guests() {
       {mob ? (
         <div className="flex flex-col border-t-2 border-[var(--adm-text,#33402f)]">
           {shown.map((g) => (
-            <button key={g.id} aria-pressed={picking ? picked.has(g.id) : undefined} onClick={() => tap(g.id)} className="flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[var(--adm-line,#e2d7bc)] bg-transparent text-left cursor-pointer">
+            <SwipeToDelete key={g.id} label={g.people[0]?.name || 'New guest'} off={picking} onDelete={() => void removeGuest(g)}>
+            <button aria-pressed={picking ? picked.has(g.id) : undefined} onClick={() => tap(g.id)} className="w-full flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-bg,#fbf8f2)] text-left cursor-pointer">
               <span className="flex justify-between gap-[10px] items-baseline w-full">
                 <strong className="font-semibold text-[15px]">{tick(g.id)}{g.people[0]?.name || 'New guest'}</strong>
                 <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{seats(g)}</span>
@@ -357,6 +371,7 @@ export function Guests() {
               <TieChips g={g} />
               {g.people.some((p) => p.name.trim()) && contactGaps(g).length > 0 && <span className="text-[12px] font-semibold text-[#7a4a37]">{contactGaps(g).map((k) => GAP_LABEL[k]).join(' · ')}</span>}
             </button>
+            </SwipeToDelete>
           ))}
           {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match. Clear the search or filters to see everyone.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
         </div>
@@ -470,6 +485,66 @@ function FirstGuests({ onAdd, onImport }: { onAdd: () => void; onImport: () => v
         </Pill>
         <Pill onClick={onImport}>Import a spreadsheet</Pill>
       </span>
+    </div>
+  );
+}
+
+/**
+ * Phones: slide a guest to the left to show Delete (as in Mail and Messages); slide back, or tap elsewhere, to
+ * hide it. A small sideways move is still a tap, and up-and-down still scrolls the list.
+ */
+function SwipeToDelete({ label, off, onDelete, children }: { label: string; off: boolean; onDelete: () => void; children: ReactNode }) {
+  const W = 92;
+  const [x, setX] = useState(0);
+  const start = useRef<{ x: number; y: number; from: number; side: boolean | null } | null>(null);
+  if (off) return <>{children}</>;
+  return (
+    <div className="relative overflow-hidden">
+      <button
+        type="button"
+        aria-label={`Delete ${label}`}
+        tabIndex={x ? 0 : -1}
+        onClick={() => {
+          setX(0);
+          onDelete();
+        }}
+        className="absolute inset-y-0 right-0 border-0 bg-[#9b3d2c] text-white text-[14px] font-semibold cursor-pointer"
+        style={{ width: W }}
+      >
+        Delete
+      </button>
+      <div
+        className="relative"
+        style={{ transform: `translateX(${x}px)`, transition: start.current ? 'none' : 'transform .2s ease', touchAction: 'pan-y' }}
+        onTouchStart={(e) => {
+          const t = e.touches[0]!;
+          start.current = { x: t.clientX, y: t.clientY, from: x, side: null };
+        }}
+        onTouchMove={(e) => {
+          const s0 = start.current;
+          if (!s0) return;
+          const t = e.touches[0]!;
+          const dx = t.clientX - s0.x;
+          const dy = t.clientY - s0.y;
+          if (s0.side === null && Math.hypot(dx, dy) > 8) s0.side = Math.abs(dx) > Math.abs(dy);
+          if (s0.side) setX(Math.max(-W - 20, Math.min(0, s0.from + dx)));
+        }}
+        onTouchEnd={() => {
+          const s0 = start.current;
+          start.current = null;
+          if (s0?.side) setX((v) => (v < -W / 2 ? -W : 0));
+        }}
+        onClickCapture={(e) => {
+          // Open: a tap closes it rather than opening the guest.
+          if (x) {
+            e.stopPropagation();
+            e.preventDefault();
+            setX(0);
+          }
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
