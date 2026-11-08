@@ -100,7 +100,7 @@ export function dropdowns(events: EventInfo[], ties?: { sides: Record<string, st
       options: [['', 'Any'], ...(ties?.circles ?? []).map((c) => [c, c] as [string, string]), ['none', 'In no circle']],
       test: (g, v) => (v === 'none' ? !g.circles?.length : !!g.circles?.some((c) => lc(c) === lc(v))),
     },
-    { key: 'sort', label: 'Sort', options: [['', 'A to Z'], ['za', 'Z to A'], ['recent', 'Latest reply'], ['table', 'By table']] },
+    { key: 'sort', label: 'Sort', options: [['', 'A to Z'], ['za', 'Z to A'], ['recent', 'Latest reply'], ['table', 'By table'], ['side', 'Grouped by side']] },
   ];
 }
 
@@ -131,6 +131,14 @@ export function applyFilters(guests: Guest[], events: EventInfo[], s: FilterStat
     sort === 'za' ? name(b).localeCompare(name(a))
     : sort === 'recent' ? (b.repliedAt ?? '').localeCompare(a.repliedAt ?? '')
     : sort === 'table' ? tableNo(a) - tableNo(b) || name(a).localeCompare(name(b))
+    : sort === 'side' ? sideRank(a) - sideRank(b) || name(a).localeCompare(name(b))
     : name(a).localeCompare(name(b)),
   );
 }
+
+/** Grouped by side: one partner's side, the other's, both, then anyone not set yet. */
+const SIDE_ORDER = ['p1', 'p2', 'both', ''];
+export const sideRank = (g: { side?: string }) => {
+  const i = SIDE_ORDER.indexOf(g.side ?? '');
+  return i < 0 ? SIDE_ORDER.length : i;
+};

@@ -1,5 +1,5 @@
 import { circleSuggestions, contactGaps, GAP_LABEL } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
@@ -113,6 +113,15 @@ export function Guests() {
     .filter((g) => g.people.some((p) => p.name.trim()))
     .map((g) => ({ g, gaps: contactGaps({ ...g, phone: g.phone ?? null }) }))
     .filter((x) => x.gaps.length);
+  // Grouped by side (Sort → Grouped by side): a heading where each side starts, with how many invitations.
+  const sideOf = (g: Guest) => g.side ?? '';
+  const sideHead = (i: number) => {
+    if (state.sort !== 'side') return '';
+    const k = sideOf(shown[i]!);
+    if (i > 0 && sideOf(shown[i - 1]!) === k) return '';
+    const n = shown.filter((g) => sideOf(g) === k).length;
+    return `${(k && (sideNames as Record<string, string>)[k]) || 'Side not set'} · ${n}`;
+  };
   const anyFilter = FILTER_KEYS.some((k) => k !== 'sort' && k !== 'filter' && state[k]) || state.filter !== 'all';
   const questions = events.flatMap((e) => e.questions.filter((q) => q.type === 'choice').map((q) => ({ event: e.key, key: q.key })));
 
@@ -357,8 +366,10 @@ export function Guests() {
 
       {mob ? (
         <div className="flex flex-col border-t-2 border-[var(--adm-text,#33402f)]">
-          {shown.map((g) => (
-            <SwipeToDelete key={g.id} label={g.people[0]?.name || 'New guest'} off={picking} onDelete={() => void removeGuest(g)}>
+          {shown.map((g, i) => (
+            <Fragment key={g.id}>
+            {sideHead(i) && <h3 className="m-0 pt-4 pb-1 text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)] border-b border-[var(--adm-line,#e2d7bc)]">{sideHead(i)}</h3>}
+            <SwipeToDelete label={g.people[0]?.name || 'New guest'} off={picking} onDelete={() => void removeGuest(g)}>
             <button aria-pressed={picking ? picked.has(g.id) : undefined} onClick={() => tap(g.id)} className="w-full flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-bg,#fbf8f2)] text-left cursor-pointer">
               <span className="flex justify-between gap-[10px] items-baseline w-full">
                 <strong className="font-semibold text-[15px]">{tick(g.id)}{g.people[0]?.name || 'New guest'}</strong>
@@ -373,6 +384,7 @@ export function Guests() {
               {g.people.some((p) => p.name.trim()) && contactGaps(g).length > 0 && <span className="text-[12px] font-semibold text-[#7a4a37]">{contactGaps(g).map((k) => GAP_LABEL[k]).join(' · ')}</span>}
             </button>
             </SwipeToDelete>
+            </Fragment>
           ))}
           {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match. Clear the search or filters to see everyone.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
         </div>
@@ -389,9 +401,14 @@ export function Guests() {
               <span role="columnheader">Dietary</span>
               <span role="columnheader">Last text</span>
             </div>
-            {shown.map((g) => (
+            {shown.map((g, i) => (
+              <Fragment key={g.id}>
+              {sideHead(i) && (
+                <div role="row" className="py-2 px-[18px] bg-[var(--adm-tint,#f3ecd9)] border-b border-[var(--adm-line,#e2d7bc)]">
+                  <span role="columnheader" className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">{sideHead(i)}</span>
+                </div>
+              )}
               <div
-                key={g.id}
                 role="row"
                 tabIndex={0}
                 aria-selected={picking ? picked.has(g.id) : undefined}
@@ -428,6 +445,7 @@ export function Guests() {
                 <span className="text-[13px] overflow-hidden text-ellipsis whitespace-nowrap">{g.people.map((p) => p.diet.trim()).filter(Boolean).join('; ') || '–'}</span>
                 <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{g.lastSms ? `${g.lastSms.name} · ${fmtWhen(g.lastSms.at, tz)}` : g.phone ? 'Not invited yet' : 'No mobile'}</span>
               </div>
+              </Fragment>
             ))}
             {data && shown.length === 0 && (guests.length ? <div className="py-10 px-[18px] text-center text-[var(--adm-muted,#5b6a52)]">No guests match. Clear the search or filters to see everyone.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
           </div>
