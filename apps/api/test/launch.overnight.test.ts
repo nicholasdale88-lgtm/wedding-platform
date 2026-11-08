@@ -79,7 +79,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   const clock = fakeClock('2026-10-20T09:00');
   const deps = (e: Env): EngineDeps => ({ store: new D1SmsStore(e.DB, e.PUBLIC_BASE_URL), provider, now: clock.now, uuid: () => crypto.randomUUID() });
   const app = createApp(deps);
-  let waits: Promise<unknown>[] = [];
+  const waits: Promise<unknown>[] = [];
   const ctx = () => ({ waitUntil: (p: Promise<unknown>) => void waits.push(p.catch(() => undefined)), passThroughOnException: () => {}, props: {} }) as unknown as ExecutionContext;
   /** Emails handed to Resend. */
   const mailed: { from: string; to: string[]; subject: string; text: string }[] = [];
