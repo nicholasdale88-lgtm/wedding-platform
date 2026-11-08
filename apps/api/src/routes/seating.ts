@@ -74,7 +74,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       db.prepare(
         `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, (SELECT s.table_id FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS tableId,
                 i.party, p.party_role AS role,
-                ie.event_id IS NOT NULL AS invited, r.attending
+                ie.event_id IS NOT NULL AS invited, r.attending, r.count
            FROM person p JOIN invitation i ON i.id = p.invitation_id
            LEFT JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
            LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ?1
@@ -93,10 +93,13 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     const versionRows = vers!.results as { id: string; name: string; snapshot: string; created_at: string }[];
     const tableIds = new Set((tables!.results as { id: string }[]).map((t) => t.id));
     const p = plan!.results[0] as { aspect: string; image_key: string | null; current_version: string | null } | undefined;
-    type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; role: string; invited: number; attending: number | null };
+    type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; role: string; invited: number; attending: number | null; count: number | null };
     const rows = people!.results as Row[];
+    // A yes is for the first N people on the invitation (N = the reply's count, as the overview counts them):
+    // the others on it aren't coming, so they get no seat and are never shown to guests.
+    const beyondCount = (x: Row) => x.attending === 1 && x.idx >= Math.max(1, x.count ?? 1);
     // A seat needs an invitation to this event and no "no" (still to reply is fine: pencilled in).
-    const seatable = (x: Row) => !!x.invited && x.attending !== 0;
+    const seatable = (x: Row) => !!x.invited && x.attending !== 0 && !beyondCount(x);
     const seatOf = (x: Row) => (seatable(x) && x.tableId && tableIds.has(x.tableId) ? x.tableId : null);
     const draft: Snapshot = {
       aspect: p?.aspect ?? '4 / 3',
@@ -104,7 +107,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       areas: areas!.results as Snapshot['areas'],
       seats: Object.fromEntries(rows.filter(seatOf).map((x) => [x.id, seatOf(x)!])),
     };
-    const yes = new Set(rows.filter((x) => x.invited && x.attending === 1).map((x) => x.id));
+    const yes = new Set(rows.filter((x) => x.invited && x.attending === 1 && !beyondCount(x)).map((x) => x.id));
     const publishable: Snapshot = { ...draft, seats: Object.fromEntries(Object.entries(draft.seats).filter(([id]) => yes.has(id))) };
     const pubRow = pub!.results[0] as { snapshot: string; published_at: string } | undefined;
     const empty = { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot;

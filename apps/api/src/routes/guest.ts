@@ -279,7 +279,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       const { results } = await db
         .prepare(
           `SELECT p.id, p.name FROM person p JOIN invitation i ON i.id = p.invitation_id
-             JOIN rsvp rr ON rr.invitation_id = i.id AND rr.event_id = ? AND rr.attending = 1
+             JOIN rsvp rr ON rr.invitation_id = i.id AND rr.event_id = ? AND rr.attending = 1 AND p.idx < MAX(1, COALESCE(rr.count, 1))
             WHERE p.id IN (${mateIds.map(() => '?').join(',')}) AND p.deleted_at IS NULL AND i.deleted_at IS NULL
             ORDER BY p.name`,
         )

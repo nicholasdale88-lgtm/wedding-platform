@@ -100,7 +100,14 @@ describe('meals API', () => {
 
   it('a stress run: 120 meals saved at once all land, each exactly once', async () => {
     const { results: ppl } = await t.db
-      .prepare(`SELECT p.id FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ? AND p.deleted_at IS NULL LIMIT 120`)
+      // Everyone who can have a meal at the wedding: invited to it and not said no.
+      .prepare(
+        `SELECT p.id FROM person p JOIN invitation i ON i.id = p.invitation_id
+           JOIN event e ON e.wedding_id = i.wedding_id AND e.key = 'wedding'
+           JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = e.id
+           LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = e.id
+          WHERE i.wedding_id = ? AND p.deleted_at IS NULL AND (r.attending IS NULL OR r.attending = 1) LIMIT 120`,
+      )
       .bind(wid)
       .all<{ id: string }>();
     const codes = await Promise.all(ppl.map(async (x, i) => (await call(`/a/w/${wid}/people/${x.id}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', menu: i % 2 ? 'vegan' : '', entree: '', main: `Dish ${i}`, dessert: '' }) })).status));

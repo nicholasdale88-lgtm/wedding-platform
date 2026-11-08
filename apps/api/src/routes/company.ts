@@ -82,7 +82,12 @@ export function companyRoutes() {
       one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND created_at >= ?`, new Date(now.getTime() - 7 * 86_400_000).toISOString()),
       one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND created_at >= ?`, new Date(now.getTime() - 30 * 86_400_000).toISOString()),
       one(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id JOIN wedding w ON w.id = i.wedding_id WHERE p.deleted_at IS NULL AND i.deleted_at IS NULL AND w.deleted_at IS NULL`),
-      one(`SELECT COUNT(*) AS n FROM rsvp r JOIN invitation i ON i.id = r.invitation_id WHERE i.deleted_at IS NULL`),
+      // Replies: answers (yes or no) to events the guest is still invited to, in weddings that still exist.
+      one(
+        `SELECT COUNT(*) AS n FROM rsvp r JOIN invitation i ON i.id = r.invitation_id JOIN wedding w ON w.id = i.wedding_id JOIN event e ON e.id = r.event_id
+          JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
+          WHERE r.attending IS NOT NULL AND i.deleted_at IS NULL AND w.deleted_at IS NULL AND e.deleted_at IS NULL`,
+      ),
       one(`SELECT COUNT(*) AS n FROM vendor_listing WHERE hidden = 0`),
       one(`SELECT COUNT(*) AS n FROM vendor_enquiry`),
       one(`SELECT COUNT(*) AS n FROM user WHERE marketing_opt_in = 1`),

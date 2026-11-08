@@ -518,6 +518,15 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       .first<{ pid: string; eid: string | null }>();
     if (!row) return err(c, 404, 'not_found', 'Guest not found.');
     if (!row.eid) return err(c, 404, 'not_found', 'That event no longer exists.');
+    // A meal is for someone coming (or still to reply): a no would only end up on the caterer's list.
+    const open = await c.env.DB.prepare(
+      `SELECT 1 FROM person p JOIN invite_event ie ON ie.invitation_id = p.invitation_id AND ie.event_id = ?2
+         LEFT JOIN rsvp r ON r.invitation_id = p.invitation_id AND r.event_id = ?2
+        WHERE p.id = ?1 AND (r.attending IS NULL OR r.attending = 1)`,
+    )
+      .bind(pid, row.eid)
+      .first();
+    if (!open) return err(c, 400, 'not_coming', 'They’ve said no to that event (or aren’t invited to it), so there’s no meal to choose.');
     await c.env.DB.batch([
       c.env.DB.prepare(
         `INSERT INTO meal_choice (person_id, event_id, menu_id, entree, main, dessert, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
