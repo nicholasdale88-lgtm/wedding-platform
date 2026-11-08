@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
 import { GuestPlanningBar } from './GuestPlanning';
@@ -6,18 +6,56 @@ import { Guests } from './Guests';
 import { Join } from './Join';
 import { Login } from './Login';
 import { Overview } from './Overview';
-import { GuestPages } from './pages/GuestPages';
-import { Dietary } from './diet/Dietary';
-import { Photos } from './photos/Photos';
-import { Settings } from './settings/Settings';
-import { Help } from './help/Help';
-import { Rehearsal } from './Rehearsal';
-import { EventDayChecklist } from './checklists/EventDayChecklist';
-import { Party } from './party/Party';
-import { WeddingPlanner } from './planner/WeddingPlanner';
-import { Seating } from './seating/Seating';
-import { SmsTab } from './texts/SmsTab';
-import { Messages } from './messages/Messages';
+
+/**
+ * Each admin screen is its own download: opening the admin fetches only the Overview and Guest list, then
+ * the rest quietly in the background once the page is idle, so a tap on any section is instant. (It was one
+ * 1 MB file before anything showed.) A screen whose file is gone after a new version went live reloads once.
+ */
+const screens: (() => Promise<unknown>)[] = [];
+function screen<T extends ComponentType>(load: () => Promise<{ [k: string]: unknown }>, name: string) {
+  const get = () =>
+    load().then(
+      (m) => ({ default: m[name] as T }),
+      (e: unknown) => {
+        try {
+          const last = Number(sessionStorage.getItem('wp-reloaded') ?? 0);
+          if (Date.now() - last > 30_000) {
+            sessionStorage.setItem('wp-reloaded', String(Date.now()));
+            window.location.reload();
+            return new Promise<{ default: T }>(() => {});
+          }
+        } catch {
+          /* show the error */
+        }
+        throw e;
+      },
+    );
+  screens.push(get);
+  return lazy(get);
+}
+const GuestPages = screen(() => import('./pages/GuestPages'), 'GuestPages');
+const Dietary = screen(() => import('./diet/Dietary'), 'Dietary');
+const Photos = screen(() => import('./photos/Photos'), 'Photos');
+const Settings = screen(() => import('./settings/Settings'), 'Settings');
+const Help = screen(() => import('./help/Help'), 'Help');
+const Rehearsal = screen(() => import('./Rehearsal'), 'Rehearsal');
+const EventDayChecklist = screen(() => import('./checklists/EventDayChecklist'), 'EventDayChecklist');
+const Party = screen(() => import('./party/Party'), 'Party');
+const WeddingPlanner = screen(() => import('./planner/WeddingPlanner'), 'WeddingPlanner');
+const Seating = screen(() => import('./seating/Seating'), 'Seating');
+const SmsTab = screen(() => import('./texts/SmsTab'), 'SmsTab');
+const Messages = screen(() => import('./messages/Messages'), 'Messages');
+let preloaded = false;
+/** Once the first screen is up and the phone is idle, fetch the others so switching sections is instant. */
+function preloadScreens() {
+  if (preloaded || typeof window === 'undefined') return;
+  preloaded = true;
+  const go = () => screens.forEach((get, i) => setTimeout(() => void get().catch(() => undefined), i * 150));
+  const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (idle) idle(go, { timeout: 4000 });
+  else setTimeout(go, 2500);
+}
 import { ACCOUNT, ALL_EVENTS, AdminDataProvider, lastSection, Shell, TABS, useAdmin } from './Shell';
 import { Eyebrow, Loading, Pill, ToastProvider } from './ui';
 import { UpgradeWhenRefused } from './Upgrade';
@@ -121,7 +159,17 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
  * The page for /admin/:wid/:section/:tab. An address that doesn't fit (an event that was removed, an event
  * page asked for in Account, an Account page in an event, an old name) is corrected, keeping its filters.
  */
+/** A section's screen: shown as soon as its file is here (a moment's Loading the first time only). */
 function SectionPage({ section, tab }: { section: string; tab: string }) {
+  useEffect(preloadScreens, []);
+  return (
+    <Suspense fallback={<Loading />}>
+      <SectionBody section={section} tab={tab} />
+    </Suspense>
+  );
+}
+
+function SectionBody({ section, tab }: { section: string; tab: string }) {
   const { overview: o, path } = useAdmin();
   const { search } = useLocation();
   // Account's texting setup and admin look are views of Settings now.
