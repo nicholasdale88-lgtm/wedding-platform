@@ -236,4 +236,20 @@ describe('company portal', () => {
     expect(csv).toContain('"Sale"');
     expect(csv).toContain('"Domain"');
   });
+  it('bots: an owner makes a key with a role; the bot works by its role, never as owner; actions logged under its name; switched off at once', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    expect((await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Grok', role: 'owner' }) }, boss.cookie)).status).toBe(400);
+    const { id, key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Grok', role: 'marketing' }) }, boss.cookie)).json()) as { id: string; key: string };
+    const bot = { authorization: `Bearer ${key}` };
+    expect((await call('/a/company/stats', { headers: bot })).status).toBe(200);
+    expect((await call('/a/company/promos', { headers: bot })).status).toBe(200);
+    expect((await call('/a/company/weddings', { headers: bot })).status).toBe(403); // marketing doesn't see couples
+    expect((await call('/a/company/bots', { headers: bot })).status).toBe(403); // nor the team
+    expect((await call('/a/company/promos', { method: 'PUT', body: JSON.stringify({ codes: [{ code: 'GROK10', percentOff: 10 }] }), headers: bot })).status).toBe(200);
+    const act = (await (await call('/a/company/activity', {}, boss.cookie)).json()) as { activity: { action: string; who: string }[] };
+    expect(act.activity.find((a) => a.action === 'company.promos')!.who).toBe('Grok');
+    expect((await call('/a/company/stats', { headers: { authorization: 'Bearer yl_bot_wrongwrongwrongwrongwrong' } })).status).toBe(401);
+    expect((await call(`/a/company/bots/${id}`, { method: 'DELETE' }, boss.cookie)).status).toBe(200);
+    expect((await call('/a/company/stats', { headers: bot })).status).toBe(401);
+  });
 });

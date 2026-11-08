@@ -46,7 +46,29 @@ export const jsonWritesOnly: MiddlewareHandler<AdminEnv> = async (c, next) => {
   await next();
 };
 
+/** A bot's key ("Authorization: Bearer yl_bot_…"): the bot's own user, with its company role. */
+async function botUser(c: Context<AdminEnv>): Promise<SessionUser | null> {
+  const key = /^Bearer (yl_bot_[A-Za-z0-9_-]{20,80})$/.exec(c.req.header('authorization') ?? '')?.[1];
+  if (!key || !c.env.SESSION_SECRET) return null;
+  const row = await c.env.DB.prepare(
+    `SELECT b.id, u.id AS user_id, u.email, st.role FROM bot_key b JOIN user u ON u.id = b.user_id LEFT JOIN staff st ON st.user_id = u.id WHERE b.hash = ? AND b.revoked_at IS NULL`,
+  )
+    .bind(await sessionId(key, c.env.SESSION_SECRET))
+    .first<{ id: string; user_id: string; email: string; role: string | null }>();
+  if (!row) return null;
+  await c.env.DB.prepare(`UPDATE bot_key SET last_used_at = ? WHERE id = ?`).bind(new Date().toISOString(), row.id).run();
+  // A bot is never an owner: it can't change the team or its own key.
+  const staff = row.role && row.role !== 'owner' && (STAFF_ROLES as readonly string[]).includes(row.role) ? (row.role as StaffRole) : null;
+  return { id: row.user_id, email: row.email, staff, superAdmin: false };
+}
+
 export const requireUser: MiddlewareHandler<AdminEnv> = async (c, next) => {
+  if (c.req.header('authorization')?.startsWith('Bearer yl_bot_')) {
+    const bot = await botUser(c);
+    if (!bot) return err(c, 401, 'signed_out', 'That bot key is wrong or was revoked.');
+    c.set('user', bot);
+    return next();
+  }
   const token = getCookie(c, SESSION_COOKIE);
   if (!token || !c.env.SESSION_SECRET) return err(c, 401, 'signed_out', 'Please sign in.');
   const row = await c.env.DB.prepare(

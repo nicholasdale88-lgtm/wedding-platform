@@ -1045,6 +1045,8 @@ const ACTION: Record<string, string> = {
   'company.team.remove': 'Removed from the team',
   'company.tax': 'Changed tax settings',
   'company.expense': 'Added an expense',
+  'company.bot.add': 'Added a bot',
+  'company.bot.revoke': 'Turned off a bot',
 };
 
 /** Who works on the app, their roles, and invitations. Owners only. */
@@ -1165,6 +1167,7 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
           </>
         )}
       </section>
+      <Bots onNote={onNote} />
       <section className={card} aria-label="What each role can do">
         <H>What each role can do</H>
         <dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[14px]">
@@ -1580,5 +1583,77 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
         </div>
       </section>
     </>
+  );
+}
+
+/** Bots (Grok) that help run the company: a role like a person's, a key shown once, and an off switch. */
+function Bots({ onNote }: { onNote: (s: string) => void }) {
+  const { data, error, reload } = useLoad(companyApi.bots);
+  const [name, setName] = useState('Grok');
+  const [role, setRole] = useState<'manager' | 'support' | 'developer' | 'marketing'>('support');
+  const [key, setKey] = useState('');
+  const [problem, setProblem] = useState('');
+  const add = async () => {
+    setProblem('');
+    try {
+      const r = await companyApi.addBot(name.trim(), role);
+      setKey(r.key);
+      reload();
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  return (
+    <section className={card} aria-label="Bots">
+      <H sub="Give Grok (or any assistant) its own key and role. It sees and does only what that role allows, every action is in Activity under its name, and you can switch it off at once. Bots are never owners.">Bots</H>
+      {error && <Problem text={error} />}
+      <div className="flex gap-2 flex-wrap items-end">
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          Name
+          <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} className={`${input} w-[180px]`} />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          Role
+          <select value={role} onChange={(e) => setRole(e.target.value as typeof role)} className={`${input} w-auto`}>
+            {(['manager', 'support', 'developer', 'marketing'] as const).map((r) => (
+              <option key={r} value={r}>
+                {STAFF_INFO[r].name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="button" className={primary} disabled={!name.trim()} onClick={() => void add()}>
+          Create a key
+        </button>
+      </div>
+      {key && (
+        <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
+          <strong>Copy this key now: it won’t be shown again.</strong>
+          <code className="break-all text-[13px]">{key}</code>
+          <span>Give it to the bot as the header “Authorization: Bearer {'<key>'}” with the instructions in docs/GROK_PLAYBOOK.md.</span>
+          <button type="button" className={`${btn} self-start`} onClick={() => void navigator.clipboard?.writeText(key).then(() => onNote('Key copied'), () => undefined)}>
+            Copy key
+          </button>
+        </div>
+      )}
+      {problem && <Problem text={problem} />}
+      {data && data.bots.length > 0 && (
+        <ul className="m-0 p-0 list-none flex flex-col">
+          {data.bots.map((b) => (
+            <li key={b.id} className="flex flex-wrap items-center gap-3 py-2 border-t border-[#e4e6df] text-[14px]">
+              <strong className="flex-1 min-w-[140px]">{b.name}</strong>
+              <span className="text-[#5f6a58]">
+                {b.revoked ? 'Switched off' : `${STAFF_INFO[b.role as StaffRole]?.name ?? b.role} · ${b.lastUsedAt ? `last used ${day(b.lastUsedAt)}` : 'not used yet'}`}
+              </span>
+              {!b.revoked && (
+                <button type="button" className={btn} onClick={() => void companyApi.revokeBot(b.id).then(() => (onNote(`${b.name} switched off`), reload()), (e: Error) => setProblem(e.message))}>
+                  Switch off
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

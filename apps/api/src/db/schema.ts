@@ -665,3 +665,15 @@ export const helpAudio = sqliteTable('help_audio', {
   audio: blob('audio').notNull(),
   createdAt: text('created_at').notNull(),
 });
+
+/** A bot's key for the company portal (only its hash), tied to its own user (migration 0037). */
+export const botKey = sqliteTable('bot_key', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id),
+  name: text('name').notNull(),
+  hash: text('hash').notNull().unique(),
+  createdBy: text('created_by'),
+  createdAt: text('created_at').notNull(),
+  lastUsedAt: text('last_used_at'),
+  revokedAt: text('revoked_at'),
+});

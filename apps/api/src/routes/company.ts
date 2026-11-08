@@ -409,6 +409,41 @@ export function companyRoutes() {
     });
   });
 
+  /** Bots (Grok, say) that help run the company: each with a role like a person's, and a key shown once. */
+  app.get('/bots', can('team'), async (c) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT b.id, b.name, COALESCE(st.role, '') AS role, b.created_at, b.last_used_at, b.revoked_at FROM bot_key b LEFT JOIN staff st ON st.user_id = b.user_id ORDER BY b.created_at DESC`,
+    ).all<{ id: string; name: string; role: string; created_at: string; last_used_at: string | null; revoked_at: string | null }>();
+    return c.json({ bots: results.map((r) => ({ id: r.id, name: r.name, role: r.role, createdAt: r.created_at, lastUsedAt: r.last_used_at ?? '', revoked: !!r.revoked_at })) });
+  });
+  app.post('/bots', can('team'), async (c) => {
+    const b = z.object({ name: z.string().trim().min(1).max(40), role: z.enum(['manager', 'support', 'developer', 'marketing']) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'A name and a role (not owner), please.');
+    if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in isn’t set up.');
+    const key = `yl_bot_${randomToken(40)}`;
+    const id = crypto.randomUUID();
+    const userId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await c.env.DB.batch([
+      // Its own user (no passcode: it can only use its key), so its actions show under its name.
+      c.env.DB.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, NULL, ?, 0, ?, ?, ?)`).bind(userId, `bot-${id.slice(0, 8)}@bots.invalid`, b.data.name, b.data.name, now, now, now),
+      c.env.DB.prepare(`INSERT INTO staff (user_id, role, added_by, created_at) VALUES (?, ?, ?, ?)`).bind(userId, b.data.role, c.get('user').id, now),
+      c.env.DB.prepare(`INSERT INTO bot_key (id, user_id, name, hash, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind(id, userId, b.data.name, await sessionId(key, c.env.SESSION_SECRET), c.get('user').id, now),
+    ]);
+    await logCompany(c, 'company.bot.add', b.data.name, { role: b.data.role });
+    return c.json({ id, key });
+  });
+  app.delete('/bots/:id', can('team'), async (c) => {
+    const row = await c.env.DB.prepare(`SELECT user_id, name FROM bot_key WHERE id = ?`).bind(c.req.param('id')).first<{ user_id: string; name: string }>();
+    if (!row) return err(c, 404, 'not_found', 'No such bot.');
+    await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE bot_key SET revoked_at = ? WHERE id = ?`).bind(new Date().toISOString(), c.req.param('id')),
+      c.env.DB.prepare(`DELETE FROM staff WHERE user_id = ?`).bind(row.user_id),
+    ]);
+    await logCompany(c, 'company.bot.revoke', row.name, {});
+    return c.json({ ok: true });
+  });
+
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
   app.get('/activity', can('activity'), async (c) => {
     const { results } = await c.env.DB.prepare(
