@@ -80,8 +80,8 @@ describe('customer accounts', () => {
     expect(await accepted.json()).toMatchObject({ user: { email: 'partner@example.com' }, weddings: [{ id: 'w1', role: 'owner' }] });
     expect(cookieOf(accepted)).toMatch(/^wp_session=/);
     // Who they are carries over from the invitation, and can be changed.
-    const list = (await (await call('/api/a/w/w1/members', {}, owner)).json()) as { members: { email: string; id: string; relation: string }[] };
-    const sam = list.members.find((m) => m.email === 'partner@example.com')!;
+    const people = (await (await call('/api/a/w/w1/members', {}, owner)).json()) as { members: { email: string; id: string; relation: string }[] };
+    const sam = people.members.find((m) => m.email === 'partner@example.com')!;
     expect(sam.relation).toBe('partner');
     expect((await call(`/api/a/w/w1/members/${sam.id}`, json('PATCH', { relation: 'planner' }), owner)).status).toBe(200);
     // Once only.

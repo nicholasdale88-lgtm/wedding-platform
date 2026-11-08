@@ -29,13 +29,13 @@ export const FREE_GUEST_LIMIT = 50;
 
 export const PLAN_INFO: Record<Plan, { name: string; price: string }> = {
   free: { name: 'Free', price: '$0' },
-  essentials: { name: 'Essentials', price: '$60' },
+  essentials: { name: 'Essentials', price: '$88' },
   // Stored as 'complete'; called Deluxe.
-  complete: { name: 'Deluxe', price: '$80' },
+  complete: { name: 'Deluxe', price: '$98' },
 };
 
 /** The same prices in cents (AUD), for paying by card. Keep these in step with PLAN_INFO and EVENT_ADDON. */
-export const PRICE_CENTS: Record<Plan, number> = { free: 0, essentials: 6000, complete: 8000 };
+export const PRICE_CENTS: Record<Plan, number> = { free: 0, essentials: 8800, complete: 9800 };
 export const EVENT_ADDON_CENTS = 3900;
 
 /** What can be bought by card: a plan, or one more event. */

@@ -25,7 +25,7 @@ Everything here is yours to do: it needs your identity, your card or your passwo
 ## 3. Getting paid: Stripe
 
 1. Sign up at stripe.com as a sole trader with your ABN, licence and bank account: **free**, no monthly fee.
-2. Fees: **1.7% + 30c per Australian card** (about $1.32 on a $60 sale). Payouts go to your bank automatically: the first after about a week, then daily.
+2. Fees: **1.7% + 30c per Australian card** (about $1.80 on an $88 sale). Payouts go to your bank automatically: the first after about a week, then daily.
 3. In Stripe: Developers → API keys (the **secret** key), and Webhooks → add `https://<your site>/api/hooks/stripe` for the event `checkout.session.completed` (gives the **signing secret**).
 4. Add both in GitHub → Settings → Secrets → Actions: `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`. The next update switches card payments on.
 5. Optional: make a Payment Link for each plan and paste them in Company portal → Settings → Payment links, for couples who ask.

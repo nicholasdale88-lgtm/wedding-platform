@@ -1,6 +1,6 @@
 # The Yes List: Facebook and Instagram ads plan (small budget)
 
-> **Prices changed on 8 Nov 2026 to A$60 (Essentials) and A$80 (Deluxe).** Read every "A$28" below as A$60. The break-even cost per purchase is now about **A$58** (A$47 with YES20), about double the room the numbers below assume.
+> **Prices changed on 8 Nov 2026 to A$88 (Essentials) and A$98 (Deluxe).** Read every "A$28" below as A$88. The break-even cost per purchase is now about **A$86** (A$69 with YES20), about three times the room the numbers below assume.
 
 Written 8 Nov 2026 for the owner, who is not a marketer. Read the **honest bottom line** first, then follow the steps in order. Prices are A$. Nothing in the app has been changed yet: section 7 lists the tracking work still to do.
 

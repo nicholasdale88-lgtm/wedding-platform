@@ -99,7 +99,7 @@ describe('company portal', () => {
     expect(list.codes.find((c) => c.code === 'FRIEND')!.used).toBe(1);
     expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'FRIEND' }) }, a.cookie)).json()) as { error: { message: string } }).error.message).toMatch(/used up/);
     // Not for Deluxe.
-    expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'complete', code: 'YES20' }) }, a.cookie)).json()) as { cents: number }).cents).toBe(6400);
+    expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'complete', code: 'YES20' }) }, a.cookie)).json()) as { cents: number }).cents).toBe(7840);
     const stats = (await (await call('/a/company/stats', {}, boss.cookie)).json()) as { revenue: { payments: number } };
     expect(stats.revenue.payments).toBe(1);
   });
@@ -118,7 +118,7 @@ describe('company portal', () => {
     expect(JSON.stringify(await (await call('/site')).json())).not.toContain('stripe');
     expect((await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, a.cookie)).status).toBe(403);
     const sent = (await (await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, boss.cookie)).json()) as { emailed: boolean; email: string; link: string; cents: number };
-    expect(sent).toEqual({ ok: true, emailed: false, email: 'alex@example.com', link: 'https://buy.stripe.com/deluxe', cents: 8000 });
+    expect(sent).toEqual({ ok: true, emailed: false, email: 'alex@example.com', link: 'https://buy.stripe.com/deluxe', cents: 9800 });
     let row = ((await (await call('/a/company/weddings?requests=1', {}, boss.cookie)).json()) as { weddings: { requested: string; linkSentAt: string; paidCents: number }[] }).weddings[0]!;
     expect(row.requested).toBe('complete');
     expect(row.linkSentAt).not.toBe('');
@@ -227,7 +227,7 @@ describe('company portal', () => {
     const mm = (await (await call('/a/company/money', {}, boss.cookie)).json()) as { months: { gross: number; running: number; oneOff: number; profit: number }[]; prices: { essentials: number } };
     expect(mm.months).toHaveLength(12);
     expect(mm.months.at(-1)).toMatchObject({ gross: 2800, running: 5000, oneOff: 1500, profit: -3700 });
-    expect(mm.prices.essentials).toBe(6000);
+    expect(mm.prices.essentials).toBe(8800);
     expect((await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true }) }, boss.cookie)).status).toBe(400); // needs the date
     await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true, gstFrom: '2020-01-01', setAsidePct: 30 }) }, boss.cookie);
     m = (await (await call('/a/company/money', {}, boss.cookie)).json()) as M;

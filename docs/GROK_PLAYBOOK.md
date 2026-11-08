@@ -35,7 +35,41 @@ It never touches couples' wedding data, can't change the team, and is never an o
 | Expenses | `POST /money/expenses` `{date, what, kind, cents, gstCents}` | Manager |
 | Activity log | `GET /activity` | Manager |
 
-All amounts are in cents (6000 = $60). Dates are `yyyy-mm-dd`.
+All amounts are in cents (8800 = $88). Dates are `yyyy-mm-dd`.
+
+## The whole team, and how much it needs you
+
+The aim is for you to check one Monday brief and approve a few things a week. Each bot is set to one of three levels:
+- **Auto:** it just does the job.
+- **Approve:** it prepares the job and you say yes.
+- **Report:** it only tells you.
+
+| Bot | Key role | Runs | Level | Does |
+|---|---|---|---|---|
+| Business manager | Manager | Mon 8am | Report | The weekly brief and your three to-dos; checks the other bots ran |
+| Bookings manager | Support | Daily 9am | Auto | Sends payment links for plan requests; lists unpaid ones after 3 days |
+| Customer support | Support | Every 2 hours | Auto, then Approve | Answers couples' emails to the support address from the help guides; anything about money, refunds or bugs comes to you |
+| IT support | Developer | Daily 7am | Report | Site up, CI green, 12-hourly backups ran; plain-words alert if not |
+| QA tester | Developer | After each update on staging | Report | Clicks through sign-up, invitation, RSVP, seating and payment on the staging site; reports what broke |
+| Improvement team | Developer | Fri | Auto | Sorts feedback, picks the top three, writes the "coming soon" notes couples see |
+| Marketing | Marketing | Mon, Thu | Approve | Three posts a week with captions, links and the current code |
+| Social scheduler | (no key; uses Buffer or Meta Business Suite, free) | When approved | Auto | Posts the approved content at the best times |
+| Sales outreach | Marketing | Tue | Approve | 20 celebrants and venues a week, personalised emails, partner codes |
+| Partner manager | Marketing | Monthly | Report | Which partner codes brought sign-ups; thanks the top ones (Approve) |
+| Reviews and stories | Support | 2 weeks after each wedding | Approve | Asks happy couples for a one-line review or photo for the front page |
+| Vendor directory curator | Support | Weekly | Auto | Hides spam or incomplete listings; welcomes good new vendors |
+| Accounts | Manager | 1st of the month | Report | Profit, tax to set aside, GST threshold, BAS dates; logs recurring costs |
+| Competition scout | (web only) | Fortnightly | Report | Rivals' prices and features in a table |
+| SEO writer | Marketing | Fortnightly | Approve | One helpful article (e.g. "How to word a wedding invitation") for the site |
+
+**What the app already does by itself (no bot needed):**
+- texts and emails to guests, and reminders;
+- the Stripe checkout and switching plans on once a couple pays (once the Stripe keys are in);
+- the 12-hourly backups;
+- the "Made with" link on Free invitations;
+- the profit tracker.
+
+**What stays yours:** approving money spent, new offers, anything said publicly in the business's name for the first time, refunds, and hiring.
 
 ## The roles: what to tell Grok
 
@@ -68,5 +102,5 @@ All amounts are in cents (6000 = $60). Dates are `yyyy-mm-dd`.
 - **Ask before spending money** (ads, paid tools) and before anything new goes out in the business's name.
 - **Cold emails (Spam Act 2003):** only to businesses' published work addresses, about something relevant to their work, always saying who it's from, with a working way to opt out. Never buy or scrape lists of couples. Couples get marketing only if they ticked "send me news" (`/optins.csv`).
 - **Privacy:** don't copy couples' personal details out of the portal except to do the task, and never into public posts.
-- **Prices:** quote the real prices (Essentials $60, Deluxe $80, extra event $39). No "was $X" prices unless that price really was charged.
+- **Prices:** quote the real prices (Essentials $88, Deluxe $98, extra event $39). No "was $X" prices unless that price really was charged.
 - **When unsure, ask.** A message to you is always better than a wrong change.
