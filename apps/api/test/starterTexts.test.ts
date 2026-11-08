@@ -28,11 +28,17 @@ describe('starter texts', () => {
       ctx,
     );
     expect(res.status).toBe(200);
-    const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
+    let cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     const { weddingId } = (await res.json()) as { weddingId: string };
     const call = (path: string, init: RequestInit = {}) => app.request(`/api/a/w/${weddingId}${path}`, { ...init, headers: { 'content-type': 'application/json', cookie, ...init.headers } }, env, ctx);
     const texts = async () => ((await (await call('/texts')).json()) as { campaigns: Camp[] }).campaigns;
-    return { wid: weddingId, call, texts };
+    /** Sign in again (the cron tidies away sessions that are old by the fake clock's time). */
+    const login = async () => {
+      const r = await app.request('/api/a/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, passcode: 'long-enough-1' }) }, env, ctx);
+      expect(r.status).toBe(200);
+      cookie = (r.headers.get('set-cookie') ?? '').split(';')[0]!;
+    };
+    return { wid: weddingId, call, texts, login };
   };
   const byKey = (cs: Camp[]) => Object.fromEntries(cs.map((c) => [c.key, c]));
   const times = (c: Camp | undefined) => (c?.slots ?? []).filter((s) => s.status === 'pending').map((s) => s.sendAt).sort();
@@ -135,6 +141,7 @@ describe('starter texts', () => {
 
     // The couple switches on the thank-you for coming: it goes to each guest the way they hear from the couple.
     const after = cs.after!;
+    await w.login();
     expect((await w.call(`/texts/${after.id}`, { method: 'PATCH', headers: { 'If-Match': String(after.version) }, body: JSON.stringify({ enabled: true }) })).status).toBe(200);
     clock.set('2030-06-16T11:05');
     await scheduled(env, deps);

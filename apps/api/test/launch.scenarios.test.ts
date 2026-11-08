@@ -255,7 +255,11 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect(test.status).toBe(402);
     expect((await read<ApiError>(test)).error).toMatchObject({ code: 'upgrade', feature: 'texts' });
     const tx = await read<Campaigns>(await admin(w, '/texts'));
-    for (const cp of tx.campaigns) expect((await post(w, `/texts/${cp.id}/send`, {})).status).toBe(402);
+    // (Free can still send from their own phone or by email: those are kept ready, never texted by the service.)
+    for (const cp of tx.campaigns) {
+      const sent = await post(w, `/texts/${cp.id}/send`, {});
+      if (sent.status !== 402) expect(await read<{ queued: number; sent: number }>(sent)).toMatchObject({ queued: 0, sent: 0 });
+    }
     expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM sms_out WHERE wedding_id = ?`).bind(w.id).first<{ n: number }>())!.n).toBe(0);
 
     // Grace's own link shows her reply.
