@@ -293,4 +293,12 @@ describe('company portal', () => {
     expect(asBot.items.find((i) => i.id === 'abn')!.done).toBe(true);
     expect((await call('/a/company/todo', { method: 'PUT', body: JSON.stringify({ items: [] }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
   });
+  it('ideas: a bot (the Grok scout) adds ideas straight into Feedback as new', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const { key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Grok', role: 'developer' }) }, boss.cookie)).json()) as { key: string };
+    const r = await call('/a/company/ideas', { method: 'POST', body: JSON.stringify({ text: 'Rivals now offer a QR code on printed save-the-dates', source: 'grok scout' }), headers: { authorization: `Bearer ${key}` } });
+    expect(r.status).toBe(200);
+    const fb = (await (await call('/a/company/feedback', {}, boss.cookie)).json()) as { feedback: { text: string; status: string; page: string }[] };
+    expect(fb.feedback[0]).toMatchObject({ text: 'Rivals now offer a QR code on printed save-the-dates', status: 'new', page: 'grok scout' });
+  });
 });

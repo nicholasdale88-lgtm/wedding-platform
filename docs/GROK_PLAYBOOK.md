@@ -21,6 +21,7 @@ It never touches couples' wedding data, can't change the team, and is never an o
 
 | Ask for | Address | Role needed |
 |---|---|---|
+| Add an idea or a problem to Feedback (it lands as New, with your source) | `POST /ideas` `{kind: "idea"|"problem", text, source}` | Developer, Support, Marketing, Manager |
 | Sign-ups, plans, revenue, guests, referrals | `GET /stats` | any |
 | Find couples, plan requests waiting | `GET /weddings?q=&requests=1` | Support, Manager |
 | Email a couple their payment link | `POST /weddings/<address>/send-link` | Support, Manager |
@@ -96,6 +97,19 @@ The aim is for you to check one Monday brief and approve a few things a week. Ea
 
 **Sales team (Marketing key), every Tuesday**
 > Find 20 celebrants, small venues, planners and photographers in one region that publish a business email for enquiries. For each: name, business, email, website, why they'd like us. Draft a short, friendly email from the founder offering their couples 10% off with a partner code and a free Deluxe for their own events. Send me the list and drafts. I'll approve before anything goes out.
+
+## Keeping the site ahead (the evolution loop)
+
+**Test drive (Developer key), every Monday**
+> Go through the live site as a new couple on a phone and a computer: the front page, sign up, the invitation preview, adding guests and importing a spreadsheet, a concept seating plan and auto-seat, "Send me a test", the guest's invitation and reply, the wedding party page, and paying. Time each step. For anything broken, slow, confusing or more than three taps, POST /ideas with kind "problem" and source "grok test drive", saying exactly where and what happened. Report the top 5 to me.
+
+**Scout and evolve (Marketing key), every second Wednesday**
+> After the competition table, POST /ideas (source "grok scout") for each thing a rival does that couples would value and we don't. Also post one idea from what couples ask for in wedding groups and Reddit that week. Never copy their words or designs; describe the need.
+
+**Improvement pick (Developer key), every Friday**
+> Read /feedback, including your own ideas. Rank by how many couples it helps, how much it lifts sign-ups and paid plans, and the effort (small, medium or large). Plan the top three with a one-line note couples will see, and send me the list so a developer (Claude) can build them on staging that week.
+
+Together these mean the site is checked every week, rivals are watched every fortnight, and three improvements a week are chosen from real feedback.
 
 ## Rules it must keep
 

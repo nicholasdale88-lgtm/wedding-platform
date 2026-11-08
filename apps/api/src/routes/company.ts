@@ -546,6 +546,19 @@ export function companyRoutes() {
     return c.json({ items, canEdit: true });
   });
 
+  /** An idea from the team or a bot (Grok's scout and test drives): straight into Feedback as new, to sort with the rest. */
+  app.post('/ideas', can('feedback', 'promote'), async (c) => {
+    const b = z.object({ kind: z.enum(['idea', 'problem']).default('idea'), text: z.string().trim().min(3).max(2000), source: z.string().trim().max(60).default('') }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'A few words, please.');
+    if (!(await allow(c.env.DB, `ideas:${c.get('user').id}`, 30, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty of ideas for today.');
+    const at = new Date().toISOString();
+    const id = crypto.randomUUID();
+    await c.env.DB.prepare(`INSERT INTO feedback (id, wedding_id, user_id, kind, text, page, status, note, created_at, updated_at) VALUES (?, NULL, ?, ?, ?, ?, 'new', '', ?, ?)`)
+      .bind(id, c.get('user').id, b.data.kind, b.data.text, (b.data.source || 'team').slice(0, 120), at, at)
+      .run();
+    return c.json({ id });
+  });
+
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
   app.get('/activity', can('activity'), async (c) => {
     const { results } = await c.env.DB.prepare(
