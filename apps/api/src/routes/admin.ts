@@ -29,6 +29,8 @@ const GuestPatch = z
     phone: z.string().max(40).nullable(),
     /** The main contact's email (for emailing their invitation, and knowing who wrote in). */
     email: z.union([z.literal(''), z.string().trim().toLowerCase().email().max(200)]).nullable(),
+    /** How they hear from the couple: '' (text when there's a mobile, otherwise email), text, email or both. */
+    channel: z.enum(['', 'text', 'email', 'both']),
     seatsHeld: z.number().int().min(1).max(60),
     party: z.string().trim().max(60),
     invited: z.array(z.string()).max(20),
@@ -347,6 +349,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const stmts: D1PreparedStatement[] = [];
     if (phone !== undefined) stmts.push(db.prepare(`UPDATE invitation SET phone = ? WHERE id = ?`).bind(phone, invId));
     if (p.email !== undefined) stmts.push(db.prepare(`UPDATE invitation SET email = ? WHERE id = ?`).bind(p.email || null, invId));
+    if (p.channel !== undefined) stmts.push(db.prepare(`UPDATE invitation SET channel = ? WHERE id = ?`).bind(p.channel, invId));
     if (p.seatsHeld !== undefined) stmts.push(db.prepare(`UPDATE invitation SET seats_held = ? WHERE id = ?`).bind(p.seatsHeld, invId));
     if (p.party !== undefined) stmts.push(db.prepare(`UPDATE invitation SET party = ? WHERE id = ?`).bind(p.party, invId));
     if (p.people) {

@@ -304,6 +304,14 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
             className={inputCls}
           />
         </Label>
+        <Label text="Send them messages by">
+          <select value={g.channel ?? ''} onChange={(e) => void patch({ channel: e.target.value as NonNullable<typeof g.channel> })} className={inputCls}>
+            <option value="">{g.phone ? 'Text' : 'Email'} (automatic)</option>
+            <option value="text">Text only</option>
+            <option value="email">Email only (free)</option>
+            <option value="both">Text and email</option>
+          </select>
+        </Label>
         <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-3">
           <Label text="Group (for seating)">
             <input

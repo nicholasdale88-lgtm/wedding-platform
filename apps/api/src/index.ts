@@ -43,6 +43,7 @@ import { manifestRoutes } from './routes/manifest';
 import { partyAccountRoutes, partyPortalRoutes } from './routes/partyPortal';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
 import { runAutopilot, type EngineDeps } from './sms/engine';
+import { runEmailCampaigns } from './mail/campaigns';
 import { sweepInbound } from './sms/inbound';
 
 /** The app, with dependencies injectable for tests. */
@@ -129,8 +130,10 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   // The couple's daily summary email, at about 6pm their time (only with news, only once a day).
   const digests = await runDigests(env).catch((e) => ({ error: String(e) }));
   const quoteFollowUps = await runQuoteFollowUps(env).catch((e) => ({ error: String(e) }));
+  // The same messages by email, for guests who get email (free; today's allowance, the rest tomorrow).
+  const emails = await runEmailCampaigns(env, d).catch((e) => ({ error: String(e) }));
   await purgeExpired(env.DB, d.now()).catch(() => undefined);
-  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups, digests, quoteFollowUps }));
+  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups, digests, quoteFollowUps, emails }));
   return { swept, ...report };
 }
 

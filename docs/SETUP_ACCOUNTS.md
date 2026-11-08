@@ -89,7 +89,9 @@ Every couple gets `their-web-address@yourdomain` (for example `alex-and-sam@your
 5. **Tell the app the domain**: **Cloudflare → Workers & Pages → wedding-api → Settings → Variables and Secrets → Add**. Type **Secret**, name `INBOX_DOMAIN`, value just the domain (`yourdomain.com.au`, no @), then **Deploy**. It stays through every deploy (the deploy never removes secrets). Weddings made before this get their address the first time they open Messages → Email.
 6. **Test**: open Messages → Email, send yourself an email from **Write an email**, reply to it from your own mail app, and check the reply arrives in the app.
 
-Limits (to keep it free): Resend's free tier is 100 emails a day and 3,000 a month across every wedding, so each wedding can send up to 40 a day (copies count too). "Email everyone their invitation" sends 40 a day and tells the couple to press it again tomorrow for the rest. If many couples start sending, Resend's $20/month plan (50,000 a month) is the next step: ask before switching.
+Texts by email too: every message on the Texts screen (invitations, save-the-dates, reminders, the night-before guide, Send now) also goes by email, on the same dates, to guests who get email (each guest's "Send them messages by": automatic = text when they have a mobile, otherwise email; or text only, email only, both). It works on the Free plan. Guests' email replies ("yes", "can't make it", a dietary need, a question the wedding answers) are handled like texts; anything else waits in Messages → Email.
+
+Limits (to keep it free): Resend's free tier is 100 emails a day and 3,000 a month across every wedding, so each wedding can send up to 40 a day (copies count too). "Email everyone their invitation" sends 40 a day and tells the couple to press it again tomorrow for the rest; scheduled emails past the day's 40 wait in a queue and go the next morning. If many couples start sending, Resend's $20/month plan (50,000 a month) is the next step: ask before switching.
 
 ## 6. Stripe: taking payments from other couples (M5)
 1. Sign up at **stripe.com** and complete **Activate payments**: business details, ABN and bank account.

@@ -284,7 +284,15 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
             </span>
             <span className="text-[13px] text-[#5b6a52] truncate">{c.body || 'No wording yet'}</span>
           </span>
-          <span className="hidden sm:block text-[13px] text-[#5b6a52] text-right">{c.count} {c.count === 1 ? 'guest' : 'guests'}</span>
+          <span className="hidden sm:block text-[13px] text-[#5b6a52] text-right">
+            {c.count} {c.count === 1 ? 'text' : 'texts'}
+            {c.email && (c.email.count > 0 || c.email.sent > 0) && (
+              <span className="block text-[12px]">
+                {c.email.count} by email{c.email.sent ? ` · ${c.email.sent} sent` : ''}
+                {c.email.waiting ? ` · ${c.email.waiting} tomorrow` : ''}
+              </span>
+            )}
+          </span>
         </button>
         {c.mode === 'manual' ? (
           <span className="text-[12px] py-[3px] px-[9px] rounded-full bg-[#efe7d3] text-[#5e5130]">Manual</span>
@@ -389,7 +397,9 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
     setBusy(true);
     try {
       const r = await textsApi.sendNow(wid, c.id);
-      toast(r.stopped ? `Not sent: ${r.stopped.error}` : r.sent ? `Sent to ${r.sent} ${r.sent === 1 ? 'guest' : 'guests'}` : r.queued ? `${r.queued} queued; they go out after quiet hours` : 'Nobody to send to');
+      const texts = r.stopped ? `Not sent: ${r.stopped.error}` : r.sent ? `Sent to ${r.sent} ${r.sent === 1 ? 'guest' : 'guests'}` : r.queued ? `${r.queued} queued; they go out after quiet hours` : '';
+      const emails = r.email && (r.email.sent || r.email.waiting) ? `${r.email.sent} emailed${r.email.waiting ? `, ${r.email.waiting} to go tomorrow morning` : ''}` : '';
+      toast(r.emailNote ?? ([texts, emails].filter(Boolean).join('. ') || 'Nobody to send to'));
       await onChanged();
     } catch (e) {
       toast((e as Error).message);

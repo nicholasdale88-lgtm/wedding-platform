@@ -38,7 +38,7 @@ export class D1SmsStore implements SmsStore {
     const q = (sql: string) => this.db.prepare(sql).bind(weddingId);
     const [events, invitations, people, invites, rsvps] = await this.db.batch([
       q(`SELECT id, key, name, pending_label, sort FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
-      q(`SELECT i.id, i.token, i.phone, i.seats_held, i.sms_optout, o.phone IS NOT NULL AS stopped
+      q(`SELECT i.id, i.token, i.phone, i.email, i.channel, i.seats_held, i.sms_optout, o.phone IS NOT NULL AS stopped
            FROM invitation i LEFT JOIN opt_out o ON o.phone = i.phone
           WHERE i.wedding_id = ? AND i.deleted_at IS NULL`),
       // {table} comes from the *published* seating (first event that has one), never a draft.
@@ -58,10 +58,10 @@ export class D1SmsStore implements SmsStore {
     ]);
 
     const byId = new Map<string, Recipient>();
-    for (const i of invitations!.results as InvitationRow[]) {
+    for (const i of invitations!.results as (InvitationRow & { email: string | null; channel: Recipient['channel'] })[]) {
       byId.set(i.id, {
         id: i.id, token: i.token, phone: i.phone, optOut: !!i.sms_optout || !!i.stopped, people: [], seatsHeld: i.seats_held,
-        invited: [], rsvp: {}, rsvpUpdatedAt: null, tableName: null,
+        invited: [], rsvp: {}, rsvpUpdatedAt: null, tableName: null, email: i.email, channel: i.channel ?? '',
       });
     }
     for (const p of people!.results as { invitation_id: string; name: string; table_name: string | null }[]) {

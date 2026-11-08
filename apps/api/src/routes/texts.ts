@@ -7,6 +7,8 @@ import { allows } from '@wp/shared';
 import { estimate, preflight, sendNow, sendTest, type EngineDeps } from '../sms/engine';
 import { recipientsFor } from '../sms/audience';
 import { Audience } from '../sms/types';
+import { emailable, emailsLeftToday, emailSummary, sendNowEmail } from '../mail/campaigns';
+import { emailReady } from '../lib/email';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -85,6 +87,8 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     const groups = audiences(evs);
     const label = (a: Audience) => groups.find((g) => audienceKey(g.audience) === audienceKey(a))?.label ?? 'A custom group';
     const presets = safeJson<{ smsPresets?: unknown[] }>((content!.results[0] as { content: string } | undefined)?.content, {}).smsPresets ?? [];
+    // The same messages by email (free), for guests who get email.
+    const byEmail = await emailSummary(c.env, d, w.id, campaigns, recipients);
     return c.json({
       live: !!w.sender,
       sender: w.sender,
@@ -99,7 +103,8 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
       events: evs,
       audiences: groups,
       presets,
-      people: recipients.map((r) => ({ id: r.id, name: r.people.join(' & '), phone: !!r.phone, optOut: r.optOut })),
+      people: recipients.map((r) => ({ id: r.id, name: r.people.join(' & '), phone: !!r.phone, optOut: r.optOut, email: emailable(r) })),
+      email: { on: emailReady(c.env), left: await emailsLeftToday(c.env, w.id) },
       campaigns: campaigns.map((cp) => ({
         id: cp.id,
         key: cp.key,
@@ -114,6 +119,7 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
         custom: cp.key.startsWith('custom-'),
         version: m.get(cp.id)?.version ?? 1,
         count: recipientsFor(cp, recipients, invitedBefore).length,
+        email: byEmail.get(cp.id) ?? { count: 0, sent: 0, waiting: 0, failed: 0 },
         slots: (slots!.results as { id: string; campaign_id: string; send_at: string; status: string; last_error: string | null }[])
           .filter((s) => s.campaign_id === cp.id)
           .map((s) => ({ id: s.id, sendAt: s.send_at, status: s.status, error: s.last_error })),
@@ -230,13 +236,20 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
   });
 
   app.post('/:cid/send', writer, async (c) => {
-    if (!allows(await weddingPlan(c.env.DB, wid(c)), 'texts')) return needsUpgrade(c, 'texts');
+    const texts = allows(await weddingPlan(c.env.DB, wid(c)), 'texts');
     const body = z.object({ only: z.array(z.string()).max(2000).optional() }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Please choose who to send to.');
     try {
-      const res = await sendNow(deps(c.env), wid(c), c.req.param('cid'), body.data.only);
-      await audit(c, 'sms.send', c.req.param('cid'), { queued: res.queued, sent: res.sent, failed: res.failed });
-      return c.json(res);
+      // By email first (free, any plan), then by text when the plan includes texts.
+      const email = await sendNowEmail(c.env, deps(c.env), wid(c), c.req.param('cid'), body.data.only);
+      if (!texts && !email.queued) return needsUpgrade(c, 'texts');
+      const res = texts ? await sendNow(deps(c.env), wid(c), c.req.param('cid'), body.data.only) : { queued: 0, sent: 0, failed: 0 };
+      await audit(c, 'sms.send', c.req.param('cid'), { queued: res.queued, sent: res.sent, failed: res.failed, emails: email.sent, emailsWaiting: email.waiting });
+      return c.json({
+        ...res,
+        email: { queued: email.queued, sent: email.sent, failed: email.failed, waiting: email.waiting },
+        ...(email.capped ? { emailNote: `Today’s emails are used up: the other ${email.waiting} go tomorrow morning.` } : {}),
+      });
     } catch (e) {
       return err(c, 400, 'send_failed', (e as Error).message);
     }

@@ -2,7 +2,8 @@ import { Quote, type Vendor } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import PostalMime from 'postal-mime';
 import { z } from 'zod';
-import type { Env } from '../env';
+import { engineDeps, type Env } from '../env';
+import { answerGuestEmail } from '../mail/campaigns';
 import { buttonEmail, emailReady, plainHtml, sendEmail } from '../lib/email';
 import { MAX_PLANNER_FILE, readJson, safeJson } from '../lib/security';
 import {
@@ -71,7 +72,7 @@ const textOf = (mail: Mail) =>
 
 type Kind = 'guest' | 'vendor' | 'other';
 /** What became of an email that arrived: kept (its id, and how many copies went out), or a reply sent on. */
-type Received = { stored: boolean; id?: string; copies?: number; relayed?: boolean };
+type Received = { stored: boolean; id?: string; copies?: number; relayed?: boolean; action?: string };
 
 /** Something sent from the wedding's address: kept in Sent (one row for the whole send). */
 type Outgoing = {
@@ -216,7 +217,15 @@ export async function receiveEmail(message: { from: string; to: string; raw: Rea
   }
   // A copy to the couple's own inbox (Outlook, Apple Mail…), never for mail from the wedding's own address.
   const copies = fromAddr === to ? 0 : await sendCopies(env, w.id, { id, fromAddr, fromName, subject, body, files: files.length }).catch(() => 0);
-  return { stored: true, id, copies };
+  // A guest writing from the email on their invitation: handled like a text (a yes or no is their RSVP, a
+  // question the wedding answers is answered). What needs the couple stays unread in the inbox.
+  let action: string | undefined;
+  const guestId = 'invitationId' in sorted ? sorted.invitationId : undefined;
+  if (guestId && (await db.prepare(`SELECT 1 FROM invitation WHERE id = ? AND lower(email) = ?`).bind(guestId, fromAddr).first())) {
+    action = await answerGuestEmail(env, engineDeps(env), w.id, guestId, { from: fromAddr, subject, text: body, inboxId: id }).catch(() => 'Needs you');
+    if (action !== 'Needs you') await db.prepare(`UPDATE inbox_email SET read_at = ? WHERE id = ?`).bind(now, id).run();
+  }
+  return { stored: true, id, copies, ...(action ? { action } : {}) };
 }
 
 type C = Context<AdminEnv>;
@@ -230,7 +239,9 @@ const Addr = z.string().trim().toLowerCase().email().max(200);
 async function invitationList(c: C) {
   const { results } = await c.env.DB.prepare(
     `SELECT i.id, i.token, i.email, (SELECT p.name FROM person p WHERE p.invitation_id = i.id AND p.idx = 0 AND p.deleted_at IS NULL) AS name,
-            EXISTS (SELECT 1 FROM inbox_email e WHERE e.wedding_id = i.wedding_id AND e.message_id = 'invitation:' || i.id || ':' || lower(trim(i.email))) AS done
+            (EXISTS (SELECT 1 FROM inbox_email e WHERE e.wedding_id = i.wedding_id AND e.message_id = 'invitation:' || i.id || ':' || lower(trim(i.email)))
+              OR EXISTS (SELECT 1 FROM email_out o JOIN campaign c ON c.id = o.campaign_id
+                          WHERE o.invitation_id = i.id AND o.status = 'sent' AND c.trigger = 'invitation_created')) AS done
        FROM invitation i WHERE i.wedding_id = ? AND i.deleted_at IS NULL ORDER BY name`,
   )
     .bind(wid(c))

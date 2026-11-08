@@ -18,9 +18,9 @@ export function matches(a: Audience, r: Recipient, invitedBefore: Set<string>): 
   return true;
 }
 
-/** Always required, whatever the campaign: a mobile, not opted out, not excluded. */
+/** Always required, whatever the campaign: a mobile, not opted out, not excluded, and not email only. */
 export const textable = (r: Recipient, c?: Pick<Campaign, 'excluded'>): boolean =>
-  !!r.phone && !r.optOut && !(c?.excluded.includes(r.id) ?? false);
+  !!r.phone && !r.optOut && r.channel !== 'email' && !(c?.excluded.includes(r.id) ?? false);
 
 export function recipientsFor(c: Campaign, all: Recipient[], invitedBefore: Set<string>): Recipient[] {
   return all.filter((r) => textable(r, c) && matches(c.audience, r, invitedBefore));
