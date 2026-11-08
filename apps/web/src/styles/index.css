@@ -90,3 +90,26 @@
     height: 100dvh;
   }
 }
+
+/* Calm motion: drawers slide in, their backdrop fades, and each admin section fades up when you switch to it.
+   Transform and opacity only (smooth on phones); none at all for anyone who asks for less motion. */
+@keyframes yl-slide-in {
+  from { transform: translateX(28px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes yl-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes yl-rise {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.yl-drawer { animation: yl-slide-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.yl-backdrop { animation: yl-fade 0.2s ease-out both; }
+.yl-page { animation: yl-rise 0.2s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .yl-drawer,
+  .yl-backdrop,
+  .yl-page { animation: none; }
+}

@@ -767,6 +767,9 @@ describe('seating tab', () => {
     expect(within(big).getByRole('button', { name: 'Seat 3: Sam Hart' })).toBeInTheDocument();
     await userEvent.click(within(big).getByRole('button', { name: 'Move Sam Hart up a seat' }));
     expect(within(big).getByRole('button', { name: 'Seat 2: Sam Hart' })).toBeInTheDocument();
+    // The chair arrangement can change here too: one more seat.
+    await userEvent.click(within(big).getByRole('button', { name: 'One seat more' }));
+    expect(within(big).getByRole('button', { name: 'Seat 5: empty' })).toBeInTheDocument();
     await userEvent.click(within(big).getByRole('button', { name: 'Back to the room' }));
     expect(screen.queryByRole('dialog', { name: 'Table 1, seat by seat' })).toBeNull();
     expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();

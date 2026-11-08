@@ -258,12 +258,12 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-20 flex justify-end">
-      <div onClick={onClose} className="absolute inset-0 bg-[rgba(51,64,47,.32)]" />
+      <div onClick={onClose} className="yl-backdrop absolute inset-0 bg-[rgba(51,64,47,.32)]" />
       <aside
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className="relative w-[min(480px,100%)] h-full overflow-y-auto bg-[var(--adm-card,#f6f0e2)] shadow-[-12px_0_40px_rgba(51,64,47,.18)] pt-[max(20px,env(safe-area-inset-top))] sm:pt-[26px] px-[18px] sm:px-[26px] pb-[calc(40px+env(safe-area-inset-bottom))] flex flex-col gap-6"
+        className="yl-drawer relative w-[min(480px,100%)] h-full overflow-y-auto overscroll-contain bg-[var(--adm-card,#f6f0e2)] shadow-[-12px_0_40px_rgba(51,64,47,.18)] pt-[max(20px,env(safe-area-inset-top))] sm:pt-[26px] px-[18px] sm:px-[26px] pb-[calc(40px+env(safe-area-inset-bottom))] flex flex-col gap-6"
       >
         {children}
       </aside>

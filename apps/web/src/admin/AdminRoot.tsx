@@ -164,7 +164,9 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
   useEffect(preloadScreens, []);
   return (
     <Suspense fallback={<Loading />}>
-      <SectionBody section={section} tab={tab} />
+      <div key={`${section}/${tab}`} className="yl-page">
+        <SectionBody section={section} tab={tab} />
+      </div>
     </Suspense>
   );
 }

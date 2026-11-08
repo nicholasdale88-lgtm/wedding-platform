@@ -1291,6 +1291,8 @@ function SeatingPlan() {
             mob={mob}
             onPlace={(pid, k) => placeAt(pid, focusTable.id, k)}
             onUnseat={(pid) => seat([pid], null)}
+            onTable={(patch) => setTable(focusTable.id, patch)}
+            reshape={(to) => setTable(focusTable.id, reshape(focusTable, to))}
             onEdit={() => {
               editingRef.current = true;
               setEditing(true);
@@ -2097,6 +2099,8 @@ function TableFocus({
   mob,
   onPlace,
   onUnseat,
+  onTable,
+  reshape: reshapeTo,
   onEdit,
   onClose,
 }: {
@@ -2110,6 +2114,10 @@ function TableFocus({
   mob: boolean;
   onPlace: (pid: string, k: number) => void;
   onUnseat: (pid: string) => void;
+  /** Change the table's chair arrangement: how many seats, and which sides have them. */
+  onTable: (patch: Partial<SeatTable>) => void;
+  /** Change the table's type (its usual seats follow, unless changed by hand). */
+  reshape: (to: TableShape) => void;
   onEdit: () => void;
   onClose: () => void;
 }) {
@@ -2120,17 +2128,62 @@ function TableFocus({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
   const shape = t.shape as TableShape;
-  const wide = STRETCHES(shape) || shape === 'sweetheart';
-  // The table in the middle of the drawing, chairs round it (positions in % of the table, as on the plan).
-  const box = wide ? { w: 76, h: shape === 'sweetheart' ? 26 : 22 } : shape === 'oval' ? { w: 58, h: 40 } : { w: 46, h: 46 };
-  const spots = seatSpots({ shape, dir: 'h', sides: t.sides }, t.seats);
+  // Long, head and sweetheart tables stand up and down here: a chair per row down each side, with room for
+  // each guest's name beside their chair. Round, oval and square tables: a ring of chairs that grows with the
+  // number of seats, so chairs never overlap.
+  const long = STRETCHES(shape) || shape === 'sweetheart';
+  const sides = shape === 'long' ? (t.sides ?? 2) : shape === 'head' || shape === 'sweetheart' ? (t.sides === -1 ? -1 : 1) : 2;
+  const firstSide = sides === 2 ? Math.ceil(t.seats / 2) : sides === 1 ? t.seats : 0;
+  const leftIdx = Array.from({ length: firstSide }, (_, i) => i);
+  const rightIdx = Array.from({ length: t.seats - firstSide }, (_, i) => firstSide + i);
+  const CH = mob ? 56 : 64; // a chair, in px
+  const ring = Math.max(mob ? 96 : 120, Math.ceil(((CH + 14) * t.seats) / (2 * Math.PI))); // ring radius, px
+  const box = 2 * ring + CH + 8;
   const here = layout.filter((p): p is Person => !!p);
   const who = chair ? layout[chair - 1] : null;
   const label = /^\d+$/.test(t.name) ? `Table ${t.name}` : t.name;
   const first = (n: string) => n.split(' ')[0] ?? n;
+  const chairBtn = (i: number, style?: CSSProperties) => {
+    const p = layout[i];
+    const on = chair === i + 1;
+    return (
+      <button
+        key={i}
+        type="button"
+        aria-label={`Seat ${i + 1}: ${p ? p.name : 'empty'}`}
+        aria-pressed={on}
+        disabled={!editing}
+        onClick={() => setChair(on ? null : i + 1)}
+        className={`flex-none flex flex-col items-center justify-center rounded-full border text-center leading-tight cursor-pointer disabled:cursor-default ${mob ? 'text-[10px]' : 'text-[11px]'} ${
+          on ? 'border-[#33402f] border-2 bg-[#33402f] text-[#f3ecd6]' : p ? 'border-transparent bg-[#5d6b47] text-white' : 'border-dashed border-[#c6b794] bg-white text-[#7a7466]'
+        }`}
+        style={{ width: CH, height: CH, opacity: p && !p.coming ? 0.6 : undefined, ...style }}
+      >
+        <span className="font-semibold">{i + 1}</span>
+        {!long && <span className="block max-w-full px-1 truncate">{p ? first(p.name) : 'Empty'}</span>}
+      </button>
+    );
+  };
+  // Long tables: a row per chair, the name beside it (on the outside).
+  const sideRow = (i: number, nameLeft: boolean) => {
+    const p = layout[i];
+    const name = (
+      <span className={`min-w-0 flex-1 truncate text-[14px] ${nameLeft ? 'text-right' : ''} ${p ? 'text-[#33402f]' : 'italic text-[#9a9384]'}`}>
+        {p ? p.name : 'Empty'}
+        {p?.diet ? <span className={`block text-[11px] truncate ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span> : null}
+      </span>
+    );
+    return (
+      <div key={i} className="flex items-center gap-2" style={{ height: CH + 10 }}>
+        {nameLeft ? name : null}
+        {chairBtn(i)}
+        {nameLeft ? null : name}
+      </div>
+    );
+  };
   return (
-    <div role="dialog" aria-modal="true" aria-label={`${label}, seat by seat`} className="fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center bg-[rgba(27,34,24,.5)] sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="w-full sm:max-w-[760px] max-h-full overflow-y-auto bg-[#fbf8f2] sm:rounded-[18px] p-4 flex flex-col gap-3">
+    <div role="dialog" aria-modal="true" aria-label={`${label}, seat by seat`} className="yl-backdrop fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center bg-[rgba(27,34,24,.5)] sm:p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="yl-page w-full sm:max-w-[760px] max-h-full overflow-y-auto overscroll-contain bg-[#fbf8f2] sm:rounded-[18px] p-4 pt-[max(16px,env(safe-area-inset-top))] flex flex-col gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="font-display text-[24px] flex-1">
             {label} · {here.length} of {t.seats}
@@ -2145,36 +2198,70 @@ function TableFocus({
             Change who sits where
           </Pill>
         )}
-        <div className="relative w-full mx-auto" style={{ maxWidth: wide ? 720 : 480, aspectRatio: wide ? '16 / 9' : '1 / 1' }}>
-          <div
-            aria-hidden
-            className="absolute flex items-center justify-center border border-[#c6b794] bg-[#f3ecd6] font-display text-[18px] text-[#33402f]"
-            style={{ left: `${50 - box.w / 2}%`, top: `${50 - box.h / 2}%`, width: `${box.w}%`, height: `${box.h}%`, borderRadius: shape === 'round' || shape === 'oval' ? '50%' : 8 }}
-          >
-            {label}
+        {/* The chair arrangement: how many seats, the table type, and which sides have chairs. */}
+        {editing && (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-white text-[13px]">
+            <span className="font-semibold">Chairs</span>
+            <button type="button" aria-label="One seat fewer" disabled={t.seats <= 1} onClick={() => onTable({ seats: t.seats - 1 })} className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent text-[18px] cursor-pointer disabled:opacity-30">
+              −
+            </button>
+            <span aria-live="polite" className="w-8 text-center tabular-nums text-[15px]">{t.seats}</span>
+            <button type="button" aria-label="One seat more" disabled={t.seats >= 60} onClick={() => onTable({ seats: t.seats + 1 })} className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent text-[18px] cursor-pointer disabled:opacity-30">
+              +
+            </button>
+            <select aria-label="Table type" value={shape} onChange={(e) => reshapeTo(e.target.value as TableShape)} className={`${inputCls} !py-2 !w-auto`}>
+              {TABLE_SHAPES.map((x) => (
+                <option key={x} value={x}>
+                  {SHAPE_LABEL[x]}
+                </option>
+              ))}
+            </select>
+            {(shape === 'long' || shape === 'head') && (
+              <select aria-label="Chairs on" value={String(sides)} onChange={(e) => onTable({ sides: Number(e.target.value) })} className={`${inputCls} !py-2 !w-auto`}>
+                {shape === 'long' && <option value="2">Chairs on both sides</option>}
+                <option value="1">Chairs on one side</option>
+                <option value="-1">Chairs on the other side</option>
+              </select>
+            )}
           </div>
-          {spots.map((sp, i) => {
-            const p = layout[i];
-            const on = chair === i + 1;
-            return (
-              <button
-                key={i}
-                type="button"
-                aria-label={`Seat ${i + 1}: ${p ? p.name : 'empty'}`}
-                aria-pressed={on}
-                disabled={!editing}
-                onClick={() => setChair(on ? null : i + 1)}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center rounded-full border text-center leading-tight cursor-pointer disabled:cursor-default ${mob ? 'w-[52px] h-[52px] text-[10px]' : 'w-[64px] h-[64px] text-[11px]'} ${
-                  on ? 'border-[#33402f] border-2 bg-[#33402f] text-[#f3ecd6]' : p ? 'border-transparent bg-[#5d6b47] text-white' : 'border-dashed border-[#c6b794] bg-white text-[#7a7466]'
-                }`}
-                style={{ left: `${50 - box.w / 2 + (sp.x / 100) * box.w}%`, top: `${50 - box.h / 2 + (sp.y / 100) * box.h}%`, opacity: p && !p.coming ? 0.6 : undefined }}
+        )}
+        {long ? (
+          <div className="flex items-stretch justify-center gap-2 mx-auto w-full max-w-[640px]">
+            <div className="flex-1 min-w-0 flex flex-col">{leftIdx.map((i) => sideRow(i, true))}</div>
+            <div
+              aria-hidden
+              className="flex-none flex items-center justify-center border border-[#c6b794] bg-[#f3ecd6] rounded-[10px] font-display text-[16px] text-[#33402f]"
+              style={{ width: mob ? 44 : 64, minHeight: Math.max(leftIdx.length, rightIdx.length, 1) * (CH + 10) }}
+            >
+              <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{label}</span>
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col">{rightIdx.map((i) => sideRow(i, false))}</div>
+          </div>
+        ) : (
+          <div className="w-full overflow-x-auto">
+            <div className="relative mx-auto" style={{ width: box, height: shape === 'oval' ? box * 0.8 : box }}>
+              <div
+                aria-hidden
+                className="absolute flex items-center justify-center border border-[#c6b794] bg-[#f3ecd6] font-display text-[18px] text-[#33402f]"
+                style={{
+                  left: box / 2 - (ring - CH / 2 - 6),
+                  top: (shape === 'oval' ? box * 0.4 : box / 2) - (ring - CH / 2 - 6) * (shape === 'oval' ? 0.75 : 1),
+                  width: 2 * (ring - CH / 2 - 6),
+                  height: 2 * (ring - CH / 2 - 6) * (shape === 'oval' ? 0.75 : 1),
+                  borderRadius: shape === 'square' ? 10 : '50%',
+                }}
               >
-                <span className="font-semibold">{i + 1}</span>
-                <span className="block max-w-full px-1 truncate">{p ? first(p.name) : 'Empty'}</span>
-              </button>
-            );
-          })}
-        </div>
+                {label}
+              </div>
+              {Array.from({ length: t.seats }, (_, i) => {
+                const a = (i / t.seats) * 2 * Math.PI - Math.PI / 2;
+                const cx = box / 2 + ring * Math.cos(a);
+                const cy = (shape === 'oval' ? box * 0.4 : box / 2) + ring * Math.sin(a) * (shape === 'oval' ? 0.75 : 1);
+                return chairBtn(i, { position: 'absolute', left: cx - CH / 2, top: cy - CH / 2 });
+              })}
+            </div>
+          </div>
+        )}
         {editing && chair && (
           <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] border border-[#33402f] bg-white">
             <strong className="text-[14px]">Seat {chair}:</strong>
