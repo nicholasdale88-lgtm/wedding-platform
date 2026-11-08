@@ -379,7 +379,7 @@ export class D1SmsStore implements SmsStore {
       paused: !!w.sms_paused, sender: w.sms_sender, adminMobile: w.admin_mobile, dailyCap: w.sms_daily_cap, rateX100: w.sms_rate_cents_x100,
       walletCredits: w.wallet_credits, optOutFooter: w.sms_optout_footer, baseUrl: this.baseUrl,
       replies: parseJson(w.sms_replies, {}),
-      plan: w.plan,
+      plan: w.plan === 'basic' ? 'free' : w.plan, // Basic, paid or not: no texts
       rsvpClose: (() => {
         const close = parseJson<{ invitation?: { rsvpClose?: unknown } }>(w.content, {}).invitation?.rsvpClose;
         return typeof close === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(close) ? close : '';

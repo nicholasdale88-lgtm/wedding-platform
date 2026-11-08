@@ -1,13 +1,17 @@
 /**
- * Plans: what each wedding can use. New sign-ups start on Free; paying moves them to Essentials or
- * Deluxe (stored as 'complete'). Weddings made before plans existed (stored as 'trial') and the platform's own wedding have
- * everything. The server enforces this; the admin shows an Upgrade card where a feature is locked.
+ * Plans: what each wedding can use. There is no free version: Basic ($50), Essentials and Deluxe, each paid
+ * once. A new sign-up can set everything up first; its invitations go live once a plan is paid. Stored
+ * values: 'free' = Basic, not paid yet (new sign-ups); 'basic' = Basic, paid; 'essentials'; 'complete'
+ * (called Deluxe). Weddings made before plans existed ('trial') and the platform's own have everything. The
+ * server enforces this; the admin shows an Upgrade card where a feature is locked.
  */
 export type Plan = 'free' | 'essentials' | 'complete';
 export type Feature = 'unlimitedGuests' | 'texts' | 'seating' | 'planner' | 'photoQr' | 'partySignIns' | 'dailyBackups' | 'extraEvent';
 
 /** The plan a stored value means: anything that isn't free or essentials has everything. */
-export const planOf = (stored: string | null | undefined): Plan => (stored === 'free' ? 'free' : stored === 'essentials' ? 'essentials' : 'complete');
+export const planOf = (stored: string | null | undefined): Plan => (stored === 'free' || stored === 'basic' ? 'free' : stored === 'essentials' ? 'essentials' : 'complete');
+/** Paid for: anything but a sign-up that hasn't paid for a plan yet. Until then its invitations aren't live. */
+export const isPaid = (stored: string | null | undefined) => stored !== 'free';
 
 const NEEDS: Record<Feature, Plan> = {
   unlimitedGuests: 'essentials',
@@ -24,31 +28,34 @@ const RANK: Record<Plan, number> = { free: 0, essentials: 1, complete: 2 };
 export const allows = (plan: Plan, f: Feature) => RANK[plan] >= RANK[NEEDS[f]];
 /** The plan a feature needs. */
 export const planFor = (f: Feature): Plan => NEEDS[f];
-/** Free weddings: up to this many guests (people, not invitations). */
+/** Basic weddings: up to this many guests (people, not invitations). */
 export const FREE_GUEST_LIMIT = 50;
 
 export const PLAN_INFO: Record<Plan, { name: string; price: string }> = {
-  free: { name: 'Free', price: '$0' },
+  // Stored as 'free' (not paid yet) or 'basic' (paid); the key stays 'free'.
+  free: { name: 'Basic', price: '$50' },
   essentials: { name: 'Essentials', price: '$88' },
   // Stored as 'complete'; called Deluxe.
   complete: { name: 'Deluxe', price: '$98' },
 };
 
 /** The same prices in cents (AUD), for paying by card. Keep these in step with PLAN_INFO and EVENT_ADDON. */
-export const PRICE_CENTS: Record<Plan, number> = { free: 0, essentials: 8800, complete: 9800 };
+export const PRICE_CENTS: Record<Plan, number> = { free: 5000, essentials: 8800, complete: 9800 };
 export const EVENT_ADDON_CENTS = 3900;
 
 /** What can be bought by card: a plan, or one more event. */
-export type Purchase = 'essentials' | 'complete' | 'event';
+export type Purchase = 'basic' | 'essentials' | 'complete' | 'event';
 
 /**
- * What buying `what` costs a wedding on `current`, in cents. Moving from Essentials to Deluxe is only the
- * difference (they've paid for Essentials already). Null when there's nothing to buy: that plan or better.
+ * What buying `what` costs a wedding on `current`, in cents. Moving up is only the difference from what's
+ * been paid (Basic, if `basicPaid`, or Essentials). Null when there's nothing to buy: that plan or better.
  */
-export function chargeCents(current: Plan, what: Purchase): number | null {
+export function chargeCents(current: Plan, what: Purchase, basicPaid = false): number | null {
   if (what === 'event') return EVENT_ADDON_CENTS;
-  if (RANK[current] >= RANK[what]) return null;
-  return PRICE_CENTS[what] - PRICE_CENTS[current];
+  const target: Plan = what === 'basic' ? 'free' : what;
+  const paid = current !== 'free' || basicPaid;
+  if (paid && RANK[current] >= RANK[target]) return null;
+  return PRICE_CENTS[target] - (current === 'free' ? (basicPaid ? PRICE_CENTS.free : 0) : PRICE_CENTS[current]);
 }
 
 /** What each locked feature is, in a couple's words (for the Upgrade card). */

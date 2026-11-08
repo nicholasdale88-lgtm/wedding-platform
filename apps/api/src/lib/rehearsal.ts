@@ -440,7 +440,7 @@ export function readiness(f: RehearsalFacts, times: Record<StepKey, string> = st
   // Reaching guests.
   if (f.via === 'service' && !w.sender && texted) {
     add({ key: 'no-texting', area: 'texts', level: 'red', step: 'invites', title: `No texting set up: ${n(texted, 'guest', 'guests')} can’t be reached`, detail: 'Choose how messages go: free from your own phone or by email, or a texting number.', fix: { tab: 'settings', query: 'view=texting' } });
-  } else if (f.via === 'service' && w.plan === 'free' && texted) {
+  } else if (f.via === 'service' && (w.plan === 'free' || w.plan === 'basic') && texted) {
     add({ key: 'plan-texts', area: 'texts', level: 'red', step: 'invites', title: `Your plan doesn’t include texts: ${n(texted, 'guest', 'guests')} would get nothing`, detail: 'Send from your own phone or by email (free), or upgrade.', fix: { tab: 'settings', query: 'view=texting' } });
   } else if (f.via === 'service' && texted && (w.walletCredits ?? 0) < texted) {
     // Texts are bought separately (never included in a plan): too few credits and they simply stop.

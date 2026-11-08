@@ -1,3 +1,4 @@
+import { HTTPException } from 'hono/http-exception';
 import { Hono } from 'hono';
 import { engineDeps, type Env } from './env';
 import { hardening, isBusy } from './lib/security';
@@ -120,6 +121,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/p/:slug', guestRoutes(deps));
   app.notFound((c) => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404));
   app.onError((err, c) => {
+    if (err instanceof HTTPException) return err.getResponse(); // an answer on purpose (e.g. an invitation not live yet)
     console.error(err);
     // Briefly busy (a burst of saves at once): ask the page to try again rather than reporting a fault.
     if (isBusy(err)) return c.json({ error: { code: 'busy', message: 'Busy for a moment. Please try again.' } }, 503, { 'Retry-After': '1' });

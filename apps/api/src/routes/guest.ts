@@ -1,4 +1,5 @@
-import { allows, dateIn, dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, PARTY_ROLES, PartySetup, sideOf, splitDiet, textsFor, type TableShape } from '@wp/shared';
+import { HTTPException } from 'hono/http-exception';
+import { allows, dateIn, dropControls, GUIDE_PAGE, guidesOf, InvitationContent, isToken, listsFor, PARTY_ROLES, PartySetup, sideOf, splitDiet, textsFor, type TableShape, isPaid, planOf } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { z } from 'zod';
@@ -64,9 +65,15 @@ interface WeddingRow {
 interface EventRow { id: string; key: string; name: string; starts_at: string; sort: number; questions: string; venue: string | null; address: string | null }
 
 async function wedding(c: C) {
-  return c.env.DB.prepare(`SELECT id, slug, name1, name2, monogram, theme, timezone, content, guide, music_key, plan FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
+  const w = await c.env.DB.prepare(`SELECT id, slug, name1, name2, monogram, theme, timezone, content, guide, music_key, plan FROM wedding WHERE slug = ? AND deleted_at IS NULL`)
     .bind(c.req.param('slug'))
     .first<WeddingRow>();
+  // There's no free version: a wedding's pages go live for guests once a plan is paid. The couple, signed in,
+  // still see everything to set it up and preview it.
+  if (w && !isPaid(w.plan) && !(await isAdminOf(c, w.id))) {
+    throw new HTTPException(403, { res: c.json({ error: { code: 'not_live', message: 'This invitation isn’t live yet. The couple will send it to you soon.' } }, 403) });
+  }
+  return w;
 }
 
 /** The invitation as its guest sees it. */
@@ -144,7 +151,7 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
   return {
     wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme, timezone: w.timezone },
     // The small "Made with" line under the invitation: Free plans only. Paid invitations carry no advert.
-    branded: w.plan === 'free',
+    branded: planOf(w.plan) === 'free',
     // Music is the link set in Setup (MP3 or YouTube): there are no uploaded music files to point at.
     content: { ...(inv.success ? inv.data : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
     texts: textsFor('inv', withDefaults(content.texts as Record<string, string> | undefined, { tz: w.timezone, events: content.dateToBeSet ? events.map((e) => ({ ...e, starts_at: '' })) : events, rsvpClose: inv.success ? inv.data.rsvpClose : undefined }), slots),

@@ -4,7 +4,7 @@ import { accountApi, type Members, type Profile, type ProfilePut, type Role } fr
 import { fmtWhen } from '../../lib/format';
 import { MEMBER_RELATIONS, PLAN_INFO, RELATION_LABEL, type MemberRelation } from '@wp/shared';
 import { useUnsavedChanges } from '../leave';
-import { Upgrade, usePlan } from '../Upgrade';
+import { Upgrade, usePlan, GoLive } from '../Upgrade';
 import { useAdmin } from '../Shell';
 import { ErrorState, H2, inputCls, Label, Loading, Pill, SaveBar, useToast } from '../ui';
 
@@ -114,7 +114,7 @@ export function YourDetails() {
 /** Settings → Your plan: the plan this wedding is on, and what upgrading would add. */
 export function PlanAndBilling() {
   const { wid } = useAdmin();
-  const { plan } = usePlan();
+  const { plan, paid } = usePlan();
   const info = PLAN_INFO[plan];
   // Only the main account (who signed up) changes the plan and pays; everyone else sees it.
   const [main, setMain] = useState<{ me: boolean; name: string } | null>(null);
@@ -132,13 +132,14 @@ export function PlanAndBilling() {
           <span className="font-display text-[28px] leading-tight">{info.name}</span>
         </span>
         <span className="text-[14px] text-[#5b6a52] max-w-[420px]">
-          {plan === 'complete' ? 'Everything is included.' : `${info.price === '$0' ? 'Free' : info.price}. Texts are paid to your SMS provider, not to us.`}
+          {!paid ? `Not paid yet: ${info.price} once to go live.` : plan === 'complete' ? 'Everything is included.' : `${info.price}, paid once. Text credits are bought separately.`}
         </span>
       </section>
       {main && !main.me ? (
         <p className="m-0 text-[14px] text-[#5b6a52]">The plan and payments are looked after by {main.name}, the main account. Ask them to change it.</p>
       ) : (
         <>
+          <GoLive compact />
           {plan === 'free' && <Upgrade feature="planner" compact />}
           {plan !== 'complete' && <Upgrade feature="photoQr" compact />}
         </>

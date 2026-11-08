@@ -1,4 +1,4 @@
-import { allows, chargeCents, EVENT_ADDON, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature, type Purchase } from '@wp/shared';
+import { allows, chargeCents, EVENT_ADDON, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature, type Purchase, isPaid, PRICE_CENTS } from '@wp/shared';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, UPGRADE_EVENT } from '../lib/api';
 import { useAdmin } from './Shell';
@@ -53,7 +53,8 @@ export function usePlan() {
     // Stripe's webhook switches the plan on, usually within seconds: look again a few times so it shows.
     if (back.paid) for (const ms of [4_000, 15_000, 45_000]) setTimeout(() => void reload(), ms);
   }, [toast, reload]);
-  return { plan, has: (f: Feature) => allows(plan, f), requested: overview?.wedding.planRequested ?? '' };
+  const stored = overview?.wedding.plan;
+  return { plan, paid: isPaid(stored), basicPaid: stored === 'basic', has: (f: Feature) => allows(plan, f), requested: overview?.wedding.planRequested ?? '' };
 }
 
 /**
@@ -63,7 +64,7 @@ export function usePlan() {
  */
 export function Upgrade({ feature, compact = false }: { feature: Feature; compact?: boolean }) {
   const { wid, reload } = useAdmin();
-  const { plan, requested } = usePlan();
+  const { plan, requested, basicPaid } = usePlan();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   // A promo code: typed, then checked (the new price shows before paying).
@@ -86,7 +87,7 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   const info = need === 'event' ? EVENT_ADDON : PLAN_INFO[need];
   const asked = requested === need || (requested === 'complete' && need === 'essentials');
   // What a card payment would be now: Essentials to Deluxe is only the difference.
-  const cents = deal ? deal.cents : chargeCents(plan, need);
+  const cents = deal ? deal.cents : chargeCents(plan, need, basicPaid);
   const price = cents === null ? info.price : dollars(cents);
   const applyCode = async () => {
     setCodeProblem('');
@@ -124,7 +125,7 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
       setBusy(false);
     }
   };
-  const upgradeNote = !addon && plan === 'essentials' && need === 'complete' && card ? ` You've paid for ${PLAN_INFO.essentials.name}, so it's ${price} more.` : '';
+  const upgradeNote = !addon && (plan === 'essentials' || basicPaid) && card ? ` You've paid for ${PLAN_INFO[plan].name}, so it's ${price} more.` : '';
   return (
     <section aria-label="Upgrade" className={`flex flex-col gap-2 ${compact ? 'p-4' : 'p-6'} rounded-[16px] border border-[#d3c6a4] bg-[#fbf8f0]`}>
       <strong className={compact ? 'text-[15px]' : 'text-[18px]'}>{addon ? `${FEATURE_LABEL[feature]} is an add-on` : `${FEATURE_LABEL[feature]} comes with ${info.name}`}</strong>
@@ -216,5 +217,68 @@ export function UpgradeWhenRefused() {
         </Pill>
       </div>
     </div>
+  );
+}
+
+/**
+ * There's no free version: until a plan is paid, the couple sets everything up and previews it, but guests
+ * can't open their invitations. This says so, and offers the three plans (paid once).
+ */
+export function GoLive({ compact = false }: { compact?: boolean }) {
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const { paid } = usePlan();
+  const [busy, setBusy] = useState('');
+  const [card, setCard] = useState<boolean | null>(null);
+  useEffect(() => {
+    let live = true;
+    void cardStatus(wid).then((on) => live && setCard(on));
+    return () => {
+      live = false;
+    };
+  }, [wid]);
+  if (paid) return null;
+  const choose = async (what: 'basic' | 'essentials' | 'complete') => {
+    setBusy(what);
+    try {
+      if (card) {
+        const { url } = await api.checkout(wid, what);
+        window.location.assign(url);
+        return;
+      }
+      await api.requestPlan(wid, what);
+      toast('Thanks! We’ll email you a secure link to pay. Your invitations go live as soon as it’s paid.');
+    } catch (e) {
+      toast((e as Error).message);
+    }
+    setBusy('');
+  };
+  const plans = [
+    ['basic', PLAN_INFO.free, 'Your invitation, replies and guest list, up to 50 guests'],
+    ['essentials', PLAN_INFO.essentials, 'Plus seating, the planner, unlimited guests and automatic texts (credits extra)'],
+    ['complete', PLAN_INFO.complete, 'Everything: photos by QR, wedding party sign-ins, backups, two events'],
+  ] as const;
+  return (
+    <section aria-label="Go live" className={`flex flex-col gap-3 ${compact ? 'p-4' : 'p-5'} rounded-[16px] border border-[#33402f] bg-[#fbf8f0]`}>
+      <strong className="text-[17px]">Your invitations aren’t live yet</strong>
+      <span className="text-[14px] text-[#5b6a52]">Set everything up and preview it as much as you like. Choose a plan, paid once, when you’re ready for guests to open their invitations. No subscription.</span>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        {plans.map(([k, info, what]) => (
+          <button
+            key={k}
+            type="button"
+            disabled={!!busy}
+            onClick={() => void choose(k)}
+            className="flex flex-col gap-1 p-3 rounded-[12px] border border-[#c6b794] bg-white text-left cursor-pointer disabled:opacity-60 hover:border-[#33402f]"
+          >
+            <span className="font-semibold">
+              {info.name} · {info.price}
+            </span>
+            <span className="text-[12px] text-[#5b6a52]">{what}</span>
+            <span className="text-[12px] underline">{busy === k ? 'Opening…' : card ? `Pay $${PRICE_CENTS[k === 'basic' ? 'free' : k] / 100}` : 'Ask for a payment link'}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

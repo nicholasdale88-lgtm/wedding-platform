@@ -32,7 +32,7 @@ const primary = 'py-[9px] px-4 rounded-[10px] border-0 bg-[#1b2218] text-[#f3ecd
 const card = 'flex flex-col gap-3 p-5 rounded-[14px] border border-[#e4e6df] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)]';
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
-const PLAN_NAME: Record<string, string> = { free: 'Free', essentials: 'Essentials', complete: 'Deluxe', trial: 'Founders (everything)' };
+const PLAN_NAME: Record<string, string> = { free: 'Basic, not paid yet', basic: 'Basic', essentials: 'Essentials', complete: 'Deluxe', trial: 'Founders (everything)' };
 const TABS = [
   ['overview', 'Overview', 'overview'],
   ['weddings', 'Couples', 'couples'],
@@ -332,7 +332,7 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
         <div className={card}>
           <H>Plans</H>
           <ul className="m-0 p-0 list-none flex flex-col gap-2">
-            {['free', 'essentials', 'complete', 'trial'].map((k) => {
+            {['free', 'basic', 'essentials', 'complete', 'trial'].map((k) => {
               const n = s.plans[k] ?? 0;
               return (
                 <li key={k} className="flex items-center gap-3 text-[14px]">
@@ -423,7 +423,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
     setBusy(true);
     setProblem('');
     try {
-      await companyApi.setPlan(w.slug, { ...(plan !== w.plan ? { plan: plan as 'free' | 'essentials' | 'complete' } : {}), ...(extra !== w.extraEvents ? { extraEvents: extra } : {}) });
+      await companyApi.setPlan(w.slug, { ...(plan !== w.plan ? { plan: plan as 'free' | 'basic' | 'essentials' | 'complete' } : {}), ...(extra !== w.extraEvents ? { extraEvents: extra } : {}) });
       onSaved(`${w.names}: saved`);
     } catch (e) {
       setProblem((e as Error).message);
@@ -456,7 +456,8 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
         {can('money') && (
           <>
         <select value={plan} aria-label={`Plan for ${w.names}`} onChange={(e) => setPlan(e.target.value)} className={`${input} w-auto`}>
-          <option value="free">Free</option>
+          <option value="free">Basic, not paid yet</option>
+          <option value="basic">Basic</option>
           <option value="essentials">Essentials</option>
           <option value="complete">Deluxe</option>
         </select>

@@ -28,7 +28,7 @@ export const SiteSettings = z.object({
 });
 export type SiteSettings = z.infer<typeof SiteSettings>;
 
-export const PROMO_FOR = ['essentials', 'complete', 'event'] as const;
+export const PROMO_FOR = ['basic', 'essentials', 'complete', 'event'] as const;
 export const Promo = z.object({
   code: z
     .string()
@@ -39,7 +39,7 @@ export const Promo = z.object({
   percentOff: z.number().int().min(0).max(100).default(0),
   amountOffCents: z.number().int().min(0).max(1_000_000).default(0),
   /** What it's for (empty: anything). */
-  plans: z.array(z.enum(PROMO_FOR)).max(3).default([]),
+  plans: z.array(z.enum(PROMO_FOR)).max(4).default([]),
   /** Last day it works (yyyy-mm-dd; empty: no end). */
   expires: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).default(''),
   /** How many times it can be used (0: no limit). */

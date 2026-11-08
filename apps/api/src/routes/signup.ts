@@ -15,7 +15,8 @@ import { jsonWritesOnly, requireMember, requireUser, signIn, type AdminEnv } fro
  * nothing is sent anywhere: texts only go once they set texting up themselves.
  */
 
-export const PLANS = ['free', 'essentials', 'complete'] as const;
+/** 'free' is Basic not paid yet; 'basic' is Basic paid (the company portal can set it). */
+export const PLANS = ['free', 'basic', 'essentials', 'complete'] as const;
 
 const Signup = z
   .object({
@@ -123,7 +124,7 @@ export function planRoutes() {
     if (c.get('user').id !== (await mainAccountOf(c.env.DB, c.req.param('wid')))) {
       return c.json({ error: { code: 'main_account', message: 'Only the main account (payments) can change the plan. Ask them, or see Settings → Who can sign in.' } }, 403);
     }
-    const b = z.object({ plan: z.enum(['essentials', 'complete', 'event']) }).strict().safeParse(await readJson(c.req.raw));
+    const b = z.object({ plan: z.enum(['basic', 'essentials', 'complete', 'event']) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return c.json({ error: { code: 'invalid', message: 'Choose a plan.' } }, 400);
     const at = new Date().toISOString();
     await c.env.DB.batch([

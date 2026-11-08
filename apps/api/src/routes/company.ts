@@ -201,7 +201,7 @@ export function companyRoutes() {
     const to = main ? await c.env.DB.prepare(`SELECT email, first_name FROM user WHERE id = ?`).bind(main).first<{ email: string; first_name: string | null }>() : null;
     if (!to) return err(c, 404, 'not_found', 'That wedding has no account to email.');
     const name = what === 'event' ? 'an extra event' : PLAN_INFO[what].name;
-    const cents = chargeCents(planOf(w.plan), what);
+    const cents = chargeCents(planOf(w.plan), what, w.plan === 'basic');
     const m = buttonEmail({
       heading: `Your ${what === 'event' ? 'extra event' : name} payment link`,
       lines: [`Hi ${to.first_name || w.name1},`, `Thanks for asking for ${name}${cents ? ` ($${(cents / 100).toFixed(0)} AUD, once)` : ''}. Pay with the button below and we’ll switch it on for ${w.name1} & ${w.name2}, usually within a day.`],

@@ -193,11 +193,11 @@ export const api = {
   /** Private: the wedding's pages open only with each guest's own link. */
   setPrivate: (wid: string, on: boolean) => send<{ ok: true; private: boolean }>('PUT', `${w(wid)}/privacy`, { private: on }),
   /** Ask to upgrade (the platform owner sends a payment link). */
-  requestPlan: (wid: string, plan: 'essentials' | 'complete' | 'event') => send<{ ok: true; requested: string }>('POST', `${w(wid)}/plan/request`, { plan }),
+  requestPlan: (wid: string, plan: 'basic' | 'essentials' | 'complete' | 'event') => send<{ ok: true; requested: string }>('POST', `${w(wid)}/plan/request`, { plan }),
   /** Whether paying by card (Stripe Checkout) is switched on. */
   planCard: (wid: string) => request<{ on: boolean }>(`${w(wid)}/plan/card`),
   /** Opens a Stripe Checkout page for a plan or another event; the browser goes to `url` to pay. */
-  checkout: (wid: string, what: 'essentials' | 'complete' | 'event', code = '') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what, code }),
+  checkout: (wid: string, what: 'basic' | 'essentials' | 'complete' | 'event', code = '') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what, code }),
   /** Buy texts: opens a Stripe Checkout page for a pack of text credits (texts are never included in a plan). */
   buyTexts: (wid: string, credits: number) => send<{ url: string }>('POST', `${w(wid)}/texts/checkout`, { credits }),
   /** What a promo code makes the price. */
@@ -1085,7 +1085,7 @@ export interface CompanyPromo { code: string; percentOff: number; amountOffCents
 export const companyApi = {
   stats: () => request<CompanyStats>('/a/company/stats'),
   weddings: (q: string, requests = false) => request<{ weddings: CompanyWedding[] }>(`/a/company/weddings?q=${encodeURIComponent(q)}${requests ? '&requests=1' : ''}`),
-  setPlan: (slug: string, body: { plan?: 'free' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),
+  setPlan: (slug: string, body: { plan?: 'free' | 'basic' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),
   listings: () => request<{ listings: CompanyListing[] }>('/a/company/listings'),
   hideListing: (id: string, hidden: boolean) => send<{ ok: true }>('PUT', `/a/company/listings/${encodeURIComponent(id)}`, { hidden }),
   settings: () => request<CompanySettings>('/a/company/settings'),

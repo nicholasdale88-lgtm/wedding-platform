@@ -25,13 +25,13 @@ const TOLERANCE_S = 300;
 
 const cardOn = (env: Env) => !!env.STRIPE_SECRET_KEY && !!env.STRIPE_WEBHOOK_SECRET;
 
-const Checkout = z.object({ what: z.enum(['essentials', 'complete', 'event']), code: z.string().trim().max(30).default('') }).strict();
+const Checkout = z.object({ what: z.enum(['basic', 'essentials', 'complete', 'event']), code: z.string().trim().max(30).default('') }).strict();
 
 /** The price of `what` for this wedding, with a promo code if one was given: cents, or why not. */
 type Price = { ok: false; error: string; promo: boolean } | { ok: true; cents: number; off: number; code: string; current: ReturnType<typeof planOf> };
 async function priceFor(db: D1Database, plan: string, what: Purchase, code: string): Promise<Price> {
   const current = planOf(plan);
-  const cents = chargeCents(current, what);
+  const cents = chargeCents(current, what, plan === 'basic');
   if (cents === null) return { ok: false, error: `Your wedding already has ${PLAN_INFO[current].name}.`, promo: false };
   if (!code) return { ok: true, cents, off: 0, code: '', current };
   const { promo, used } = await findPromo(db, code);
@@ -93,7 +93,13 @@ export function billingRoutes() {
     if (!key || !c.env.STRIPE_WEBHOOK_SECRET) return err(404, 'card_off', "Paying by card isn't switched on yet. Ask for a payment link instead.");
 
     const label =
-      what === 'event' ? EVENT_ADDON.name : current === 'essentials' && what === 'complete' ? `${PLAN_INFO.complete.name} (upgrade from ${PLAN_INFO.essentials.name})` : PLAN_INFO[what].name;
+      what === 'event'
+        ? EVENT_ADDON.name
+        : what === 'basic'
+          ? PLAN_INFO.free.name
+          : current !== 'free' || w.plan === 'basic'
+            ? `${PLAN_INFO[what].name} (upgrade from ${PLAN_INFO[current].name})`
+            : PLAN_INFO[what].name;
     // Back to Settings → Your plan (above): an address with a page in it keeps ?paid=1 through the admin's
     // redirects (a bare /admin/:wid drops the query on its way to the last section used).
     const form = new URLSearchParams({
@@ -227,7 +233,7 @@ export function stripeHookRoutes() {
   return app;
 }
 
-const PurchaseOf = z.enum(['essentials', 'complete', 'event']);
+const PurchaseOf = z.enum(['basic', 'essentials', 'complete', 'event']);
 const StripeEvent = z.object({ type: z.string().max(100), data: z.object({ object: z.unknown() }) });
 const CheckoutSession = z.object({
   id: z.string().min(1).max(255),
@@ -267,8 +273,11 @@ export async function applyPurchase(db: D1Database, wid: string, what: Purchase,
         ).bind(sessionId, at, wid)
       : db.prepare(
           `UPDATE wedding SET
-              plan = CASE WHEN plan = 'free' OR (plan = 'essentials' AND ?4 = 'complete') THEN ?4 ELSE plan END,
-              content = CASE WHEN json_extract(content, '$.planRequested') IN ('essentials', ?4) THEN json_remove(content, '$.planRequested', '$.planRequestedAt') ELSE content END,
+              plan = CASE
+                WHEN ?4 = 'basic' THEN CASE WHEN plan = 'free' THEN 'basic' ELSE plan END
+                WHEN plan IN ('free', 'basic') OR (plan = 'essentials' AND ?4 = 'complete') THEN ?4
+                ELSE plan END,
+              content = CASE WHEN json_extract(content, '$.planRequested') IN ('basic', 'essentials', ?4) THEN json_remove(content, '$.planRequested', '$.planRequestedAt') ELSE content END,
               updated_at = ?2
             WHERE id = ?3 AND json_valid(content) AND ${fresh}`,
         ).bind(sessionId, at, wid, what);
