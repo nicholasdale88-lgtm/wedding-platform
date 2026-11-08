@@ -6,6 +6,7 @@ import { needsUpgrade, weddingPlan } from '../lib/plan';
 import { allows } from '@wp/shared';
 import { estimate, preflight, sendNow, sendTest, type EngineDeps } from '../sms/engine';
 import { recipientsFor } from '../sms/audience';
+import { ensureStarterTexts } from '../sms/starter';
 import { Audience } from '../sms/types';
 import { emailable, emailsLeftToday, emailSummary, sendNowEmail } from '../mail/campaigns';
 import { emailReady } from '../lib/email';
@@ -65,6 +66,8 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     const db = c.env.DB;
     const w = await d.store.wedding(wid(c));
     if (!w) return err(c, 404, 'not_found', 'Wedding not found.');
+    // The usual texts, switched off, for a wedding that has none yet; untouched ones follow the wedding's dates.
+    await ensureStarterTexts(db, w.id, d.now()).catch((e) => console.error('starter texts', e));
     const [campaigns, { events, recipients }, invitedBefore] = await Promise.all([d.store.campaigns(w.id), d.store.audience(w.id), d.store.invitedIds(w.id)]);
     const [meta, slots, inbox, history, content] = await db.batch([
       db.prepare(`SELECT id, key, version, sort FROM campaign WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w.id),
@@ -194,6 +197,10 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
       for (const at of [...new Set(p.dates)].filter((x) => x > now)) {
         stmts.push(c.env.DB.prepare(`INSERT INTO campaign_slot (id, campaign_id, send_at) VALUES (?, ?, ?)`).bind(crypto.randomUUID(), cid, at));
       }
+    }
+    // Switching one on never sends something that was due while it was off: those times are passed over.
+    if (p.enabled === true && p.dates === undefined) {
+      stmts.push(c.env.DB.prepare(`UPDATE campaign_slot SET status = 'cancelled', last_error = 'Passed while switched off' WHERE campaign_id = ? AND status = 'pending' AND send_at <= ?`).bind(cid, nowIso()));
     }
     if (stmts.length) await c.env.DB.batch(stmts);
     await audit(c, 'sms.campaign.edit', cid, Object.keys(p));

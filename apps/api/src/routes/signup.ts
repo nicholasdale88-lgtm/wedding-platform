@@ -5,6 +5,7 @@ import { hashPasscode, passcodeProblem } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { addressFree, inboxDomain } from '../lib/weddingMail';
+import { starterStatements } from '../sms/starter';
 import { mainAccountOf } from './accounts';
 import { jsonWritesOnly, requireMember, requireUser, signIn, type AdminEnv } from './auth';
 
@@ -93,6 +94,8 @@ export function signupRoutes() {
       db.prepare(`INSERT INTO event (id, wedding_id, key, name, pending_label, starts_at, sort) VALUES (?, ?, 'wedding', 'The wedding', 'the wedding', ?, 0)`).bind(crypto.randomUUID(), weddingId, startsAt),
       db.prepare(`INSERT INTO consent_log (id, user_id, kind, granted, source, at) VALUES (?, ?, 'marketing', ?, 'signup', ?)`).bind(crypto.randomUUID(), userId, b.marketing ? 1 : 0, now),
       db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'account.signup', ?, ?, ?)`).bind(crypto.randomUUID(), weddingId, userId, weddingId, JSON.stringify({ plan: b.plan, ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) }), now),
+      // The usual texts (save the date to the thank-you), all switched off until the couple turns each on.
+      ...starterStatements(db, weddingId, { key: 'wedding', name: 'The wedding' }, { startsAt, tz, rsvpClose: '', dateSet: !!b.date }, new Date(now)),
     ];
     try {
       await db.batch(stmts);

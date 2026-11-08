@@ -298,16 +298,20 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
         {c.mode === 'manual' ? (
           <span className="text-[12px] py-[3px] px-[9px] rounded-full bg-[#efe7d3] text-[#5e5130]">Manual</span>
         ) : (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={c.enabled}
-            aria-label={`Send automatically: ${c.name}`}
-            onClick={onToggle}
-            className={`relative w-[44px] h-[26px] rounded-full border-0 cursor-pointer transition-colors ${c.enabled ? 'bg-[var(--adm-accent,#5d6b47)]' : 'bg-[#d3c6a4]'}`}
-          >
-            <span className={`absolute top-[3px] w-[20px] h-[20px] rounded-full bg-[#fbf8f2] transition-all ${c.enabled ? 'left-[21px]' : 'left-[3px]'}`} />
-          </button>
+          <span className="flex items-center gap-2">
+            {/* Off until the couple turns it on: nothing sends by itself before then. */}
+            {!c.enabled && <span className="text-[12px] text-[#7a7466] whitespace-nowrap">Ready to switch on</span>}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={c.enabled}
+              aria-label={`Send automatically: ${c.name}`}
+              onClick={onToggle}
+              className={`relative w-[44px] h-[26px] rounded-full border-0 cursor-pointer transition-colors ${c.enabled ? 'bg-[var(--adm-accent,#5d6b47)]' : 'bg-[#d3c6a4]'}`}
+            >
+              <span className={`absolute top-[3px] w-[20px] h-[20px] rounded-full bg-[#fbf8f2] transition-all ${c.enabled ? 'left-[21px]' : 'left-[3px]'}`} />
+            </button>
+          </span>
         )}
       </div>
       {opened && (

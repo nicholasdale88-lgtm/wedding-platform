@@ -116,7 +116,7 @@ function NightCard({ c, tz, startsAt, onChanged, sender }: { c: Campaign; tz: st
           <h3 className="m-0 font-display font-medium text-[24px]">{c.name}</h3>
           <label className="flex items-center gap-2 text-[14px] cursor-pointer">
             <input type="checkbox" role="switch" checked={c.enabled} disabled={busy} onChange={() => void save({ enabled: !c.enabled }, c.enabled ? 'Switched off' : 'Switched on')} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-            {c.enabled ? 'On' : 'Off'}
+            {c.enabled ? 'On' : 'Ready to switch on'}
           </label>
         </div>
         <textarea aria-label="Message" rows={6} value={body} onChange={(e) => setBody(e.target.value)} className={`${inputCls} resize-y`} />
