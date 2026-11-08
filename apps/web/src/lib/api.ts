@@ -93,7 +93,7 @@ export interface Guest {
   /** The main contact's email ('' when none). */
   email?: string;
   /** How they hear from you: '' (text when there's a mobile, otherwise email), text, email or both. */
-  channel?: '' | 'text' | 'email' | 'both';
+  channel?: '' | 'text' | 'email' | 'both' | 'phone';
   seatsHeld: number;
   party: string;
   /** Whose side they're on ('p1', 'p2', 'both' or ''), how they know the couple, and their circles (who knows who). */
@@ -147,7 +147,7 @@ export interface GuestPatch {
   people?: string[];
   phone?: string | null;
   email?: string | null;
-  channel?: '' | 'text' | 'email' | 'both';
+  channel?: '' | 'text' | 'email' | 'both' | 'phone';
   seatsHeld?: number;
   party?: string;
   side?: '' | 'p1' | 'p2' | 'both';
@@ -889,6 +889,21 @@ export interface InboxSend {
   replyTo?: string;
 }
 /** The event's own email address: what arrived, sorted into guests, vendors and other; and sending from it. */
+/** How messages go (Settings → Texting): own phone (free), email (free) or a texting service (paid). */
+export type SendVia = 'phone' | 'email' | 'service';
+export interface OwnPhoneData {
+  via: SendVia;
+  chosen: boolean;
+  ready: { id: string; invitationId: string | null; campaignId: string | null; name: string; phone: string; message: string; body: string; at: string }[];
+  batches: { message: string; count: number }[];
+  sent: number;
+}
+/** Messages to send from the couple's own phone, one guest at a time. */
+export const ownPhoneApi = {
+  get: (wid: string) => request<OwnPhoneData>(`${w(wid)}/own-phone`),
+  setVia: (wid: string, sendVia: SendVia) => send<{ via: SendVia }>('PUT', `${w(wid)}/own-phone/send-via`, { sendVia }),
+  mark: (wid: string, id: string, what: 'sent' | 'skip') => send<{ ok: true }>('POST', `${w(wid)}/own-phone/${encodeURIComponent(id)}/${what}`, {}),
+};
 export const inboxApi = {
   list: (wid: string, show: 'inbox' | 'archived' | 'sent' = 'inbox') =>
     request<{ address: string; emails: InboxEmail[] }>(`${w(wid)}/inbox${show === 'archived' ? '?archived=1' : show === 'sent' ? '?sent=1' : ''}`),

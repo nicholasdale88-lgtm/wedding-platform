@@ -242,12 +242,14 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
     try {
       // By email first (free, any plan), then by text when the plan includes texts.
       const email = await sendNowEmail(c.env, deps(c.env), wid(c), c.req.param('cid'), body.data.only);
-      if (!texts && !email.queued) return needsUpgrade(c, 'texts');
+      if (!texts && !email.queued && !email.phone) return needsUpgrade(c, 'texts');
       const res = texts ? await sendNow(deps(c.env), wid(c), c.req.param('cid'), body.data.only) : { queued: 0, sent: 0, failed: 0 };
       await audit(c, 'sms.send', c.req.param('cid'), { queued: res.queued, sent: res.sent, failed: res.failed, emails: email.sent, emailsWaiting: email.waiting });
       return c.json({
         ...res,
         email: { queued: email.queued, sent: email.sent, failed: email.failed, waiting: email.waiting },
+        // Ready to send from the couple's own phone (Texts → Ready to send from your phone).
+        phone: email.phone,
         ...(email.capped ? { emailNote: `Today’s emails are used up: the other ${email.waiting} go tomorrow morning.` } : {}),
       });
     } catch (e) {

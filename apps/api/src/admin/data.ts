@@ -81,6 +81,8 @@ export interface WeddingData {
   campaigns: { id: string; key: string; name: string; mode: string; enabled: boolean; audience: string }[];
   slots: { campaignId: string; sendAt: string; status: string; lastError: string | null }[];
   inboxNeedsYou: number;
+  /** Messages ready for the couple to send from their own phone. */
+  phoneReady: number;
   tables: { id: string; eventId: string; name: string }[];
 }
 
@@ -180,6 +182,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
       campaignId: s.campaign_id, sendAt: s.send_at, status: s.status, lastError: s.last_error,
     })),
     inboxNeedsYou: Number((inbox!.results[0] as { n: number } | undefined)?.n ?? 0),
+    phoneReady: Number((await db.prepare(`SELECT COUNT(*) AS n FROM email_out WHERE wedding_id = ? AND kind = 'phone' AND status = 'ready'`).bind(weddingId).first<{ n: number }>())?.n ?? 0),
     tables: (tb!.results as { id: string; event_id: string; name: string }[]).map((t) => ({ id: t.id, eventId: t.event_id, name: t.name })),
   };
 }

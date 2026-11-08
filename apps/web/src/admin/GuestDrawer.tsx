@@ -310,6 +310,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
             <option value="text">Text only</option>
             <option value="email">Email only (free)</option>
             <option value="both">Text and email</option>
+            <option value="phone">From my own phone (free)</option>
           </select>
         </Label>
         <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-3">

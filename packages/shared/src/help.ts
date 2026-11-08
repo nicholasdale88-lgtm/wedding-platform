@@ -126,11 +126,11 @@ export const HELP: HelpArticle[] = [
     title: 'Sending invitations and reminders',
     group: 'Guests and replies',
     steps: [
-      'Open Texts. The invitation text goes to everyone with a mobile who hasn’t had it yet, on autopilot, once texting is set up (Account → Settings → Texting).',
+      'Open Texts. Choose how your messages go first (Account → Settings → Texting): from your own phone (free), by email (free) or a texting number (paid). From your own phone, invitations and reminders wait as “ready to send from your phone”: each tap opens your Messages app with that guest’s number and message (never a group text), then Sent, next. Replies come to your phone; record one on the guest’s page in a tap.',
       'Tap + Add a reminder for a gentle nudge to everyone still to reply, or + Last call before RSVPs close to schedule one a week before your reply-by date.',
       'Every text shows how many it goes to and what it costs before it’s sent. Send me a test sends it to your own mobile first.',
     ],
-    also: 'rsvp sms text message remind nudge reply by deadline last call autopilot',
+    also: 'rsvp sms text message remind nudge reply by deadline last call autopilot own phone my phone free imessage messages app email',
     go: { tab: 'texts', event: true },
   },
   {

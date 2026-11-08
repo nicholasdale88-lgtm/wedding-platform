@@ -21,6 +21,9 @@ import type { Campaign, EventInfo, Recipient, WeddingCtx } from '../sms/types';
  * - Campaign emails keep the texts' quiet hours; answers to a guest go straight away.
  * - A guest's email reply ("yes", "can't make it", a dietary need, a question the wedding answers) is
  *   handled the way a text is (sms/inbound.ts); anything else stays in the inbox for the couple.
+ * - "My own phone" (free): for guests whose channel is the couple's own phone, nothing is sent by the
+ *   server. Each message is kept ready (email_out, kind 'phone', status 'ready') for the couple to send from
+ *   their own Messages app, one guest at a time (routes/ownPhone.ts), and marked sent when they have.
  */
 
 export type Channel = '' | 'text' | 'email' | 'both';
@@ -28,6 +31,13 @@ export type Channel = '' | 'text' | 'email' | 'both';
 /** This guest gets emails: an email address, and email (or both) chosen, or no mobile to text. */
 export const emailable = (r: Recipient, c?: Pick<Campaign, 'excluded'>): boolean =>
   !!r.email && (r.channel === 'email' || r.channel === 'both' || (!r.channel && !r.phone)) && !(c?.excluded.includes(r.id) ?? false);
+
+/** This guest's messages are sent by the couple from their own phone (a mobile, not opted out, not excluded). */
+export const phoneable = (r: Recipient, c?: Pick<Campaign, 'excluded'>): boolean =>
+  !!r.phone && r.channel === 'phone' && !r.optOut && !(c?.excluded.includes(r.id) ?? false);
+
+/** Who a campaign goes to from the couple's own phone right now. */
+export const phoneRecipientsFor = (c: Campaign, all: Recipient[], invitedBefore: Set<string>) => all.filter((r) => phoneable(r, c) && matches(c.audience, r, invitedBefore));
 
 /** Who a campaign emails right now (its audience, evaluated at send time like the texts). */
 export const emailRecipientsFor = (c: Campaign, all: Recipient[], invitedBefore: Set<string>) => all.filter((r) => emailable(r, c) && matches(c.audience, r, invitedBefore));
@@ -49,7 +59,16 @@ export async function invitedEither(d: EngineDeps, db: D1Database, weddingId: st
 const firstName = (s: string) => s.trim().split(/\s+/)[0] ?? s;
 const couple = (w: WeddingCtx) => `${firstName(w.name1)} & ${firstName(w.name2)}`;
 
-type Row = { invitationId: string | null; campaignId: string | null; dedupeKey: string; kind: 'campaign' | 'reply'; to: string; subject: string; body: string; status?: 'failed'; error?: string };
+type Row = { invitationId: string | null; campaignId: string | null; dedupeKey: string; kind: 'campaign' | 'reply' | 'phone'; to: string; subject: string; body: string; status?: 'failed' | 'ready'; error?: string };
+
+/** Ready to send from the couple's own phone: the same words, to their mobile; the server never sends these. */
+function phoneRows(w: WeddingCtx, events: EventInfo[], c: Campaign, list: Recipient[], key: (r: Recipient) => string): Row[] {
+  return list.flatMap((r) => {
+    const m = renderFor(c.body, w, events, r);
+    if (m.unfilled.length) return [];
+    return [{ invitationId: r.id, campaignId: c.id, dedupeKey: `phone:${key(r)}`, kind: 'phone' as const, to: r.phone!, subject: c.name, body: m.body, status: 'ready' as const }];
+  });
+}
 
 /** One email per guest, worded exactly as the text (without the text-only STOP line). */
 function campaignRows(w: WeddingCtx, events: EventInfo[], c: Campaign, list: Recipient[], key: (r: Recipient) => string): Row[] {
@@ -108,7 +127,7 @@ export async function flushEmail(env: Env, d: EngineDeps, w: WeddingCtx, address
   if (!emailReady(env) || !address) return out;
   const quiet = inQuietHours(d.now(), w.timezone, w.quietStart, w.quietEnd);
   const { results: rows } = await db
-    .prepare(`SELECT id, invitation_id, campaign_id, dedupe_key, kind, to_addr, subject, body FROM email_out WHERE wedding_id = ? AND status = 'queued' ORDER BY kind = 'reply' DESC, created_at LIMIT 200`)
+    .prepare(`SELECT id, invitation_id, campaign_id, dedupe_key, kind, to_addr, subject, body FROM email_out WHERE wedding_id = ? AND status = 'queued' AND kind != 'phone' ORDER BY kind = 'reply' DESC, created_at LIMIT 200`)
     .bind(w.id)
     .all<{ id: string; invitation_id: string | null; campaign_id: string | null; dedupe_key: string; kind: string; to_addr: string; subject: string; body: string }>();
   if (!rows.length) return out;
@@ -173,16 +192,14 @@ async function load(env: Env, d: EngineDeps, weddingId: string, w0?: WeddingCtx)
  */
 export async function runEmailCampaigns(env: Env, d: EngineDeps) {
   const report = { weddings: 0, queued: 0, sent: 0, waiting: 0 };
-  if (!emailReady(env)) return report;
   for (const w of await d.store.weddings()) {
     try {
-      // Only weddings with someone to email (no address is made for a wedding that has none).
-      const any = await env.DB.prepare(`SELECT 1 FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL AND email IS NOT NULL AND email != '' LIMIT 1`).bind(w.id).first();
-      if (!any) continue;
-      const ctx = await load(env, d, w.id, w);
-      if (!ctx) continue;
+      // Email only for weddings with someone to email (no address is made for a wedding that has none).
+      const any = emailReady(env) && (await env.DB.prepare(`SELECT 1 FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL AND email IS NOT NULL AND email != '' LIMIT 1`).bind(w.id).first());
+      const ctx = any ? await load(env, d, w.id, w) : null;
       report.weddings++;
-      report.queued += await queueDue(env, d, w);
+      report.queued += await queueDue(env, d, w, !!ctx);
+      if (!ctx) continue;
       const f = await flushEmail(env, d, w, ctx.address);
       report.sent += f.sent;
       report.waiting += f.waiting;
@@ -193,7 +210,7 @@ export async function runEmailCampaigns(env: Env, d: EngineDeps) {
   return report;
 }
 
-async function queueDue(env: Env, d: EngineDeps, w: WeddingCtx) {
+async function queueDue(env: Env, d: EngineDeps, w: WeddingCtx, mail: boolean) {
   const now = d.now();
   if (inQuietHours(now, w.timezone, w.quietStart, w.quietEnd)) return 0; // built in the morning, like the texts
   const db = env.DB;
@@ -215,9 +232,10 @@ async function queueDue(env: Env, d: EngineDeps, w: WeddingCtx) {
   for (const s of slots) {
     const c = byId.get(s.campaign_id);
     if (!c) continue;
-    // Built once per slot (who it goes to is decided when it falls due, as for the texts).
-    if (await db.prepare(`SELECT 1 FROM email_out WHERE wedding_id = ? AND dedupe_key LIKE ? LIMIT 1`).bind(w.id, `slot:${s.id}:%`).first()) continue;
-    queued += await enqueue(db, w.id, campaignRows(w, events, c, emailRecipientsFor(c, recipients, invited), (r) => `slot:${s.id}:${r.id}`));
+    // Built once per slot and channel (who it goes to is decided when it falls due, as for the texts).
+    const built = async (prefix: string) => !!(await db.prepare(`SELECT 1 FROM email_out WHERE wedding_id = ? AND dedupe_key LIKE ? LIMIT 1`).bind(w.id, `${prefix}%`).first());
+    if (mail && !(await built(`slot:${s.id}:`))) queued += await enqueue(db, w.id, campaignRows(w, events, c, emailRecipientsFor(c, recipients, invited), (r) => `slot:${s.id}:${r.id}`));
+    if (!(await built(`phone:slot:${s.id}:`))) queued += await enqueue(db, w.id, phoneRows(w, events, c, phoneRecipientsFor(c, recipients, invited), (r) => `slot:${s.id}:${r.id}`));
   }
 
   // 2. Automatic: the invitation when a guest is added (from the invitations' date), the thank-you after a reply.
@@ -232,8 +250,10 @@ async function queueDue(env: Env, d: EngineDeps, w: WeddingCtx) {
         .all<{ invitation_id: string }>();
       const already = new Set(had.map((x) => x.invitation_id));
       const owed = emailRecipientsFor(c, recipients, invited).filter((r) => !already.has(r.id));
-      queued += await enqueue(db, w.id, campaignRows(w, events, c, owed, (r) => `auto:${c.id}:${r.id}`));
-    } else if (c.trigger === 'rsvp_changed') {
+      if (mail) queued += await enqueue(db, w.id, campaignRows(w, events, c, owed, (r) => `auto:${c.id}:${r.id}`));
+      // From the couple's own phone: ready for them to send (never the thank-yous: those would be busywork).
+      queued += await enqueue(db, w.id, phoneRows(w, events, c, phoneRecipientsFor(c, recipients, invited), (r) => `auto:${c.id}:${r.id}`));
+    } else if (c.trigger === 'rsvp_changed' && mail) {
       const declineReply = campaigns.some((x) => x.mode === 'auto' && x.trigger === 'rsvp_changed' && x.audience.declinedAll);
       const replied = recipients.filter((r) => {
         if (!r.rsvpUpdatedAt || !emailable(r, c) || !matches(c.audience, r, invited)) return false;
@@ -252,24 +272,30 @@ async function queueDue(env: Env, d: EngineDeps, w: WeddingCtx) {
  * chosen guests). Quiet hours and today's allowance hold the rest for the morning.
  */
 export async function sendNowEmail(env: Env, d: EngineDeps, weddingId: string, campaignId: string, only?: string[]) {
-  const none = { queued: 0, sent: 0, failed: 0, waiting: 0, capped: false, on: false };
-  const ctx = await load(env, d, weddingId);
-  if (!ctx) return none;
+  const none = { queued: 0, sent: 0, failed: 0, waiting: 0, capped: false, on: false, phone: 0 };
   const c = (await d.store.campaigns(weddingId)).find((x) => x.id === campaignId);
   if (!c) return none;
   const { events, recipients } = await d.store.audience(weddingId);
+  // Guests on the couple's own phone: ready for them to send, one by one.
+  const w = await d.store.wedding(weddingId);
+  const invitedNow = await invitedEither(d, env.DB, weddingId);
+  const run0 = `${campaignId}:${Math.floor(d.now().getTime() / 120_000)}`;
+  const toPhone = only ? recipients.filter((r) => only.includes(r.id) && phoneable(r)) : phoneRecipientsFor(c, recipients, invitedNow);
+  const phone = w ? await enqueue(env.DB, weddingId, phoneRows(w, events, c, toPhone, (r) => `manual:${run0}:${r.id}`)) : 0;
+  const ctx = await load(env, d, weddingId);
+  if (!ctx) return { ...none, phone };
   const list = only ? recipients.filter((r) => only.includes(r.id) && emailable(r)) : emailRecipientsFor(c, recipients, await invitedEither(d, env.DB, weddingId));
   const run = `${campaignId}:${Math.floor(d.now().getTime() / 120_000)}`;
   const queued = await enqueue(env.DB, weddingId, campaignRows(ctx.w, events, c, list, (r) => `manual:${run}:${r.id}`));
   const f = await flushEmail(env, d, ctx.w, ctx.address);
-  return { queued, ...f, on: true };
+  return { queued, ...f, on: true, phone };
 }
 
 /** For the Texts screen: per message, how many would go by email now, and what has gone or is waiting. */
 export async function emailSummary(env: Env, d: EngineDeps, weddingId: string, campaigns: Campaign[], recipients: Recipient[]) {
   const invited = await invitedEither(d, env.DB, weddingId);
   const { results } = await env.DB.prepare(
-    `SELECT campaign_id, SUM(status = 'sent') AS sent, SUM(status = 'queued') AS waiting, SUM(status = 'failed') AS failed FROM email_out WHERE wedding_id = ? AND campaign_id IS NOT NULL GROUP BY campaign_id`,
+    `SELECT campaign_id, SUM(status = 'sent') AS sent, SUM(status = 'queued') AS waiting, SUM(status = 'failed') AS failed FROM email_out WHERE wedding_id = ? AND campaign_id IS NOT NULL AND kind != 'phone' GROUP BY campaign_id`,
   )
     .bind(weddingId)
     .all<{ campaign_id: string; sent: number; waiting: number; failed: number }>();

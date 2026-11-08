@@ -6,6 +6,7 @@ import { PageHeader, Tabs } from '../ui';
 import { ChangeEmail, PlanAndBilling, TheWedding, YourDetails } from './Account';
 import { Privacy } from './Privacy';
 import { Backup, Passcode, SmsSetup } from './SmsSetup';
+import { SendVia } from '../texts/OwnPhone';
 import { SystemCheck } from './SystemCheck';
 
 const VIEWS = [
@@ -52,7 +53,10 @@ export function Settings() {
       ) : view === 'plan' ? (
         <PlanAndBilling />
       ) : view === 'texting' ? (
-        <SmsSetup />
+        <div className="flex flex-col gap-7">
+          <SendVia />
+          <SmsSetup />
+        </div>
       ) : view === 'backup' ? (
         <div className="flex flex-col gap-10">
           <Backup />

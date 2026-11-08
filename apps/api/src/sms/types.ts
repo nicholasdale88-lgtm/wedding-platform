@@ -84,7 +84,7 @@ export interface Recipient {
   tableName: string | null;
   /** The main contact's email, and how they hear from the couple ('' = text when there's a mobile, else email). */
   email?: string | null;
-  channel?: '' | 'text' | 'email' | 'both';
+  channel?: '' | 'text' | 'email' | 'both' | 'phone';
 }
 
 export type CampaignMode = 'auto' | 'dates' | 'manual';

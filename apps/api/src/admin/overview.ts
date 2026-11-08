@@ -103,6 +103,10 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
   add(!d.wedding.sender, {
     kind: 'sms-setup', title: 'Texts are not set up yet', detail: 'Add your SMS number under Account so texts really send.', cta: 'Set up', link: 'texts', event: 'all',
   });
+  add(d.phoneReady, {
+    kind: 'own-phone', title: `${d.phoneReady} ${d.phoneReady === 1 ? 'message' : 'messages'} ready to send from your phone`,
+    detail: 'Invitations and reminders waiting for you: one tap each opens your Messages app with the guest’s number and message.', cta: 'Send', link: 'texts', event: home,
+  });
   add(d.inboxNeedsYou, {
     kind: 'inbox', title: d.inboxNeedsYou === 1 ? '1 message needs you' : `${d.inboxNeedsYou} messages need you`,
     detail: 'Guests wrote to you, texted a question or posted on the message board.', cta: 'Read', link: 'messages', event: 'all',

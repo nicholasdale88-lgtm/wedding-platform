@@ -30,7 +30,7 @@ const GuestPatch = z
     /** The main contact's email (for emailing their invitation, and knowing who wrote in). */
     email: z.union([z.literal(''), z.string().trim().toLowerCase().email().max(200)]).nullable(),
     /** How they hear from the couple: '' (text when there's a mobile, otherwise email), text, email or both. */
-    channel: z.enum(['', 'text', 'email', 'both']),
+    channel: z.enum(['', 'text', 'email', 'both', 'phone']),
     seatsHeld: z.number().int().min(1).max(60),
     party: z.string().trim().max(60),
     invited: z.array(z.string()).max(20),
