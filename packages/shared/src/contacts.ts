@@ -142,7 +142,7 @@ export function csvRows(text: string): string[][] {
   let row: string[] = [];
   let cell = '';
   let quoted = false;
-  const s = text.replace(/^﻿/, '');
+  const s = text.replace(/^\uFEFF/, '');
   for (let i = 0; i < s.length; i++) {
     const c = s[i]!;
     if (quoted) {
@@ -223,5 +223,5 @@ export function parseContactsCsv(text: string): Contact[] {
 
 /** A contacts file, whichever kind it is. */
 export function parseContactsFile(name: string, text: string): Contact[] {
-  return /\.vcf$|\.vcard$/i.test(name) || /^\s*BEGIN:VCARD/i.test(text.replace(/^﻿/, '')) ? parseVCard(text) : parseContactsCsv(text);
+  return /\.vcf$|\.vcard$/i.test(name) || /^\s*BEGIN:VCARD/i.test(text.replace(/^\uFEFF/, '')) ? parseVCard(text) : parseContactsCsv(text);
 }

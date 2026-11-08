@@ -82,7 +82,7 @@ describe('contacts files', () => {
 
   it('knows a file by its name or contents, and reads quoted CSV cells', () => {
     expect(parseContactsFile('contacts.vcf', 'BEGIN:VCARD\nFN:A B\nEND:VCARD')).toHaveLength(1);
-    expect(parseContactsFile('export.txt', '﻿BEGIN:VCARD\nFN:A B\nEND:VCARD')).toHaveLength(1);
+    expect(parseContactsFile('export.txt', '\uFEFFBEGIN:VCARD\nFN:A B\nEND:VCARD')).toHaveLength(1);
     expect(csvRows('a,"b ""c""",d\n\n"e\nf",g')).toEqual([['a', 'b "c"', 'd'], ['e\nf', 'g']]);
   });
 
