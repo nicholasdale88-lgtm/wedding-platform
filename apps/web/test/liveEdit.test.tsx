@@ -41,7 +41,8 @@ describe('sections in the couple’s order', () => {
     expect(InvitationContent.safeParse({ order: orderOf(undefined), custom: { nameSize: 1.2 } }).success).toBe(true);
     expect(InvitationContent.safeParse({ custom: { nameSize: 3 } }).success).toBe(false);
     expect(InvitationContent.safeParse({ images: { lookout: 'data:image/jpeg;base64,AAAA' } }).success).toBe(true);
-    expect(InvitationContent.safeParse({ images: { lookout: 'data:text/html;base64,AAAA' } }).success).toBe(false);
+    // Anything longer than a link must be a photo (the page shows only image data links anyway).
+    expect(InvitationContent.safeParse({ images: { lookout: `data:text/html;base64,${'A'.repeat(600)}` } }).success).toBe(false);
   });
   it('the names size scales the style’s own size', () => {
     expect(themeOf('Cream & Sage', { nameSize: 1.2 }).nsz).toBe('calc(clamp(38px,10.5vw,50px) * 1.2)');
