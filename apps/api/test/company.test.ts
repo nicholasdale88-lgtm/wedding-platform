@@ -279,4 +279,18 @@ describe('company portal', () => {
     const couple = await signup('Alex', 'alex@example.com');
     expect((await call('/a/company/connections', {}, couple.cookie)).status).toBe(403);
   });
+  it('the to-do list: starts with the launch jobs; owners tick (who and when kept); the team can read', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const first = (await (await call('/a/company/todo', {}, boss.cookie)).json()) as { items: { id: string; done: boolean; doneBy: string }[]; canEdit: boolean };
+    expect(first.items.find((i) => i.id === 'abn')).toBeTruthy();
+    expect(first.canEdit).toBe(true);
+    const ticked = first.items.map((i) => (i.id === 'abn' ? { ...i, done: true } : i));
+    const saved = (await (await call('/a/company/todo', { method: 'PUT', body: JSON.stringify({ items: ticked }) }, boss.cookie)).json()) as { items: { id: string; done: boolean; doneBy: string }[] };
+    expect(saved.items.find((i) => i.id === 'abn')).toMatchObject({ done: true, doneBy: 'boss@example.com' });
+    const { key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Grok', role: 'marketing' }) }, boss.cookie)).json()) as { key: string };
+    const asBot = (await (await call('/a/company/todo', { headers: { authorization: `Bearer ${key}` } })).json()) as { items: { id: string; done: boolean }[]; canEdit: boolean };
+    expect(asBot.canEdit).toBe(false);
+    expect(asBot.items.find((i) => i.id === 'abn')!.done).toBe(true);
+    expect((await call('/a/company/todo', { method: 'PUT', body: JSON.stringify({ items: [] }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
+  });
 });

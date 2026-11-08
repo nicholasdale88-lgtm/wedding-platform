@@ -4,7 +4,7 @@ import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
 import { chargeCents, planOf, STAFF_INFO, STAFF_ROLES, staffCan, type StaffPerm, type StaffRole } from '@wp/shared';
-import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
+import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -265,6 +265,7 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
           ['ask', 'Ask', 'e.g. What should I focus on to get 20 weddings this month?'],
         ]}
       />
+      <TodoList onGo={onGo} />
       <section className={card} aria-label="To do">
         <H>To do</H>
         {todo.length ? (
@@ -1895,6 +1896,103 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
           </div>
         );
       })}
+      {problem && <Problem text={problem} />}
+    </section>
+  );
+}
+
+/** The company's to-do list: the launch jobs first (with where to do each), then anything you add. */
+function TodoList({ onGo }: { onGo: (t: Tab) => void }) {
+  const { data, error, setData } = useLoad(companyApi.todo);
+  const [adding, setAdding] = useState('');
+  const [showDone, setShowDone] = useState(false);
+  const [problem, setProblem] = useState('');
+  if (error) return <Problem text={error} />;
+  if (!data) return null;
+  const save = async (items: CompanyTodo[]) => {
+    const before = data;
+    setData({ ...data, items });
+    setProblem('');
+    try {
+      setData(await companyApi.saveTodo(items));
+    } catch (e) {
+      setData(before);
+      setProblem((e as Error).message);
+    }
+  };
+  const left = data.items.filter((i) => !i.done);
+  const groups = [...new Set(data.items.map((i) => i.group || 'Other'))];
+  const open = (link: string) => {
+    if (link.startsWith('#')) onGo(link.slice(1) as Tab);
+  };
+  return (
+    <section className={card} aria-label="To-do list">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <H sub="What’s left to set up and launch. Tick things off as you go; everyone on the team sees the same list.">To-do list</H>
+        <span className="text-[14px] font-semibold">{left.length ? `${left.length} to do` : 'All done ✓'}</span>
+      </div>
+      <div className="h-[8px] rounded-full bg-[#e4e6df] overflow-hidden">
+        <div className="h-full bg-[#2f6b3a]" style={{ width: `${data.items.length ? ((data.items.length - left.length) / data.items.length) * 100 : 0}%` }} />
+      </div>
+      {groups.map((g) => {
+        const items = data.items.filter((i) => (i.group || 'Other') === g && (showDone || !i.done));
+        if (!items.length) return null;
+        return (
+          <div key={g} className="flex flex-col">
+            <h3 className="m-0 mb-1 text-[12px] font-semibold tracking-[.14em] uppercase text-[#5f6a58]">{g}</h3>
+            {items.map((i) => (
+              <div key={i.id} className="flex items-start gap-3 py-2 border-t border-[#e4e6df]">
+                <input
+                  type="checkbox"
+                  checked={i.done}
+                  disabled={!data.canEdit}
+                  aria-label={i.text}
+                  onChange={() => void save(data.items.map((x) => (x.id === i.id ? { ...x, done: !x.done } : x)))}
+                  className="mt-[3px] w-[18px] h-[18px] accent-[#2f6b3a] flex-none"
+                />
+                <span className={`flex-1 min-w-0 text-[15px] ${i.done ? 'line-through text-[#8a917f]' : ''}`}>
+                  {i.text}
+                  {i.done && i.doneBy && <span className="block text-[12px] no-underline text-[#8a917f]">Done by {i.doneBy}</span>}
+                </span>
+                {i.link &&
+                  (i.link.startsWith('#') ? (
+                    <button type="button" className={`${btn} !py-[5px] flex-none`} onClick={() => open(i.link)}>
+                      Go
+                    </button>
+                  ) : (
+                    <a href={i.link} target={i.link.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className={`${btn} !py-[5px] flex-none no-underline`}>
+                      Open
+                    </a>
+                  ))}
+                {data.canEdit && i.group === 'Added' && (
+                  <button type="button" aria-label={`Remove ${i.text}`} className="p-0 border-0 bg-transparent cursor-pointer text-[#8a917f]" onClick={() => void save(data.items.filter((x) => x.id !== i.id))}>
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+      {data.canEdit && (
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!adding.trim()) return;
+            void save([...data.items, { id: crypto.randomUUID().slice(0, 12), text: adding.trim(), link: '', group: 'Added', done: false, doneAt: '', doneBy: '' }]);
+            setAdding('');
+          }}
+        >
+          <input value={adding} maxLength={200} onChange={(e) => setAdding(e.target.value)} placeholder="Add a to-do" aria-label="Add a to-do" className={input} />
+          <button type="submit" className={btn} disabled={!adding.trim()}>
+            Add
+          </button>
+        </form>
+      )}
+      <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => setShowDone((x) => !x)}>
+        {showDone ? 'Hide done' : `Show done (${data.items.length - left.length})`}
+      </button>
       {problem && <Problem text={problem} />}
     </section>
   );

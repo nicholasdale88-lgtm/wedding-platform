@@ -155,3 +155,47 @@ export const RELATION_LABEL: Record<MemberRelation, string> = {
   vendor: 'Vendor',
   other: 'Someone else',
 };
+
+/** The company's own to-do list (Company portal → Overview): the owner's launch jobs, then anything added. */
+export const TodoItem = z.object({
+  id: z.string().max(40),
+  text: z.string().trim().min(1).max(200),
+  /** Where to do it (a page on another site, or a tab in the portal like "#settings"). */
+  link: z.string().trim().max(300).default(''),
+  /** Grouping: Business, Accounts to set up, Marketing, Before you announce… */
+  group: z.string().trim().max(40).default(''),
+  done: z.boolean().default(false),
+  doneAt: z.string().max(40).default(''),
+  doneBy: z.string().max(80).default(''),
+});
+export type TodoItem = z.infer<typeof TodoItem>;
+export const Todos = z.object({ items: z.array(TodoItem).max(200).default([]), seeded: z.boolean().default(false) });
+
+const t = (id: string, group: string, text: string, link = ''): TodoItem => ({ id, group, text, link, done: false, doneAt: '', doneBy: '' });
+/** What the owner has to do to go live (docs/GO_LIVE.md), in order. */
+export const LAUNCH_TODOS: TodoItem[] = [
+  t('abn', 'Business', 'Get an ABN (free)', 'https://www.abr.gov.au/business-super-funds-charities/applying-abn'),
+  t('name', 'Business', 'Register the business name "The Yes List" (about $45 a year)', 'https://connectonline.asic.gov.au'),
+  t('domain', 'Business', 'Buy the domain (.com.au needs the ABN), then point it to Cloudflare', 'https://www.cloudflare.com'),
+  t('bank', 'Business', 'Open a business bank account for payouts (optional, usually free)'),
+  t('sophie', 'Business', 'Invite the second director as an Owner (Team → Invite someone)', '#team'),
+  t('gacct', 'Accounts to set up', 'Make a business Google account (its email is shown to couples, not your personal Gmail)', 'https://accounts.google.com/signup'),
+  t('google', 'Accounts to set up', 'Google Drive and Photos: register the site with Claude, then paste the 2 keys in Connections', '#settings'),
+  t('stripe', 'Accounts to set up', 'Stripe: sign up (ABN, ID, bank), paste the 2 keys in Connections', 'https://dashboard.stripe.com/register'),
+  t('resend', 'Accounts to set up', 'Resend: sign up, verify the domain, paste the key and From address in Connections', 'https://resend.com/signup'),
+  t('workersai', 'Accounts to set up', 'Cloudflare: give the deploy token the Workers AI permission (natural help voice and the assistant)', 'https://dash.cloudflare.com/profile/api-tokens'),
+  t('dropbox', 'Accounts to set up', 'Dropbox (optional): create the app, paste the 2 keys in Connections', 'https://www.dropbox.com/developers/apps/create'),
+  t('mm', 'Accounts to set up', 'Automatic texts (optional): Mobile Message, paste the 2 keys in Connections', 'https://mobilemessage.com.au'),
+  t('costs', 'Money', 'Enter the running costs (Grok, Claude, domain…) in Money & tax', '#money'),
+  t('codes', 'Marketing', 'Make the launch code YES20 and partner codes (Promote)', '#promote'),
+  t('socials', 'Marketing', 'Free accounts: Instagram, TikTok, Facebook page, Pinterest, Google Business Profile, Search Console'),
+  t('meta', 'Marketing', 'Meta Business Suite: upload the 10 ad images from docs/marketing/ads and set up the $10/day test', 'https://business.facebook.com'),
+  t('videos', 'Marketing', 'Film the 6 short videos (docs/marketing/VIDEO_SCRIPTS.md)'),
+  t('partners', 'Marketing', 'Put your ABN and name in the partner emails and send the first 5 (docs/marketing/PARTNER_KIT.md)'),
+  t('grok', 'Marketing', 'Make Grok bot keys (Team → Bots) and schedule its jobs (docs/GROK_PLAYBOOK.md)', '#team'),
+  t('rival', 'Marketing', 'Recheck the competitor price before running the price-comparison ad', 'https://www.wooowinvites.com/pricing'),
+  t('legal', 'Before you announce', 'Check Privacy and Terms show your business name and ABN', '/terms'),
+  t('test', 'Before you announce', 'Sign up as a test couple on the live site: invite, reply, seat, pay by card, then refund it', '/'),
+  t('own', 'Before you announce', 'Your own wedding and the 30th look right on the live site', '/admin'),
+  t('backup', 'Before you announce', 'Check the 12-hourly backup ran (GitHub → Actions → Nightly)', 'https://github.com/nicholasdale88-lgtm/wedding-platform/actions'),
+];

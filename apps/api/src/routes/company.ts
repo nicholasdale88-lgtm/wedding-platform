@@ -1,4 +1,4 @@
-import { basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -33,7 +33,7 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
-export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses', schema: S): Promise<z.output<S>> {
+export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
   try {
@@ -520,6 +520,30 @@ export function companyRoutes() {
     await saveConnections(c.env, b.data);
     await logCompany(c, 'company.connections', Object.keys(b.data).join(', '), {});
     return c.json({ status: await connectionStatus(c.env) });
+  });
+
+  /** The company's to-do list: anyone on the team reads it; owners and managers tick, add and remove. */
+  app.get('/todo', async (c) => {
+    const saved = await readSetting(c.env.DB, 'todo', Todos);
+    // The first time: the launch jobs, ready to tick.
+    const items = saved.seeded ? saved.items : LAUNCH_TODOS;
+    return c.json({ items, canEdit: staffCan(c.get('user').staff, 'money') });
+  });
+  app.put('/todo', can('money'), async (c) => {
+    const b = z.object({ items: z.array(TodoItem).max(200) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Please check the list.');
+    const before = await readSetting(c.env.DB, 'todo', Todos);
+    const was = new Map((before.seeded ? before.items : LAUNCH_TODOS).map((i) => [i.id, i]));
+    const who = c.get('user').email;
+    // Who ticked what, and when (kept from before for anything not newly ticked).
+    const items = b.data.items.map((i) => {
+      const old = was.get(i.id);
+      if (i.done && !old?.done) return { ...i, doneAt: new Date().toISOString(), doneBy: who };
+      if (!i.done) return { ...i, doneAt: '', doneBy: '' };
+      return { ...i, doneAt: old?.doneAt ?? i.doneAt, doneBy: old?.doneBy ?? i.doneBy };
+    });
+    await writeSetting(c.env.DB, 'todo', { items, seeded: true });
+    return c.json({ items, canEdit: true });
   });
 
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */

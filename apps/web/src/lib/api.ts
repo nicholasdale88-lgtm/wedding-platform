@@ -964,6 +964,7 @@ export interface CompanyMoney {
   last12Cents: number;
   gstThresholdCents: number;
 }
+export interface CompanyTodo { id: string; text: string; link: string; group: string; done: boolean; doneAt: string; doneBy: string }
 export interface CompanyActivity { id: string; action: string; target: string; detail: string; at: string; who: string; names: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
 export const companyApi = {
@@ -987,6 +988,8 @@ export const companyApi = {
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
   setRole: (userId: string, role: string) => send<{ ok: true }>('PUT', `/a/company/team/${encodeURIComponent(userId)}`, { role }),
   activity: () => request<{ activity: CompanyActivity[] }>('/a/company/activity'),
+  todo: () => request<{ items: CompanyTodo[]; canEdit: boolean }>('/a/company/todo'),
+  saveTodo: (items: CompanyTodo[]) => send<{ items: CompanyTodo[]; canEdit: boolean }>('PUT', '/a/company/todo', { items }),
   connections: () => request<{ status: Record<string, 'deploy' | 'saved' | ''>; redirectUri: string; stripeHook: string }>('/a/company/connections'),
   saveConnections: (keys: Record<string, string>) => send<{ status: Record<string, 'deploy' | 'saved' | ''> }>('PUT', '/a/company/connections', keys),
   assistantOn: () => request<{ on: boolean }>('/a/company/assistant'),
