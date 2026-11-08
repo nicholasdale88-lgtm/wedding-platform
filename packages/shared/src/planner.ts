@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { dietNeeds, isSerious, safeFor } from './diet';
+import { Ceremony } from './ceremony';
+
+export * from './ceremony';
 
 /**
  * The planner: the wedding party (roles on guests), the party's own run sheet (more detailed than the
@@ -1985,5 +1988,6 @@ export const PLANNER_DOCS = {
   ideas: Ideas,
   'coord-log': CoordLog,
   signage: Signage,
+  ceremony: Ceremony,
 } as const;
 export type PlannerKind = keyof typeof PLANNER_DOCS;

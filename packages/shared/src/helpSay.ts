@@ -182,6 +182,17 @@ export const HELP_SAY: Record<string, HelpSay> = {
     ],
     outro: 'That’s it. Your plans are safe and sound.',
   },
+  ceremony: {
+    intro: 'Here’s how to plan your ceremony with your celebrant, and keep the legal paperwork on track.',
+    steps: [
+      'Open the Wedding planner, then Ceremony. Invite your celebrant in Settings, and choose Celebrant. Your ceremony is the first thing they see.',
+      'Your celebrant can attach their questionnaire, or ask the questions right here. You each answer on your own, then tick yours ready.',
+      'The Notice of Intended Marriage has to reach your celebrant at least a month before the day. Your dates are worked out for you.',
+      'On the day, you need two witnesses over eighteen. Afterwards, your celebrant registers the marriage, and you order the official certificate.',
+      'Then shape the ceremony itself. The order, readings, music and your vows. Mark your vows private, and only you will see them.',
+    ],
+    outro: 'That’s it. Your celebrant always has the final word on the paperwork.',
+  },
   helpers: {
     intro: 'Here’s how to share the admin with your partner, or your planner.',
     steps: [

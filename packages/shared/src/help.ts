@@ -225,6 +225,20 @@ export const HELP: HelpArticle[] = [
     go: { tab: 'planner', event: true, query: 'view=checklist' },
   },
   {
+    id: 'ceremony',
+    title: 'Your ceremony and the legal paperwork',
+    group: 'Planning',
+    steps: [
+      'Open Wedding planner → Ceremony. Invite your celebrant in Settings and choose “Celebrant” for who they are: the ceremony is the first thing they see, and they can work on it with you.',
+      'Questionnaires: your celebrant attaches theirs (a PDF, Word document or photo) or asks the questions here. Start with “Getting to know you”. You each answer on your own, then tick yours ready for the celebrant.',
+      'Legal paperwork: the Notice of Intended Marriage must reach your celebrant at least one month, and no more than 18 months, before the day. Your first and last dates are worked out for you; tick off each document as the celebrant sees it.',
+      'On the day: two witnesses over 18 and the three marriage certificates. Afterwards your celebrant registers the marriage within 14 days, and you apply to your state’s registry for the official certificate. It’s a guide: your celebrant confirms what you need.',
+      'The ceremony: your celebrant’s details, the order, readings, music and your vows. Tick Private on your vows and only you see them.',
+    ],
+    also: 'celebrant ceremony questionnaire noim notice of intended marriage paperwork legal documents birth certificate passport divorce witnesses certificate declaration no legal impediment vows readings order of service births deaths marriages bdm registry',
+    go: { tab: 'planner', event: true, query: 'view=ceremony' },
+  },
+  {
     id: 'party',
     title: 'Your wedding party',
     group: 'Planning',
@@ -376,6 +390,13 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Wedding planner', 'Checklist'], fields: [['Who?', 'Mum']], rows: ['Order the cake'], tap: 'Copy their link', then: 'Mum ticks it off on her phone' },
     { at: ['Wedding planner', 'Checklist'], rows: ['Collect the rings · 10:30am'], fields: [['Who’s doing it', 'Jess (best man)']], tap: 'Send them their link', then: 'On Jess’s list and calendar ✓' },
     { at: ['Their page'], rows: ['Collect the rings · 10:30am', 'Order the cake · 2 weeks before'], tap: 'Add my jobs to my calendar', then: 'In their calendar, with reminders ✓' },
+  ],
+  ceremony: [
+    { at: ['Settings', 'Who can sign in'], fields: [['Their email', 'celebrant@example.com'], ['Who they are', 'Celebrant']], tap: 'Invite', then: 'They open straight to your ceremony ✓' },
+    { at: ['Wedding planner', 'Ceremony'], rows: ['Getting to know you · 11 questions', 'Alex · 11 of 11 · ready', 'Sam · 6 of 11'], tap: 'Ready for the celebrant', then: 'Both ready ✓' },
+    { at: ['Wedding planner', 'Ceremony'], rows: ['Earliest: 14 Sep 2026', 'Last day: 14 Feb 2028', 'Birth certificate ✓  Photo ID ✓'], fields: [['The day it reached our celebrant', '3 Jun 2027']], then: 'Notice lodged ✓' },
+    { at: ['Wedding planner', 'Ceremony'], fields: [['Witness 1', 'Jordan Lee'], ['Witness 2', 'Priya Shah']], tap: 'Certificates signed', then: 'Registered within 14 days ✓' },
+    { at: ['Wedding planner', 'Ceremony'], rows: ['Entrance · to “Somewhere Only We Know”', 'Readings · Mum', 'Vows · private'], tap: 'Start with the usual order', then: 'Your ceremony, in order ✓' },
   ],
   party: [
     { at: ['Wedding party', 'Overview'], fields: [['Role', 'Groomsman'], ['Name', 'Riley Chen'], ['Mobile', '0423 456 789']], tap: '+ Add Riley Chen as a groomsman', then: 'In the party and on your guest list ✓' },

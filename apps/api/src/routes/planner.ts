@@ -1,11 +1,11 @@
-import { PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
-import { Hono, type Context } from 'hono';
+import { keepPrivateVows, noimStatus, questionnaireProgress, vowsFor, type Ceremony, PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
+import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
 import { MAX_PLANNER_FILE, readJson, MAX_PLANNER_DOC } from '../lib/security';
 import { emailReady } from '../lib/email';
-import { FILE_TYPES, sendRequests, storePlannerFile } from '../lib/quoteRequests';
+import { PLANNER_FILE_TYPES, sendRequests, storePlannerFile } from '../lib/quoteRequests';
 import { openPhoto } from '../photos/store';
 import { portalWho } from './partyPortal';
 import { partyCalKey } from './partyCalendar';
@@ -213,6 +213,30 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
       event: first.key,
     });
   }
+  // The ceremony: the Notice of Intended Marriage's window (it's the law), and the celebrant's questionnaires.
+  const ceremony = (await readDoc(db, weddingId, 'ceremony', '')).data;
+  if (!Number.isNaN(day)) {
+    const noim = noimStatus(iso(day), today, ceremony.paperwork.noimLodged);
+    const when = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    if (noim.state === 'late') {
+      out.push({ kind: 'noim-late', title: 'The Notice of Intended Marriage is late', detail: `It had to reach your celebrant by ${when(noim.latest)}. Talk to them today: only a prescribed authority can allow a shorter time.`, cta: 'Ceremony', link: 'planner?view=ceremony', event: first.key });
+    } else if (noim.state === 'closing' || (noim.state === 'open' && noim.daysLeft <= 60)) {
+      out.push({ kind: 'noim-due', title: `Lodge your Notice of Intended Marriage by ${when(noim.latest)}`, detail: `${noim.daysLeft} ${noim.daysLeft === 1 ? 'day' : 'days'} left to get it to your celebrant.`, cta: 'Ceremony', link: 'planner?view=ceremony', event: first.key });
+    } else if (noim.state === 'early' && noim.earliest <= iso(now.getTime() + 14 * 86_400_000)) {
+      out.push({ kind: 'noim-opens', title: `You can lodge your Notice of Intended Marriage from ${when(noim.earliest)}`, detail: `Any time up to ${when(noim.latest)}. Your celebrant has the form.`, cta: 'Ceremony', link: 'planner?view=ceremony', event: first.key });
+    }
+  }
+  const toAnswer = ceremony.questionnaires.filter((q) => !questionnaireProgress(q).done);
+  if (toAnswer.length) {
+    out.push({
+      kind: 'ceremony-questions',
+      title: toAnswer.length === 1 ? `Your celebrant’s questionnaire: ${toAnswer[0]!.title}` : `${toAnswer.length} questionnaires from your celebrant`,
+      detail: 'Answer each on your own, then mark yours ready for the celebrant.',
+      cta: 'Ceremony',
+      link: 'planner?view=ceremony',
+      event: first.key,
+    });
+  }
   const mail = await db.prepare(`SELECT COUNT(*) AS n, SUM(kind = 'vendor') AS v FROM inbox_email WHERE wedding_id = ? AND read_at IS NULL AND archived_at IS NULL`).bind(weddingId).first<{ n: number; v: number | null }>();
   if (mail?.n) {
     out.push({ kind: 'email-new', title: `${mail.n} new ${mail.n === 1 ? 'email' : 'emails'}`, detail: mail.v ? `${mail.v} from vendors` : 'To your event’s address', cta: 'Email', link: 'messages?view=email', event: first.key });
@@ -229,6 +253,34 @@ export function plannerRoutes() {
   const writer = requireMember('owner', 'editor');
   const audit = (c: C, action: string, target: string) =>
     c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, at) VALUES (?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, action, target, new Date().toISOString());
+  /** Who this person is to the couple (their membership's relation: 'celebrant', 'planner', and so on). */
+  const relationOf = async (c: C) =>
+    (await c.env.DB.prepare(`SELECT relation FROM membership WHERE wedding_id = ? AND user_id = ?`).bind(wid(c), c.get('user').id).first<{ relation: string }>())?.relation ?? '';
+  /** Owners and editors; and the couple's celebrant (whatever their role) for the ceremony and its files. */
+  const ceremonyWriter: MiddlewareHandler<AdminEnv> = async (c, next) => {
+    const role = c.get('role');
+    if (role === 'owner' || role === 'editor') return next();
+    const forCeremony = c.req.method === 'POST' ? c.req.path.endsWith('/files') : c.req.param('kind') === 'ceremony' && !c.req.param('scope');
+    if (forCeremony && (await relationOf(c)) === 'celebrant') return next();
+    return c.json({ error: { code: 'forbidden', message: "Your role can't do that." } }, 403);
+  };
+  /** The ceremony as this person may see it (someone else's private vows hidden). */
+  const shown = <T extends { data: unknown }>(c: C, kind: PlannerKind, doc: T): T => (kind === 'ceremony' ? ({ ...doc, data: vowsFor(doc.data as Ceremony, c.get('user').id) } as T) : doc);
+
+  /** The ceremony page's people: who's signed in (for private vows), and the celebrant(s) who help run the wedding. */
+  app.get('/ceremony/people', async (c) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT u.email, u.first_name, u.last_name, u.name FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = ? AND m.relation = 'celebrant' ORDER BY u.created_at`,
+    )
+      .bind(wid(c))
+      .all<{ email: string; first_name: string | null; last_name: string | null; name: string | null }>();
+    return c.json({
+      me: c.get('user').id,
+      role: c.get('role'),
+      relation: await relationOf(c),
+      celebrants: results.map((r) => ({ name: [r.first_name, r.last_name].filter(Boolean).join(' ') || r.name || '', email: r.email })),
+    });
+  });
 
   /** Everything the Wedding party screen needs, for one event. */
   app.get('/party', async (c) => {
@@ -424,12 +476,12 @@ export function plannerRoutes() {
   // ---------------------------------------------------------------- quote files
 
   /** File a quote (a PDF or photo, base64 in JSON, up to 1.5 MB). Returns its id for the vendor's quote. */
-  app.post('/files', writer, async (c) => {
+  app.post('/files', ceremonyWriter, async (c) => {
     const body = z
-      .object({ name: z.string().trim().min(1).max(160), type: z.enum(FILE_TYPES), data: z.string().max(Math.ceil(MAX_PLANNER_FILE * 1.4)) })
+      .object({ name: z.string().trim().min(1).max(160), type: z.enum(PLANNER_FILE_TYPES), data: z.string().max(Math.ceil(MAX_PLANNER_FILE * 1.4)) })
       .strict()
       .safeParse(await readJson(c.req.raw, Math.ceil(MAX_PLANNER_FILE * 1.4) + 4096));
-    if (!body.success) return err(c, 400, 'invalid', 'Choose a PDF or a photo of the quote, up to 1.5 MB.');
+    if (!body.success) return err(c, 400, 'invalid', 'Choose a PDF, a Word document or a photo, up to 1.5 MB.');
     const r = await storePlannerFile(c.env, wid(c), body.data);
     if (!r.ok) return err(c, 400, r.code, r.message);
     await audit(c, 'planner.file', r.id).run();
@@ -598,10 +650,10 @@ export function plannerRoutes() {
       const d = doc.data as Vendors;
       return c.json({ ...doc, data: { ...d, rfqs: d.rfqs.map((r) => ({ ...r, vendors: r.vendors.map((v) => ({ ...v, key: '' })) })) } });
     }
-    return c.json(doc);
+    return c.json(shown(c, kind, doc));
   });
 
-  app.put('/doc/:kind/:scope?', writer, async (c) => {
+  app.put('/doc/:kind/:scope?', ceremonyWriter, async (c) => {
     const kind = c.req.param('kind');
     if (!isKind(kind)) return err(c, 404, 'not_found', 'Unknown document.');
     const scope = c.req.param('scope') ?? '';
@@ -619,7 +671,8 @@ export function plannerRoutes() {
     const v = Number(c.req.header('If-Match') ?? '0');
     if (!Number.isInteger(v) || v < 0) return err(c, 400, 'invalid', 'Reload the page and try again.');
     const now = new Date().toISOString();
-    const data = JSON.stringify(parsed.data);
+    // The ceremony: someone else's private vows stay exactly as they were.
+    const data = JSON.stringify(kind === 'ceremony' ? keepPrivateVows(parsed.data as Ceremony, (await readDoc(c.env.DB, wid(c), 'ceremony', scope)).data, c.get('user').id) : parsed.data);
     // Version 0 = it didn't exist yet: insert (losing if someone else made it first); else bump only from v.
     const res =
       v === 0
@@ -629,7 +682,7 @@ export function plannerRoutes() {
         : await c.env.DB.prepare(`UPDATE planner_doc SET data = ?, version = version + 1, updated_at = ? WHERE wedding_id = ? AND kind = ? AND scope = ? AND version = ?`)
             .bind(data, now, wid(c), kind, scope, v)
             .run();
-    if (!res.meta.changes) return c.json({ error: { code: 'conflict', message: 'Changed elsewhere, so this has been reloaded. Make your change again.' }, current: await readDoc(c.env.DB, wid(c), kind, scope) }, 409);
+    if (!res.meta.changes) return c.json({ error: { code: 'conflict', message: 'Changed elsewhere, so this has been reloaded. Make your change again.' }, current: shown(c, kind, await readDoc(c.env.DB, wid(c), kind, scope)) }, 409);
     await audit(c, `planner.${kind}`, scope).run();
     if (kind === 'vendors') {
       // The shared directory learns which of its vendors couples add and book (and what they paid); never stops the save.
@@ -643,7 +696,7 @@ export function plannerRoutes() {
         console.error('vendor directory', e);
       }
     }
-    return c.json(await readDoc(c.env.DB, wid(c), kind, scope));
+    return c.json(shown(c, kind, await readDoc(c.env.DB, wid(c), kind, scope)));
   });
 
   return app;

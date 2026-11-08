@@ -12,10 +12,13 @@ import { MAX_PLANNER_FILE } from './security';
 
 export const FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic'] as const;
 export type FileType = (typeof FILE_TYPES)[number];
+/** The couple's own planning files can also be Word documents (a celebrant's questionnaire, say). */
+export const PLANNER_FILE_TYPES = [...FILE_TYPES, 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'] as const;
+export type PlannerFileType = (typeof PLANNER_FILE_TYPES)[number];
 type Stored = { ok: true; id: string; name: string; where: string } | { ok: false; code: string; message: string };
 
 /** Files a PDF or photo (base64) for the wedding: in its linked Drive, Dropbox or OneDrive if it has one, else here. */
-export async function storePlannerFile(env: Env, weddingId: string, f: { name: string; type: FileType; data: string }): Promise<Stored> {
+export async function storePlannerFile(env: Env, weddingId: string, f: { name: string; type: PlannerFileType; data: string }): Promise<Stored> {
   let bytes: Uint8Array;
   try {
     bytes = Uint8Array.from(atob(f.data), (ch) => ch.charCodeAt(0));
@@ -35,8 +38,12 @@ export async function storePlannerFile(env: Env, weddingId: string, f: { name: s
           ? bytes[0] === 0x89 && head.slice(1, 4) === 'PNG'
           : t === 'image/webp'
             ? head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP'
-            : head.slice(4, 8) === 'ftyp';
-  if (!real) return { ok: false, code: 'invalid', message: "That file isn't the PDF or photo it says it is." };
+            : t === 'application/msword'
+              ? bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0
+              : t === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                ? bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04
+                : head.slice(4, 8) === 'ftyp';
+  if (!real) return { ok: false, code: 'invalid', message: "That file isn't the PDF, document or photo it says it is." };
   const id = crypto.randomUUID();
   const remote = await keepDocument(env, weddingId, { bytes, name: f.name, type: t });
   await env.DB.prepare(`INSERT INTO planner_file (id, wedding_id, name, type, bytes, data, created_at, remote) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)

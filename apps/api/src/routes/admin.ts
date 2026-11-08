@@ -113,6 +113,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const first = data.events[0];
     if (first && (!ov.focus || ov.focus === first.key)) {
       ov.needsYou.push(...(await plannerNeedsYou(c.env.DB, wid(c), { key: first.key, starts_at: first.startsAt }, now, w.timezone).catch(() => [])));
+      // The couple's celebrant comes here for the ceremony: it's the first thing they see.
+      const me = await c.env.DB.prepare(`SELECT relation FROM membership WHERE wedding_id = ? AND user_id = ?`).bind(wid(c), c.get('user').id).first<{ relation: string }>();
+      if (me?.relation === 'celebrant') {
+        ov.needsYou.unshift({ kind: 'ceremony-celebrant', title: `${w.name1.split(' ')[0] ?? ''} and ${w.name2.split(' ')[0] ?? ''}’s ceremony`, detail: 'Your questionnaires, the legal paperwork and the order of the ceremony.', cta: 'Open the ceremony', link: 'planner?view=ceremony', event: first.key });
+      }
     }
     // What the wedding party's two sides are called (the menu shows them under Wedding party).
     const setupRow = await c.env.DB.prepare(`SELECT data FROM planner_doc WHERE wedding_id = ? AND kind = 'party-setup' AND scope = ''`).bind(wid(c)).first<{ data: string }>();

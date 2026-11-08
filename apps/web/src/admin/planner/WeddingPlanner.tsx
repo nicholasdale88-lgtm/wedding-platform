@@ -9,6 +9,7 @@ import { H2, subNavCls, tabCls } from '../ui';
 import { Gate } from '../Upgrade';
 import { Assistant } from './Assistant';
 import { Budget } from './Budget';
+import { Ceremony } from './Ceremony';
 import { Checklist, nextTasks } from './Checklist';
 import { Gifts } from './Gifts';
 import { Music } from './Music';
@@ -26,15 +27,16 @@ import { Vendors } from './Vendors';
  * comparisons) and the planning assistant. ?view= picks the page.
  */
 
-type View = 'glance' | 'ideas' | 'checklist' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
+type View = 'glance' | 'ideas' | 'checklist' | 'ceremony' | 'budget' | 'payments' | 'vendors' | 'transport' | 'music' | 'photos' | 'print' | 'gifts' | 'assistant';
 /**
- * The planner's menu: six sections, so it isn't overwhelming. A section with more than one page shows them
+ * The planner's menu: seven sections, so it isn't overwhelming. A section with more than one page shows them
  * as a small second row (Money: Budget and Payments; The day: Transport, Music, Shot list, Cards & signs).
  * The assistant isn't in the menu: the Overview and Help open it.
  */
 const SECTIONS: { label: string; views: [View, string][] }[] = [
   { label: 'Overview', views: [['glance', 'Overview']] },
   { label: 'Checklist', views: [['checklist', 'Checklist']] },
+  { label: 'Ceremony', views: [['ceremony', 'Ceremony']] },
   {
     label: 'Money',
     views: [
@@ -112,7 +114,7 @@ function Planner() {
           ))}
         </nav>
       )}
-      {view === 'glance' ? <Glance go={go} /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
+      {view === 'glance' ? <Glance go={go} /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'ceremony' ? <Ceremony /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );
 }
