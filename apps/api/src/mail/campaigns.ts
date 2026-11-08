@@ -66,7 +66,9 @@ function phoneRows(w: WeddingCtx, events: EventInfo[], c: Campaign, list: Recipi
   return list.flatMap((r) => {
     const m = renderFor(c.body, w, events, r);
     if (m.unfilled.length) return [];
-    return [{ invitationId: r.id, campaignId: c.id, dedupeKey: `phone:${key(r)}`, kind: 'phone' as const, to: r.phone!, subject: c.name, body: m.body, status: 'ready' as const }];
+    const row = { invitationId: r.id, campaignId: c.id, dedupeKey: `phone:${key(r)}`, kind: 'phone' as const, to: r.phone!, subject: c.name, body: m.body, status: 'ready' as const };
+    // Both mobiles on the invitation: one ready to send to each.
+    return r.phone2 && !r.optOut2 && r.phone2 !== r.phone ? [row, { ...row, dedupeKey: `phone:${key(r)}:2`, to: r.phone2 }] : [row];
   });
 }
 

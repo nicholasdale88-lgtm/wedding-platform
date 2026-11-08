@@ -40,9 +40,9 @@ export class D1SmsStore implements SmsStore {
     const [events, invitations, people, invites, rsvps] = await this.db.batch([
       q(`SELECT id, key, name, pending_label, sort FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
       // The wedding's way of sending (Settings → Texting); not chosen: the texting number when there is one, else their own phone.
-      q(`SELECT i.id, i.token, i.phone, i.email, i.channel, i.delivery, i.seats_held, i.sms_optout, o.phone IS NOT NULL AS stopped,
+      q(`SELECT i.id, i.token, i.phone, i.phone2, i.email, i.channel, i.delivery, i.seats_held, i.sms_optout, o.phone IS NOT NULL AS stopped, o2.phone IS NOT NULL AS stopped2,
                 COALESCE(json_extract(w.content, '$.sendVia'), CASE WHEN w.sms_sender IS NOT NULL THEN 'service' ELSE 'phone' END) AS via
-           FROM invitation i JOIN wedding w ON w.id = i.wedding_id LEFT JOIN opt_out o ON o.phone = i.phone
+           FROM invitation i JOIN wedding w ON w.id = i.wedding_id LEFT JOIN opt_out o ON o.phone = i.phone LEFT JOIN opt_out o2 ON o2.phone = i.phone2
           WHERE i.wedding_id = ? AND i.deleted_at IS NULL`),
       // {table} comes from the *published* seating (first event that has one), never a draft.
       q(`SELECT p.invitation_id, p.name,
@@ -61,9 +61,12 @@ export class D1SmsStore implements SmsStore {
     ]);
 
     const byId = new Map<string, Recipient>();
-    for (const i of invitations!.results as (InvitationRow & { email: string | null; channel: string | null; delivery: string | null; via: string | null })[]) {
+    for (const i of invitations!.results as (InvitationRow & { phone2: string | null; stopped2: number; email: string | null; channel: string | null; delivery: string | null; via: string | null })[]) {
+      // Two mobiles: the one still taking texts goes first; STOP on one doesn't stop the other.
+      const nums = [{ p: i.phone, out: !!i.sms_optout || !!i.stopped }, { p: i.phone2 && i.phone2 !== i.phone ? i.phone2 : null, out: !!i.stopped2 }].filter((x) => !!x.p);
+      nums.sort((a, b) => Number(a.out) - Number(b.out));
       byId.set(i.id, {
-        id: i.id, token: i.token, phone: i.phone, optOut: !!i.sms_optout || !!i.stopped, people: [], seatsHeld: i.seats_held,
+        id: i.id, token: i.token, phone: nums[0]?.p ?? null, optOut: nums[0]?.out ?? false, phone2: nums[1]?.p ?? null, optOut2: nums[1]?.out ?? false, people: [], seatsHeld: i.seats_held,
         invited: [], rsvp: {}, rsvpUpdatedAt: null, tableName: null, email: i.email, channel: channelOf(i.channel, i.phone, i.email, i.via), post: i.delivery === 'post',
       });
     }
@@ -276,16 +279,18 @@ export class D1SmsStore implements SmsStore {
   async matchPhone(phone: string) {
     const hits = await this.all<{ id: string; wedding_id: string; last_texted: string | null }>(
       `SELECT i.id, i.wedding_id,
-              (SELECT MAX(o.sent_at) FROM sms_out o WHERE o.wedding_id = i.wedding_id AND o.to_phone = i.phone) AS last_texted
+              (SELECT MAX(o.sent_at) FROM sms_out o WHERE o.wedding_id = i.wedding_id AND o.to_phone = ?1) AS last_texted
          FROM invitation i JOIN wedding w ON w.id = i.wedding_id
-        WHERE i.phone = ? AND i.deleted_at IS NULL AND w.deleted_at IS NULL`,
+        WHERE (i.phone = ?1 OR i.phone2 = ?1) AND i.deleted_at IS NULL AND w.deleted_at IS NULL`,
       phone,
     );
     const out: PhoneMatch[] = [];
     for (const h of hits) {
       const wedding = await this.wedding(h.wedding_id);
       const { events, recipients } = await this.audience(h.wedding_id);
-      const recipient = recipients.find((r) => r.id === h.id);
+      const found = recipients.find((r) => r.id === h.id);
+      // Their text came from the second mobile: replies go back to that number (and its own STOP counts).
+      const recipient = found && found.phone !== phone && found.phone2 === phone ? { ...found, phone: found.phone2, optOut: !!found.optOut2, phone2: found.phone, optOut2: found.optOut } : found;
       if (wedding && recipient) out.push({ wedding, recipient, events, lastTextedAt: h.last_texted });
     }
     return out;

@@ -171,7 +171,7 @@ export async function preflight(d: EngineDeps, w: WeddingCtx, opts: { notify?: b
     const c = byId.get(s.campaignId);
     if (!c) continue;
     const list = recipientsFor(c, recipients, invitedBefore);
-    const parts = list.reduce((n, r) => n + renderFor(c.body, w, events, r, { footer: true }).parts, 0);
+    const parts = list.reduce((n, r) => n + renderFor(c.body, w, events, r, { footer: true }).parts * texts(r), 0);
     const found: [string, string][] = [];
     if (w.plan === 'free') found.push(['plan', 'your plan doesn’t include texts']);
     if (w.paused) found.push(['paused', 'all texts are paused']);
@@ -197,6 +197,10 @@ export async function preflight(d: EngineDeps, w: WeddingCtx, opts: { notify?: b
   return issues;
 }
 
+/** The invitation's second mobile, when it takes texts too (so each household's texts are counted, not households). */
+export const secondMobile = (r: Pick<Recipient, 'phone' | 'phone2' | 'optOut2'>) => !!r.phone2 && !r.optOut2 && r.phone2 !== r.phone;
+const texts = (r: Recipient) => (secondMobile(r) ? 2 : 1);
+
 /** Shared with inbound confirmations so a YES by text doesn't also get the thank-you. */
 export const thanksKey = (r: Pick<Recipient, 'id' | 'rsvpUpdatedAt'>) => `thanks:${r.id}:${r.rsvpUpdatedAt}`;
 
@@ -208,9 +212,9 @@ async function enqueueCampaign(
   list: Recipient[],
   key: (r: Recipient) => string,
 ): Promise<number> {
-  const rows: NewOutbox[] = list.map((r) => {
+  const rows: NewOutbox[] = list.flatMap((r) => {
     const m = renderFor(c.body, w, events, r, { footer: true });
-    return {
+    const row: NewOutbox = {
       weddingId: w.id,
       invitationId: r.id,
       campaignId: c.id,
@@ -221,6 +225,8 @@ async function enqueueCampaign(
       parts: m.parts,
       ...(m.unfilled.length ? { status: 'failed' as const, error: `Unfilled: {${m.unfilled.join('}, {')}}` } : {}),
     };
+    // A second mobile on the invitation gets the same text (its own key), unless that number replied STOP.
+    return secondMobile(r) ? [row, { ...row, dedupeKey: `${key(r)}:2`, to: r.phone2! }] : [row];
   });
   return rows.length ? d.store.enqueue(rows) : 0;
 }
@@ -413,9 +419,9 @@ export interface Estimate {
 export async function estimate(d: EngineDeps, weddingId: string, campaignId: string, only?: string[], draft?: Draft): Promise<Estimate> {
   const { w, c, events, list } = await prepare(d, weddingId, campaignId, only, draft);
   const rendered = list.map((r) => renderFor(c.body, w, events, r, { footer: true }));
-  const parts = rendered.reduce((n, m) => n + m.parts, 0);
+  const parts = rendered.reduce((n, m, i) => n + m.parts * texts(list[i]!), 0);
   return {
-    count: list.length,
+    count: list.reduce((n, r) => n + texts(r), 0),
     ids: list.map((r) => r.id),
     parts,
     costCents: costCents(parts, w.rateX100),
@@ -438,8 +444,8 @@ export async function estimateAll(d: EngineDeps, weddingId: string, campaignIds:
     if (!c) continue;
     const list = recipientsFor(c, recipients, invitedBefore);
     const rendered = list.map((r) => renderFor(c.body, w, events, r, { footer: true }));
-    const parts = rendered.reduce((n, m) => n + m.parts, 0);
-    out.set(id, { count: list.length, ids: list.map((r) => r.id), parts, costCents: costCents(parts, w.rateX100), sample: rendered[0]?.body ?? null, quiet });
+    const parts = rendered.reduce((n, m, i) => n + m.parts * texts(list[i]!), 0);
+    out.set(id, { count: list.reduce((n, r) => n + texts(r), 0), ids: list.map((r) => r.id), parts, costCents: costCents(parts, w.rateX100), sample: rendered[0]?.body ?? null, quiet });
   }
   return out;
 }

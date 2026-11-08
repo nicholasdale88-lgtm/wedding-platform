@@ -27,6 +27,8 @@ const GuestPatch = z
   .object({
     people: z.array(z.string().trim().max(120)).min(1).max(30),
     phone: z.string().max(40).nullable(),
+    /** A second mobile (the other person on the invitation); null or '' takes it off. */
+    phone2: z.string().max(40).nullable(),
     /** The main contact's email (for emailing their invitation, and knowing who wrote in). */
     email: z.union([z.literal(''), z.string().trim().toLowerCase().email().max(200)]).nullable(),
     /** How they hear from the couple: '' (text when there's a mobile, otherwise email), text, email or both. */
@@ -218,6 +220,8 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const Row = z.object({
       people: z.array(z.string().trim().max(120)).max(12),
       phone: z.string().max(40).optional(),
+      /** A "Mobile 2" column, or a contact's second mobile. */
+      phone2: z.string().max(40).optional(),
       email: z.string().max(200).optional(),
       seats: z.number().int().min(1).max(60).optional(),
       party: z.string().trim().max(60).optional(),
@@ -242,11 +246,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       db.prepare(`SELECT id, key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w).all<{ id: string; key: string }>(),
       db
         .prepare(
-          `SELECT i.phone, (SELECT p.name FROM person p WHERE p.invitation_id = i.id AND p.idx = 0) AS name
+          `SELECT i.phone, i.phone2, (SELECT p.name FROM person p WHERE p.invitation_id = i.id AND p.idx = 0) AS name
              FROM invitation i WHERE i.wedding_id = ? AND i.deleted_at IS NULL`,
         )
         .bind(w)
-        .all<{ phone: string | null; name: string | null }>(),
+        .all<{ phone: string | null; phone2: string | null; name: string | null }>(),
       db.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(w).first<{ name1: string; name2: string }>(),
       db.prepare(`SELECT data FROM planner_doc WHERE wedding_id = ? AND kind = 'party-setup' AND scope = ''`).bind(w).first<{ data: string }>(),
     ]);
@@ -258,11 +262,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     }
     const couple_ = { name1: couple?.name1 ?? '', name2: couple?.name2 ?? '' };
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
-    const phones = new Set(existing.map((e) => e.phone).filter(Boolean));
+    const phones = new Set(existing.flatMap((e) => [e.phone, e.phone2]).filter(Boolean));
     const names = new Set(existing.map((e) => norm(e.name ?? '')).filter(Boolean));
     const byKey = new Map(events.map((e) => [e.key, e.id]));
 
-    const ok: { people: string[]; phone: string | null; email: string | null; seats: number; party: string; side: string; relation: string; circles: string; address: [string, string, string, string, string]; delivery: string; eventIds: string[] }[] = [];
+    const ok: { people: string[]; phone: string | null; phone2: string | null; email: string | null; seats: number; party: string; side: string; relation: string; circles: string; address: [string, string, string, string, string]; delivery: string; eventIds: string[] }[] = [];
     const skipped: { row: number; name: string; reason: string }[] = [];
     const problems: { row: number; name: string; reason: string }[] = [];
     body.data.rows.forEach((r, i) => {
@@ -272,17 +276,23 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       if (!name) return problems.push({ row, name: '', reason: 'No name' });
       const phone = r.phone && r.phone.trim() ? toE164(r.phone) : null;
       if (r.phone && r.phone.trim() && !phone) return problems.push({ row, name, reason: `Mobile "${r.phone}" doesn't look Australian` });
+      const second = r.phone2 && r.phone2.trim() ? toE164(r.phone2) : null;
+      if (r.phone2 && r.phone2.trim() && !second) return problems.push({ row, name, reason: `Mobile 2 "${r.phone2}" doesn't look Australian` });
+      // Only one of them given: it's the first mobile. The same number twice is one.
+      const phone2 = phone ? (second === phone ? null : second) : null;
+      const phone1 = phone ?? second;
       const email = r.email?.trim() ? r.email.trim().toLowerCase() : null;
       if (email && !z.string().email().safeParse(email).success) return problems.push({ row, name, reason: `Email "${r.email}" doesn't look right` });
       const unknown = (r.invited ?? []).filter((k) => !byKey.has(k));
       if (unknown.length) return problems.push({ row, name, reason: `Unknown event "${unknown[0]}"` });
-      if ((phone && phones.has(phone)) || names.has(norm(name))) return skipped.push({ row, name, reason: 'Already on your list' });
-      if (phone) phones.add(phone);
+      if ((phone1 && phones.has(phone1)) || (phone2 && phones.has(phone2)) || names.has(norm(name))) return skipped.push({ row, name, reason: 'Already on your list' });
+      if (phone1) phones.add(phone1);
+      if (phone2) phones.add(phone2);
       names.add(norm(name));
       // A "Side" that isn't one of the couple (an older sheet's "Side: Family") is kept as the group.
       const side = parseSide(r.side, couple_, sideNames);
       const party = r.party ?? (side === null ? (r.side ?? '') : '');
-      ok.push({ people, phone, email, seats: r.seats ?? people.length, party, side: side ?? '', relation: parseRelation(r.relation), circles: joinCircles(parseCircles(r.circles)), address: [r.street ?? '', r.suburb ?? '', r.state ?? '', r.postcode ?? '', r.country ?? ''], delivery: r.delivery ?? 'digital', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
+      ok.push({ people, phone: phone1, phone2, email, seats: r.seats ?? people.length, party, side: side ?? '', relation: parseRelation(r.relation), circles: joinCircles(parseCircles(r.circles)), address: [r.street ?? '', r.suburb ?? '', r.state ?? '', r.postcode ?? '', r.country ?? ''], delivery: r.delivery ?? 'digital', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
     });
 
     if (c.req.query('dry') || problems.length) {
@@ -313,7 +323,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     for (const g of ok) {
       const invId = id();
       const one = [
-        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, email, seats_held, party, side, relation, circles, address_street, address_suburb, address_state, address_postcode, address_country, delivery, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, g.email, Math.max(g.seats, g.people.length), g.party, g.side, g.relation, g.circles, ...g.address, g.delivery, t, t),
+        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, phone2, email, seats_held, party, side, relation, circles, address_street, address_suburb, address_state, address_postcode, address_country, delivery, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, g.phone2, g.email, Math.max(g.seats, g.people.length), g.party, g.side, g.relation, g.circles, ...g.address, g.delivery, t, t),
         ...g.people.map((p, idx) => db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, ?, ?)`).bind(id(), invId, idx, p)),
         ...g.eventIds.map((e) => db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, e)),
       ];
@@ -392,6 +402,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         return err(c, 400, 'bad_mobile', 'This mobile looks wrong. Australian mobiles start with 04 and have 10 digits.');
       }
     }
+    let phone2: string | null | undefined;
+    if (p.phone2 !== undefined) {
+      phone2 = p.phone2 && p.phone2.trim() ? toE164(p.phone2) : null;
+      if (p.phone2 && p.phone2.trim() && !phone2) return err(c, 400, 'bad_mobile', 'The second mobile looks wrong. Australian mobiles start with 04 and have 10 digits.');
+    }
     let tableId: string | null | undefined;
     let tableEvent = '';
     if (p.table !== undefined) {
@@ -420,6 +435,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const db = c.env.DB;
     const stmts: D1PreparedStatement[] = [];
     if (phone !== undefined) stmts.push(db.prepare(`UPDATE invitation SET phone = ? WHERE id = ?`).bind(phone, invId));
+    if (phone2 !== undefined) stmts.push(db.prepare(`UPDATE invitation SET phone2 = ? WHERE id = ?`).bind(phone2, invId));
     if (p.email !== undefined) stmts.push(db.prepare(`UPDATE invitation SET email = ? WHERE id = ?`).bind(p.email || null, invId));
     if (p.channel !== undefined) stmts.push(db.prepare(`UPDATE invitation SET channel = ? WHERE id = ?`).bind(p.channel, invId));
     if (p.seatsHeld !== undefined) stmts.push(db.prepare(`UPDATE invitation SET seats_held = ? WHERE id = ?`).bind(p.seatsHeld, invId));

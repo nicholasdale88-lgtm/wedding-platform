@@ -121,6 +121,7 @@ export const invitation = sqliteTable('invitation', {
   addressPostcode: text('address_postcode').notNull().default(''),
   addressCountry: text('address_country').notNull().default(''),
   delivery: text('delivery', { enum: ['digital', 'post', 'both'] }).notNull().default('digital'), // migration 0041
+  phone2: text('phone2'), // migration 0042: a second mobile on the invitation (the other person on it)
 });
 
 export const seatTable = sqliteTable('seat_table', {

@@ -69,7 +69,12 @@ export function ManualSend({ guests, links, onClose, mode = 'unreachable' }: { g
           <div className="flex gap-2 flex-wrap">
             {own && g.phone && (
               <a href={smsHref(g.phone, text)} className="py-[9px] px-5 rounded-full no-underline text-[15px] font-medium bg-[#33402f] !text-[#fbf8f2]">
-                Text from my phone
+                {g.phone2 ? `Text ${g.people[0]?.name.split(' ')[0] ?? 'them'}` : 'Text from my phone'}
+              </a>
+            )}
+            {own && g.phone2 && (
+              <a href={smsHref(g.phone2, text)} className="py-[9px] px-5 rounded-full no-underline text-[15px] font-medium bg-[#33402f] !text-[#fbf8f2]">
+                Text {g.people[1]?.name.split(' ')[0] ?? 'the other mobile'}
               </a>
             )}
             <Pill onClick={() => sendWhatsApp(own ? (g.phone ?? null) : null, text)}>WhatsApp</Pill>

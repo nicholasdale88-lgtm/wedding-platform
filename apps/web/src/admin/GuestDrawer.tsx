@@ -26,6 +26,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   const [error, setError] = useState('');
   const [names, setNames] = useState<string[]>([]);
   const [phone, setPhone] = useState('');
+  const [phone2, setPhone2] = useState('');
   const [email, setEmail] = useState('');
   const [table, setTable] = useState('');
   const [diet, setDiet] = useState('');
@@ -57,6 +58,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
     setD(x);
     setNames(x.guest.people.map((p) => p.name));
     setPhone(x.guest.phoneDisplay);
+    setPhone2(x.guest.phone2Display ?? '');
     setEmail(x.guest.email ?? '');
     setTable(x.guest.people.find((p) => p.table)?.table ?? '');
     setDiet(joinDiet(x.guest.people));
@@ -287,10 +289,16 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
           </details>
         )}
         <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-3">
-          <Label text="Main contact's mobile">
+          <Label text={g.people.length > 1 && g.people[0]?.name.trim() ? `Mobile (${g.people[0]?.name.trim().split(' ')[0] ?? ''})` : "Main contact's mobile"}>
             <input value={phone} inputMode="tel" placeholder="04xx xxx xxx" onChange={(e) => setPhone(e.target.value)} onBlur={() => phone !== g.phoneDisplay && void patch({ phone: phone.trim() || null })} className={inputCls} />
           </Label>
-          <Label text="Seats held">
+          {/* A second mobile (each of a couple): texts go to both; leave it empty for one. */}
+          {(g.people.length > 1 || g.phone2) && (
+            <Label text={`Mobile (${g.people[1]?.name.trim().split(' ')[0] || 'second'}), optional`} className="col-start-1">
+              <input value={phone2} inputMode="tel" placeholder="04xx xxx xxx" onChange={(e) => setPhone2(e.target.value)} onBlur={() => phone2 !== (g.phone2Display ?? '') && void patch({ phone2: phone2.trim() || null })} className={inputCls} />
+            </Label>
+          )}
+          <Label text="Seats held" className="row-start-1 col-start-2">
             <input type="number" min={1} max={60} defaultValue={g.seatsHeld} key={g.version} onBlur={(e) => Number(e.target.value) !== g.seatsHeld && Number(e.target.value) >= 1 && void patch({ seatsHeld: Number(e.target.value) })} className={inputCls} />
           </Label>
         </div>

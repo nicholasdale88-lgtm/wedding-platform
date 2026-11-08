@@ -85,6 +85,12 @@ export interface Recipient {
   /** The main contact's email, and how they hear from the couple ('' = text when there's a mobile, else email). */
   email?: string | null;
   channel?: '' | 'text' | 'email' | 'both' | 'phone';
+  /**
+   * A second mobile on the invitation (each of a couple), and whether that number replied STOP. Texts go to
+   * both; `phone` is always the one to use first (a number that hasn't opted out, when there is one).
+   */
+  phone2?: string | null;
+  optOut2?: boolean;
   /** Their invitation is printed and posted only: nothing digital (texts, emails, own-phone messages) goes to them. */
   post?: boolean;
 }

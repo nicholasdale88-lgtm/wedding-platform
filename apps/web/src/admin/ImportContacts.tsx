@@ -1,4 +1,4 @@
-import { addressLines, contactMobile, displayPhone, hasAddress, parseContactsFile, type Contact, type PostalAddress } from '@wp/shared';
+import { addressLines, contactMobile, displayPhone, toE164, hasAddress, parseContactsFile, type Contact, type PostalAddress } from '@wp/shared';
 import { useRef, useState } from 'react';
 import { api, type EventInfo, type Guest } from '../lib/api';
 import { useAdmin } from './Shell';
@@ -21,6 +21,8 @@ const picker = (): ContactsManager | null => {
 export interface ContactRow {
   name: string;
   phone: string | null;
+  /** A second Australian mobile on the contact, if it has one. */
+  phone2: string | null;
   email: string;
   address: PostalAddress | null;
   /** Why it starts unticked ('' when it's ticked). */
@@ -37,12 +39,13 @@ export function reviewRows(contacts: Contact[], guests: Guest[]): ContactRow[] {
   const seen = new Set<string>();
   return contacts.map((c) => {
     const phone = contactMobile(c);
+    const phone2 = c.phones.map((p) => toE164(p)).find((x): x is string => !!x && x !== phone) ?? null;
     const email = (c.emails.find((e) => EMAIL.test(e)) ?? '').toLowerCase();
     const name = (c.name || email.split('@')[0] || '').slice(0, 120);
     const key = phone ?? norm(name);
     const note = !name ? 'No name' : (phone && phones.has(phone)) || names.has(norm(name)) ? 'Already on your list' : seen.has(key) ? 'In the file twice' : '';
     seen.add(key);
-    return { name, phone, email, address: c.address, note };
+    return { name, phone, phone2, email, address: c.address, note };
   });
 }
 
@@ -98,6 +101,7 @@ export function ImportContacts({ guests, focus, onClose, onDone }: { guests: Gue
     const out = chosen.map((r) => ({
       people: [r.name],
       ...(r.phone ? { phone: r.phone } : {}),
+      ...(r.phone2 ? { phone2: r.phone2 } : {}),
       ...(r.email ? { email: r.email } : {}),
       ...(r.address
         ? { street: r.address.street.slice(0, 300), suburb: r.address.suburb.slice(0, 80), state: r.address.state.slice(0, 40), postcode: r.address.postcode.slice(0, 12), country: r.address.country.slice(0, 60) }
@@ -198,7 +202,7 @@ export function ImportContacts({ guests, focus, onClose, onDone }: { guests: Gue
                     <span className="font-medium">{r.name || '(no name)'}</span>
                     {r.note && <span className="ml-2 text-[12px] text-[#8a5a45]">{r.note}</span>}
                     <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)]">
-                      {[r.phone ? displayPhone(r.phone) : 'No Australian mobile', r.email, addressLines(r.address).join(', ')].filter(Boolean).join(' · ')}
+                      {[r.phone ? displayPhone(r.phone) : 'No Australian mobile', r.phone2 ? displayPhone(r.phone2) : '', r.email, addressLines(r.address).join(', ')].filter(Boolean).join(' · ')}
                     </span>
                   </span>
                 </label>

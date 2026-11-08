@@ -12,6 +12,8 @@ import type { Sheet } from '../lib/xlsx';
 export interface ImportRow {
   people: string[];
   phone?: string;
+  /** A second mobile ("Mobile 2"). */
+  phone2?: string;
   email?: string;
   seats?: number;
   party?: string;
@@ -39,7 +41,8 @@ export function mapColumns(header: string[], events: EventInfo[]) {
   const h = header.map(norm);
   const main = h.findIndex((x) => /^(name|names|guest|guests|main contact|full name|guest name|invitation)$/.test(x));
   const extra = h.map((x, i) => (i !== main && /^(guest ?\d+|partner|plus ?one|name ?\d+|person ?\d+|other guests?|others|partners?)$/.test(x) ? i : -1)).filter((i) => i >= 0);
-  const phone = h.findIndex((x) => /mobile|phone|cell|number/.test(x) && !/seat|guests/.test(x));
+  const phone2 = h.findIndex((x) => /^(mobile|phone|cell|mobile number|phone number) ?2$|^(second|other|partner s?|partners) (mobile|phone)$/.test(x));
+  const phone = h.findIndex((x, i) => i !== phone2 && /mobile|phone|cell|number/.test(x) && !/seat|guests/.test(x));
   const email = h.findIndex((x) => /^(e ?mail|e ?mail address|email address)$/.test(x));
   const seats = h.findIndex((x) => /^(seats?|seats held|party size|count|number of guests|guests count)$/.test(x));
   const party = h.findIndex((x) => /^(group|party|guest group|category)$/.test(x));
@@ -55,7 +58,7 @@ export function mapColumns(header: string[], events: EventInfo[]) {
   const eventCols = events
     .map((e) => ({ key: e.key, i: h.findIndex((x) => x === norm(e.name) || x === norm(e.key) || x === norm(shortLabel(e.name))) }))
     .filter((e) => e.i >= 0);
-  return { main: main >= 0 ? main : 0, extra, phone, email, seats, party, side, relation, circles, street, suburb, state, postcode, country, delivery, eventCols };
+  return { main: main >= 0 ? main : 0, extra, phone, phone2, email, seats, party, side, relation, circles, street, suburb, state, postcode, country, delivery, eventCols };
 }
 
 /** "Post", "Printed", "Both", "Yes" (a printed one), "Digital", "Text", "Email". */
@@ -79,6 +82,7 @@ export function toImportRows(table: string[][], events: EventInfo[]): { rows: Im
     const people = [...names, ...columns.extra.flatMap((i) => (r[i] ?? '').split(/\s*(?:&|;)\s*/))].map((s) => s.trim()).filter(Boolean);
     const row: ImportRow = { people };
     if (columns.phone >= 0 && r[columns.phone]) row.phone = fixPhone(r[columns.phone]!);
+    if (columns.phone2 >= 0 && r[columns.phone2]?.trim()) row.phone2 = fixPhone(r[columns.phone2]!.trim());
     if (columns.email >= 0 && r[columns.email]?.trim()) row.email = r[columns.email]!.trim();
     const seats = columns.seats >= 0 ? Number.parseInt(r[columns.seats] ?? '', 10) : NaN;
     if (Number.isFinite(seats) && seats > 0) row.seats = seats;
@@ -113,7 +117,7 @@ export function exportSheets(guests: Guest[], events: EventInfo[], links: Record
     name: 'Invitations',
     rows: [
       [
-        'Main contact', 'Others', 'Mobile', 'Email', 'Group', 'Side', 'Relationship', 'Circles', 'Invitation by', 'Address', 'Suburb', 'State', 'Postcode', 'Country', 'Seats held',
+        'Main contact', 'Others', 'Mobile', 'Mobile 2', 'Email', 'Group', 'Side', 'Relationship', 'Circles', 'Invitation by', 'Address', 'Suburb', 'State', 'Postcode', 'Country', 'Seats held',
         ...events.flatMap((e) => [shortLabel(e.name), `${shortLabel(e.name)}: coming`]),
         ...questions.map(({ e, q }) => `${shortLabel(e.name)}: ${q.label}`),
         'Dietary', 'Message', 'Table', 'Replied', 'Opened invitation', 'Texts allowed', 'Last text', 'Personal link',
@@ -122,6 +126,7 @@ export function exportSheets(guests: Guest[], events: EventInfo[], links: Record
         g.people[0]?.name ?? '',
         g.people.slice(1).map((p) => p.name).join(' & '),
         g.phoneDisplay,
+        g.phone2Display ?? '',
         g.email ?? '',
         g.party,
         g.side ? sideShort(g.side, names) : '',
