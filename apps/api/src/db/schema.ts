@@ -110,6 +110,7 @@ export const invitation = sqliteTable('invitation', {
   version: version(),
   deletedAt: text('deleted_at'),
   email: text('email'), // migration 0035
+  channel: text('channel', { enum: ['', 'text', 'email', 'both'] }).notNull().default(''), // migration 0038
 });
 
 export const seatTable = sqliteTable('seat_table', {
@@ -676,4 +677,21 @@ export const botKey = sqliteTable('bot_key', {
   createdAt: text('created_at').notNull(),
   lastUsedAt: text('last_used_at'),
   revokedAt: text('revoked_at'),
+});
+
+// migration 0038: the texts' messages by email, queued and sent from the wedding's own address
+export const emailOut = sqliteTable('email_out', {
+  id: id(),
+  weddingId: text('wedding_id').notNull(),
+  invitationId: text('invitation_id'),
+  campaignId: text('campaign_id'),
+  dedupeKey: text('dedupe_key').notNull(),
+  kind: text('kind').notNull().default('campaign'),
+  toAddr: text('to_addr').notNull(),
+  subject: text('subject').notNull().default(''),
+  body: text('body').notNull().default(''),
+  status: text('status').notNull().default('queued'),
+  error: text('error'),
+  createdAt: text('created_at').notNull(),
+  sentAt: text('sent_at'),
 });
