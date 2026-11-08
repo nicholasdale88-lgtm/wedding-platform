@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OPENINGS } from './designs';
 import { INV_SCOPES } from './generated/invScopes';
 
 /** Pictures a timeline row can carry (drawn as in the design); "end" is the closing diamond. */
@@ -61,6 +62,10 @@ export const InvitationContent = z
         shimmer: z.boolean(),
       })
       .partial(),
+    /** How the envelope opens (Setup → Design it your way); the classic lift when unset. */
+    opening: z.enum(OPENINGS),
+    /** What the couple started from and the wording tone they chose, so the builder shows their picks. */
+    design: z.object({ template: z.string().max(60), tone: z.string().max(40) }).partial(),
     /** Photos in the design's picture slots, by slot id (e.g. "lookout"). */
     images: z.record(z.string().max(500)),
     /** Sections switched off, by the design's section name ("11 FAQ"). */

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { prefersLessMotion } from './openings';
 
 /**
  * The envelope's finishing touches, drawn over the design's envelope and moving with it:
@@ -67,13 +68,15 @@ const lightOn = (hex: string) => {
   return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 140;
 };
 
-export function EnvelopeExtras({ phase, opts, colours, guestName, music = false }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string; music?: boolean }) {
+export function EnvelopeExtras({ phase, opts, colours, guestName, music = false, opening = 'classic' }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string; music?: boolean; opening?: string }) {
   if (phase >= 4) return null;
   const closed = phase < 2;
   const front: CSSProperties = { opacity: closed ? 1 : 0, transition: 'opacity .6s ease' };
   const writing = lightOn(colours.envelope) ? '#fbf6ea' : colours.ink;
   const liner = opts.liner ?? 'floral';
-  const ribbon = opts.ribbon ?? 'none';
+  // "Ribbon untie" needs a ribbon to untie: a silk one unless they chose twine.
+  const untie = opening === 'ribbon';
+  const ribbon = untie && (opts.ribbon ?? 'none') === 'none' ? 'silk' : (opts.ribbon ?? 'none');
   // The seal's size in the design (a gap is left for it in the ribbon).
   const seal = 'clamp(96px,24vmin,150px)';
   const hole = `radial-gradient(circle at 50% 56%, transparent calc(${seal} / 2 + 2px), #000 calc(${seal} / 2 + 4px))`;
@@ -176,6 +179,8 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false 
                   : `repeating-linear-gradient(115deg, #b89466 0 3px, #8e6c45 3px 6px)`,
               boxShadow: '0 2px 4px rgba(0,0,0,.25)',
               borderRadius: ribbon === 'twine' ? 3 : 0,
+              // Untied: each half slips away to its side as soon as the envelope is tapped.
+              ...(untie && !prefersLessMotion() ? { transform: phase >= 1 ? `translateX(${side === 'left' ? '-' : ''}105%)` : 'none', transition: 'transform 1.6s cubic-bezier(.5,0,.3,1), opacity .6s ease' } : {}),
             }}
           />
         ))}

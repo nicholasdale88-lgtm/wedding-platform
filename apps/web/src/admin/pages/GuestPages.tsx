@@ -2,6 +2,7 @@ import type { DayoutGuide, GuideContent, InvitationContent, ReceptionGuide } fro
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
+import { DesignBuilder } from './DesignBuilder';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, Rollup, subNavCls, tabCls, useMedia, useToast } from '../ui';
@@ -195,7 +196,7 @@ export function GuestPages() {
   let n = 0;
   const editor = (
     <div className="flex flex-col gap-6 min-w-0">
-      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
+      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setTexts={(changes) => Object.entries(changes).forEach(([k, v]) => setText(k, v))} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
       {page === 'details' && ev && <Events only={ev.key} />}
       {page === 'timeline' && ev && (
         <Section
@@ -370,12 +371,14 @@ function InvitationEditor({
   doc,
   n,
   setInv,
+  setTexts,
   setNames,
   setTheme,
 }: {
   doc: Doc;
   n: () => number;
   setInv: (p: Partial<InvitationContent>) => void;
+  setTexts: (changes: Record<string, string>) => void;
   setNames: (names: PageNames) => void;
   setTheme: (t: string) => void;
 }) {
@@ -392,6 +395,10 @@ function InvitationEditor({
   const set = (s?: string) => !!s?.trim();
   return (
     <>
+      <Section n={n()} title="Design it your way" hint="Start from a template, then mix and match: any look with any names font, envelope, opening and words. The preview follows as it saves.">
+        <DesignBuilder theme={doc.theme} inv={inv} texts={doc.texts} original={ORIGINAL} setTheme={setTheme} setInv={setInv} setTexts={setTexts} />
+      </Section>
+
       <Section n={n()} title="The essentials" hint="Pick a look, add your names and when replies close. That’s all your invitation needs: everything under Extras is optional.">
         <ThemeGallery
           theme={doc.theme}

@@ -1,3 +1,4 @@
+import { TEMPLATES } from '@wp/shared';
 import { THEMES } from './generated/themes';
 
 /**
@@ -54,6 +55,8 @@ export const PRESETS: Record<string, Palette & { style: string }> = {
   'Butter Yellow': { paper: '#fffcf1', ink: '#4a4426', accent: '#d9b44a', soft: '#f6e7a8', envelope: '#f4ebc6', style: 'Sunny, cheerful, garden party' },
   'Amalfi Lemon & Blue': { paper: '#fdfbf3', ink: '#1f3f73', accent: '#e0b93a', soft: '#cfdcef', envelope: '#e6ecf5', style: 'Mediterranean summer' },
   'Silver Winter': { paper: '#f8f9fa', ink: '#2b3240', accent: '#9ea4ad', soft: '#dde2e8', envelope: '#e6e9ee', style: 'Icy, silver, candlelit' },
+  // The invitation templates' looks (each with its own names font, envelope and wording: Setup → Design it your way).
+  ...Object.fromEntries(TEMPLATES.map((t) => [t.name, { ...t.palette, style: t.style }])),
 };
 
 /** Each theme's mood, so the gallery can show a handful at a time. */
@@ -82,6 +85,7 @@ export const MOOD_OF: Record<string, (typeof MOODS)[number]> = {
   'Butter Yellow': 'Coastal & bright',
   'Amalfi Lemon & Blue': 'Coastal & bright',
   'Silver Winter': 'Classic',
+  ...Object.fromEntries(TEMPLATES.map((t) => [t.name, t.mood])),
 };
 
 const hex = (h: string) => {

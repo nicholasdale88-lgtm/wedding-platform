@@ -5,6 +5,7 @@ import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef
 import { SECTION_PARTS } from '../generated/InvitationView.meta';
 import type { ViewValues } from '../types';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
+import { openingOf, openingTimes, openingValues, prefersLessMotion } from './openings';
 import { shownRows, TIMELINE_ROWS, TimelineRows } from './Timeline';
 
 /**
@@ -277,7 +278,9 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     started.current = true;
     setP(1);
     // Slow and theatrical: the seal swells and glows, breaks and flies, the flaps swing wide, then the card rises.
-    timers.current.push(setTimeout(() => setP(2), 2400), setTimeout(() => setP(3), 4600), setTimeout(() => setP(4), 7400));
+    // A phone that asks for less motion gets a quick, still fade instead.
+    const [t2, t3, t4] = openingTimes(prefersLessMotion());
+    timers.current.push(setTimeout(() => setP(2), t2), setTimeout(() => setP(3), t3), setTimeout(() => setP(4), t4));
   }, [openKey, preview, slug]);
 
   async function findGuest() {
@@ -586,6 +589,12 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle, party);
     },
   };
+  // The couple's choice of how the envelope opens (Setup → Design it your way), over the design's classic lift.
+  const look = themeOf(data.wedding.theme, data.content.custom);
+  Object.assign(
+    v,
+    openingValues(openingOf(data.content.opening), p, { paper: look.b1 ?? '#fbf8f2', ink: look.dg ?? '#33402f', accent: look.acc ?? '#c8a46a', soft: look.b2 ?? '#efe6d3' }, { burst: v.burst }, prefersLessMotion()),
+  );
   return {
     v,
     t,

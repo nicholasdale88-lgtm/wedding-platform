@@ -22,6 +22,8 @@ export interface InvitePayload {
     initials?: string; rsvpBy?: string; rideTime?: string; directionsUrl?: string; registryUrl?: string; giftAccount?: string;
     giftAccountLabel?: string; audioUrl?: string; rsvpEmail?: string; seal?: 'Sandstone' | 'Dusty rose' | 'Daphne blue';
     envelope?: EnvelopeOptions;
+    /** How the envelope opens (one of OPENINGS); the classic lift when unset. */
+    opening?: string;
     custom?: { paper?: string; ink?: string; accent?: string; soft?: string; envelope?: string; names?: 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair' };
     images?: Record<string, string>;
     hidden?: Record<string, boolean>;
