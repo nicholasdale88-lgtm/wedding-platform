@@ -485,7 +485,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     const save = (version: number, seats: Record<string, string>) => put(w, '/seating', version, { event: 'wedding', aspect: '4 / 3', tables, areas, seats });
 
     // Someone who said no isn't on the list at all, so they can't be given a seat (still to reply can: pencilled in).
-    expect(v0.people.some((p) => byName.get(rows[16]!.people[0]!)!.people.some((q: { name: string }) => q.name === p.name))).toBe(false);
+    expect(v0.people.some((p) => byName.get(rows[16]!.people[0]!)!.people.some((q: { id: string }) => q.id === p.id))).toBe(false);
 
     // Version A: saved and named.
     const a = await save(v0.version, seatsA);

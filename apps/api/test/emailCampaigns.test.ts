@@ -112,6 +112,7 @@ describe('the texts’ messages by email', () => {
     const now = new Date().toISOString();
     await t.db.prepare(`INSERT INTO user (id, email, name, pass_hash, created_at) VALUES ('u1', 'owner@example.com', 'Owner', ?, ?)`).bind(await hashPasscode('valley-2027'), now).run();
     await t.db.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES ('w1', 'u1', 'owner')`).run();
+    await t.db.prepare(`UPDATE wedding SET plan = 'free' WHERE id = 'w1'`).run(); // a plan without texts
     await replyD1(t.db, 'i1', 'e1', true, clock.now());
     await replyD1(t.db, 'i3', 'e1', true, clock.now());
     const app = createApp(deps);

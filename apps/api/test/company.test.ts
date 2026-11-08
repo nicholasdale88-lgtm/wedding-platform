@@ -86,7 +86,7 @@ describe('company portal', () => {
     const pay = await call(`/a/w/${a.wid}/plan/checkout`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'YES20' }) }, a.cookie);
     expect(pay.status).toBe(200);
     const form = new URLSearchParams(stripe.at(-1)!);
-    expect(form.get('line_items[0][price_data][unit_amount]')).toBe('2240');
+    expect(form.get('line_items[0][price_data][unit_amount]')).toBe('7040');
     expect(form.get('metadata[promo]')).toBe('YES20');
 
     // A free code: on straight away, no Stripe; then it's used up.
