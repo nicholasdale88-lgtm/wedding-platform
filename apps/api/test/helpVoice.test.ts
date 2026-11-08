@@ -20,7 +20,8 @@ describe('help voice', () => {
     b.set([0x49, 0x44, 0x33]); // "ID3"
     return b;
   };
-  const run = vi.fn(async (_model: string, _input: unknown) => new Response(mp3()).body);
+  // Stands in for Workers AI (model, input) → the audio.
+  const run = vi.fn(async (...args: [model: string, input: unknown]) => (void args, new Response(mp3()).body));
 
   beforeEach(async () => {
     t = await testD1();
