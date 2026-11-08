@@ -257,6 +257,14 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
   ].filter((x): x is { to: Tab; text: string; sub: string } => !!x);
   return (
     <>
+      <Assistant
+        title="Assistant"
+        sub="Drafts from the real numbers. It writes; you decide what goes out."
+        tasks={[
+          ['brief', 'Brief me on this week', ''],
+          ['ask', 'Ask', 'e.g. What should I focus on to get 20 weddings this month?'],
+        ]}
+      />
       <section className={card} aria-label="To do">
         <H>To do</H>
         {todo.length ? (
@@ -649,6 +657,7 @@ function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { i
           </button>
         )}
       </label>
+      <DraftReply id={f.id} />
       <input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="What we’ll do (couples see this once it’s planned)" aria-label="What we’ll do" className={input} />
       <div className="flex gap-2 flex-wrap">
         {FB_NEXT[f.status].map((k, i) => (
@@ -715,6 +724,14 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
 
   return (
     <>
+      <Assistant
+        title="Write with the assistant"
+        sub="Posts for Instagram, Facebook and TikTok, or a first email to a celebrant or planner. Check every draft before it goes out."
+        tasks={[
+          ['posts', 'Write 3 posts', 'What about? e.g. seating that follows your rules'],
+          ['outreach', 'Draft an outreach email', 'To whom? e.g. a celebrant in Newcastle'],
+        ]}
+      />
       <section className={card} aria-label="Promo codes">
         <H sub="Couples type these when they pay (Upgrade → Have a promo code?). 100% off switches the plan on without a card: good for friends, influencers and giveaways.">Promo codes</H>
         {promos.error && <Problem text={promos.error} />}
@@ -1047,6 +1064,7 @@ const ACTION: Record<string, string> = {
   'company.expense': 'Added an expense',
   'company.bot.add': 'Added a bot',
   'company.bot.revoke': 'Turned off a bot',
+  'company.assistant': 'Asked the assistant',
 };
 
 /** Who works on the app, their roles, and invitations. Owners only. */
@@ -1655,5 +1673,72 @@ function Bots({ onNote }: { onNote: (s: string) => void }) {
         </ul>
       )}
     </section>
+  );
+}
+
+/** The company assistant: a few ready-made asks, an optional note, and the draft to copy. */
+function Assistant({ title, sub, tasks }: { title: string; sub: string; tasks: [task: 'brief' | 'posts' | 'outreach' | 'ask', label: string, hint: string][] }) {
+  const { data } = useLoad(companyApi.assistantOn);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState('');
+  const [text, setText] = useState('');
+  const [problem, setProblem] = useState('');
+  if (!data?.on) return null;
+  const run = async (task: (typeof tasks)[number][0]) => {
+    setBusy(task);
+    setProblem('');
+    try {
+      setText((await companyApi.assistant(task, note.trim())).text);
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+  const hint = tasks.find(([, , h]) => h)?.[2] ?? '';
+  return (
+    <section className={card} aria-label={title}>
+      <H sub={sub}>{title}</H>
+      {hint && <input value={note} maxLength={600} onChange={(e) => setNote(e.target.value)} placeholder={hint} aria-label="Details for the assistant" className={input} />}
+      <div className="flex gap-2 flex-wrap">
+        {tasks.map(([task, label]) => (
+          <button key={task} type="button" className={task === tasks[0]![0] ? primary : btn} disabled={!!busy} onClick={() => void run(task)}>
+            {busy === task ? 'Writing…' : label}
+          </button>
+        ))}
+      </div>
+      {problem && <Problem text={problem} />}
+      {text && (
+        <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f3f4ef] border border-[#e4e6df]">
+          <p className="m-0 text-[15px] whitespace-pre-wrap">{text}</p>
+          <button type="button" className={`${btn} self-start`} onClick={() => void navigator.clipboard?.writeText(text).catch(() => undefined)}>
+            Copy
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** "Draft a reply" on a piece of feedback. */
+function DraftReply({ id }: { id: string }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const draft = async () => {
+    setBusy(true);
+    try {
+      setText((await companyApi.assistant('feedback', '', id)).text);
+    } catch (e) {
+      setText((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return text ? (
+    <p className="m-0 p-3 rounded-[12px] bg-[#f3f4ef] text-[14px] whitespace-pre-wrap">{text}</p>
+  ) : (
+    <button type="button" className={`${btn} self-start`} disabled={busy} onClick={() => void draft()}>
+      {busy ? 'Drafting…' : 'Draft a reply'}
+    </button>
   );
 }

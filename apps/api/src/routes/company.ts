@@ -444,6 +444,63 @@ export function companyRoutes() {
     return c.json({ ok: true });
   });
 
+  /**
+   * The company assistant (free Workers AI): a weekly brief from the real numbers, a reply to a piece of
+   * feedback, posts for social media, an outreach email to a celebrant or planner. It drafts; a person sends.
+   */
+  app.get('/assistant', async (c) => c.json({ on: !!c.env.AI }));
+  app.post('/assistant', async (c) => {
+    const b = z
+      .object({ task: z.enum(['brief', 'feedback', 'posts', 'outreach', 'ask']), id: z.string().max(60).default(''), note: z.string().trim().max(600).default('') })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'What would you like help with?');
+    if (!c.env.AI) return err(c, 400, 'off', 'The assistant isn’t switched on for this site yet (Workers AI).');
+    if (!(await allow(c.env.DB, `company-ai:${c.get('user').id}`, 40, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty for today. Try again tomorrow.');
+    const role = c.get('user').staff;
+    const need: Record<typeof b.data.task, StaffPerm> = { brief: 'overview', feedback: 'feedback', posts: 'promote', outreach: 'promote', ask: 'overview' };
+    if (!staffCan(role, need[b.data.task])) return err(c, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
+    const db = c.env.DB;
+    const one = async (sql: string, ...v: unknown[]) => (await db.prepare(sql).bind(...v).first<{ n: number }>())?.n ?? 0;
+    const week = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const facts = {
+      weddings: await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL`),
+      newThisWeek: await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND created_at >= ?`, week),
+      paidThisWeek: await one(`SELECT COUNT(*) AS n FROM audit WHERE action = 'plan.paid' AND at >= ?`, week),
+      revenueThisWeekCents: await one(`SELECT COALESCE(SUM(json_extract(detail, '$.amount')), 0) AS n FROM audit WHERE action = 'plan.paid' AND json_valid(detail) AND at >= ?`, week),
+      planRequests: await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND json_valid(content) AND json_extract(content, '$.planRequested') IS NOT NULL`),
+      newFeedback: await one(`SELECT COUNT(*) AS n FROM feedback WHERE status = 'new'`),
+      prices: `Essentials $${PRICE_CENTS.essentials / 100}, Deluxe $${PRICE_CENTS.complete / 100}, extra event $${EVENT_ADDON_CENTS / 100}, all once per wedding`,
+    };
+    const brand = `The Yes List is an Australian online wedding invitation, RSVP and planning app (animated wax-sealed invitations on the phone, replies by text or email into one guest list, seating with rules, budget, vendors, wedding party pages). ${facts.prices}. Free plan up to 50 guests.`;
+    let ask = '';
+    if (b.data.task === 'brief') ask = `Write a short Monday brief for the founder from these numbers: ${JSON.stringify(facts)}. Then the three most useful things to do this week. Plain words, under 180 words.`;
+    else if (b.data.task === 'feedback') {
+      const f = await db.prepare(`SELECT kind, text FROM feedback WHERE id = ?`).bind(b.data.id).first<{ kind: string; text: string }>();
+      if (!f) return err(c, 404, 'not_found', 'That feedback is gone.');
+      ask = `A couple sent this ${f.kind}: "${f.text.slice(0, 1500)}". Draft a warm, short reply from the founder (under 90 words), and a one-line note for the roadmap if it's worth doing.${b.data.note ? ` Keep in mind: ${b.data.note}` : ''}`;
+    } else if (b.data.task === 'posts')
+      ask = `Write three short social posts (Instagram caption, Facebook post, TikTok hook with a 3-shot idea) about ${b.data.note || 'the animated invitation and replies landing in your guest list'}. Include the link placeholder [link]. Australian spelling, warm, no hashtags spam (max 5), no false claims, no "was/now" prices.`;
+    else if (b.data.task === 'outreach')
+      ask = `Draft a short, friendly first email from the founder to ${b.data.note || 'a wedding celebrant'} offering their couples 10% off with a partner code [CODE] and a free Deluxe for their own events. Say who it's from, keep it under 120 words, and end with "Reply STOP and we won't email again."`;
+    else ask = `${b.data.note || 'What should we focus on this week?'} Use these numbers if helpful: ${JSON.stringify(facts)}. Under 150 words.`;
+    try {
+      const out = (await c.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [
+          { role: 'system', content: `You help run a small business. ${brand} Be accurate: only use the numbers given; never invent figures, reviews or customers.` },
+          { role: 'user', content: ask },
+        ],
+        max_tokens: 600,
+      })) as { response?: string };
+      const text = (out.response ?? '').trim();
+      if (!text) return err(c, 400, 'empty', 'No answer came back. Try again in a minute.');
+      await logCompany(c, 'company.assistant', b.data.task, {});
+      return c.json({ text, facts });
+    } catch {
+      return err(c, 400, 'failed', 'The assistant didn’t answer. Try again in a minute.');
+    }
+  });
+
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
   app.get('/activity', can('activity'), async (c) => {
     const { results } = await c.env.DB.prepare(

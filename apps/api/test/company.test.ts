@@ -252,4 +252,16 @@ describe('company portal', () => {
     expect((await call(`/a/company/bots/${id}`, { method: 'DELETE' }, boss.cookie)).status).toBe(200);
     expect((await call('/a/company/stats', { headers: bot })).status).toBe(401);
   });
+  it('the company assistant drafts from the real numbers (free Workers AI), by role, and says when it is off', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    expect((await call('/a/company/assistant', { method: 'POST', body: JSON.stringify({ task: 'brief' }) }, boss.cookie)).status).toBe(400); // AI off
+    const asked: string[] = [];
+    env.AI = { run: async (...args: [model: string, input: unknown]) => (asked.push(JSON.stringify(args[1])), { response: 'Two new weddings this week.' }) };
+    const r = await call('/a/company/assistant', { method: 'POST', body: JSON.stringify({ task: 'brief' }) }, boss.cookie);
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { text: string }).text).toBe('Two new weddings this week.');
+    expect(asked[0]).toContain('weddings');
+    const { key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Dev bot', role: 'developer' }) }, boss.cookie)).json()) as { key: string };
+    expect((await call('/a/company/assistant', { method: 'POST', body: JSON.stringify({ task: 'posts' }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
+  });
 });

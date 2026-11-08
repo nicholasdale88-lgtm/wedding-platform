@@ -955,6 +955,8 @@ export const companyApi = {
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
   setRole: (userId: string, role: string) => send<{ ok: true }>('PUT', `/a/company/team/${encodeURIComponent(userId)}`, { role }),
   activity: () => request<{ activity: CompanyActivity[] }>('/a/company/activity'),
+  assistantOn: () => request<{ on: boolean }>('/a/company/assistant'),
+  assistant: (task: 'brief' | 'feedback' | 'posts' | 'outreach' | 'ask', note = '', id = '') => send<{ text: string }>('POST', '/a/company/assistant', { task, note, id }),
   bots: () => request<{ bots: { id: string; name: string; role: string; createdAt: string; lastUsedAt: string; revoked: boolean }[] }>('/a/company/bots'),
   addBot: (name: string, role: string) => send<{ id: string; key: string }>('POST', '/a/company/bots', { name, role }),
   revokeBot: (id: string) => send<{ ok: true }>('DELETE', `/a/company/bots/${encodeURIComponent(id)}`),
