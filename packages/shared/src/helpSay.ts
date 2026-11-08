@@ -81,8 +81,10 @@ export const HELP_SAY: Record<string, HelpSay> = {
   seating: {
     intro: 'Here’s how to do your seating plan.',
     steps: [
-      'Open Guests, then Seating. Add some tables, and tap the plan to drop them in. Drag them around till it looks right.',
-      'Tap a table, then tap names to seat people. Or let Auto-seat do the rest. It follows your rules.',
+      'Open Guests, then Seating, and tap Edit seating. The tools sit in three tabs: Seat guests, Tables, and Room.',
+      'In Room, set the room’s shape and size, or its exact size in metres. Add the dance floor and bar, and give each one its width and depth.',
+      'In Tables, add tables and tap the plan to drop them in. Drag them around, and tap one to set its seats, type and size in metres.',
+      'In Seat guests, tap a table, then tap names to seat people, or let Auto-seat do the rest. Open a table to pick each guest’s exact seat.',
       'You can start with a concept plan, before the invitations even go out. As replies come in, nothing moves. Anyone who can’t come frees their seat, and auto-seat fills the gaps.',
       'There are sensible rules built in. Households sit together, circles stay together, and family sit near the head table. Add your own too, like keeping two people apart, or saying two people know each other.',
       'Want a fresh idea? Tap Suggest a plan from who knows who. It makes a new version, and shows how it compares. Your current plan doesn’t change, unless you make the new one current.',

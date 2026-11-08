@@ -393,8 +393,10 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Guest list', 'Dietary'], rows: ['⚠ Lou · Set menu isn’t marked nut free', 'Meals: 11 of 12 sorted'], tap: 'Download the caterer’s list', then: 'Downloaded ✓' },
   ],
   seating: [
-    { at: ['Guest list', 'Seating'], rows: ['Room plan'], tap: '+ Add tables', then: 'Tap the plan to drop each table' },
-    { at: ['Guest list', 'Seating'], rows: ['Table 3 · 6 of 10', 'Jordan & Casey', 'The Nguyens'], tap: 'Auto-seat the rest', then: 'Everyone seated, households together ✓' },
+    { at: ['Guest list', 'Seating'], rows: ['Seat guests · Tables · Room'], tap: 'Edit seating', then: 'Three tabs of tools' },
+    { at: ['Guest list', 'Seating', 'Room'], fields: [['Size', 'Exact size in metres'], ['Width (m)', '24'], ['Depth (m)', '18']], tap: '+ Add area', then: 'Dance floor 6 × 6 m, to scale ✓' },
+    { at: ['Guest list', 'Seating', 'Tables'], fields: [['Seats', '10'], ['Diameter (m)', '1.8']], tap: '+ Add tables', then: 'Tap the plan to drop each table' },
+    { at: ['Guest list', 'Seating', 'Seat guests'], rows: ['Table 3 · 6 of 10', 'Seat 1 · Jordan', 'Seat 2 · Casey'], tap: 'Auto-seat the rest', then: 'Pick any guest’s exact seat ✓' },
     { at: ['Guest list', 'Seating'], rows: ['Concept plan → Replies coming in', 'Since your last save: 3 said yes · 2 can’t come'], tap: 'Fill gaps with auto-seat', then: 'Everyone else stays put ✓' },
     { at: ['Guest list', 'Seating'], rows: ['✓ People invited together sit together', '✓ Keep circles together', 'Ben ≠ Lou (keep apart)'], tap: '+ Add rule', then: 'All good ✓' },
     { at: ['Guest list', 'Seating'], rows: ['Who knows who — Sat 9 Nov', 'Keeps 18 of 20 circles together (now 12)', '3 people alone at their table → 0'], tap: 'Make this current', then: 'Seated by who knows who ✓' },
