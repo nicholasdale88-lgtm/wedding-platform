@@ -5,7 +5,7 @@ import type { SeatArea, SeatTable } from '../../lib/api';
  * The room's shape and size (`aspect`, e.g. "4 / 3 x2") is part of the plan, so undoing a room change puts
  * back the room and the tables it nudged inside it in one step.
  */
-export type Snapshot = { aspect: string; tables: SeatTable[]; areas: SeatArea[]; seats: Record<string, string | null> };
+export type Snapshot = { aspect: string; tables: SeatTable[]; areas: SeatArea[]; seats: Record<string, string | null>; chairs: Record<string, number> };
 export type Hist = { doc: Snapshot; past: Snapshot[]; future: Snapshot[]; dirty: boolean };
 export type Act =
   | { type: 'reset'; doc: Snapshot }
@@ -30,4 +30,4 @@ export function history(h: Hist, a: Act): Hist {
       return h.future.length ? { doc: h.future[0]!, past: [...h.past, h.doc], future: h.future.slice(1), dirty: true } : h;
   }
 }
-export const emptyHistory: Hist = { doc: { aspect: '4 / 3', tables: [], areas: [], seats: {} }, past: [], future: [], dirty: false };
+export const emptyHistory: Hist = { doc: { aspect: '4 / 3', tables: [], areas: [], seats: {}, chairs: {} }, past: [], future: [], dirty: false };

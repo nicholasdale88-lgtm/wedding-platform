@@ -731,6 +731,52 @@ describe('seating tab', () => {
     expect(await screen.findByText('Saved. Publish when you want guests to see it.')).toBeInTheDocument();
   });
 
+  it('each guest can be put in exactly the seat you choose (swapping with whoever sat there); Save sends the chairs', async () => {
+    let body: { seats: Record<string, string | null>; chairs: Record<string, number> } | null = null;
+    mockApi({
+      '/api/a/w/w1/seating': (init) => {
+        if (init?.method === 'PUT') body = JSON.parse(String(init.body));
+        return json(200, seating);
+      },
+    });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
+    // Robin starts in seat 1; move them to seat 3, then put Sam in the empty seat 1.
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Seat for Robin Hart' }), '3');
+    expect(screen.getByRole('combobox', { name: 'Seat for Robin Hart' })).toHaveValue('3');
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Seat someone in seat 1' }), 'p2');
+    expect(screen.getByRole('button', { name: 'Table 1, 2 of 4' })).toBeInTheDocument();
+    // Robin takes Sam's seat: they swap.
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Seat for Robin Hart' }), '1');
+    expect(screen.getByRole('combobox', { name: 'Seat for Sam Hart' })).toHaveValue('3');
+    await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
+    await waitFor(() => expect(body?.chairs).toEqual({ p1: 1, p2: 3 }));
+    expect(body!.seats).toMatchObject({ p1: T1, p2: T1 });
+  });
+
+  it('a table can be given its size in metres, and the room its real size', async () => {
+    let body: { aspect: string; tables: { size: number | null }[] } | null = null;
+    mockApi({
+      '/api/a/w/w1/seating': (init) => {
+        if (init?.method === 'PUT') body = JSON.parse(String(init.body));
+        return json(200, seating);
+      },
+    });
+    renderAt('/admin/w1/wedding/seating');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
+    const size = screen.getByLabelText('Diameter (m)');
+    await userEvent.type(size, '2.4');
+    fireEvent.blur(size);
+    await userEvent.click(screen.getByRole('tab', { name: 'Room' }));
+    await userEvent.selectOptions(screen.getByLabelText('Room size'), 'm');
+    expect(screen.getByLabelText('Width (m)')).toHaveValue(20);
+    await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
+    await waitFor(() => expect(body?.aspect).toBe('20 / 15 m'));
+    expect(body!.tables[0]!.size).toBe(2.4);
+  });
+
   it('opens to look at (nothing moves); Edit seating opens the tools, and a bigger room is saved with the plan', async () => {
     let body: { aspect: string } | null = null;
     mockApi({
@@ -745,6 +791,7 @@ describe('seating tab', () => {
     expect(screen.queryByLabelText('Room size')).toBeNull();
     expect(screen.getByRole('button', { name: 'Print floor plan' })).toBeInTheDocument();
     await userEvent.click(edit);
+    await userEvent.click(screen.getByRole('tab', { name: 'Room' })); // the tools come in three tabs
     await userEvent.selectOptions(screen.getByLabelText('Room size'), '2');
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
     await waitFor(() => expect(body?.aspect).toBe('4 / 3 x2'));
@@ -844,6 +891,7 @@ describe('seating tab', () => {
     await userEvent.type(screen.getByRole('searchbox', { name: 'Find a guest' }), 'jo');
     expect(screen.getByText('Not seated · not replied yet')).toBeInTheDocument();
     // Numbered row by row: the top table (9) becomes 1.
+    await userEvent.click(screen.getByRole('tab', { name: 'Tables' }));
     await userEvent.click(screen.getByRole('button', { name: 'Number tables 1, 2, 3…' }));
     expect(screen.getByRole('button', { name: 'Table 1, 2 of 4' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Table 2, 0 of 4' })).toBeInTheDocument();
@@ -890,6 +938,7 @@ describe('seating tab', () => {
     });
     renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Room' }));
     expect(screen.getByLabelText('Room size')).toHaveValue('2');
     await userEvent.selectOptions(screen.getByLabelText('Room size'), '1');
     expect(screen.getByLabelText('Room size')).toHaveValue('1');
@@ -1008,6 +1057,7 @@ describe('seating publish', () => {
     expect(await screen.findByText(/2 saved changes are not live yet/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: 'Edit seating' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Tables' }));
     await userEvent.click(screen.getByRole('button', { name: 'Line up tables' })); // an unsaved edit
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeDisabled();
   });

@@ -61,6 +61,31 @@ describe('seating API', () => {
     expect(after.people.filter((p) => p.tableId === gone.id)).toHaveLength(0);
   });
 
+  it('keeps each guest's chosen chair and each table's size in metres, and the room can be measured in metres', async () => {
+    const s = await get();
+    const tbl = s.tables[0]!;
+    const two = s.people.filter((p) => p.coming).slice(0, 2);
+    const seats = { ...Object.fromEntries(s.people.map((p) => [p.id, p.tableId])), [two[0]!.id]: tbl.id, [two[1]!.id]: tbl.id };
+    const res = await call(`/a/w/${wid}/seating`, {
+      method: 'PUT',
+      headers: { 'If-Match': String(s.version) },
+      body: JSON.stringify({ event: s.event.key, aspect: '24 / 18 m', tables: s.tables.map((x) => (x.id === tbl.id ? { ...x, size: 2.4 } : x)), areas: s.areas, seats, chairs: { [two[0]!.id]: 3, [two[1]!.id]: 1 } }),
+    });
+    expect(res.status).toBe(200);
+    const after = (await res.json()) as Seating & { tables: (Table & { size: number | null })[]; people: { id: string; chair: number | null }[] };
+    expect(after.aspect).toBe('24 / 18 m');
+    expect(after.tables.find((x) => x.id === tbl.id)!.size).toBe(2.4);
+    expect(after.people.find((p) => p.id === two[0]!.id)!.chair).toBe(3);
+    expect(after.people.find((p) => p.id === two[1]!.id)!.chair).toBe(1);
+    // A chair past the table's seats isn't kept; a room size that isn't metres or a usual shape is refused.
+    const bad = await call(`/a/w/${wid}/seating`, {
+      method: 'PUT',
+      headers: { 'If-Match': String(after.version) },
+      body: JSON.stringify({ event: s.event.key, aspect: '24 / 18 ft', tables: after.tables, areas: after.areas, seats }),
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it('refuses stale saves, unknown people, tables that are not there, and taking over another table', async () => {
     const s = await get();
     expect((await put(s)).status).toBe(200);

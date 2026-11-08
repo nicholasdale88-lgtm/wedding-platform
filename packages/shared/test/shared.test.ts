@@ -118,4 +118,38 @@ describe('room size', () => {
     const t = { shape: 'round' as const, dir: 'h' as const, len: 40 };
     expect(tableBox(t, '4 / 3 x2').w).toBeCloseTo(tableBox(t, '4 / 3').w / 2);
   });
+
+  it('a room in metres draws every table to scale, and a table can be given its own size', async () => {
+    const { tableBox, roomMetres, metresAspect, roomShape, cssAspect, aspectRatio, roomScale } = await import('../src/seating');
+    expect(metresAspect(24.2, 18)).toBe('24 / 18 m');
+    expect(roomMetres('24 / 18 m')).toEqual({ w: 24, h: 18 });
+    expect(roomMetres('4 / 3')).toBeNull();
+    expect(cssAspect('24 / 18 m')).toBe('24/18');
+    expect(aspectRatio('30 / 15 m')).toBe(2);
+    expect(roomScale('24 / 18 m')).toBe(1);
+    expect(roomShape('30 / 15 m')).toBe('2 / 1'); // the closest usual shape
+    // A 1.8 m round table in a 24 m wide room: 7.5% of its width; given 3 m, 12.5%.
+    const t = { shape: 'round' as const, dir: 'h' as const, len: 40 };
+    expect(tableBox(t, '24 / 18 m').w).toBeCloseTo(7.5);
+    expect(tableBox({ ...t, size: 3 }, '24 / 18 m').w).toBeCloseTo(12.5);
+    // A 6 m banquet table standing up and down: 6 m of the 18 m depth.
+    expect(tableBox({ shape: 'long', dir: 'v', len: 40, size: 6 }, '24 / 18 m').h).toBeCloseTo(100 / 3);
+  });
+});
+
+describe('chairs', () => {
+  it('keeps chosen chairs and fills the rest in order', async () => {
+    const { chairsAt } = await import('../src/seating');
+    const p = (id: string) => ({ id });
+    const a = p('a');
+    const b = p('b');
+    const c = p('c');
+    expect(chairsAt([a, b, c], {}, 4)).toEqual([a, b, c, null]);
+    expect(chairsAt([a, b, c], { c: 1, a: 4 }, 4)).toEqual([c, b, null, a]);
+    // Two asking for one chair: the first keeps it. A chair past the seats is ignored.
+    expect(chairsAt([a, b], { a: 2, b: 2 }, 3)).toEqual([b, a, null]);
+    expect(chairsAt([a], { a: 9 }, 2)).toEqual([a, null]);
+    // More people than seats: the extra one comes last.
+    expect(chairsAt([a, b, c], {}, 2)).toEqual([a, b, c]);
+  });
 });

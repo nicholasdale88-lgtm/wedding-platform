@@ -28,7 +28,8 @@ const pct = z.number().min(0).max(100);
 const Save = z
   .object({
     event: z.string().max(40),
-    aspect: z.string().regex(/^\d{1,2} \/ \d{1,2}( x(1\.5|2|3|4))?$/), // the room's shape, and its size when bigger
+    // The room's shape, and its size when bigger ("4 / 3 x2"); or measured in metres ("24 / 18 m").
+    aspect: z.string().regex(/^(\d{1,2} \/ \d{1,2}( x(1\.5|2|3|4))?|\d{1,3}(\.5)? \/ \d{1,3}(\.5)? m)$/),
     tables: z
       .array(
         z.object({
@@ -42,11 +43,15 @@ const Save = z
           seats: z.number().int().min(1).max(60),
           /** Long and head tables: 2 both sides, 1 or -1 one side only. */
           sides: z.union([z.literal(2), z.literal(1), z.literal(-1)]).default(2),
+          /** Its real size in metres (diameter, side or length); null: the usual size for its shape. */
+          size: z.number().min(0.4).max(40).nullable().default(null),
         }),
       )
       .max(120),
     areas: z.array(z.object({ label: z.string().trim().min(1).max(40), x: pct, y: pct, w: z.number().min(2).max(100), h: z.number().min(2).max(100) })).max(40),
     seats: z.record(z.string().max(60), z.string().uuid().nullable()),
+    /** Which chair each guest has at their table (1 = the first); anyone left out takes the next free chair. */
+    chairs: z.record(z.string().max(60), z.number().int().min(1).max(60)).default({}),
   })
   .strict();
 
@@ -69,10 +74,11 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     if (!ev) return null;
     const [plan, tables, areas, people, pub, vers, docs, sent] = await db.batch([
       db.prepare(`SELECT aspect, image_key, current_version FROM seat_plan WHERE event_id = ?`).bind(ev.id),
-      db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats, sides FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
+      db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats, sides, size_m AS size FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
       db.prepare(
         `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, (SELECT s.table_id FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS tableId,
+                (SELECT s.chair FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS chair,
                 i.party, i.side, i.relation, i.circles, p.party_role AS role,
                 ie.event_id IS NOT NULL AS invited, r.attending, r.count
            FROM person p JOIN invitation i ON i.id = p.invitation_id
@@ -93,7 +99,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     const versionRows = vers!.results as { id: string; name: string; snapshot: string; created_at: string }[];
     const tableIds = new Set((tables!.results as { id: string }[]).map((t) => t.id));
     const p = plan!.results[0] as { aspect: string; image_key: string | null; current_version: string | null } | undefined;
-    type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; side: string; relation: string; circles: string; role: string; invited: number; attending: number | null; count: number | null };
+    type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; chair: number | null; party: string; side: string; relation: string; circles: string; role: string; invited: number; attending: number | null; count: number | null };
     const rows = people!.results as Row[];
     // A yes is for the first N people on the invitation (N = the reply's count, as the overview counts them):
     // the others on it aren't coming, so they get no seat and are never shown to guests.
@@ -106,9 +112,14 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       tables: tables!.results as Snapshot['tables'],
       areas: areas!.results as Snapshot['areas'],
       seats: Object.fromEntries(rows.filter(seatOf).map((x) => [x.id, seatOf(x)!])),
+      chairs: Object.fromEntries(rows.filter((x) => seatOf(x) && x.chair).map((x) => [x.id, x.chair!])),
     };
     const yes = new Set(rows.filter((x) => x.invited && x.attending === 1 && !beyondCount(x)).map((x) => x.id));
-    const publishable: Snapshot = { ...draft, seats: Object.fromEntries(Object.entries(draft.seats).filter(([id]) => yes.has(id))) };
+    const publishable: Snapshot = {
+      ...draft,
+      seats: Object.fromEntries(Object.entries(draft.seats).filter(([id]) => yes.has(id))),
+      chairs: Object.fromEntries(Object.entries(draft.chairs ?? {}).filter(([id]) => yes.has(id))),
+    };
     const pubRow = pub!.results[0] as { snapshot: string; published_at: string } | undefined;
     const empty = { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot;
     const pubSnap = pubRow ? safeJson<Snapshot>(pubRow.snapshot, empty) : null;
@@ -124,7 +135,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     const served = await servedAt(db, w.id, ev);
     const list = rows
       .filter(seatable)
-      .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, side: x.side ?? '', relation: x.relation ?? '', circles: splitCircles(x.circles), role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), coming: x.attending === 1 }));
+      .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, side: x.side ?? '', relation: x.relation ?? '', circles: splitCircles(x.circles), role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), chair: seatOf(x) ? (x.chair ?? null) : null, coming: x.attending === 1 }));
 
     // Where the plan is in its life, and what changed since it was last saved.
     const doc = (kind: string) => (docs!.results as { kind: string; data: string }[]).find((d) => d.kind === kind)?.data;
@@ -157,7 +168,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
         events: events.map((e) => ({ key: e.key, name: e.name })),
         aspect: p?.aspect ?? '4 / 3',
         planImg: '', // plan photos arrive with uploads (R2)
-        tables: tables!.results as { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number }[],
+        tables: tables!.results as Snapshot['tables'],
         areas: areas!.results,
         people: list,
         stage: { auto: seatStage(facts), chosen, ...facts },
@@ -239,10 +250,10 @@ export function seatingRoutes() {
       stmts.push(
         db
           .prepare(
-            `INSERT INTO seat_table (id, wedding_id, event_id, name, shape, dir, length_pct, x, y, seats, sides) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-             ON CONFLICT (id) DO UPDATE SET name = ?4, shape = ?5, dir = ?6, length_pct = ?7, x = ?8, y = ?9, seats = ?10, sides = ?11, deleted_at = NULL, version = version + 1`,
+            `INSERT INTO seat_table (id, wedding_id, event_id, name, shape, dir, length_pct, x, y, seats, sides, size_m) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+             ON CONFLICT (id) DO UPDATE SET name = ?4, shape = ?5, dir = ?6, length_pct = ?7, x = ?8, y = ?9, seats = ?10, sides = ?11, size_m = ?12, deleted_at = NULL, version = version + 1`,
           )
-          .bind(t.id, wid(c), ev, t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, t.sides),
+          .bind(t.id, wid(c), ev, t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, t.sides, t.size),
       );
     }
     for (const id of known) {
@@ -258,7 +269,9 @@ export function seatingRoutes() {
     for (const [pid, tid] of Object.entries(b.seats)) {
       stmts.push(
         tid
-          ? db.prepare(`INSERT INTO seat (person_id, event_id, table_id) VALUES (?1, ?2, ?3) ON CONFLICT (person_id, event_id) DO UPDATE SET table_id = ?3`).bind(pid, ev, tid)
+          ? db
+              .prepare(`INSERT INTO seat (person_id, event_id, table_id, chair) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (person_id, event_id) DO UPDATE SET table_id = ?3, chair = ?4`)
+              .bind(pid, ev, tid, (b.chairs[pid] ?? 0) <= (b.tables.find((t) => t.id === tid)?.seats ?? 0) ? (b.chairs[pid] ?? null) : null)
           : db.prepare(`DELETE FROM seat WHERE person_id = ? AND event_id = ?`).bind(pid, ev),
       );
     }
@@ -380,7 +393,7 @@ export function seatingRoutes() {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await db.batch([
-      db.prepare(`INSERT INTO seat_version (id, wedding_id, event_id, name, snapshot, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, wid(c), loaded.eventId, body.data.name, JSON.stringify({ ...loaded.draft, seats }), now, c.get('user').id),
+      db.prepare(`INSERT INTO seat_version (id, wedding_id, event_id, name, snapshot, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, wid(c), loaded.eventId, body.data.name, JSON.stringify({ ...loaded.draft, seats, chairs: Object.fromEntries(Object.entries(loaded.draft.chairs ?? {}).filter(([pid]) => seats[pid] === loaded.draft.seats[pid])) }), now, c.get('user').id),
       db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.suggest', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, body.data.event, JSON.stringify({ name: body.data.name, seated: Object.keys(seats).length }), now),
     ]);
     return c.json({ ...(await load(c, body.data.event))!.view, created: id });
@@ -442,17 +455,23 @@ export function seatingRoutes() {
       stmts.push(
         db
           .prepare(
-            `INSERT INTO seat_table (id, wedding_id, event_id, name, shape, dir, length_pct, x, y, seats, sides) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
-             ON CONFLICT (id) DO UPDATE SET name = ?4, shape = ?5, dir = ?6, length_pct = ?7, x = ?8, y = ?9, seats = ?10, sides = ?11, deleted_at = NULL, version = version + 1
+            `INSERT INTO seat_table (id, wedding_id, event_id, name, shape, dir, length_pct, x, y, seats, sides, size_m) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+             ON CONFLICT (id) DO UPDATE SET name = ?4, shape = ?5, dir = ?6, length_pct = ?7, x = ?8, y = ?9, seats = ?10, sides = ?11, size_m = ?12, deleted_at = NULL, version = version + 1
              WHERE seat_table.event_id = ?3`,
           )
-          .bind(t.id, wid(c), ev, t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, (t as { sides?: number }).sides ?? 2),
+          .bind(t.id, wid(c), ev, t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, t.sides ?? 2, t.size ?? null),
       );
     }
     for (const t of loaded.view.tables) if (!keep.has(t.id)) stmts.push(db.prepare(`UPDATE seat_table SET deleted_at = ? WHERE id = ?`).bind(now, t.id));
     for (const a of snap.areas) stmts.push(db.prepare(`INSERT INTO seat_area (id, wedding_id, event_id, label, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), ev, a.label, a.x, a.y, a.w, a.h));
     for (const [pid, tid] of Object.entries(snap.seats)) {
-      if (coming.has(pid) && keep.has(tid)) stmts.push(db.prepare(`INSERT INTO seat (person_id, event_id, table_id) SELECT ?1, ?2, ?3 WHERE EXISTS (SELECT 1 FROM seat_table WHERE id = ?3 AND event_id = ?2)`).bind(pid, ev, tid));
+      const chair = snap.chairs?.[pid];
+      if (coming.has(pid) && keep.has(tid))
+        stmts.push(
+          db
+            .prepare(`INSERT INTO seat (person_id, event_id, table_id, chair) SELECT ?1, ?2, ?3, ?4 WHERE EXISTS (SELECT 1 FROM seat_table WHERE id = ?3 AND event_id = ?2)`)
+            .bind(pid, ev, tid, Number.isInteger(chair) && chair! >= 1 && chair! <= 60 ? chair : null),
+        );
     }
     stmts.push(unseatEveryoneNotComing(db, ev));
     stmts.push(db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.current', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, v.key, JSON.stringify({ name: v.name }), now));
@@ -468,20 +487,22 @@ const MAX_VERSIONS = 30;
 /** What guests see: the plan and who sits where (people ids -> table ids). */
 export interface Snapshot {
   aspect: string;
-  tables: { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number }[];
+  tables: { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number; sides?: number; size?: number | null }[];
   areas: { label: string; x: number; y: number; w: number; h: number }[];
   seats: Record<string, string>;
+  /** Which chair each guest has at their table (1 = the first). Older plans have none: chairs fill in order. */
+  chairs?: Record<string, number>;
 }
 
 /** How many tables, areas and seats differ between what's published and the saved draft. */
 export function changesBetween(a: Snapshot, b: Snapshot): number {
   let n = 0;
-  const key = (t: Snapshot['tables'][number]) => JSON.stringify([t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, (t as { sides?: number }).sides ?? 2]);
+  const key = (t: Snapshot['tables'][number]) => JSON.stringify([t.name, t.shape, t.dir, t.len, t.x, t.y, t.seats, t.sides ?? 2, t.size ?? null]);
   const at = new Map(a.tables.map((t) => [t.id, key(t)]));
   const bt = new Map(b.tables.map((t) => [t.id, key(t)]));
   for (const [id, k] of bt) if (at.get(id) !== k) n++;
   for (const id of at.keys()) if (!bt.has(id)) n++;
   if (JSON.stringify(a.areas) !== JSON.stringify(b.areas) || a.aspect !== b.aspect) n++;
-  for (const id of new Set([...Object.keys(a.seats), ...Object.keys(b.seats)])) if (a.seats[id] !== b.seats[id]) n++;
+  for (const id of new Set([...Object.keys(a.seats), ...Object.keys(b.seats)])) if (a.seats[id] !== b.seats[id] || (a.chairs?.[id] ?? null) !== (b.chairs?.[id] ?? null)) n++;
   return n;
 }

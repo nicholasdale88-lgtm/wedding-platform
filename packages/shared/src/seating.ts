@@ -27,7 +27,14 @@ export interface TableGeom {
   len: number;
   x: number;
   y: number;
+  /** Its real size in metres: the diameter (round), the side (square) or the length (the others). Unset: the usual size. */
+  size?: number | null;
 }
+
+/** The usual size of each shape in metres (diameter, side or length), as hire companies sell them. */
+export const TABLE_SIZE_M: Record<TableShape, number> = { round: 1.8, oval: 2.4, square: 1.5, long: 4.8, head: 4.8, sweetheart: 1.2 };
+/** What a table's size measures, for the box you type it in. */
+export const sizeLabel = (s: TableShape) => (s === 'round' ? 'Diameter (m)' : s === 'square' ? 'Width (m)' : 'Length (m)');
 
 /**
  * The room: its shape ("4 / 3") and, after it, how big it is ("4 / 3 x2": twice the size, so every table is
@@ -47,29 +54,68 @@ export const ROOM_SIZES: { scale: number; label: string }[] = [
   { scale: 3, label: 'Huge (100+ tables)' },
 ];
 const SIZE = /\s*x(\d+(?:\.\d+)?)\s*$/;
+/** A room measured in metres: "24 / 18 m" is 24 m wide and 18 m deep. */
+const METRES = /^\s*(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*m\s*$/;
+/** "24 / 18 m" -> { w: 24, h: 18 }; null for a room given only as a shape. */
+export function roomMetres(aspect: string): { w: number; h: number } | null {
+  const m = METRES.exec(aspect);
+  const w = Number(m?.[1]);
+  const h = Number(m?.[2]);
+  return m && w >= 2 && h >= 2 && w <= 500 && h <= 500 ? { w, h } : null;
+}
+const half = (n: number) => Math.round(Math.min(500, Math.max(2, n)) * 2) / 2;
+/** The stored room for a measured one: "24 / 18 m" (to the half metre). */
+export const metresAspect = (w: number, h: number) => `${half(w)} / ${half(h)} m`;
+/**
+ * How big the room is in metres: measured, or for a room given only as a shape, about 20 m across the
+ * standard size (so a table's size in metres still scales sensibly).
+ */
+export function roomSizeM(aspect: string): { w: number; h: number } {
+  const m = roomMetres(aspect);
+  if (m) return m;
+  const w = 20 * roomScale(aspect);
+  return { w, h: w / aspectRatio(aspect) };
+}
 /** "4 / 3 x2" -> 2 (1 when not given). */
 export const roomScale = (aspect: string) => {
   const n = Number(SIZE.exec(aspect)?.[1] ?? 1);
   return n >= 1 && n <= 4 ? n : 1;
 };
 /** "4 / 3 x2" -> "4 / 3". */
-export const roomShape = (aspect: string) => aspect.replace(SIZE, '').trim() || '4 / 3';
+export const roomShape = (aspect: string) => {
+  const m = roomMetres(aspect);
+  if (m) {
+    // A measured room as one of the usual shapes (the closest), for when it goes back to a preset size.
+    const r = m.w / m.h;
+    return ROOM_SHAPES.map((x) => x.aspect).sort((a, b) => Math.abs(Math.log(ratioOf(a) / r)) - Math.abs(Math.log(ratioOf(b) / r)))[0]!;
+  }
+  return aspect.replace(SIZE, '').trim() || '4 / 3';
+};
+const ratioOf = (shape: string) => {
+  const [w, h] = shape.split('/').map((n) => Number(n.trim()));
+  return w && h ? w / h : 4 / 3;
+};
 /** The stored room: its shape, plus its size when bigger than usual. */
 export const roomAspect = (shape: string, scale: number) => (scale > 1 ? `${roomShape(shape)} x${scale}` : roomShape(shape));
 /** For CSS aspect-ratio: "4/3". */
-export const cssAspect = (aspect: string) => roomShape(aspect).replace(/\s/g, '');
+export const cssAspect = (aspect: string) => {
+  const m = roomMetres(aspect);
+  return m ? `${m.w}/${m.h}` : roomShape(aspect).replace(/\s/g, '');
+};
 
-/** "4 / 3" -> 4/3 (the room's size doesn't change its shape). */
+/** "4 / 3" -> 4/3 (the room's size doesn't change its shape); "24 / 18 m" -> 24/18. */
 export const aspectRatio = (aspect: string) => {
-  const [w, h] = roomShape(aspect).split('/').map((n) => Number(n.trim()));
-  return w && h ? w / h : 4 / 3;
+  const m = roomMetres(aspect);
+  return m ? m.w / m.h : ratioOf(roomShape(aspect));
 };
 
 /**
  * The table's box in % of the plan: width (of plan width) and height (of plan height), and its corner
  * radius. Round and square tables stay round and square whatever the plan's shape.
  */
-export function tableBox(t: Pick<TableGeom, 'shape' | 'dir' | 'len'>, aspect: string) {
+export function tableBox(t: Pick<TableGeom, 'shape' | 'dir' | 'len'> & { size?: number | null }, aspect: string) {
+  // Measured: a measured room, or a table given its own size. The table is drawn to scale in the room.
+  if (roomMetres(aspect) || (t.size && t.size > 0)) return metresBox(t, aspect);
   const r = aspectRatio(aspect);
   const k = 1 / roomScale(aspect); // a bigger room: every table smaller on the plan
   const thick = 5.5;
@@ -87,6 +133,42 @@ export function tableBox(t: Pick<TableGeom, 'shape' | 'dir' | 'len'>, aspect: st
     default:
       return box(9, 9 * r, '50%');
   }
+}
+
+const RADIUS: Record<TableShape, string> = { round: '50%', oval: '50%', square: '4px', long: '4px', head: '4px', sweetheart: '999px 999px 6px 6px' };
+
+/** A table's real size in metres, across and deep as it stands in the room. */
+export function tableMetres(t: Pick<TableGeom, 'shape' | 'dir' | 'len'> & { size?: number | null }, aspect: string): { w: number; h: number } {
+  const room = roomSizeM(aspect);
+  const shape = TABLE_SHAPES.includes(t.shape) ? t.shape : 'round';
+  // Long and head tables without a size keep the length they were drawn at.
+  const s = t.size && t.size > 0 ? t.size : STRETCHES(shape) ? Math.max(1, ((t.len || 40) / 100) * (t.dir === 'v' ? room.h : room.w)) : TABLE_SIZE_M[shape];
+  const across = { round: [s, s], square: [s, s], oval: [s, s * 0.62], long: [s, 0.9], head: [s, 0.75], sweetheart: [s, s * 0.5] }[shape];
+  const [w, h] = across as [number, number];
+  return STRETCHES(shape) && t.dir === 'v' ? { w: h, h: w } : { w, h };
+}
+
+function metresBox(t: Pick<TableGeom, 'shape' | 'dir' | 'len'> & { size?: number | null }, aspect: string) {
+  const room = roomSizeM(aspect);
+  const m = tableMetres(t, aspect);
+  return { w: Math.min(96, (m.w / room.w) * 100), h: Math.min(96, (m.h / room.h) * 100), radius: RADIUS[TABLE_SHAPES.includes(t.shape) ? t.shape : 'round'] };
+}
+
+/**
+ * Who sits in each chair at a table, chair 1 first. Anyone given a chair (`chairs`: person id -> 1, 2, …)
+ * keeps it; everyone else takes the lowest free chair, in order. More people than chairs: the extra ones
+ * come last (past the table's seats), so nobody disappears.
+ */
+export function chairsAt<T extends { id: string }>(people: T[], chairs: Record<string, number | null | undefined> | undefined, seats: number): (T | null)[] {
+  const out: (T | null)[] = Array.from({ length: Math.max(seats, people.length) }, () => null);
+  const rest: T[] = [];
+  for (const p of people) {
+    const c = chairs?.[p.id];
+    if (c && Number.isInteger(c) && c >= 1 && c <= seats && !out[c - 1]) out[c - 1] = p;
+    else rest.push(p);
+  }
+  for (const p of rest) out[out.indexOf(null)] = p;
+  return out;
 }
 
 /** Keep the whole table inside the plan. */

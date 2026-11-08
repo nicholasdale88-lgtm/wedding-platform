@@ -56,7 +56,7 @@ export interface GuidePayload {
   texts: Record<string, string>;
   guest: {
     token: string;
-    people: { idx: number; name: string; diet: string; tableId: string | null; meals: { e: string; m: string; d: string } }[];
+    people: { idx: number; name: string; diet: string; tableId: string | null; /** Their chair at the table, when the couple chose one. */ seat?: number | null; meals: { e: string; m: string; d: string } }[];
     attending: boolean | null;
     answers: Record<string, string>;
   };

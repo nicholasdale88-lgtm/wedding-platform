@@ -440,6 +440,8 @@ export interface SeatTable {
   seats: number;
   /** Long and head tables: 2 both sides, 1 the top/left side only, -1 the bottom/right side only. */
   sides?: number;
+  /** Its real size in metres (diameter, side or length); null or unset: the usual size for its shape. */
+  size?: number | null;
 }
 export interface SeatArea {
   label: string;
@@ -466,7 +468,7 @@ export interface SeatingData {
   planImg: string;
   tables: SeatTable[];
   areas: SeatArea[];
-  people: { id: string; invitationId: string; name: string; party: string; side?: string; relation?: string; circles?: string[]; role?: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; coming: boolean }[];
+  people: { id: string; invitationId: string; name: string; party: string; side?: string; relation?: string; circles?: string[]; role?: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; chair?: number | null; coming: boolean }[];
 }
 export interface SeatingSave {
   event: string;
@@ -474,6 +476,8 @@ export interface SeatingSave {
   tables: SeatTable[];
   areas: SeatArea[];
   seats: Record<string, string | null>;
+  /** Which chair each seated guest has (1 = the first). */
+  chairs: Record<string, number>;
 }
 
 export const seatingApi = {
@@ -484,7 +488,7 @@ export const seatingApi = {
   /** A suggested plan kept as a new version beside the current one (it doesn't become current). */
   suggestVersion: (wid: string, event: string, name: string, seats: Record<string, string | null>) =>
     send<SeatingData & { created: string }>('POST', `${w(wid)}/seating/versions/suggest`, { event, name, seats }),
-  version: (wid: string, id: string) => request<{ id: string; name: string; aspect: string; tables: SeatTable[]; areas: SeatArea[]; seats: Record<string, string> }>(`${w(wid)}/seating/versions/${encodeURIComponent(id)}`),
+  version: (wid: string, id: string) => request<{ id: string; name: string; aspect: string; tables: SeatTable[]; areas: SeatArea[]; seats: Record<string, string>; chairs?: Record<string, number> }>(`${w(wid)}/seating/versions/${encodeURIComponent(id)}`),
   renameVersion: (wid: string, id: string, name: string) => send<SeatingData>('PATCH', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, { name }),
   deleteVersion: (wid: string, id: string) => send<SeatingData>('DELETE', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, {}),
   makeCurrent: (wid: string, version: number, id: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions/${encodeURIComponent(id)}/current`, {}, version),

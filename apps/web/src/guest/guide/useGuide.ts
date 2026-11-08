@@ -57,7 +57,7 @@ export function useGuide(data: GuidePayload): ViewValues {
     const mine = !!diet && i === dietOwner;
     return {
       name: p.name,
-      seat: tn ? tableLabel(s, tn) : t('gd.dyn.seatTbc'),
+      seat: tn ? `${tableLabel(s, tn)}${p.seat ? ` · seat ${p.seat}` : ''}` : t('gd.dyn.seatTbc'),
       meal: assigned || (mine ? s('gd.dyn.mealMine', { diet }) : t('gd.dyn.mealSet')),
       fg: assigned || mine ? '#7a4a37' : '#5b6a52',
       flip: rv.cards ? 'rotateX(0deg)' : 'rotateX(80deg)',
@@ -133,7 +133,7 @@ export function useGuide(data: GuidePayload): ViewValues {
     planTables: tables.map((tb) => {
       const mine = myIds.includes(tb.id);
       // Same shapes and proportions as the admin's plan; the guest's own table a little larger.
-      const box = tableBox({ shape: tb.shape, dir: tb.dir, len: tb.len || 40 }, plan?.aspect ?? '4 / 3');
+      const box = tableBox({ shape: tb.shape, dir: tb.dir, len: tb.len || 40, size: (tb as { size?: number | null }).size }, plan?.aspect ?? '4 / 3');
       const grow = mine && !STRETCHES(tb.shape) ? 1.3 : 1;
       return {
         rad: box.radius,

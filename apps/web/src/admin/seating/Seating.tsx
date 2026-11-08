@@ -1,4 +1,4 @@
-import { aspectRatio, autoSeat as autoSeatPlan, clampTable, compareLine, planSummary, suggestName, suggestSeating, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
+import { aspectRatio, autoSeat as autoSeatPlan, chairsAt, clampTable, metresAspect, roomMetres, roomSizeM, sizeLabel, TABLE_SIZE_M, tableMetres, compareLine, planSummary, suggestName, suggestSeating, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -22,9 +22,20 @@ import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
  * guests until Save; then each guest's night-before guide shows their table on the plan.
  * Versions: name the saved plan ("Family draft", "Final"), look back at any version, and nominate one as
  * the current arrangement.
+ * Chairs: each guest can be given exactly which seat at their table (open the table, choose Seat N); anyone
+ * not given one takes the next free chair. Sizes: tables and areas in metres, to scale in the room (give the
+ * room its real size under Room, or it's taken as about 20 m across).
+ * Editing has three tabs, so only what you need shows: Seat guests, Tables, Room.
  */
 
 type Sel = { kind: 'table'; id: string } | { kind: 'area'; i: number } | null;
+type Tool = 'guests' | 'tables' | 'room';
+const TOOLS: [Tool, string][] = [
+  ['guests', 'Seat guests'],
+  ['tables', 'Tables'],
+  ['room', 'Room'],
+];
+const round10 = (n: number) => Math.round(n * 10) / 10;
 type Drag = { kind: 'table' | 'area'; key: string | number; dx: number; dy: number; moved: boolean };
 type Person = SeatingData['people'][number];
 const AREAS = ['Dance floor', 'DJ', 'Bar', 'Entrance', 'Balcony', 'Fireplace', 'Cake table', 'Photo booth', 'Gift table', 'Area'];
@@ -61,6 +72,8 @@ function SeatingPlan() {
   const editingRef = useRef(false);
   editingRef.current = editing;
   const roomTools = editing;
+  // Which tab of tools shows while editing.
+  const [tool, setTool] = useState<Tool>('guests');
   const [groupFilter, setGroupFilter] = useState('');
   // Who to seat, if chosen: everyone invited (guests still to reply are pencilled in), or only those who
   // said yes. Until chosen it follows the stage: everyone invited while drafting and replies come in.
@@ -82,12 +95,15 @@ function SeatingPlan() {
   const [lifted, setLifted] = useState<string | number | null>(null);
   const guestDrag = useGuestDrag();
   // The room's shape and size are part of the plan (and its undo history), saved with it.
-  const { aspect, tables, areas, seats } = doc;
+  const { aspect, tables, areas, seats, chairs } = doc;
 
   const apply = (d: SeatingData) => {
     setS(d);
     setViewing(null);
-    dispatch({ type: 'reset', doc: { aspect: d.aspect, tables: d.tables, areas: d.areas, seats: Object.fromEntries(d.people.map((p) => [p.id, p.tableId])) } });
+    dispatch({
+      type: 'reset',
+      doc: { aspect: d.aspect, tables: d.tables, areas: d.areas, seats: Object.fromEntries(d.people.map((p) => [p.id, p.tableId])), chairs: Object.fromEntries(d.people.filter((p) => p.tableId && p.chair).map((p) => [p.id, p.chair!])) },
+    });
   };
   const load = useCallback(async () => {
     try {
@@ -167,6 +183,8 @@ function SeatingPlan() {
     }
     return m;
   }, [s, seats]);
+  // Who sits in each chair at each table (chosen chairs kept, everyone else in the next free one).
+  const chairMap = useMemo(() => new Map(tables.map((t) => [t.id, chairsAt(byTable.get(t.id) ?? [], chairs, t.seats)])), [tables, byTable, chairs]);
   const seatRules = useSeatRules(s?.event.key);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
@@ -187,7 +205,31 @@ function SeatingPlan() {
   const setTable = (id: string, patch: Partial<SeatTable>, record = true) =>
     commit((d) => ({ ...d, tables: d.tables.map((t) => (t.id === id ? clampTable({ ...t, ...patch }, d.aspect) : t)) }), record);
   const setArea = (i: number, patch: Partial<SeatArea>, record = true) => commit((d) => ({ ...d, areas: d.areas.map((a, j) => (j === i ? { ...a, ...patch } : a)) }), record);
-  const seat = (ids: string[], tableId: string | null) => commit((d) => ({ ...d, seats: { ...d.seats, ...Object.fromEntries(ids.map((id) => [id, tableId])) } }));
+  /** Seat people at a table (or none): they take its next free chair. */
+  const seat = (ids: string[], tableId: string | null) =>
+    commit((d) => ({ ...d, seats: { ...d.seats, ...Object.fromEntries(ids.map((id) => [id, tableId])) }, chairs: Object.fromEntries(Object.entries(d.chairs).filter(([id]) => !ids.includes(id))) }));
+  /** Put someone in exactly this chair (from anywhere); whoever sat there takes their old chair, or the next free one. */
+  const placeAt = (pid: string, tid: string, k: number) =>
+    commit((d) => {
+      const t = d.tables.find((x) => x.id === tid);
+      if (!t) return d;
+      const layout = chairsAt(s.people.filter((p) => d.seats[p.id] === tid), d.chairs, t.seats);
+      const next: Record<string, number> = { ...d.chairs };
+      layout.forEach((p, i) => {
+        if (p && i < t.seats) next[p.id] = i + 1; // everyone here keeps the chair they're in
+      });
+      const from = layout.findIndex((p) => p?.id === pid);
+      const there = layout[k - 1];
+      if (there && there.id !== pid) {
+        if (from >= 0 && from < t.seats) next[there.id] = from + 1;
+        else delete next[there.id];
+      }
+      next[pid] = k;
+      return { ...d, seats: { ...d.seats, [pid]: tid }, chairs: next };
+    });
+  /** Everyone's chair as it is now, for saving (so guests' guides can say "seat 4"). */
+  const resolvedChairs = () =>
+    Object.fromEntries(tables.flatMap((t) => (chairMap.get(t.id) ?? []).slice(0, t.seats).flatMap((p, i) => (p ? [[p.id, i + 1] as [string, number]] : []))));
 
   /** A new shape: seats follow the shape's usual number unless they'd been changed by hand. */
   const reshape = (t: SeatTable, to: TableShape): Partial<SeatTable> => ({
@@ -203,7 +245,6 @@ function SeatingPlan() {
   // ---------------------------------------------------------------- plan interactions
   const select = (kind: Drag['kind'], key: string | number) => {
     setSel(kind === 'table' ? { kind, id: key as string } : { kind, i: key as number });
-    if (kind === 'table') setShape(tables.find((t) => t.id === key)?.shape ?? shape);
   };
   const isSelected = (kind: Drag['kind'], key: string | number) => (kind === 'table' ? sel?.kind === 'table' && sel.id === key : sel?.kind === 'area' && sel.i === key);
   const cancelPress = () => {
@@ -287,7 +328,7 @@ function SeatingPlan() {
   const save = async () => {
     setBusy(true);
     try {
-      apply(await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats }));
+      apply(await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats, chairs: resolvedChairs() }));
       toast(s.published ? 'Saved as a draft. Publish when you want guests to see it.' : 'Saved. Publish when you want guests to see it.');
       void reloadOverview();
     } catch (e) {
@@ -306,7 +347,7 @@ function SeatingPlan() {
             dispatch({ type: 'change', fn: (d) => ({ ...d, seats: kept }), record: false });
             toast(`Someone else saved the seating while you were working. Your plan is still here: Save again to keep it (it replaces theirs)${gone.length ? `. ${gone.join(', ')} said no, so they're off it` : ''}.`);
           } else {
-            apply(await seatingApi.save(wid, fresh.version, { event: s.event.key, aspect, tables, areas, seats: kept }));
+            apply(await seatingApi.save(wid, fresh.version, { event: s.event.key, aspect, tables, areas, seats: kept, chairs: resolvedChairs() }));
             toast(`Saved. ${gone.join(', ') || 'Someone'} said no since, so they’re off the plan.`);
             void reloadOverview();
           }
@@ -352,7 +393,7 @@ function SeatingPlan() {
   /** Name the plan as it is now (unsaved changes are saved first); it becomes the current arrangement. */
   const saveVersion = (name: string) =>
     run(async () => {
-      if (changed) apply(await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats }));
+      if (changed) apply(await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats, chairs: resolvedChairs() }));
       return seatingApi.saveVersion(wid, s.event.key, name);
     }, `Saved “${name}”. It's now the current arrangement.`);
   /** Show a version on the plan to look at; nothing changes until Make current. */
@@ -362,7 +403,7 @@ function SeatingPlan() {
     return run(async () => {
       const v = await seatingApi.version(wid, id);
       const known = new Set(v.tables.map((t) => t.id));
-      dispatch({ type: 'reset', doc: { aspect: v.aspect || s.aspect, tables: v.tables, areas: v.areas, seats: Object.fromEntries(s.people.map((p) => [p.id, known.has(v.seats[p.id] ?? '') ? v.seats[p.id]! : null])) } });
+      dispatch({ type: 'reset', doc: { aspect: v.aspect || s.aspect, tables: v.tables, areas: v.areas, seats: Object.fromEntries(s.people.map((p) => [p.id, known.has(v.seats[p.id] ?? '') ? v.seats[p.id]! : null])), chairs: v.chairs ?? {} } });
       setS({ ...s, aspect: v.aspect || s.aspect });
       setViewing({ id: v.id, name: v.name });
       setSel(null);
@@ -422,6 +463,7 @@ function SeatingPlan() {
   const fillGaps = () => {
     editingRef.current = true;
     setEditing(true);
+    setTool('guests');
     autoSeat();
   };
   /** Stage and "seen" change only the notes around the plan, never unsaved seating (or its version check). */
@@ -466,7 +508,7 @@ function SeatingPlan() {
     void downloadDressed(wid, overview, fileName(slug, `${s.event.key}-tables`, 'xlsx'), 'Seating plan', [
       { name: 'Seats', rows: [
       ['Table', 'Seat', 'Name', 'Dietary', 'Serious', 'Entrée', 'Main', 'Dessert'],
-      ...ordered.flatMap((t) => (byTable.get(t.id) ?? []).map((p, i) => [t.name, i + 1, p.name, p.diet, isSerious(p.diet) ? 'Yes' : '', p.meal.e, p.meal.m, p.meal.d])),
+      ...ordered.flatMap((t) => (chairMap.get(t.id) ?? []).flatMap((p, i) => (p ? [[t.name, i < t.seats ? i + 1 : '', p.name, p.diet, isSerious(p.diet) ? 'Yes' : '', p.meal.e, p.meal.m, p.meal.d]] : []))),
       ] },
       { name: 'Tables', rows: [
       ['Table', 'Guests', 'Seats', 'Dietary needs', 'Serious', 'Special meals'],
@@ -492,7 +534,7 @@ function SeatingPlan() {
   const next: NextStep = viewing
     ? null
     : !tables.length
-      ? { label: 'Add tables', run: () => setEditing(true) }
+      ? { label: 'Add tables', run: () => (setEditing(true), setTool('tables')) }
       : unseatedAll.length
         ? { label: stage === 'draft' ? 'Auto-seat everyone invited' : 'Fill gaps with auto-seat', run: fillGaps }
         : changed
@@ -521,12 +563,12 @@ function SeatingPlan() {
     for (let i = 2; versions.some((v) => v.name === name); i++) name = `${base} (${i})`;
     setEditing(false);
     void run(async () => {
-      const saved = changed ? await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats }) : s;
+      const saved = changed ? await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats, chairs: resolvedChairs() }) : s;
       const d = await seatingApi.suggestVersion(wid, saved.event.key, name, r.seats);
       const v = await seatingApi.version(wid, d.created);
       const known = new Set(v.tables.map((t) => t.id));
       setS({ ...d, aspect: v.aspect || d.aspect });
-      dispatch({ type: 'reset', doc: { aspect: v.aspect || d.aspect, tables: v.tables, areas: v.areas, seats: Object.fromEntries(d.people.map((p) => [p.id, known.has(v.seats[p.id] ?? '') ? v.seats[p.id]! : null])) } });
+      dispatch({ type: 'reset', doc: { aspect: v.aspect || d.aspect, tables: v.tables, areas: v.areas, seats: Object.fromEntries(d.people.map((p) => [p.id, known.has(v.seats[p.id] ?? '') ? v.seats[p.id]! : null])), chairs: v.chairs ?? {} } });
       setViewing({ id: v.id, name: v.name });
       setSuggested({ id: v.id, line, notes: r.notes });
       setSel(null);
@@ -548,6 +590,14 @@ function SeatingPlan() {
   const couple = [overview?.wedding.name1, overview?.wedding.name2].map((n) => n?.trim().split(' ')[0] ?? '').filter(Boolean).join(' & ');
   const when = ev?.startsAt ? new Date(ev.startsAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: tz }) : '';
   const tapTarget = (on: boolean): CSSProperties | undefined => (on ? { minWidth: TAP, minHeight: TAP } : undefined);
+  const metres = roomMetres(aspect);
+  const roomM = roomSizeM(aspect);
+  const toolRow = 'flex gap-2 flex-wrap items-center p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f2]';
+  /** A table's usual size in metres, shown greyed in its size box. */
+  const usualSize = (t: SeatTable) => {
+    const m = tableMetres({ ...t, size: null }, aspect);
+    return STRETCHES(t.shape) ? round10(Math.max(m.w, m.h)) : TABLE_SIZE_M[t.shape];
+  };
 
   return (
     <div className="flex flex-col gap-4 seating-page print:hidden">
@@ -578,19 +628,6 @@ function SeatingPlan() {
           ) : null}
         </div>
         <div className="flex gap-2 flex-wrap items-center print:hidden">
-          {editing && (
-            <>
-              <Pill onClick={undo} disabled={!past.length} aria-label="Undo">
-                ↶ Undo
-              </Pill>
-              <Pill onClick={redo} disabled={!future.length} aria-label="Redo">
-                ↷ Redo
-              </Pill>
-            </>
-          )}
-          <Pill disabled={busy || !!viewing || !tables.length} onClick={suggestPlan} title="A new version from who knows who; your current plan stays as it is">
-            Suggest a plan from who knows who
-          </Pill>
           <Pill kind={versionsOpen ? 'outline' : 'secondary'} aria-expanded={versionsOpen} onClick={() => setVersionsOpen((x) => !x)}>
             Versions{versions.length ? ` (${versions.length})` : ''}
           </Pill>
@@ -654,123 +691,202 @@ function SeatingPlan() {
         />
       )}
 
-      <div className="flex gap-2 flex-wrap items-center print:hidden">
-        <Pill
-          kind={editing ? 'outline' : 'primary'}
-          aria-pressed={editing}
-          disabled={!!viewing}
-          onClick={() => {
-            setEditing((x) => !x);
-            setAdding(false);
-          }}
-        >
-          {editing ? 'Done editing' : 'Edit seating'}
-        </Pill>
-        {roomTools && (
-          <>
-        <Label text="Room" className="!flex-row items-center gap-2">
-          <select aria-label="Room shape" value={roomShape(aspect)} onChange={(e) => setRoomTo(roomAspect(e.target.value, roomScale(aspect)))} className={`${inputCls} !py-2`}>
-            {ROOM_SHAPES.map((x) => (
-              <option key={x.aspect} value={x.aspect}>
-                {x.label}
-              </option>
-            ))}
-            {!ROOM_SHAPES.some((x) => x.aspect === roomShape(aspect)) && <option value={roomShape(aspect)}>{roomShape(aspect)}</option>}
-          </select>
-          <select aria-label="Room size" value={String(roomScale(aspect))} onChange={(e) => setRoomTo(roomAspect(aspect, Number(e.target.value)))} className={`${inputCls} !py-2`}>
-            {ROOM_SIZES.map((x) => (
-              <option key={x.scale} value={String(x.scale)}>
-                {x.label}
-              </option>
-            ))}
-          </select>
-        </Label>
-        <Label text={selTable ? `Table ${selTable.name} type` : 'Table type'} className="!flex-row items-center gap-2">
-          <select
-            value={selTable?.shape ?? shape}
-            onChange={(e) => {
-              const to = e.target.value as TableShape;
-              setShape(to);
-              if (selTable) setTable(selTable.id, reshape(selTable, to));
+      <div className="flex flex-col gap-2 print:hidden">
+        <div className="flex gap-2 flex-wrap items-center">
+          <Pill
+            kind={editing ? 'outline' : 'primary'}
+            aria-pressed={editing}
+            disabled={!!viewing}
+            onClick={() => {
+              if (!editing) setTool(tables.length ? 'guests' : 'tables');
+              setEditing((x) => !x);
+              setAdding(false);
             }}
-            className={`${inputCls} !py-2`}
           >
-            {TABLE_SHAPES.map((x) => (
-              <option key={x} value={x}>
-                {SHAPE_LABEL[x]}
-              </option>
-            ))}
-          </select>
-        </Label>
-        <Pill onClick={applyShapeToAll} disabled={!tables.length}>
-          Make all tables this type
-        </Pill>
-        <Pill kind={adding ? 'outline' : 'secondary'} onClick={() => setAdding((a) => !a)}>
-          {adding ? 'Done adding' : '+ Add tables'}
-        </Pill>
-        {tablesShort > 0 && (
-          <Pill kind="primary" onClick={setOutTables}>
-            Set out {tablesShort} {tablesShort === 1 ? 'table' : 'tables'} for about {planFor} guests
+            {editing ? 'Done editing' : 'Edit seating'}
           </Pill>
-        )}
-        <select
-          value=""
-          aria-label="Add an area"
-          onChange={(e) => {
-            if (!e.target.value) return;
-            commit((d) => ({ ...d, areas: [...d.areas, { label: e.target.value, x: 50, y: 50, w: 18, h: 12 }] }));
-            setSel({ kind: 'area', i: areas.length });
-          }}
-          className={`${inputCls} !py-2`}
-        >
-          <option value="">+ Add area</option>
-          {AREAS.map((a) => (
-            <option key={a} value={a}>
-              {a === 'Area' ? 'Custom area' : a}
-            </option>
-          ))}
-        </select>
-        <Pill onClick={() => setSnap((x) => !x)}>{snap ? 'Snap: on' : 'Snap: off'}</Pill>
-        <Pill onClick={lineUp} disabled={!tables.length}>
-          Line up tables
-        </Pill>
-        <Pill onClick={renumber} disabled={tables.length < 2}>
-          Number tables 1, 2, 3…
-        </Pill>
-          </>
-        )}
-        {editing && (
-          <Pill onClick={autoSeat} disabled={!tables.length}>
-            Auto-seat the rest
+          {editing && (
+            <>
+              <Pill onClick={undo} disabled={!past.length} aria-label="Undo">
+                ↶ Undo
+              </Pill>
+              <Pill onClick={redo} disabled={!future.length} aria-label="Redo">
+                ↷ Redo
+              </Pill>
+              <div role="tablist" aria-label="Seating tools" className="inline-flex p-[3px] rounded-full border border-[#c6b794] bg-[#fbf8f2]">
+                {TOOLS.map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={tool === k}
+                    onClick={() => {
+                      setTool(k);
+                      setAdding(false);
+                    }}
+                    className={`${mob ? 'min-h-[40px]' : ''} py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {!editing && (
+            <>
+              <Pill onClick={exportList} disabled={!tables.length}>
+                Table list for the caterer
+              </Pill>
+              <Pill onClick={() => window.print()} disabled={!tables.length} title="A black and white floor plan on one page, then who sits at each table">
+                Print floor plan
+              </Pill>
+            </>
+          )}
+          <span className="flex-1" />
+          <Pill onClick={() => setZoom((z) => Math.max(1, round1(z - 0.25)))} disabled={zoom <= 1} aria-label="Zoom out">
+            −
           </Pill>
+          <span className="text-[13px] text-[#5b6a52] w-[42px] text-center">{Math.round(zoom * 100)}%</span>
+          <Pill onClick={() => setZoom((z) => Math.min(3, round1(z + 0.25)))} disabled={zoom >= 3} aria-label="Zoom in">
+            +
+          </Pill>
+        </div>
+
+        {editing && tool === 'guests' && (
+          <div role="tabpanel" aria-label="Seat guests" className={toolRow}>
+            <Pill kind="primary" onClick={autoSeat} disabled={!tables.length}>
+              Auto-seat the rest
+            </Pill>
+            <Pill disabled={busy || !!viewing || !tables.length} onClick={suggestPlan} title="A new version from who knows who; your current plan stays as it is">
+              Suggest a plan from who knows who
+            </Pill>
+            <div role="radiogroup" aria-label="Who to seat" className="flex gap-2 flex-wrap items-center">
+              <span className="text-[13px] font-semibold text-[#33402f]">Who to seat:</span>
+              {(
+                [
+                  ['all', 'Everyone invited (concept plan)'],
+                  ['yes', 'Only those who said yes'],
+                ] as const
+              ).map(([k, label]) => (
+                <Pill key={k} size="sm" kind={who === k ? 'primary' : 'secondary'} role="radio" aria-checked={who === k} onClick={() => setWho(k)}>
+                  {label}
+                </Pill>
+              ))}
+            </div>
+          </div>
         )}
-        <span className="flex-1" />
-        <Pill onClick={() => setZoom((z) => Math.max(1, round1(z - 0.25)))} disabled={zoom <= 1} aria-label="Zoom out">
-          −
-        </Pill>
-        <span className="text-[13px] text-[#5b6a52] w-[42px] text-center">{Math.round(zoom * 100)}%</span>
-        <Pill onClick={() => setZoom((z) => Math.min(3, round1(z + 0.25)))} disabled={zoom >= 3} aria-label="Zoom in">
-          +
-        </Pill>
-        {!editing && (
-          <>
-            <Pill onClick={exportList} disabled={!tables.length}>
-              Table list for the caterer
+
+        {editing && tool === 'tables' && (
+          <div role="tabpanel" aria-label="Tables" className={toolRow}>
+            <Label text="New tables" className="!flex-row items-center gap-2">
+              <select aria-label="Type for new tables" value={shape} onChange={(e) => setShape(e.target.value as TableShape)} className={`${inputCls} !py-2`}>
+                {TABLE_SHAPES.map((x) => (
+                  <option key={x} value={x}>
+                    {SHAPE_LABEL[x]}
+                  </option>
+                ))}
+              </select>
+            </Label>
+            <Pill kind={adding ? 'outline' : 'secondary'} onClick={() => setAdding((a) => !a)}>
+              {adding ? 'Done adding' : '+ Add tables'}
             </Pill>
-            <Pill onClick={() => window.print()} disabled={!tables.length} title="A black and white floor plan on one page, then who sits at each table">
-              Print floor plan
+            {tablesShort > 0 && (
+              <Pill kind="primary" onClick={setOutTables}>
+                Set out {tablesShort} {tablesShort === 1 ? 'table' : 'tables'} for about {planFor} guests
+              </Pill>
+            )}
+            <Pill onClick={applyShapeToAll} disabled={!tables.length}>
+              Make all tables this type
             </Pill>
-          </>
+            <Pill onClick={lineUp} disabled={!tables.length}>
+              Line up tables
+            </Pill>
+            <Pill onClick={renumber} disabled={tables.length < 2}>
+              Number tables 1, 2, 3…
+            </Pill>
+          </div>
+        )}
+
+        {editing && tool === 'room' && (
+          <div role="tabpanel" aria-label="Room" className={toolRow}>
+            {!metres && (
+              <Label text="Shape" className="!flex-row items-center gap-2">
+                <select aria-label="Room shape" value={roomShape(aspect)} onChange={(e) => setRoomTo(roomAspect(e.target.value, roomScale(aspect)))} className={`${inputCls} !py-2`}>
+                  {ROOM_SHAPES.map((x) => (
+                    <option key={x.aspect} value={x.aspect}>
+                      {x.label}
+                    </option>
+                  ))}
+                  {!ROOM_SHAPES.some((x) => x.aspect === roomShape(aspect)) && <option value={roomShape(aspect)}>{roomShape(aspect)}</option>}
+                </select>
+              </Label>
+            )}
+            <Label text="Size" className="!flex-row items-center gap-2">
+              <select
+                aria-label="Room size"
+                value={metres ? 'm' : String(roomScale(aspect))}
+                onChange={(e) => {
+                  if (e.target.value === 'm') setRoomTo(metresAspect(roomM.w, roomM.h));
+                  else setRoomTo(roomAspect(aspect, Number(e.target.value)));
+                }}
+                className={`${inputCls} !py-2`}
+              >
+                {ROOM_SIZES.map((x) => (
+                  <option key={x.scale} value={String(x.scale)}>
+                    {x.label}
+                  </option>
+                ))}
+                <option value="m">Exact size in metres</option>
+              </select>
+            </Label>
+            {metres && (
+              <>
+                <Label text="Width (m)" className="!flex-row items-center gap-2">
+                  <MetresInput key={`rw${metres.w}`} value={metres.w} min={2} max={500} onValue={(w) => w && setRoomTo(metresAspect(w, metres.h))} />
+                </Label>
+                <Label text="Depth (m)" className="!flex-row items-center gap-2">
+                  <MetresInput key={`rh${metres.h}`} value={metres.h} min={2} max={500} onValue={(h) => h && setRoomTo(metresAspect(metres.w, h))} />
+                </Label>
+              </>
+            )}
+            <select
+              value=""
+              aria-label="Add an area"
+              onChange={(e) => {
+                if (!e.target.value) return;
+                commit((d) => ({ ...d, areas: [...d.areas, { label: e.target.value, x: 50, y: 50, w: 18, h: 12 }] }));
+                setSel({ kind: 'area', i: areas.length });
+              }}
+              className={`${inputCls} !py-2`}
+            >
+              <option value="">+ Add area</option>
+              {AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {a === 'Area' ? 'Custom area' : a}
+                </option>
+              ))}
+            </select>
+            <Pill onClick={() => setSnap((x) => !x)}>{snap ? 'Snap: on' : 'Snap: off'}</Pill>
+            <span className="text-[12px] text-[#7a7466] basis-full">
+              {metres ? `The room is ${metres.w} × ${metres.h} m: every table and area is drawn to scale.` : `Sizes in metres take this room as about ${round10(roomM.w)} × ${round10(roomM.h)} m. Choose Exact size in metres to use your venue’s real size.`}
+            </span>
+          </div>
         )}
       </div>
       <div className="text-[14px] text-[#5b6a52] print:hidden">
         {!editing
-          ? 'Tap a table to see who sits there. Edit seating to move tables, change the room, or seat people.'
+          ? 'Tap a table to see who sits where. Edit seating to seat people, change tables or set up the room.'
           : adding
             ? 'Tap the plan to drop a table. Tap Done adding when finished.'
-            : mob
-              ? 'Tap a table, then drag it to move it (or hold any table for a moment, then drag). Tap names to seat them at the open table, or hold a name and drag it onto a table. Undo puts back any change.'
-              : 'Drag tables and areas to arrange the room. Tap a table, then tap or drag guests onto it to seat them. Ctrl+Z undoes.'}
+            : tool === 'guests'
+              ? mob
+                ? 'Tap a table, then tap names to seat them there (or hold a name and drag it onto a table). In the table, choose each guest’s exact seat.'
+                : 'Tap a table, then tap or drag guests onto it. In the table, choose each guest’s exact seat.'
+              : tool === 'tables'
+                ? mob
+                  ? 'Tap a table, then drag it to move it (or hold any table, then drag). Tap a table to change its seats, type and size.'
+                  : 'Drag tables to arrange the room. Tap a table to change its seats, type and size in metres. Ctrl+Z undoes.'
+                : 'Choose the room’s shape and size, add the dance floor, bar and other areas, then tap an area to size it.'}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
@@ -807,6 +923,7 @@ function SeatingPlan() {
                 t={t}
                 aspect={aspect}
                 people={byTable.get(t.id) ?? []}
+                chairs={chairMap.get(t.id) ?? []}
                 selected={selTable?.id === t.id}
                 editing={editing}
                 lifted={lifted === t.id}
@@ -834,6 +951,14 @@ function SeatingPlan() {
               <Label text={`Depth · ${Math.round(selArea.h)}%`}>
                 <Slider min={4} max={90} value={selArea.h} checkpoint={checkpoint} onSlide={(h) => setArea(sel.i, { h }, false)} />
               </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <Label text="Width (m)">
+                  <MetresInput key={`aw${sel.i}-${round10(selArea.w)}`} value={round10((selArea.w / 100) * roomM.w)} min={0.5} max={roomM.w} onValue={(m) => m && setArea(sel.i, { w: Math.min(100, Math.max(2, (m / roomM.w) * 100)) })} />
+                </Label>
+                <Label text="Depth (m)">
+                  <MetresInput key={`ah${sel.i}-${round10(selArea.h)}`} value={round10((selArea.h / 100) * roomM.h)} min={0.5} max={roomM.h} onValue={(m) => m && setArea(sel.i, { h: Math.min(100, Math.max(2, (m / roomM.h) * 100)) })} />
+                </Label>
+              </div>
               <Pill
                 onClick={() => {
                   commit((d) => ({ ...d, areas: d.areas.filter((_, j) => j !== sel.i) }));
@@ -870,8 +995,11 @@ function SeatingPlan() {
                 <Label text="Seats">
                   <SeatsInput key={selTable.id} value={selTable.seats} onValue={(seats) => setTable(selTable.id, { seats })} />
                 </Label>
-                <Label text="Type" className="col-span-2">
-                  <select value={selTable.shape} onChange={(e) => setTable(selTable.id, reshape(selTable, e.target.value as TableShape))} className={inputCls}>
+                <Label text={sizeLabel(selTable.shape)}>
+                  <MetresInput key={`${selTable.id}-${selTable.shape}`} value={selTable.size ?? null} placeholder={String(usualSize(selTable))} min={0.4} max={40} onValue={(size) => setTable(selTable.id, { size })} />
+                </Label>
+                <Label text="Type">
+                  <select aria-label={`Table ${selTable.name} type`} value={selTable.shape} onChange={(e) => setTable(selTable.id, reshape(selTable, e.target.value as TableShape))} className={inputCls}>
                     {TABLE_SHAPES.map((x) => (
                       <option key={x} value={x}>
                         {SHAPE_LABEL[x]}
@@ -903,15 +1031,37 @@ function SeatingPlan() {
                   </select>
                 </Label>
               )}
-              {roomTools && STRETCHES(selTable.shape) && (
+              {roomTools && STRETCHES(selTable.shape) && !metres && !selTable.size && (
                 <Label text={`Length · ${selTable.len}%`}>
                   <Slider min={10} max={90} value={selTable.len} checkpoint={checkpoint} onSlide={(len) => setTable(selTable.id, { len }, false)} />
                 </Label>
               )}
-              <div className="flex flex-col">
-                {(byTable.get(selTable.id) ?? []).map((p, i) => (
+              <div className="flex flex-col" aria-label="Seats at this table">
+                {/* Every chair, so each guest can be put in exactly the seat you want (empty chairs show while editing). */}
+                {(editing || byTable.get(selTable.id)?.length ? (chairMap.get(selTable.id) ?? []) : []).map((p, i) =>
+                  !p ? (
+                    <div key={`empty${i}`} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-2 items-center py-[6px] border-t border-[#ece3cc] text-[14px]">
+                      <span className="text-[12px] text-[#7a7466]">{i + 1}</span>
+                      <span className="italic text-[#7a7466]">Empty seat</span>
+                      {editing ? (
+                        <SeatHere
+                          chair={i + 1}
+                          unseated={unseatedAll}
+                          elsewhere={s.people.filter((x) => seats[x.id] && seats[x.id] !== selTable.id)}
+                          tableName={(id) => tables.find((t) => t.id === id)?.name ?? ''}
+                          seats={seats}
+                          mob={mob}
+                          onPick={(pid) => placeAt(pid, selTable.id, i + 1)}
+                        />
+                      ) : (
+                        <span />
+                      )}
+                    </div>
+                  ) : (
                   <div key={p.id} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-2 items-center py-[6px] border-t border-[#ece3cc] text-[14px]">
-                    <span className="text-[12px] text-[#7a7466]">{i + 1}</span>
+                    <span className={`text-[12px] ${i < selTable.seats ? 'text-[#7a7466]' : 'text-[#7a4a37] font-semibold'}`} title={i < selTable.seats ? `Seat ${i + 1}` : 'No chair: more people than seats'}>
+                      {i < selTable.seats ? i + 1 : '!'}
+                    </span>
                     {/* Editing: drag the name onto another table to move them (hold first with a finger). */}
                     <span
                       onPointerDown={dragGuests([p], selTable.id)}
@@ -924,7 +1074,8 @@ function SeatingPlan() {
                       {!p.coming && <span className="block text-[12px] text-[#5e5130]">Not replied yet · pencilled in</span>}
                     </span>
                     {editing ? (
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 flex-wrap justify-end">
+                        <ChairPick p={p} at={i + 1} layout={chairMap.get(selTable.id) ?? []} seats={selTable.seats} onPick={(k) => placeAt(p.id, selTable.id, k)} />
                         <MoveTo p={p} here={selTable.id} tables={tables} byTable={byTable} onMove={(ids, to) => seat(ids, to)} />
                         <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className={`${mob ? 'w-10 h-10' : 'w-[30px] h-[30px]'} flex-none rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer`}>
                           ×
@@ -934,9 +1085,10 @@ function SeatingPlan() {
                       <span />
                     )}
                   </div>
-                ))}
+                  ),
+                )}
                 {(byTable.get(selTable.id)?.length ?? 0) > selTable.seats && <div className="text-[13px] text-[#7a4a37]">More people than seats. Add seats or move someone.</div>}
-                {!byTable.get(selTable.id)?.length && <div className="text-[13px] text-[#7a7466]">Nobody here yet.{editing ? ' Tap or drag guests below to seat them.' : ''}</div>}
+                {!byTable.get(selTable.id)?.length && <div className="text-[13px] text-[#7a7466]">Nobody here yet.{editing ? ' Choose someone for a seat above, or tap or drag guests below.' : ''}</div>}
               </div>
               {editing && mob && unseated.length > 0 && (
                 <div className="flex flex-col gap-2 pt-2 border-t border-[#e2d7bc]">
@@ -988,22 +1140,7 @@ function SeatingPlan() {
           />
 
           <div className="flex flex-col gap-2">
-            <div role="radiogroup" aria-label="Who to seat" className="flex flex-col gap-1">
-              <span className="text-[13px] font-semibold text-[#33402f]">Who to seat</span>
-              <div className="flex gap-2 flex-wrap">
-                {(
-                  [
-                    ['all', 'Everyone invited (concept plan)'],
-                    ['yes', 'Only those who said yes'],
-                  ] as const
-                ).map(([k, label]) => (
-                  <Pill key={k} size="sm" kind={who === k ? 'primary' : 'secondary'} role="radio" aria-checked={who === k} onClick={() => setWho(k)}>
-                    {label}
-                  </Pill>
-                ))}
-              </div>
-              <span className="text-[12px] text-[#7a7466]">Before the invitations go out, place everyone on your list (shown lighter until they reply); anyone who says no comes off their table by themselves.</span>
-            </div>
+            {who === 'all' && <span className="text-[12px] text-[#7a7466]">Seating everyone invited: guests still to reply show lighter, and anyone who says no comes off their table by themselves.</span>}
             <div className="flex justify-between items-baseline">
               <h2 className="m-0 font-display font-medium text-[24px]">Not seated</h2>
               <span className="text-[13px] text-[#5b6a52]">{unseatedAll.length}</span>
@@ -1076,7 +1213,7 @@ function SeatingPlan() {
 
       {/* What's printed (and only that): the floor plan on paper, then who sits at each table. Outside the page so it prints on its own. */}
       {createPortal(
-        <PrintPlan aspect={aspect} tables={tables} areas={areas} byTable={byTable} title={couple || s.event.name} subtitle={[couple ? s.event.name : '', when, ev?.venue].filter(Boolean).join(' · ')}>
+        <PrintPlan aspect={aspect} tables={tables} areas={areas} byTable={byTable} chairs={chairMap} title={couple || s.event.name} subtitle={[couple ? s.event.name : '', when, ev?.venue].filter(Boolean).join(' · ')}>
           <section className="seat-print-list">
             <h2 className="font-display text-[22px] m-0 mb-3">Tables</h2>
             <div className="columns-3 gap-6 text-[12px]">
@@ -1085,12 +1222,16 @@ function SeatingPlan() {
                   <strong>
                     Table {t.name} · {byTable.get(t.id)?.length ?? 0}/{t.seats}
                   </strong>
-                  {(byTable.get(t.id) ?? []).map((p) => (
-                    <div key={p.id}>
-                      {p.name}
-                      {p.diet ? ` (${p.diet})` : ''}
-                    </div>
-                  ))}
+                  {(chairMap.get(t.id) ?? []).map(
+                    (p, i) =>
+                      p && (
+                        <div key={p.id}>
+                          {i < t.seats ? `${i + 1}. ` : ''}
+                          {p.name}
+                          {p.diet ? ` (${p.diet})` : ''}
+                        </div>
+                      ),
+                  )}
                 </div>
               ))}
             </div>
@@ -1251,6 +1392,7 @@ function PrintPlan({
   tables,
   areas,
   byTable,
+  chairs,
   title,
   subtitle,
   children,
@@ -1259,6 +1401,7 @@ function PrintPlan({
   tables: SeatTable[];
   areas: SeatArea[];
   byTable: Map<string, Person[]>;
+  chairs: Map<string, (Person | null)[]>;
   title: string;
   subtitle: string;
   children: ReactNode;
@@ -1329,7 +1472,7 @@ function PrintPlan({
             return (
               <g key={t.id}>
                 {seatSpots(t, t.seats).map((p, i) => (
-                  <circle key={i} cx={left + (p.x / 100) * bw} cy={top + (p.y / 100) * bh} r={chairR} fill={i < n ? '#000' : '#fff'} stroke="#000" strokeWidth={1.2} />
+                  <circle key={i} cx={left + (p.x / 100) * bw} cy={top + (p.y / 100) * bh} r={chairR} fill={chairs.get(t.id)?.[i] ? '#000' : '#fff'} stroke="#000" strokeWidth={1.2} />
                 ))}
                 {shape === 'round' || shape === 'oval' ? (
                   <ellipse cx={cx} cy={cy} rx={bw / 2} ry={bh / 2} fill="#fff" stroke="#000" strokeWidth={2} />
@@ -1479,6 +1622,7 @@ function TableShapeView({
   t,
   aspect,
   people,
+  chairs,
   selected,
   editing,
   lifted,
@@ -1490,6 +1634,8 @@ function TableShapeView({
   t: SeatTable;
   aspect: string;
   people: Person[];
+  /** Who sits in each chair (null: empty). */
+  chairs: (Person | null)[];
   selected: boolean;
   /** Editing: the selected (or held) table keeps the finger to itself, so it can be dragged; any other table lets a swipe scroll the plan. */
   editing: boolean;
@@ -1539,6 +1685,7 @@ function TableShapeView({
         <span
           key={i}
           aria-hidden
+          title={`Seat ${i + 1}: ${chairs[i]?.name ?? 'empty'}`}
           className="absolute rounded-full"
           style={{
             left: `${p.x}%`,
@@ -1546,9 +1693,9 @@ function TableShapeView({
             width: dot,
             height: dot,
             transform: 'translate(-50%,-50%)',
-            background: i < n ? (people[i]!.party ? groupColour(people[i]!.party) : selected ? '#b39563' : '#5d6b47') : '#fbf8f2',
-            border: `1px solid ${i < n ? 'transparent' : '#c6b794'}`,
-            opacity: i < n && !people[i]!.coming ? 0.45 : undefined, // pencilled in: not replied yet
+            background: chairs[i] ? (chairs[i]!.party ? groupColour(chairs[i]!.party) : selected ? '#b39563' : '#5d6b47') : '#fbf8f2',
+            border: `1px solid ${chairs[i] ? 'transparent' : '#c6b794'}`,
+            opacity: chairs[i] && !chairs[i]!.coming ? 0.45 : undefined, // pencilled in: not replied yet
           }}
         />
       ))}
@@ -1723,5 +1870,102 @@ function FindGuest({
       })}
       {q.length >= 2 && !hits.length && <span className="text-[13px] text-[#7a7466]">No guest by that name.</span>}
     </div>
+  );
+}
+
+/** A size in metres: blank means the usual size (null); kept within min and max once you leave the box. */
+function MetresInput({ value, placeholder, min, max, onValue }: { value: number | null; placeholder?: string; min: number; max: number; onValue: (n: number | null) => void }) {
+  const [text, setText] = useState(value ? String(value) : '');
+  const done = () => {
+    const n = Number(text.replace(',', '.'));
+    const next = text.trim() === '' ? null : Number.isFinite(n) && n > 0 ? Math.round(Math.min(max, Math.max(min, n)) * 10) / 10 : value;
+    setText(next ? String(next) : '');
+    if (next !== value) onValue(next);
+  };
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      step="0.1"
+      min={min}
+      max={max}
+      value={text}
+      placeholder={placeholder}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={done}
+      onKeyDown={(e) => e.key === 'Enter' && done()}
+      className={`${inputCls} !py-2 w-[96px]`}
+    />
+  );
+}
+
+/** Choose exactly which seat someone has at their table; taking someone's seat swaps the two. */
+function ChairPick({ p, at, layout, seats, onPick }: { p: Person; at: number; layout: (Person | null)[]; seats: number; onPick: (k: number) => void }) {
+  return (
+    <select
+      aria-label={`Seat for ${p.name}`}
+      value={at <= seats ? String(at) : ''}
+      onChange={(e) => e.target.value && onPick(Number(e.target.value))}
+      className={`${inputCls} !py-[6px] !px-2 !text-[13px] w-[92px] max-[759px]:min-h-[40px]`}
+    >
+      {at > seats && <option value="">No chair</option>}
+      {Array.from({ length: seats }, (_, i) => {
+        const there = layout[i];
+        return (
+          <option key={i} value={String(i + 1)}>
+            {`Seat ${i + 1}${there && there.id !== p.id ? ` (swap with ${there.name.split(' ')[0]})` : ''}`}
+          </option>
+        );
+      })}
+    </select>
+  );
+}
+
+/** An empty seat: put someone in exactly this one (someone not seated yet, or move them from another table). */
+function SeatHere({
+  chair,
+  unseated,
+  elsewhere,
+  tableName,
+  seats,
+  mob,
+  onPick,
+}: {
+  chair: number;
+  unseated: Person[];
+  elsewhere: Person[];
+  tableName: (id: string) => string;
+  seats: Record<string, string | null>;
+  mob: boolean;
+  onPick: (pid: string) => void;
+}) {
+  if (!unseated.length && !elsewhere.length) return <span />;
+  return (
+    <select
+      aria-label={`Seat someone in seat ${chair}`}
+      value=""
+      onChange={(e) => e.target.value && onPick(e.target.value)}
+      className={`${inputCls} !py-[6px] !px-2 !text-[13px] ${mob ? 'w-[140px] min-h-[40px]' : 'w-[150px]'}`}
+    >
+      <option value="">Seat someone…</option>
+      {unseated.length > 0 && (
+        <optgroup label="Not seated yet">
+          {unseated.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {elsewhere.length > 0 && (
+        <optgroup label="Move from another table">
+          {elsewhere.map((x) => (
+            <option key={x.id} value={x.id}>
+              {`${x.name} (table ${tableName(seats[x.id] ?? '')})`}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </select>
   );
 }

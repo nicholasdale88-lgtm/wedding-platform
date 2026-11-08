@@ -304,7 +304,7 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
       texts: textsFor(GUIDE_PAGE[guide.style], withDefaults(content.texts as Record<string, string> | undefined, { tz: w.timezone, events }), null),
       guest: {
         token,
-        people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: tableOf(p), meals: (({ e, m, d }) => ({ e, m, d }))(served(p.id)) })),
+        people: ppl.map((p) => ({ idx: p.idx, name: p.name, diet: p.diet, tableId: tableOf(p), seat: (!couple && tableOf(p) && snap?.chairs?.[p.id]) || null, meals: (({ e, m, d }) => ({ e, m, d }))(served(p.id)) })),
         attending: r ? (r.attending === null ? null : !!r.attending) : null,
         answers: json<Record<string, string>>(r?.answers, {}),
       },
