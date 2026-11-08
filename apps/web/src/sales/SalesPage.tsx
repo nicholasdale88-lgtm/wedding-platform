@@ -108,11 +108,11 @@ const SEND: { how: string; cost: string; text: string; tag?: string }[] = [
 /**
  * What the same jobs usually cost elsewhere (AUD, typical, for about 100 guests), next to ours. Rounded and
  * conservative: printed suites run $4 to $8 each with postage; animated digital invitations are sold one-off
- * at $90 to $150; planning and seating apps charge $10 to $20 a month for the year before.
+ * at about $120 to $190 (Nov 2026); planning and seating apps charge $10 to $20 a month for the year before.
  */
 const COSTS: { what: string; low: number; high: number; note: string }[] = [
   { what: 'Printed invitations and postage', low: 400, high: 800, note: '100 guests, about $4 to $8 each' },
-  { what: 'Animated digital invitation', low: 90, high: 150, note: 'One-off, invitation and RSVP only' },
+  { what: 'Animated digital invitation', low: 120, high: 190, note: 'One-off, invitation and RSVP only' },
   { what: 'Wedding website and RSVP service', low: 60, high: 200, note: 'A year of a site builder' },
   { what: 'Planning and seating apps', low: 120, high: 240, note: '$10 to $20 a month for a year' },
 ];
