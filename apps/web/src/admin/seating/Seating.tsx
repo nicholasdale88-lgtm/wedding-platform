@@ -747,8 +747,11 @@ function SeatingPlan() {
               <Pill onClick={exportList} disabled={!tables.length}>
                 Table list for the caterer
               </Pill>
-              <Pill onClick={() => window.print()} disabled={!tables.length} title="A black and white floor plan on one page, then who sits at each table">
+              <Pill onClick={() => window.print()} disabled={!tables.length} title="The floor plan with every name, each table seat by seat, and every dietary need, under The Yes List's header with the event details. Print it, or choose Save as PDF to share it.">
                 Print floor plan
+              </Pill>
+              <Pill onClick={() => window.print()} disabled={!tables.length} title="Choose Save as PDF (or Print → Share on a phone) to send it to your caterer">
+                Caterer’s PDF
               </Pill>
             </>
           )}
@@ -1227,9 +1230,25 @@ function SeatingPlan() {
 
       {/* What's printed (and only that): the floor plan on paper, then who sits at each table. Outside the page so it prints on its own. */}
       {createPortal(
-        <PrintPlan aspect={aspect} tables={tables} areas={areas} byTable={byTable} chairs={chairMap} title={couple || s.event.name} subtitle={[couple ? s.event.name : '', when, ev?.venue].filter(Boolean).join(' · ')}>
+        <PrintPlan
+          aspect={aspect}
+          tables={tables}
+          areas={areas}
+          byTable={byTable}
+          chairs={chairMap}
+          title={couple || s.event.name}
+          subtitle={[couple ? s.event.name : '', when, ev?.venue].filter(Boolean).join(' · ')}
+          details={[
+            ['Event', s.event.name],
+            ['Date', when],
+            ['Venue', ev?.venue ?? ''],
+            ['Guests seated', `${seated} of ${s.people.filter((p) => p.coming).length} coming`],
+            ['Tables', `${tables.length} · ${seatCount} seats`],
+            ['Dietary needs', `${s.people.filter((p) => seats[p.id] && p.diet.trim()).length} (${s.people.filter((p) => seats[p.id] && isSerious(p.diet)).length} serious)`],
+          ]}
+        >
           <section className="seat-print-list">
-            <h2 className="font-display text-[22px] m-0 mb-3">Tables</h2>
+            <h2 className="font-display text-[22px] m-0 mb-3">Tables, seat by seat</h2>
             <div className="columns-3 gap-6 text-[12px]">
               {ordered.map((t) => (
                 <div key={t.id} className="break-inside-avoid mb-3">
@@ -1250,6 +1269,11 @@ function SeatingPlan() {
               ))}
             </div>
           </section>
+          <DietPrint people={s.people.filter((p) => seats[p.id])} tableOf={(p) => tables.find((t) => t.id === seats[p.id])} chairOf={(p) => {
+            const t = tables.find((x) => x.id === seats[p.id]);
+            const i = t ? (chairMap.get(t.id) ?? []).findIndex((x) => x?.id === p.id) : -1;
+            return t && i >= 0 && i < t.seats ? i + 1 : null;
+          }} />
         </PrintPlan>,
         document.body,
       )}
@@ -1432,6 +1456,7 @@ function PrintPlan({
   chairs,
   title,
   subtitle,
+  details = [],
   children,
 }: {
   aspect: string;
@@ -1439,6 +1464,8 @@ function PrintPlan({
   areas: SeatArea[];
   byTable: Map<string, Person[]>;
   chairs: Map<string, (Person | null)[]>;
+  /** The event's details for the header block (label, value); blanks are left out. */
+  details?: [string, string][];
   title: string;
   subtitle: string;
   children: ReactNode;
@@ -1462,6 +1489,7 @@ function PrintPlan({
     <div className="seat-print hidden print:block">
       <style>{css}</style>
       <section className="seat-print-plan">
+        <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '8pt', letterSpacing: '.32em', textTransform: 'uppercase', marginBottom: '4mm' }}>The Yes List · seating plan</div>
         <div className="flex justify-between items-end gap-4 pb-2 mb-3 border-b-2 border-black">
           <div>
             <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '24pt', lineHeight: 1.1 }}>{title}</div>
@@ -1508,9 +1536,28 @@ function PrintPlan({
             const fs = Math.max(7, Math.min(across * (oneLine ? 0.55 : 0.4), (along * 0.85) / Math.max(1.5, text.length * 0.6), 34));
             return (
               <g key={t.id}>
-                {seatSpots(t, t.seats).map((p, i) => (
-                  <circle key={i} cx={left + (p.x / 100) * bw} cy={top + (p.y / 100) * bh} r={chairR} fill={chairs.get(t.id)?.[i] ? '#000' : '#fff'} stroke="#000" strokeWidth={1.2} />
-                ))}
+                {seatSpots(t, t.seats).map((p, i) => {
+                  const who = chairs.get(t.id)?.[i];
+                  const x = left + (p.x / 100) * bw;
+                  const y = top + (p.y / 100) * bh;
+                  // Their first name just outside the chair, away from the table (as a marked-up drawing).
+                  const dx = x - cx;
+                  const dy = y - cy;
+                  const len = Math.hypot(dx, dy) || 1;
+                  const tx = x + (dx / len) * chairR * 1.6;
+                  const ty = y + (dy / len) * chairR * 1.6;
+                  return (
+                    <g key={i}>
+                      <circle cx={x} cy={y} r={chairR} fill={who ? '#000' : '#fff'} stroke="#000" strokeWidth={1.2} />
+                      {who && (
+                        <text x={tx} y={ty} fontSize={Math.max(5, 8 * k)} textAnchor={Math.abs(dx) < 2 ? 'middle' : dx > 0 ? 'start' : 'end'} dominantBaseline="central">
+                          {who.name.split(' ')[0]}
+                          {isSerious(who.diet) ? ' !' : who.diet.trim() ? ' *' : ''}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
                 {shape === 'round' || shape === 'oval' ? (
                   <ellipse cx={cx} cy={cy} rx={bw / 2} ry={bh / 2} fill="#fff" stroke="#000" strokeWidth={2} />
                 ) : (
@@ -1551,7 +1598,19 @@ function PrintPlan({
             Area of the room
           </span>
           <span>7/10: guests seated / seats at the table (! means more guests than seats)</span>
+          <span>Name * : a dietary need · Name ! : a serious allergy (see Dietary requirements)</span>
         </div>
+        {details.some(([, v]) => v) && (
+          <div className="grid grid-cols-3 gap-x-6 gap-y-1 mt-3 pt-2 border-t border-black" style={{ fontSize: '9pt' }}>
+            {details
+              .filter(([, v]) => v)
+              .map(([k2, v]) => (
+                <div key={k2}>
+                  <strong>{k2}:</strong> {v}
+                </div>
+              ))}
+          </div>
+        )}
       </section>
       {children}
     </div>
@@ -2186,5 +2245,66 @@ function TableFocus({
         </ol>
       </div>
     </div>
+  );
+}
+
+/**
+ * The caterer's page: every dietary need, serious ones first, each with the table and seat, plus how many of
+ * each need and each main. Printed after the tables (and saved as a PDF with them).
+ */
+function DietPrint({ people, tableOf, chairOf }: { people: Person[]; tableOf: (p: Person) => SeatTable | undefined; chairOf: (p: Person) => number | null }) {
+  const needs = people.filter((p) => p.diet.trim()).sort((a, b) => Number(isSerious(b.diet)) - Number(isSerious(a.diet)) || (tableOf(a)?.name ?? '').localeCompare(tableOf(b)?.name ?? '', undefined, { numeric: true }));
+  const count = (xs: string[]) => [...xs.filter(Boolean).reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1]);
+  const mains = count(people.map((p) => p.meal.m));
+  const kinds = count(needs.map((p) => p.diet.trim().toLowerCase()));
+  const where = (p: Person) => {
+    const t = tableOf(p);
+    const c = chairOf(p);
+    return t ? `${/^\d+$/.test(t.name) ? `Table ${t.name}` : t.name}${c ? `, seat ${c}` : ''}` : '';
+  };
+  return (
+    <section className="seat-print-diet" style={{ breakBefore: 'page' }}>
+      <h2 className="font-display text-[22px] m-0 mb-1">Dietary requirements</h2>
+      <p className="m-0 mb-3 text-[11px]">
+        {needs.length} {needs.length === 1 ? 'guest has' : 'guests have'} a dietary need, {needs.filter((p) => isSerious(p.diet)).length} serious (marked !).
+        {kinds.length ? ` ${kinds.map(([k, n]) => `${n} × ${k}`).join(' · ')}.` : ''}
+      </p>
+      {mains.length > 0 && (
+        <p className="m-0 mb-3 text-[11px]">
+          <strong>Mains:</strong> {mains.map(([m, n]) => `${n} × ${m}`).join(' · ')}
+        </p>
+      )}
+      <table className="w-full text-[11px] border-collapse">
+        <thead>
+          <tr className="text-left border-b border-black">
+            <th className="py-1 pr-2">Guest</th>
+            <th className="py-1 pr-2">Table and seat</th>
+            <th className="py-1 pr-2">Dietary need</th>
+            <th className="py-1">Meals</th>
+          </tr>
+        </thead>
+        <tbody>
+          {needs.map((p) => (
+            <tr key={p.id} className="border-b border-[#bbb] align-top">
+              <td className="py-1 pr-2">
+                {isSerious(p.diet) ? '! ' : ''}
+                {p.name}
+              </td>
+              <td className="py-1 pr-2 whitespace-nowrap">{where(p)}</td>
+              <td className={`py-1 pr-2 ${isSerious(p.diet) ? 'font-bold' : ''}`}>{p.diet}</td>
+              <td className="py-1">{[p.meal.e, p.meal.m, p.meal.d].filter(Boolean).join(' · ')}</td>
+            </tr>
+          ))}
+          {!needs.length && (
+            <tr>
+              <td colSpan={4} className="py-2">
+                No dietary needs among the seated guests.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <p className="mt-4 text-[9px]">Made with The Yes List · seating and dietary list for the caterer</p>
+    </section>
   );
 }
