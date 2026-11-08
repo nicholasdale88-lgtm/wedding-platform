@@ -46,6 +46,7 @@ A step-by-step list of every account this platform uses, in the order you'll nee
    - Add three more GitHub secrets: `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_ACCOUNT_ID` (the same Account ID as before).
 6. **Session secret:** add a GitHub secret `SESSION_SECRET` holding any 40+ random characters. A password manager's generator is fine.
 7. Tell Claude "Cloudflare secrets are in". The deploy workflow then creates the database, the storage bucket and the 15-minute timer for you.
+8. **Staging (test copy):** nothing extra to set up. The first push to the `staging` branch creates a separate Worker, database, bucket and website with the same token. See [STAGING.md](STAGING.md).
 
 ## 3. Domain name (before the first real text)
 Guests' links will use this address, e.g. `sophieandnicholas.com`.

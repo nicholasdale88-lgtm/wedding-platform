@@ -1,5 +1,7 @@
 # 08: Deploy and go-live checklist
 
+> Deploys are automatic: `main` goes live, `staging` goes to the test copy (see [STAGING.md](STAGING.md)). Try changes on staging first.
+
 ## One-time setup (Claude Code will run most of these with you)
 ```bash
 pnpm i

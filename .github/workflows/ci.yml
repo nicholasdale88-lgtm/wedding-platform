@@ -8,8 +8,8 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Never cancel a run on main: it may be mid-deploy.
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  # Never cancel a run on main or staging: it may be mid-deploy.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/staging' }}
 
 permissions:
   contents: write # only used to commit the lockfile on the very first run
@@ -138,3 +138,39 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+  # The test copy (docs/STAGING.md): the `staging` branch deploys to its own Worker, database and website,
+  # never the live ones. Only the Cloudflare token and the owner's sign-in are given to it: no SMS, email
+  # or payment keys, so staging can't text, email or charge anyone.
+  deploy-staging:
+    needs: check
+    if: github.ref == 'refs/heads/staging' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Deploy staging to Cloudflare
+        run: bash ./scripts/deploy-staging.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SEED_OWNER_EMAIL: ${{ secrets.SEED_OWNER_EMAIL }}
+          SEED_OWNER_PASSCODE: ${{ secrets.SEED_OWNER_PASSCODE }}
+          SUPER_ADMINS: ${{ secrets.SEED_OWNER_EMAIL }}
