@@ -101,7 +101,7 @@ export function companyRoutes() {
       return { weekOf: new Date(start).toISOString().slice(0, 10), n: recent.filter((r) => Date.parse(r.created_at) > start && Date.parse(r.created_at) <= end).length };
     });
     const { results: paid } = await db
-      .prepare(`SELECT detail, at FROM audit WHERE action = 'plan.paid' AND json_valid(detail)`)
+      .prepare(`SELECT detail, at FROM audit WHERE action IN ('plan.paid', 'plan.refund') AND json_valid(detail)`)
       .all<{ detail: string; at: string }>();
     const cents = (d: string) => {
       try {
@@ -112,7 +112,7 @@ export function companyRoutes() {
       }
     };
     const monthStart = `${now.toISOString().slice(0, 7)}-01`;
-    const revenue = { total: paid.reduce((a, p) => a + cents(p.detail), 0), thisMonth: paid.filter((p) => p.at >= monthStart).reduce((a, p) => a + cents(p.detail), 0), payments: paid.length };
+    const revenue = { total: paid.reduce((a, p) => a + cents(p.detail), 0), thisMonth: paid.filter((p) => p.at >= monthStart).reduce((a, p) => a + cents(p.detail), 0), payments: paid.filter((p) => cents(p.detail) > 0).length };
     const requests = await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND json_valid(content) AND json_extract(content, '$.planRequested') IS NOT NULL`);
     const { results: refs } = await db
       .prepare(
@@ -146,7 +146,7 @@ export function companyRoutes() {
               COALESCE(json_extract(w.content, '$.planRequested'), '') AS requested,
               COALESCE(json_extract(w.content, '$.planRequestedAt'), '') AS requested_at,
               COALESCE(json_extract(w.content, '$.planLinkSentAt'), '') AS link_sent_at,
-              (SELECT COALESCE(SUM(json_extract(a.detail, '$.amount')), 0) FROM audit a WHERE a.wedding_id = w.id AND a.action = 'plan.paid' AND json_valid(a.detail)) AS paid_cents,
+              (SELECT COALESCE(SUM(json_extract(a.detail, '$.amount')), 0) FROM audit a WHERE a.wedding_id = w.id AND a.action IN ('plan.paid', 'plan.refund') AND json_valid(a.detail)) AS paid_cents,
               COALESCE(json_extract(w.content, '$.extraEvents'), 0) AS extra_events,
               COALESCE(json_extract(w.content, '$.ref'), '') AS ref,
               (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL) AS day,
@@ -328,7 +328,7 @@ export function companyRoutes() {
     const { results } = await db
       .prepare(
         `SELECT a.at, a.detail, COALESCE(w.name1 || ' & ' || w.name2, '') AS names FROM audit a LEFT JOIN wedding w ON w.id = a.wedding_id
-          WHERE a.action = 'plan.paid' AND json_valid(a.detail) AND a.at >= ? AND a.at < ? ORDER BY a.at`,
+          WHERE a.action IN ('plan.paid', 'plan.refund') AND json_valid(a.detail) AND a.at >= ? AND a.at < ? ORDER BY a.at`,
       )
       .bind(from, to)
       .all<{ at: string; detail: string; names: string }>();
@@ -360,18 +360,21 @@ export function companyRoutes() {
     total.setAside = Math.max(0, Math.round((total.profit * tax.setAsidePct) / 100));
     // GST registration is required once turnover reaches $75,000 in 12 months: warn from $60,000.
     const yearAgo = new Date(Date.now() - 365 * 86_400_000).toISOString();
-    const last12 = (await db.prepare(`SELECT COALESCE(SUM(json_extract(detail, '$.amount')), 0) AS n FROM audit WHERE action = 'plan.paid' AND json_valid(detail) AND at >= ?`).bind(yearAgo).first<{ n: number }>())?.n ?? 0;
+    const last12 = (await db.prepare(`SELECT COALESCE(SUM(json_extract(detail, '$.amount')), 0) AS n FROM audit WHERE action IN ('plan.paid', 'plan.refund') AND json_valid(detail) AND at >= ?`).bind(yearAgo).first<{ n: number }>())?.n ?? 0;
     // Are we making money? The last 12 months, month by month: real sales and fees, the running costs
     // (every month) and one-off expenses, and the profit left.
     const monthly = tax.monthlyCosts.reduce((a, m) => a + m.cents, 0);
     const since = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 11, 1)).toISOString();
-    const { results: paidRows } = await db.prepare(`SELECT at, detail FROM audit WHERE action = 'plan.paid' AND json_valid(detail) AND at >= ? ORDER BY at`).bind(since).all<{ at: string; detail: string }>();
+    const { results: paidRows } = await db.prepare(`SELECT at, detail FROM audit WHERE action IN ('plan.paid', 'plan.refund') AND json_valid(detail) AND at >= ? ORDER BY at`).bind(since).all<{ at: string; detail: string }>();
     const allExpenses = (await readSetting(db, 'expenses', Expenses)).list;
     const months = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 11 + i, 1));
       const ym = d.toISOString().slice(0, 7);
-      const rows = paidRows.filter((r) => r.at.slice(0, 7) === ym).map((r) => safeDetail(r.detail));
-      const gross = rows.reduce((a, r) => a + (typeof r.amount === 'number' ? r.amount : 0), 0);
+      const all = paidRows.filter((r) => r.at.slice(0, 7) === ym).map((r) => safeDetail(r.detail));
+      // Refunds (negative amounts) take money off, not a sale.
+      const rows = all.filter((r) => typeof r.amount !== 'number' || r.amount >= 0);
+      const refunded = all.filter((r) => typeof r.amount === 'number' && r.amount < 0).reduce((a, r) => a + (r.amount as number), 0);
+      const gross = rows.reduce((a, r) => a + (typeof r.amount === 'number' ? r.amount : 0), 0) + refunded;
       const fees = rows.reduce((a, r) => a + (!r.manual && typeof r.amount === 'number' && r.amount > 0 ? Math.round((r.amount * tax.feePct) / 100 + tax.feeCents) : 0), 0);
       const oneOff = allExpenses.filter((e) => e.date.slice(0, 7) === ym).reduce((a, e) => a + e.cents, 0);
       const count = (w: string) => rows.filter((r) => r.what === w).length;
@@ -476,7 +479,7 @@ export function companyRoutes() {
       weddings: await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL`),
       newThisWeek: await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND created_at >= ?`, week),
       paidThisWeek: await one(`SELECT COUNT(*) AS n FROM audit WHERE action = 'plan.paid' AND at >= ?`, week),
-      revenueThisWeekCents: await one(`SELECT COALESCE(SUM(json_extract(detail, '$.amount')), 0) AS n FROM audit WHERE action = 'plan.paid' AND json_valid(detail) AND at >= ?`, week),
+      revenueThisWeekCents: await one(`SELECT COALESCE(SUM(json_extract(detail, '$.amount')), 0) AS n FROM audit WHERE action IN ('plan.paid', 'plan.refund') AND json_valid(detail) AND at >= ?`, week),
       planRequests: await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND json_valid(content) AND json_extract(content, '$.planRequested') IS NOT NULL`),
       newFeedback: await one(`SELECT COUNT(*) AS n FROM feedback WHERE status = 'new'`),
       prices: `Essentials $${PRICE_CENTS.essentials / 100}, Deluxe $${PRICE_CENTS.complete / 100}, extra event $${EVENT_ADDON_CENTS / 100}, all once per wedding`,
@@ -584,12 +587,90 @@ export function companyRoutes() {
     return c.json({ roles });
   });
 
+  /**
+   * A refund (Manager, Owner, or a bot with Money): through Stripe when the payment was by card, otherwise
+   * recorded for you to pay back by bank. It comes off revenue and profit. Bots may refund up to one Deluxe
+   * plan's price, three a day; anything bigger is for a person. Optionally switches the plan back to Free.
+   */
+  app.post('/weddings/:slug/refund', can('money'), async (c) => {
+    const b = z.object({ cents: z.number().int().min(1).max(1_000_000), reason: z.string().trim().min(3).max(300), downgrade: z.boolean().default(false) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'How much, and why?');
+    const db = c.env.DB;
+    const w = await db.prepare(`SELECT id, name1, name2 FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string; name1: string; name2: string }>();
+    if (!w) return err(c, 404, 'not_found', 'No wedding at that address.');
+    const bot = c.get('user').email.endsWith('@bots.invalid');
+    if (bot && b.data.cents > PRICE_CENTS.complete) return err(c, 403, 'too_big', 'A refund that big needs a person (an owner or manager).');
+    if (bot && !(await allow(db, `bot-refunds:${c.get('user').id}`, 3, 86_400_000))) return err(c, 429, 'slow_down', 'Three refunds a day is a bot’s limit. Ask a person.');
+    const { results } = await db.prepare(`SELECT action, target, detail FROM audit WHERE wedding_id = ? AND action IN ('plan.paid', 'plan.refund') AND json_valid(detail) ORDER BY at`).bind(w.id).all<{ action: string; target: string | null; detail: string }>();
+    const net = results.reduce((a, r) => a + (Number(safeDetail(r.detail).amount) || 0), 0);
+    if (b.data.cents > net) return err(c, 400, 'too_much', `They’ve paid ${(net / 100).toFixed(2)} in all (after earlier refunds): refund that or less.`);
+    // The latest card payment, if any: Stripe refunds it.
+    const card = [...results].reverse().find((r) => r.action === 'plan.paid' && (r.target ?? '').startsWith('cs_'));
+    let refundId: string | null = null;
+    if (card && c.env.STRIPE_SECRET_KEY) {
+      const auth = { authorization: `Bearer ${c.env.STRIPE_SECRET_KEY}` };
+      const session = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(card.target!)}`, { headers: auth }).then((r) => r.json() as Promise<{ payment_intent?: string; error?: { message?: string } }>).catch(() => ({}) as { payment_intent?: string; error?: { message?: string } });
+      if (!session.payment_intent) return err(c, 400, 'stripe', `Stripe couldn’t find that payment${session.error?.message ? `: ${session.error.message}` : ''}.`);
+      const res = await fetch('https://api.stripe.com/v1/refunds', {
+        method: 'POST',
+        headers: { ...auth, 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ payment_intent: session.payment_intent, amount: String(b.data.cents), reason: 'requested_by_customer', 'metadata[wedding]': w.id }).toString(),
+      });
+      const out = (await res.json().catch(() => ({}))) as { id?: string; error?: { message?: string } };
+      if (!res.ok || !out.id) return err(c, 400, 'stripe', `Stripe didn’t refund it${out.error?.message ? `: ${out.error.message}` : ''}.`);
+      refundId = out.id;
+    }
+    const at = new Date().toISOString();
+    const stmts = [
+      db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'plan.refund', ?, ?, ?)`).bind(
+        crypto.randomUUID(), w.id, c.get('user').id, refundId ?? `manual:${crypto.randomUUID()}`, JSON.stringify({ amount: -b.data.cents, currency: 'aud', reason: b.data.reason, stripe: refundId, manual: !refundId }), at,
+      ),
+    ];
+    if (b.data.downgrade) stmts.push(db.prepare(`UPDATE wedding SET plan = 'free', updated_at = ? WHERE id = ?`).bind(at, w.id));
+    await db.batch(stmts);
+    await logCompany(c, 'company.refund', c.req.param('slug'), { cents: b.data.cents, reason: b.data.reason, downgrade: b.data.downgrade }, w.id);
+    // Tell the couple's main account.
+    const main = await mainAccountOf(db, w.id);
+    const to = main ? await db.prepare(`SELECT email FROM user WHERE id = ?`).bind(main).first<{ email: string }>() : null;
+    if (to) {
+      const m = buttonEmail({
+        heading: 'Your refund',
+        lines: [`We’ve refunded $${(b.data.cents / 100).toFixed(2)} for ${w.name1} & ${w.name2}.`, refundId ? 'It goes back to the card you paid with, usually within 5 to 10 business days.' : 'We’ll pay it back to you directly.'],
+        button: 'Open your wedding',
+        link: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/admin`,
+      });
+      await sendEmail(c.env, { to: to.email, subject: 'Your refund from The Yes List', ...m });
+    }
+    return c.json({ ok: true, stripe: !!refundId, refundId });
+  });
+
+  /** Reply to whoever sent a piece of feedback, by email from the support address; kept in Activity. */
+  app.post('/feedback/:id/reply', can('feedback'), async (c) => {
+    const b = z.object({ text: z.string().trim().min(3).max(3000) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Write a reply first.');
+    if (!(await allow(c.env.DB, `fb-reply:${c.get('user').id}`, 60, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty of replies for today.');
+    const f = await c.env.DB.prepare(`SELECT f.text, u.email, COALESCE(u.first_name, '') AS first FROM feedback f LEFT JOIN user u ON u.id = f.user_id WHERE f.id = ?`).bind(c.req.param('id')).first<{ text: string; email: string | null; first: string }>();
+    if (!f) return err(c, 404, 'not_found', 'That feedback is gone.');
+    if (!f.email || f.email.endsWith('@bots.invalid')) return err(c, 400, 'no_email', 'There’s no one to reply to (it came from the team).');
+    const site = await readSetting(c.env.DB, 'site', SiteSettings);
+    const text = `${b.data.text}\n\nYou wrote: “${f.text.slice(0, 500)}”`;
+    const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:24px 18px;color:#33402f">${text
+      .split('\n')
+      .map((l) => `<p style="font-size:16px;line-height:1.5;margin:0 0 10px">${l.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch] ?? ch)}</p>`)
+      .join('')}</div>`;
+    const sent = await sendEmail(c.env, { to: f.email, subject: 'About your feedback to The Yes List', text, html, ...(site.supportEmail ? { replyTo: [site.supportEmail] } : {}) });
+    if (!sent) return err(c, 400, 'not_sent', 'Email isn’t set up yet (Settings → Connections → Email), so the reply couldn’t go.');
+    await c.env.DB.prepare(`UPDATE feedback SET updated_at = ?, updated_by = ? WHERE id = ?`).bind(new Date().toISOString(), c.get('user').id, c.req.param('id')).run();
+    await logCompany(c, 'company.feedback.reply', c.req.param('id'), { chars: b.data.text.length });
+    return c.json({ ok: true, to: f.email });
+  });
+
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
   app.get('/activity', can('activity'), async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT a.id, a.action, a.target, a.detail, a.at, COALESCE(u.first_name, u.name, u.email, '') AS who, COALESCE(w.name1 || ' & ' || w.name2, '') AS names
          FROM audit a LEFT JOIN user u ON u.id = a.user_id LEFT JOIN wedding w ON w.id = a.wedding_id
-        WHERE a.action LIKE 'company.%' OR a.action = 'plan.paid'
+        WHERE a.action LIKE 'company.%' OR a.action IN ('plan.paid', 'plan.refund')
         ORDER BY a.at DESC LIMIT 200`,
     ).all<{ id: string; action: string; target: string | null; detail: string | null; at: string; who: string; names: string }>();
     return c.json({ activity: results.map((r) => ({ id: r.id, action: r.action, target: r.target ?? '', detail: r.detail ?? '', at: r.at, who: r.action === 'plan.paid' && !r.who ? 'Card payment' : r.who, names: r.names })) });

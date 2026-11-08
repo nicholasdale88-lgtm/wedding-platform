@@ -316,4 +316,34 @@ describe('company portal', () => {
     expect((await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles: [] }) }, boss.cookie)).status).toBe(400); // Bea still has it
     expect((await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email: 'x@example.com', role: 'custom:nope' }) }, boss.cookie)).status).toBe(400);
   });
+  it('refunds: a manual payment refunded comes off revenue; bots are capped; too much is refused', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const a = await signup('Alex', 'alex@example.com');
+    const slug = (await t.db.prepare(`SELECT slug FROM wedding WHERE id = ?`).bind(a.wid).first<{ slug: string }>())!.slug;
+    await call(`/a/company/weddings/${slug}/paid`, { method: 'POST', body: JSON.stringify({ what: 'essentials', cents: 8800 }) }, boss.cookie);
+    expect((await call(`/a/company/weddings/${slug}/refund`, { method: 'POST', body: JSON.stringify({ cents: 9000, reason: 'Too much' }) }, boss.cookie)).status).toBe(400);
+    const r = await call(`/a/company/weddings/${slug}/refund`, { method: 'POST', body: JSON.stringify({ cents: 8800, reason: 'Wedding cancelled', downgrade: true }) }, boss.cookie);
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { stripe: boolean }).stripe).toBe(false); // paid by link: recorded to pay back
+    const stats = (await (await call('/a/company/stats', {}, boss.cookie)).json()) as { revenue: { total: number; payments: number } };
+    expect(stats.revenue).toMatchObject({ total: 0, payments: 1 });
+    expect((await t.db.prepare(`SELECT plan FROM wedding WHERE id = ?`).bind(a.wid).first<{ plan: string }>())!.plan).toBe('free');
+    const { key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Grok', role: 'manager' }) }, boss.cookie)).json()) as { key: string };
+    await call(`/a/company/weddings/${slug}/paid`, { method: 'POST', body: JSON.stringify({ what: 'essentials', cents: 20000 }) }, boss.cookie);
+    expect((await call(`/a/company/weddings/${slug}/refund`, { method: 'POST', body: JSON.stringify({ cents: 15000, reason: 'Big one' }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
+  });
+
+  it('feedback replies go by email to whoever sent it (and say so when email is off)', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const a = await signup('Alex', 'alex@example.com');
+    await call(`/a/w/${a.wid}/feedback`, { method: 'POST', body: JSON.stringify({ kind: 'idea', text: 'Dark mode please' }) }, a.cookie);
+    const fb = (await (await call('/a/company/feedback', {}, boss.cookie)).json()) as { feedback: { id: string }[] };
+    const off = await call(`/a/company/feedback/${fb.feedback[0]!.id}/reply`, { method: 'POST', body: JSON.stringify({ text: 'Thanks, it is planned.' }) }, boss.cookie);
+    expect(off.status).toBe(400); // no email service in this test
+    env.RESEND_API_KEY = 're_test';
+    env.EMAIL_FROM = 'The Yes List <hello@example.com>';
+    const sent = await call(`/a/company/feedback/${fb.feedback[0]!.id}/reply`, { method: 'POST', body: JSON.stringify({ text: 'Thanks, it is planned.' }) }, boss.cookie);
+    expect(sent.status).toBe(200);
+    expect(((await sent.json()) as { to: string }).to).toBe('alex@example.com');
+  });
 });

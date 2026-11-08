@@ -1025,6 +1025,8 @@ export const companyApi = {
   saveTodo: (items: CompanyTodo[]) => send<{ items: CompanyTodo[]; canEdit: boolean }>('PUT', '/a/company/todo', { items }),
   connections: () => request<{ status: Record<string, 'deploy' | 'saved' | ''>; redirectUri: string; stripeHook: string }>('/a/company/connections'),
   saveConnections: (keys: Record<string, string>) => send<{ status: Record<string, 'deploy' | 'saved' | ''> }>('PUT', '/a/company/connections', keys),
+  refund: (slug: string, cents: number, reason: string, downgrade: boolean) => send<{ ok: true; stripe: boolean }>('POST', `/a/company/weddings/${encodeURIComponent(slug)}/refund`, { cents, reason, downgrade }),
+  replyFeedback: (id: string, text: string) => send<{ ok: true; to: string }>('POST', `/a/company/feedback/${encodeURIComponent(id)}/reply`, { text }),
   assistantOn: () => request<{ on: boolean }>('/a/company/assistant'),
   assistant: (task: 'brief' | 'feedback' | 'posts' | 'outreach' | 'ask', note = '', id = '') => send<{ text: string }>('POST', '/a/company/assistant', { task, note, id }),
   bots: () => request<{ bots: { id: string; name: string; role: string; roleName?: string; createdAt: string; lastUsedAt: string; revoked: boolean }[] }>('/a/company/bots'),

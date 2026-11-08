@@ -471,6 +471,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
         <a href={`/w/${encodeURIComponent(w.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
           Their page
         </a>
+        {can('money') && w.paidCents > 0 && <Refund w={w} onDone={onSaved} />}
       </div>
       {problem && <Problem text={problem} />}
     </li>
@@ -1084,6 +1085,9 @@ const ACTION: Record<string, string> = {
   'company.bot.revoke': 'Turned off a bot',
   'company.assistant': 'Asked the assistant',
   'company.connections': 'Changed a connection',
+  'company.refund': 'Refunded',
+  'plan.refund': 'Refund',
+  'company.feedback.reply': 'Replied to feedback',
 };
 
 /** Who works on the app, their roles, and invitations. Owners only. */
@@ -1744,26 +1748,61 @@ function Assistant({ title, sub, tasks }: { title: string; sub: string; tasks: [
   );
 }
 
-/** "Draft a reply" on a piece of feedback. */
+/** Reply to whoever sent a piece of feedback: write it (or have the assistant draft it), then send by email. */
 function DraftReply({ id }: { id: string }) {
+  const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState('');
+  const [note, setNote] = useState('');
   const draft = async () => {
-    setBusy(true);
+    setBusy('draft');
     try {
       setText((await companyApi.assistant('feedback', '', id)).text);
     } catch (e) {
-      setText((e as Error).message);
+      setNote((e as Error).message);
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   };
-  return text ? (
-    <p className="m-0 p-3 rounded-[12px] bg-[#f3f4ef] text-[14px] whitespace-pre-wrap">{text}</p>
-  ) : (
-    <button type="button" className={`${btn} self-start`} disabled={busy} onClick={() => void draft()}>
-      {busy ? 'Drafting…' : 'Draft a reply'}
-    </button>
+  const send = async () => {
+    setBusy('send');
+    setNote('');
+    try {
+      const r = await companyApi.replyFeedback(id, text);
+      setNote(`Sent to ${r.to}`);
+      setText('');
+      setOpen(false);
+    } catch (e) {
+      setNote((e as Error).message);
+    } finally {
+      setBusy('');
+    }
+  };
+  if (!open)
+    return (
+      <span className="flex gap-2 items-center flex-wrap">
+        <button type="button" className={`${btn} self-start`} onClick={() => setOpen(true)}>
+          Reply
+        </button>
+        {note && <span className="text-[13px] text-[#5f6a58]">{note}</span>}
+      </span>
+    );
+  return (
+    <div className="flex flex-col gap-2">
+      <textarea value={text} rows={4} maxLength={3000} onChange={(e) => setText(e.target.value)} placeholder="Your reply (it goes by email from the support address)" aria-label="Your reply" className={input} />
+      <div className="flex gap-2 flex-wrap">
+        <button type="button" className={primary} disabled={!!busy || text.trim().length < 3} onClick={() => void send()}>
+          {busy === 'send' ? 'Sending…' : 'Send reply'}
+        </button>
+        <button type="button" className={btn} disabled={!!busy} onClick={() => void draft()}>
+          {busy === 'draft' ? 'Drafting…' : 'Draft it for me'}
+        </button>
+        <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+      {note && <span className="text-[13px] text-[#7a4a37]">{note}</span>}
+    </div>
   );
 }
 
@@ -2250,5 +2289,62 @@ function Roles({ onNote }: { onNote: (s: string) => void }) {
       </div>
       {problem && <Problem text={problem} />}
     </section>
+  );
+}
+
+/** Refund a couple (Money): by card through Stripe, or recorded to pay back yourself; optionally back to Free. */
+function Refund({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [dollars, setDollars] = useState(String(w.paidCents / 100));
+  const [reason, setReason] = useState('');
+  const [downgrade, setDowngrade] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  if (!open)
+    return (
+      <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => setOpen(true)}>
+        Refund
+      </button>
+    );
+  const go = async () => {
+    setBusy(true);
+    setProblem('');
+    try {
+      const cents = Math.round((Number(dollars) || 0) * 100);
+      const r = await companyApi.refund(w.slug, cents, reason.trim(), downgrade);
+      onDone(`${w.names}: ${money(cents)} refunded${r.stripe ? ' to their card' : ' (pay it back by bank)'}`);
+      setOpen(false);
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="basis-full flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae]">
+      <div className="flex gap-2 flex-wrap items-end">
+        <label className="flex flex-col gap-1 text-[13px]">
+          Refund ($)
+          <input type="number" min={0} step="0.01" value={dollars} onChange={(e) => setDollars(e.target.value)} className={`${input} w-[110px]`} />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] flex-1 min-w-[200px]">
+          Why
+          <input value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Wedding cancelled" className={input} />
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-[14px]">
+        <input type="checkbox" checked={downgrade} onChange={(e) => setDowngrade(e.target.checked)} />
+        Switch them back to Free
+      </label>
+      <div className="flex gap-2">
+        <button type="button" className={primary} disabled={busy || reason.trim().length < 3 || !(Number(dollars) > 0)} onClick={() => void go()}>
+          {busy ? 'Refunding…' : `Refund ${money(Math.round((Number(dollars) || 0) * 100))}`}
+        </button>
+        <button type="button" className={btn} onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+      {problem && <Problem text={problem} />}
+    </div>
   );
 }
