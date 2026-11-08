@@ -2,7 +2,7 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, type Feature } from '@wp/shared';
+import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, TEXT_COST_NOTE, type Feature } from '@wp/shared';
 import { api } from '../lib/api';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { DriveArt, FEATURE_ICONS, Wordmark } from './Art';
@@ -31,7 +31,7 @@ const PLANS: { key: PlanKey; name: string; price: string; note: string; items: s
     price: PLAN_INFO.essentials.price,
     note: 'One payment, for your whole wedding',
     pick: true,
-    items: ['As many guests as you like', 'Invitations and reminders by text (texts at cost, about 2c each)', 'Seating plan, with saved versions', 'Budget, payments and checklist', 'Vendors and quote comparisons', 'A guide for every guest the night before'],
+    items: ['As many guests as you like', 'Invitations and reminders by text (texts not included: bought separately)', 'Seating plan, with saved versions', 'Budget, payments and checklist', 'Vendors and quote comparisons', 'A guide for every guest the night before'],
   },
   {
     key: 'complete',
@@ -102,7 +102,7 @@ const HIGHLIGHTS = ['Unlimited guests', 'Pay once, no subscription', 'Free to st
 const SEND: { how: string; cost: string; text: string; tag?: string }[] = [
   { how: 'Your own wedding email', cost: 'Free', tag: 'New', text: 'Every wedding gets its own address, like alex-and-sam@ our site. Send every invitation from it, and every reply lands back in the app, sorted by guest. Read it in Outlook or Apple Mail too.' },
   { how: 'Your own link', cost: 'Free', text: 'Each guest has their own link. Send it any way you like: WhatsApp, Messenger, Instagram, your own texts.' },
-  { how: 'By text, for you', cost: 'About 2c a guest', text: 'We text everyone their invitation, then gently remind anyone who hasn’t replied. You see the cost before anything goes.' },
+  { how: 'By text, for you', cost: 'Texts extra, about 31c a guest all-in', text: 'We text everyone their invitation, then gently remind anyone who hasn’t replied. Texts aren’t included in the price: you buy text credits separately, and see the cost before paying.' },
 ];
 
 /**
@@ -127,9 +127,9 @@ const BYO: { what: string; cost: string; detail: string; good: string }[] = [
   },
   {
     what: 'Texts to your guests',
-    cost: 'About 2c each',
-    detail: 'Invitations, reminders, answers and the night-before guide go by text, at cost. You see how many and what it costs before anything is sent.',
-    good: 'A 120-guest wedding usually spends under $15 on every text, start to finish. Rather not text? Share each guest’s link yourself, for nothing.',
+    cost: 'Not included: 5.1c a credit, all-in',
+    detail: 'Invitations, reminders, answers and the night-before guide go by text. Texts aren’t included in any plan: you buy the credits you need separately (tell us how many guests and we work it out), and nothing is sent without credits.',
+    good: 'A 120-guest wedding usually needs about 720 credits for every text, start to finish: about $36.72 all-in. Rather not text? Share each guest’s link yourself, for nothing.',
   },
   {
     what: 'Your own mobile',
@@ -145,7 +145,7 @@ const COMPARE: Feature[] = ['unlimitedGuests', 'texts', 'seating', 'planner', 'e
 
 const FAQ: [string, string][] = [
   ['Can we start on Free and upgrade later?', 'Yes. Everything you’ve set up stays: upgrading just switches on the rest.'],
-  ['What do texts cost?', 'Texts are at cost, about 2c each, on top of your plan. Before anything is sent you see how many it goes to and what it costs.'],
+  ['Are texts included?', `No. ${TEXT_COST_NOTE}`],
   ['Do guests need to download anything?', 'No. They get a text with a link. No app, no account, no password.'],
   ['Is it a subscription?', 'No. You pay once for your wedding, and start free until you’re ready to send invitations.'],
   ['Can we send it without paying for texts?', 'Yes. Send from your wedding’s own email address, or share each guest’s link on WhatsApp, Messenger or your own texts. Both are free, and replies land in the same list.'],
@@ -230,7 +230,7 @@ export function SalesPage() {
                   {PLAN_INFO.essentials.price}
                 </span>
                 <span className="text-[15px]" style={{ color: '#d9d2bf' }}>
-                  once, for your whole wedding. Not a subscription. Start free.
+                  once, for your whole wedding. Not a subscription. Texts not included. Start free.
                 </span>
               </div>
               <div className="flex gap-3 flex-wrap items-center pt-1">
@@ -381,7 +381,7 @@ export function SalesPage() {
                 Pricing
               </h2>
               <p className="m-0 text-[16px]" style={{ color: SOFT }}>
-                In Australian dollars. One payment per wedding, not a subscription.
+                In Australian dollars. One payment per wedding, not a subscription. Text messages are not included in any plan (see below).
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-3 items-stretch">
@@ -424,7 +424,9 @@ export function SalesPage() {
               <span>
                 {EVENT_ADDON.name}: <strong className="font-semibold">{EVENT_ADDON.price}</strong> each, for a welcome drinks, a rehearsal dinner or a recovery brunch beyond what your plan includes.
               </span>
-              <span>Texts: at cost, about 2c each. You see the cost before anything is sent.</span>
+              <span role="note">
+                <strong className="font-semibold">Texts aren’t included in the price.</strong> {TEXT_COST_NOTE}
+              </span>
             </div>
             <details className="rounded-[16px] border border-[#e2d7bc] bg-white">
               <summary className="cursor-pointer py-4 px-5 text-[15px] font-semibold">Compare every feature</summary>

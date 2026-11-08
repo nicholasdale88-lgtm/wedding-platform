@@ -17,6 +17,11 @@ import type { Campaign, EventInfo, NewOutbox, OutboxKind, OutboxResult, OutboxRo
 export interface EngineDeps {
   store: SmsStore;
   provider: SmsProvider;
+  /**
+   * What this wedding's texts go through, or null when the couple has no text credits (they pay for their
+   * texts: lib/smsAccount.ts): then nothing is texted automatically. Without it, `provider` sends (tests, Texto).
+   */
+  providerFor?: (weddingId: string) => Promise<SmsProvider | null>;
   now: () => Date;
   uuid: () => string;
 }
@@ -33,6 +38,9 @@ export const LIMITS = {
   /** Dated texts more than a day overdue (cron outage, credits out all day) are not sent late. */
   slotGraceMs: 24 * 3_600_000,
 } as const;
+
+/** Why nothing was texted: texts are paid for by the couple, and they have no credits. */
+export const NO_ACCOUNT = 'No text credits left. Buy texts (Texting → Buy texts) to keep texts going; sending from your own phone or by email stays free.';
 
 const URGENT: OutboxKind[] = ['reply', 'forward', 'test'];
 const ALL: OutboxKind[] = ['campaign', ...URGENT];
@@ -69,6 +77,8 @@ export async function runAutopilot(d: EngineDeps): Promise<RunReport> {
 
 async function runWedding(d: EngineDeps, w: WeddingCtx): Promise<number> {
   if (w.paused || w.plan === 'free') return 0; // Free doesn't include texts
+  // No text credits: nothing is texted (their own phone and email still work).
+  if (d.providerFor && w.sender && !(await d.providerFor(w.id))) return 0;
   const now = d.now();
   const quiet = inQuietHours(now, w.timezone, w.quietStart, w.quietEnd);
   const campaigns = (await d.store.campaigns(w.id)).filter((c) => c.enabled);
@@ -241,6 +251,8 @@ export async function flush(d: EngineDeps, w: WeddingCtx): Promise<FlushResult> 
   const result: FlushResult = { sent: 0, failed: 0 };
   if (w.paused) return { ...result, stopped: { reason: 'paused', error: 'Texts are paused' } };
   if (!w.sender) return { ...result, stopped: { reason: 'no-sender', error: 'No SMS sender number is set up' } };
+  const provider = d.providerFor ? await d.providerFor(w.id) : d.provider;
+  if (!provider) return { ...result, stopped: { reason: 'auth', error: NO_ACCOUNT } };
   const now = d.now();
   const nowIso = now.toISOString();
   const quiet = inQuietHours(now, w.timezone, w.quietStart, w.quietEnd);
@@ -291,7 +303,7 @@ export async function flush(d: EngineDeps, w: WeddingCtx): Promise<FlushResult> 
     const key = batch[0]!.batchKey ?? (await idempotencyKey(ids));
     if (!batch[0]!.batchKey) await d.store.assignBatch(ids, key, nowIso);
 
-    const out = await d.provider.send(
+    const out = await provider.send(
       batch.map((r) => ({ to: toProviderFormat(r.to), message: r.body, sender: w.sender!, customRef: r.id })),
       key,
     );

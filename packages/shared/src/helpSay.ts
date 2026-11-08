@@ -139,6 +139,15 @@ export const HELP_SAY: Record<string, HelpSay> = {
     ],
     outro: 'That’s it — your crew’s ready to go.',
   },
+  'text-credits': {
+    intro: 'Here’s how texts are paid for. They aren’t included in your plan.',
+    steps: [
+      'Sending from your own phone, or by email, is always free. Automatic texts need text credits, which you buy separately.',
+      'Open Settings, then Texting, and type how many guests you’ll text. It works out the credits, and shows the total, all-in, before you pay.',
+      'Tap Buy, and pay by card. The credits never expire, and nothing is ever charged unless you choose to buy.',
+    ],
+    outro: 'That’s it. You only pay for the texts you need.',
+  },
   drive: {
     intro: 'Here’s how to connect your Google Drive.',
     steps: [

@@ -192,7 +192,7 @@ export function TermsPage() {
       <List
         items={[
           'Free costs nothing. Paid plans are a one-off payment per wedding, in Australian dollars with GST included. There is no subscription and nothing renews.',
-          'Texts to guests are charged at cost, on top of your plan. You see how many will be sent and what they cost before anything goes out.',
+          'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately. The price is 5.1c a credit, all-in: 5c a credit plus a 2% service fee, with GST included. The service fee is part of the price of texts and is the same however you pay; it is not a card surcharge. The total you will pay is shown before you pay. Each text of up to 160 characters uses one credit; a longer one uses more. Credits don’t expire, and when they run out nothing more is texted until you buy more. Sending from your own phone or by email is free.',
           'Prices can change for new purchases, but never for a plan you’ve already paid for.',
         ]}
       />

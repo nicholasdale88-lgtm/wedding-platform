@@ -45,7 +45,8 @@ describe('own number (automatic)', () => {
     posts = [];
     t = await testD1();
     await seedD1(t.db, 8);
-    await t.db.prepare(`UPDATE wedding SET plan = 'complete', sms_sender = NULL`).run();
+    // Texts are paid for by the couple: this wedding has bought credits (lib/smsAccount.ts).
+    await t.db.prepare(`UPDATE wedding SET plan = 'complete', sms_sender = NULL, wallet_credits = 5000`).run();
     env = { DB: t.db, PUBLIC_BASE_URL: 'https://example.com', SESSION_SECRET: 'test-secret-for-sessions-000000', MM_USER: 'u', MM_PASS: 'p' };
     const now = new Date().toISOString();
     await t.db.prepare(`INSERT INTO user (id, email, name, pass_hash, created_at) VALUES ('u1', 'owner@example.com', 'Owner', ?, ?)`).bind(await hashPasscode('valley-2027'), now).run();

@@ -49,8 +49,8 @@ export function ownPhoneRoutes() {
       /** e.g. [{ message: 'Reminder', count: 12 }] for "12 reminders ready to send from your phone". */
       batches: [...by.entries()].map(([message, count]) => ({ message, count })),
       sent: Number(sent?.n ?? 0),
-      // "Send from my own number (automatic)": available when the site's texting service is connected.
-      ownNumber: { available: ownNumberReady(c.env), ...((await checkOwnNumber(c.env, wid(c)).catch(() => readOwnNumber(c.env.DB, wid(c)))) ?? {}) },
+      // "Send from my own number (automatic)": available while they have text credits.
+      ownNumber: { available: await ownNumberReady(c.env, wid(c)), ...((await checkOwnNumber(c.env, wid(c)).catch(() => readOwnNumber(c.env.DB, wid(c)))) ?? {}) },
     });
   });
 

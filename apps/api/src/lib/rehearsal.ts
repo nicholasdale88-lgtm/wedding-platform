@@ -442,6 +442,10 @@ export function readiness(f: RehearsalFacts, times: Record<StepKey, string> = st
     add({ key: 'no-texting', area: 'texts', level: 'red', step: 'invites', title: `No texting set up: ${n(texted, 'guest', 'guests')} can’t be reached`, detail: 'Choose how messages go: free from your own phone or by email, or a texting number.', fix: { tab: 'settings', query: 'view=texting' } });
   } else if (f.via === 'service' && w.plan === 'free' && texted) {
     add({ key: 'plan-texts', area: 'texts', level: 'red', step: 'invites', title: `Your plan doesn’t include texts: ${n(texted, 'guest', 'guests')} would get nothing`, detail: 'Send from your own phone or by email (free), or upgrade.', fix: { tab: 'settings', query: 'view=texting' } });
+  } else if (f.via === 'service' && texted && (w.walletCredits ?? 0) < texted) {
+    // Texts are bought separately (never included in a plan): too few credits and they simply stop.
+    const left = Math.max(0, w.walletCredits ?? 0);
+    add({ key: 'no-credits', area: 'texts', level: 'red', step: 'invites', title: left ? `Only ${n(left, 'text credit', 'text credits')} left for ${n(texted, 'guest', 'guests')}` : `No text credits: ${n(texted, 'guest', 'guests')} would get nothing`, detail: 'Texts aren’t included in your plan. Buy the credits you need (it works them out from your guests), or send free from your own phone or by email.', fix: { tab: 'settings', query: 'view=texting' } });
   }
   if (w.paused) add({ key: 'paused', area: 'texts', level: 'red', step: 'invites', title: 'All texts are paused', detail: 'Nothing goes out until you resume.', fix: { tab: 'settings', query: 'view=texting' } });
   const none = hows.filter((h) => h === 'none').length;

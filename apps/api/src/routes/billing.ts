@@ -1,4 +1,4 @@
-import { chargeCents, dateIn, EVENT_ADDON, PLAN_INFO, planOf, promoPrice, type Purchase } from '@wp/shared';
+import { chargeCents, dateIn, EVENT_ADDON, PLAN_INFO, planOf, promoPrice, TEXT_RATE, textCreditsCents, type Purchase } from '@wp/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -44,6 +44,7 @@ async function priceFor(db: D1Database, plan: string, what: Purchase, code: stri
 export function billingRoutes() {
   const app = new Hono<AdminEnv>();
   app.use('/w/:wid/plan/*', jsonWritesOnly);
+  app.use('/w/:wid/texts/*', jsonWritesOnly);
 
   /** Whether the Upgrade card offers card payment (any member may ask; only owners can pay). */
   app.get('/w/:wid/plan/card', requireUser, requireMember(), (c) => c.json({ on: cardOn(c.env) }));
@@ -134,6 +135,55 @@ export function billingRoutes() {
     return c.json({ url: session.url });
   });
 
+  /**
+   * Buy texts: exactly the text credits they need, by card (worked out from their guests or planned texts). Texts are never included in a plan and the site never pays
+   * for them; nothing to sign up to. Stripe's webhook adds the credits once paid (applyTexts).
+   */
+  app.post('/w/:wid/texts/checkout', requireUser, requireMember('owner'), async (c) => {
+    const err = (status: 400 | 404 | 429 | 502, code: string, message: string) => c.json({ error: { code, message } }, status);
+    const wid = c.req.param('wid');
+    const b = z.object({ credits: z.number().int().min(TEXT_RATE.minCredits).max(TEXT_RATE.maxCredits) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(400, 'invalid', `Choose between ${TEXT_RATE.minCredits} and ${TEXT_RATE.maxCredits.toLocaleString('en-AU')} text credits.`);
+    const credits = b.data.credits;
+    const cents = textCreditsCents(credits);
+    if (!c.env.MM_USER || !c.env.MM_PASS || c.env.SMS_PROVIDER === 'texto') return err(404, 'texts_off', 'Texts can’t be bought just yet. Send from your own phone or by email meanwhile (free).');
+    if (!c.env.STRIPE_SECRET_KEY || !c.env.STRIPE_WEBHOOK_SECRET) return err(404, 'card_off', 'Paying by card isn’t switched on yet. Send from your own phone or by email meanwhile (free).');
+    const w = await c.env.DB.prepare(`SELECT name1, name2, plan FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(wid).first<{ name1: string; name2: string; plan: string }>();
+    if (!w) return err(404, 'not_found', 'Wedding not found.');
+    // Free sends from your own phone or by email only: credits would sit unused.
+    if (planOf(w.plan) === 'free') return err(400, 'plan', `Automatic texts come with ${PLAN_INFO.essentials.name} (${PLAN_INFO.essentials.price} once). On Free, send from your own phone or by email, free.`);
+    if (!(await allow(c.env.DB, `checkout:${wid}`, 20, 3_600_000))) return err(429, 'slow_down', 'Too many tries at paying. Please wait a little and try again.');
+    const back = `${c.env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/admin/${encodeURIComponent(wid)}/settings?view=texting`;
+    const form = new URLSearchParams({
+      mode: 'payment',
+      'payment_method_types[0]': 'card',
+      'line_items[0][quantity]': '1',
+      'line_items[0][price_data][currency]': 'aud',
+      'line_items[0][price_data][unit_amount]': String(cents),
+      'line_items[0][price_data][product_data][name]': `The Yes List: ${credits.toLocaleString('en-AU')} text credits for ${w.name1} & ${w.name2} (incl. ${TEXT_RATE.serviceFeePct}% service fee and GST)`,
+      'metadata[wedding]': wid,
+      'metadata[what]': 'texts',
+      'metadata[credits]': String(credits),
+      client_reference_id: wid,
+      customer_email: c.get('user').email,
+      success_url: `${back}&texts=1`,
+      cancel_url: `${back}&texts=0`,
+    });
+    let res: Response;
+    try {
+      res = await fetch(STRIPE_CHECKOUT, { method: 'POST', headers: { authorization: `Bearer ${c.env.STRIPE_SECRET_KEY}`, 'content-type': 'application/x-www-form-urlencoded' }, body: form.toString() });
+    } catch (e) {
+      console.error('stripe texts checkout', e);
+      return err(502, 'card_failed', 'Couldn’t open the card payment page just now. Please try again in a minute.');
+    }
+    const session = (await res.json().catch(() => null)) as { url?: unknown; error?: { message?: unknown } } | null;
+    if (!res.ok || typeof session?.url !== 'string' || !session.url.startsWith('https://')) {
+      console.error('stripe texts checkout', res.status, session?.error?.message);
+      return err(502, 'card_failed', 'Couldn’t open the card payment page just now. Please try again in a minute.');
+    }
+    return c.json({ url: session.url });
+  });
+
   return app;
 }
 
@@ -160,6 +210,14 @@ export function stripeHookRoutes() {
     const s = CheckoutSession.safeParse(ev.data.data.object);
     if (!s.success || s.data.payment_status !== 'paid') return c.json({ received: true, ignored: true });
     const wid = s.data.metadata?.wedding ?? '';
+    // Texts bought: their credits added (once per session).
+    if (wid && s.data.metadata?.what === 'texts') {
+      const credits = Number(s.data.metadata.credits ?? '');
+      // Only what was actually paid for at the rate (never more credits than the amount covers).
+      if (!Number.isInteger(credits) || credits < 1 || credits > TEXT_RATE.maxCredits || (s.data.amount_total ?? 0) < textCreditsCents(credits)) return c.json({ received: true, ignored: true });
+      await applyTexts(c.env.DB, wid, credits, s.data.id, { amount: s.data.amount_total ?? null, currency: s.data.currency ?? null });
+      return c.json({ received: true });
+    }
     const what = PurchaseOf.safeParse(s.data.metadata?.what);
     if (!wid || !what.success) return c.json({ received: true, ignored: true }); // not one of ours (another product on the same account)
     const promo = s.data.metadata?.promo;
@@ -220,6 +278,19 @@ export async function applyPurchase(db: D1Database, wid: string, what: Purchase,
       `INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at)
        SELECT ?2, ?3, NULL, 'plan.paid', ?1, ?4, ?5 WHERE ${fresh}`,
     ).bind(sessionId, crypto.randomUUID(), wid, JSON.stringify({ what, ...paid }), at),
+  ]);
+}
+
+/** Add bought text credits, once per Checkout session (same guard as applyPurchase). */
+export async function applyTexts(db: D1Database, wid: string, credits: number, sessionId: string, paid: { amount: number | null; currency: string | null }) {
+  const at = new Date().toISOString();
+  const fresh = `NOT EXISTS (SELECT 1 FROM audit WHERE action = 'texts.paid' AND target = ?1)`;
+  await db.batch([
+    db.prepare(`UPDATE wedding SET wallet_credits = COALESCE(wallet_credits, 0) + ?2, updated_at = ?3 WHERE id = ?4 AND ${fresh}`).bind(sessionId, credits, at, wid),
+    db.prepare(
+      `INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at)
+       SELECT ?2, ?3, NULL, 'texts.paid', ?1, ?4, ?5 WHERE ${fresh}`,
+    ).bind(sessionId, crypto.randomUUID(), wid, JSON.stringify({ credits, ...paid }), at),
   ]);
 }
 

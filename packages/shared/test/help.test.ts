@@ -20,6 +20,7 @@ describe('help', () => {
     expect(searchHelp('add a bridesmaid')[0]?.id).toBe('party');
     expect(searchHelp('change the invitation wording')[0]?.id).toBe('start');
     expect(searchHelp('how do I send invites')[0]?.id).toBe('invitations');
+    expect(searchHelp('how much do texts cost')[0]?.id).toBe('text-credits');
     expect(searchHelp('xyzzy')).toEqual([]);
   });
 

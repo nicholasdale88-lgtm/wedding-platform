@@ -1,4 +1,4 @@
-import { displayPhone, toE164 } from '@wp/shared';
+import { displayPhone, TEXT_COST_NOTE, TEXT_RATE, toE164 } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -7,6 +7,7 @@ import { allow } from '../lib/rateLimit';
 import { backUpNow, backupLink, weddingBackup } from '../lib/backup';
 import { activeLinks, setUpFolders } from '../photos/store';
 import { emailReady } from '../lib/email';
+import { creditsOf, siteAccount } from '../lib/smsAccount';
 import { estimateAll, type EngineDeps, type Estimate } from '../sms/engine';
 import { DEFAULT_REPLIES } from '../sms/inbound';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -73,8 +74,11 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     const plan: { name: string; detail: string; costCents: number; auto: boolean; fixed?: boolean }[] = [];
     // One load for every message (not a full guest-list load per message).
     const estimates = await estimateAll(d, w.id, campaigns.map((x) => x.id)).catch(() => new Map<string, Estimate>());
+    // Credits every planned text needs, to the guests on the list now (what "Buy what you need" offers).
+    let parts = 0;
     for (const x of campaigns) {
       const e = estimates.get(x.id);
+      if (e) parts += e.parts;
       if (e) plan.push({ name: x.name, detail: `${e.count} ${e.count === 1 ? 'guest' : 'guests'} · ${e.parts} ${e.parts === 1 ? 'credit' : 'credits'}`, costCents: e.costCents, auto: x.enabled && x.mode !== 'manual' });
     }
     const texto = c.env.SMS_PROVIDER === 'texto';
@@ -85,11 +89,20 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
       plan.push({ name: 'Reply number (Texto)', detail: `About $15 a month × ${months} ${months === 1 ? 'month' : 'months'}, until after your last event`, costCents: TEXTO_NUMBER_MONTHLY_CENTS * months, auto: true, fixed: true });
     }
     const replies = { ...DEFAULT_REPLIES, ...safeJson<Record<string, string>>(w.sms_replies, {}) };
+    const credits = await creditsOf(c.env, w.id);
     return {
       version: w.version,
       provider: texto ? 'Texto' : 'Mobile Message',
-      // The site's own texting account: without its key nothing can be texted automatically (send from your own phone or by email meanwhile).
-      connected: texto ? !!c.env.TEXTO_API_KEY : !!(c.env.MM_USER && c.env.MM_PASS),
+      // Texts are paid for by the couple: credits they buy by card (lib/smsAccount.ts). Without credits nothing
+      // is texted automatically (send from your own phone or by email meanwhile, free).
+      connected: texto ? !!c.env.TEXTO_API_KEY : !!siteAccount(c.env) && credits > 0,
+      /** Whether texts can be bought here at all (the site's texting service is set up). */
+      canBuy: !texto && !!siteAccount(c.env),
+      credits,
+      rate: TEXT_RATE,
+      /** Credits the texts planned so far need, for the guests on the list now. */
+      plannedCredits: parts,
+      costNote: TEXT_COST_NOTE,
       live: !!w.sms_sender,
       sender: w.sms_sender ? displayPhone(w.sms_sender) : '',
       adminMobile: w.admin_mobile ? displayPhone(w.admin_mobile) : '',
@@ -199,13 +212,18 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     const NAMES = { gdrive: 'Google Drive', dropbox: 'Dropbox', onedrive: 'OneDrive', gphotos: 'Google Photos' } as const;
 
     const texto = env.SMS_PROVIDER === 'texto';
-    const sms = texto ? !!env.TEXTO_API_KEY : !!(env.MM_USER && env.MM_PASS);
+    const credits = await creditsOf(env, wid(c));
+    const sms = texto ? !!env.TEXTO_API_KEY : !!siteAccount(env) && credits > 0;
     items.push({
       key: 'texts',
       name: 'Texts (SMS)',
       state: sms ? 'ok' : 'off',
-      detail: sms ? `Invitations, reminders and replies go through ${texto ? 'Texto' : 'Mobile Message'}.` : 'No texting account is connected to the site, so no texts can go out yet.',
-      fix: sms ? '' : 'The site owner adds the texting account’s keys.',
+      detail: sms
+        ? texto
+          ? 'Invitations, reminders and replies go through Texto.'
+          : `${credits} text ${credits === 1 ? 'credit' : 'credits'} left.`
+        : 'No text credits, so nothing is texted automatically. Sending from your own phone or by email is free.',
+      fix: sms ? '' : 'Texting → Buy texts (by card, 5c a credit: tell it how many guests and it works out how many).',
     });
 
     const links = await activeLinks(env.DB, wid(c));

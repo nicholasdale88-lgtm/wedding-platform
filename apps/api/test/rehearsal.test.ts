@@ -49,7 +49,8 @@ describe('rehearsal', () => {
     const day = zonedToUtc('2027-11-18T15:00', TZ).toISOString();
     await t.db.prepare(`UPDATE event SET starts_at = ?, venue = 'The Barn', address = '1 Valley Rd' WHERE id = 'e1'`).bind(day).run();
     await t.db.prepare(`UPDATE event SET starts_at = ?, venue = 'The Paddock' WHERE id = 'e2'`).bind(zonedToUtc('2027-11-20T10:00', TZ).toISOString()).run();
-    await t.db.prepare(`UPDATE wedding SET plan = 'complete'`).run();
+    // Texts are bought separately: this wedding has credits for its texts.
+    await t.db.prepare(`UPDATE wedding SET plan = 'complete', wallet_credits = 1000`).run();
     env = { DB: t.db, PUBLIC_BASE_URL: 'https://example.com', SESSION_SECRET: 'test-secret-for-sessions-000000' };
     const now = new Date().toISOString();
     await t.db.prepare(`INSERT INTO user (id, email, name, pass_hash, created_at) VALUES ('u1', 'owner@example.com', 'Owner', ?, ?)`).bind(await hashPasscode('valley-2027'), now).run();

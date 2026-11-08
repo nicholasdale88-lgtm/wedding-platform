@@ -198,6 +198,8 @@ export const api = {
   planCard: (wid: string) => request<{ on: boolean }>(`${w(wid)}/plan/card`),
   /** Opens a Stripe Checkout page for a plan or another event; the browser goes to `url` to pay. */
   checkout: (wid: string, what: 'essentials' | 'complete' | 'event', code = '') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what, code }),
+  /** Buy texts: opens a Stripe Checkout page for a pack of text credits (texts are never included in a plan). */
+  buyTexts: (wid: string, credits: number) => send<{ url: string }>('POST', `${w(wid)}/texts/checkout`, { credits }),
   /** What a promo code makes the price. */
   promo: (wid: string, what: 'essentials' | 'complete' | 'event', code: string) => send<{ cents: number; off: number; code: string }>('POST', `${w(wid)}/plan/promo`, { what, code }),
   /** From the front page: a new account and wedding, signed in. */
@@ -341,8 +343,17 @@ export interface SettingsData {
   version: number;
   /** Which SMS service sends (set by the platform: SMS_PROVIDER). */
   provider: string;
-  /** False when the site's texting account has no key yet (nothing can be texted automatically). */
+  /** False when there are no text credits (or the site's texting service isn't set up): nothing is texted automatically. */
   connected?: boolean;
+  /** Texts can be bought here (the site's texting service is set up). */
+  canBuy?: boolean;
+  /** Text credits left: bought by the couple, one per text part. */
+  credits?: number;
+  rate?: { centsPerCredit: number; serviceFeePct: number; minCredits: number; maxCredits: number; creditsPerGuest: number };
+  /** Credits the texts planned so far need, for the guests on the list now. */
+  plannedCredits?: number;
+  /** "Text messages are not included in any plan…" */
+  costNote?: string;
   live: boolean;
   sender: string;
   adminMobile: string;

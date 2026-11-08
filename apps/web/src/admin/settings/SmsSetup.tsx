@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, backupsApi, settingsApi, textsApi, type BackupStatus, type SettingsData, type SettingsPut } from '../../lib/api';
+import { api, ApiError, backupsApi, settingsApi, textsApi, type BackupStatus, type SettingsData, type SettingsPut } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
 import { useUnsavedChanges } from '../leave';
 import { useAdmin } from '../Shell';
@@ -62,9 +62,10 @@ export function SmsSetup() {
   return (
     <div className="flex flex-col gap-7 max-w-[1000px]">
       <p className="m-0 max-w-[640px] text-[15px] text-[#5b6a52]">
-        Automatic texts for a few cents each. They go out through {s.provider}, an Australian provider: you only pay for the texts you send, and guests can text YES or NO
-        straight back to your number.
+        Automatic texts, sent for you through {s.provider}, an Australian provider. Guests can text YES or NO straight back.
       </p>
+
+      <TextCredits s={s} wid={wid} />
 
       <section className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[14px]" style={{ background: s.paused ? '#f1e1d6' : '#dfe5cc' }}>
         <div>
@@ -89,9 +90,9 @@ export function SmsSetup() {
         >
           {s.connected === false && (
             <div role="status" className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf3e1] border border-[#ecd9ae] text-[14px]">
-              <strong>Automatic texts aren’t switched on for this site yet.</strong>
+              <strong>{s.canBuy ? 'Buy texts first (above) to send texts automatically.' : 'Automatic texts aren’t available on this site yet.'}</strong>
               <span>
-                The site’s texting service ({s.provider}) isn’t connected, so a test can’t go out. You don’t need it to start: send every guest their invitation free from your own phone (Guests → More → Text from my own phone), or by email from your wedding’s address. Replies still land in your guest list.
+                You don’t need texts to start: send every guest their invitation free from your own phone (Guests → More → Text from my own phone), or by email from your wedding’s address. Replies still land in your guest list.
               </span>
             </div>
           )}
@@ -307,5 +308,72 @@ export function Passcode() {
         Change passcode
       </Pill>
     </form>
+  );
+}
+
+/**
+ * Text credits: texts are never included in a plan, so this says so plainly and shows what's left. "How
+ * many guests?" works out the credits needed (or, once the guest list is in, the texts already planned are
+ * counted exactly), the price at the rate is shown, and they pay by card for exactly that (Stripe Checkout).
+ * Nothing to sign up to and no keys: the credits are added once paid.
+ */
+function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
+  const toast = useToast();
+  const rate = s.rate ?? { centsPerCredit: 5, serviceFeePct: 2, minCredits: 100, maxCredits: 20000, creditsPerGuest: 6 };
+  const credits = s.credits ?? 0;
+  const planned = Math.max(0, (s.plannedCredits ?? 0) - credits);
+  const [guests, setGuests] = useState('');
+  const [busy, setBusy] = useState(false);
+  const round = (n: number) => Math.min(rate.maxCredits, Math.max(rate.minCredits, Math.ceil(n / 50) * 50));
+  const g = Math.max(0, Math.round(Number(guests) || 0));
+  // Guests typed: the usual credits per guest. Otherwise the planned texts still to be paid for.
+  const need = g ? round(g * rate.creditsPerGuest) : planned ? round(planned) : 0;
+  // Same sums as the server (@wp/shared textCreditsCents): credits at the rate, plus the service fee.
+  const sub = need * rate.centsPerCredit;
+  const fee = Math.ceil((sub * rate.serviceFeePct) / 100);
+  const buy = async () => {
+    setBusy(true);
+    try {
+      window.location.assign((await api.buyTexts(wid, need)).url);
+    } catch (e) {
+      toast((e as Error).message);
+      setBusy(false);
+    }
+  };
+  return (
+    <section aria-label="Text credits" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#d9cdb0] bg-[#fbf7ee]">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+        <h2 className="m-0 font-display text-[22px] font-normal">Text credits</h2>
+        <span className="text-[15px]">
+          <strong>{credits.toLocaleString('en-AU')}</strong> {credits === 1 ? 'credit' : 'credits'} left
+        </span>
+      </div>
+      <p role="note" className="m-0 p-3 rounded-[10px] bg-white border border-[#ecd9ae] text-[14px] leading-snug">
+        <strong>Texts aren’t included in your plan.</strong> {s.costNote ?? ''}
+      </p>
+      {s.canBuy ? (
+        <div className="flex flex-col gap-2">
+          <Label text="How many guests will you text? (one text goes to each mobile)">
+            <input type="number" inputMode="numeric" min={1} max={3000} value={guests} onChange={(e) => setGuests(e.target.value)} placeholder={planned ? 'Or leave it: we’ve counted your planned texts' : 'e.g. 120'} className={`${inputCls} max-w-[260px]`} />
+          </Label>
+          {need > 0 && (
+            <p className="m-0 text-[14px]" aria-live="polite">
+              {g ? `${g} guests × about ${rate.creditsPerGuest} credits each` : 'Your planned texts, less what you have'} = <strong>{need.toLocaleString('en-AU')} credits</strong>. Total{' '}
+              <strong>{money(sub + fee)}</strong>, all-in (credits {money(sub)} at {rate.centsPerCredit}c + {rate.serviceFeePct}% service fee {money(fee)}; GST included).
+            </p>
+          )}
+          <div>
+            <Pill kind="primary" disabled={busy || need <= 0} onClick={() => void buy()}>
+              {busy ? 'Opening the payment page…' : need > 0 ? `Buy ${need.toLocaleString('en-AU')} credits · ${money(sub + fee)}` : 'Type how many guests'}
+            </Pill>
+          </div>
+        </div>
+      ) : (
+        <p className="m-0 text-[14px] text-[#5b6a52]">Buying texts isn’t available on this site yet. Send free from your own phone or by email meanwhile.</p>
+      )}
+      <p className="m-0 text-[13px] text-[#5b6a52]">
+        One credit per text of up to 160 characters (a longer one, with a link, usually uses 2). Credits never expire. When they run out, automatic texts stop until you buy more: nothing is ever charged without you choosing to.
+      </p>
+    </section>
   );
 }

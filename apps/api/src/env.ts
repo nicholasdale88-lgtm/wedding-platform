@@ -2,6 +2,7 @@ import { D1SmsStore } from './db/smsStore';
 import type { EngineDeps } from './sms/engine';
 import { mobileMessage } from './sms/provider';
 import { texto } from './sms/texto';
+import { smsAccountFor } from './lib/smsAccount';
 
 /** Bindings and secrets (wrangler.toml + `wrangler secret put`). See docs/SETUP_ACCOUNTS.md. */
 export interface Env {
@@ -61,6 +62,15 @@ export function engineDeps(env: Env): EngineDeps {
     store: new D1SmsStore(env.DB, env.PUBLIC_BASE_URL),
     // Without credentials every send fails as 'auth': nothing goes out, and the admin is told why.
     provider: env.SMS_PROVIDER === 'texto' ? texto({ apiKey: env.TEXTO_API_KEY ?? '' }) : mobileMessage({ user: env.MM_USER ?? '', pass: env.MM_PASS ?? '' }),
+    // Only while the couple has text credits they bought (lib/smsAccount.ts): the site never pays for their texts.
+    ...(env.SMS_PROVIDER === 'texto'
+      ? {}
+      : {
+          providerFor: async (weddingId: string) => {
+            const a = await smsAccountFor(env, weddingId);
+            return a ? mobileMessage({ user: a.user, pass: a.pass }) : null;
+          },
+        }),
     now: () => new Date(),
     uuid: () => crypto.randomUUID(),
   };

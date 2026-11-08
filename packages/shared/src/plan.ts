@@ -66,3 +66,52 @@ export const FEATURE_LABEL: Record<Feature, string> = {
 /** Events each plan includes; more are an add-on each (EVENT_ADDON). */
 export const EVENTS_INCLUDED: Record<Plan, number> = { free: 1, essentials: 1, complete: 2 };
 export const EVENT_ADDON = { name: 'Extra event', price: '$39' };
+
+/**
+ * Text messages are paid for by the couple, on top of the plan: they buy exactly the text credits they need,
+ * by card (one credit per text of up to 160 characters; 161 to 306 characters use 2, and so on). Nothing to
+ * sign up to, no keys. Credits never expire. The Yes List never pays for a couple's texts: with no credits,
+ * nothing is texted automatically.
+ *
+ * The rate covers what the site pays Mobile Message plus card fees. Their prices (mobilemessage.com.au/pricing,
+ * checked 8 Nov 2026, ex GST): 4c a credit for 500+, 3.5c for 1,000+, 3c for 10,000+ (1.6c only on an
+ * account's first purchase). So 4.4c incl. GST at worst, plus Stripe's 1.75% + 30c. Re-check before changing.
+ */
+export const TEXT_RATE = {
+  /** What a couple pays per credit, in cents incl. GST. */
+  centsPerCredit: 5,
+  /**
+   * A service fee on every text purchase, in percent. Australian law: it is part of the price, never a card
+   * surcharge (surcharges on Visa, Mastercard and eftpos are banned from 1 Oct 2026), so it's the same
+   * however the couple pays; and the one total, fee included, is what's shown first everywhere (no drip
+   * pricing): "5.1c a credit, all-in". The breakdown is shown beside it.
+   */
+  serviceFeePct: 2,
+  minCredits: 100,
+  maxCredits: 20_000,
+  /**
+   * Credits a guest usually needs: the invitation, a reminder or two for those yet to reply, the RSVP
+   * thank-you, the night-before guide and the thank-you after (about 4 texts), most of them 2 credits long
+   * because of the link. Used before the guest list is in; after that, the planned texts are counted exactly.
+   */
+  creditsPerGuest: 6,
+} as const;
+
+/** Credits to buy for this many guests (with a mobile), rounded up to the next 50. */
+export function textCreditsForGuests(guests: number): number {
+  const n = Math.max(0, Math.round(guests)) * TEXT_RATE.creditsPerGuest;
+  return Math.min(TEXT_RATE.maxCredits, Math.max(TEXT_RATE.minCredits, Math.ceil(n / 50) * 50));
+}
+/** What `credits` cost before the service fee, in cents incl. GST. */
+export const textCreditsSubtotal = (credits: number) => Math.round(credits) * TEXT_RATE.centsPerCredit;
+/** The service fee on that, in cents (rounded up to the cent). */
+export const textServiceFee = (credits: number) => Math.ceil((textCreditsSubtotal(credits) * TEXT_RATE.serviceFeePct) / 100);
+/** What `credits` cost in all, the service fee included, in cents incl. GST. */
+export const textCreditsCents = (credits: number) => textCreditsSubtotal(credits) + textServiceFee(credits);
+
+/** The all-in price of one credit, in cents (5.1): what's shown first, the service fee and GST included. */
+export const TEXT_CREDIT_ALL_IN = (TEXT_RATE.centsPerCredit * (100 + TEXT_RATE.serviceFeePct)) / 100;
+
+/** The notice shown wherever prices are: the sales page, the pricing table, Terms, Help and Texting. */
+export const TEXT_COST_NOTE =
+  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 5.1c a credit, all-in (5c a credit plus a 2% service fee, GST included; the fee is the same however you pay). It’s about 6 credits a guest for the invitation, reminders and thank-yous: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';

@@ -254,6 +254,18 @@ export const HELP: HelpArticle[] = [
     go: { tab: 'party', event: true },
   },
   {
+    id: 'text-credits',
+    title: 'What texts cost (they’re not included in your plan)',
+    group: 'Your account',
+    steps: [
+      'Texts aren’t included in any plan. Sending from your own phone or by email is always free; automatic texts need text credits, which you buy separately.',
+      'Open Settings → Texting, and type how many guests you’ll text. It works out the credits (about 6 a guest) and shows the total, all-in: 5.1c a credit, which is 5c plus a 2% service fee, GST included.',
+      'Tap Buy and pay by card. The credits are added straight away and never expire. When they run out, automatic texts stop until you buy more: nothing is charged without you choosing to.',
+    ],
+    also: 'sms text cost price credits buy texts top up how much are texts included extra fee service fee charge per text money',
+    go: { tab: 'settings', query: 'view=texting' },
+  },
+  {
     id: 'drive',
     title: 'Connecting your Google Drive',
     group: 'Your account',
@@ -421,6 +433,11 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Wedding party', 'Overview'], fields: [['Role', 'Groomsman'], ['Name', 'Riley Chen'], ['Mobile', '0423 456 789']], tap: '+ Add Riley Chen as a groomsman', then: 'In the party and on your guest list ✓' },
     { at: ['Wedding party', 'Links & sign-ins'], rows: ['☑ Run sheet', '☑ Their to-dos', '☑ Packing', '☐ The guest list'], tap: 'Text their sign-in', then: 'Riley has their own sign-in ✓' },
     { at: ['Wedding party', 'Run sheet'], rows: ['8:00am · Breakfast together · Everyone', '1:30pm · Photos · Groom’s side', '3:00pm · Ceremony · Everyone'], tap: 'See it as: Riley', then: 'Exactly what Riley sees' },
+  ],
+  'text-credits': [
+    { at: ['Settings', 'Texting'], rows: ['Texts aren’t included in your plan', 'Own phone or email: free'], then: 'Texts are bought separately' },
+    { at: ['Settings', 'Texting'], fields: [['How many guests will you text?', '120']], then: '720 credits · $36.72 all-in' },
+    { at: ['Settings', 'Texting'], tap: 'Buy 720 credits · $36.72', then: 'Paid by card: credits added' },
   ],
   drive: [
     { at: ['Photos'], rows: ['Your own Google Drive'], tap: 'Connect Google Drive', then: 'Google asks which account' },
