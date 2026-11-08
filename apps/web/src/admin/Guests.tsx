@@ -135,7 +135,8 @@ export function Guests() {
 
   async function addGuest() {
     try {
-      const d = await api.addGuest(wid, focusEv ? [focusEv.key] : undefined);
+      // A new guest is invited to every event (untick one in their details if they're not coming to it).
+      const d = await api.addGuest(wid);
       // Their full details open at once; the list catches up behind them (no waiting, no jumping about).
       setFresh(d.guest.id);
       openGuest(d.guest.id);
