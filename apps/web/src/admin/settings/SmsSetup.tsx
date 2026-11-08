@@ -324,7 +324,7 @@ function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
   const planned = Math.max(0, (s.plannedCredits ?? 0) - credits);
   const [guests, setGuests] = useState('');
   const [busy, setBusy] = useState(false);
-  const round = (n: number) => Math.min(rate.maxCredits, Math.max(rate.minCredits, Math.ceil(n / 50) * 50));
+  const round = (n: number) => Math.min(rate.maxCredits, Math.max(rate.minCredits, Math.ceil(n / 10) * 10));
   const g = Math.max(0, Math.round(Number(guests) || 0));
   // Guests typed: the usual credits per guest. Otherwise the planned texts still to be paid for.
   const need = g ? round(g * rate.creditsPerGuest) : planned ? round(planned) : 0;

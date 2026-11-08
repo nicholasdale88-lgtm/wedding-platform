@@ -97,10 +97,10 @@ export const TEXT_RATE = {
   creditsPerGuest: 6,
 } as const;
 
-/** Credits to buy for this many guests (with a mobile), rounded up to the next 50. */
+/** Credits to buy for this many guests (with a mobile), rounded up to the next 10. */
 export function textCreditsForGuests(guests: number): number {
   const n = Math.max(0, Math.round(guests)) * TEXT_RATE.creditsPerGuest;
-  return Math.min(TEXT_RATE.maxCredits, Math.max(TEXT_RATE.minCredits, Math.ceil(n / 50) * 50));
+  return Math.min(TEXT_RATE.maxCredits, Math.max(TEXT_RATE.minCredits, Math.ceil(n / 10) * 10));
 }
 /** What `credits` cost before the service fee, in cents incl. GST. */
 export const textCreditsSubtotal = (credits: number) => Math.round(credits) * TEXT_RATE.centsPerCredit;
