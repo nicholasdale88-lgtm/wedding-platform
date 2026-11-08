@@ -128,7 +128,7 @@ describe('the texts’ messages by email', () => {
     expect(to()).toEqual(['g1@example.com', 'g3@example.com']);
     const list = (await (await call('')).json()) as { email: { on: boolean }; campaigns: { key: string; count: number; email: { count: number; sent: number } }[]; people: { id: string; email: boolean }[] };
     expect(list.email.on).toBe(true);
-    expect(list.campaigns.find((c) => c.key === 'rain')!.email).toMatchObject({ count: 1, sent: 1 });
+    expect(list.campaigns.find((c) => c.key === 'rain')!.email).toMatchObject({ count: 2, sent: 2 });
     expect(list.people.find((p) => p.id === 'i4')!.email).toBe(true);
     // The same send twice within a couple of minutes (a double tap) is the one send.
     sent = [];
