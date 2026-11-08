@@ -46,6 +46,7 @@ import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
 import { runAutopilot, type EngineDeps } from './sms/engine';
 import { runEmailCampaigns } from './mail/campaigns';
 import { ownPhoneRoutes } from './routes/ownPhone';
+import { testSendRoutes } from './routes/testSend';
 import { sweepInbound } from './sms/inbound';
 
 /** The app, with dependencies injectable for tests. */
@@ -80,6 +81,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/messages', messageRoutes(deps));
   app.route('/a/w/:wid/inbox', inboxRoutes());
   app.route('/a/w/:wid/own-phone', ownPhoneRoutes());
+  app.route('/a/w/:wid/test-send', testSendRoutes(deps));
   app.route('/a/w/:wid/insights', insightsRoutes());
   app.route('/a/w/:wid/coordinator', coordinatorAdminRoutes());
   app.route('/a/w/:wid/planner-calendar', plannerCalendarAdminRoutes());

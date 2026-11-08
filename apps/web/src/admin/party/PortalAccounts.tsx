@@ -1,6 +1,7 @@
 import { PARTY_PERM_LABEL, PARTY_PERMS, PERM_PRESETS, type PartyPerm } from '@wp/shared';
 import { useCallback, useEffect, useState } from 'react';
 import { partyAccountsApi, type PortalMember } from '../../lib/api';
+import { TestSend } from '../TestSend';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
@@ -75,6 +76,9 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
         <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[720px]">
           Give each member their own sign-in to the wedding party portal (email and password), and choose what they can see and do. Lost passwords: send them a reset link, or they can have one texted to the mobile on their invitation.
         </p>
+        <span className="mt-2 inline-block">
+          <TestSend what="party" label="Send me a test invite" />
+        </span>
       </div>
       <div className="flex gap-3 flex-wrap items-center text-[13px]">
         <span className="py-1 px-3 rounded-full bg-[#eef1e4] text-[#3d4a2f]">

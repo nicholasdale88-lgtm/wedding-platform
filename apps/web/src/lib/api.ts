@@ -907,6 +907,27 @@ export interface OwnPhoneData {
   batches: { message: string; count: number }[];
   sent: number;
 }
+/** "Send me a test": what to test, and how it went (sent, a link to text yourself, or a preview only). */
+export interface TestSendIn {
+  what: 'campaign' | 'invitation' | 'compose' | 'digest' | 'party';
+  campaignId?: string;
+  channel?: 'text' | 'email' | 'phone';
+  guestId?: string;
+  body?: string;
+  subject?: string;
+}
+export interface TestSendResult {
+  result: 'sent' | 'link' | 'preview';
+  channel: 'text' | 'email' | 'phone';
+  to?: string;
+  phone?: string;
+  message: string;
+  preview: { kind: 'text' | 'email'; subject?: string; text: string; html?: string };
+  sample: string;
+}
+export const testSendApi = {
+  send: (wid: string, b: TestSendIn) => send<TestSendResult>('POST', `${w(wid)}/test-send`, b),
+};
 /** Messages to send from the couple's own phone, one guest at a time. */
 export const ownPhoneApi = {
   get: (wid: string) => request<OwnPhoneData>(`${w(wid)}/own-phone`),

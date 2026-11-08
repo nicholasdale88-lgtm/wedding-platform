@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { backupsApi, type CheckItem } from '../../lib/api';
 import { useAdmin } from '../Shell';
+import { TestSend } from '../TestSend';
 import { Pill } from '../ui';
 
 /**
@@ -62,6 +63,11 @@ export function SystemCheck() {
             </span>
           </span>
         </label>
+      )}
+      {digest && (
+        <span className="self-start">
+          <TestSend what="digest" label="Send me a test summary" />
+        </span>
       )}
       <ul className="list-none m-0 p-0 flex flex-col gap-2">
         {items?.map((i) => (

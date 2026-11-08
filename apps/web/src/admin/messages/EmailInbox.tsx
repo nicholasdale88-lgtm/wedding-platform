@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { api, inboxApi, plannerApi, type InboxEmail, type InboxSettings } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
 import { useAdmin } from '../Shell';
+import { TestSend } from '../TestSend';
 import { inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
 
 type Show = 'all' | 'guest' | 'vendor' | 'other' | 'sent' | 'archived';
@@ -285,6 +286,7 @@ function YourAddress({ address, settings, canSend, onWrite, onSent }: { address:
           <Pill onClick={() => void emailEveryone()} disabled={busy} aria-busy={busy}>
             Email everyone their invitation
           </Pill>
+          <TestSend what="invitation" label="Send me a test invitation" />
         </div>
       )}
       {settings && !settings.canSend && settings.canWrite && <p className="m-0 text-[13px] text-[#7a7466]">Sending from here switches on once the site’s email is set up. Until then, Reply opens your own email app.</p>}
@@ -401,10 +403,11 @@ function Compose({ start, vendors, address, onClose, onSent }: { start: Draft; v
       <Label text="Message">
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={7} maxLength={20000} className={`${inputCls} resize-y`} />
       </Label>
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center flex-wrap">
         <Pill kind="primary" type="submit" disabled={busy} aria-busy={busy}>
           {busy ? 'Sending…' : 'Send'}
         </Pill>
+        <TestSend what="compose" subject={subject} body={text} />
         <span className="text-[12px] text-[#7a7466]">Each person gets their own copy (nobody sees the others’ addresses).</span>
       </div>
     </form>

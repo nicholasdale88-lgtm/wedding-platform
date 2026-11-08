@@ -9,6 +9,7 @@ import { ALL_EVENTS, useAdmin, useSectionName } from '../Shell';
 import { Eyebrow, H2, inputCls, Label, Pill, useAutoRefresh, useToast } from '../ui';
 import { isNightBefore, NightText } from '../pages/NightText';
 import { Upgrade, usePlan } from '../Upgrade';
+import { TestSend } from '../TestSend';
 
 /**
  * Admin → SMS messages (design: isSms). Every text the wedding sends: when it goes, to whom, the
@@ -408,15 +409,6 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
     }
   };
 
-  const test = async () => {
-    try {
-      await textsApi.test(wid, est?.sample ?? body);
-      toast('Test sent to your mobile');
-    } catch (e) {
-      toast((e as Error).message);
-    }
-  };
-
   const remove = async () => {
     if (!window.confirm(`Delete "${c.name}"? Anything it still has waiting to send won't go out.`)) return;
     try {
@@ -513,7 +505,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
         </button>
         {est && <span className="text-[13px] text-[#5b6a52]">About ${(est.costCents / 100).toFixed(2)}{est.quiet ? ' · quiet hours now, so it would wait for the morning' : ''}</span>}
         <span className="flex-1" />
-        <Pill onClick={() => void test()}>Send me a test</Pill>
+        <TestSend what="campaign" campaignId={c.id} body={body} channels />
         {dirty ? (
           <Pill kind="primary" disabled={busy} onClick={() => void save()}>
             Save changes
