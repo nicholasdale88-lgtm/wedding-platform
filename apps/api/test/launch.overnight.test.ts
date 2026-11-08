@@ -149,28 +149,30 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
    * dietary notes; replies are for the guest's own wedding's events.
    */
   const dbInvariants = async (phase: string) => {
-    const bad = await all<{ name: string; why: string }>(
+    // One query per rule (D1 allows only a few terms in a compound SELECT).
+    const rules = [
       `SELECT p.name, 'seated but not coming' AS why FROM seat s JOIN person p ON p.id = s.person_id JOIN invitation i ON i.id = p.invitation_id
           LEFT JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = s.event_id
           LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = s.event_id
         WHERE i.deleted_at IS NULL AND p.deleted_at IS NULL AND (ie.event_id IS NULL OR r.attending = 0 OR (r.attending = 1 AND p.idx >= MAX(1, r.count)))
-       UNION ALL
-       SELECT p.name, 'seat at another event or wedding' FROM seat s JOIN person p ON p.id = s.person_id JOIN invitation i ON i.id = p.invitation_id
+      `,
+      `SELECT p.name, 'seat at another event or wedding' FROM seat s JOIN person p ON p.id = s.person_id JOIN invitation i ON i.id = p.invitation_id
           JOIN seat_table t ON t.id = s.table_id JOIN event e ON e.id = s.event_id
         WHERE t.event_id != s.event_id OR t.wedding_id != i.wedding_id OR e.wedding_id != i.wedding_id OR t.deleted_at IS NOT NULL
-       UNION ALL
-       SELECT t.name, 'over capacity' FROM seat_table t WHERE t.deleted_at IS NULL AND (SELECT COUNT(*) FROM seat s WHERE s.table_id = t.id) > t.seats
-       UNION ALL
-       SELECT p.name, 'meal after a no' FROM meal_choice m JOIN person p ON p.id = m.person_id JOIN rsvp r ON r.invitation_id = p.invitation_id AND r.event_id = m.event_id WHERE r.attending = 0
-       UNION ALL
-       SELECT p.name, 'diet after declining everything' FROM person p JOIN invitation i ON i.id = p.invitation_id
+      `,
+      `SELECT t.name, 'over capacity' FROM seat_table t WHERE t.deleted_at IS NULL AND (SELECT COUNT(*) FROM seat s WHERE s.table_id = t.id) > t.seats
+      `,
+      `SELECT p.name, 'meal after a no' FROM meal_choice m JOIN person p ON p.id = m.person_id JOIN rsvp r ON r.invitation_id = p.invitation_id AND r.event_id = m.event_id WHERE r.attending = 0
+      `,
+      `SELECT p.name, 'diet after declining everything' FROM person p JOIN invitation i ON i.id = p.invitation_id
         WHERE p.diet != '' AND i.deleted_at IS NULL AND EXISTS (SELECT 1 FROM invite_event WHERE invitation_id = i.id)
           AND NOT EXISTS (SELECT 1 FROM invite_event ie LEFT JOIN rsvp r ON r.invitation_id = ie.invitation_id AND r.event_id = ie.event_id
                            WHERE ie.invitation_id = i.id AND (r.attending IS NULL OR r.attending = 1))
-       UNION ALL
-       SELECT i.id, 'reply to another wedding''s event' FROM rsvp r JOIN invitation i ON i.id = r.invitation_id JOIN event e ON e.id = r.event_id WHERE e.wedding_id != i.wedding_id
-       LIMIT 20`,
-    );
+      `,
+      `SELECT i.id, 'reply to another wedding''s event' FROM rsvp r JOIN invitation i ON i.id = r.invitation_id JOIN event e ON e.id = r.event_id WHERE e.wedding_id != i.wedding_id`,
+    ];
+    const bad: Record<string, unknown>[] = [];
+    for (const sql of rules) bad.push(...(await all<Record<string, unknown>>(`${sql} LIMIT 5`)));
     expect(bad, phase).toEqual([]);
   };
 

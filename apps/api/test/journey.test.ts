@@ -41,8 +41,9 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = ? AND i.deleted_at IS NULL`).bind(name).first<{ token: string }>())!.token;
   const invId = async (name: string) =>
     (await t.db.prepare(`SELECT i.id, i.version FROM invitation i JOIN person p ON p.invitation_id = i.id AND p.idx = 0 WHERE p.name = ?`).bind(name).first<{ id: string; version: number }>())!;
-  const rsvp = (token: string, events: Record<string, { attending: boolean }>) =>
-    app.request('/api/p/sophie-and-nicholas/rsvp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, events }) }, env, ctx());
+  // As the invitation page does, the reply says how many are coming (the page starts at everyone on the invitation).
+  const rsvp = (token: string, events: Record<string, { attending: boolean }>, count = 2) =>
+    app.request('/api/p/sophie-and-nicholas/rsvp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, events, count }) }, env, ctx());
 
   const A = '0412000101'; // invited to both, will say yes
   const B = '0412000102'; // wedding only, will decline
