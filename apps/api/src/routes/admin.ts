@@ -320,16 +320,16 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       if (p.table) {
         const t = await c.env.DB.prepare(
           `SELECT t.id, t.event_id, e.name AS event,
-                  EXISTS (SELECT 1 FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
-                           WHERE r.invitation_id = ? AND r.event_id = t.event_id AND r.attending = 1) AS coming
+                  EXISTS (SELECT 1 FROM invite_event ie LEFT JOIN rsvp r ON r.invitation_id = ie.invitation_id AND r.event_id = ie.event_id
+                           WHERE ie.invitation_id = ? AND ie.event_id = t.event_id AND (r.attending IS NULL OR r.attending = 1)) AS seatable
              FROM seat_table t JOIN event e ON e.id = t.event_id
             WHERE t.wedding_id = ? AND t.deleted_at IS NULL AND lower(t.name) = lower(?) AND (? = '' OR e.key = ?) ORDER BY e.has_seating DESC, e.sort LIMIT 1`,
         )
           .bind(invId, wid(c), p.table, p.tableEvent ?? '', p.tableEvent ?? '')
-          .first<{ id: string; event_id: string; event: string; coming: number }>();
+          .first<{ id: string; event_id: string; event: string; seatable: number }>();
         if (!t) return err(c, 400, 'no_table', `There's no table called "${p.table}" yet. Add it in Seating.`);
-        // Same rule as Seating: only guests who have said yes to that event get a table.
-        if (!t.coming) return err(c, 400, 'not_coming', `They haven't said yes to the ${t.event} yet, so they can't have a table. Record their RSVP first.`);
+        // Same rule as Seating: invited to that event and not said no. Still to reply is fine (pencilled in).
+        if (!t.seatable) return err(c, 400, 'not_coming', `They've said no to the ${t.event} (or aren't invited to it), so they can't have a table there.`);
         tableId = t.id;
         tableEvent = t.event_id;
       }

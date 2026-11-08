@@ -165,11 +165,12 @@ export const HELP: HelpArticle[] = [
     steps: [
       'Open Guests → Seating. + Add tables, then tap the plan to drop them; drag to move. Areas (dance floor, bar) come from + Add area.',
       'Tap a table, then tap names to seat them, or Auto-seat the rest: it follows your rules.',
+      'Start with a concept plan before the invitations go out: everyone on your list can be placed (shown lighter, “Not replied yet”). The top of Seating shows the stage (Concept plan → Replies coming in → Final → Published) and the one next step. As replies arrive nothing moves: yeses are confirmed, anyone who can’t come frees their seat, and “Since your last save” lists who said yes, who can’t come and who’s new, with Fill gaps with auto-seat.',
       'Rules and checks: people invited together sit together, groups stay together, the wedding party goes to the head table, and tables fill before new ones start, all unless you turn them off. Add your own: keep two people apart, or together. Anything that breaks a rule is listed.',
-      'Save seating as you go. Versions → Save as a version keeps a named copy (“Family draft”, “Final”); View any version, and Make current to switch.',
-      'Publish when you’re ready: guests then see their table in their night-before guide.',
+      'Save seating as you go, and keep a named version at each stage (it suggests “Concept plan”, “After replies”, “Final”): Versions → View any of them, and Make current to switch back.',
+      'Publish when you’re ready: guests then see their table in their night-before guide. Only people who said yes are shown, so nobody sees a pencilled-in table mate who may not come; publish again as more say yes.',
     ],
-    also: 'tables seat chart floor plan version revision draft final publish rules apart together head table',
+    also: 'tables seat chart floor plan version revision draft concept final publish rules apart together head table pencil pencilled pending not replied stage',
     go: { tab: 'seating', event: true },
   },
   {
@@ -348,8 +349,9 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
   seating: [
     { at: ['Guest list', 'Seating'], rows: ['Room plan'], tap: '+ Add tables', then: 'Tap the plan to drop each table' },
     { at: ['Guest list', 'Seating'], rows: ['Table 3 · 6 of 10', 'Jordan & Casey', 'The Nguyens'], tap: 'Auto-seat the rest', then: 'Everyone seated, households together ✓' },
+    { at: ['Guest list', 'Seating'], rows: ['Concept plan → Replies coming in', 'Since your last save: 3 said yes · 2 can’t come'], tap: 'Fill gaps with auto-seat', then: 'Everyone else stays put ✓' },
     { at: ['Guest list', 'Seating'], rows: ['✓ People invited together sit together', '✓ Wedding party at the head table', 'Ben ≠ Lou (keep apart)'], tap: '+ Add rule', then: 'All good ✓' },
-    { at: ['Guest list', 'Seating'], fields: [['Version name', 'Family draft']], tap: 'Save as a version', then: 'Kept: make it current any time ✓' },
+    { at: ['Guest list', 'Seating'], fields: [['Version name', 'Concept plan']], tap: 'Save as a version', then: 'Kept: make it current any time ✓' },
     { at: ['Guest list', 'Seating'], rows: ['Final · current'], tap: 'Publish', then: 'Guests see their table in their guide ✓' },
   ],
   budget: [

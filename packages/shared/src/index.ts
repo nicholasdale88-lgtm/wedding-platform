@@ -11,6 +11,7 @@ export * from './text';
 export * from './seating';
 export * from './seatRules';
 export * from './planner';
+export * from './seatStage';
 export * from './help';
 export * from './plan';
 export * from './directory';

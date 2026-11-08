@@ -347,7 +347,7 @@ export class D1SmsStore implements SmsStore {
         )
         .bind(v.attending ? 1 : 0, v.count, at, eventKey, invitationId),
       // Bump the version so an admin editing this invitation gets "updated elsewhere" instead of overwriting it.
-      // Same rules as replies on the invitation: a seat needs a yes; declining everything clears dietary.
+      // Same rules as replies on the invitation: a no frees their seat; declining everything clears dietary.
       unseatIfNotComing(this.db, invitationId),
       releaseShuttlesIfDeclined(this.db, invitationId),
       clearMealsIfDeclined(this.db, invitationId),

@@ -731,14 +731,47 @@ describe('seating tab', () => {
     expect(screen.getByRole('button', { name: 'Edit seating' })).toBeInTheDocument();
   });
 
-  it('Auto-seat seats only guests who said yes, keeping invitations together', async () => {
+  it('concept plan: before replies, Auto-seat places everyone on the list (pencilled in); Only those who said yes leaves the rest waiting', async () => {
     mockApi({ '/api/a/w/w1/seating': () => json(200, seating) });
     renderAt('/admin/w1/wedding/seating');
-    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
-    await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument(); // Jo hasn't replied: not seated
+    expect(await screen.findByRole('region', { name: 'Seating stage' })).toHaveTextContent('Concept plan');
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    expect(screen.getByRole('radio', { name: 'Everyone invited (concept plan)' })).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-seat the rest' }));
+    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument(); // Jo hasn't replied: pencilled in
+    expect(screen.getByText(/1 pencilled in/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Only those who said yes' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Auto-seat the rest' }));
+    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
     expect(screen.getByText('Waiting for a reply (1)')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Jo Banks' })).toBeNull(); // can't be seated until she says yes
+    expect(screen.queryByRole('button', { name: 'Jo Banks' })).toBeNull(); // waits until she says yes
+  });
+
+  it('as replies come in: says what changed since the last save, fills gaps without moving anyone, and can be marked seen', async () => {
+    let seen = false;
+    const replies = {
+      ...seating,
+      stage: { auto: 'replies', chosen: null, sent: true, invited: 4, replied: 3, closed: false, published: false },
+      sinceSave: { at: '2026-11-01T00:00:00Z', saidYes: ['Sam Hart'], cantCome: [{ name: 'Lee Park', table: '1' }], newGuests: ['Jo Banks'] },
+    };
+    mockApi({
+      '/api/a/w/w1/seating': () => json(200, replies),
+      '/api/a/w/w1/seating/seen': () => {
+        seen = true;
+        return json(200, { ...replies, sinceSave: null });
+      },
+    });
+    renderAt('/admin/w1/wedding/seating');
+    const since = await screen.findByRole('status', { name: 'Since your last save' });
+    expect(since).toHaveTextContent('1 said yes (pencilled in → confirmed) · 1 can’t come (seat freed at Table 1) · 1 new guest to place');
+    expect(screen.getByRole('region', { name: 'Seating stage' })).toHaveTextContent('Replies coming in');
+    await userEvent.click(within(since).getByRole('button', { name: 'Fill gaps with auto-seat' }));
+    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument(); // Robin stays at Table 1; Sam and Jo join
+    await userEvent.click(within(since).getByRole('button', { name: 'Mark as seen' }));
+    await waitFor(() => expect(seen).toBe(true));
+    await waitFor(() => expect(screen.queryByRole('status', { name: 'Since your last save' })).toBeNull());
+    expect(screen.getByRole('button', { name: 'Save seating' })).toBeEnabled(); // the filled-in plan is still there to save
   });
 
   it('preset rules are on, can be turned off (saved), and auto-seat keeps people kept apart at different tables', async () => {
@@ -788,7 +821,7 @@ describe('seating tab', () => {
     expect(screen.getByText('Table 9')).toBeInTheDocument();
     await userEvent.clear(screen.getByRole('searchbox', { name: 'Find a guest' }));
     await userEvent.type(screen.getByRole('searchbox', { name: 'Find a guest' }), 'jo');
-    expect(screen.getByText('Hasn’t said yes')).toBeInTheDocument();
+    expect(screen.getByText('Not seated · not replied yet')).toBeInTheDocument();
     // Numbered row by row: the top table (9) becomes 1.
     await userEvent.click(screen.getByRole('button', { name: 'Number tables 1, 2, 3…' }));
     expect(screen.getByRole('button', { name: 'Table 1, 2 of 4' })).toBeInTheDocument();

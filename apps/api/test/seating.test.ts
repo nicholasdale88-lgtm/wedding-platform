@@ -142,12 +142,91 @@ describe('seating API', () => {
     expect(((await get()) as Pub).published!.changes).toBe(0);
   });
 
-  it('only guests who said yes can be seated', async () => {
+  /** The invitation token of a person on the seating list. */
+  const tokenOf = async (personId: string) => (await t.db.prepare(`SELECT i.token FROM invitation i JOIN person p ON p.invitation_id = i.id WHERE p.id = ?`).bind(personId).first<{ token: string }>())!.token;
+  const reply = (token: string, attending: boolean) =>
+    app.request('/api/p/sophie-and-nicholas/rsvp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token, events: { wedding: { attending } } }) }, env, ctx);
+  const seatsOf = (s: Seating) => Object.fromEntries(s.people.map((p) => [p.id, p.tableId]));
+
+  it('guests still to reply can be pencilled in, and keep their seat until they say no', async () => {
     const s = await get();
     const awaiting = s.people.find((p) => !p.coming)!;
-    const res = await put(s, { seats: { ...Object.fromEntries(s.people.map((p) => [p.id, p.tableId])), [awaiting.id]: s.tables[0]!.id } });
-    expect(res.status).toBe(400);
-    expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/said yes/);
+    const table = s.tables[0]!.id;
+    const res = await put(s, { seats: { ...seatsOf(s), [awaiting.id]: table } });
+    expect(res.status).toBe(200);
+    const after = (await res.json()) as Seating;
+    expect(after.people.find((p) => p.id === awaiting.id)).toMatchObject({ tableId: table, coming: false }); // pencilled in
+
+    // Saying yes keeps the seat (now confirmed); saying no frees it at once.
+    expect((await reply(await tokenOf(awaiting.id), true)).status).toBe(200);
+    expect((await get()).people.find((p) => p.id === awaiting.id)).toMatchObject({ tableId: table, coming: true });
+    expect((await reply(await tokenOf(awaiting.id), false)).status).toBe(200);
+    expect((await get()).people.some((p) => p.id === awaiting.id)).toBe(false);
+    expect(await t.db.prepare(`SELECT COUNT(*) AS n FROM seat WHERE person_id = ?`).bind(awaiting.id).first<{ n: number }>()).toEqual({ n: 0 });
+  });
+
+  it('publishing shows guests only people who said yes: no pencilled-in table mates', async () => {
+    type Pub = Seating & { published: { at: string; changes: number } | null };
+    const s = (await get()) as Pub;
+    const yes = s.people.find((p) => p.coming && p.tableId)!;
+    const awaiting = s.people.find((p) => !p.coming)!;
+    const saved = (await (await put(s, { seats: { ...seatsOf(s), [awaiting.id]: yes.tableId } })).json()) as Pub;
+    const pub = (await (await call(`/a/w/${wid}/seating/publish`, { method: 'POST', headers: { 'If-Match': String(saved.version) }, body: JSON.stringify({ event: 'wedding' }) })).json()) as Pub;
+    expect(pub.published).toMatchObject({ changes: 0 }); // pencilled-in seats never count as waiting to go live
+
+    const snap = JSON.parse((await t.db.prepare(`SELECT snapshot FROM seat_publish`).first<{ snapshot: string }>())!.snapshot) as { seats: Record<string, string> };
+    expect(snap.seats[yes.id]).toBe(yes.tableId);
+    expect(snap.seats[awaiting.id]).toBeUndefined();
+    const guide = (await (await app.request(`/api/p/sophie-and-nicholas/guide?g=${await tokenOf(yes.id)}&event=wedding`, {}, env, ctx)).json()) as { mates: Record<string, string[]> };
+    expect(Object.values(guide.mates).flat()).not.toContain(awaiting.name);
+    const theirs = (await (await app.request(`/api/p/sophie-and-nicholas/guide?g=${await tokenOf(awaiting.id)}&event=wedding`, {}, env, ctx)).json()) as { guest: { people: { tableId: string | null }[] } };
+    expect(theirs.guest.people.every((p) => !p.tableId)).toBe(true); // no table shown before they say yes
+
+    // Once they say yes, publishing again shows them.
+    await reply(await tokenOf(awaiting.id), true);
+    expect(((await get()) as Pub).published!.changes).toBeGreaterThan(0);
+  });
+
+  it('says what changed since the last save (said yes, can no longer come, new), and Mark as seen clears it', async () => {
+    type Since = Seating & { sinceSave: { saidYes: string[]; cantCome: { name: string; table: string }[]; newGuests: string[] } | null };
+    const s = (await get()) as Since;
+    expect(s.sinceSave).toBeNull(); // never saved here
+    const pending = s.people.filter((p) => !p.coming);
+    const invOf = async (id: string) => (await t.db.prepare(`SELECT invitation_id AS i FROM person WHERE id = ?`).bind(id).first<{ i: string }>())!.i;
+    const a = pending[0]!;
+    const aInv = await invOf(a.id);
+    const b = (await Promise.all(pending.map(async (p) => ({ p, inv: await invOf(p.id) })))).find((x) => x.inv !== aInv)!.p;
+    const tA = s.tables[0]!;
+    const tB = s.tables[1]!;
+    const saved = (await (await put(s, { seats: { ...seatsOf(s), [a.id]: tA.id, [b.id]: tB.id } })).json()) as Since;
+    expect(saved.sinceSave).toBeNull();
+
+    await reply(await tokenOf(a.id), true);
+    await reply(await tokenOf(b.id), false);
+    const now = (await get()) as Since;
+    expect(now.sinceSave!.saidYes).toContain(a.name);
+    expect(now.sinceSave!.cantCome).toContainEqual({ name: b.name, table: tB.name });
+    expect(now.people.find((p) => p.id === a.id)!.tableId).toBe(tA.id); // nothing moved for them
+
+    const seen = (await (await call(`/a/w/${wid}/seating/seen`, { method: 'POST', body: JSON.stringify({ event: 'wedding' }) })).json()) as Since;
+    expect(seen.sinceSave).toBeNull();
+    expect(((await get()) as Since).sinceSave).toBeNull();
+  });
+
+  it('works out the stage from the replies, and the couple can choose one', async () => {
+    type Staged = Seating & { stage: { auto: string; chosen: string | null; invited: number; replied: number } };
+    const s = (await get()) as Staged;
+    expect(s.stage.invited).toBeGreaterThan(0);
+    expect(['draft', 'replies', 'final']).toContain(s.stage.auto);
+    expect(s.stage.chosen).toBeNull();
+    const set = async (stage: string | null) => (await (await call(`/a/w/${wid}/seating/stage`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', stage }) })).json()) as Staged;
+    expect((await set('final')).stage.chosen).toBe('final');
+    expect(((await get()) as Staged).stage.chosen).toBe('final');
+    expect((await set(null)).stage.chosen).toBeNull();
+    expect((await call(`/a/w/${wid}/seating/stage`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', stage: 'someday' }) })).status).toBe(400);
+    // Published: the stage says so.
+    await call(`/a/w/${wid}/seating/publish`, { method: 'POST', headers: { 'If-Match': String(s.version) }, body: JSON.stringify({ event: 'wedding' }) });
+    expect(((await get()) as Staged).stage.auto).toBe('published');
   });
 
   it('saves named versions, shows one without changing anything, and nominates the current arrangement', async () => {

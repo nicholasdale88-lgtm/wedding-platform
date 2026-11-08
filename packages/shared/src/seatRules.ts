@@ -5,6 +5,10 @@ import type { SeatPresets, SeatRules } from './planner';
  * places everyone who said yes so no rule breaks where the room allows it, and says what it couldn't do.
  */
 
+/**
+ * `coming`: this person counts for seating. The seating screen sets it for people who said yes, and also
+ * for guests still to reply when the couple seats everyone invited (pencilled in) or has already seated them.
+ */
 export type RulePerson = { id: string; invitationId: string; name: string; party: string; role?: string; coming: boolean };
 export type RuleTable = { id: string; name: string; seats: number; shape?: string };
 type Seats = Record<string, string | null | undefined>;

@@ -1,4 +1,4 @@
-import { aspectRatio, autoSeat as autoSeatPlan, clampTable, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STRETCHES, TABLE_SHAPES, tableBox, type TableShape } from '@wp/shared';
+import { aspectRatio, autoSeat as autoSeatPlan, clampTable, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { ALL_EVENTS, useAdmin } from '../Shell';
 import { groupColour } from '../groups';
 import { emptyHistory, history, type Snapshot } from './history';
 import { SeatChecks, useSeatRules } from './SeatChecks';
+import { SinceSave, StageBar, type NextStep } from './SeatStage';
 import { Gate } from '../Upgrade';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 
@@ -61,6 +62,9 @@ function SeatingPlan() {
   editingRef.current = editing;
   const roomTools = editing;
   const [groupFilter, setGroupFilter] = useState('');
+  // Who to seat, if chosen: everyone invited (guests still to reply are pencilled in), or only those who
+  // said yes. Until chosen it follows the stage: everyone invited while drafting and replies come in.
+  const [whoPick, setWho] = useState<'all' | 'yes' | null>(null);
   // Find a guest by name: where they're sitting, or seat them.
   const [find, setFind] = useState('');
   const [busy, setBusy] = useState(false);
@@ -165,6 +169,8 @@ function SeatingPlan() {
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!s) return <div aria-busy="true" className="text-[#5b6a52]">Loading the floor plan…</div>;
+  const stage: SeatStage = s.stage?.chosen ?? s.stage?.auto ?? 'draft';
+  const who = whoPick ?? (stage === 'draft' || stage === 'replies' ? 'all' : 'yes');
 
   /** A new room shape or size: tables keep their places, and stay inside the room. One undo step puts back both. */
   const setRoomTo = (next: string) => commit((d) => ({ ...d, aspect: next, tables: d.tables.map((t) => clampTable(t, next)) }));
@@ -288,10 +294,11 @@ function SeatingPlan() {
       // it's saved.
       if (e instanceof ApiError && (e.status === 409 || (e.status === 400 && /no longer coming|said yes/i.test(e.message)))) {
         try {
+          // Still on the list = invited and not said no (pencilled-in guests keep their seats).
           const fresh = await seatingApi.get(wid, s.event.key);
-          const coming = new Map(fresh.people.map((p) => [p.id, p.coming]));
-          const gone = s.people.filter((p) => seats[p.id] && !coming.get(p.id)).map((p) => p.name);
-          const kept = Object.fromEntries(Object.entries(seats).filter(([id]) => coming.has(id)).map(([id, t]) => [id, coming.get(id) ? t : null]));
+          const still = new Set(fresh.people.map((p) => p.id));
+          const gone = s.people.filter((p) => seats[p.id] && !still.has(p.id)).map((p) => p.name);
+          const kept = Object.fromEntries(Object.entries(seats).filter(([id]) => still.has(id)));
           if (e.status === 409) {
             setS(fresh);
             dispatch({ type: 'change', fn: (d) => ({ ...d, seats: kept }), record: false });
@@ -379,12 +386,12 @@ function SeatingPlan() {
   };
 
   /**
-   * Seat everyone who said yes and has no seat yet, following the rules (Rules and checks): invitations
-   * and "with" pairs at one table, nobody beside someone they're kept apart from, the wedding party at
-   * the head table, groups at the tables they already use.
+   * Seat everyone to seat (Who to seat) who has no seat yet, following the rules (Rules and checks):
+   * invitations and "with" pairs at one table, nobody beside someone they're kept apart from, the wedding
+   * party at the head table, groups at the tables they already use. Everyone already seated stays put.
    */
   const autoSeat = () => {
-    const r = autoSeatPlan(s.people, tables, seats, seatRules.rules);
+    const r = autoSeatPlan(rulePeople, tables, seats, seatRules.rules);
     commit((d) => ({ ...d, seats: r.seats }));
     const extra = Math.ceil(r.left / DEFAULT_SEATS[shape]);
     const more = r.left ? ` About ${extra} more ${extra === 1 ? 'table' : 'tables'} would seat everyone.` : '';
@@ -404,6 +411,28 @@ function SeatingPlan() {
     const name = new Map(order.map((t, i) => [t.id, String(i + 1)]));
     commit((d) => ({ ...d, tables: d.tables.map((t) => (name.has(t.id) ? { ...t, name: name.get(t.id)! } : t)) }));
     toast(`Tables numbered 1 to ${order.length}, row by row. Save to keep it.`);
+  };
+  /** Who can be given a seat now: everyone listed (invited, not said no), or only those who said yes. */
+  const canSeat = (p: Person) => p.coming || who === 'all';
+  // For the rules and Auto-seat: everyone to seat, plus anyone already pencilled in (they take a chair).
+  const rulePeople = s.people.map((p) => ({ ...p, coming: canSeat(p) || !!seats[p.id] }));
+  /** From the stage bar or "Since your last save": open the tools and auto-seat whoever still needs a seat. */
+  const fillGaps = () => {
+    editingRef.current = true;
+    setEditing(true);
+    autoSeat();
+  };
+  /** Stage and "seen" change only the notes around the plan, never unsaved seating (or its version check). */
+  const note = async (fn: () => Promise<SeatingData>) => {
+    setBusy(true);
+    try {
+      const d = await fn();
+      setS((x) => (x ? { ...x, stage: d.stage, sinceSave: d.sinceSave } : d));
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
   // The guests to seat: the couple's expected number (Account → Overview), or more if more have said yes.
   const planFor = Math.max(overview?.expectedGuests ?? 0, s.people.filter((p) => p.coming).length);
@@ -447,12 +476,30 @@ function SeatingPlan() {
     ], [s.event.key]);
 
   const seated = s.people.filter((p) => seats[p.id]).length;
+  const comingN = s.people.filter((p) => p.coming).length;
   const comingUnseated = s.people.filter((p) => p.coming && !seats[p.id]).length;
-  const seatedAwaiting = s.people.filter((p) => !p.coming && seats[p.id]).length;
+  const pencilled = s.people.filter((p) => !p.coming && seats[p.id]).length;
   const over = tables.filter((t) => (byTable.get(t.id)?.length ?? 0) > t.seats);
   const groupNames = [...new Set(s.people.map((p) => p.party).filter(Boolean))].sort();
-  const unseated = [...s.people.filter((p) => p.coming && !seats[p.id] && (!groupFilter || p.party === groupFilter)).reduce((m, p) => m.set(p.invitationId, [...(m.get(p.invitationId) ?? []), p]), new Map<string, Person[]>()).values()];
-  const waiting = s.people.filter((p) => !p.coming);
+  const unseatedAll = s.people.filter((p) => canSeat(p) && !seats[p.id]);
+  const unseated = [...unseatedAll.filter((p) => !groupFilter || p.party === groupFilter).reduce((m, p) => m.set(p.invitationId, [...(m.get(p.invitationId) ?? []), p]), new Map<string, Person[]>()).values()];
+  const waiting = s.people.filter((p) => !canSeat(p) && !seats[p.id]);
+  // The one next step for the stage: add tables, seat whoever still needs a seat, save, keep a named
+  // version at this moment ("Draft before invites", "After replies", "Final"), then publish.
+  const stageName = STAGE_VERSION[stage];
+  const next: NextStep = viewing
+    ? null
+    : !tables.length
+      ? { label: 'Add tables', run: () => setEditing(true) }
+      : unseatedAll.length
+        ? { label: stage === 'draft' ? 'Auto-seat everyone invited' : 'Fill gaps with auto-seat', run: fillGaps }
+        : changed
+          ? { label: 'Save the plan', run: () => void save() }
+          : stage !== 'published' && !versions.some((v) => v.name === stageName)
+            ? { label: `Save as “${stageName}”`, run: () => void saveVersion(stageName) }
+            : (stage === 'final' || stage === 'published') && unpublished
+              ? { label: s.published ? 'Publish again' : 'Publish so guests see it', run: () => void publish() }
+              : null;
   const target = selTable?.id ?? null;
   const seatCount = tables.reduce((n, t) => n + t.seats, 0);
   // For the top of the printed plan: the couple, the event and its date.
@@ -470,9 +517,9 @@ function SeatingPlan() {
             {seated} of {s.people.length} seated
           </h1>
           <div className="mt-1 text-[14px] text-[#5b6a52]">
-            {tables.length} {tables.length === 1 ? 'table' : 'tables'} · {seatCount} seats
+            {tables.length} {tables.length === 1 ? 'table' : 'tables'} · {seatCount} seats · {comingN} coming
+            {pencilled ? <span className="text-[#5e5130]"> · {pencilled} pencilled in</span> : null}
             {comingUnseated ? <span className="text-[#7a4a37]"> · {comingUnseated} coming without a seat</span> : null}
-            {seatedAwaiting ? <span className="text-[#5e5130]"> · {seatedAwaiting} seated still to reply</span> : null}
             {over.length ? <span className="text-[#7a4a37]"> · table {over.map((t) => t.name).join(', ')} over capacity</span> : null}
             {seatCount < s.people.length ? <span className="text-[#7a4a37]"> · {s.people.length - seatCount} more seats needed</span> : null}
           </div>
@@ -481,8 +528,13 @@ function SeatingPlan() {
               ? "Not published yet: guests don't see any seating until you publish."
               : s.published.changes
                 ? `Published ${fmtWhen(s.published.at, tz)}. ${s.published.changes} saved ${s.published.changes === 1 ? 'change is' : 'changes are'} not live yet.`
-                : `Published ${fmtWhen(s.published.at, tz)}. Guests see exactly this plan.`}
+                : `Published ${fmtWhen(s.published.at, tz)}. Guests see exactly this plan${pencilled ? ', apart from those pencilled in (they show once they say yes)' : ''}.`}
           </div>
+          {s.published?.saidNo?.length ? (
+            <div role="status" className="mt-1 text-[14px] text-[#7a4a37]">
+              {s.published.saidNo.join(', ')} said no since you published, so {s.published.saidNo.length === 1 ? 'their seat is' : 'their seats are'} empty now. Publish again to update guests.
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2 flex-wrap items-center print:hidden">
           {editing && (
@@ -507,6 +559,9 @@ function SeatingPlan() {
         </div>
       </header>
 
+      <StageBar stage={stage} data={s} next={next} busy={busy} onChoose={(st) => void note(() => seatingApi.setStage(wid, s.event.key, st))} />
+      <SinceSave data={s} busy={busy || !!viewing} onFill={fillGaps} onSeen={() => void note(() => seatingApi.seen(wid, s.event.key))} onShow={setFind} />
+
       {viewing && (
         <div role="status" className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-[#f3ecd9] border border-[#d3c6a4] print:hidden">
           <span className="flex-1 min-w-[200px] text-[14px]">
@@ -528,6 +583,7 @@ function SeatingPlan() {
           busy={busy}
           dirty={changed && !viewing}
           tz={tz}
+          suggest={stageName}
           onSave={(name) => void saveVersion(name)}
           onView={(id) => void viewVersion(id)}
           onCurrent={makeCurrent}
@@ -801,9 +857,9 @@ function SeatingPlan() {
                       className={editing ? 'flex flex-col justify-center cursor-grab select-none' : undefined}
                       style={editing ? { WebkitTouchCallout: 'none', ...tapTarget(mob) } : undefined}
                     >
-                      {p.name}
+                      <span className={p.coming ? undefined : 'italic text-[#7a7466]'}>{p.name}</span>
                       {p.diet && <span className={`block text-[12px] ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span>}
-                      {!p.coming && <span className="block text-[12px] text-[#5e5130]">Not replied yet</span>}
+                      {!p.coming && <span className="block text-[12px] text-[#5e5130]">Not replied yet · pencilled in</span>}
                     </span>
                     {editing ? (
                       <span className="flex items-center gap-1">
@@ -855,7 +911,7 @@ function SeatingPlan() {
             </div>
           )}
 
-          <SeatChecks data={s} tables={tables} seats={seats} seatRules={seatRules} />
+          <SeatChecks data={{ ...s, people: rulePeople }} tables={tables} seats={seats} seatRules={seatRules} />
 
           <FindGuest
             find={find}
@@ -865,13 +921,30 @@ function SeatingPlan() {
             tables={tables}
             onShow={(tableId) => setSel({ kind: 'table', id: tableId })}
             onSeat={editing && target ? (ids) => seat(ids, target) : undefined}
+            canSeat={canSeat}
             target={selTable?.name}
           />
 
           <div className="flex flex-col gap-2">
+            <div role="radiogroup" aria-label="Who to seat" className="flex flex-col gap-1">
+              <span className="text-[13px] font-semibold text-[#33402f]">Who to seat</span>
+              <div className="flex gap-2 flex-wrap">
+                {(
+                  [
+                    ['all', 'Everyone invited (concept plan)'],
+                    ['yes', 'Only those who said yes'],
+                  ] as const
+                ).map(([k, label]) => (
+                  <Pill key={k} size="sm" kind={who === k ? 'primary' : 'secondary'} role="radio" aria-checked={who === k} onClick={() => setWho(k)}>
+                    {label}
+                  </Pill>
+                ))}
+              </div>
+              <span className="text-[12px] text-[#7a7466]">Before the invitations go out, place everyone on your list (shown lighter until they reply); anyone who says no comes off their table by themselves.</span>
+            </div>
             <div className="flex justify-between items-baseline">
               <h2 className="m-0 font-display font-medium text-[24px]">Not seated</h2>
-              <span className="text-[13px] text-[#5b6a52]">{comingUnseated}</span>
+              <span className="text-[13px] text-[#5b6a52]">{unseatedAll.length}</span>
             </div>
             {groupNames.length > 0 && (
               <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} aria-label="Show group" className={`${inputCls} !py-[6px] !text-[13px]`}>
@@ -887,7 +960,7 @@ function SeatingPlan() {
             {unseated.map((group) => (
               <div key={group[0]!.invitationId} className="flex flex-col gap-1 py-2 border-t border-[#ece3cc]">
                 <div className="flex justify-between gap-2 items-center">
-                  <span className="text-[12px] text-[#7a7466]">{group[0]!.coming ? 'Coming' : 'Not replied yet'}</span>
+                  <span className="text-[12px] text-[#7a7466]">{group[0]!.coming ? 'Coming' : 'Not replied yet (pencil in)'}</span>
                   {group.length > 1 && (
                     // Tap to seat the whole invitation at the open table, or drag it onto any table.
                     <button
@@ -921,11 +994,11 @@ function SeatingPlan() {
                 </div>
               </div>
             ))}
-            {!unseated.length && <div className="text-[14px] text-[#55633f]">Everyone who said yes has a seat.</div>}
+            {!unseated.length && <div className="text-[14px] text-[#55633f]">{who === 'all' ? 'Everyone invited has a seat.' : 'Everyone who said yes has a seat.'}</div>}
             {waiting.length > 0 && (
               <div className="flex flex-col gap-1 pt-3 mt-1 border-t border-[#e2d7bc]">
                 <span className="text-[13px] font-semibold text-[#5e5130]">Waiting for a reply ({waiting.length})</span>
-                <span className="text-[12px] text-[#7a7466]">They can have a table once they say yes.</span>
+                <span className="text-[12px] text-[#7a7466]">They get a table once they say yes, or choose Everyone invited above to pencil them in now.</span>
                 <div className="flex gap-1 flex-wrap">
                   {waiting.map((p) => (
                     <span key={p.id} className="py-[3px] px-2 rounded-full border border-dashed border-[#d3c6a4] text-[12px] text-[#7a7466]">
@@ -1251,6 +1324,7 @@ function VersionsPanel({
   busy,
   dirty,
   tz,
+  suggest,
   onSave,
   onView,
   onCurrent,
@@ -1263,6 +1337,8 @@ function VersionsPanel({
   busy: boolean;
   dirty: boolean;
   tz: string;
+  /** The name for a version saved at this stage ("Draft before invites", "After replies", "Final"). */
+  suggest: string;
   onSave: (name: string) => void;
   onView: (id: string) => void;
   onCurrent: (id: string, name: string) => void;
@@ -1270,7 +1346,7 @@ function VersionsPanel({
   onDelete: (id: string, name: string) => void;
 }) {
   const [name, setName] = useState('');
-  const suggested = `Version ${versions.length + 1}`;
+  const suggested = versions.some((v) => v.name === suggest) ? `Version ${versions.length + 1}` : suggest;
   return (
     <section aria-label="Seating versions" className="p-4 rounded-[14px] bg-white border border-[#e2d7bc] flex flex-col gap-3 print:hidden">
       <div>
@@ -1292,7 +1368,7 @@ function VersionsPanel({
         }}
       >
         <Label text="Name" className="flex-1 min-w-[200px]">
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={`${suggested}, e.g. Family draft, Final`} className={inputCls} />
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} placeholder={suggested} className={inputCls} />
         </Label>
         <Pill kind="primary" type="submit" disabled={busy || !!viewing}>
           {dirty ? 'Save plan as a version' : 'Save as a version'}
@@ -1410,6 +1486,7 @@ function TableShapeView({
             transform: 'translate(-50%,-50%)',
             background: i < n ? (people[i]!.party ? groupColour(people[i]!.party) : selected ? '#b39563' : '#5d6b47') : '#fbf8f2',
             border: `1px solid ${i < n ? 'transparent' : '#c6b794'}`,
+            opacity: i < n && !people[i]!.coming ? 0.45 : undefined, // pencilled in: not replied yet
           }}
         />
       ))}
@@ -1540,6 +1617,7 @@ function FindGuest({
   tables,
   onShow,
   onSeat,
+  canSeat,
   target,
 }: {
   find: string;
@@ -1549,6 +1627,7 @@ function FindGuest({
   tables: SeatTable[];
   onShow: (tableId: string) => void;
   onSeat?: (ids: string[]) => void;
+  canSeat: (p: Person) => boolean;
   target?: string;
 }) {
   const q = find.trim().toLowerCase();
@@ -1566,13 +1645,13 @@ function FindGuest({
           <div key={p.id} className="flex justify-between items-center gap-2 py-[6px] px-3 rounded-[10px] bg-[#fbf8f2] border border-[#e2d7bc] text-[14px]">
             <span className="min-w-0 truncate">
               {p.name}
-              <span className="block text-[12px] text-[#7a7466]">{!p.coming ? 'Hasn’t said yes' : at ? nameOf(at) : 'Not seated'}</span>
+              <span className="block text-[12px] text-[#7a7466]">{[at ? nameOf(at) : 'Not seated', p.coming ? '' : at ? 'pencilled in' : 'not replied yet'].filter(Boolean).join(' · ')}</span>
             </span>
             {at ? (
               <button type="button" onClick={() => onShow(at)} className="flex-none py-[6px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer text-[#33402f]">
                 Show
               </button>
-            ) : p.coming && onSeat ? (
+            ) : canSeat(p) && onSeat ? (
               <button type="button" onClick={() => onSeat([p.id])} className="flex-none py-[6px] px-3 rounded-full border-0 bg-[#33402f] text-[#fbf8f2] text-[13px] cursor-pointer">
                 Seat at {target}
               </button>

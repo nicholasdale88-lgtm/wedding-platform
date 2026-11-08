@@ -307,7 +307,8 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
               ))}
             </datalist>
           </Label>
-          <Label text="Reception table">
+          {/* A table before they reply is pencilled in (the seating plan's concept plan); a no frees it. */}
+          <Label text={table && g.invited.some((k) => (g.rsvp[k]?.attending ?? null) === null) && !g.invited.some((k) => g.rsvp[k]?.attending === true) ? 'Reception table · pencilled in' : 'Reception table'}>
             <input value={table} placeholder="e.g. 4" onChange={(e) => setTable(e.target.value)} onBlur={() => table !== (g.people.find((p) => p.table)?.table ?? '') && void patch({ table: table.trim() || null, ...(overview?.events.some((e) => e.key === chosen) ? { tableEvent: chosen } : {}) })} className={inputCls} />
           </Label>
         </div>

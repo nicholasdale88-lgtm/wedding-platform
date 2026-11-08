@@ -1,4 +1,4 @@
-import { allPayments, isSerious, splitDiet, type Budget, type PlanChecklist, type PartySide, type Vendors } from '@wp/shared';
+import { allPayments, autoSeat, isSerious, splitDiet, type Budget, type PlanChecklist, type PartySide, type Vendors } from '@wp/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../src/env';
 import { createApp } from '../src/index';
@@ -477,18 +477,15 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect(v0.event.key).toBe('wedding');
     const coming = v0.people.filter((p) => p.coming);
     expect(coming).toHaveLength(yesPeople);
-    expect(v0.people.filter((p) => !p.coming)).toHaveLength(rows.slice(18).reduce((n, r) => n + r.people.length, 0)); // awaiting, shown but not seatable
+    expect(v0.people.filter((p) => !p.coming)).toHaveLength(rows.slice(18).reduce((n, r) => n + r.people.length, 0)); // awaiting: shown, and can be pencilled in
     const tables = ['Table 1', 'Table 2', 'Table 3', 'Table 4'].map(table);
     const areas = [{ label: 'Dance floor', x: 40, y: 75, w: 20, h: 15 }];
     const seatsA = Object.fromEntries(coming.map((p, k) => [p.id, tables[k % 4]!.id]));
     const seatsB = Object.fromEntries(coming.map((p, k) => [p.id, tables[(k + 1) % 4]!.id]));
     const save = (version: number, seats: Record<string, string>) => put(w, '/seating', version, { event: 'wedding', aspect: '4 / 3', tables, areas, seats });
 
-    // Someone who hasn't replied can't have a seat.
-    const silent = v0.people.find((p) => !p.coming)!;
-    const refused = await save(v0.version, { ...seatsA, [silent.id]: tables[0]!.id });
-    expect(refused.status).toBe(400);
-    expect((await read<ApiError>(refused)).error.code).toBe('not_coming');
+    // Someone who said no isn't on the list at all, so they can't be given a seat (still to reply can: pencilled in).
+    expect(v0.people.some((p) => byName.get(rows[16]!.people[0]!)!.people.some((q: { name: string }) => q.name === p.name))).toBe(false);
 
     // Version A: saved and named.
     const a = await save(v0.version, seatsA);
@@ -550,6 +547,65 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
   });
 
   // ------------------------------------------------------------------------------------------------ 7
+  // ------------------------------------------------------------------------------------------------ 6b
+  it('6b. concept plan: everyone on the list seated before any invitation goes out; replies then confirm, free seats and wait to be placed', { timeout: 90_000 }, async () => {
+    type Changes = { saidYes: string[]; cantCome: { name: string; table: string }[]; newGuests: string[] };
+    type Staged = SeatView & { stage: { auto: string; sent: boolean; replied: number }; sinceSave: Changes | null };
+    const w = await signup({ firstName: 'Iris', partnerName: 'Jack', email: 'iris.jack@example.com', date: day(200) });
+    await upgrade(w, 'essentials');
+    const rows: ImportRow[] = Array.from({ length: 8 }, (_, i) => ({ people: i % 2 === 0 ? [nameOf(700 + i), partnerOf(700 + i)] : [nameOf(700 + i)], phone: mobile(700 + i) }));
+    await importRows(w, rows);
+    const everyone = rows.reduce((n, r) => n + r.people.length, 0);
+
+    // Nothing sent, nobody replied: a concept plan, with everyone on the list ready to place.
+    const v0 = await read<Staged>(await admin(w, '/seating'));
+    expect(v0.stage).toMatchObject({ auto: 'draft', sent: false, replied: 0 });
+    expect(v0.people).toHaveLength(everyone);
+    expect(v0.people.every((p) => !p.coming)).toBe(true);
+    const tables = ['1', '2', '3'].map(table);
+    // Auto-seat as the page does with "Everyone invited": everyone counts.
+    const seats = autoSeat(v0.people.map((p) => ({ ...p, party: '', coming: true })), tables, {}).seats;
+    expect(Object.values(seats).filter(Boolean)).toHaveLength(everyone);
+    const saved = await put(w, '/seating', v0.version, { event: v0.event.key, aspect: '4 / 3', tables, areas: [], seats });
+    expect(saved.status).toBe(200);
+    const v1 = await read<Staged>(saved);
+    expect(v1.people.every((p) => p.tableId === seats[p.id])).toBe(true); // every pencilled-in seat kept
+    expect(v1.sinceSave).toBeNull();
+
+    // The invitations go out: one couple says yes, one guest can't come, and someone new is added.
+    const { token, byName } = await guests(w);
+    const yes = byName.get(rows[0]!.people[0]!)!;
+    const no = byName.get(rows[1]!.people[0]!)!;
+    expect((await rsvp(w, token(yes), { events: { wedding: { attending: true } }, count: yes.people.length }, ipOf(700))).status).toBe(200);
+    expect((await rsvp(w, token(no), { events: { wedding: { attending: false } }, count: 1 }, ipOf(701))).status).toBe(200);
+    await importRows(w, [{ people: ['Quinn Newcombe'], phone: mobile(799) }]);
+
+    const v2 = await read<Staged>(await admin(w, '/seating'));
+    expect(v2.stage.auto).toBe('replies');
+    const noPerson = v1.people.find((p) => p.name === rows[1]!.people[0])!;
+    expect(v2.sinceSave).toEqual({
+      at: expect.any(String),
+      saidYes: rows[0]!.people,
+      cantCome: [{ name: rows[1]!.people[0]!, table: tables.find((x) => x.id === seats[noPerson.id])!.name }],
+      newGuests: ['Quinn Newcombe'],
+    });
+    // The same plan carries on: the yeses are confirmed where they were, the no is off it, everyone else stays pencilled in.
+    for (const p of v1.people) {
+      const now = v2.people.find((x) => x.id === p.id);
+      if (p.id === noPerson.id) expect(now).toBeUndefined();
+      else expect(now).toMatchObject({ tableId: p.tableId, coming: rows[0]!.people.includes(p.name) });
+    }
+    expect(v2.people.find((p) => p.name === 'Quinn Newcombe')).toMatchObject({ tableId: null, coming: false });
+
+    // Published: guests see only the yeses.
+    const pubd = await read<Staged>(await admin(w, '/seating/publish', { method: 'POST', headers: { 'If-Match': String(v2.version) }, body: JSON.stringify({ event: 'wedding' }) }));
+    expect(pubd.published).toMatchObject({ changes: 0 });
+    const snap = await t.db.prepare(`SELECT sp.snapshot FROM seat_publish sp JOIN event e ON e.id = sp.event_id WHERE e.wedding_id = ?`).bind(w.id).first<{ snapshot: string }>();
+    const shown = Object.keys((JSON.parse(snap!.snapshot) as { seats: Record<string, string> }).seats);
+    expect(shown.sort()).toEqual(v2.people.filter((p) => p.coming).map((p) => p.id).sort());
+    healthy();
+  });
+
   it('7. budget and vendors: lines, quotes, one booked, and its payments appear', { timeout: 90_000 }, async () => {
     const w = await signup({ firstName: 'Matilda', partnerName: 'Archie', email: 'matilda.archie@example.com', date: day(300) });
     await upgrade(w, 'essentials');

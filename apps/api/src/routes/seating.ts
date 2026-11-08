@@ -1,4 +1,4 @@
-import { allows, TABLE_SHAPES } from '@wp/shared';
+import { allows, anyChanges, seatBaseline, seatChanges, seatStage, TABLE_SHAPES, type SeatBaseline, type SeatStage } from '@wp/shared';
 import { needsUpgrade, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -14,6 +14,10 @@ import { servedAt } from '../lib/meals';
  *
  * Versions (/seating/versions): name a snapshot of the saved plan ("Family draft", "Final"), look back at
  * any of them, and nominate one as the current arrangement (it's copied into the working plan).
+ *
+ * Stage (/seating/stage): Draft → Replies coming in → Final → Published, worked out from the replies
+ * (the couple can choose one instead). Each save keeps who was on the plan (a "baseline", in planner_doc
+ * 'seat-baseline'), so the next visit can say who said yes, who can't come and who's new since.
  */
 
 type C = Context<AdminEnv>;
@@ -49,9 +53,13 @@ const Save = z
 /**
  * An event's seating, as saved (the draft) and as published to guests, with everyone invited to it. The
  * admin's seating page and a caterer's page both read it.
+ *
+ * The draft seats everyone invited who hasn't said no: guests still to reply can be pencilled in before
+ * replies arrive. What guests are shown (`publishable`) has only the people who said yes, so nobody's
+ * guide lists a table mate who may not come.
  */
 export async function loadSeating(db: D1Database, weddingId: string, eventKey?: string) {
-    const w = await db.prepare(`SELECT id, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(weddingId).first<{ id: string; version: number }>();
+    const w = await db.prepare(`SELECT id, version, content FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(weddingId).first<{ id: string; version: number; content: string | null }>();
     if (!w) return null;
     const { results: events } = await db
       .prepare(`SELECT id, key, name, has_seating, catered FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`)
@@ -59,7 +67,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       .all<{ id: string; key: string; name: string; has_seating: number; catered: number }>();
     const ev = events.find((e) => e.key === eventKey) ?? events.find((e) => e.has_seating) ?? events.find((e) => e.catered) ?? events[0];
     if (!ev) return null;
-    const [plan, tables, areas, people, pub, vers] = await db.batch([
+    const [plan, tables, areas, people, pub, vers, docs, sent] = await db.batch([
       db.prepare(`SELECT aspect, image_key, current_version FROM seat_plan WHERE event_id = ?`).bind(ev.id),
       db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats, sides FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
@@ -75,34 +83,67 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       ).bind(ev.id, w.id),
       db.prepare(`SELECT snapshot, published_at FROM seat_publish WHERE event_id = ?`).bind(ev.id),
       db.prepare(`SELECT id, name, snapshot, created_at FROM seat_version WHERE event_id = ? ORDER BY created_at DESC`).bind(ev.id),
+      db.prepare(`SELECT kind, data FROM planner_doc WHERE wedding_id = ? AND scope = ? AND kind IN ('seat-baseline', 'seat-stage')`).bind(w.id, ev.key),
+      // Invitations are out once any text has gone, or anyone has opened theirs.
+      db.prepare(
+        `SELECT EXISTS (SELECT 1 FROM sms_out WHERE wedding_id = ?1 AND invitation_id IS NOT NULL AND status IN ('sent', 'delivered'))
+             OR EXISTS (SELECT 1 FROM invitation WHERE wedding_id = ?1 AND opened_at IS NOT NULL AND deleted_at IS NULL) AS sent`,
+      ).bind(w.id),
     ]);
     const versionRows = vers!.results as { id: string; name: string; snapshot: string; created_at: string }[];
     const tableIds = new Set((tables!.results as { id: string }[]).map((t) => t.id));
     const p = plan!.results[0] as { aspect: string; image_key: string | null; current_version: string | null } | undefined;
+    type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; role: string; invited: number; attending: number | null };
+    const rows = people!.results as Row[];
+    // A seat needs an invitation to this event and no "no" (still to reply is fine: pencilled in).
+    const seatable = (x: Row) => !!x.invited && x.attending !== 0;
+    const seatOf = (x: Row) => (seatable(x) && x.tableId && tableIds.has(x.tableId) ? x.tableId : null);
     const draft: Snapshot = {
       aspect: p?.aspect ?? '4 / 3',
       tables: tables!.results as Snapshot['tables'],
       areas: areas!.results as Snapshot['areas'],
-      seats: Object.fromEntries(
-        (people!.results as { id: string; tableId: string | null; invited: number; attending: number | null }[])
-          .filter((x) => x.invited && x.attending === 1 && x.tableId && tableIds.has(x.tableId))
-          .map((x) => [x.id, x.tableId!]),
-      ),
+      seats: Object.fromEntries(rows.filter(seatOf).map((x) => [x.id, seatOf(x)!])),
     };
+    const yes = new Set(rows.filter((x) => x.invited && x.attending === 1).map((x) => x.id));
+    const publishable: Snapshot = { ...draft, seats: Object.fromEntries(Object.entries(draft.seats).filter(([id]) => yes.has(id))) };
     const pubRow = pub!.results[0] as { snapshot: string; published_at: string } | undefined;
     const empty = { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot;
+    const pubSnap = pubRow ? safeJson<Snapshot>(pubRow.snapshot, empty) : null;
+    // Guests shown at a table who have since said no (or are no longer invited): their seat is empty now.
+    const gone = pubSnap ? rows.filter((x) => pubSnap.seats[x.id] && !seatable(x)).map((x) => x.name) : [];
     const cur = versionRows.find((x) => x.id === p?.current_version);
     const versions = versionRows.map((x) => {
       const snap = safeJson<Snapshot>(x.snapshot, empty);
       return { id: x.id, name: x.name, at: x.created_at, tables: snap.tables.length, seated: Object.keys(snap.seats).length };
     });
-    const published = pubRow ? { at: pubRow.published_at, changes: changesBetween(safeJson<Snapshot>(pubRow.snapshot, { aspect: '', tables: [], areas: [], seats: {} } as unknown as Snapshot), draft) } : null;
+    // Pencilled-in guests are never shown to guests, so they don't count as changes waiting to go live.
+    const published = pubRow && pubSnap ? { at: pubRow.published_at, changes: changesBetween(pubSnap, publishable), saidNo: gone } : null;
     const served = await servedAt(db, w.id, ev);
+    const list = rows
+      .filter(seatable)
+      .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), coming: x.attending === 1 }));
+
+    // Where the plan is in its life, and what changed since it was last saved.
+    const doc = (kind: string) => (docs!.results as { kind: string; data: string }[]).find((d) => d.kind === kind)?.data;
+    const baseline = safeJson<SeatBaseline | null>(doc('seat-baseline') ?? 'null', null);
+    const chosen = safeJson<{ stage?: SeatStage } | null>(doc('seat-stage') ?? 'null', null)?.stage ?? null;
+    const close = safeJson<{ invitation?: { rsvpClose?: unknown } }>(w.content ?? '{}', {}).invitation?.rsvpClose;
+    const invitedRows = rows.filter((x) => x.invited);
+    const facts = {
+      sent: !!(sent!.results[0] as { sent: number } | undefined)?.sent,
+      invited: invitedRows.length,
+      replied: invitedRows.filter((x) => x.attending !== null).length,
+      closed: typeof close === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(close) && close < new Date().toISOString().slice(0, 10),
+      published: !!pubRow,
+    };
+    const changes = seatChanges(baseline, list);
     return {
       eventId: ev.id,
       draft,
+      /** The draft as guests would see it: only people who said yes. */
+      publishable,
       /** What guests were last shown (null: never published). */
-      publishedPlan: pubRow ? safeJson<Snapshot>(pubRow.snapshot, empty) : null,
+      publishedPlan: pubSnap,
       view: {
         published,
         versions,
@@ -115,11 +156,25 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
         planImg: '', // plan photos arrive with uploads (R2)
         tables: tables!.results as { id: string; name: string; shape: string; dir: string; len: number; x: number; y: number; seats: number }[],
         areas: areas!.results,
-        people: (people!.results as { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; role: string; invited: number; attending: number | null }[])
-          .filter((x) => x.invited && x.attending !== 0)
-          .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: x.attending === 1 && x.tableId && tableIds.has(x.tableId) ? x.tableId : null, coming: x.attending === 1 })),
+        people: list,
+        stage: { auto: seatStage(facts), chosen, ...facts },
+        /** Since the plan was last saved (null: never saved, or nothing changed). */
+        sinceSave: baseline && anyChanges(changes) ? { at: baseline.at, ...changes } : null,
       },
     };
+}
+
+/** Remember who is on the plan now (after a save), so the next visit can say what changed since. */
+export async function keepBaseline(db: D1Database, weddingId: string, eventKey: string) {
+  const s = await loadSeating(db, weddingId, eventKey);
+  if (!s) return null;
+  const now = new Date().toISOString();
+  const data = JSON.stringify(seatBaseline(now, s.view.people, s.view.tables));
+  await db
+    .prepare(`INSERT INTO planner_doc (wedding_id, kind, scope, data, version, updated_at) VALUES (?1, 'seat-baseline', ?2, ?3, 1, ?4) ON CONFLICT (wedding_id, kind, scope) DO UPDATE SET data = ?3, version = version + 1, updated_at = ?4`)
+    .bind(weddingId, s.view.event.key, data, now)
+    .run();
+  return { ...s, view: { ...s.view, sinceSave: null } };
 }
 
 export function seatingRoutes() {
@@ -156,11 +211,10 @@ export function seatingRoutes() {
     }
     const keep = new Set(b.tables.map((t) => t.id));
     const people = new Set(cur.people.map((p) => p.id));
+    // Everyone in the seating is invited and hasn't said no (still to reply is fine: pencilled in).
     for (const [pid, tid] of Object.entries(b.seats)) {
       if (!people.has(pid)) return err(c, 400, 'invalid', 'Someone in the seating is no longer coming. Reload and try again.');
       if (tid && !keep.has(tid)) return err(c, 400, 'invalid', 'A table in the seating no longer exists.');
-      const who = cur.people.find((p) => p.id === pid)!;
-      if (tid && !who.coming) return err(c, 400, 'not_coming', `Only guests who said yes can have a seat. ${who.name} hasn't said yes.`);
     }
 
     // Claim the version first: a batch doesn't stop when an UPDATE matches nothing.
@@ -207,12 +261,41 @@ export function seatingRoutes() {
     );
 
     await db.batch(stmts);
-    return c.json((await load(c, b.event))!.view);
+    return c.json((await keepBaseline(db, wid(c), b.event))!.view);
+  });
+
+  /**
+   * Stage: choose where the plan is (Draft, Replies coming in, Final, Published), or null to have it
+   * worked out from the replies again. Only changes what the page suggests; the plan itself is untouched.
+   */
+  app.put('/stage', requireMember('owner', 'editor'), async (c) => {
+    const body = z.object({ event: z.string().max(40), stage: z.enum(['draft', 'replies', 'final', 'published']).nullable() }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose a stage.');
+    const loaded = await load(c, body.data.event);
+    if (!loaded || loaded.view.event.key !== body.data.event) return err(c, 404, 'not_found', 'That event no longer exists.');
+    const db = c.env.DB;
+    await (body.data.stage
+      ? db
+          .prepare(`INSERT INTO planner_doc (wedding_id, kind, scope, data, version, updated_at) VALUES (?1, 'seat-stage', ?2, ?3, 1, ?4) ON CONFLICT (wedding_id, kind, scope) DO UPDATE SET data = ?3, version = version + 1, updated_at = ?4`)
+          .bind(wid(c), body.data.event, JSON.stringify({ stage: body.data.stage }), new Date().toISOString())
+      : db.prepare(`DELETE FROM planner_doc WHERE wedding_id = ? AND kind = 'seat-stage' AND scope = ?`).bind(wid(c), body.data.event)
+    ).run();
+    return c.json((await load(c, body.data.event))!.view);
+  });
+
+  /** "Seen": the changes since the last save are noted without saving the plan (the summary clears). */
+  app.post('/seen', requireMember('owner', 'editor'), async (c) => {
+    const body = z.object({ event: z.string().max(40) }).strict().safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose an event.');
+    const s = await keepBaseline(c.env.DB, wid(c), body.data.event);
+    if (!s || s.view.event.key !== body.data.event) return err(c, 404, 'not_found', 'That event no longer exists.');
+    return c.json(s.view);
   });
 
   /**
    * Publish: the saved plan becomes what guests see (guides and the night-before text's {table}).
-   * Only guests who said yes are in it. Publish again after any change.
+   * Only guests who said yes are in it (pencilled-in guests appear once they say yes and it's published
+   * again). Publish again after any change.
    */
   app.post('/publish', requireMember('owner', 'editor'), async (c) => {
     const v = Number(c.req.header('If-Match'));
@@ -229,9 +312,9 @@ export function seatingRoutes() {
     await db.batch([
       db
         .prepare(`INSERT INTO seat_publish (event_id, snapshot, published_at, published_by) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (event_id) DO UPDATE SET snapshot = ?2, published_at = ?3, published_by = ?4`)
-        .bind(loaded.eventId, JSON.stringify(loaded.draft), now, c.get('user').id),
+        .bind(loaded.eventId, JSON.stringify(loaded.publishable), now, c.get('user').id),
       db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.publish', ?, ?, ?)`).bind(
-        crypto.randomUUID(), wid(c), c.get('user').id, body.data.event, JSON.stringify({ tables: loaded.draft.tables.length, seated: Object.keys(loaded.draft.seats).length }), now,
+        crypto.randomUUID(), wid(c), c.get('user').id, body.data.event, JSON.stringify({ tables: loaded.publishable.tables.length, seated: Object.keys(loaded.publishable.seats).length }), now,
       ),
     ]);
     return c.json((await load(c, body.data.event))!.view);
@@ -290,7 +373,7 @@ export function seatingRoutes() {
 
   /**
    * Nominate a version as the current arrangement: its tables, areas and seats become the working plan.
-   * Guests who've since said no, or are no longer on the list, aren't seated; publish to show guests.
+   * Guests who've since said no, or are no longer invited, aren't seated; publish to show guests.
    */
   app.post('/versions/:id/current', requireMember('owner', 'editor'), async (c) => {
     const ver = Number(c.req.header('If-Match'));
@@ -307,7 +390,7 @@ export function seatingRoutes() {
     const claim = await db.prepare(`UPDATE wedding SET version = version + 1, updated_at = ? WHERE id = ? AND version = ?`).bind(now, wid(c), ver).run();
     if (!claim.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
     const keep = new Set(snap.tables.map((t) => t.id));
-    const coming = new Set(loaded.view.people.filter((p) => p.coming).map((p) => p.id));
+    const coming = new Set(loaded.view.people.map((p) => p.id)); // invited and not said no
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO seat_plan (event_id, aspect, current_version) VALUES (?1, ?2, ?3) ON CONFLICT (event_id) DO UPDATE SET aspect = ?2, current_version = ?3`).bind(ev, snap.aspect || '4 / 3', v.id),
       db.prepare(`DELETE FROM seat WHERE event_id = ?`).bind(ev),
@@ -333,7 +416,7 @@ export function seatingRoutes() {
     stmts.push(unseatEveryoneNotComing(db, ev));
     stmts.push(db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.current', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, v.key, JSON.stringify({ name: v.name }), now));
     await db.batch(stmts);
-    return c.json((await load(c, v.key))!.view);
+    return c.json((await keepBaseline(db, wid(c), v.key))!.view);
   });
 
   return app;

@@ -130,15 +130,19 @@ describe('admin API', () => {
     expect((await json<{ error: { message: string } }>(table)).error.message).toBe('There\'s no table called "99" yet. Add it in Seating.');
   });
 
-  it('seats a whole invitation at a table by name, once they have said yes', async () => {
-    let g = await guestNamed('Ivy Scott');
+  it('seats a whole invitation at a table by name: pencilled in before they reply, refused once they say no', async () => {
+    type G = { guest: { version: number; people: { table: string | null }[] } };
+    let g = await guestNamed('Ivy Scott'); // still to reply
     const early = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ table: '3' }) });
-    expect(early.status).toBe(400);
-    expect((await json<{ error: { message: string } }>(early)).error.message).toMatch(/haven't said yes .* yet/);
-    await call(`/guests/${g.id}/rsvp`, { method: 'PUT', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ events: { wedding: { attending: true } } }) });
+    expect(early.status).toBe(200);
+    expect((await json<G>(early)).guest.people[0]!.table).toBe('3'); // pencilled in
     g = await guestNamed('Ivy Scott');
-    const res = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ table: '3' }) });
-    expect((await json<{ guest: { people: { table: string }[] } }>(res)).guest.people[0]!.table).toBe('3');
+    await call(`/guests/${g.id}/rsvp`, { method: 'PUT', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ events: { wedding: { attending: false } } }) });
+    g = await guestNamed('Ivy Scott');
+    expect((g as unknown as G['guest']).people[0]!.table).toBeFalsy(); // declined: the seat is freed
+    const refused = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ table: '3' }) });
+    expect(refused.status).toBe(400);
+    expect((await json<{ error: { message: string } }>(refused)).error.message).toMatch(/said no/);
   });
 
   it('add, remove and undo', async () => {
