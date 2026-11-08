@@ -59,18 +59,52 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   const latest = useRef<GuestDetail | null>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
+  // What the boxes last showed from the server: a box still being typed in (its text differs from that) keeps
+  // what's typed when another change saves, instead of jumping back (the "glitchy" boxes).
+  const shown = useRef<Record<string, string> | null>(null);
   const fill = useCallback((x: GuestDetail) => {
     latest.current = x;
     setD(x);
-    setNames(x.guest.people.map((p) => p.name));
-    setPhone(x.guest.phoneDisplay);
-    setPhone2(x.guest.phone2Display ?? '');
-    setEmail(x.guest.email ?? '');
-    setTable(x.guest.people.find((p) => p.table)?.table ?? '');
-    setDiet(joinDiet(x.guest.people));
-    setMessage(Object.values(x.guest.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '');
+    const next = {
+      names: JSON.stringify(x.guest.people.map((p) => p.name)),
+      phone: x.guest.phoneDisplay,
+      phone2: x.guest.phone2Display ?? '',
+      email: x.guest.email ?? '',
+      table: x.guest.people.find((p) => p.table)?.table ?? '',
+      diet: joinDiet(x.guest.people),
+      message: Object.values(x.guest.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '',
+    };
+    const was = shown.current;
+    shown.current = next;
+    const keep = (k: keyof typeof next) => (cur: string) => (!was || cur === was[k] ? next[k] : cur);
+    setNames((cur) => JSON.parse(keep('names')(JSON.stringify(cur))) as string[]);
+    setPhone(keep('phone'));
+    setPhone2(keep('phone2'));
+    setEmail(keep('email'));
+    setTable(keep('table'));
+    setDiet(keep('diet'));
+    setMessage(keep('message'));
     setPick((p) => p || x.campaigns[0]?.id || '');
   }, []);
+  // The guest list behind refreshes once things settle, not after every single change (that made each
+  // choice wait for the whole list to reload).
+  const later = useRef<number | undefined>(undefined);
+  const changedSoon = () => {
+    window.clearTimeout(later.current);
+    later.current = window.setTimeout(() => {
+      later.current = undefined;
+      void onChanged();
+    }, 400);
+  };
+  useEffect(
+    () => () => {
+      if (later.current !== undefined) {
+        window.clearTimeout(later.current);
+        void onChanged();
+      }
+    },
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const load = useCallback(async () => {
     try {
@@ -94,12 +128,12 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
     try {
       fill(await run(latest.current.guest));
       toast('Saved');
-      await onChanged();
+      changedSoon();
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         toast('Updated elsewhere, reloaded.');
         await load();
-        await onChanged();
+        changedSoon();
       } else {
         toast((e as Error).message);
         await load(); // put the fields back to what's saved
@@ -168,6 +202,8 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   const lastVia = Object.values(g.rsvp).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.via ?? '';
   const peopleNames = names.filter((n) => n.trim());
   const dayOf = (iso: string) => fmtWeekday(iso, tz);
+  /** Mark someone a child (or an adult again); everyone is an adult unless ticked. */
+  const setChild = (idx: number, child: boolean) => void patch({ children: g.people.map((p, j) => (j === idx ? child : !!p.child)) });
   const savePeople = (next: string[]) => {
     setNames(next);
     void patch({ people: next.map((n) => n.trim()) });
@@ -268,6 +304,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         <Label text="Main contact · gets the texts">
           <input value={names[0] ?? ''} onChange={(e) => setNames([e.target.value, ...names.slice(1)])} onBlur={() => names[0] !== g.people[0]?.name && savePeople(names)} className={inputCls} />
         </Label>
+        {g.people[0] && <ChildTick on={!!g.people[0].child} name={names[0] || 'the main contact'} onChange={(v) => setChild(0, v)} />}
         {names.slice(1).map((n, i) => (
           <div key={i} className="flex gap-2 items-center">
             <input
@@ -278,6 +315,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
               onBlur={() => n !== g.people[i + 1]?.name && savePeople(names)}
               className={`flex-1 min-w-0 ${inputCls}`}
             />
+            {g.people[i + 1] && <ChildTick compact on={!!g.people[i + 1]!.child} name={n || 'this guest'} onChange={(v) => setChild(i + 1, v)} />}
             <button onClick={() => savePeople(names.filter((_, j) => j !== i + 1))} aria-label="Remove person" className="w-[38px] h-[38px] flex-none rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[16px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">×</button>
           </div>
         ))}
@@ -642,4 +680,14 @@ function previewUrl(link: string, page = ''): string {
   } catch {
     return link;
   }
+}
+
+/** "Child": unticked means an adult (the default); ticked, they count as a child for the caterer and seating. */
+function ChildTick({ on, name, compact = false, onChange }: { on: boolean; name: string; compact?: boolean; onChange: (child: boolean) => void }) {
+  return (
+    <label className={`flex items-center gap-1 text-[13px] text-[var(--adm-muted,#5b6a52)] cursor-pointer select-none ${compact ? 'flex-none' : 'self-start -mt-1'}`}>
+      <input type="checkbox" aria-label={`${name} is a child`} checked={on} onChange={(e) => onChange(e.target.checked)} className="w-4 h-4 accent-[#33402f]" />
+      Child
+    </label>
+  );
 }

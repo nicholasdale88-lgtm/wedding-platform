@@ -241,12 +241,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 /** Right-side drawer, 480px, dimmed backdrop; Escape and backdrop close it. */
 export function Drawer({ onClose, label, children }: { onClose: () => void; label: string; children: ReactNode }) {
+  // Set up once while it's open (not again on every change inside it, which made the page behind jump).
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       // Leave the field first, so what was typed in it saves (fields save when you leave them).
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-      onClose();
+      close.current();
     };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
@@ -255,7 +258,7 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [onClose]);
+  }, []);
   return (
     <div className="fixed inset-0 z-20 flex justify-end">
       <div onClick={onClose} className="yl-backdrop absolute inset-0 bg-[rgba(51,64,47,.32)]" />

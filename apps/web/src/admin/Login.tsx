@@ -152,7 +152,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
         </button>
         {!co && (
           <a href="/" className="text-[14px] !text-[#5b6a52]">
-            New here? Start free
+            New here? Start your wedding
           </a>
         )}
       </form>

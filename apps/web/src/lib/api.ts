@@ -82,6 +82,8 @@ export interface Person {
   meals?: Record<string, { menu: string; entree: string; main: string; dessert: string }>;
   /** Their wedding party role ('' when they aren't in it). */
   role?: string;
+  /** A child (everyone is an adult unless marked). */
+  child?: boolean;
 }
 
 export interface Reply {
@@ -158,6 +160,8 @@ export interface Overview {
 
 export interface GuestPatch {
   people?: string[];
+  /** Which people are children, in order (adult unless marked). */
+  children?: boolean[];
   phone?: string | null;
   phone2?: string | null;
   email?: string | null;

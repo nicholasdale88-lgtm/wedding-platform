@@ -152,6 +152,7 @@ export const person = sqliteTable('person', {
   mealDessert: text('meal_dessert').notNull().default(''),
   tableId: text('table_id'), // no longer used: seats are per event (seat, migration 0011)
   partyRole: text('party_role').notNull().default(''), // migration 0012: bridesmaid, best man, MC…
+  child: integer('child').notNull().default(0), // migration 0045: a child guest (adult by default)
   version: version(),
   deletedAt: text('deleted_at'),
 });

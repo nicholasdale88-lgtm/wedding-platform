@@ -29,6 +29,8 @@ export interface AdminPerson {
   meals: Record<string, { menu: string; entree: string; main: string; dessert: string }>;
   /** Their wedding party role ('' when they aren't in it). */
   role: string;
+  /** A child (everyone is an adult unless marked). */
+  child: boolean;
 }
 
 export interface EventReply {
@@ -111,7 +113,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
     q(`SELECT id, key, name, pending_label, starts_at, sort, has_seating, catered, venue, questions FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
     q(`SELECT id, phone, phone2, email, channel, seats_held, party, side, relation, circles, address_street, address_suburb, address_state, address_postcode, address_country, delivery, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
     // Each person's seat at each event ({ eventKey: table name }); "table" is their first event's.
-    q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.party_role,
+    q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.party_role, p.child,
               (SELECT json_group_object(e.key, json_object('menu', m.menu_id, 'entree', m.entree, 'main', m.main, 'dessert', m.dessert))
                  FROM meal_choice m JOIN event e ON e.id = m.event_id AND e.deleted_at IS NULL WHERE m.person_id = p.id) AS meals,
               (SELECT json_group_object(e.key, t.name) FROM seat s JOIN seat_table t ON t.id = s.table_id AND t.deleted_at IS NULL
@@ -153,6 +155,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
       meals: json<AdminPerson['meals']>(p.meals as string | null, {}),
       meal: { entree: '', main: '', dessert: '' },
       role: String(p.party_role ?? ''),
+      child: Number(p.child ?? 0) === 1,
     });
   }
   // `meal` (older screens): what they're given at the first event.

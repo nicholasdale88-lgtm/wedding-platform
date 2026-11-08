@@ -179,6 +179,7 @@ export function Guests() {
   const labels = labelRows(guests);
   const byPost = guests.filter((g) => g.delivery === 'post').length;
   const seatsHeld = guests.reduce((n, g) => n + g.seatsHeld, 0);
+  const kids = guests.reduce((n, g) => n + g.people.filter((p) => p.child).length, 0);
   const cols = `minmax(200px,1.5fr) 128px ${events.length === 2 ? '118px ' : ''}${events.map(() => '104px').join(' ')} 84px ${questions.map(() => '82px').join(' ')} minmax(170px,1.4fr) 150px`;
 
   return (
@@ -188,6 +189,7 @@ export function Guests() {
           <Eyebrow>{section} · Guests</Eyebrow>
           <h1 className="mt-[6px] mb-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] min-h-[43px]">
             {data ? (guests.length ? `${seatsHeld} guests on ${guests.length} invitations` : 'Your guest list') : ''}
+            {kids > 0 && <span className="block text-[15px] font-sans font-normal text-[var(--adm-muted,#5b6a52)] mt-1">{`${kids} ${kids === 1 ? 'child' : 'children'}, ${Math.max(0, seatsHeld - kids)} adults`}</span>}
           </h1>
           {labels.length > 0 && (
             <span className="block mt-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">

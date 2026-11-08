@@ -46,6 +46,8 @@ const GuestPatch = z
     table: z.string().trim().max(40).nullable(),
     /** The event the table is for (the section it was typed in): only that event's tables and seats. */
     tableEvent: z.string().max(40),
+    /** Which people on the invitation are children, in order (everyone is an adult unless marked). */
+    children: z.array(z.boolean()).max(30),
   })
   .partial()
   .strict();
@@ -491,6 +493,11 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       // Their seats and meals go with them (no empty chair counted as taken, no plate for the caterer).
       stmts.push(db.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ? AND idx >= ?)`).bind(invId, names.length));
       stmts.push(db.prepare(`DELETE FROM meal_choice WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ? AND idx >= ?)`).bind(invId, names.length));
+    }
+    if (p.children) {
+      p.children.forEach((kid, idx) =>
+        stmts.push(db.prepare(`UPDATE person SET child = ?, version = version + 1 WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(kid ? 1 : 0, invId, idx)),
+      );
     }
     if (p.invited) {
       stmts.push(db.prepare(`DELETE FROM invite_event WHERE invitation_id = ?`).bind(invId));
