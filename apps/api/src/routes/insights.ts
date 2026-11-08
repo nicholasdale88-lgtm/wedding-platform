@@ -49,7 +49,7 @@ export function insightsRoutes() {
       db.prepare(`SELECT COUNT(*) AS n FROM media WHERE wedding_id = ? AND kind IN ('photo', 'video') AND raw_of IS NULL AND deleted_at IS NULL`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n FROM board_post WHERE wedding_id = ? AND status = 'shown'`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n FROM song_request WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w),
-      db.prepare(`SELECT COUNT(*) AS n, SUM(kind = 'vendor') AS vendors, SUM(kind = 'guest') AS guests FROM inbox_email WHERE wedding_id = ?`).bind(w),
+      db.prepare(`SELECT COUNT(*) AS n, SUM(kind = 'vendor') AS vendors, SUM(kind = 'guest') AS guests FROM inbox_email WHERE wedding_id = ? AND direction = 'in'`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND p.party_role != ''`).bind(w),
       // Each message: how many went, arrived, and how many guests replied within three days of getting it.
       db.prepare(

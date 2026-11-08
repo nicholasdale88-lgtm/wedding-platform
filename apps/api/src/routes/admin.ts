@@ -27,6 +27,8 @@ const GuestPatch = z
   .object({
     people: z.array(z.string().trim().max(120)).min(1).max(30),
     phone: z.string().max(40).nullable(),
+    /** The main contact's email (for emailing their invitation, and knowing who wrote in). */
+    email: z.union([z.literal(''), z.string().trim().toLowerCase().email().max(200)]).nullable(),
     seatsHeld: z.number().int().min(1).max(60),
     party: z.string().trim().max(60),
     invited: z.array(z.string()).max(20),
@@ -202,6 +204,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const Row = z.object({
       people: z.array(z.string().trim().max(120)).max(12),
       phone: z.string().max(40).optional(),
+      email: z.string().max(200).optional(),
       seats: z.number().int().min(1).max(60).optional(),
       party: z.string().trim().max(60).optional(),
       invited: z.array(z.string().max(40)).max(20).optional(),
@@ -225,7 +228,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const names = new Set(existing.map((e) => norm(e.name ?? '')).filter(Boolean));
     const byKey = new Map(events.map((e) => [e.key, e.id]));
 
-    const ok: { people: string[]; phone: string | null; seats: number; party: string; eventIds: string[] }[] = [];
+    const ok: { people: string[]; phone: string | null; email: string | null; seats: number; party: string; eventIds: string[] }[] = [];
     const skipped: { row: number; name: string; reason: string }[] = [];
     const problems: { row: number; name: string; reason: string }[] = [];
     body.data.rows.forEach((r, i) => {
@@ -235,12 +238,14 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       if (!name) return problems.push({ row, name: '', reason: 'No name' });
       const phone = r.phone && r.phone.trim() ? toE164(r.phone) : null;
       if (r.phone && r.phone.trim() && !phone) return problems.push({ row, name, reason: `Mobile "${r.phone}" doesn't look Australian` });
+      const email = r.email?.trim() ? r.email.trim().toLowerCase() : null;
+      if (email && !z.string().email().safeParse(email).success) return problems.push({ row, name, reason: `Email "${r.email}" doesn't look right` });
       const unknown = (r.invited ?? []).filter((k) => !byKey.has(k));
       if (unknown.length) return problems.push({ row, name, reason: `Unknown event "${unknown[0]}"` });
       if ((phone && phones.has(phone)) || names.has(norm(name))) return skipped.push({ row, name, reason: 'Already on your list' });
       if (phone) phones.add(phone);
       names.add(norm(name));
-      ok.push({ people, phone, seats: r.seats ?? people.length, party: r.party ?? '', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
+      ok.push({ people, phone, email, seats: r.seats ?? people.length, party: r.party ?? '', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
     });
 
     if (c.req.query('dry') || problems.length) {
@@ -271,7 +276,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     for (const g of ok) {
       const invId = id();
       const one = [
-        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, seats_held, party, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, Math.max(g.seats, g.people.length), g.party, t, t),
+        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, email, seats_held, party, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, g.email, Math.max(g.seats, g.people.length), g.party, t, t),
         ...g.people.map((p, idx) => db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, ?, ?)`).bind(id(), invId, idx, p)),
         ...g.eventIds.map((e) => db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, e)),
       ];
@@ -341,6 +346,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const db = c.env.DB;
     const stmts: D1PreparedStatement[] = [];
     if (phone !== undefined) stmts.push(db.prepare(`UPDATE invitation SET phone = ? WHERE id = ?`).bind(phone, invId));
+    if (p.email !== undefined) stmts.push(db.prepare(`UPDATE invitation SET email = ? WHERE id = ?`).bind(p.email || null, invId));
     if (p.seatsHeld !== undefined) stmts.push(db.prepare(`UPDATE invitation SET seats_held = ? WHERE id = ?`).bind(p.seatsHeld, invId));
     if (p.party !== undefined) stmts.push(db.prepare(`UPDATE invitation SET party = ? WHERE id = ?`).bind(p.party, invId));
     if (p.people) {

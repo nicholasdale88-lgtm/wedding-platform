@@ -90,6 +90,8 @@ export interface Guest {
   id: string;
   phone: string | null;
   phoneDisplay: string;
+  /** The main contact's email ('' when none). */
+  email?: string;
   seatsHeld: number;
   party: string;
   optOut: boolean;
@@ -138,6 +140,7 @@ export interface Overview {
 export interface GuestPatch {
   people?: string[];
   phone?: string | null;
+  email?: string | null;
   seatsHeld?: number;
   party?: string;
   invited?: string[];
@@ -829,10 +832,41 @@ export interface InboxEmail {
   filed: string;
   receivedAt: string;
   read: boolean;
+  /** Sent from the wedding's address (in Sent), and who to. */
+  sent?: boolean;
+  to?: string;
 }
-/** The event's own email address: what arrived, sorted into guests, vendors and other. */
+export interface InboxSettings {
+  address: string;
+  /** The domain addresses are made on ('' when the site has none yet). */
+  domain: string;
+  canSend: boolean;
+  /** Owners and editors (viewers can read, not send). */
+  canWrite: boolean;
+  /** Copies' replies come back and go out from the wedding's address. */
+  replyByEmail: boolean;
+  left: number;
+  perDay: number;
+  copies: { id: string; email: string; name: string; role: string; on: boolean }[];
+}
+export interface InboxSend {
+  to?: string[];
+  guests?: string[];
+  vendors?: string[];
+  subject?: string;
+  body: string;
+  replyTo?: string;
+}
+/** The event's own email address: what arrived, sorted into guests, vendors and other; and sending from it. */
 export const inboxApi = {
-  list: (wid: string, archived = false) => request<{ address: string; emails: InboxEmail[] }>(`${w(wid)}/inbox${archived ? '?archived=1' : ''}`),
+  list: (wid: string, show: 'inbox' | 'archived' | 'sent' = 'inbox') =>
+    request<{ address: string; emails: InboxEmail[] }>(`${w(wid)}/inbox${show === 'archived' ? '?archived=1' : show === 'sent' ? '?sent=1' : ''}`),
+  settings: (wid: string) => request<InboxSettings>(`${w(wid)}/inbox/settings`),
+  setCopies: (wid: string, userIds: string[]) => send<{ ok: true; userIds: string[] }>('PUT', `${w(wid)}/inbox/settings/copies`, { userIds }),
+  send: (wid: string, m: InboxSend) => send<{ sent: number; failed: string[]; skipped: string[]; left: number }>('POST', `${w(wid)}/inbox/send`, m),
+  invitations: (wid: string) => request<{ ready: number; already: number; without: string[]; left: number; canSend: boolean }>(`${w(wid)}/inbox/invitations`),
+  sendInvitations: (wid: string) =>
+    send<{ sent: number; failed: number; left: number; without: string[]; already: number; message?: string }>('POST', `${w(wid)}/inbox/invitations`, {}),
   get: (wid: string, id: string) => request<{ body: string }>(`${w(wid)}/inbox/${encodeURIComponent(id)}`),
   update: (wid: string, id: string, patch: { kind?: InboxEmail['kind']; vendorId?: string | null; archived?: boolean; read?: boolean }) =>
     send<{ ok: true }>('PUT', `${w(wid)}/inbox/${encodeURIComponent(id)}`, patch),

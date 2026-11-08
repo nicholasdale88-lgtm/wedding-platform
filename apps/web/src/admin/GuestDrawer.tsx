@@ -25,6 +25,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
   const [error, setError] = useState('');
   const [names, setNames] = useState<string[]>([]);
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [table, setTable] = useState('');
   const [diet, setDiet] = useState('');
   const [message, setMessage] = useState('');
@@ -55,6 +56,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
     setD(x);
     setNames(x.guest.people.map((p) => p.name));
     setPhone(x.guest.phoneDisplay);
+    setEmail(x.guest.email ?? '');
     setTable(x.guest.people.find((p) => p.table)?.table ?? '');
     setDiet(joinDiet(x.guest.people));
     setMessage(Object.values(x.guest.rsvp).map((r) => r.message).find((m) => m.trim()) ?? '');
@@ -291,6 +293,17 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
             <input type="number" min={1} max={60} defaultValue={g.seatsHeld} key={g.version} onBlur={(e) => Number(e.target.value) !== g.seatsHeld && Number(e.target.value) >= 1 && void patch({ seatsHeld: Number(e.target.value) })} className={inputCls} />
           </Label>
         </div>
+        <Label text="Main contact's email (optional)">
+          <input
+            type="email"
+            value={email}
+            inputMode="email"
+            placeholder="name@example.com"
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => email.trim().toLowerCase() !== (g.email ?? '') && void patch({ email: email.trim() || null })}
+            className={inputCls}
+          />
+        </Label>
         <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-3">
           <Label text="Group (for seating)">
             <input

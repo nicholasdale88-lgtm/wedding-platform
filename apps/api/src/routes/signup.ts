@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { hashPasscode, passcodeProblem } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
+import { addressFree, inboxDomain } from '../lib/weddingMail';
 import { mainAccountOf } from './accounts';
 import { jsonWritesOnly, requireMember, requireUser, signIn, type AdminEnv } from './auth';
 
@@ -77,7 +78,10 @@ export function signupRoutes() {
     // The person signing up is the main account: the plan and billing are theirs (partners join as owners).
     // The Accommodation section starts switched off: it was written for camping at a country venue, and
     // most couples won't need it (Setup → Sections switches it back on).
-    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
+    // Their own email address from the start (alex-and-sam@<INBOX_DOMAIN>), when the site has a domain for it.
+    const domain = inboxDomain(c.env);
+    const inbox = domain && (await addressFree(db, `${slug}@${domain}`, weddingId)) ? { inbox: { address: `${slug}@${domain}` } } : {};
+    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...inbox, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
     const stmts: D1PreparedStatement[] = [
       db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,

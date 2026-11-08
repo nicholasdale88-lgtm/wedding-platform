@@ -79,6 +79,18 @@ The cheap 1.6¢ rate only applies to credits bought **within 30 days of signing 
 3. In Cloudflare, go to **your domain → DNS → Records → Add record** and add each record exactly as Resend lists it. Wait for Resend to show **Verified**, which usually takes minutes.
 4. Go to **API Keys → Create API key** with **Sending access**, and add it as the GitHub secret `RESEND_API_KEY`.
 
+### 5b. Each wedding's own email address (free)
+Every couple gets `their-web-address@yourdomain` (for example `alex-and-sam@yourdomain`), shown in **Messages → Email**. Emails to it arrive in the app; they can write and reply from it, email every guest their invitation, and get copies in Outlook or Apple Mail and answer from there. It costs nothing: Cloudflare Email Routing brings mail in, and Resend's free tier sends it. Until these steps are done everything still works as before (couples can type an address of their own).
+
+1. **Add the domain to Cloudflare** (once bought): **Cloudflare → Add a domain**, then change the nameservers at the registrar to the two Cloudflare shows. Wait for **Active**.
+2. **Switch on Email Routing**: **your domain → Email → Email Routing → Get started**. Let Cloudflare add the records it suggests (MX and TXT), and verify any destination address it asks for.
+3. **Send every address to the app**: **Email Routing → Routing rules → Catch-all address → Edit**. Action **Send to a Worker**, destination **wedding-api**, then **Save** and make sure the catch-all is **Enabled**. (Every address on the domain now goes to the app; addresses no wedding uses are quietly dropped.)
+4. **Verify the same domain in Resend** (step 5 above, with this domain). Resend's records sit on a `send.` subdomain, so they don't clash with Email Routing. Set the GitHub secret `EMAIL_FROM` to `The Yes List <hello@yourdomain>`.
+5. **Tell the app the domain**: **Cloudflare → Workers & Pages → wedding-api → Settings → Variables and Secrets → Add**. Type **Secret**, name `INBOX_DOMAIN`, value just the domain (`yourdomain.com.au`, no @), then **Deploy**. It stays through every deploy (the deploy never removes secrets). Weddings made before this get their address the first time they open Messages → Email.
+6. **Test**: open Messages → Email, send yourself an email from **Write an email**, reply to it from your own mail app, and check the reply arrives in the app.
+
+Limits (to keep it free): Resend's free tier is 100 emails a day and 3,000 a month across every wedding, so each wedding can send up to 40 a day (copies count too). "Email everyone their invitation" sends 40 a day and tells the couple to press it again tomorrow for the rest. If many couples start sending, Resend's $20/month plan (50,000 a month) is the next step: ask before switching.
+
 ## 6. Stripe: taking payments from other couples (M5)
 1. Sign up at **stripe.com** and complete **Activate payments**: business details, ABN and bank account.
 2. Stay in **Test mode** (the toggle at the top) until a full test purchase works.

@@ -8,7 +8,7 @@ import type { Env } from '../env';
 export const emailReady = (env: Env) => !!(env.RESEND_API_KEY && env.EMAIL_FROM);
 
 const ENTITY: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ENTITY[ch] ?? ch);
+export const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ENTITY[ch] ?? ch);
 
 /** A short, warm email with one button: plain text and a simple HTML version. */
 export function buttonEmail(o: { heading: string; lines: string[]; button: string; link: string; footer?: string }) {
@@ -22,14 +22,33 @@ ${o.footer ? `<p style="font-size:13px;color:#7a7466;margin:0">${esc(o.footer)}<
   return { text, html };
 }
 
-/** Sends one email; true when Resend took it. Never throws (the caller still has the link to share). */
-export async function sendEmail(env: Env, m: { to: string; subject: string; text: string; html: string; replyTo?: string[] }): Promise<boolean> {
+/** A plain message as simple HTML (line breaks kept, nothing in it treated as markup). */
+export const plainHtml = (text: string) =>
+  `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#222">${esc(text).replace(/\r?\n/g, '<br>')}</div>`;
+
+/**
+ * Sends one email; true when Resend took it. Never throws (the caller still has the link to share).
+ * `from` is the site's EMAIL_FROM unless given (a couple's own address on a domain verified in Resend);
+ * `headers` carries In-Reply-To so replies stay in the same conversation.
+ */
+export async function sendEmail(
+  env: Env,
+  m: { to: string; subject: string; text: string; html: string; replyTo?: string[]; from?: string; headers?: Record<string, string> },
+): Promise<boolean> {
   if (!emailReady(env)) return false;
   try {
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ from: env.EMAIL_FROM, to: [m.to], subject: m.subject, text: m.text, html: m.html, ...(m.replyTo?.length ? { reply_to: m.replyTo } : {}) }),
+      body: JSON.stringify({
+        from: m.from ?? env.EMAIL_FROM,
+        to: [m.to],
+        subject: m.subject,
+        text: m.text,
+        html: m.html,
+        ...(m.replyTo?.length ? { reply_to: m.replyTo } : {}),
+        ...(m.headers && Object.keys(m.headers).length ? { headers: m.headers } : {}),
+      }),
     });
     return r.ok;
   } catch {

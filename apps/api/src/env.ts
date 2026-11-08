@@ -35,6 +35,12 @@ export interface Env {
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
   /**
+   * The domain couples' own addresses are on (e.g. "theyeslist.com.au"): each wedding gets <its address>@ it,
+   * and copies' replies come back to reply+…@ it. Cloudflare Email Routing (catch-all → this Worker) and a
+   * domain verified in Resend. Unset: couples type their own address, as before.
+   */
+  INBOX_DOMAIN?: string;
+  /**
    * Stripe secret key (sk_live_… or sk_test_…), for paying by card (routes/billing.ts). Card payment is on
    * only when this and STRIPE_WEBHOOK_SECRET are both set; otherwise couples ask for a payment link.
    */
