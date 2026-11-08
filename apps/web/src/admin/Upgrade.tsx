@@ -194,7 +194,8 @@ export function UpgradeWhenRefused() {
   useEffect(() => {
     const on = (e: Event) => {
       const f = (e as CustomEvent<unknown>).detail;
-      if (typeof f === 'string' && f in FEATURE_LABEL) setFeature(f as Feature);
+      // Only saves that can be refused anywhere (another event and texts show their own card where they're asked for).
+      if (f === 'planner' || f === 'seating') setFeature(f);
     };
     window.addEventListener(UPGRADE_EVENT, on);
     return () => window.removeEventListener(UPGRADE_EVENT, on);
