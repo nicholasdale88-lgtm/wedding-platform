@@ -80,7 +80,7 @@ describe('company portal', () => {
     expect((await call('/a/company/promos', { method: 'PUT', body: JSON.stringify({ codes: [{ code: 'A1B' }, { code: 'a1b' }] }) }, boss.cookie)).status).toBe(400);
 
     // The price shown first, then Stripe asked for 20% less.
-    expect(await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'yes20' }) }, a.cookie)).json()).toEqual({ cents: 2240, off: 560, code: 'YES20' });
+    expect(await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'yes20' }) }, a.cookie)).json()).toEqual({ cents: 7040, off: 1760, code: 'YES20' }); // $88 less 20%
     expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'OLD' }) }, a.cookie)).json()) as { error: { message: string } }).error.message).toMatch(/finished/);
     expect((await call(`/a/w/${a.wid}/plan/checkout`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'NOPE' }) }, a.cookie)).status).toBe(400);
     const pay = await call(`/a/w/${a.wid}/plan/checkout`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'YES20' }) }, a.cookie);

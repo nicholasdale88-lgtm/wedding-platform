@@ -126,7 +126,7 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     expect(to(A).some((m) => /gentle reminder/.test(m.message))).toBe(false);
     expect(to(B)).toHaveLength(benTexts);
 
-    // 6. Seating: Ann's party can be seated (said yes); Ben (declined) and Cat (no reply) cannot.
+    // 6. Seating: Ann's party can be seated (said yes); Cat (no reply) can be pencilled in; Ben (declined) can't.
     const seating = (await (await api(`/a/w/${wid}/seating?event=wedding`)).json()) as { version: number; tables: unknown[]; areas: unknown[]; aspect: string; people: { id: string; name: string; coming: boolean }[] };
     expect(seating.people.map((p) => p.name).sort()).toEqual(['Andy Able', 'Ann Able', 'Cat Cole', 'Dan Dee']); // Ben declined: gone
     expect(seating.people.filter((p) => p.coming).map((p) => p.name).sort()).toEqual(['Andy Able', 'Ann Able']);
@@ -134,9 +134,10 @@ describe('guest journey (list → invitation → RSVP → texts)', () => {
     const save = (seats: Record<string, string | null>, v: number) =>
       api(`/a/w/${wid}/seating`, { method: 'PUT', headers: { 'If-Match': String(v) }, body: JSON.stringify({ event: 'wedding', aspect: seating.aspect, tables: [...(seating.tables as object[]), table], areas: seating.areas, seats }) });
     const cat = seating.people.find((p) => p.name === 'Cat Cole')!;
-    expect((await save({ [cat.id]: table.id }, seating.version)).status).toBe(400);
+    const pencilled = (await (await save({ [cat.id]: table.id }, seating.version)).json()) as { version: number };
+    expect(pencilled.version).toBeGreaterThan(seating.version);
     const ann = seating.people.filter((p) => p.coming);
-    const saved = (await (await save(Object.fromEntries(ann.map((p) => [p.id, table.id])), seating.version)).json()) as { version: number };
+    const saved = (await (await save({ ...Object.fromEntries(ann.map((p) => [p.id, table.id])), [cat.id]: null }, pencilled.version)).json()) as { version: number };
     await api(`/a/w/${wid}/seating/publish`, { method: 'POST', headers: { 'If-Match': String(saved.version) }, body: JSON.stringify({ event: 'wedding' }) });
 
     // 7. Cat texts STOP: never texted again, whatever is sent.
