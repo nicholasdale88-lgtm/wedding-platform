@@ -38,6 +38,42 @@ It never touches couples' wedding data, can't change the team, and is never an o
 
 All amounts are in cents (8800 = $88). Dates are `yyyy-mm-dd`.
 
+## The mission every bot works towards
+
+- **Now:** at least **$25,000**, ideally **$50,000** profit by **18 November 2027**.
+- **Then:** **$100,000 a year**.
+
+The numbers live in Company portal → Money & tax: monthly targets, the big goal and the long-term goal. Any Manager key reads them at `GET /money`: `tax.targetProfitCents`, `goalCents`, `stretchCents`, `longTermCents`, `goalBy`, and the month-by-month `months` profit.
+
+Every bot starts its run the same way:
+1. Read `/money`.
+2. Work out **paying weddings needed this week**: (target profit + running costs) ÷ kept per sale ÷ 4.3.
+3. Compare with this week so far.
+4. Spend the run on whatever closes that gap fastest.
+
+**Around the clock (day and night):**
+
+| When | Bot | Job |
+|---|---|---|
+| Every hour | Customer support | Answer couples' emails; anything about money, refunds or bugs goes to you |
+| Every 4 hours | Bookings | Send payment links for new plan requests; chase links older than 3 days (once) |
+| 7am daily | IT support | Site up, CI green, backups ran |
+| 8am daily | Business manager | **Daily huddle**: yesterday's sign-ups and sales against the weekly number. Ahead, on pace or behind, and the one thing to change today |
+| 10am weekdays | Sales outreach | 20 new celebrants, planners and venues, drafted for your approval; follow-ups to last week's |
+| Mon and Thu | Marketing | 3 posts each; double down on whatever brought sign-ups last week (`/stats` → referrals) |
+| Mon | Test drive | The live site as a new couple: problems go to `/ideas` |
+| Fortnightly Wed | Scout | Rivals' prices and features: ideas go to `/ideas` |
+| Fri | Improvement pick | Top three improvements by sales impact |
+| 1st of the month | Accounts | Profit against the goal, tax to set aside, and next month's weekly number |
+
+**When behind pace two days running,** the business manager says so in the huddle and suggests one of:
+- more outreach (double the sales batch);
+- a time-limited offer (needs your OK);
+- boosting the best-performing post (needs your OK and has a budget cap);
+- fixing the biggest drop-off in sign-up → paid (it shows which step).
+
+The bots never spend money, change prices or send offers without your OK.
+
 ## The whole team, and how much it needs you
 
 The aim is for you to check one Monday brief and approve a few things a week. Each bot is set to one of three levels:
