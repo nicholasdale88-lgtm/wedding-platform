@@ -1539,6 +1539,7 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
         </p>
       </section>
 
+      <Goal data={data} tax={tax} setTax={setTax} onSave={onSave} running={running} each={each} />
       <Targets data={data} tax={tax} setTax={setTax} onSave={onSave} running={running} each={each} />
       <section className={card} aria-label="Running costs">
         <H sub="What the business pays every month: the Grok bot, Claude, hosting, email, and yearly costs divided by 12. Used in every profit figure.">Running costs each month</H>
@@ -2088,6 +2089,69 @@ function Targets({ data, tax, setTax, onSave, running, each }: { data: CompanyMo
       </p>
       <button type="button" className={`${primary} self-start`} onClick={onSave}>
         Save targets
+      </button>
+    </section>
+  );
+}
+
+/**
+ * The big goal: total profit by a date, with a minimum and a stretch (e.g. $25,000 and $50,000 by 18 November
+ * 2027). Profit so far counts from the targets' start month; what's left is spread over the months to the date.
+ */
+function Goal({ data, tax, setTax, onSave, running, each }: { data: CompanyMoney; tax: CompanyMoney['tax']; setTax: (t: CompanyMoney['tax']) => void; onSave: () => void; running: number; each: number }) {
+  const from = tax.targetFrom || new Date().toISOString().slice(0, 7);
+  const soFar = data.months.filter((m) => m.month >= from).reduce((a, m) => a + m.profit, 0);
+  const by = tax.goalBy ? new Date(`${tax.goalBy}T00:00:00Z`) : null;
+  const monthsLeft = by ? Math.max(0.5, (by.getTime() - Date.now()) / (30.44 * 86_400_000)) : 12;
+  const perMonth = (goal: number) => Math.max(0, (goal - soFar) / monthsLeft);
+  const weddings = (goal: number) => (each > 0 ? Math.ceil((perMonth(goal) + running) / each) : 0);
+  const row = (label: string, goal: number) => {
+    const pct = goal > 0 ? Math.max(0, Math.min(100, (soFar / goal) * 100)) : 0;
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex justify-between gap-3 flex-wrap text-[15px]">
+          <strong>
+            {label}: {money(goal)}
+          </strong>
+          <span className="text-[#5f6a58]">
+            {money(Math.max(0, soFar))} so far · {Math.round(pct)}%
+          </span>
+        </div>
+        <div className="h-[10px] rounded-full bg-[#e4e6df] overflow-hidden">
+          <div className="h-full" style={{ width: `${pct}%`, background: pct >= 100 ? '#2f6b3a' : '#c8a46a' }} />
+        </div>
+        <span className="text-[13px] text-[#5f6a58]">
+          From here: {money(Math.round(perMonth(goal)))} profit a month, about {weddings(goal)} paying weddings a month ({Math.ceil(weddings(goal) / 4.3)} a week)
+        </span>
+      </div>
+    );
+  };
+  return (
+    <section className={card} aria-label="The big goal">
+      <H sub="Total profit by a date (after running costs, before tax), counted from the targets’ start month.">
+        The big goal{by ? `: by ${by.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}` : ''}
+      </H>
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          At least ($)
+          <input type="number" min={0} step={1000} value={tax.goalCents / 100} onChange={(e) => setTax({ ...tax, goalCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          Ideally ($)
+          <input type="number" min={0} step={1000} value={tax.stretchCents / 100} onChange={(e) => setTax({ ...tax, stretchCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
+        </label>
+        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          By
+          <input type="date" value={tax.goalBy} onChange={(e) => setTax({ ...tax, goalBy: e.target.value })} className={input} />
+        </label>
+      </div>
+      {row('At least', tax.goalCents)}
+      {tax.stretchCents > tax.goalCents && row('Ideally', tax.stretchCents)}
+      <p className="m-0 text-[13px] text-[#5f6a58]">
+        {Math.round(monthsLeft)} months to go. Every paying wedding leaves about {money(Math.round(each))}; the Grok sales bot, partner codes and the ads plan are how the weekly number gets reached.
+      </p>
+      <button type="button" className={`${primary} self-start`} onClick={onSave}>
+        Save the goal
       </button>
     </section>
   );

@@ -984,7 +984,7 @@ export interface CompanyStaff { id: string; name: string; email: string; role: s
 type MoneyQuarter = { q: number; sales: number; gross: number; fees: number; gstCollected: number; gstPaid: number; gstOwed: number; spent: number; profit: number; setAside: number };
 export interface CompanyMoney {
   fy: number;
-  tax: { abn: string; gstRegistered: boolean; gstFrom: string; setAsidePct: number; feePct: number; feeCents: number; monthlyCosts: { what: string; cents: number }[]; targetProfitCents: number; targetMonths: number; targetFrom: string };
+  tax: { abn: string; gstRegistered: boolean; gstFrom: string; setAsidePct: number; feePct: number; feeCents: number; monthlyCosts: { what: string; cents: number }[]; targetProfitCents: number; targetMonths: number; targetFrom: string; goalCents: number; stretchCents: number; goalBy: string };
   months: { month: string; sales: number; essentials: number; deluxe: number; events: number; gross: number; fees: number; running: number; oneOff: number; profit: number }[];
   prices: { essentials: number; deluxe: number; event: number };
   quarters: MoneyQuarter[];
