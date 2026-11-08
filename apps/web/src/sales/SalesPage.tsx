@@ -475,7 +475,7 @@ export function SalesPage() {
                 What you bring, and what it costs
               </h2>
               <p className="m-0 text-[16px] max-w-[680px] mx-auto" style={{ color: SOFT }}>
-                Nothing hidden. Most couples spend nothing extra on storage and under $15 on texts for the whole wedding.
+                Nothing hidden. Most couples spend nothing extra on storage. Texts are not included in any plan: about 31c a guest all-in, only if you choose to text.
               </p>
             </div>
             <div className="flex justify-center">

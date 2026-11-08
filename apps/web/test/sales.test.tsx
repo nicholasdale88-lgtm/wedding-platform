@@ -17,7 +17,9 @@ describe('front page pricing', () => {
     const byo = screen.getByRole('region', { name: 'What you bring, and what it costs' });
     expect(within(byo).getByRole('heading', { name: 'Your Google Drive or OneDrive' })).toBeInTheDocument();
     expect(within(byo).getByText('Usually free')).toBeInTheDocument();
-    expect(within(byo).getByText('About 2c each')).toBeInTheDocument();
+    // Texts are never included in a plan, and the price shown is all-in.
+    expect(within(byo).getByText('Not included: 5.1c a credit, all-in')).toBeInTheDocument();
+    expect(screen.getAllByText(/Text messages \(SMS\) are not included in any plan/).length).toBeGreaterThan(0);
   });
 
   it('shows the same prices the app enforces, the add-ons, and a comparison that matches each plan', () => {
