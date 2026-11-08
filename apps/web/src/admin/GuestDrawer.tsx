@@ -1,6 +1,6 @@
 import { DELIVERY, DELIVERY_LABEL, joinDiet, PARTY_ROLES, printed, toE164, type Delivery } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, ApiError, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
+import { api, ApiError, partyAccountsApi, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { groupSuggestions } from './groups';
 import { picker as contactPicker } from './ImportContacts';
@@ -30,6 +30,8 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   const [phone2, setPhone2] = useState('');
   // "Add their number from my contacts" on a phone without a contact picker: how to use AutoFill Contact.
   const [tip, setTip] = useState(false);
+  // Wedding party: each member's email (their own page's sign-in), typed here before choosing their role.
+  const [partyEmail, setPartyEmail] = useState<Record<string, string>>({});
   const phoneBox = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState('');
   const [table, setTable] = useState('');
@@ -286,21 +288,41 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
             <summary className="cursor-pointer py-2 px-3 text-[14px] font-medium">
               Wedding party{g.people.some((p) => p.role) ? `: ${g.people.filter((p) => p.role).map((p) => `${p.name.split(' ')[0]} (${p.role})`).join(', ')}` : ''}
             </summary>
-            <div className="flex flex-col gap-2 px-3 pb-3">
+            <div className="flex flex-col gap-3 px-3 pb-3">
+              <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">
+                Choose a role to add them to the wedding party page. Their email comes first: they’re sent a Yes List email with your details and a button to join their page.
+              </span>
               {g.people
                 .filter((p) => p.name.trim())
-                .map((p) => (
-                  <label key={p.id} className="flex items-center justify-between gap-3 text-[14px]">
+                .map((p, i) => {
+                  const mail = (partyEmail[p.id] ?? (i === 0 ? (g.email ?? '') : '')).trim().toLowerCase();
+                  const okMail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail);
+                  return (
+                  <div key={p.id} className="flex flex-col gap-1 text-[14px]">
+                  <label className="flex items-center justify-between gap-3">
                     <span className="truncate">{p.name}</span>
                     <select
                       aria-label={`${p.name}'s wedding party role`}
                       value={p.role ?? ''}
+                      disabled={!p.role && !okMail}
+                      title={!p.role && !okMail ? 'Add their email first' : undefined}
                       onChange={async (e) => {
+                        const role = e.target.value;
                         try {
-                          await plannerApi.setRole(wid, p.id, e.target.value);
+                          await plannerApi.setRole(wid, p.id, role);
+                          // Joining: straight onto the wedding party page, and the join email goes to them.
+                          let sent = '';
+                          if (role && !p.role && okMail) {
+                            try {
+                              const r = await partyAccountsApi.invite(wid, p.id, mail);
+                              sent = r.emailed ? ` Their join email has gone to ${mail}.` : ' Email isn’t switched on yet: copy their join link from Wedding party.';
+                            } catch (err) {
+                              sent = ` ${(err as Error).message}`;
+                            }
+                          }
                           await load();
                           await onChanged();
-                          toast(e.target.value ? `${p.name} is in the wedding party` : `${p.name} is no longer in the wedding party`);
+                          toast(role ? `${p.name} is in the wedding party.${sent}` : `${p.name} is no longer in the wedding party`);
                         } catch (err) {
                           toast((err as Error).message);
                         }
@@ -315,7 +337,21 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
                       ))}
                     </select>
                   </label>
-                ))}
+                  {!p.role && (
+                    <input
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      aria-label={`${p.name}'s email, for the wedding party`}
+                      placeholder={`${p.name.split(' ')[0]}’s email (needed for the wedding party)`}
+                      value={partyEmail[p.id] ?? (i === 0 ? (g.email ?? '') : '')}
+                      onChange={(e) => setPartyEmail({ ...partyEmail, [p.id]: e.target.value })}
+                      className={`${inputCls} !py-[6px] !text-[14px]`}
+                    />
+                  )}
+                  </div>
+                  );
+                })}
             </div>
           </details>
         )}

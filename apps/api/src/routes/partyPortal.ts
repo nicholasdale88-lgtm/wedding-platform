@@ -334,13 +334,27 @@ export function partyAccountRoutes() {
     const to = email ?? cur?.email ?? null;
     let emailed = false;
     if (to && emailReady(c.env)) {
-      const names = await c.env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(wid(c)).first<{ name1: string; name2: string }>();
+      const names = await c.env.DB.prepare(
+        `SELECT w.name1, w.name2, w.timezone, e.starts_at, e.venue FROM wedding w LEFT JOIN event e ON e.wedding_id = w.id AND e.deleted_at IS NULL WHERE w.id = ? ORDER BY e.sort LIMIT 1`,
+      )
+        .bind(wid(c))
+        .first<{ name1: string; name2: string; timezone: string | null; starts_at: string | null; venue: string | null }>();
       const cp = names ? `${names.name1.split(' ')[0]} & ${names.name2.split(' ')[0]}` : 'The couple';
       const first = p.name.split(' ')[0] || p.name;
+      // The couple's details: when and where (from their first event).
+      let when = '';
+      try {
+        when = names?.starts_at ? new Date(names.starts_at).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: names.timezone || 'Australia/Sydney' }) : '';
+      } catch {
+        when = '';
+      }
+      const details = [when, (names?.venue ?? '').trim()].filter(Boolean).join(' · ');
       const m = buttonEmail({
+        brand: true,
         heading: `Welcome to the wedding party, ${first}!`,
         lines: [
           `${cp} would love you as their ${p.party_role.toLowerCase()}, and have made you your own page: the run sheet for the day, your to-dos, what to bring, and everything else you’ll need.`,
+          ...(details ? [`${cp}’s wedding: ${details}.`] : []),
           'Tap the button to choose a password. After that you sign in with this email.',
         ],
         button: 'Set up my sign-in',
