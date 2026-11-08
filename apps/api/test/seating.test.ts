@@ -72,7 +72,8 @@ describe('seating API', () => {
       body: JSON.stringify({ event: s.event.key, aspect: '24 / 18 m', tables: s.tables.map((x) => (x.id === tbl.id ? { ...x, size: 2.4 } : x)), areas: s.areas, seats, chairs: { [two[0]!.id]: 3, [two[1]!.id]: 1 } }),
     });
     expect(res.status).toBe(200);
-    const after = (await res.json()) as Seating & { tables: (Table & { size: number | null })[]; people: { id: string; chair: number | null }[] };
+    type Measured = Omit<Seating, 'tables' | 'people'> & { tables: (Table & { size: number | null })[]; people: { id: string; chair: number | null }[] };
+    const after = (await res.json()) as Measured;
     expect(after.aspect).toBe('24 / 18 m');
     expect(after.tables.find((x) => x.id === tbl.id)!.size).toBe(2.4);
     expect(after.people.find((p) => p.id === two[0]!.id)!.chair).toBe(3);
