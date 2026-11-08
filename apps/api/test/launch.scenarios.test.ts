@@ -153,6 +153,8 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     const b = await read<{ weddingId: string; weddings: { id: string; slug: string }[] }>(res);
     const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     expect(cookie).toMatch(/=/);
+    // There's no free version: these couples have paid for Basic, so their guests' pages are live.
+    await t.db.prepare(`UPDATE wedding SET plan = 'basic' WHERE id = ?`).bind(b.weddingId).run();
     return { id: b.weddingId, slug: b.weddings.find((x) => x.id === b.weddingId)!.slug, cookie, email: f.email };
   };
   /** The platform owner (a super admin) switches a plan on once it's paid. */
@@ -243,7 +245,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
       expect((await rsvp(w, token(g), { events: { wedding: { attending: true } }, message: 'So happy for you both!' }, ipOf(100 + i))).status).toBe(200);
     }
     const ov = await overview(w);
-    expect(ov.wedding).toMatchObject({ plan: 'free', name1: 'Mia', name2: 'Theo', monogram: 'M&T', private: true });
+    expect(ov.wedding).toMatchObject({ plan: 'basic', name1: 'Mia', name2: 'Theo', monogram: 'M&T', private: true });
     expect(ov).toMatchObject({ total: 2, replied: 2, awaiting: 0, yesInv: 2, noInv: 0, seatsHeld: 2 });
     expect(ov.events).toEqual([expect.objectContaining({ key: 'wedding', coming: 2 })]);
     expect(ov.perEvent).toEqual([expect.objectContaining({ key: 'wedding', invited: 2, yes: 2, no: 0, awaiting: 0, coming: 2 })]);
@@ -288,7 +290,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
 
     // Asking to upgrade is noted; the platform owner switches it on.
     expect((await post(w, '/plan/request', { plan: 'essentials' })).status).toBe(200);
-    expect((await overview(w)).wedding).toMatchObject({ plan: 'free', planRequested: 'essentials' });
+    expect((await overview(w)).wedding).toMatchObject({ plan: 'basic', planRequested: 'essentials' });
     expect((await send('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: w.slug, plan: 'complete' }) }, w.cookie)).status).toBe(403); // not the couple
     await upgrade(w, 'essentials');
     expect((await overview(w)).wedding).toMatchObject({ plan: 'essentials', planRequested: '' });

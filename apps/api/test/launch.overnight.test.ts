@@ -788,7 +788,7 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
     // Each wedding's own figures, as the company sees them.
     for (const w of weddings.filter((x) => x.n % 5 === 1)) {
       const found = await json<{ weddings: { slug: string; paidCents: number; plan: string; guests: number }[] }>(await company(`/weddings?q=${w.slug}`));
-      expect(found.weddings.find((x) => x.slug === w.slug), w.tag).toMatchObject({ paidCents: w.paidCents, plan: w.plan, guests: w.invs.reduce((a, g) => a + g.people.length, 0) });
+      expect(found.weddings.find((x) => x.slug === w.slug), w.tag).toMatchObject({ paidCents: w.paidCents, plan: w.plan === 'free' ? 'basic' : w.plan, guests: w.invs.reduce((a, g) => a + g.people.length, 0) });
     }
     // Feedback from 25 couples: all there, new.
     for (const w of weddings.slice(0, 25)) expect((await post(w, '/feedback', { kind: w.n % 2 ? 'idea' : 'problem', text: `Overnight note from wedding ${w.n}` })).status, w.tag).toBe(200);
