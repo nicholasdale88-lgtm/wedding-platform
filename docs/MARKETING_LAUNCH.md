@@ -6,16 +6,16 @@ The aim for the first 90 days is to get the first 100 paying weddings. That shou
 
 | | Essentials | Deluxe |
 |---|---|---|
-| Price | $45 | $60 |
-| Stripe fee (1.7% + 30c) | about $1.07 | about $1.32 |
-| **What we keep** | **about $43.90** | **about $58.70** |
+| Price | $60 | $80 |
+| Stripe fee (1.7% + 30c) | about $1.32 | about $1.66 |
+| **What we keep** | **about $58.70** | **about $78.30** |
 
 The rough maths for a cold paid ad (Meta or Google) aimed at engaged couples in Australia:
 - A click costs about $1 to $3.
 - Perhaps 5–10% of visitors sign up free.
 - Perhaps 20–30% of free weddings upgrade.
 
-That is about **$40 to $150 to win one paying couple**, against $44 to $59 earned. **Cold ads are marginal at our price.** They only pay once we know our real sign-up and upgrade rates and can aim very tightly.
+That is about **$40 to $150 to win one paying couple**, against $59 to $78 earned. **Tightly aimed ads can pay at our price.** They only pay once we know our real sign-up and upgrade rates and can aim very tightly.
 
 What does pay at our price:
 - free and organic reach;
@@ -40,9 +40,9 @@ One idea, used everywhere: **the envelope opening on a phone**, and the guest li
 
 ### Content (free; film it on a phone with the sample invitation at /demo)
 
-1. **The open** (7 seconds): a thumb taps the wax seal, the envelope opens, the card rises, and a guest taps Yes. Text on screen: "Your guests reply in one tap." End card: "$45. Once. The Yes List."
+1. **The open** (7 seconds): a thumb taps the wax seal, the envelope opens, the card rises, and a guest taps Yes. Text on screen: "Your guests reply in one tap." End card: "$60. Once. The Yes List."
 2. **POV: you stopped chasing RSVPs**: a split screen with a messy spreadsheet on one side and the guest list filling in on the other.
-3. **"What we paid vs what you'll pay"**: the cost bars from the front page, read out loud. Printed invitations at $400–$800 against $45.
+3. **"What we paid vs what you'll pay"**: the cost bars from the front page, read out loud. Printed invitations at $400–$800 against $60.
 4. **Seating in a second**: drag guests, press auto-seat, and every table fills while keeping the rules.
 5. **Behind the scenes**: "We built this for our own wedding." Real, warm, and people share founder stories.
 

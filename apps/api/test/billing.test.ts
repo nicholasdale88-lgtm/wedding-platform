@@ -111,7 +111,7 @@ describe('card payments', () => {
     const f = sentForm();
     expect(f.get('mode')).toBe('payment');
     expect(f.get('line_items[0][price_data][currency]')).toBe('aud');
-    expect(f.get('line_items[0][price_data][unit_amount]')).toBe('4500');
+    expect(f.get('line_items[0][price_data][unit_amount]')).toBe('6000');
     expect(f.get('line_items[0][quantity]')).toBe('1');
     expect(f.get('line_items[0][price_data][product_data][name]')).toBe('The Yes List: Essentials for Alex & Sam');
     expect(f.get('metadata[wedding]')).toBe(wid);
@@ -123,7 +123,7 @@ describe('card payments', () => {
 
     // Deluxe from Free is the full price; another event is the add-on's.
     await checkout(wid, 'complete', cookie);
-    expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('6000');
+    expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('8000');
     await checkout(wid, 'event', cookie);
     expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('3900');
     expect(sentForm().get('metadata[what]')).toBe('event');
@@ -135,7 +135,7 @@ describe('card payments', () => {
     await t.db.prepare(`UPDATE wedding SET plan = 'essentials' WHERE id = ?`).bind(wid).run();
     const res = await checkout(wid, 'complete', cookie);
     expect(res.status).toBe(200);
-    expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('1500');
+    expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('2000');
     expect(sentForm().get('line_items[0][price_data][product_data][name]')).toBe('The Yes List: Deluxe (upgrade from Essentials) for Alex & Sam');
     const n = stripeCalls.length;
     expect((await checkout(wid, 'essentials', cookie)).status).toBe(409);

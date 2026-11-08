@@ -99,7 +99,7 @@ describe('company portal', () => {
     expect(list.codes.find((c) => c.code === 'FRIEND')!.used).toBe(1);
     expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'FRIEND' }) }, a.cookie)).json()) as { error: { message: string } }).error.message).toMatch(/used up/);
     // Not for Deluxe.
-    expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'complete', code: 'YES20' }) }, a.cookie)).json()) as { cents: number }).cents).toBe(4800);
+    expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'complete', code: 'YES20' }) }, a.cookie)).json()) as { cents: number }).cents).toBe(6400);
     const stats = (await (await call('/a/company/stats', {}, boss.cookie)).json()) as { revenue: { payments: number } };
     expect(stats.revenue.payments).toBe(1);
   });
@@ -118,7 +118,7 @@ describe('company portal', () => {
     expect(JSON.stringify(await (await call('/site')).json())).not.toContain('stripe');
     expect((await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, a.cookie)).status).toBe(403);
     const sent = (await (await call(`/a/company/weddings/${slug}/send-link`, { method: 'POST', body: '{}' }, boss.cookie)).json()) as { emailed: boolean; email: string; link: string; cents: number };
-    expect(sent).toEqual({ ok: true, emailed: false, email: 'alex@example.com', link: 'https://buy.stripe.com/deluxe', cents: 6000 });
+    expect(sent).toEqual({ ok: true, emailed: false, email: 'alex@example.com', link: 'https://buy.stripe.com/deluxe', cents: 8000 });
     let row = ((await (await call('/a/company/weddings?requests=1', {}, boss.cookie)).json()) as { weddings: { requested: string; linkSentAt: string; paidCents: number }[] }).weddings[0]!;
     expect(row.requested).toBe('complete');
     expect(row.linkSentAt).not.toBe('');
