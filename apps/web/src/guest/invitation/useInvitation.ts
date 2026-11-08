@@ -125,7 +125,13 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   const cueRaf = useRef(0);
   const scrollSave = useRef<ReturnType<typeof setTimeout>>();
 
-  const t = useCallback((k: string) => texts[k] ?? '', [texts]);
+  // The wax seal's two letters are always the couple's own initials (from the monogram, else their names),
+  // never the starter wording's.
+  const initials = useMemo(() => {
+    const m = /^\s*(\S)\S*\s*&\s*(\S)/.exec(data.wedding.monogram ?? '');
+    return m ? [m[1]!, m[2]!] : [data.wedding.name1.trim().charAt(0), data.wedding.name2.trim().charAt(0)];
+  }, [data.wedding.monogram, data.wedding.name1, data.wedding.name2]);
+  const t = useCallback((k: string) => (k === 'inv.5dbc98dc' ? initials[0] || (texts[k] ?? '') : k === 'inv.8d9c307c' ? initials[1] || (texts[k] ?? '') : (texts[k] ?? '')), [texts, initials]);
   const tx = (k: string, vars: Record<string, string | number> = {}) => fillTags(t(k), vars);
   const [e0, e1] = slots(data);
   const invited = (e: (typeof data.events)[number] | undefined) => !!e && (!guest || guest.invited.includes(e.key));
