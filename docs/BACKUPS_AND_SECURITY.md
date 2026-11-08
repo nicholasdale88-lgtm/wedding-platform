@@ -8,7 +8,7 @@ How no information is lost, how each wedding's data stays its own, and what to d
 |---|---|---|---|---|
 | **D1 Time Travel** | The whole database, any minute | Continuous | Cloudflare | 7 days on the free plan (30 on Workers Paid) |
 | **Restore point before every deploy** | A bookmark taken before migrations run | Every deploy | The deploy log (`scripts/deploy.sh`) | As long as Time Travel |
-| **Nightly encrypted export** | The whole database as SQL, gzip + AES-256 | Every night at about 2am Sydney (`.github/workflows/nightly.yml`) | GitHub Actions artifact | 30 days |
+| **12-hourly encrypted export** | The whole database as SQL, gzip + AES-256 | Every 12 hours, about 2am and 2pm Sydney (`.github/workflows/nightly.yml`) | GitHub Actions artifact | 30 days (60 copies) |
 | **The couple's own daily backup** | Their wedding as one JSON file | Every day (the cron, `apps/api/src/lib/backup.ts`) | The **Backups** folder in their linked Google Drive, Dropbox or OneDrive | As long as they keep it |
 
 Couples can also tap **Back up now** or **Download backup** under Account → Backup.

@@ -1,10 +1,11 @@
-# Every night (about 2am Sydney): a backup of the whole database, and a security check.
+# Every 12 hours (about 2am and 2pm Sydney): a backup of the whole database. Once a day: a security check.
 # Details and the restore drill: docs/BACKUPS_AND_SECURITY.md
 name: Nightly
 
 on:
   schedule:
-    - cron: '0 16 * * *'
+    - cron: '0 16 * * *' # 2am Sydney: backup and security check
+    - cron: '0 4 * * *' # 2pm Sydney: backup only
   workflow_dispatch:
 
 permissions:
@@ -65,6 +66,8 @@ jobs:
           if-no-files-found: ignore
 
   security:
+    # Once a day is plenty (the 2am run, and when started by hand).
+    if: ${{ github.event.schedule != '0 4 * * *' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
