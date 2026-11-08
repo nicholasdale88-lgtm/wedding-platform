@@ -1,9 +1,7 @@
-import type { ReactNode } from 'react';
-
 /**
  * The front page's product pictures, drawn (no screenshots to go stale): a fan of three phones (the guest
- * list filling itself in, the seating plan, the budget), and the botanical sprigs and gold foil used around
- * the page. All made-up details for Alex & Sam.
+ * list filling itself in, the seating plan, the budget). All made-up
+ * details for the sample couple, Olivia & James.
  */
 
 const INK = '#33402f';
@@ -23,32 +21,12 @@ const CSS = `
 .sc-row{display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid #efe7d3;font-size:12px;animation:scIn .5s both}
 .sc-row:nth-child(1){animation-delay:.2s}.sc-row:nth-child(2){animation-delay:.5s}.sc-row:nth-child(3){animation-delay:.8s}.sc-row:nth-child(4){animation-delay:1.1s}.sc-row:nth-child(5){animation-delay:1.4s}.sc-row:nth-child(6){animation-delay:1.7s}
 @keyframes scIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
-.sc-foil{background:linear-gradient(100deg,#b8925a 0%,#f1dcaa 22%,#c8a46a 40%,#fff1c9 52%,#b8925a 70%,#e9cf98 100%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:scShine 7s linear infinite}
-@keyframes scShine{to{background-position:-220% 0}}
 @media (max-width:820px){.sc-fan{height:540px}.sc-l,.sc-r{display:none}}
-@media (prefers-reduced-motion:reduce){.sc-row,.sc-foil{animation:none}.sc-ph{transition:none}}
+@media (prefers-reduced-motion:reduce){.sc-row{animation:none}.sc-ph{transition:none}}
 `;
 
-/** The page's shared styles (the fan, rows, gold foil). Put once on the page. */
+/** The page's shared styles (the phones and their rows). Put once on the page. */
 export const ShowcaseStyles = () => <style>{CSS}</style>;
-
-/** Gold-foil words, shimmering slowly. */
-export const Foil = ({ children }: { children: ReactNode }) => <span className="sc-foil">{children}</span>;
-
-/** A botanical sprig (eucalyptus), for corners and section edges. */
-export function Sprig({ className = '', colour = GOLD, flip = false }: { className?: string; colour?: string; flip?: boolean }) {
-  const leaves = [
-    [40, 30, -30], [62, 52, 28], [52, 84, -26], [78, 104, 32], [66, 136, -24], [92, 158, 30], [80, 190, -22], [104, 214, 26],
-  ];
-  return (
-    <svg aria-hidden viewBox="0 0 160 260" className={className} style={flip ? { transform: 'scaleX(-1)' } : undefined}>
-      <path d="M30 10 C 60 70, 70 150, 120 250" fill="none" stroke={colour} strokeWidth="1.6" strokeLinecap="round" />
-      {leaves.map(([x, y, r], i) => (
-        <ellipse key={i} cx={x} cy={y} rx="15" ry="9" transform={`rotate(${r} ${x} ${y})`} fill="none" stroke={colour} strokeWidth="1.3" opacity={0.95 - i * 0.06} />
-      ))}
-    </svg>
-  );
-}
 
 function Bar({ title, sub }: { title: string; sub: string }) {
   return (
@@ -60,18 +38,18 @@ function Bar({ title, sub }: { title: string; sub: string }) {
 }
 
 const GUESTS: [string, string, string][] = [
-  ['Jo & Chris', 'Coming · 2', 'Vegetarian'],
+  ['Emma & Tom', 'Coming · 2', 'Vegetarian'],
   ['The Nguyens', 'Coming · 4', '1 coeliac'],
   ['Priya', 'Coming · 1', ''],
-  ['Tom & Bec', 'Can’t make it', ''],
+  ['Lucy & Ben', 'Can’t make it', ''],
   ['Aunty Marg', 'Coming · 1', 'Low salt'],
-  ['Sam’s uni crew', 'Opened', 'Reminder Thu'],
+  ['James’s uni crew', 'Opened', 'Reminder Thu'],
 ];
 
 function GuestList() {
   return (
     <>
-      <Bar title="Guest list" sub="Alex & Sam" />
+      <Bar title="Guest list" sub="Olivia & James" />
       <div style={{ display: 'flex', gap: 6, padding: '10px 12px' }}>
         {[
           ['86', 'coming'],

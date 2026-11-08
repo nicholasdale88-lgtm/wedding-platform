@@ -1,8 +1,15 @@
 import '@fontsource/cormorant-garamond/400.css';
 import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { PLAN_INFO, TEXT_CREDIT_ALL_IN, TEXT_RATE } from '@wp/shared';
 import { Wordmark } from './Art';
 import { BRAND } from './SalesPage';
+
+/** The plans and their prices, from the shared plans: "Basic $50, Essentials $88 and Deluxe $98". */
+const PLANS = Object.values(PLAN_INFO)
+  .map((p) => `${p.name} ${p.price}`)
+  .join(', ')
+  .replace(/, ([^,]*)$/, ' and $1');
 
 /**
  * /privacy, /terms and /contact: plain-English starter pages for the front page's footer.
@@ -15,7 +22,7 @@ const SUPPORT_EMAIL = 'hello@<your-domain>';
 /** Who runs the site. A placeholder: replace with the legal name and ABN. */
 const BUSINESS = '[business name and ABN]';
 /** When these pages last changed. Update it with any change. */
-const UPDATED = 'October 2026';
+const UPDATED = 'November 2026';
 
 const INK = '#33402f';
 const SOFT = '#5b6a52';
@@ -191,8 +198,8 @@ export function TermsPage() {
       <H2>Paying</H2>
       <List
         items={[
-          'Free costs nothing. Paid plans are a one-off payment per wedding, in Australian dollars with GST included. There is no subscription and nothing renews.',
-          'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately. The price is 5.1c a credit, all-in: 5c a credit plus a 2% service fee, with GST included. The service fee is part of the price of texts and is the same however you pay; it is not a card surcharge. The total you will pay is shown before you pay. Each text of up to 160 characters uses one credit; a longer one uses more. Credits don’t expire, and when they run out nothing more is texted until you buy more. Sending from your own phone or by email is free.',
+          `Every plan (${PLANS}) is a one-off payment per wedding, in Australian dollars with GST included. You can set everything up before you pay, and pay once when you’re ready to send your invitations. There is no free plan, no subscription and nothing renews.`,
+          `Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately. The price is ${TEXT_CREDIT_ALL_IN}c a credit, all-in: ${TEXT_RATE.centsPerCredit}c a credit plus a ${TEXT_RATE.serviceFeePct}% service fee, with GST included. The service fee is part of the price of texts and is the same however you pay; it is not a card surcharge. The total you will pay is shown before you pay. Each text of up to 160 characters uses one credit; a longer one uses more. Credits don’t expire, and when they run out nothing more is texted until you buy more. Sending from your own phone or by email is free.`,
           'Prices can change for new purchases, but never for a plan you’ve already paid for.',
         ]}
       />

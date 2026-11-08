@@ -1,41 +1,84 @@
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
-import { EVENT_ADDON, PLAN_INFO } from '@wp/shared';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { EVENT_ADDON, PLAN_INFO, TEXT_COST_NOTE, TEXT_CREDIT_ALL_IN } from '@wp/shared';
 import { SalesPage } from '../src/sales/SalesPage';
+import { DemoPage } from '../src/sales/Demo';
 
-describe('front page pricing', () => {
-  it('sells it: highlights up top, why couples choose it, and what they bring with its cost', () => {
-    render(
-      <MemoryRouter>
-        <SalesPage />
-      </MemoryRouter>,
-    );
-    expect(screen.getByRole('list', { name: 'Highlights' }).querySelectorAll('li')).toHaveLength(4);
-    expect(screen.getByRole('heading', { name: 'Why couples choose it' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Every dietary need on the right plate' })).toBeInTheDocument();
-    const byo = screen.getByRole('region', { name: 'What you bring, and what it costs' });
-    expect(within(byo).getByRole('heading', { name: 'Your Google Drive or OneDrive' })).toBeInTheDocument();
-    expect(within(byo).getByText('Usually free')).toBeInTheDocument();
-    // Texts are never included in a plan, and the price shown is all-in.
-    expect(within(byo).getByText('Not included: 5.1c a credit, all-in')).toBeInTheDocument();
-    expect(screen.getAllByText(/Text messages \(SMS\) are not included in any plan/).length).toBeGreaterThan(0);
+const page = () =>
+  render(
+    <MemoryRouter>
+      <SalesPage />
+    </MemoryRouter>,
+  );
+
+describe('front page', () => {
+  it('leads with one line, one call to action and the real invitation on a phone', () => {
+    page();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The invitation they’ll actually open.');
+    expect(screen.getByRole('link', { name: 'Start your wedding' })).toHaveAttribute('href', '#start');
+    const phone = screen.getByTitle(/^Sample invitation for Olivia & James/);
+    expect(phone.tagName).toBe('IFRAME');
+    expect(phone).toHaveAttribute('src', '/demo?embed=1');
+    expect(screen.getByRole('heading', { name: 'And everything after the yes.' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Vendor directory' }).length).toBeGreaterThan(0);
   });
 
-  it('shows the same prices the app enforces, the add-ons, and a comparison that matches each plan', () => {
-    render(
-      <MemoryRouter>
-        <SalesPage />
-      </MemoryRouter>,
-    );
+  it('never offers a free plan or says texts are included', () => {
+    const { container } = page();
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/start free|free plan|free to start/i);
+    expect(text).not.toMatch(/texts? (are )?included/i);
+    // The free things that are still true stay.
+    expect(screen.getByText('Wedding vendor? List your business free')).toBeInTheDocument();
+    expect(screen.getByText(/Send each guest their own link from your own phone or by email/)).toBeInTheDocument();
+  });
+
+  it('shows texts at the all-in price first, never inside a plan', () => {
+    page();
+    expect(TEXT_CREDIT_ALL_IN).toBe(5.1);
+    expect(screen.getByText('5.1c a credit, all-in')).toBeInTheDocument();
+    expect(screen.getByText(TEXT_COST_NOTE)).toBeInTheDocument();
+    expect(screen.getByText(/Not included in any plan: text credits are bought separately/)).toBeInTheDocument();
+  });
+
+  it('shows the same prices the app charges, the add-on, and a comparison that matches each plan', () => {
+    page();
     for (const p of Object.values(PLAN_INFO)) expect(screen.getAllByText(p.price).length).toBeGreaterThan(0);
     expect(screen.getByText(EVENT_ADDON.price)).toBeInTheDocument();
     const table = screen.getByRole('table');
-    const row = within(table).getByText('Guests’ photos by QR code on each table').closest('tr')!;
-    expect(within(row).getByLabelText('Free: not included')).toBeInTheDocument();
-    expect(within(row).getByLabelText('Essentials: not included')).toBeInTheDocument();
-    expect(within(row).getByLabelText('Deluxe: included')).toBeInTheDocument();
-    const texts = within(table).getByText('Invitations and reminders by text').closest('tr')!;
-    expect(within(texts).getByLabelText('Essentials: included')).toBeInTheDocument();
+    const photos = within(table).getByText('Guests’ photos by QR code on each table').closest('tr')!;
+    expect(within(photos).getByLabelText(`${PLAN_INFO.free.name}: not included`)).toBeInTheDocument();
+    expect(within(photos).getByLabelText(`${PLAN_INFO.essentials.name}: not included`)).toBeInTheDocument();
+    expect(within(photos).getByLabelText(`${PLAN_INFO.complete.name}: included`)).toBeInTheDocument();
+    // Automatic texting comes with Essentials and Deluxe, and the row says the credits are extra.
+    const texts = within(table).getByText('Automatic text invitations and reminders (text credits extra)').closest('tr')!;
+    expect(within(texts).getByLabelText(`${PLAN_INFO.free.name}: not included`)).toBeInTheDocument();
+    expect(within(texts).getByLabelText(`${PLAN_INFO.essentials.name}: included`)).toBeInTheDocument();
+    expect(within(table).queryByText('Invitations and reminders by text')).toBeNull();
+  });
+
+  it('keeps the questions short', () => {
+    page();
+    const faq = screen.getByRole('region', { name: 'Questions' });
+    expect(faq.querySelectorAll('details').length).toBeLessThanOrEqual(6);
+    expect(within(faq).getByText('Is it a subscription?')).toBeInTheDocument();
+  });
+});
+
+describe('sample invitation (/demo)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('is the real guest invitation with made-up names and venue, and needs no server', async () => {
+    render(
+      <MemoryRouter initialEntries={['/demo']}>
+        <DemoPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Dear Emma & Tom')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open invitation' })).toBeInTheDocument();
+    expect(screen.getAllByText('Bellbird Estate').length).toBeGreaterThan(0);
+    expect(screen.queryByText('[Ceremony venue]')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Make your own' })).toHaveAttribute('href', '/#start');
   });
 });
