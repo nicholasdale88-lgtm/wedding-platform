@@ -1,4 +1,4 @@
-import { vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -914,10 +914,29 @@ export function feedbackRoutes() {
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check that.');
     if (!(await allow(c.env.DB, `feedback:${c.get('user').id}`, 10, 86_400_000))) return err(c, 429, 'slow_down', 'Thanks! That’s plenty for today: send more tomorrow.');
     const at = new Date().toISOString();
+    const wid = c.req.param('wid')!;
     await c.env.DB.prepare(`INSERT INTO feedback (id, wedding_id, user_id, kind, text, page, status, note, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'new', '', ?, ?)`)
-      .bind(crypto.randomUUID(), c.req.param('wid'), c.get('user').id, b.data.kind, b.data.text, b.data.page, at, at)
+      .bind(crypto.randomUUID(), wid, c.get('user').id, b.data.kind, b.data.text, b.data.page, at, at)
       .run();
-    return c.json({ ok: true });
+    // A thank-you for the wedding's first real feedback (any kind, good or bad): free text credits, once.
+    let reward = 0;
+    if (b.data.text.trim().length >= FEEDBACK_REWARD_MIN) {
+      const fresh = `NOT EXISTS (SELECT 1 FROM audit WHERE action = 'feedback.reward' AND wedding_id = ?1)`;
+      const r = await c.env.DB.batch([
+        c.env.DB.prepare(`UPDATE wedding SET wallet_credits = COALESCE(wallet_credits, 0) + ?2 WHERE id = ?1 AND ${fresh}`).bind(wid, FEEDBACK_REWARD_CREDITS),
+        c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) SELECT ?2, ?1, ?3, 'feedback.reward', ?1, ?4, ?5 WHERE ${fresh}`).bind(
+          wid,
+          crypto.randomUUID(),
+          c.get('user').id,
+          JSON.stringify({ credits: FEEDBACK_REWARD_CREDITS }),
+          at,
+        ),
+      ]);
+      if (r[0]?.meta.changes) reward = FEEDBACK_REWARD_CREDITS;
+    }
+    // Every couple is asked, whatever they said, with nothing in return for it.
+    const site = await readSetting(c.env.DB, 'site', SiteSettings);
+    return c.json({ ok: true, reward, reviewUrl: /^https:\/\//.test(site.googleReview) ? site.googleReview : '' });
   });
   /** What's planned or done from everyone's feedback: the company's own notes only, never anyone's words. */
   app.get('/updates', async (c) => {

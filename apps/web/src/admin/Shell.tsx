@@ -6,6 +6,7 @@ import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { coupleName } from '../lib/remember';
 import { DEFAULT_LOOK, lookVars } from './AdminLook';
 import { confirmLeave, LeaveGuard } from './leave';
+import { TellUs } from './TellUs';
 import { Pill, useAutoRefresh, useMedia } from './ui';
 
 /** Shared wedding summary: nav badges, sidebar footer and the Overview tab all read it. */
@@ -328,6 +329,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         </header>
         <main className="min-w-0 pt-5 px-4 pb-[calc(40px+env(safe-area-inset-bottom))]">{children}</main>
         {more && <MoreSheet onClose={() => setMore(false)} onSignOut={signOut} />}
+        <FeedbackButton wid={wid} />
       </div>
     );
   }
@@ -357,7 +359,40 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
       <main className="min-w-0 pt-9 px-[clamp(20px,4vw,48px)] pb-[60px]">
         <div className="max-w-[1180px] mx-auto">{children}</div>
       </main>
+      <FeedbackButton wid={wid} />
     </div>
+  );
+}
+
+/**
+ * "Feedback & ideas", on every admin page: opens Tell us (an idea, a problem, a love note) without leaving
+ * the page. It goes to the company portal's Feedback tab, marked with the page it came from.
+ */
+function FeedbackButton({ wid }: { wid: string }) {
+  const { tab = 'overview' } = useParams();
+  const [open, setOpen] = useState(false);
+  if (tab === 'help') return null; // Help has Tell us on the page itself
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        className="fixed z-[20] right-4 bottom-[calc(16px+env(safe-area-inset-bottom))] py-[9px] px-4 rounded-full border border-[#c6b794] bg-[#fbf8f0] text-[#33402f] text-[13px] font-semibold shadow-[0_6px_18px_rgba(0,0,0,.14)] cursor-pointer print:hidden"
+      >
+        Feedback &amp; ideas
+      </button>
+      {open && (
+        <div role="dialog" aria-modal="true" aria-label="Feedback and ideas" className="fixed inset-0 z-[40] flex items-end sm:items-center justify-center bg-[rgba(27,34,24,.45)] p-3" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
+          <div className="w-full max-w-[520px] max-h-[90vh] overflow-auto rounded-[18px] bg-[#fbf8f0] relative">
+            <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="absolute top-2 right-3 border-0 bg-transparent text-[22px] leading-none cursor-pointer text-[#33402f]">
+              ×
+            </button>
+            <TellUs wid={wid} page={tab} autoFocus />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

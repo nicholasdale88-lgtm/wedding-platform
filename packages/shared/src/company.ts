@@ -13,6 +13,12 @@ export const SiteSettings = z.object({
     .object({ instagram: url, tiktok: url, facebook: url, pinterest: url, youtube: url })
     .default({}),
   supportEmail: z.string().trim().max(200).default(''),
+  /**
+   * Our Google Business "write a review" link. Shown to every couple after they send feedback, with no
+   * reward attached and whatever they said (Google forbids rewarded or filtered reviews; the ACCC treats
+   * rewarding or filtering for good reviews as misleading).
+   */
+  googleReview: url,
   /** A line across the top of the front page (a launch offer, news); on or off. */
   banner: z.object({ on: z.boolean().default(false), text: z.string().trim().max(160).default(''), link: z.string().trim().max(300).default('') }).default({}),
   /** "Made with The Yes List" at the foot of guest pages, linking to the front page with the wedding as referrer. */
@@ -282,3 +288,10 @@ export const VendorProspect = z.object({
 });
 export type VendorProspect = z.infer<typeof VendorProspect>;
 export const VendorProspects = z.object({ list: z.array(VendorProspect).max(3000).default([]) });
+
+/**
+ * A thank-you for a couple's first feedback: free text credits, given for any honest feedback (good or bad)
+ * sent privately to us, never for a review or a rating. At least FEEDBACK_REWARD_MIN characters; once per wedding.
+ */
+export const FEEDBACK_REWARD_CREDITS = 100;
+export const FEEDBACK_REWARD_MIN = 20;

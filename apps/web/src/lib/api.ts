@@ -1054,6 +1054,8 @@ export interface VendorProspect { id: string; business: string; contact: string;
 export interface CompanySettings {
   social: { instagram: string; tiktok: string; facebook: string; pinterest: string; youtube: string };
   supportEmail: string;
+  /** Our Google review link: asked of every couple after feedback, never rewarded. */
+  googleReview?: string;
   banner: { on: boolean; text: string; link: string };
   madeWith: boolean;
   paymentLinks: { essentials: string; complete: string; event: string };
@@ -1139,6 +1141,8 @@ export const staffJoinApi = {
 };
 /** Help → Tell us: a couple's idea, problem or love note, and what's planned from everyone's. */
 export const feedbackApi = {
-  send: (wid: string, body: { kind: 'idea' | 'problem' | 'love'; text: string; page?: string }) => send<{ ok: true }>('POST', `/a/w/${encodeURIComponent(wid)}/feedback`, body),
+  /** `reward`: free text credits for the wedding's first feedback (0 after that); `reviewUrl`: our Google review page, asked of everyone. */
+  send: (wid: string, body: { kind: 'idea' | 'problem' | 'love'; text: string; page?: string }) =>
+    send<{ ok: true; reward: number; reviewUrl: string }>('POST', `/a/w/${encodeURIComponent(wid)}/feedback`, body),
   updates: (wid: string) => request<{ updates: { text: string; done: boolean; at: string }[] }>(`/a/w/${encodeURIComponent(wid)}/feedback/updates`),
 };

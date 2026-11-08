@@ -611,7 +611,7 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
         </label>
       </div>
       {!list.length ? (
-        <p className="text-[#5b6a52]">{show === 'new' ? 'Nothing new. Couples send feedback from Help → Tell us.' : 'None here.'}</p>
+        <p className="text-[#5b6a52]">{show === 'new' ? 'Nothing new. Couples send feedback from the Feedback & ideas button on every page (or Help → Tell us); their first earns them 100 free text credits.' : 'None here.'}</p>
       ) : (
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {list.map((f) => (
@@ -1066,6 +1066,10 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
           <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
             Support email
             <input type="email" value={s.supportEmail} placeholder="hello@…" onChange={(e) => setS({ ...s, supportEmail: e.target.value.trim() })} className={input} />
+          </label>
+          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+            Google review link (asked of every couple after feedback, never rewarded)
+            <input value={s.googleReview ?? ''} placeholder="https://g.page/r/…/review" onChange={(e) => setS({ ...s, googleReview: e.target.value.trim() })} className={input} />
           </label>
         </div>
       </section>
