@@ -222,6 +222,12 @@ describe('company portal', () => {
     type M = { total: { gross: number; fees: number; spent: number; profit: number; setAside: number; gstOwed: number }; expenses: unknown[] };
     let m = (await (await call('/a/company/money', {}, boss.cookie)).json()) as M;
     expect(m.total).toMatchObject({ gross: 2800, fees: 0, spent: 1500, profit: 1300, setAside: 390, gstOwed: 0 }); // paid by link: no card fee
+    // Running costs count every month, in the month-by-month profit.
+    await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ monthlyCosts: [{ what: 'Grok business bot', cents: 5000 }] }) }, boss.cookie);
+    const mm = (await (await call('/a/company/money', {}, boss.cookie)).json()) as { months: { gross: number; running: number; oneOff: number; profit: number }[]; prices: { essentials: number } };
+    expect(mm.months).toHaveLength(12);
+    expect(mm.months.at(-1)).toMatchObject({ gross: 2800, running: 5000, oneOff: 1500, profit: -3700 });
+    expect(mm.prices.essentials).toBe(6000);
     expect((await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true }) }, boss.cookie)).status).toBe(400); // needs the date
     await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true, gstFrom: '2020-01-01', setAsidePct: 30 }) }, boss.cookie);
     m = (await (await call('/a/company/money', {}, boss.cookie)).json()) as M;

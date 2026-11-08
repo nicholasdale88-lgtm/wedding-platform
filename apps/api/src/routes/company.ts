@@ -1,4 +1,4 @@
-import { basQuarter, chargeCents, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -352,7 +352,23 @@ export function companyRoutes() {
     // GST registration is required once turnover reaches $75,000 in 12 months: warn from $60,000.
     const yearAgo = new Date(Date.now() - 365 * 86_400_000).toISOString();
     const last12 = (await db.prepare(`SELECT COALESCE(SUM(json_extract(detail, '$.amount')), 0) AS n FROM audit WHERE action = 'plan.paid' AND json_valid(detail) AND at >= ?`).bind(yearAgo).first<{ n: number }>())?.n ?? 0;
-    return c.json({ fy, tax, quarters, total, sales, expenses, last12Cents: last12, gstThresholdCents: 7_500_000 });
+    // Are we making money? The last 12 months, month by month: real sales and fees, the running costs
+    // (every month) and one-off expenses, and the profit left.
+    const monthly = tax.monthlyCosts.reduce((a, m) => a + m.cents, 0);
+    const since = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 11, 1)).toISOString();
+    const { results: paidRows } = await db.prepare(`SELECT at, detail FROM audit WHERE action = 'plan.paid' AND json_valid(detail) AND at >= ? ORDER BY at`).bind(since).all<{ at: string; detail: string }>();
+    const allExpenses = (await readSetting(db, 'expenses', Expenses)).list;
+    const months = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - 11 + i, 1));
+      const ym = d.toISOString().slice(0, 7);
+      const rows = paidRows.filter((r) => r.at.slice(0, 7) === ym).map((r) => safeDetail(r.detail));
+      const gross = rows.reduce((a, r) => a + (typeof r.amount === 'number' ? r.amount : 0), 0);
+      const fees = rows.reduce((a, r) => a + (!r.manual && typeof r.amount === 'number' && r.amount > 0 ? Math.round((r.amount * tax.feePct) / 100 + tax.feeCents) : 0), 0);
+      const oneOff = allExpenses.filter((e) => e.date.slice(0, 7) === ym).reduce((a, e) => a + e.cents, 0);
+      const count = (w: string) => rows.filter((r) => r.what === w).length;
+      return { month: ym, sales: rows.length, essentials: count('essentials'), deluxe: count('complete'), events: count('event'), gross, fees, running: monthly, oneOff, profit: gross - fees - monthly - oneOff };
+    });
+    return c.json({ fy, tax, quarters, total, sales, expenses, last12Cents: last12, gstThresholdCents: 7_500_000, months, prices: { essentials: PRICE_CENTS.essentials, deluxe: PRICE_CENTS.complete, event: EVENT_ADDON_CENTS } });
   });
   app.put('/money/settings', can('money'), async (c) => {
     const b = TaxSettings.safeParse(await readJson(c.req.raw));

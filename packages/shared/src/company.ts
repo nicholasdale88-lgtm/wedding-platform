@@ -116,6 +116,8 @@ export const TaxSettings = z.object({
   /** Card fees: percent and fixed cents per card payment (Stripe Australia: 1.7% + 30c for local cards). */
   feePct: z.number().min(0).max(10).default(1.7),
   feeCents: z.number().int().min(0).max(500).default(30),
+  /** What running the business costs every month (Grok, Claude, hosting, email, the domain spread over the year…). */
+  monthlyCosts: z.array(z.object({ what: z.string().trim().min(1).max(80), cents: z.number().int().min(0).max(10_000_000) })).max(40).default([]),
 });
 export type TaxSettings = z.infer<typeof TaxSettings>;
 export const EXPENSE_KINDS = ['hosting', 'domain', 'sms', 'email', 'ads', 'software', 'fees', 'other'] as const;

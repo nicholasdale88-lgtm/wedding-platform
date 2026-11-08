@@ -1340,6 +1340,8 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
           Sales in the last 12 months are {money(data.last12Cents)}. At {money(data.gstThresholdCents)} you must register for GST (within 21 days). Talk to your accountant now.
         </p>
       )}
+      <Profit data={data} tax={tax} setTax={setTax} onSave={() => void saveTax()} />
+      <H>This financial year</H>
       <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Tile label="Sales" value={money(t.gross)} sub={`${t.sales} payments`} />
         <Tile label="Card fees" value={money(t.fees)} sub="Estimated from your rate" />
@@ -1448,6 +1450,134 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
         <button type="button" className={`${primary} self-start`} onClick={() => void saveTax()}>
           Save tax settings
         </button>
+      </section>
+    </>
+  );
+}
+
+/**
+ * Are we making money? This month and the last 12 from real sales, card fees, the running costs and
+ * one-off expenses; break-even; and a what-if calculator that starts from the real numbers.
+ */
+function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: CompanyMoney['tax']; setTax: (t: CompanyMoney['tax']) => void; onSave: () => void }) {
+  const months = data.months;
+  const now = months[months.length - 1]!;
+  // The recent pace: weddings sold a month over the last three months.
+  const avgSales = months.slice(-3).reduce((a, m) => a + m.sales, 0) / 3;
+  const plans = months.reduce((a, m) => ({ e: a.e + m.essentials, d: a.d + m.deluxe }), { e: 0, d: 0 });
+  const mixReal = plans.e + plans.d ? Math.round((plans.d / (plans.e + plans.d)) * 100) : 35;
+  const running = tax.monthlyCosts.reduce((a, m) => a + m.cents, 0);
+  const fee = (c: number) => (c > 0 ? Math.round((c * tax.feePct) / 100 + tax.feeCents) : 0);
+  // What if: starts from the real prices, the real plan mix and the last three months' pace.
+  const [w, setW] = useState({ e: data.prices.essentials / 100, d: data.prices.deluxe / 100, mix: mixReal, sales: Math.max(1, Math.round(avgSales)) });
+  const mix = Math.min(100, Math.max(0, w.mix)) / 100;
+  const each = (1 - mix) * (w.e * 100 - fee(w.e * 100)) + mix * (w.d * 100 - fee(w.d * 100));
+  const whatIfProfit = Math.round(w.sales * each - running);
+  const breakEven = each > 0 ? Math.ceil(running / each) : 0;
+  const keep = (p: number) => Math.round(p * (1 - tax.setAsidePct / 100));
+  const max = Math.max(1, ...months.map((m) => Math.abs(m.profit)));
+  const ok = now.profit >= 0;
+  const costs = tax.monthlyCosts;
+  const setCost = (i: number, p: Partial<{ what: string; cents: number }>) => setTax({ ...tax, monthlyCosts: costs.map((c, j) => (j === i ? { ...c, ...p } : c)) });
+  return (
+    <>
+      <section className={card} aria-label="Are we making money">
+        <H sub="From real payments this month, card fees, your running costs and one-off expenses.">Are we making money?</H>
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+          <Tile label="This month" value={money(now.profit)} sub={ok ? `Profit · ${money(keep(Math.max(0, now.profit)))} after tax` : 'Loss so far this month'} />
+          <Tile label="Weddings sold" value={String(now.sales)} sub={`${now.essentials} Essentials · ${now.deluxe} Deluxe`} />
+          <Tile label="Running costs" value={money(running)} sub="Every month" />
+          <Tile label="Break-even" value={`${breakEven} a month`} sub={`At ${money(Math.round(each))} kept per sale`} />
+        </div>
+        <svg viewBox="0 0 360 120" className="w-full h-[140px]" role="img" aria-label={`Profit by month: ${months.map((m) => `${m.month} ${money(m.profit)}`).join(', ')}`}>
+          <line x1="0" x2="360" y1="60" y2="60" stroke="#d5d8cf" />
+          {months.map((m, i) => {
+            const h = (Math.abs(m.profit) / max) * 52;
+            const up = m.profit >= 0;
+            return (
+              <g key={m.month}>
+                <rect x={i * 30 + 4} y={up ? 60 - h : 60} width={22} height={Math.max(h, 1)} rx={3} fill={up ? '#2f6b3a' : '#9a3b2a'} />
+                {i % 2 === 0 && (
+                  <text x={i * 30 + 15} y={118} textAnchor="middle" fontSize="9" fill="#5f6a58">
+                    {new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString('en-AU', { month: 'short', timeZone: 'UTC' })}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        <p className="m-0 text-[14px]">
+          {running === 0
+            ? 'Add your running costs below to see the real profit.'
+            : now.sales >= breakEven
+              ? `On track: ${now.sales} sold this month, ${breakEven} needed to cover the running costs.`
+              : `${Math.max(0, breakEven - now.sales)} more ${breakEven - now.sales === 1 ? 'sale' : 'sales'} this month to cover the running costs.`}
+        </p>
+      </section>
+
+      <section className={card} aria-label="Running costs">
+        <H sub="What the business pays every month: the Grok bot, Claude, hosting, email, and yearly costs divided by 12. Used in every profit figure.">Running costs each month</H>
+        {costs.map((c, i) => (
+          <div key={i} className="grid gap-2 grid-cols-[minmax(0,1fr)_120px_auto] items-center">
+            <input value={c.what} maxLength={80} onChange={(e) => setCost(i, { what: e.target.value })} aria-label="What it is" className={input} />
+            <input type="number" min={0} step="0.01" value={c.cents / 100} onChange={(e) => setCost(i, { cents: Math.round((Number(e.target.value) || 0) * 100) })} aria-label={`${c.what}: dollars a month`} className={input} />
+            <button type="button" className={btn} onClick={() => setTax({ ...tax, monthlyCosts: costs.filter((_, j) => j !== i) })}>
+              Remove
+            </button>
+          </div>
+        ))}
+        <div className="flex gap-2 flex-wrap">
+          <button type="button" className={btn} onClick={() => setTax({ ...tax, monthlyCosts: [...costs, { what: 'New cost', cents: 0 }] })}>
+            Add a cost
+          </button>
+          {!costs.length && (
+            <button
+              type="button"
+              className={btn}
+              onClick={() =>
+                setTax({
+                  ...tax,
+                  monthlyCosts: [
+                    { what: 'Grok business bot', cents: 5000 },
+                    { what: 'Claude (code)', cents: 3100 },
+                    { what: 'Website chat bot', cents: 2000 },
+                    { what: 'Domain and business name (yearly ÷ 12)', cents: 550 },
+                    { what: 'Accountant (yearly ÷ 12)', cents: 2500 },
+                  ],
+                })
+              }
+            >
+              Start with the usual costs
+            </button>
+          )}
+          <button type="button" className={primary} onClick={onSave}>
+            Save running costs
+          </button>
+        </div>
+      </section>
+
+      <section className={card} aria-label="What if">
+        <H sub="Starts from your real prices, plan mix and recent pace. Change anything to see the effect.">What if…</H>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+          {(
+            [
+              ['e', 'Essentials price ($)'],
+              ['d', 'Deluxe price ($)'],
+              ['mix', 'Choosing Deluxe (%)'],
+              ['sales', 'Weddings a month'],
+            ] as const
+          ).map(([k, label]) => (
+            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+              {label}
+              <input type="number" min={0} value={w[k]} onChange={(e) => setW({ ...w, [k]: Math.max(0, Number(e.target.value) || 0) })} className={input} />
+            </label>
+          ))}
+        </div>
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-3">
+          <Tile label="Profit a month" value={money(whatIfProfit)} sub={`${money(keep(Math.max(0, whatIfProfit)))} after ${tax.setAsidePct}% tax`} />
+          <Tile label="Break-even" value={`${breakEven} a month`} sub={`${money(Math.round(each))} kept per sale`} />
+          <Tile label="A year" value={money(whatIfProfit * 12)} sub="Before tax" />
+        </div>
       </section>
     </>
   );
