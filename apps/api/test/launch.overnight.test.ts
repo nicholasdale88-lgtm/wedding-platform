@@ -908,6 +908,30 @@ describe('overnight fixes', () => {
     expect((await call(`/a/w/${w.wid}/people/${pid}/meal`, { method: 'PUT', body: JSON.stringify({ event: 'wedding', entree: '', main: 'Fish', dessert: '' }) }, w.cookie)).status).toBe(200);
   });
 
+  it('a guide on a plan published before the count dropped: no table for the ones not coming, and they are nobody’s table mate', async () => {
+    const { w, fam, solo, tok } = await setup();
+    const pages = (await (await call(`/a/w/${w.wid}/pages`, {}, w.cookie)).json()) as { version: number };
+    const guide = { style: 'reception', date: 'Saturday evening', address: '1 Long Road, Berrima NSW', arrive: '3:30pm', start: '4:00pm' };
+    expect((await call(`/a/w/${w.wid}/pages`, { method: 'PUT', headers: { 'If-Match': String(pages.version) }, body: JSON.stringify({ guides: { wedding: guide } }) }, w.cookie)).status).toBe(200);
+    const reply = async (token: string, count: number) =>
+      expect((await call(`/p/${w.slug}/rsvp`, { method: 'POST', body: JSON.stringify({ token, events: { wedding: { attending: true } }, count }) })).status).toBe(200);
+    await reply(tok(fam.id), 4);
+    await reply(tok(solo.id), 1);
+    const v0 = (await (await call(`/a/w/${w.wid}/seating`, {}, w.cookie)).json()) as SeatView;
+    const table: SeatTable = { id: crypto.randomUUID(), name: '1', shape: 'round', dir: 'h', len: 30, x: 50, y: 50, seats: 10 };
+    const seats = Object.fromEntries([...fam.people, ...solo.people].map((p) => [p.id, table.id]));
+    const saved = await call(`/a/w/${w.wid}/seating`, { method: 'PUT', headers: { 'If-Match': String(v0.version) }, body: JSON.stringify({ event: 'wedding', aspect: '4 / 3', tables: [table], areas: [], seats }) }, w.cookie);
+    const v1 = (await saved.json()) as SeatView;
+    expect((await call(`/a/w/${w.wid}/seating/publish`, { method: 'POST', headers: { 'If-Match': String(v1.version) }, body: JSON.stringify({ event: 'wedding' }) }, w.cookie)).status).toBe(200);
+    // Now only two of the family are coming; the plan isn't published again.
+    await reply(tok(fam.id), 2);
+    type Guide = { guest: { people: { name: string; tableId: string | null }[] }; mates: Record<string, string[]> };
+    const famGuide = (await (await call(`/p/${w.slug}/guide?g=${tok(fam.id)}`)).json()) as Guide;
+    expect(famGuide.guest.people.map((p) => [p.name, p.tableId])).toEqual([['Ann Four', table.id], ['Ben Four', table.id], ['Cat Four', null], ['Dan Four', null]]);
+    const eve = (await (await call(`/p/${w.slug}/guide?g=${tok(solo.id)}`)).json()) as Guide;
+    expect(eve.mates[table.id]).toEqual(['Ann Four', 'Ben Four']);
+  });
+
   it("the company's reply count is answers only, not a count the couple noted without an answer", async () => {
     const { boss, w, fam, solo, tok } = await setup();
     expect((await call(`/p/${w.slug}/rsvp`, { method: 'POST', body: JSON.stringify({ token: tok(solo.id), events: { wedding: { attending: true } } }) })).status).toBe(200);
