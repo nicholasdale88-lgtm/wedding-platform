@@ -301,4 +301,19 @@ describe('company portal', () => {
     const fb = (await (await call('/a/company/feedback', {}, boss.cookie)).json()) as { feedback: { text: string; status: string; page: string }[] };
     expect(fb.feedback[0]).toMatchObject({ text: 'Rivals now offer a QR code on printed save-the-dates', status: 'new', page: 'grok scout' });
   });
+  it('made roles: an owner makes a role with exactly the parts it reaches; a person with it sees just those; a role in use can’t be removed', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const roles = [{ id: 'bookkeeper', name: 'Bookkeeper', does: 'The books', perms: ['money', 'activity', 'team'] }];
+    const saved = (await (await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles }) }, boss.cookie)).json()) as { roles: { perms: string[] }[] };
+    expect(saved.roles[0]!.perms).toEqual(['money', 'activity']); // never the team
+    const r = (await (await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email: 'books@example.com', role: 'custom:bookkeeper' }) }, boss.cookie)).json()) as { link: string };
+    const token = new URL(r.link).searchParams.get('t')!;
+    const joined = await call(`/a/staff-join/${token}`, { method: 'POST', body: JSON.stringify({ passcode: 'long-enough-3', firstName: 'Bea' }) });
+    expect(((await joined.json()) as { user: { staff: string; perms: string[]; staffName: string } }).user).toMatchObject({ staff: 'custom:bookkeeper', perms: ['money', 'activity'], staffName: 'Bookkeeper' });
+    const bea = (joined.headers.get('set-cookie') ?? '').split(';')[0]!;
+    expect((await call('/a/company/money', {}, bea)).status).toBe(200);
+    expect((await call('/a/company/weddings', {}, bea)).status).toBe(403);
+    expect((await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles: [] }) }, boss.cookie)).status).toBe(400); // Bea still has it
+    expect((await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email: 'x@example.com', role: 'custom:nope' }) }, boss.cookie)).status).toBe(400);
+  });
 });

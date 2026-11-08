@@ -1,4 +1,4 @@
-import { LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, STAFF_ROLES, staffCan, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -8,7 +8,7 @@ import { buttonEmail, emailReady, sendEmail } from '../lib/email';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { mainAccountOf } from './accounts';
-import { jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv } from './auth';
+import { customRoles, jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv } from './auth';
 import { applyPurchase } from './billing';
 import { CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
 import { PLANS } from './signup';
@@ -241,7 +241,7 @@ export function companyRoutes() {
     const { results: counts } = await c.env.DB.prepare(`SELECT status, COUNT(*) AS n FROM feedback GROUP BY status`).all<{ status: string; n: number }>();
     return c.json({
       // Developers see what was said and where, not who said it (no couple's email or names).
-      feedback: results.map((r) => ({ id: r.id, kind: r.kind, text: r.text, page: r.page, status: r.status, note: r.note, createdAt: r.created_at, assignee: r.assignee, ...(staffCan(c.get('user').staff, 'couples') ? { names: r.names, slug: r.slug, email: r.email } : { names: '', slug: '', email: '' }) })),
+      feedback: results.map((r) => ({ id: r.id, kind: r.kind, text: r.text, page: r.page, status: r.status, note: r.note, createdAt: r.created_at, assignee: r.assignee, ...(c.get('user').perms.includes('couples') ? { names: r.names, slug: r.slug, email: r.email } : { names: '', slug: '', email: '' }) })),
       counts: Object.fromEntries(counts.map((r) => [r.status, r.n])),
     });
   });
@@ -261,19 +261,20 @@ export function companyRoutes() {
   });
 
   /** Who's on the team (for "who's on it"), any staff member. */
-  app.get('/staff', async (c) => c.json({ staff: (await staffList(c.env)).map(({ id, name, role }) => ({ id, name, role })), me: { id: c.get('user').id, role: c.get('user').staff } }));
+  app.get('/staff', async (c) => c.json({ staff: (await staffList(c.env)).map(({ id, name, role, roleName }) => ({ id, name, role, roleName })), me: { id: c.get('user').id, role: c.get('user').staff } }));
 
   /** The team: everyone with a role, and invitations not yet taken up. */
   app.get('/team', can('team'), async (c) => {
     const { results: invites } = await c.env.DB.prepare(`SELECT id, email, role, expires_at, created_at FROM staff_invite WHERE expires_at > ? ORDER BY created_at DESC`)
       .bind(new Date().toISOString())
       .all<{ id: string; email: string; role: string; expires_at: string; created_at: string }>();
-    return c.json({ staff: await staffList(c.env), invites: invites.map((i) => ({ id: i.id, email: i.email, role: i.role, expiresAt: i.expires_at })) });
+    const made = await customRoles(c.env.DB);
+    return c.json({ staff: await staffList(c.env), invites: invites.map((i) => ({ id: i.id, email: i.email, role: i.role, roleName: roleName(i.role, made), expiresAt: i.expires_at })) });
   });
   /** Invite someone by email: a link (a week, once) that signs them in, or sets up their sign-in. */
   app.post('/team/invite', can('team'), async (c) => {
     const b = StaffInviteIn.safeParse(await readJson(c.req.raw));
-    if (!b.success) return err(c, 400, 'invalid', 'An email and a role, please.');
+    if (!b.success || !(await roleExists(c.env, b.data.role))) return err(c, 400, 'invalid', 'An email and a role, please.');
     if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in isn’t set up.');
     const token = randomToken(32);
     const now = new Date();
@@ -284,8 +285,10 @@ export function companyRoutes() {
       ),
     ]);
     const link = `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/company/join?t=${token}`;
-    const info = STAFF_INFO[b.data.role];
-    const m = buttonEmail({ heading: 'Join the team', lines: [`You’ve been invited to help run The Yes List as ${info.name}.`, info.does, 'The link works once, for a week.'], button: 'Join', link });
+    const made = await customRoles(c.env.DB);
+    const name = roleName(b.data.role, made);
+    const does = isBuiltInRole(b.data.role) ? STAFF_INFO[b.data.role].does : (made.find((r) => `custom:${r.id}` === b.data.role)?.does ?? '');
+    const m = buttonEmail({ heading: 'Join the team', lines: [`You’ve been invited to help run The Yes List as ${name}.`, ...(does ? [does] : []), 'The link works once, for a week.'], button: 'Join', link });
     const emailed = await sendEmail(c.env, { to: b.data.email, subject: 'Join The Yes List team', ...m });
     await logCompany(c, 'company.team.invite', b.data.email, { role: b.data.role });
     return c.json({ ok: true, emailed, link, emailReady: emailReady(c.env) });
@@ -296,8 +299,8 @@ export function companyRoutes() {
   });
   /** Change someone's role, or remove them (role ''). The founder (SUPER_ADMINS) and you yourself can't be changed here. */
   app.put('/team/:userId', can('team'), async (c) => {
-    const b = z.object({ role: z.enum([...STAFF_ROLES, '']) }).strict().safeParse(await readJson(c.req.raw));
-    if (!b.success) return err(c, 400, 'invalid', 'Choose a role.');
+    const b = z.object({ role: z.string().max(60) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success || (b.data.role && !(await roleExists(c.env, b.data.role)))) return err(c, 400, 'invalid', 'Choose a role.');
     const id = c.req.param('userId');
     if (id === c.get('user').id) return err(c, 400, 'invalid', 'Ask another owner to change your own role.');
     const who = (await staffList(c.env)).find((m) => m.id === id);
@@ -420,11 +423,12 @@ export function companyRoutes() {
     const { results } = await c.env.DB.prepare(
       `SELECT b.id, b.name, COALESCE(st.role, '') AS role, b.created_at, b.last_used_at, b.revoked_at FROM bot_key b LEFT JOIN staff st ON st.user_id = b.user_id ORDER BY b.created_at DESC`,
     ).all<{ id: string; name: string; role: string; created_at: string; last_used_at: string | null; revoked_at: string | null }>();
-    return c.json({ bots: results.map((r) => ({ id: r.id, name: r.name, role: r.role, createdAt: r.created_at, lastUsedAt: r.last_used_at ?? '', revoked: !!r.revoked_at })) });
+    const made = await customRoles(c.env.DB);
+    return c.json({ bots: results.map((r) => ({ id: r.id, name: r.name, role: r.role, roleName: roleName(r.role, made), createdAt: r.created_at, lastUsedAt: r.last_used_at ?? '', revoked: !!r.revoked_at })) });
   });
   app.post('/bots', can('team'), async (c) => {
-    const b = z.object({ name: z.string().trim().min(1).max(40), role: z.enum(['manager', 'support', 'developer', 'marketing']) }).strict().safeParse(await readJson(c.req.raw));
-    if (!b.success) return err(c, 400, 'invalid', 'A name and a role (not owner), please.');
+    const b = z.object({ name: z.string().trim().min(1).max(40), role: z.string().max(60) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success || b.data.role === 'owner' || !(await roleExists(c.env, b.data.role))) return err(c, 400, 'invalid', 'A name and a role (not owner), please.');
     if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in isn’t set up.');
     const key = `yl_bot_${randomToken(40)}`;
     const id = crypto.randomUUID();
@@ -463,9 +467,8 @@ export function companyRoutes() {
     if (!b.success) return err(c, 400, 'invalid', 'What would you like help with?');
     if (!c.env.AI) return err(c, 400, 'off', 'The assistant isn’t switched on for this site yet (Workers AI).');
     if (!(await allow(c.env.DB, `company-ai:${c.get('user').id}`, 40, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty for today. Try again tomorrow.');
-    const role = c.get('user').staff;
     const need: Record<typeof b.data.task, StaffPerm> = { brief: 'overview', feedback: 'feedback', posts: 'promote', outreach: 'promote', ask: 'overview' };
-    if (!staffCan(role, need[b.data.task])) return err(c, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
+    if (!c.get('user').perms.includes(need[b.data.task])) return err(c, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
     const db = c.env.DB;
     const one = async (sql: string, ...v: unknown[]) => (await db.prepare(sql).bind(...v).first<{ n: number }>())?.n ?? 0;
     const week = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -527,7 +530,7 @@ export function companyRoutes() {
     const saved = await readSetting(c.env.DB, 'todo', Todos);
     // The first time: the launch jobs, ready to tick.
     const items = saved.seeded ? saved.items : LAUNCH_TODOS;
-    return c.json({ items, canEdit: staffCan(c.get('user').staff, 'money') });
+    return c.json({ items, canEdit: c.get('user').perms.includes('money') });
   });
   app.put('/todo', can('money'), async (c) => {
     const b = z.object({ items: z.array(TodoItem).max(200) }).strict().safeParse(await readJson(c.req.raw));
@@ -557,6 +560,28 @@ export function companyRoutes() {
       .bind(id, c.get('user').id, b.data.kind, b.data.text, (b.data.source || 'team').slice(0, 120), at, at)
       .run();
     return c.json({ id });
+  });
+
+  /** Made roles (owners): a name, what it's for, and exactly which parts of the portal it reaches. */
+  app.get('/roles', can('team'), async (c) => {
+    const roles = await customRoles(c.env.DB);
+    const { results } = await c.env.DB.prepare(`SELECT role, COUNT(*) AS n FROM staff WHERE role LIKE 'custom:%' GROUP BY role`).all<{ role: string; n: number }>();
+    const used = Object.fromEntries(results.map((r) => [r.role, r.n]));
+    return c.json({ roles: roles.map((r) => ({ ...r, people: used[`custom:${r.id}`] ?? 0 })) });
+  });
+  app.put('/roles', can('team'), async (c) => {
+    const b = z.object({ roles: z.array(CustomRole).max(20) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the roles.');
+    if (new Set(b.data.roles.map((r) => r.id)).size !== b.data.roles.length) return err(c, 400, 'invalid', 'Each role needs its own name.');
+    // A role someone still has can't be deleted (they'd lose the portal without warning): change their role first.
+    const kept = new Set(b.data.roles.map((r) => `custom:${r.id}`));
+    const { results } = await c.env.DB.prepare(`SELECT DISTINCT role FROM staff WHERE role LIKE 'custom:%'`).all<{ role: string }>();
+    const orphan = results.find((r) => !kept.has(r.role));
+    if (orphan) return err(c, 400, 'in_use', `Someone still has the role ${roleName(orphan.role, await customRoles(c.env.DB))}. Give them another role first.`);
+    const roles = b.data.roles.map((r) => ({ ...r, perms: r.perms.filter((p) => p !== 'team') }));
+    await writeSetting(c.env.DB, 'roles', CustomRoles.parse({ roles }));
+    await logCompany(c, 'company.roles', roles.map((r) => r.name).join(', '), {});
+    return c.json({ roles });
   });
 
   /** What the team did, newest first: plans, payments, links, feedback, settings, the team. */
@@ -683,7 +708,7 @@ export function feedbackRoutes() {
 const can =
   (...perms: StaffPerm[]): MiddlewareHandler<AdminEnv> =>
   async (c, next) => {
-    if (!perms.some((p) => staffCan(c.get('user').staff, p))) return err(c as C, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
+    if (!perms.some((p) => c.get('user').perms.includes(p))) return err(c as C, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
     await next();
   };
 
@@ -695,7 +720,7 @@ async function logCompany(c: C, action: string, target: string, detail: unknown,
 }
 
 /** Everyone on the team: the staff table, and the founder's account (SUPER_ADMINS) as an owner. */
-async function staffList(env: Env): Promise<{ id: string; name: string; email: string; role: string; founder: boolean; since: string; lastIn: string }[]> {
+async function staffList(env: Env): Promise<{ id: string; name: string; email: string; role: string; roleName: string; founder: boolean; since: string; lastIn: string }[]> {
   const founders = [...superAdmins(env)];
   const { results } = await env.DB.prepare(
     `SELECT u.id, COALESCE(u.first_name, u.name, '') AS name, u.email, COALESCE(st.role, 'owner') AS role, COALESCE(st.created_at, u.created_at) AS since, COALESCE(u.last_login_at, '') AS last_in
@@ -705,9 +730,11 @@ async function staffList(env: Env): Promise<{ id: string; name: string; email: s
   )
     .bind(JSON.stringify(founders))
     .all<{ id: string; name: string; email: string; role: string; since: string; last_in: string }>();
+  const made = await customRoles(env.DB);
   return results.map((r) => {
     const founder = founders.includes(r.email.toLowerCase());
-    return { id: r.id, name: r.name || r.email, email: r.email, role: founder ? 'owner' : r.role, founder, since: r.since, lastIn: r.last_in };
+    const role = founder ? 'owner' : r.role;
+    return { id: r.id, name: r.name || r.email, email: r.email, role, roleName: roleName(role, made), founder, since: r.since, lastIn: r.last_in };
   });
 }
 
@@ -730,7 +757,7 @@ export function staffJoinRoutes() {
     const inv = await open(c);
     if (!inv) return err(c, 404, 'not_found', 'This invitation has expired or was already used. Ask for a new one.');
     const has = await c.env.DB.prepare(`SELECT 1 FROM user WHERE email = ?`).bind(inv.email).first();
-    return c.json({ email: inv.email, role: inv.role, roleName: STAFF_INFO[inv.role as keyof typeof STAFF_INFO]?.name ?? inv.role, hasAccount: !!has });
+    return c.json({ email: inv.email, role: inv.role, roleName: roleName(inv.role, await customRoles(c.env.DB)), hasAccount: !!has });
   });
   app.post('/:token', async (c) => {
     if (!(await allow(c.env.DB, `sjoin:${c.req.header('CF-Connecting-IP') ?? 'local'}`, 30, 15 * 60_000))) return err(c, 429, 'slow_down', 'Too many tries. Wait 15 minutes.');
@@ -770,4 +797,10 @@ function safeDetail(s: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+/** True for a built-in role or a made role that exists. */
+async function roleExists(env: Env, role: string): Promise<boolean> {
+  if (isBuiltInRole(role)) return true;
+  return role.startsWith('custom:') && (await customRoles(env.DB)).some((r) => `custom:${r.id}` === role);
 }

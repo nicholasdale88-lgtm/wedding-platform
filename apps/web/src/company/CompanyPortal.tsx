@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
-import { chargeCents, planOf, STAFF_INFO, STAFF_ROLES, staffCan, type StaffPerm, type StaffRole } from '@wp/shared';
-import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
+import { chargeCents, PERM_INFO, permsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
+import { api, companyApi, staffJoinApi, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -47,11 +47,21 @@ const TABS = [
 type Tab = (typeof TABS)[number][0];
 
 /** The signed-in person's company role, for every tab. */
-const RoleCtx = createContext<StaffRole | null>(null);
+const RoleCtx = createContext<{ role: string | null; perms: string[] }>({ role: null, perms: [] });
 const useCan = () => {
-  const role = useContext(RoleCtx);
-  return (p: StaffPerm) => staffCan(role, p);
+  const { perms } = useContext(RoleCtx);
+  return (p: StaffPerm) => perms.includes(p);
 };
+
+/** Every role that can be given: the built-in ones, then the ones the owners made. */
+function useRoleOptions(withOwner = true) {
+  const { data } = useLoad(companyApi.roles);
+  const made = data?.roles ?? [];
+  return [
+    ...STAFF_ROLES.filter((r) => withOwner || r !== 'owner').map((r) => ({ key: r as string, name: STAFF_INFO[r].name, does: STAFF_INFO[r].does })),
+    ...made.map((r) => ({ key: `custom:${r.id}`, name: r.name, does: r.does || r.perms.map((x) => PERM_INFO[x as StaffPerm]?.split(':')[0]).join(', ') })),
+  ];
+}
 
 export function CompanyPortal() {
   // An invitation to join the team: its own page, signed in or not.
@@ -61,7 +71,9 @@ export function CompanyPortal() {
 
 function Portal() {
   const [who, setWho] = useState<'loading' | 'out' | 'no' | 'yes'>('loading');
-  const [role, setRole] = useState<StaffRole | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [perms, setPerms] = useState<string[]>([]);
+  const [roleLabel, setRoleLabel] = useState('');
   const [tab, setTab] = useState<Tab>(() => (TABS.find(([k]) => `#${k}` === window.location.hash)?.[0] ?? 'overview'));
   const [note, setNote] = useState('');
   useEffect(() => {
@@ -69,6 +81,8 @@ function Portal() {
     api.me().then(
       (m) => {
         setRole(m.user.staff ?? null);
+        setPerms(m.user.perms ?? permsOf(m.user.staff, []));
+        setRoleLabel(m.user.staffName ?? '');
         setWho(m.user.staff ? 'yes' : 'no');
       },
       () => setWho('out'),
@@ -93,6 +107,8 @@ function Portal() {
         tone="company"
         onSignedIn={(m) => {
           setRole(m.user.staff ?? null);
+          setPerms(m.user.perms ?? permsOf(m.user.staff, []));
+          setRoleLabel(m.user.staffName ?? '');
           setWho(m.user.staff ? 'yes' : 'no');
         }}
       />
@@ -112,7 +128,7 @@ function Portal() {
       </main>
     );
 
-  const tabs = TABS.filter(([, , perm]) => staffCan(role, perm));
+  const tabs = TABS.filter(([, , perm]) => perms.includes(perm));
   const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
   const label = tabs.find(([k]) => k === shown)?.[1] ?? '';
   const navItem = (k: Tab, text: string) => (
@@ -130,7 +146,7 @@ function Portal() {
     </button>
   );
   return (
-    <RoleCtx.Provider value={role}>
+    <RoleCtx.Provider value={{ role, perms }}>
       <div className="min-h-screen bg-[#f3f4ef] md:grid md:grid-cols-[248px_minmax(0,1fr)]" style={{ color: '#1b2218', fontFamily: sans }}>
         {/* Wide screens: a dark sidebar. Phones: a dark bar with the sections in a scrolling row. */}
         <aside className="hidden md:flex flex-col gap-1 sticky top-0 h-screen p-4 text-[#f3ecd6]" style={{ background: 'linear-gradient(180deg, #1b2218, #232c1f)' }}>
@@ -147,7 +163,7 @@ function Portal() {
             {tabs.map(([k, text]) => navItem(k, text))}
           </nav>
           <div className="pt-3 border-t border-[rgba(243,236,214,.12)] flex flex-col gap-2">
-            {role && <span className="text-[12px] text-[#c9c4b2]">Signed in as {STAFF_INFO[role].name}</span>}
+            {role && <span className="text-[12px] text-[#c9c4b2]">Signed in as {roleLabel || role}</span>}
             <ProfileSwitch here="company" />
           </div>
         </aside>
@@ -648,7 +664,7 @@ function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { i
           <option value="">Nobody yet</option>
           {team.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.name} ({STAFF_INFO[m.role as StaffRole]?.name ?? m.role})
+              {m.name} ({m.roleName ?? m.role})
             </option>
           ))}
         </select>
@@ -1074,7 +1090,8 @@ const ACTION: Record<string, string> = {
 function Team({ onNote }: { onNote: (s: string) => void }) {
   const { data, error, reload } = useLoad(companyApi.team);
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<StaffRole>('support');
+  const [role, setRole] = useState('support');
+  const options = useRoleOptions();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const [link, setLink] = useState('');
@@ -1117,10 +1134,10 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
           </label>
           <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
             Role
-            <select value={role} onChange={(e) => setRole(e.target.value as StaffRole)} className={`${input} w-auto`}>
-              {STAFF_ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {STAFF_INFO[r].name}
+            <select value={role} onChange={(e) => setRole(e.target.value)} className={`${input} w-auto`}>
+              {options.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.name}
                 </option>
               ))}
             </select>
@@ -1129,7 +1146,7 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
             {busy ? 'Inviting…' : 'Invite'}
           </button>
         </div>
-        <p className="m-0 text-[14px] text-[#5b6a52]">{STAFF_INFO[role].does}</p>
+        <p className="m-0 text-[14px] text-[#5b6a52]">{options.find((r) => r.key === role)?.does ?? ''}</p>
         {link && (
           <p className="m-0 text-[14px] break-all">
             Email isn’t set up, so send them this link yourself: <strong>{link}</strong>
@@ -1153,10 +1170,10 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
                 <span className="text-[14px]">Owner (founder)</span>
               ) : (
                 <>
-                  <select value={m.role} aria-label={`Role for ${m.name}`} onChange={(e) => void run(() => companyApi.setRole(m.id, e.target.value), `${m.name}: ${STAFF_INFO[e.target.value as StaffRole].name}`)} className={`${input} w-auto`}>
-                    {STAFF_ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {STAFF_INFO[r].name}
+                  <select value={m.role} aria-label={`Role for ${m.name}`} onChange={(e) => void run(() => companyApi.setRole(m.id, e.target.value), `${m.name}: ${options.find((r) => r.key === e.target.value)?.name ?? 'role changed'}`)} className={`${input} w-auto`}>
+                    {options.map((r) => (
+                      <option key={r.key} value={r.key}>
+                        {r.name}
                       </option>
                     ))}
                   </select>
@@ -1177,7 +1194,7 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
               {data.invites.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-3 text-[14px]">
                   <span className="flex-1">
-                    {i.email} · {STAFF_INFO[i.role as StaffRole]?.name ?? i.role} · until {day(i.expiresAt)}
+                    {i.email} · {i.roleName ?? i.role} · until {day(i.expiresAt)}
                   </span>
                   <button type="button" className={btn} onClick={() => void run(() => companyApi.cancelInvite(i.id), 'Invitation cancelled')}>
                     Cancel
@@ -1188,6 +1205,7 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
           </>
         )}
       </section>
+      <Roles onNote={onNote} />
       <Bots onNote={onNote} />
       <section className={card} aria-label="What each role can do">
         <H>What each role can do</H>
@@ -1613,7 +1631,8 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
 function Bots({ onNote }: { onNote: (s: string) => void }) {
   const { data, error, reload } = useLoad(companyApi.bots);
   const [name, setName] = useState('Grok');
-  const [role, setRole] = useState<'manager' | 'support' | 'developer' | 'marketing'>('support');
+  const [role, setRole] = useState('support');
+  const options = useRoleOptions(false);
   const [key, setKey] = useState('');
   const [problem, setProblem] = useState('');
   const add = async () => {
@@ -1637,10 +1656,10 @@ function Bots({ onNote }: { onNote: (s: string) => void }) {
         </label>
         <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
           Role
-          <select value={role} onChange={(e) => setRole(e.target.value as typeof role)} className={`${input} w-auto`}>
-            {(['manager', 'support', 'developer', 'marketing'] as const).map((r) => (
-              <option key={r} value={r}>
-                {STAFF_INFO[r].name}
+          <select value={role} onChange={(e) => setRole(e.target.value)} className={`${input} w-auto`}>
+            {options.map((r) => (
+              <option key={r.key} value={r.key}>
+                {r.name}
               </option>
             ))}
           </select>
@@ -1666,7 +1685,7 @@ function Bots({ onNote }: { onNote: (s: string) => void }) {
             <li key={b.id} className="flex flex-wrap items-center gap-3 py-2 border-t border-[#e4e6df] text-[14px]">
               <strong className="flex-1 min-w-[140px]">{b.name}</strong>
               <span className="text-[#5f6a58]">
-                {b.revoked ? 'Switched off' : `${STAFF_INFO[b.role as StaffRole]?.name ?? b.role} · ${b.lastUsedAt ? `last used ${day(b.lastUsedAt)}` : 'not used yet'}`}
+                {b.revoked ? 'Switched off' : `${b.roleName ?? b.role} · ${b.lastUsedAt ? `last used ${day(b.lastUsedAt)}` : 'not used yet'}`}
               </span>
               {!b.revoked && (
                 <button type="button" className={btn} onClick={() => void companyApi.revokeBot(b.id).then(() => (onNote(`${b.name} switched off`), reload()), (e: Error) => setProblem(e.message))}>
@@ -1822,7 +1841,7 @@ const SERVICES: { id: string; name: string; does: string; open: string; openLabe
 
 /** Settings → Connections (owners): one card per service, the keys pasted once, working straight away. */
 function Connections({ onNote }: { onNote: (s: string) => void }) {
-  const role = useContext(RoleCtx);
+  const { role } = useContext(RoleCtx);
   const load = useCallback(() => (role === 'owner' ? companyApi.connections() : Promise.resolve(null)), [role]);
   const { data, error, reload } = useLoad(load);
   const [open, setOpen] = useState('');
@@ -2153,6 +2172,74 @@ function Goal({ data, tax, setTax, onSave, running, each }: { data: CompanyMoney
       <button type="button" className={`${primary} self-start`} onClick={onSave}>
         Save the goal
       </button>
+    </section>
+  );
+}
+
+/** Team → Roles: make your own roles (a name, what it's for, which parts of the portal it reaches). */
+function Roles({ onNote }: { onNote: (s: string) => void }) {
+  const { data, error, setData } = useLoad(companyApi.roles);
+  const [problem, setProblem] = useState('');
+  if (error) return <Problem text={error} />;
+  if (!data) return null;
+  const roles = data.roles;
+  const set = (i: number, p: Partial<CompanyRole>) => setData({ roles: roles.map((r, j) => (j === i ? { ...r, ...p } : r)) });
+  const save = async () => {
+    setProblem('');
+    try {
+      setData(await companyApi.saveRoles(roles));
+      onNote('Roles saved');
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  const add = () => {
+    const n = roles.length + 1;
+    setData({ roles: [...roles, { id: `role-${Date.now().toString(36)}`, name: `New role ${n}`, does: '', perms: ['overview'], people: 0 }] });
+  };
+  return (
+    <section className={card} aria-label="Roles">
+      <H sub="Besides Owner, Manager, Support, Developer and Marketing: make your own, e.g. “Bookkeeper” (Money and Activity) or “Partner manager” (Promote and Vendors). Only owners ever manage the team.">Your own roles</H>
+      {roles.map((r, i) => (
+        <div key={r.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e4e6df]">
+          <div className="flex gap-2 flex-wrap items-end">
+            <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58] flex-1 min-w-[160px]">
+              Name
+              <input value={r.name} maxLength={40} onChange={(e) => set(i, { name: e.target.value })} className={input} />
+            </label>
+            <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58] flex-[2] min-w-[200px]">
+              What it’s for
+              <input value={r.does} maxLength={200} onChange={(e) => set(i, { does: e.target.value })} placeholder="e.g. Keeps the books and the tax savings" className={input} />
+            </label>
+            <button type="button" className={btn} disabled={!!r.people} title={r.people ? 'Someone has this role: give them another first' : undefined} onClick={() => setData({ roles: roles.filter((_, j) => j !== i) })}>
+              Remove
+            </button>
+          </div>
+          <div className="grid gap-1 sm:grid-cols-2">
+            {STAFF_PERMS.filter((x) => x !== 'team').map((x) => (
+              <label key={x} className="flex items-start gap-2 text-[14px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={r.perms.includes(x)}
+                  onChange={(e) => set(i, { perms: e.target.checked ? [...r.perms, x] : r.perms.filter((y) => y !== x) })}
+                  className="mt-[3px] w-[16px] h-[16px]"
+                />
+                {PERM_INFO[x]}
+              </label>
+            ))}
+          </div>
+          {!!r.people && <span className="text-[12px] text-[#5f6a58]">{r.people} on the team have this role.</span>}
+        </div>
+      ))}
+      <div className="flex gap-2 flex-wrap">
+        <button type="button" className={btn} onClick={add}>
+          Add a role
+        </button>
+        <button type="button" className={primary} onClick={() => void save()}>
+          Save roles
+        </button>
+      </div>
+      {problem && <Problem text={problem} />}
     </section>
   );
 }

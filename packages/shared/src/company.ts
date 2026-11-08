@@ -99,7 +99,8 @@ export const STAFF_INFO: Record<StaffRole, { name: string; does: string }> = {
   marketing: { name: 'Marketing', does: 'Promo codes, the front-page banner, campaign links, the marketing list and vendors.' },
 };
 export const staffCan = (role: StaffRole | null | undefined, perm: StaffPerm) => !!role && STAFF_CAN[role].includes(perm);
-export const StaffInviteIn = z.object({ email: z.string().trim().toLowerCase().email().max(200), role: z.enum(STAFF_ROLES) }).strict();
+/** A role: a built-in one (owner, manager…) or one the owners made ('custom:<id>'). */
+export const StaffInviteIn = z.object({ email: z.string().trim().toLowerCase().email().max(200), role: z.string().trim().max(60) }).strict();
 
 
 /**
@@ -208,3 +209,43 @@ export const LAUNCH_TODOS: TodoItem[] = [
   t('own', 'Before you announce', 'Your own wedding and the 30th look right on the live site', '/admin'),
   t('backup', 'Before you announce', 'Check the 12-hourly backup ran (GitHub → Actions → Nightly)', 'https://github.com/nicholasdale88-lgtm/wedding-platform/actions'),
 ];
+
+/**
+ * Roles the owners make themselves (Team → Roles): a name and exactly which parts of the portal it reaches.
+ * Stored as 'custom:<id>' on a person or bot. Only owners manage the team, so a made role never includes it.
+ */
+export const CustomRole = z.object({
+  id: z.string().regex(/^[a-z0-9-]{2,30}$/),
+  name: z.string().trim().min(1).max(40),
+  does: z.string().trim().max(200).default(''),
+  perms: z.array(z.enum(STAFF_PERMS)).max(STAFF_PERMS.length).default([]),
+});
+export type CustomRole = z.infer<typeof CustomRole>;
+export const CustomRoles = z.object({ roles: z.array(CustomRole).max(20).default([]) });
+export const isBuiltInRole = (role: string): role is StaffRole => (STAFF_ROLES as readonly string[]).includes(role);
+
+/** What a role reaches: a built-in role's set, or a made role's (never the team). */
+export function permsOf(role: string | null | undefined, custom: readonly CustomRole[]): StaffPerm[] {
+  if (!role) return [];
+  if (isBuiltInRole(role)) return [...STAFF_CAN[role]];
+  const made = role.startsWith('custom:') ? custom.find((r) => `custom:${r.id}` === role) : undefined;
+  return made ? made.perms.filter((p) => p !== 'team') : [];
+}
+/** A role's name for people: "Manager", or a made role's own name. */
+export function roleName(role: string | null | undefined, custom: readonly CustomRole[]): string {
+  if (!role) return '';
+  if (isBuiltInRole(role)) return STAFF_INFO[role].name;
+  return custom.find((r) => `custom:${r.id}` === role)?.name ?? 'Removed role';
+}
+/** What each part of the portal is, for choosing a made role's reach. */
+export const PERM_INFO: Record<StaffPerm, string> = {
+  overview: 'Overview: the numbers and the to-do list',
+  couples: 'Couples: find weddings, send payment links',
+  money: 'Money: mark paid, change plans, money and tax',
+  feedback: 'Feedback: read, assign, plan, reply',
+  promote: 'Promote: codes, banner, campaign links, marketing list',
+  vendors: 'Vendors: the directory, hide or show',
+  settings: 'Settings: payment links, social links, guest pages',
+  team: 'Team: people, bots and roles (owners only)',
+  activity: 'Activity: who did what',
+};

@@ -46,7 +46,7 @@ const send = <T>(method: string, path: string, body?: unknown, version?: number)
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface Me {
   /** staff: their role in the company portal, when they work on the app. */
-  user: { id: string; email: string; superAdmin: boolean; staff?: 'owner' | 'manager' | 'support' | 'developer' | 'marketing' | null };
+  user: { id: string; email: string; superAdmin: boolean; staff?: string | null; perms?: string[]; staffName?: string };
   weddings: { id: string; slug: string; name1: string; name2: string; role: Role }[];
   /** Their vendor listing (the directory), when they have one. */
   vendor?: { slug: string; name: string } | null;
@@ -980,7 +980,8 @@ export interface CompanySettings {
   paymentLinks: { essentials: string; complete: string; event: string };
 }
 export interface CompanyFeedback { id: string; kind: 'idea' | 'problem' | 'love'; text: string; page: string; status: 'new' | 'planned' | 'in_progress' | 'done' | 'not_now'; note: string; createdAt: string; assignee: string; names: string; slug: string; email: string }
-export interface CompanyStaff { id: string; name: string; email: string; role: string; founder: boolean; since: string; lastIn: string }
+export interface CompanyStaff { id: string; name: string; email: string; role: string; roleName?: string; founder: boolean; since: string; lastIn: string }
+export interface CompanyRole { id: string; name: string; does: string; perms: string[]; people?: number }
 type MoneyQuarter = { q: number; sales: number; gross: number; fees: number; gstCollected: number; gstPaid: number; gstOwed: number; spent: number; profit: number; setAside: number };
 export interface CompanyMoney {
   fy: number;
@@ -1012,8 +1013,10 @@ export const companyApi = {
   feedback: () => request<{ feedback: CompanyFeedback[]; counts: Record<string, number> }>('/a/company/feedback'),
   setFeedback: (id: string, body: { status?: CompanyFeedback['status']; note?: string; assignee?: string }) => send<{ ok: true }>('PUT', `/a/company/feedback/${encodeURIComponent(id)}`, body),
   saveBanner: (b: CompanySettings['banner']) => send<CompanySettings>('PUT', '/a/company/banner', b),
-  staff: () => request<{ staff: { id: string; name: string; role: string }[]; me: { id: string; role: string } }>('/a/company/staff'),
-  team: () => request<{ staff: CompanyStaff[]; invites: { id: string; email: string; role: string; expiresAt: string }[] }>('/a/company/team'),
+  staff: () => request<{ staff: { id: string; name: string; role: string; roleName?: string }[]; me: { id: string; role: string } }>('/a/company/staff'),
+  roles: () => request<{ roles: CompanyRole[] }>('/a/company/roles'),
+  saveRoles: (roles: CompanyRole[]) => send<{ roles: CompanyRole[] }>('PUT', '/a/company/roles', { roles: roles.map(({ id, name, does, perms }) => ({ id, name, does, perms })) }),
+  team: () => request<{ staff: CompanyStaff[]; invites: { id: string; email: string; role: string; roleName?: string; expiresAt: string }[] }>('/a/company/team'),
   invite: (email: string, role: string) => send<{ ok: true; emailed: boolean; link: string }>('POST', '/a/company/team/invite', { email, role }),
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
   setRole: (userId: string, role: string) => send<{ ok: true }>('PUT', `/a/company/team/${encodeURIComponent(userId)}`, { role }),
@@ -1024,7 +1027,7 @@ export const companyApi = {
   saveConnections: (keys: Record<string, string>) => send<{ status: Record<string, 'deploy' | 'saved' | ''> }>('PUT', '/a/company/connections', keys),
   assistantOn: () => request<{ on: boolean }>('/a/company/assistant'),
   assistant: (task: 'brief' | 'feedback' | 'posts' | 'outreach' | 'ask', note = '', id = '') => send<{ text: string }>('POST', '/a/company/assistant', { task, note, id }),
-  bots: () => request<{ bots: { id: string; name: string; role: string; createdAt: string; lastUsedAt: string; revoked: boolean }[] }>('/a/company/bots'),
+  bots: () => request<{ bots: { id: string; name: string; role: string; roleName?: string; createdAt: string; lastUsedAt: string; revoked: boolean }[] }>('/a/company/bots'),
   addBot: (name: string, role: string) => send<{ id: string; key: string }>('POST', '/a/company/bots', { name, role }),
   revokeBot: (id: string) => send<{ ok: true }>('DELETE', `/a/company/bots/${encodeURIComponent(id)}`),
   money: (fy?: number) => request<CompanyMoney>(`/a/company/money${fy ? `?fy=${fy}` : ''}`),

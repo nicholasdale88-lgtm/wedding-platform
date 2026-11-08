@@ -6,7 +6,7 @@ import type { Env } from '../env';
 import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { buttonEmail, emailReady, sendEmail } from '../lib/email';
-import { STAFF_ROLES, type StaffRole } from '@wp/shared';
+import { CustomRoles, isBuiltInRole, permsOf, roleName, type CustomRole, type StaffPerm } from '@wp/shared';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface SessionUser {
@@ -14,8 +14,10 @@ export interface SessionUser {
   email: string;
   /** Owner or manager of the company: the platform-wide switches (plans, integrations). */
   superAdmin: boolean;
-  /** Their role in the company portal, if they work on the app. */
-  staff: StaffRole | null;
+  /** Their role in the company portal, if they work on the app: a built-in one, or 'custom:<id>'. */
+  staff: string | null;
+  /** What that role reaches in the portal. */
+  perms: StaffPerm[];
 }
 export type AdminEnv = { Bindings: Env; Variables: { user: SessionUser; role: Role } };
 
@@ -25,13 +27,25 @@ const err = (c: Context, status: 400 | 401 | 403 | 404 | 415 | 429 | 500, code: 
 const Login = z.object({ email: z.string().trim().toLowerCase().email().max(200), passcode: z.string().min(1).max(200) });
 
 /** A user's company role: the SUPER_ADMINS address is always an owner; others come from the staff table. */
-export function staffOf(env: Env, email: string, tableRole: string | null | undefined): StaffRole | null {
+export function staffOf(env: Env, email: string, tableRole: string | null | undefined): string | null {
   if (superAdmins(env).has(email.toLowerCase())) return 'owner';
-  return (STAFF_ROLES as readonly string[]).includes(tableRole ?? '') ? (tableRole as StaffRole) : null;
+  const r = tableRole ?? '';
+  return isBuiltInRole(r) || r.startsWith('custom:') ? r : null;
 }
-const asUser = (env: Env, row: { id: string; email: string; staff_role?: string | null }): SessionUser => {
+/** The roles the owners made (Team → Roles), read only when someone has one. */
+export async function customRoles(db: D1Database): Promise<CustomRole[]> {
+  const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = 'roles'`).first<{ value: string }>().catch(() => null);
+  try {
+    const p = CustomRoles.safeParse(row ? JSON.parse(row.value) : {});
+    return p.success ? p.data.roles : [];
+  } catch {
+    return [];
+  }
+}
+const asUser = async (env: Env, row: { id: string; email: string; staff_role?: string | null }): Promise<SessionUser> => {
   const staff = staffOf(env, row.email, row.staff_role);
-  return { id: row.id, email: row.email, staff, superAdmin: staff === 'owner' || staff === 'manager' };
+  const perms = permsOf(staff, staff?.startsWith('custom:') ? await customRoles(env.DB) : []);
+  return { id: row.id, email: row.email, staff, perms, superAdmin: staff === 'owner' || staff === 'manager' };
 };
 export const superAdmins = (env: Env) => new Set((env.SUPER_ADMINS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
 
@@ -58,8 +72,9 @@ async function botUser(c: Context<AdminEnv>): Promise<SessionUser | null> {
   if (!row) return null;
   await c.env.DB.prepare(`UPDATE bot_key SET last_used_at = ? WHERE id = ?`).bind(new Date().toISOString(), row.id).run();
   // A bot is never an owner: it can't change the team or its own key.
-  const staff = row.role && row.role !== 'owner' && (STAFF_ROLES as readonly string[]).includes(row.role) ? (row.role as StaffRole) : null;
-  return { id: row.user_id, email: row.email, staff, superAdmin: false };
+  const staff = row.role && row.role !== 'owner' && (isBuiltInRole(row.role) || row.role.startsWith('custom:')) ? row.role : null;
+  const perms = permsOf(staff, staff?.startsWith('custom:') ? await customRoles(c.env.DB) : []).filter((x) => x !== 'team');
+  return { id: row.user_id, email: row.email, staff, perms, superAdmin: false };
 }
 
 export const requireUser: MiddlewareHandler<AdminEnv> = async (c, next) => {
@@ -77,7 +92,7 @@ export const requireUser: MiddlewareHandler<AdminEnv> = async (c, next) => {
     .bind(await sessionId(token, c.env.SESSION_SECRET), new Date().toISOString())
     .first<{ id: string; email: string; staff_role: string | null }>();
   if (!row) return err(c, 401, 'signed_out', 'Please sign in.');
-  c.set('user', asUser(c.env, row));
+  c.set('user', await asUser(c.env, row));
   await next();
 };
 
@@ -109,7 +124,8 @@ export async function me(env: Env, user: SessionUser) {
     .bind(user.id)
     .first<{ slug: string; name: string }>()
     .catch(() => null);
-  return { user: { id: user.id, email: user.email, superAdmin: user.superAdmin, staff: user.staff }, weddings: results, vendor: vendor ?? null };
+  const staffName = user.staff ? roleName(user.staff, user.staff.startsWith('custom:') ? await customRoles(env.DB) : []) : '';
+  return { user: { id: user.id, email: user.email, superAdmin: user.superAdmin, staff: user.staff, perms: user.perms, staffName }, weddings: results, vendor: vendor ?? null };
 }
 
 /** Start a session for this user (a cookie with a random token; only its HMAC is stored) and note the sign-in. */
@@ -122,7 +138,7 @@ export async function signIn(c: Context<AdminEnv>, user: { id: string; email: st
   ]);
   setCookie(c, SESSION_COOKIE, token, { httpOnly: true, secure: true, sameSite: 'Lax', path: '/', expires });
   const role = await c.env.DB.prepare(`SELECT role FROM staff WHERE user_id = ?`).bind(user.id).first<{ role: string }>().catch(() => null);
-  return me(c.env, asUser(c.env, { id: user.id, email: user.email, staff_role: role?.role ?? null }));
+  return me(c.env, await asUser(c.env, { id: user.id, email: user.email, staff_role: role?.role ?? null }));
 }
 
 export function authRoutes() {
