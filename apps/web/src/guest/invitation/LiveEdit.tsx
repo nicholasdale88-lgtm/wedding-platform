@@ -25,7 +25,7 @@ export type ToCard = { wp: 'inv-live'; state: LiveState };
 const B0 = '​';
 const B1 = '‌';
 const EDGE = '⁠';
-const MARK = /⁠([​‌]+)⁠/;
+const MARK = /\u2060([\u200B\u200C]+)\u2060/;
 /** The invisible mark for the n-th piece of wording. */
 export const markOf = (n: number) => `${EDGE}${n.toString(2).replace(/0/g, B0).replace(/1/g, B1)}${EDGE}`;
 /** The number in the first mark in a piece of text, if any. */
@@ -34,7 +34,7 @@ export function readMark(s: string): number | null {
   return m ? parseInt(m[1]!.replace(new RegExp(B0, 'g'), '0').replace(new RegExp(B1, 'g'), '1'), 2) : null;
 }
 /** Text without its marks (what to show in the editor). */
-export const unmark = (s: string) => s.replace(/⁠[​‌]+⁠/g, '');
+export const unmark = (s: string) => s.replace(/\u2060[\u200B\u200C]+\u2060/g, '');
 
 /** Wording lookup that marks each piece with its key's number (keys numbered as they're first asked for). */
 export function markedT(t: (k: string) => string, keys: string[]): (k: string) => string {
