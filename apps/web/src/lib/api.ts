@@ -1,4 +1,4 @@
-import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals } from '@wp/shared';
+import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -218,8 +218,7 @@ export const api = {
   estimateOne: (wid: string, id: string, campaignId: string) =>
     send<{ count: number; parts: number; costCents: number; sample: string | null; quiet: boolean }>('POST', `${w(wid)}/guests/${id}/send?dry=1`, { campaignId }),
   /** Several guests at once: their side, how they know you, circles added or taken away. */
-  bulkGuests: (wid: string, b: { ids: string[]; side?: '' | 'p1' | 'p2' | 'both'; relation?: string; addCircles?: string[]; removeCircles?: string[] }) =>
-    send<{ updated: number }>('POST', `${w(wid)}/guests/bulk`, b),
+  bulkGuests: (wid: string, b: { ids: string[] } & BulkSet) => send<{ updated: number; flagged?: { name: string; gaps: ContactGap[] }[] }>('POST', `${w(wid)}/guests/bulk`, b),
   importGuests: (wid: string, rows: unknown[], dry: boolean) => send<ImportResult>('POST', `${w(wid)}/guests/import${dry ? '?dry=1' : ''}`, { rows }),
   setAdminLook: (wid: string, look: { palette: string; eventColours: boolean; large: boolean }) => send<{ ok: true }>('PUT', `${w(wid)}/look`, look),
   setAdminName: (wid: string, name: string) => send<{ ok: true; name: string }>('PUT', `${w(wid)}/admin-name`, { name }),
@@ -1150,3 +1149,6 @@ export const feedbackApi = {
     send<{ ok: true; reward: number; reviewUrl: string }>('POST', `/a/w/${encodeURIComponent(wid)}/feedback`, body),
   updates: (wid: string) => request<{ updates: { text: string; done: boolean; at: string }[] }>(`/a/w/${encodeURIComponent(wid)}/feedback/updates`),
 };
+
+/** What can be set for several ticked guests at once. */
+export type BulkSet = { side?: '' | 'p1' | 'p2' | 'both'; relation?: string; addCircles?: string[]; removeCircles?: string[]; delivery?: 'digital' | 'post' | 'both'; channel?: '' | 'text' | 'email' | 'both' | 'phone' };

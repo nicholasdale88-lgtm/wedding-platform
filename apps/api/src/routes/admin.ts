@@ -1,4 +1,4 @@
-import { allows, DELIVERY, GUEST_SIDES, joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164 } from '@wp/shared';
+import { allows, DELIVERY, GUEST_SIDES, joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164, contactGaps } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
@@ -360,6 +360,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         relation: z.union([z.literal(''), z.enum(RELATION_KEYS)]).optional(),
         addCircles: z.array(z.string().max(80)).max(MAX_CIRCLES).optional(),
         removeCircles: z.array(z.string().max(80)).max(MAX_CIRCLES * 2).optional(),
+        /** How the invitation goes (digital, post, both) and how messages reach them. */
+        delivery: z.enum(['digital', 'post', 'both']).optional(),
+        channel: z.enum(['', 'text', 'email', 'both', 'phone']).optional(),
       })
       .strict()
       .safeParse(await readJson(c.req.raw, MAX_IMPORT));
@@ -376,12 +379,23 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const stmts = results.map((r) => {
       const circles = b.addCircles || b.removeCircles ? joinCircles([...splitCircles(r.circles).filter((x) => !drop.has(x.toLowerCase())), ...(b.addCircles ?? [])]) : r.circles;
       return db
-        .prepare(`UPDATE invitation SET side = COALESCE(?, side), relation = COALESCE(?, relation), circles = ?, version = version + 1, updated_at = ? WHERE id = ?`)
-        .bind(b.side ?? null, b.relation ?? null, circles, t, r.id);
+        .prepare(
+          `UPDATE invitation SET side = COALESCE(?, side), relation = COALESCE(?, relation), circles = ?, delivery = COALESCE(?, delivery), channel = COALESCE(?, channel), version = version + 1, updated_at = ? WHERE id = ?`,
+        )
+        .bind(b.side ?? null, b.relation ?? null, circles, b.delivery ?? null, b.channel ?? null, t, r.id);
     });
     for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));
-    await audit(c, 'guest.bulk', wid(c), { count: results.length, side: b.side, relation: b.relation, add: b.addCircles, remove: b.removeCircles }).run();
-    return c.json({ updated: results.length });
+    await audit(c, 'guest.bulk', wid(c), { count: results.length, side: b.side, relation: b.relation, add: b.addCircles, remove: b.removeCircles, delivery: b.delivery, channel: b.channel }).run();
+    // Anyone the way they're now set can't reach: no mobile for texts, no email for emails, no address for post.
+    const now2 = await db
+      .prepare(
+        `SELECT i.phone, i.email, i.channel, i.delivery, i.address_street AS street, (SELECT name FROM person p WHERE p.invitation_id = i.id AND p.deleted_at IS NULL ORDER BY idx LIMIT 1) AS name
+           FROM invitation i WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND i.id IN (SELECT value FROM json_each(?))`,
+      )
+      .bind(wid(c), JSON.stringify(results.map((r) => r.id)))
+      .all<{ phone: string | null; email: string | null; channel: string | null; delivery: string | null; street: string | null; name: string | null }>();
+    const flagged = now2.results.map((r) => ({ name: r.name || 'A guest', gaps: contactGaps(r) })).filter((r) => r.gaps.length);
+    return c.json({ updated: results.length, flagged });
   });
 
   app.patch('/guests/:id', writer, async (c) => {

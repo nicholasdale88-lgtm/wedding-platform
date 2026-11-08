@@ -32,6 +32,38 @@ export const DELIVERY_LABEL: Record<Delivery, string> = { digital: 'Digital (tex
 export const digitalOk = (delivery: string | null | undefined) => delivery !== 'post';
 export const printed = (delivery: string | null | undefined) => delivery === 'post' || delivery === 'both';
 
+/** How messages reach a guest: '' automatic (text with a mobile, else email), text, email, both, or from the couple's own phone. */
+export const CHANNELS = ['', 'text', 'email', 'both', 'phone'] as const;
+export const CHANNEL_LABEL: Record<(typeof CHANNELS)[number], string> = {
+  '': 'Automatic (text, or email without a mobile)',
+  text: 'Text only',
+  email: 'Email only (free)',
+  both: 'Text and email',
+  phone: 'From my own phone (free)',
+};
+
+/** What's missing for the way a guest's invitation and messages are set to go. */
+export type ContactGap = 'mobile' | 'email' | 'contact' | 'address';
+export const GAP_LABEL: Record<ContactGap, string> = {
+  mobile: 'Needs a mobile',
+  email: 'Needs an email',
+  contact: 'Needs a mobile or email',
+  address: 'Needs a postal address',
+};
+export function contactGaps(g: { phone?: string | null; email?: string | null; channel?: string | null; delivery?: string | null; address?: { street?: string | null } | null; street?: string | null }): ContactGap[] {
+  const out: ContactGap[] = [];
+  const phone = !!g.phone?.trim();
+  const email = !!g.email?.trim();
+  if (digitalOk(g.delivery)) {
+    const ch = g.channel ?? '';
+    if ((ch === 'text' || ch === 'phone' || ch === 'both') && !phone) out.push('mobile');
+    if ((ch === 'email' || ch === 'both') && !email) out.push('email');
+    if (ch === '' && !phone && !email) out.push('contact');
+  }
+  if (printed(g.delivery) && !(g.address?.street ?? g.street ?? '').trim()) out.push('address');
+  return out;
+}
+
 export interface Contact {
   name: string;
   /** Every number, mobiles first. */

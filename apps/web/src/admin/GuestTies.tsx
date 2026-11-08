@@ -1,6 +1,6 @@
-import { cleanCircle, KNOWS_NO_ONE, MAX_CIRCLES, RELATIONS, relationLabel, sideLabels, sideShort, type GuestSide } from '@wp/shared';
+import { cleanCircle, KNOWS_NO_ONE, MAX_CIRCLES, RELATIONS, relationLabel, sideLabels, sideShort, type GuestSide, CHANNEL_LABEL, CHANNELS, DELIVERY, DELIVERY_LABEL } from '@wp/shared';
 import { useState } from 'react';
-import type { Guest } from '../lib/api';
+import type { BulkSet, Guest } from '../lib/api';
 import { useAdmin } from './Shell';
 import { inputCls } from './ui';
 
@@ -140,13 +140,17 @@ const KEEP = '~';
  * Guests → Select: set the side, how they know you, or a circle for every ticked guest at once
  * (anything left as "Leave as is" doesn't change).
  */
-export function BulkTies({ count, options, busy, onApply, onAll, onDone }: { count: number; options: string[]; busy: boolean; onApply: (b: { side?: GuestSide; relation?: string; addCircles?: string[]; removeCircles?: string[] }) => void; onAll: () => void; onDone: () => void }) {
+export function BulkTies({ count, options, busy, onApply, onAll, onDone }: { count: number; options: string[]; busy: boolean; onApply: (b: BulkSet) => void; onAll: () => void; onDone: () => void }) {
   const { labels } = useSideLabels();
+  const [delivery, setDelivery] = useState(KEEP);
+  const [channel, setChannel] = useState(KEEP);
   const [side, setSide] = useState(KEEP);
   const [relation, setRelation] = useState(KEEP);
   const [add, setAdd] = useState('');
   const [remove, setRemove] = useState('');
-  const change = {
+  const change: BulkSet = {
+    ...(delivery !== KEEP ? { delivery: delivery as NonNullable<BulkSet['delivery']> } : {}),
+    ...(channel !== KEEP ? { channel: channel as NonNullable<BulkSet['channel']> } : {}),
     ...(side !== KEEP ? { side: side as GuestSide } : {}),
     ...(relation !== KEEP ? { relation } : {}),
     ...(cleanCircle(add) ? { addCircles: [cleanCircle(add)] } : {}),
@@ -164,6 +168,24 @@ export function BulkTies({ count, options, busy, onApply, onAll, onDone }: { cou
         <button type="button" onClick={onDone} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[13px]">
           Done
         </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <select aria-label="Invitation by, for the ticked guests" value={delivery} onChange={(e) => setDelivery(e.target.value)} className={inputCls}>
+          <option value={KEEP}>Invitation by: leave as is</option>
+          {DELIVERY.map((k) => (
+            <option key={k} value={k}>
+              Invitation by: {DELIVERY_LABEL[k]}
+            </option>
+          ))}
+        </select>
+        <select aria-label="Messages by, for the ticked guests" value={channel} onChange={(e) => setChannel(e.target.value)} className={inputCls}>
+          <option value={KEEP}>Messages by: leave as is</option>
+          {CHANNELS.map((k) => (
+            <option key={k || 'auto'} value={k}>
+              Messages by: {CHANNEL_LABEL[k]}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
         <select aria-label="Side for the ticked guests" value={side} onChange={(e) => setSide(e.target.value)} className={inputCls}>
@@ -205,6 +227,8 @@ export function BulkTies({ count, options, busy, onApply, onAll, onDone }: { cou
           onApply(change);
           setAdd('');
           setRemove('');
+          setDelivery(KEEP);
+          setChannel(KEEP);
         }}
         className="self-start py-2 px-4 rounded-full border-0 bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] text-[14px] cursor-pointer disabled:opacity-50"
       >

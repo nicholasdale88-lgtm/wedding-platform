@@ -342,7 +342,11 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
             <button type="button" onClick={() => void numberFromContacts()} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
               {phone ? 'Use a number from my contacts' : 'Add their number from my contacts'}
             </button>
-            {tip && <span role="status" className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Tap AutoFill Contact above the keyboard (or the contact icon) and choose them. On a computer, type it in.</span>}
+            {tip && (
+              <span role="status" className="text-[12px] text-[var(--adm-muted,#5b6a52)]">
+                Tap AutoFill Contact above the keyboard (or the contact icon) and choose them. On a computer, type it in. To open Contacts directly on iPhone, turn on Settings → Apps → Safari → Advanced → Feature Flags → Contact Picker API once, then reload: iPhone asks your permission.
+              </span>
+            )}
           </div>
           {/* A second mobile (each of a couple): texts go to both; leave it empty for one. */}
           {(g.people.length > 1 || g.phone2) && (

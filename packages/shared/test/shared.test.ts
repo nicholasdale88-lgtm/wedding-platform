@@ -153,3 +153,16 @@ describe('chairs', () => {
     expect(chairsAt([a, b, c], {}, 2)).toEqual([a, b, c]);
   });
 });
+
+describe('contact gaps', () => {
+  it('flags a guest the chosen way can't reach', async () => {
+    const { contactGaps } = await import('../src/contacts');
+    expect(contactGaps({ phone: '+61412000111', channel: '' })).toEqual([]);
+    expect(contactGaps({ channel: '' })).toEqual(['contact']);
+    expect(contactGaps({ email: 'a@b.co', channel: 'text' })).toEqual(['mobile']);
+    expect(contactGaps({ phone: '+61412000111', channel: 'both' })).toEqual(['email']);
+    expect(contactGaps({ channel: 'phone' })).toEqual(['mobile']);
+    expect(contactGaps({ delivery: 'post', channel: 'email' })).toEqual(['address']);
+    expect(contactGaps({ delivery: 'both', email: 'a@b.co', address: { street: '1 Rose St' } })).toEqual([]);
+  });
+});

@@ -1,7 +1,7 @@
-import { circleSuggestions } from '@wp/shared';
+import { circleSuggestions, contactGaps, GAP_LABEL } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, ApiError, type EventInfo, type Guest } from '../lib/api';
+import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
 import { downloadCsv, fileName } from '../lib/csv';
 import { downloadDressed } from './exportLook';
@@ -90,11 +90,15 @@ export function Guests() {
     setPicking(false);
     setPicked(new Set());
   };
-  async function bulk(b: { side?: '' | 'p1' | 'p2' | 'both'; relation?: string; addCircles?: string[]; removeCircles?: string[] }) {
+  async function bulk(b: BulkSet) {
     setBulkBusy(true);
     try {
       const r = await api.bulkGuests(wid, { ...b, ids: [...picked] });
-      toast(`Saved for ${r.updated} ${r.updated === 1 ? 'guest' : 'guests'}`);
+      const f = r.flagged ?? [];
+      const few = (xs: string[]) => (xs.length > 4 ? `${xs.slice(0, 4).join(', ')} and ${xs.length - 4} more` : xs.join(', '));
+      toast(
+        `Saved for ${r.updated} ${r.updated === 1 ? 'guest' : 'guests'}.${f.length ? ` Check ${f.length}: ${few(f.map((x) => `${x.name} (${x.gaps.map((k) => GAP_LABEL[k].toLowerCase()).join(', ')})`))}.` : ''}`,
+      );
       await changed();
     } catch (e) {
       toast((e as Error).message);
@@ -102,6 +106,8 @@ export function Guests() {
       setBulkBusy(false);
     }
   }
+  // Who can't be reached the way their invitation is set to go (no mobile for texts, no email, no address for post).
+  const gapped = guests.map((g) => ({ g, gaps: contactGaps({ ...g, phone: g.phone ?? null }) })).filter((x) => x.gaps.length);
   const anyFilter = FILTER_KEYS.some((k) => k !== 'sort' && k !== 'filter' && state[k]) || state.filter !== 'all';
   const questions = events.flatMap((e) => e.questions.filter((q) => q.type === 'choice').map((q) => ({ event: e.key, key: q.key })));
 
@@ -202,6 +208,25 @@ export function Guests() {
       {contacts && data && <ImportContacts guests={data.guests} events={data.events} focus={focusEv} onClose={() => setContacts(false)} onDone={changed} />}
       {importing && data && <ImportGuests events={data.events} focus={focusEv} onClose={() => setImporting(false)} onDone={changed} />}
       {manual && data && <ManualSend key={manual} mode={manual} guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
+
+      {gapped.length > 0 && (
+        <div role="alert" aria-label="Guests who can't be reached" className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#d9b8a6] bg-[#f6ebe4] text-[14px]">
+          <span>
+            <strong className="font-semibold">
+              {gapped.length} {gapped.length === 1 ? 'guest' : 'guests'} can’t get their invitation the way it’s set to go.
+            </strong>{' '}
+            Add what’s missing, or change how it goes (Select, then Invitation by or Messages by).
+          </span>
+          <span className="flex gap-2 flex-wrap">
+            {gapped.slice(0, 12).map(({ g, gaps }) => (
+              <button key={g.id} type="button" onClick={() => openGuest(g.id)} className="py-[4px] px-3 rounded-full border border-[#d9b8a6] bg-white text-[13px] cursor-pointer text-[#7a4a37]">
+                {g.people[0]?.name || 'New guest'}: {gaps.map((k) => GAP_LABEL[k].toLowerCase()).join(', ')}
+              </button>
+            ))}
+            {gapped.length > 12 && <span className="text-[13px] text-[#7a4a37] self-center">and {gapped.length - 12} more</span>}
+          </span>
+        </div>
+      )}
 
       {picking && (
         <BulkTies count={picked.size} options={circles} busy={bulkBusy} onApply={(b) => void bulk(b)} onAll={() => setPicked(new Set(shown.map((g) => g.id)))} onDone={stopPicking} />
@@ -308,6 +333,7 @@ export function Guests() {
                 {events.map((e) => <StatusPill key={e.key} invited={g.invited.includes(e.key)} attending={g.rsvp[e.key]?.attending} />)}
               </span>
               <TieChips g={g} />
+              {contactGaps(g).length > 0 && <span className="text-[12px] font-semibold text-[#7a4a37]">{contactGaps(g).map((k) => GAP_LABEL[k]).join(' · ')}</span>}
             </button>
           ))}
           {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match. Clear the search or filters to see everyone.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}

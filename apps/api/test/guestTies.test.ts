@@ -59,7 +59,7 @@ describe('guest ties and the who-knows-who plan', () => {
   it('sets several guests at once, adding and taking away circles, only in this wedding', async () => {
     const [a, b, c] = await guests();
     const r = await post('/guests/bulk', { ids: [a!.id, b!.id, 'not-a-guest'], side: 'p1', relation: 'work', addCircles: ['Acme work'] });
-    expect(await r.json()).toEqual({ updated: 2 });
+    expect(await r.json()).toMatchObject({ updated: 2 });
     const after = await guests();
     for (const g of [a!, b!]) expect(after.find((x) => x.id === g.id)).toMatchObject({ side: 'p1', relation: 'work', circles: expect.arrayContaining(['Acme work']), version: g.version + 1 });
     expect(after.find((x) => x.id === c!.id)!.circles).not.toContain('Acme work');
@@ -67,6 +67,21 @@ describe('guest ties and the who-knows-who plan', () => {
     expect((await guests()).find((x) => x.id === a!.id)).toMatchObject({ side: 'p1', relation: 'work' });
     expect((await guests()).find((x) => x.id === a!.id)!.circles).not.toContain('Acme work');
     expect((await post('/guests/bulk', { ids: [] })).status).toBe(400);
+  });
+
+  it('sets how invitations go for several guests at once, and flags anyone it can't reach', async () => {
+    const [a, b] = await guests();
+    await call(`/guests/${a!.id}`, { method: 'PATCH', headers: { 'If-Match': String(a!.version) }, body: JSON.stringify({ phone: null, email: null, address: { street: '' } }) });
+    const r = await post('/guests/bulk', { ids: [a!.id, b!.id], delivery: 'post', channel: 'email' });
+    const out = (await r.json()) as { updated: number; flagged: { name: string; gaps: string[] }[] };
+    expect(out.updated).toBe(2);
+    const after = await guests();
+    expect(after.find((x) => x.id === a!.id)).toMatchObject({ delivery: 'post', channel: 'email' });
+    // Printed by post with no address: flagged (post only sends no emails, so a missing email doesn't matter).
+    expect(out.flagged.find((f) => f.name === a!.people[0]!.name)?.gaps).toEqual(['address']);
+    const d = await post('/guests/bulk', { ids: [a!.id], delivery: 'digital', channel: 'text' });
+    expect(((await d.json()) as { flagged: { gaps: string[] }[] }).flagged[0]!.gaps).toEqual(['mobile']);
+    expect((await post('/guests/bulk', { ids: [a!.id], channel: 'pigeon' })).status).toBe(400);
   });
 
   it('keeps a suggested plan as a new version without changing the current plan', async () => {

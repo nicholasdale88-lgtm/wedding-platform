@@ -167,6 +167,7 @@ export function ImportContacts({ guests, focus, onClose, onDone }: { guests: Gue
             Names, mobiles, emails and postal addresses come across. Nobody already on your list is added twice.
             {apple ? ' iPhone doesn’t let websites open your Contacts, so From my contacts fills each guest from a contact for you (AutoFill Contact), or bring many at once with a contacts file.' : ''}
           </span>
+          {apple && <IphonePicker />}
           <button type="button" aria-expanded={how} onClick={() => setHow((x) => !x)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
             How do I get a contacts file?
           </button>
@@ -301,5 +302,27 @@ function FromMyContacts({ picked, onPick, onDone, onCancel }: { picked: Contact[
       </div>
       {picked.length > 0 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">So far: {picked.map((c) => c.name).join(', ')}</span>}
     </form>
+  );
+}
+
+/**
+ * iPhone can let a website open Contacts (and asks you first), but only once its Contact Picker is switched on
+ * in Safari's settings: Apple ships it turned off. Once it's on, From this phone appears and iPhone asks.
+ */
+export function IphonePicker() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex flex-col gap-1 p-3 rounded-[12px] bg-[#f3ecd9] text-[13px]">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((x) => !x)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] font-semibold text-[#33402f]">
+        Pick straight from your iPhone’s Contacts (one-time setting)
+      </button>
+      {open && (
+        <ol className="m-0 pl-5 flex flex-col gap-1 text-[#5b6a52]">
+          <li>Open the Settings app → Apps → Safari → Advanced → Feature Flags (older iPhones: Settings → Safari → Advanced → Experimental Features).</li>
+          <li>Turn on Contact Picker API.</li>
+          <li>Come back here and reload the page. From this phone appears: tap it and iPhone asks your permission, then lets you tick everyone to add.</li>
+        </ol>
+      )}
+    </div>
   );
 }
