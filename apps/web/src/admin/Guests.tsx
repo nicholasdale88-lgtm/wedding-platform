@@ -210,22 +210,37 @@ export function Guests() {
       {manual && data && <ManualSend key={manual} mode={manual} guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
 
       {gapped.length > 0 && (
-        <div role="alert" aria-label="Guests who can't be reached" className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#d9b8a6] bg-[#f6ebe4] text-[14px]">
-          <span>
-            <strong className="font-semibold">
-              {gapped.length} {gapped.length === 1 ? 'guest' : 'guests'} can’t get their invitation the way it’s set to go.
-            </strong>{' '}
-            Add what’s missing, or change how it goes (Select, then Invitation by or Messages by).
-          </span>
-          <span className="flex gap-2 flex-wrap">
-            {gapped.slice(0, 12).map(({ g, gaps }) => (
-              <button key={g.id} type="button" onClick={() => openGuest(g.id)} className="py-[4px] px-3 rounded-full border border-[#d9b8a6] bg-white text-[13px] cursor-pointer text-[#7a4a37]">
-                {g.people[0]?.name || 'New guest'}: {gaps.map((k) => GAP_LABEL[k].toLowerCase()).join(', ')}
-              </button>
-            ))}
-            {gapped.length > 12 && <span className="text-[13px] text-[#7a4a37] self-center">and {gapped.length - 12} more</span>}
-          </span>
-        </div>
+        // Rolled up to one line: how many can't be reached and why; expand for each guest (tap one to fix it).
+        <details className="group rounded-[12px] border border-[#d9b8a6] bg-[#f6ebe4] text-[14px]">
+          <summary aria-label="Guests who can't be reached" className="flex gap-2 items-center flex-wrap py-2 px-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+            <span aria-hidden className="text-[#7a4a37] transition-transform group-open:rotate-90">▸</span>
+            <strong className="font-semibold text-[#7a4a37]">
+              {gapped.length} {gapped.length === 1 ? 'guest' : 'guests'} missing details
+            </strong>
+            <span className="text-[13px] text-[#7a4a37]">
+              {(Object.keys(GAP_LABEL) as (keyof typeof GAP_LABEL)[])
+                .map((k) => [k, gapped.filter((x) => x.gaps.includes(k)).length] as const)
+                .filter(([, n]) => n)
+                .map(([k, n]) => `${n} ${GAP_LABEL[k].replace(/^Needs /, 'need ').toLowerCase()}`)
+                .join(' · ')}
+            </span>
+            <span className="ml-auto text-[12px] underline text-[#7a4a37] group-open:hidden">Show</span>
+            <span className="ml-auto text-[12px] underline text-[#7a4a37] hidden group-open:inline">Hide</span>
+          </summary>
+          <div className="flex flex-col gap-2 px-3 pb-3">
+            <span className="text-[13px]">Tap a guest to add what’s missing, or change how their invitation goes (Select, then Invitation by or Messages by).</span>
+            <ul className="m-0 p-0 list-none flex flex-col max-h-[40vh] overflow-y-auto border-t border-[#e6cdbf]">
+              {gapped.map(({ g, gaps }) => (
+                <li key={g.id} className="border-b border-[#e6cdbf]">
+                  <button type="button" onClick={() => openGuest(g.id)} className="w-full flex justify-between gap-3 py-2 px-1 border-0 bg-transparent text-left cursor-pointer text-[14px] text-[#33402f]">
+                    <span className="font-medium">{g.people[0]?.name || 'New guest'}</span>
+                    <span className="text-[13px] text-[#7a4a37]">{gaps.map((k) => GAP_LABEL[k]).join(' · ')}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </details>
       )}
 
       {picking && (
