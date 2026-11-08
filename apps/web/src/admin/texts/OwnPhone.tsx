@@ -42,8 +42,72 @@ export function SendVia() {
           </label>
         ))}
       </div>
+      {d.ownNumber.available && <OwnNumber d={d} onChanged={load} />}
       <p className="m-0 text-[13px] text-[#7a7466]">Each guest can be set differently in their page (Guests → tap them → Send them messages by).</p>
     </section>
+  );
+}
+
+/**
+ * "Send from my own number (automatic)": every automatic text goes with your own mobile as the sender, through
+ * the site's texting service. We text your mobile a link; tap Confirm on that phone, then "I've tapped Confirm".
+ */
+function OwnNumber({ d, onChanged }: { d: OwnPhoneData; onChanged: () => Promise<void> }) {
+  const { wid, reload } = useAdmin();
+  const toast = useToast();
+  const [mobile, setMobile] = useState('');
+  const own = d.ownNumber;
+  const run = async (f: () => Promise<unknown>, done?: string) => {
+    try {
+      await f();
+      if (done) toast(done);
+      await onChanged();
+      void reload();
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  };
+  const shown = (n?: string) => (n ? n.replace(/^\+61/, '0').replace(/^(\d{4})(\d{3})(\d{3})$/, '$1 $2 $3') : '');
+  return (
+    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-white">
+      <span className="text-[16px] font-medium">Send from my own number (automatic)</span>
+      <span className="text-[13px] text-[#5b6a52]">
+        Every automatic text goes out with your own mobile as the sender, through the texting service (the usual few cents a text, nothing extra). Replies come to your phone, not here: RSVPs still come in through each guest’s link, and you can record a texted reply on the guest’s page in one tap.
+      </span>
+      {own.status === 'active' ? (
+        <span className="flex gap-2 items-center flex-wrap text-[14px]">
+          <span>Sending from {shown(own.number)} ✓</span>
+          <Pill size="sm" kind="outline" onClick={() => void run(() => ownPhoneApi.removeOwn(wid), 'Back to texting from your own phone')}>
+            Stop using my number
+          </Pill>
+        </span>
+      ) : own.status === 'pending' ? (
+        <span className="flex gap-2 items-center flex-wrap text-[14px]">
+          <span>We’ve texted {shown(own.number)} a link. Open it on that phone and tap Confirm (within an hour).</span>
+          <Pill size="sm" kind="primary" onClick={() => void run(async () => {
+            const r = await ownPhoneApi.checkOwn(wid);
+            toast(r.status === 'active' ? 'Confirmed: texts now go from your number' : r.status === 'expired' ? 'That link has expired: send a new one' : 'Not confirmed yet: tap Confirm in the text, then try again');
+          })}>
+            I’ve tapped Confirm
+          </Pill>
+        </span>
+      ) : (
+        <form
+          className="flex gap-2 flex-wrap items-center"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(() => ownPhoneApi.requestOwn(wid, mobile), 'Link sent: open it on your phone and tap Confirm');
+          }}
+        >
+          {own.status === 'expired' && <span className="text-[13px] text-[#8a5a45] w-full">The last link expired. Send a new one.</span>}
+          {own.status === 'lost' && <span className="text-[13px] text-[#8a5a45] w-full">{shown(own.number)} stopped working as a sender, so texts went back to your own phone. Set it up again below.</span>}
+          <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" placeholder="04xx xxx xxx" aria-label="Your mobile" className="py-[8px] px-3 rounded-[10px] border border-[#d3c6a4] text-[15px]" />
+          <Pill type="submit" kind="primary">
+            Text me the confirmation link
+          </Pill>
+        </form>
+      )}
+    </div>
   );
 }
 

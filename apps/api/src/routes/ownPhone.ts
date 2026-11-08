@@ -1,5 +1,6 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
+import { checkOwnNumber, ownNumberReady, readOwnNumber, removeOwnNumber, requestOwnNumber } from '../lib/ownNumber';
 import { readJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -48,7 +49,27 @@ export function ownPhoneRoutes() {
       /** e.g. [{ message: 'Reminder', count: 12 }] for "12 reminders ready to send from your phone". */
       batches: [...by.entries()].map(([message, count]) => ({ message, count })),
       sent: Number(sent?.n ?? 0),
+      // "Send from my own number (automatic)": available when the site's texting service is connected.
+      ownNumber: { available: ownNumberReady(c.env), ...((await checkOwnNumber(c.env, wid(c)).catch(() => readOwnNumber(c.env.DB, wid(c)))) ?? {}) },
     });
+  });
+
+  /** "Send from my own number": text their mobile a confirmation link (they tap Confirm on that phone). */
+  app.post('/own-number', writer, async (c) => {
+    const b = z.object({ mobile: z.string().max(40) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Enter your mobile.');
+    const w = await c.env.DB.prepare(`SELECT slug FROM wedding WHERE id = ?`).bind(wid(c)).first<{ slug: string }>();
+    const r = await requestOwnNumber(c.env, wid(c), b.data.mobile, w?.slug ?? 'wedding');
+    return r.ok ? c.json(r.own) : err(c, 400, 'own_number', r.message);
+  });
+
+  /** "I've tapped Confirm": confirmed yet? (Or the link expired: send a new one.) */
+  app.post('/own-number/check', writer, async (c) => c.json((await checkOwnNumber(c.env, wid(c))) ?? { status: 'none' }));
+
+  /** Stop sending from your own number: back to texting from your own phone, by hand (free). */
+  app.delete('/own-number', writer, async (c) => {
+    await removeOwnNumber(c.env, wid(c));
+    return c.json({ ok: true });
   });
 
   /** Settings → Texting: their own phone (free), by email (free), or a texting service number (paid). */

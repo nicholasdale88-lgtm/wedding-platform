@@ -1,6 +1,7 @@
 import { inQuietHours } from '@wp/shared';
 import type { Env } from '../env';
 import { emailReady, plainHtml, sendEmail } from '../lib/email';
+import { recheckOwnNumbers } from '../lib/ownNumber';
 import { ensureAddress, mailLeft, senderOf, stripQuoted, takeMail } from '../lib/weddingMail';
 import { matches } from '../sms/audience';
 import { LIMITS, thanksKey, type EngineDeps } from '../sms/engine';
@@ -194,6 +195,8 @@ async function load(env: Env, d: EngineDeps, weddingId: string, w0?: WeddingCtx)
  */
 export async function runEmailCampaigns(env: Env, d: EngineDeps) {
   const report = { weddings: 0, queued: 0, sent: 0, waiting: 0 };
+  // An own number that's no longer an active sender: back to texting from their own phone, first.
+  await recheckOwnNumbers(env).catch(() => undefined);
   for (const w of await d.store.weddings()) {
     try {
       // Email only for weddings with someone to email (no address is made for a wedding that has none).
