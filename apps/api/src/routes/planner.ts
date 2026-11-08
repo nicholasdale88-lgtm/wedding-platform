@@ -12,7 +12,7 @@ import { partyCalKey } from './partyCalendar';
 import { vendorHubKey } from './vendorHub';
 import { recordUse, searchDirectory } from '../lib/directory';
 import { listedNear } from './vendorListings';
-import { needsUpgrade, roomFor } from '../lib/plan';
+import { hasFeature, needsUpgrade, roomFor } from '../lib/plan';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -246,6 +246,9 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
   }
   return out;
 }
+
+/** Planning documents that come with the planner (Essentials): the budget, the checklist, and vendors with their quotes and payments. */
+const PAID_DOCS = new Set<string>(['budget', 'checklist', 'vendors']);
 
 export function plannerRoutes() {
   const app = new Hono<AdminEnv>();
@@ -495,6 +498,7 @@ export function plannerRoutes() {
    */
   app.get('/rfq/email', (c) => c.json({ on: emailReady(c.env) }));
   app.post('/rfq/:id/send', writer, async (c) => {
+    if (!(await hasFeature(c.env.DB, wid(c), 'planner'))) return needsUpgrade(c, 'planner');
     const body = z.object({ vendorIds: z.array(z.string().max(40)).min(1).max(20), remind: z.boolean().default(false) }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose who to send it to.');
     if (!emailReady(c.env)) return err(c, 400, 'off', 'Email isn’t set up on this site yet: use Email, Text or Copy link for each vendor.');
@@ -543,6 +547,7 @@ export function plannerRoutes() {
    * Returns a suggestion to check before saving; nothing is changed.
    */
   app.post('/files/:id/read', writer, async (c) => {
+    if (!(await hasFeature(c.env.DB, wid(c), 'planner'))) return needsUpgrade(c, 'planner');
     if (!c.env.AI?.toMarkdown) return err(c, 400, 'off', "Reading quotes needs the planning assistant, which isn't switched on yet.");
     if (!(await allow(c.env.DB, `ask:${wid(c)}`, 40, 86_400_000))) return err(c, 429, 'slow_down', "That's today's assistant use up. Fill it in yourself, or try tomorrow.");
     const f = await fileOf(c, c.req.param('id'));
@@ -589,6 +594,7 @@ export function plannerRoutes() {
 
   /** Compare the quotes of the vendors you pick, with the assistant's view. */
   app.post('/compare', writer, async (c) => {
+    if (!(await hasFeature(c.env.DB, wid(c), 'planner'))) return needsUpgrade(c, 'planner');
     const body = z.object({ vendorIds: z.array(z.string().max(40)).min(2).max(8) }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose two or more vendors to compare.');
     if (!c.env.AI) return err(c, 400, 'off', "The planning assistant isn't switched on for this site yet.");
@@ -668,6 +674,14 @@ export function plannerRoutes() {
     }
     const parsed = PLANNER_DOCS[kind].safeParse(raw);
     if (!parsed.success) return err(c, 400, 'invalid', 'Some of it is too long or missing. Check and try again.');
+    // The budget, checklist and vendors come with the planner (Essentials), seating rules with seating: they
+    // can be opened on any plan, but saved only on one that has them. On the checklist, the people helping
+    // (who the free day checklists hand things to) can always be added.
+    const needs = kind === 'seat-rules' ? 'seating' : PAID_DOCS.has(kind) ? 'planner' : null;
+    if (needs && !(await hasFeature(c.env.DB, wid(c), needs))) {
+      const helpersOnly = kind === 'checklist' && JSON.stringify((parsed.data as unknown as { tasks: unknown }).tasks) === JSON.stringify((await readDoc(c.env.DB, wid(c), 'checklist', scope)).data.tasks);
+      if (!helpersOnly) return needsUpgrade(c, needs, true);
+    }
     const v = Number(c.req.header('If-Match') ?? '0');
     if (!Number.isInteger(v) || v < 0) return err(c, 400, 'invalid', 'Reload the page and try again.');
     const now = new Date().toISOString();

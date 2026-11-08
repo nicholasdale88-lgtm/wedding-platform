@@ -1,4 +1,4 @@
-import { EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, planFor, planOf, type Feature, type Plan } from '@wp/shared';
+import { allows, EVENT_ADDON, EVENTS_INCLUDED, FEATURE_LABEL, FREE_GUEST_LIMIT, PLAN_INFO, planFor, planOf, type Feature, type Plan } from '@wp/shared';
 import type { Context } from 'hono';
 
 /** The wedding's plan (Free, Essentials or Deluxe; older weddings and the platform's own have everything). */
@@ -7,8 +7,11 @@ export async function weddingPlan(db: D1Database, weddingId: string): Promise<Pl
   return planOf(w?.plan);
 }
 
-/** "That's in Essentials": the answer when a plan doesn't include something (402, with which feature). */
-export const needsUpgrade = (c: Context, f: Feature) =>
+/**
+ * "That's in Essentials": the answer when a plan doesn't include something (402, with which feature). With
+ * `saving`, it's something they made (a seating plan, a budget) that can be looked at but not saved yet.
+ */
+export const needsUpgrade = (c: Context, f: Feature, saving = false) =>
   c.json(
     {
       error: {
@@ -17,11 +20,14 @@ export const needsUpgrade = (c: Context, f: Feature) =>
         message:
           f === 'extraEvent'
             ? `Your plan includes the events you have. Another event is an add-on (${EVENT_ADDON.price}): ask for it in Account → Settings → Your plan.`
-            : `${FEATURE_LABEL[f]} comes with ${PLAN_INFO[planFor(f)].name}. Upgrade in Account → Settings → Your plan.`,
+            : `${FEATURE_LABEL[f]} comes with ${PLAN_INFO[planFor(f)].name}, ${PLAN_INFO[planFor(f)].price} once. ${saving ? 'Upgrade to save it.' : 'Upgrade in Account → Settings → Your plan.'}`,
       },
     },
     402,
   );
+
+/** Whether this wedding's plan includes a feature (Founders' weddings, stored as 'trial', have everything). */
+export const hasFeature = async (db: D1Database, weddingId: string, f: Feature) => allows(await weddingPlan(db, weddingId), f);
 
 /**
  * Room for another event: the plan's events plus any add-ons bought (content.extraEvents). Weddings from

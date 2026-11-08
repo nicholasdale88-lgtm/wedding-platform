@@ -20,6 +20,7 @@ import { SmsTab } from './texts/SmsTab';
 import { Messages } from './messages/Messages';
 import { ACCOUNT, ALL_EVENTS, AdminDataProvider, lastSection, Shell, TABS, useAdmin } from './Shell';
 import { Eyebrow, Loading, Pill, ToastProvider } from './ui';
+import { UpgradeWhenRefused } from './Upgrade';
 import { lastPlace, placesOf, rememberPlace } from '../lib/places';
 
 type State = { kind: 'loading' } | { kind: 'signed-out' } | { kind: 'signed-in'; me: Me } | { kind: 'error'; message: string };
@@ -110,6 +111,7 @@ function WeddingAdmin({ me, onSignedOut, onSignOut }: { me: Me; onSignedOut: () 
     <AdminDataProvider wid={wid} section={section} onSignedOut={onSignedOut}>
       <Shell onSignOut={onSignOut}>
         <SectionPage key={section} section={section} tab={tab} />
+        <UpgradeWhenRefused />
       </Shell>
     </AdminDataProvider>
   );

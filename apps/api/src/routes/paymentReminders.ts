@@ -2,6 +2,7 @@ import { allPayments, costCents, dateIn, inQuietHours, segments, type DuePayment
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
+import { hasFeature, needsUpgrade } from '../lib/plan';
 import { readJson } from '../lib/security';
 import { flush, type EngineDeps } from '../sms/engine';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
@@ -67,6 +68,8 @@ export function paymentReminderRoutes() {
     const b = z.object({ on: z.boolean(), days: z.number().int().min(1).max(30) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return c.json({ error: { code: 'invalid', message: 'That didn’t save.' } }, 400);
     const wid = c.req.param('wid')!;
+    // Payments are part of the planner (Essentials); switching reminders off is always allowed.
+    if (b.data.on && !(await hasFeature(c.env.DB, wid, 'planner'))) return needsUpgrade(c, 'planner', true);
     const w = await read(c.env.DB, wid);
     if (!w) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
     if (b.data.on && !w.admin_mobile) return c.json({ error: { code: 'no_mobile', message: 'Add your mobile in SMS setup first.' } }, 400);

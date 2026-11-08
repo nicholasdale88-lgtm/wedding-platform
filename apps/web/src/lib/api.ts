@@ -11,6 +11,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Fired on the window when the server says the plan doesn't include something (detail: the feature). */
+export const UPGRADE_EVENT = 'wp:upgrade';
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let res: Response;
   try {
@@ -29,8 +32,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch {
     throw new ApiError(0, 'offline', "Can't reach the server. Check your connection and try again.");
   }
-  const body = (await res.json().catch(() => null)) as { error?: { code: string; message: string } } | null;
+  const body = (await res.json().catch(() => null)) as { error?: { code: string; message: string; feature?: string } } | null;
   if (!res.ok) {
+    // Not in the wedding's plan: the admin shows the Upgrade card for it (admin/Upgrade.tsx, UpgradeWhenRefused).
+    if (res.status === 402 && body?.error?.code === 'upgrade' && body.error.feature && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(UPGRADE_EVENT, { detail: body.error.feature }));
+    }
     throw new ApiError(res.status, body?.error?.code ?? 'error', body?.error?.message ?? 'Something went wrong. Please try again.');
   }
   return body as T;

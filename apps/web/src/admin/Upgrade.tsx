@@ -1,6 +1,6 @@
 import { allows, chargeCents, EVENT_ADDON, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature, type Purchase } from '@wp/shared';
 import { useEffect, useState, type ReactNode } from 'react';
-import { api } from '../lib/api';
+import { api, UPGRADE_EVENT } from '../lib/api';
 import { useAdmin } from './Shell';
 import { Pill, useToast } from './ui';
 
@@ -183,4 +183,37 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
 export function Gate({ feature, children }: { feature: Feature; children: ReactNode }) {
   const { has } = usePlan();
   return has(feature) ? <>{children}</> : <Upgrade feature={feature} />;
+}
+
+/**
+ * When a save is refused because the plan doesn't include it (a seating plan or a budget on Free), the
+ * Upgrade card for that feature, over the page, instead of only an error. Mounted once in the admin.
+ */
+export function UpgradeWhenRefused() {
+  const [feature, setFeature] = useState<Feature | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => {
+      const f = (e as CustomEvent<unknown>).detail;
+      if (typeof f === 'string' && f in FEATURE_LABEL) setFeature(f as Feature);
+    };
+    window.addEventListener(UPGRADE_EVENT, on);
+    return () => window.removeEventListener(UPGRADE_EVENT, on);
+  }, []);
+  useEffect(() => {
+    if (!feature) return;
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setFeature(null);
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [feature]);
+  if (!feature) return null;
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Upgrade to save this" className="fixed inset-0 z-[70] flex items-center justify-center bg-[rgba(20,24,18,.55)] p-4" onClick={() => setFeature(null)}>
+      <div className="w-full max-w-[460px] flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+        <Upgrade feature={feature} />
+        <Pill className="self-end" onClick={() => setFeature(null)}>
+          Not now
+        </Pill>
+      </div>
+    </div>
+  );
 }
