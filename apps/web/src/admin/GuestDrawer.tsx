@@ -1,8 +1,9 @@
-import { DELIVERY, DELIVERY_LABEL, joinDiet, PARTY_ROLES, type Delivery } from '@wp/shared';
+import { DELIVERY, DELIVERY_LABEL, joinDiet, PARTY_ROLES, printed, toE164, type Delivery } from '@wp/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { groupSuggestions } from './groups';
+import { picker as contactPicker } from './ImportContacts';
 import { CirclesInput, RelationSelect, SideSelect } from './GuestTies';
 import { canShareNative, fallbackMessage, sendMessenger, sendWhatsApp, shareNative } from './share';
 import { useAdmin } from './Shell';
@@ -27,6 +28,9 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   const [names, setNames] = useState<string[]>([]);
   const [phone, setPhone] = useState('');
   const [phone2, setPhone2] = useState('');
+  // "Add their number from my contacts" on a phone without a contact picker: how to use AutoFill Contact.
+  const [tip, setTip] = useState(false);
+  const phoneBox = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState('');
   const [table, setTable] = useState('');
   const [diet, setDiet] = useState('');
@@ -130,6 +134,33 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
 
   const g = d.guest;
   const events = d.events;
+  const hasAddress = !!g.address && Object.values(g.address).some((v) => typeof v === 'string' && v.trim());
+  /**
+   * A guest already on the list: their mobile from the phone's contacts. Android (Chrome) opens the phone's
+   * own contact picker; iPhone never lets a website open Contacts, so the mobile box is focused and iPhone's
+   * AutoFill Contact (above the keyboard) fills it from the contact you choose.
+   */
+  const numberFromContacts = async () => {
+    const pk = contactPicker();
+    if (!pk) {
+      phoneBox.current?.focus();
+      setTip(true);
+      return;
+    }
+    try {
+      const can = (await pk.getProperties?.()) ?? ['tel', 'email'];
+      const [c] = await pk.select(['tel', 'email'].filter((x) => can.includes(x)), { multiple: false });
+      if (!c) return;
+      const tel = c.tel?.find((t) => toE164(t)) ?? c.tel?.[0];
+      if (!tel) return toast('That contact has no mobile.');
+      const mail = !g.email ? (c.email?.[0] ?? '').trim().toLowerCase() : '';
+      setPhone(tel);
+      if (mail) setEmail(mail);
+      await patch({ phone: tel, ...(mail ? { email: mail } : {}) });
+    } catch (e) {
+      toast((e as Error).message || 'Your contacts couldn’t be opened.');
+    }
+  };
   const invitedEvents = events.filter((e) => g.invited.includes(e.key));
   const count = Math.max(1, ...Object.values(g.rsvp).map((r) => r.count));
   const lastVia = Object.values(g.rsvp).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]?.via ?? '';
@@ -290,8 +321,29 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         )}
         <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-3">
           <Label text={g.people.length > 1 && g.people[0]?.name.trim() ? `Mobile (${g.people[0]?.name.trim().split(' ')[0] ?? ''})` : "Main contact's mobile"}>
-            <input value={phone} inputMode="tel" placeholder="04xx xxx xxx" onChange={(e) => setPhone(e.target.value)} onBlur={() => phone !== g.phoneDisplay && void patch({ phone: phone.trim() || null })} className={inputCls} />
+            <input
+              ref={phoneBox}
+              type="tel"
+              name="phone"
+              autoComplete="tel"
+              value={phone}
+              inputMode="tel"
+              placeholder="04xx xxx xxx"
+              onChange={(e) => setPhone(e.target.value)}
+              onBlur={() => {
+                setTip(false);
+                if (phone !== g.phoneDisplay) void patch({ phone: phone.trim() || null });
+              }}
+              className={inputCls}
+            />
           </Label>
+          {/* Already on the list: bring their number in from the phone's contacts (Android's picker; iPhone's AutoFill Contact). */}
+          <div className="col-start-1 -mt-1 flex flex-col gap-1">
+            <button type="button" onClick={() => void numberFromContacts()} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+              {phone ? 'Use a number from my contacts' : 'Add their number from my contacts'}
+            </button>
+            {tip && <span role="status" className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Tap AutoFill Contact above the keyboard (or the contact icon) and choose them. On a computer, type it in.</span>}
+          </div>
           {/* A second mobile (each of a couple): texts go to both; leave it empty for one. */}
           {(g.people.length > 1 || g.phone2) && (
             <Label text={`Mobile (${g.people[1]?.name.trim().split(' ')[0] || 'second'}), optional`} className="col-start-1">
@@ -364,6 +416,11 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
             ))}
           </select>
           {g.delivery === 'post' && <span className="text-[12px] text-[#8a5a45]">Printed only: no texts or emails go to them. You can still record their reply here, or they can use their link.</span>}
+          {/* A digital invitation needs no address: the boxes show only for a printed one (or an address already saved). */}
+          {!printed(g.delivery) && !hasAddress && <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">No postal address needed: the invitation goes by text or email. Choose a printed invitation to add one.</span>}
+          {!printed(g.delivery) && hasAddress && <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Address saved, only used for a printed invitation.</span>}
+          {(printed(g.delivery) || hasAddress) && (
+          <>
           <Label text="Postal address">
             <textarea
               rows={2}
@@ -390,6 +447,8 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
           <Label text="Country (if not Australia)">
             <input defaultValue={g.address?.country ?? ''} key={`country-${g.version}`} onBlur={(e) => e.target.value.trim() !== (g.address?.country ?? '') && void patch({ address: { country: e.target.value.trim() } })} className={inputCls} />
           </Label>
+          </>
+          )}
         </fieldset>
         {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any texts.</div>}
         {g.optOut && <div className="text-[13px] text-[#8a5a45]">Opted out of texts (replied STOP).</div>}

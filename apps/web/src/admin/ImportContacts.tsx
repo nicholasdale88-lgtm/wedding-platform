@@ -16,7 +16,8 @@ import { Pill, useToast } from './ui';
 
 type PickedContact = { name?: string[]; tel?: string[]; email?: string[]; address?: { addressLine?: string[]; city?: string; region?: string; postalCode?: string; country?: string }[] };
 type ContactsManager = { select: (props: string[], opts: { multiple: boolean }) => Promise<PickedContact[]>; getProperties?: () => Promise<string[]> };
-const picker = (): ContactsManager | null => {
+/** The phone's own contact picker (Chrome on Android), or null (iPhone, computers). */
+export const picker = (): ContactsManager | null => {
   if (typeof navigator === 'undefined' || typeof window === 'undefined' || !('ContactsManager' in window)) return null;
   return (navigator as Navigator & { contacts?: ContactsManager }).contacts ?? null;
 };
