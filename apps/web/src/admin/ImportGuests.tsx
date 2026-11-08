@@ -72,7 +72,7 @@ export function ImportGuests({ events, onClose, onDone, focus }: { events: Event
         </button>
       </div>
       <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
-        One row per invitation. Columns we understand: <strong>Name</strong> (put partners in the same cell with &amp;, or in their own columns), <strong>Mobile</strong>, <strong>Seats</strong>, <strong>Group</strong> (e.g. a side or the wedding party), and a yes/no column for each event (
+        One row per invitation. Columns we understand: <strong>Name</strong> (put partners in the same cell with &amp;, or in their own columns), <strong>Mobile</strong>, <strong>Seats</strong>, <strong>Group</strong>, for seating <strong>Side</strong> (either of your names, or Both), <strong>Relationship</strong> (e.g. Uni friend, Cousin, Old work) and <strong>Circles</strong> or <strong>Knows</strong> (who they know: “Uni crew, Netball”), and a yes/no column for each event (
         {events.map((e) => e.name).join(', ')}). {focus ? '' : 'Leave the event columns out to invite everyone to everything.'}
       </p>
       {focus && (

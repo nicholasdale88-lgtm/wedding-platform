@@ -1,3 +1,4 @@
+import { circleSuggestions } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest } from '../lib/api';
@@ -9,11 +10,12 @@ import { exportSheets } from './guestImport';
 import { ImportGuests } from './ImportGuests';
 import { ManualSend } from './ManualSend';
 import { answerLabel, applyFilters, dropdowns, quickFilters, shortAnswer, type FilterState } from './guestFilters';
+import { BulkTies, TieChips, useSideLabels } from './GuestTies';
 import { useOpenParam } from './openParam';
 import { useAdmin, useSectionName } from './Shell';
 import { Eyebrow, Pill, StatusPill, useAutoRefresh, useMedia, useToast } from './ui';
 
-const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'sort'] as const;
+const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'side', 'rel', 'circle', 'sort'] as const;
 
 /** design/RSVP Admin.dc.html → Guests. Filters live in the address bar, so they survive a reload and can be shared. */
 export function Guests() {
@@ -30,6 +32,11 @@ export function Guests() {
   const [fresh, setFresh] = useState(''); // the guest "Add guest" just made
   const [more, setMore] = useState(false); // phones: Import, Export and Send without SMS under More
   const [filtersOpen, setFiltersOpen] = useState(false); // phones: the dropdown filters under Filters (n)
+  // Select: tick guests, then set their side, how they know you or a circle all at once.
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const { labels: sideNames } = useSideLabels();
 
   const load = useCallback(async () => {
     try {
@@ -65,7 +72,34 @@ export function Guests() {
   const guests = (data?.guests ?? []).filter((g) => !one || g.invited.includes(focusEv!.key)).map((g) => (one ? { ...g, invited: [focusEv!.key] } : g));
   const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]);
   const quick = quickFilters(events);
-  const drops = dropdowns(events);
+  const circles = circleSuggestions((data?.guests ?? []).map((g) => g.circles ?? []));
+  const drops = dropdowns(events, { sides: sideNames, circles }).filter((d) => d.key !== 'circle' || circles.length > 0);
+  const tap = (id: string) => {
+    if (!picking) return openGuest(id);
+    setPicked((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+  const tick = (id: string) => (picking ? <span aria-hidden="true" className="mr-[6px]">{picked.has(id) ? '☑' : '☐'}</span> : null);
+  const stopPicking = () => {
+    setPicking(false);
+    setPicked(new Set());
+  };
+  async function bulk(b: { side?: '' | 'p1' | 'p2' | 'both'; relation?: string; addCircles?: string[]; removeCircles?: string[] }) {
+    setBulkBusy(true);
+    try {
+      const r = await api.bulkGuests(wid, { ...b, ids: [...picked] });
+      toast(`Saved for ${r.updated} ${r.updated === 1 ? 'guest' : 'guests'}`);
+      await changed();
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  }
   const anyFilter = FILTER_KEYS.some((k) => k !== 'sort' && k !== 'filter' && state[k]) || state.filter !== 'all';
   const questions = events.flatMap((e) => e.questions.filter((q) => q.type === 'choice').map((q) => ({ event: e.key, key: q.key })));
 
@@ -128,7 +162,7 @@ export function Guests() {
                 disabled={!guests.length}
                 onClick={() => {
                   setMore(false);
-                  void downloadDressed(wid, overview, fileName(overview?.wedding.slug ?? 'wedding', 'guests', 'xlsx'), 'Guest list', exportSheets(guests, events, data?.links), events.map((e) => e.key));
+                  void downloadDressed(wid, overview, fileName(overview?.wedding.slug ?? 'wedding', 'guests', 'xlsx'), 'Guest list', exportSheets(guests, events, data?.links, overview?.wedding), events.map((e) => e.key));
                 }}
               >
                 Export
@@ -140,12 +174,19 @@ export function Guests() {
               More ▾
             </Pill>
           )}
+          <Pill aria-pressed={picking} disabled={!guests.length} onClick={() => (picking ? stopPicking() : setPicking(true))}>
+            {picking ? 'Stop selecting' : 'Select'}
+          </Pill>
           <Pill kind="primary" onClick={addGuest}>Add guest</Pill>
         </div>
       </header>
 
       {importing && data && <ImportGuests events={data.events} focus={focusEv} onClose={() => setImporting(false)} onDone={changed} />}
       {manual && data && <ManualSend key={manual} mode={manual} guests={guests} links={data.links ?? {}} onClose={() => setManual(false)} />}
+
+      {picking && (
+        <BulkTies count={picked.size} options={circles} busy={bulkBusy} onApply={(b) => void bulk(b)} onAll={() => setPicked(new Set(shown.map((g) => g.id)))} onDone={stopPicking} />
+      )}
 
       {data && data.events.length > 1 && focusEv && (
         <div role="radiogroup" aria-label="Guest list" className="flex gap-2 flex-wrap">
@@ -237,9 +278,9 @@ export function Guests() {
       {mob ? (
         <div className="flex flex-col border-t-2 border-[var(--adm-text,#33402f)]">
           {shown.map((g) => (
-            <button key={g.id} onClick={() => openGuest(g.id)} className="flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[var(--adm-line,#e2d7bc)] bg-transparent text-left cursor-pointer">
+            <button key={g.id} aria-pressed={picking ? picked.has(g.id) : undefined} onClick={() => tap(g.id)} className="flex flex-col gap-[6px] py-[14px] px-[2px] border-0 border-b border-[var(--adm-line,#e2d7bc)] bg-transparent text-left cursor-pointer">
               <span className="flex justify-between gap-[10px] items-baseline w-full">
-                <strong className="font-semibold text-[15px]">{g.people[0]?.name || 'New guest'}</strong>
+                <strong className="font-semibold text-[15px]">{tick(g.id)}{g.people[0]?.name || 'New guest'}</strong>
                 <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{seats(g)}</span>
               </span>
               {g.people.length > 1 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>}
@@ -247,6 +288,7 @@ export function Guests() {
                 <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{events.filter((e) => g.invited.includes(e.key)).map((e) => shortLabel(e.name)).join(' · ')}</span>
                 {events.map((e) => <StatusPill key={e.key} invited={g.invited.includes(e.key)} attending={g.rsvp[e.key]?.attending} />)}
               </span>
+              <TieChips g={g} />
             </button>
           ))}
           {data && shown.length === 0 && (guests.length ? <div className="py-10 text-center text-[var(--adm-muted,#5b6a52)]">No guests match.</div> : <FirstGuests onAdd={addGuest} onImport={() => setImporting(true)} />)}
@@ -269,16 +311,18 @@ export function Guests() {
                 key={g.id}
                 role="row"
                 tabIndex={0}
-                onClick={() => openGuest(g.id)}
-                onKeyDown={(e) => e.key === 'Enter' && openGuest(g.id)}
+                aria-selected={picking ? picked.has(g.id) : undefined}
+                onClick={() => tap(g.id)}
+                onKeyDown={(e) => e.key === 'Enter' && tap(g.id)}
                 className="grid gap-3 items-center py-3 px-[18px] border-b border-[var(--adm-line,#ece3cc)] cursor-pointer hover:bg-[var(--adm-tint,#f3ecdc)]"
                 style={{ gridTemplateColumns: cols }}
               >
                 <span className="min-w-0">
-                  <span className="block font-medium">{g.people[0]?.name || 'New guest'}</span>
+                  <span className="block font-medium">{tick(g.id)}{g.people[0]?.name || 'New guest'}</span>
                   {g.people.length > 1 && (
                     <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] overflow-hidden text-ellipsis whitespace-nowrap">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>
                   )}
+                  <TieChips g={g} />
                 </span>
                 <span className="text-[13px] tabular-nums" style={{ color: g.phone ? '#33402f' : '#8a5a45' }}>{g.phoneDisplay || 'No mobile'}</span>
                 {events.length === 2 && (
@@ -315,6 +359,7 @@ export function Guests() {
           isNew={open === fresh}
           onClose={closeGuest}
           onChanged={changed}
+          circleOptions={circles}
         />
       )}
     </div>

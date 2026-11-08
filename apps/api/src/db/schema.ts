@@ -112,6 +112,9 @@ export const invitation = sqliteTable('invitation', {
   deletedAt: text('deleted_at'),
   email: text('email'), // migration 0035
   channel: text('channel', { enum: ['', 'text', 'email', 'both'] }).notNull().default(''), // migration 0038
+  side: text('side').notNull().default(''), // migration 0040: 'p1', 'p2', 'both' or ''
+  relation: text('relation').notNull().default(''), // migration 0040: how they know the couple
+  circles: text('circles').notNull().default(''), // migration 0040: who knows who, "Uni crew,Acme work"
 });
 
 export const seatTable = sqliteTable('seat_table', {

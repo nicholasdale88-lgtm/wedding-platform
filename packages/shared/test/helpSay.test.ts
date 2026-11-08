@@ -24,8 +24,8 @@ describe('help narration', () => {
   it('only known lines can be spoken: intro is -1, the last step ends with the outro', () => {
     expect(helpSayLine('guests', -1)).toBe(HELP_SAY.guests!.intro);
     expect(helpSayLine('guests', 0)).toBe(HELP_SAY.guests!.steps[0]);
-    expect(helpSayLine('guests', 2)).toBe(`${HELP_SAY.guests!.steps[2]} ${HELP_SAY.guests!.outro}`);
-    for (const [id, step] of [['guests', 3], ['guests', -2], ['guests', 0.5], ['nope', 0], ['__proto__', 0], ['toString', 0]] as const) expect(helpSayLine(id, step)).toBeNull();
+    expect(helpSayLine('guests', 3)).toBe(`${HELP_SAY.guests!.steps[3]} ${HELP_SAY.guests!.outro}`);
+    for (const [id, step] of [['guests', 4], ['guests', -2], ['guests', 0.5], ['nope', 0], ['__proto__', 0], ['toString', 0]] as const) expect(helpSayLine(id, step)).toBeNull();
   });
 
   it('a changed line gets a new address, so an old recording is never played for it', () => {

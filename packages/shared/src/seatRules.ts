@@ -1,3 +1,4 @@
+import { isFamily, isWork, KNOWS_NO_ONE } from './guestTies';
 import type { SeatPresets, SeatRules } from './planner';
 
 /**
@@ -9,8 +10,20 @@ import type { SeatPresets, SeatRules } from './planner';
  * `coming`: this person counts for seating. The seating screen sets it for people who said yes, and also
  * for guests still to reply when the couple seats everyone invited (pencilled in) or has already seated them.
  */
-export type RulePerson = { id: string; invitationId: string; name: string; party: string; role?: string; coming: boolean };
-export type RuleTable = { id: string; name: string; seats: number; shape?: string };
+export type RulePerson = {
+  id: string;
+  invitationId: string;
+  name: string;
+  party: string;
+  role?: string;
+  coming: boolean;
+  /** Their invitation's side ('p1', 'p2', 'both' or ''), relationship to the couple, and circles (who knows who). */
+  side?: string;
+  relation?: string;
+  circles?: string[];
+};
+/** `x`, `y`: where the table is on the plan (%), so neighbouring tables are known. */
+export type RuleTable = { id: string; name: string; seats: number; shape?: string; x?: number; y?: number };
 type Seats = Record<string, string | null | undefined>;
 
 export const SEAT_PRESETS: { key: keyof SeatPresets; label: string; hint: string }[] = [
@@ -18,15 +31,56 @@ export const SEAT_PRESETS: { key: keyof SeatPresets; label: string; hint: string
   { key: 'groups', label: 'Keep each group at the same tables', hint: 'Uses each guest’s group (e.g. “Uni friends”), so nobody is the only one they know.' },
   { key: 'head', label: 'Wedding party at the head table', hint: 'Anyone with a wedding-party role, when a table is a head table.' },
   { key: 'fill', label: 'Fill each table before starting another', hint: 'Fewer half-empty tables.' },
+  { key: 'circles', label: 'Keep circles together', hint: 'People who share a circle (e.g. “Uni crew”) sit at the same or neighbouring tables.' },
+  { key: 'family', label: 'Family near the head table', hint: 'Immediate family closest, then extended family (Suggest a plan).' },
+  { key: 'colleagues', label: 'Colleagues together', hint: 'Work and ex-work colleagues share a table.' },
 ];
-export const DEFAULT_PRESETS: SeatPresets = { invite: true, groups: true, head: true, fill: true };
-export const NO_RULES: SeatRules = { presets: DEFAULT_PRESETS, pairs: [] };
+export const DEFAULT_PRESETS: SeatPresets = { invite: true, groups: true, head: true, fill: true, circles: true, family: true, colleagues: true };
+export const NO_RULES: SeatRules = { presets: DEFAULT_PRESETS, pairs: [], sides: '' };
+/** Mix the two sides at tables, keep each side together, or either. */
+export const SIDE_PREFS: { key: SeatRules['sides']; label: string }[] = [
+  { key: '', label: 'Sides: no preference' },
+  { key: 'mix', label: 'Mix the two sides' },
+  { key: 'keep', label: 'Keep each side together' },
+];
 const presetsOf = (r: SeatRules | null | undefined): SeatPresets => ({ ...DEFAULT_PRESETS, ...r?.presets });
 
 export const tableLabel = (t: Pick<RuleTable, 'name'> | undefined) => (!t ? '' : /^\d+$/.test(t.name) ? `Table ${t.name}` : t.name);
 /** A head table: the shape, or a table named "Head table" / "Bridal table". */
 export const isHeadTable = (t: RuleTable) => t.shape === 'head' || /\b(head|bridal)\b/i.test(t.name);
 const inParty = (p: RulePerson) => !!p.role?.trim();
+/** The circles someone is in, for seating: their own circles, and their group when "groups" is on. */
+export const circlesOf = (p: Pick<RulePerson, 'circles' | 'party'>, groups = true) => {
+  const out = (p.circles ?? []).filter((c) => c && c !== KNOWS_NO_ONE);
+  if (groups && p.party && !out.some((c) => c.toLowerCase() === p.party.toLowerCase())) out.push(p.party);
+  return out;
+};
+
+/**
+ * Each table's neighbours on the plan: the tables about as close as its nearest one (within half as far
+ * again). Without positions, the tables either side of it in name order.
+ */
+export function tableNeighbours(tables: RuleTable[]): Map<string, Set<string>> {
+  const out = new Map(tables.map((t) => [t.id, new Set<string>()]));
+  const placed = tables.every((t) => typeof t.x === 'number' && typeof t.y === 'number');
+  const link = (a: string, b: string) => {
+    out.get(a)?.add(b);
+    out.get(b)?.add(a);
+  };
+  if (!placed) {
+    const order = [...tables].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }) || a.id.localeCompare(b.id));
+    for (let i = 1; i < order.length; i++) link(order[i - 1]!.id, order[i]!.id);
+    return out;
+  }
+  const d = (a: RuleTable, b: RuleTable) => Math.hypot((a.x ?? 0) - (b.x ?? 0), (a.y ?? 0) - (b.y ?? 0));
+  for (const t of tables) {
+    const others = tables.filter((o) => o.id !== t.id);
+    if (!others.length) continue;
+    const near = Math.min(...others.map((o) => d(t, o)));
+    for (const o of others) if (d(t, o) <= near * 1.5 + 0.01) link(t.id, o.id);
+  }
+  return out;
+}
 const first = (p: RulePerson) => p.name.split(' ')[0] || p.name;
 const names = (ps: RulePerson[]) => {
   const n = ps.map(first);
@@ -89,6 +143,37 @@ export function seatProblems(people: RulePerson[], tables: RuleTable[], seats: S
         const ps = coming.filter((p) => p.party === group && at(p.id) === t);
         if (heads.some((h) => h.id === t) && ps.every(inParty)) continue; // at the head table for a reason
         out.push(`${names(ps)} ${ps.length === 1 ? 'is the only one' : 'are the only ones'} from ${group} at ${tableLabel(table.get(t))}.`);
+      }
+    }
+  }
+  if (pre.circles) {
+    // Someone who is the only one from their circle at their table, while others from it sit elsewhere and
+    // none of them at a neighbouring table.
+    const near = tableNeighbours(tables);
+    const circleTables = new Map<string, { name: string; at: Map<string, Set<string>> }>(); // circle -> table -> invitations
+    for (const p of coming) {
+      const t = at(p.id);
+      if (!t) continue;
+      for (const c of circlesOf(p, false)) {
+        const k = c.toLowerCase();
+        const e = circleTables.get(k) ?? { name: c, at: new Map<string, Set<string>>() };
+        e.at.set(t, (e.at.get(t) ?? new Set()).add(p.invitationId));
+        circleTables.set(k, e);
+      }
+    }
+    const said = new Set(out);
+    for (const { name, at: m } of circleTables.values()) {
+      if (m.size < 2) continue;
+      for (const [t, invs] of m) {
+        if (invs.size !== 1) continue;
+        if ([...m.keys()].some((o) => o !== t && near.get(t)?.has(o))) continue;
+        const ps = coming.filter((p) => at(p.id) === t && circlesOf(p, false).some((c) => c.toLowerCase() === name.toLowerCase()));
+        if (heads.some((h) => h.id === t) && ps.every(inParty)) continue;
+        const line = `${names(ps)} ${ps.length === 1 ? 'is the only one' : 'are the only ones'} from ${name} at ${tableLabel(table.get(t))}.`;
+        if (!said.has(line)) {
+          said.add(line);
+          out.push(line);
+        }
       }
     }
   }
@@ -163,6 +248,7 @@ export function autoSeat(people: RulePerson[], tables: RuleTable[], seats: Seats
   }
 
   const heads = pre.head ? tables.filter(isHeadTable) : [];
+  const near = tableNeighbours(tables);
   const groupAt = (t: RuleTable) => new Set([...occupants.get(t.id)!].map((id) => byId.get(id)!.party).filter(Boolean));
   const score = (ids: string[], t: RuleTable) => {
     const ps = ids.map((id) => byId.get(id)!);
@@ -176,6 +262,20 @@ export function autoSeat(people: RulePerson[], tables: RuleTable[], seats: Seats
       if (g.has(party)) s += 60;
       else if (g.size) s -= 30;
     } else if (pre.groups && !party && groupAt(t).size) s -= 5;
+    const here = [...occupants.get(t.id)!].map((id) => byId.get(id)!);
+    if (pre.circles) {
+      const mine = new Set(ps.flatMap((p) => circlesOf(p, false).map((c) => c.toLowerCase())));
+      if (mine.size && here.some((o) => circlesOf(o, false).some((c) => mine.has(c.toLowerCase())))) s += 50;
+    }
+    if (pre.colleagues && ps.some((p) => isWork(p.relation)) && here.some((o) => isWork(o.relation) && o.side === ps[0]!.side)) s += 20;
+    if (pre.family && heads.length && ps.some((p) => isFamily(p.relation)) && near.get(t.id) && heads.some((h) => near.get(t.id)!.has(h.id))) s += 15;
+    const side = ps.find((p) => p.side === 'p1' || p.side === 'p2')?.side;
+    if (side && here.length && rules?.sides) {
+      const same = here.filter((o) => o.side === side).length;
+      const other = here.filter((o) => (o.side === 'p1' || o.side === 'p2') && o.side !== side).length;
+      if (rules.sides === 'keep') s += same > other ? 8 : other > same ? -8 : 0;
+      else s += other ? 4 : 0;
+    }
     if (pre.fill) s += (used ? 10 : 0) - (free(t) - ids.length) * 0.1;
     else s += free(t) * 0.1;
     return s;

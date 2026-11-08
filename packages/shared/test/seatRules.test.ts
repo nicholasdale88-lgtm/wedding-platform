@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SeatRules } from '../src/planner';
-import { autoSeat, seatProblems, type RulePerson, type RuleTable } from '../src/seatRules';
+import { autoSeat, DEFAULT_PRESETS, seatProblems, type RulePerson, type RuleTable } from '../src/seatRules';
 
 const person = (id: string, inv: string, party = '', role = '', coming = true): RulePerson => ({ id, invitationId: inv, name: `${id[0]!.toUpperCase()}${id.slice(1)} Smith`, party, role, coming });
 const table = (id: string, seats: number, shape = 'round', name = id): RuleTable => ({ id, name, seats, shape });
@@ -9,7 +9,8 @@ const together = (seats: Record<string, string | null>, ids: string[]) => new Se
 
 describe('seating rules', () => {
   it('old rule docs get every preset on', () => {
-    expect(SeatRules.parse({ pairs: [] }).presets).toEqual({ invite: true, groups: true, head: true, fill: true });
+    expect(SeatRules.parse({ pairs: [] }).presets).toEqual({ invite: true, groups: true, head: true, fill: true, circles: true, family: true, colleagues: true });
+    expect(SeatRules.parse({}).sides).toBe('');
   });
 
   it('people invited together sit together; someone who said no is never seated', () => {
@@ -45,7 +46,7 @@ describe('seating rules', () => {
     // Off: anyone anywhere, and no check for it.
     const moved = { ...r.seats, ann: 't1' };
     expect(seatProblems(people, tables, moved, rules())).toEqual(['Ann is in the wedding party but not at the head table.']);
-    expect(seatProblems(people, tables, moved, rules({ presets: { invite: true, groups: true, head: false, fill: true } }))).toEqual([]);
+    expect(seatProblems(people, tables, moved, rules({ presets: { ...DEFAULT_PRESETS, head: false } }))).toEqual([]);
   });
 
   it('groups stay at their tables, so nobody is the only one they know', () => {

@@ -1,4 +1,4 @@
-import { allows, PartySetup, randomToken, splitDiet, toE164 } from '@wp/shared';
+import { allows, GUEST_SIDES, joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164 } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
@@ -33,6 +33,10 @@ const GuestPatch = z
     channel: z.enum(['', 'text', 'email', 'both', 'phone']),
     seatsHeld: z.number().int().min(1).max(60),
     party: z.string().trim().max(60),
+    /** Whose side they're on, how they know the couple, and their circles (who knows who), for seating. */
+    side: z.enum(GUEST_SIDES),
+    relation: z.union([z.literal(''), z.enum(RELATION_KEYS)]),
+    circles: z.array(z.string().max(80)).max(MAX_CIRCLES * 2),
     invited: z.array(z.string()).max(20),
     table: z.string().trim().max(40).nullable(),
     /** The event the table is for (the section it was typed in): only that event's tables and seats. */
@@ -214,13 +218,17 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       email: z.string().max(200).optional(),
       seats: z.number().int().min(1).max(60).optional(),
       party: z.string().trim().max(60).optional(),
+      /** Optional columns: "Side" (a partner's name, Bride/Groom, both), "Relationship" and "Circles" / "Knows". */
+      side: z.string().trim().max(60).optional(),
+      relation: z.string().trim().max(60).optional(),
+      circles: z.string().max(400).optional(),
       invited: z.array(z.string().max(40)).max(20).optional(),
     });
     const body = z.object({ rows: z.array(Row).min(1).max(1000) }).strict().safeParse(await readJson(c.req.raw, MAX_IMPORT));
     if (!body.success) return err(c, 400, 'invalid', 'That file could not be read. Up to 1,000 rows at a time.');
     const w = wid(c);
     const db = c.env.DB;
-    const [{ results: events }, { results: existing }] = await Promise.all([
+    const [{ results: events }, { results: existing }, couple, setupRow] = await Promise.all([
       db.prepare(`SELECT id, key FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w).all<{ id: string; key: string }>(),
       db
         .prepare(
@@ -229,13 +237,22 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         )
         .bind(w)
         .all<{ phone: string | null; name: string | null }>(),
+      db.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(w).first<{ name1: string; name2: string }>(),
+      db.prepare(`SELECT data FROM planner_doc WHERE wedding_id = ? AND kind = 'party-setup' AND scope = ''`).bind(w).first<{ data: string }>(),
     ]);
+    let sideNames: { p1?: string; p2?: string } | undefined;
+    try {
+      sideNames = PartySetup.safeParse(setupRow ? JSON.parse(setupRow.data) : {}).data;
+    } catch {
+      /* the usual names */
+    }
+    const couple_ = { name1: couple?.name1 ?? '', name2: couple?.name2 ?? '' };
     const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
     const phones = new Set(existing.map((e) => e.phone).filter(Boolean));
     const names = new Set(existing.map((e) => norm(e.name ?? '')).filter(Boolean));
     const byKey = new Map(events.map((e) => [e.key, e.id]));
 
-    const ok: { people: string[]; phone: string | null; email: string | null; seats: number; party: string; eventIds: string[] }[] = [];
+    const ok: { people: string[]; phone: string | null; email: string | null; seats: number; party: string; side: string; relation: string; circles: string; eventIds: string[] }[] = [];
     const skipped: { row: number; name: string; reason: string }[] = [];
     const problems: { row: number; name: string; reason: string }[] = [];
     body.data.rows.forEach((r, i) => {
@@ -252,7 +269,10 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       if ((phone && phones.has(phone)) || names.has(norm(name))) return skipped.push({ row, name, reason: 'Already on your list' });
       if (phone) phones.add(phone);
       names.add(norm(name));
-      ok.push({ people, phone, email, seats: r.seats ?? people.length, party: r.party ?? '', eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
+      // A "Side" that isn't one of the couple (an older sheet's "Side: Family") is kept as the group.
+      const side = parseSide(r.side, couple_, sideNames);
+      const party = r.party ?? (side === null ? (r.side ?? '') : '');
+      ok.push({ people, phone, email, seats: r.seats ?? people.length, party, side: side ?? '', relation: parseRelation(r.relation), circles: joinCircles(parseCircles(r.circles)), eventIds: (r.invited?.length ? r.invited : events.map((e) => e.key)).map((k) => byKey.get(k)!) });
     });
 
     if (c.req.query('dry') || problems.length) {
@@ -283,7 +303,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     for (const g of ok) {
       const invId = id();
       const one = [
-        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, email, seats_held, party, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, g.email, Math.max(g.seats, g.people.length), g.party, t, t),
+        db.prepare(`INSERT INTO invitation (id, wedding_id, token, phone, email, seats_held, party, side, relation, circles, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(invId, w, randomToken(), g.phone, g.email, Math.max(g.seats, g.people.length), g.party, g.side, g.relation, g.circles, t, t),
         ...g.people.map((p, idx) => db.prepare(`INSERT INTO person (id, invitation_id, idx, name) VALUES (?, ?, ?, ?)`).bind(id(), invId, idx, p)),
         ...g.eventIds.map((e) => db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(invId, e)),
       ];
@@ -305,6 +325,43 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     }
     await audit(c, 'guest.import', w, { added, skipped: skipped.length }).run();
     return c.json({ added, wouldAdd: ok.length, skipped, problems: [], dry: false });
+  });
+
+  /**
+   * Several guests at once (ticked on the guest list, or two people paired on the seating screen): their
+   * side, how they know the couple, and circles added or taken away. Each one's version moves on, so a
+   * guest open elsewhere reloads rather than saving over it.
+   */
+  app.post('/guests/bulk', writer, async (c) => {
+    const body = z
+      .object({
+        ids: z.array(z.string().max(60)).min(1).max(1000),
+        side: z.enum(GUEST_SIDES).optional(),
+        relation: z.union([z.literal(''), z.enum(RELATION_KEYS)]).optional(),
+        addCircles: z.array(z.string().max(80)).max(MAX_CIRCLES).optional(),
+        removeCircles: z.array(z.string().max(80)).max(MAX_CIRCLES * 2).optional(),
+      })
+      .strict()
+      .safeParse(await readJson(c.req.raw, MAX_IMPORT));
+    if (!body.success) return err(c, 400, 'invalid', 'Choose some guests and what to set.');
+    const b = body.data;
+    const db = c.env.DB;
+    const { results } = await db
+      .prepare(`SELECT id, circles FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL AND id IN (SELECT value FROM json_each(?))`)
+      .bind(wid(c), JSON.stringify(b.ids))
+      .all<{ id: string; circles: string }>();
+    if (!results.length) return err(c, 404, 'not_found', 'Those guests no longer exist.');
+    const drop = new Set((b.removeCircles ?? []).map((x) => x.trim().toLowerCase()));
+    const t = now();
+    const stmts = results.map((r) => {
+      const circles = b.addCircles || b.removeCircles ? joinCircles([...splitCircles(r.circles).filter((x) => !drop.has(x.toLowerCase())), ...(b.addCircles ?? [])]) : r.circles;
+      return db
+        .prepare(`UPDATE invitation SET side = COALESCE(?, side), relation = COALESCE(?, relation), circles = ?, version = version + 1, updated_at = ? WHERE id = ?`)
+        .bind(b.side ?? null, b.relation ?? null, circles, t, r.id);
+    });
+    for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));
+    await audit(c, 'guest.bulk', wid(c), { count: results.length, side: b.side, relation: b.relation, add: b.addCircles, remove: b.removeCircles }).run();
+    return c.json({ updated: results.length });
   });
 
   app.patch('/guests/:id', writer, async (c) => {
@@ -357,6 +414,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (p.channel !== undefined) stmts.push(db.prepare(`UPDATE invitation SET channel = ? WHERE id = ?`).bind(p.channel, invId));
     if (p.seatsHeld !== undefined) stmts.push(db.prepare(`UPDATE invitation SET seats_held = ? WHERE id = ?`).bind(p.seatsHeld, invId));
     if (p.party !== undefined) stmts.push(db.prepare(`UPDATE invitation SET party = ? WHERE id = ?`).bind(p.party, invId));
+    if (p.side !== undefined) stmts.push(db.prepare(`UPDATE invitation SET side = ? WHERE id = ?`).bind(p.side, invId));
+    if (p.relation !== undefined) stmts.push(db.prepare(`UPDATE invitation SET relation = ? WHERE id = ?`).bind(p.relation, invId));
+    if (p.circles !== undefined) stmts.push(db.prepare(`UPDATE invitation SET circles = ? WHERE id = ?`).bind(joinCircles(p.circles), invId));
     if (p.people) {
       const names = p.people.map((n, i) => n || (i === 0 ? '' : 'Guest'));
       names.forEach((name, idx) =>

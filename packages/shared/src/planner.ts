@@ -1727,11 +1727,24 @@ export type Shuttles = z.infer<typeof Shuttles>;
  * group stays at the same tables, the wedding party at the head table, fill tables before starting new
  * ones. Plus your own pairs of people (person ids) to keep apart or together. Auto-seat follows them all.
  */
-export const SeatPresets = z.object({ invite: z.boolean().default(true), groups: z.boolean().default(true), head: z.boolean().default(true), fill: z.boolean().default(true) });
+export const SeatPresets = z.object({
+  invite: z.boolean().default(true),
+  groups: z.boolean().default(true),
+  head: z.boolean().default(true),
+  fill: z.boolean().default(true),
+  /** People sharing a circle (who knows who) at the same or neighbouring tables. */
+  circles: z.boolean().default(true),
+  /** Family at the tables nearest the head table. */
+  family: z.boolean().default(true),
+  /** Work and ex-work colleagues together. */
+  colleagues: z.boolean().default(true),
+});
 export type SeatPresets = z.infer<typeof SeatPresets>;
 export const SeatRules = z.object({
   presets: SeatPresets.default({}),
   pairs: z.array(z.object({ a: z.string().max(40), b: z.string().max(40), kind: z.enum(['apart', 'together']) })).max(200).default([]),
+  /** The two sides: mixed at tables, kept together, or no preference (''). */
+  sides: z.enum(['', 'mix', 'keep']).default(''),
 });
 export type SeatRules = z.infer<typeof SeatRules>;
 

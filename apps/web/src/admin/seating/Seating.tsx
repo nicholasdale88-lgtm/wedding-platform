@@ -1,4 +1,4 @@
-import { aspectRatio, autoSeat as autoSeatPlan, clampTable, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
+import { aspectRatio, autoSeat as autoSeatPlan, clampTable, compareLine, planSummary, suggestName, suggestSeating, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
@@ -72,6 +72,8 @@ function SeatingPlan() {
   // Versions: the panel, and the version being looked at (the plan shows it, read-only, until Back).
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [viewing, setViewing] = useState<{ id: string; name: string } | null>(null);
+  // "Suggest a plan from who knows who": the version it made, and how it compares with the current plan.
+  const [suggested, setSuggested] = useState<{ id: string; line: string; notes: string[] } | null>(null);
   const plan = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   // A finger on a table or area that isn't selected: a hold picks it up, a swipe scrolls the plan.
@@ -500,6 +502,45 @@ function SeatingPlan() {
             : (stage === 'final' || stage === 'published') && unpublished
               ? { label: s.published ? 'Publish again' : 'Publish so guests see it', run: () => void publish() }
               : null;
+  // ---------------------------------------------------------------- who knows who
+  /**
+   * Suggest a plan from who knows who: a whole new arrangement for everyone to seat (Who to seat), from
+   * circles, how they know you and sides, with every hard rule kept. It's saved as a new version beside
+   * the current plan and shown with how it compares; nothing changes until Make this current.
+   */
+  const suggestPlan = () => {
+    const ppl = s.people.map((p) => ({ ...p, coming: canSeat(p) }));
+    const r = suggestSeating(ppl, tables, seatRules.rules);
+    if (!r.seated) {
+      toast(r.notes[0] ?? 'Nobody to seat yet.');
+      return;
+    }
+    const line = compareLine(planSummary(ppl, tables, seats, seatRules.rules), planSummary(ppl, tables, r.seats, seatRules.rules));
+    const base = suggestName(new Date(), tz);
+    let name = base;
+    for (let i = 2; versions.some((v) => v.name === name); i++) name = `${base} (${i})`;
+    setEditing(false);
+    void run(async () => {
+      const saved = changed ? await seatingApi.save(wid, s.version, { event: s.event.key, aspect, tables, areas, seats }) : s;
+      const d = await seatingApi.suggestVersion(wid, saved.event.key, name, r.seats);
+      const v = await seatingApi.version(wid, d.created);
+      const known = new Set(v.tables.map((t) => t.id));
+      setS({ ...d, aspect: v.aspect || d.aspect });
+      dispatch({ type: 'reset', doc: { aspect: v.aspect || d.aspect, tables: v.tables, areas: v.areas, seats: Object.fromEntries(d.people.map((p) => [p.id, known.has(v.seats[p.id] ?? '') ? v.seats[p.id]! : null])) } });
+      setViewing({ id: v.id, name: v.name });
+      setSuggested({ id: v.id, line, notes: r.notes });
+      setSel(null);
+      setAdding(false);
+    });
+  };
+  const discardSuggestion = (id: string) => {
+    setSuggested(null);
+    void run(() => seatingApi.deleteVersion(wid, id), 'Suggestion discarded. Your current plan hasn’t changed.');
+  };
+  /** Quick pairing added a circle: show it here without reloading (unsaved seating stays). */
+  const circleAdded = (ids: string[], circle: string) =>
+    setS((x) => (x ? { ...x, people: x.people.map((p) => (ids.includes(p.invitationId) && !(p.circles ?? []).includes(circle) ? { ...p, circles: [...(p.circles ?? []), circle] } : p)) } : x));
+
   const target = selTable?.id ?? null;
   const seatCount = tables.reduce((n, t) => n + t.seats, 0);
   // For the top of the printed plan: the couple, the event and its date.
@@ -547,6 +588,9 @@ function SeatingPlan() {
               </Pill>
             </>
           )}
+          <Pill disabled={busy || !!viewing || !tables.length} onClick={suggestPlan} title="A new version from who knows who; your current plan stays as it is">
+            Suggest a plan from who knows who
+          </Pill>
           <Pill kind={versionsOpen ? 'outline' : 'secondary'} aria-expanded={versionsOpen} onClick={() => setVersionsOpen((x) => !x)}>
             Versions{versions.length ? ` (${versions.length})` : ''}
           </Pill>
@@ -562,7 +606,25 @@ function SeatingPlan() {
       <StageBar stage={stage} data={s} next={next} busy={busy} onChoose={(st) => void note(() => seatingApi.setStage(wid, s.event.key, st))} />
       <SinceSave data={s} busy={busy || !!viewing} onFill={fillGaps} onSeen={() => void note(() => seatingApi.seen(wid, s.event.key))} onShow={setFind} />
 
-      {viewing && (
+      {viewing && suggested?.id === viewing.id && (
+        <div role="status" aria-label="Suggested plan" className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-[#eef0e4] border border-[#c9cfb4] print:hidden">
+          <span className="flex-1 min-w-[220px] text-[14px]">
+            <strong className="font-semibold">“{viewing.name}”</strong>, a suggestion from who knows who. {suggested.line}.
+            {suggested.notes.length > 0 && <span className="block text-[12px] text-[#7a4a37] mt-1">{suggested.notes.join(' ')}</span>}
+            <span className="block text-[12px] text-[#5b6a52] mt-1">Your current plan hasn’t changed. Keep this one in Versions to compare later, make it current, or discard it.</span>
+          </span>
+          <Pill kind="primary" disabled={busy} onClick={() => makeCurrent(viewing.id, viewing.name)}>
+            Make this current
+          </Pill>
+          <Pill disabled={busy} onClick={() => discardSuggestion(viewing.id)}>
+            Discard
+          </Pill>
+          <Pill disabled={busy} onClick={backToCurrent}>
+            Keep it, back to the current plan
+          </Pill>
+        </div>
+      )}
+      {viewing && suggested?.id !== viewing.id && (
         <div role="status" className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-[#f3ecd9] border border-[#d3c6a4] print:hidden">
           <span className="flex-1 min-w-[200px] text-[14px]">
             Looking at the version <strong className="font-semibold">“{viewing.name}”</strong>. Nothing has changed: make it current to use it, or go back.
@@ -911,7 +973,7 @@ function SeatingPlan() {
             </div>
           )}
 
-          <SeatChecks data={{ ...s, people: rulePeople }} tables={tables} seats={seats} seatRules={seatRules} />
+          <SeatChecks data={{ ...s, people: rulePeople }} tables={tables} seats={seats} seatRules={seatRules} onCircle={circleAdded} />
 
           <FindGuest
             find={find}

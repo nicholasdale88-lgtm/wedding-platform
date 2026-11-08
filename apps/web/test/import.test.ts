@@ -71,8 +71,14 @@ describe('Excel files (.xlsx)', () => {
   });
 
   it('mobiles Excel turned into numbers get their 0 back; groups are read', () => {
-    const { rows } = toImportRows([['Name', 'Mobile', 'Side'], ['Pat Solo', '412345678', "Sophie's side"]], events);
+    const { rows } = toImportRows([['Name', 'Mobile', 'Group'], ['Pat Solo', '412345678', "Sophie's side"]], events);
     expect(rows[0]).toEqual({ people: ['Pat Solo'], phone: '0412345678', party: "Sophie's side" });
+  });
+
+  it('reads the optional Side, Relationship and Circles (or Knows) columns for seating', () => {
+    const { rows, columns } = toImportRows([['Name', 'Side', 'Relationship', 'Knows'], ['Pat Solo', 'Bride', 'Old work', 'Acme work; Netball']], events);
+    expect(columns).toMatchObject({ side: 1, relation: 2, circles: 3, party: -1 });
+    expect(rows[0]).toEqual({ people: ['Pat Solo'], side: 'Bride', relation: 'Old work', circles: 'Acme work; Netball' });
   });
 
   it('refuses things that are not workbooks, in plain English', async () => {

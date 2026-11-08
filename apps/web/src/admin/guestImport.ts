@@ -1,4 +1,4 @@
-import { isSerious } from '@wp/shared';
+import { isSerious, relationLabel, sideShort } from '@wp/shared';
 import type { EventInfo, Guest } from '../lib/api';
 import { shortLabel } from '../lib/format';
 import type { Sheet } from '../lib/xlsx';
@@ -15,6 +15,11 @@ export interface ImportRow {
   email?: string;
   seats?: number;
   party?: string;
+  /** As written: "Alex", "Bride's side", "Both" (the server reads it with the couple's names). */
+  side?: string;
+  relation?: string;
+  /** Circles separated by commas: "Uni crew, Netball". */
+  circles?: string;
   invited?: string[];
 }
 
@@ -30,11 +35,14 @@ export function mapColumns(header: string[], events: EventInfo[]) {
   const phone = h.findIndex((x) => /mobile|phone|cell|number/.test(x) && !/seat|guests/.test(x));
   const email = h.findIndex((x) => /^(e ?mail|e ?mail address|email address)$/.test(x));
   const seats = h.findIndex((x) => /^(seats?|seats held|party size|count|number of guests|guests count)$/.test(x));
-  const party = h.findIndex((x) => /^(group|side|party|guest group|category|relationship)$/.test(x));
+  const party = h.findIndex((x) => /^(group|party|guest group|category)$/.test(x));
+  const side = h.findIndex((x) => /^(side|whose side|bride or groom|guest of)$/.test(x));
+  const relation = h.findIndex((x) => /^(relationship|relation|relationship to (the )?couple|how (they|we) know (them|us)|connection)$/.test(x));
+  const circles = h.findIndex((x) => /^(circles?|knows|who they know|friend groups?|tags?)$/.test(x));
   const eventCols = events
     .map((e) => ({ key: e.key, i: h.findIndex((x) => x === norm(e.name) || x === norm(e.key) || x === norm(shortLabel(e.name))) }))
     .filter((e) => e.i >= 0);
-  return { main: main >= 0 ? main : 0, extra, phone, email, seats, party, eventCols };
+  return { main: main >= 0 ? main : 0, extra, phone, email, seats, party, side, relation, circles, eventCols };
 }
 
 /** Excel stores mobiles as numbers and drops the leading 0 (412345678): put it back. */
@@ -52,6 +60,9 @@ export function toImportRows(table: string[][], events: EventInfo[]): { rows: Im
     const seats = columns.seats >= 0 ? Number.parseInt(r[columns.seats] ?? '', 10) : NaN;
     if (Number.isFinite(seats) && seats > 0) row.seats = seats;
     if (columns.party >= 0 && r[columns.party]?.trim()) row.party = r[columns.party]!.trim();
+    if (columns.side >= 0 && r[columns.side]?.trim()) row.side = r[columns.side]!.trim();
+    if (columns.relation >= 0 && r[columns.relation]?.trim()) row.relation = r[columns.relation]!.trim();
+    if (columns.circles >= 0 && r[columns.circles]?.trim()) row.circles = r[columns.circles]!.trim();
     if (columns.eventCols.length) row.invited = columns.eventCols.filter((e) => YES.test((r[e.i] ?? '').trim())).map((e) => e.key);
     return row;
   });
@@ -65,13 +76,13 @@ const replyOf = (g: Guest, e: EventInfo) => {
 };
 
 /** The full workbook: one sheet per invitation, one per person, and a summary per event. */
-export function exportSheets(guests: Guest[], events: EventInfo[], links: Record<string, string> = {}): Sheet[] {
+export function exportSheets(guests: Guest[], events: EventInfo[], links: Record<string, string> = {}, names: { name1: string; name2: string } = { name1: '', name2: '' }): Sheet[] {
   const questions = events.flatMap((e) => e.questions.map((q) => ({ e, q })));
   const invitations: Sheet = {
     name: 'Invitations',
     rows: [
       [
-        'Main contact', 'Others', 'Mobile', 'Email', 'Group', 'Seats held',
+        'Main contact', 'Others', 'Mobile', 'Email', 'Group', 'Side', 'Relationship', 'Circles', 'Seats held',
         ...events.flatMap((e) => [shortLabel(e.name), `${shortLabel(e.name)}: coming`]),
         ...questions.map(({ e, q }) => `${shortLabel(e.name)}: ${q.label}`),
         'Dietary', 'Message', 'Table', 'Replied', 'Opened invitation', 'Texts allowed', 'Last text', 'Personal link',
@@ -82,6 +93,9 @@ export function exportSheets(guests: Guest[], events: EventInfo[], links: Record
         g.phoneDisplay,
         g.email ?? '',
         g.party,
+        g.side ? sideShort(g.side, names) : '',
+        g.relation ? relationLabel(g.relation) : '',
+        (g.circles ?? []).join(', '),
         g.seatsHeld,
         ...events.flatMap((e) => [replyOf(g, e), g.rsvp[e.key]?.attending ? g.rsvp[e.key]!.count : '']),
         ...questions.map(({ e, q }) => g.rsvp[e.key]?.answers[q.key] ?? ''),
@@ -134,8 +148,8 @@ export function templateSheet(events: EventInfo[]): Sheet {
   return {
     name: 'Guests',
     rows: [
-      ['Name', 'Partner', 'Mobile', 'Seats', 'Group', ...events.map((e) => e.name)],
-      ['Alex Lee & Sam Lee', '', '0412 345 678', 2, 'Family', ...events.map(() => 'Yes')],
+      ['Name', 'Partner', 'Mobile', 'Seats', 'Group', 'Side', 'Relationship', 'Circles', ...events.map((e) => e.name)],
+      ['Alex Lee & Sam Lee', '', '0412 345 678', 2, 'Family', 'Both', 'Uni friend', 'Uni crew, Netball', ...events.map(() => 'Yes')],
     ],
   };
 }

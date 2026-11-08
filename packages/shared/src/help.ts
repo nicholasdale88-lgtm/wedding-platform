@@ -116,9 +116,10 @@ export const HELP: HelpArticle[] = [
     steps: [
       'Open Guests. Tap Add guest for one household at a time: everyone on one invitation shares a link.',
       'Or import a spreadsheet: one row per invitation, with names, a mobile and which events they’re invited to.',
-      'Group guests (e.g. “Alex’s side”) so seating and reminders can use them.',
+      'Say who each guest is to you, for seating: whose side (yours, your partner’s or both), how they know you (immediate or extended family, school, uni or childhood friend, sport or club, work or ex-work colleague, neighbour, plus-one) and their circles, who they know (“Uni crew”, “Acme work”, “Netball”). Set it on the guest, or import Side, Relationship and Circles (or Knows) columns. Groups (e.g. “Alex’s side”) still work too.',
+      'Many at once: tap Select, tick guests (or Tick everyone shown), and set their side, how they know you, or add or take off a circle in one go. They show as chips on the list, and you can filter by side, relationship or circle.',
     ],
-    also: 'import invite list household plus one spreadsheet csv excel contacts',
+    also: 'import invite list household plus one spreadsheet csv excel contacts side relationship relation circle circles who knows who bulk select tick colleague family friend',
     go: { tab: 'guests', event: true },
   },
   {
@@ -166,11 +167,12 @@ export const HELP: HelpArticle[] = [
       'Open Guests → Seating. + Add tables, then tap the plan to drop them; drag to move. Areas (dance floor, bar) come from + Add area.',
       'Tap a table, then tap names to seat them, or Auto-seat the rest: it follows your rules.',
       'Start with a concept plan before the invitations go out: everyone on your list can be placed (shown lighter, “Not replied yet”). The top of Seating shows the stage (Concept plan → Replies coming in → Final → Published) and the one next step. As replies arrive nothing moves: yeses are confirmed, anyone who can’t come frees their seat, and “Since your last save” lists who said yes, who can’t come and who’s new, with Fill gaps with auto-seat.',
-      'Rules and checks: people invited together sit together, groups stay together, the wedding party goes to the head table, and tables fill before new ones start, all unless you turn them off. Add your own: keep two people apart, or together. Anything that breaks a rule is listed.',
+      'Rules and checks: people invited together sit together, groups and circles stay together (same or neighbouring tables), the wedding party goes to the head table, family sit near it, colleagues together, and tables fill before new ones start, all unless you turn them off. Choose to mix the two sides or keep them together. Add your own: keep two people apart or together, say two people know each other (they share a circle), or mark someone who knows no one. Anything that breaks a rule is listed.',
+      'Suggest a plan from who knows who: a whole new arrangement, saved as its own version (“Who knows who — Sat 9 Nov”), never over your current plan. Biggest circles first, households together, family near the head table, your sides choice and every rule kept, with pencilled-in guests too when you’re seating everyone invited. It says how it compares (“keeps 18 of 20 circles together, 3 people alone at their table → 0”): Make this current, or Discard.',
       'Save seating as you go, and keep a named version at each stage (it suggests “Concept plan”, “After replies”, “Final”): Versions → View any of them, and Make current to switch back.',
       'Publish when you’re ready: guests then see their table in their night-before guide. Only people who said yes are shown, so nobody sees a pencilled-in table mate who may not come; publish again as more say yes.',
     ],
-    also: 'tables seat chart floor plan version revision draft concept final publish rules apart together head table pencil pencilled pending not replied stage',
+    also: 'tables seat chart floor plan version revision draft concept final publish rules apart together head table pencil pencilled pending not replied stage who knows who circles suggest alternative sides mix family colleagues know each other',
     go: { tab: 'seating', event: true },
   },
   {
@@ -342,7 +344,8 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
   guests: [
     { at: ['Guest list'], fields: [['Main contact', 'Jordan Lee'], ['Their mobile', '0412 345 678'], ['Also on the invitation', 'Casey Lee']], tap: '+ Add guest', then: 'Jordan & Casey added ✓' },
     { at: ['Guest list'], rows: ['guests.xlsx · 86 rows', '84 to add · 2 already on your list'], tap: 'Import a spreadsheet', then: '84 invitations added ✓' },
-    { at: ['Guest list'], fields: [['Group', 'Alex’s side']], rows: ['Jordan & Casey', 'The Nguyens'], tap: 'Save', then: 'Seating and reminders can use the group' },
+    { at: ['Guest list'], fields: [['Side', 'Alex’s side'], ['How they know you', 'Uni friend'], ['Circles', 'Uni crew']], tap: 'Save', then: 'Seating knows who knows who ✓' },
+    { at: ['Guest list'], rows: ['☑ Jordan & Casey', '☑ The Nguyens', '☑ Priya'], fields: [['Add a circle', 'Netball']], tap: 'Set for 3 guests', then: 'Saved for 3 guests ✓' },
   ],
   invitations: [
     { at: ['Texts'], rows: ['The invitation · on autopilot', 'Goes to 112 with a mobile', 'Not sent yet: 112'], tap: 'Switch on', then: 'Sending from 9am tomorrow ✓' },
@@ -364,7 +367,8 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Guest list', 'Seating'], rows: ['Room plan'], tap: '+ Add tables', then: 'Tap the plan to drop each table' },
     { at: ['Guest list', 'Seating'], rows: ['Table 3 · 6 of 10', 'Jordan & Casey', 'The Nguyens'], tap: 'Auto-seat the rest', then: 'Everyone seated, households together ✓' },
     { at: ['Guest list', 'Seating'], rows: ['Concept plan → Replies coming in', 'Since your last save: 3 said yes · 2 can’t come'], tap: 'Fill gaps with auto-seat', then: 'Everyone else stays put ✓' },
-    { at: ['Guest list', 'Seating'], rows: ['✓ People invited together sit together', '✓ Wedding party at the head table', 'Ben ≠ Lou (keep apart)'], tap: '+ Add rule', then: 'All good ✓' },
+    { at: ['Guest list', 'Seating'], rows: ['✓ People invited together sit together', '✓ Keep circles together', 'Ben ≠ Lou (keep apart)'], tap: '+ Add rule', then: 'All good ✓' },
+    { at: ['Guest list', 'Seating'], rows: ['Who knows who — Sat 9 Nov', 'Keeps 18 of 20 circles together (now 12)', '3 people alone at their table → 0'], tap: 'Make this current', then: 'Seated by who knows who ✓' },
     { at: ['Guest list', 'Seating'], fields: [['Version name', 'Concept plan']], tap: 'Save as a version', then: 'Kept: make it current any time ✓' },
     { at: ['Guest list', 'Seating'], rows: ['Final · current'], tap: 'Publish', then: 'Guests see their table in their guide ✓' },
   ],

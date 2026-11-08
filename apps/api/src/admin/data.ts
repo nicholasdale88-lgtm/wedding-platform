@@ -1,4 +1,4 @@
-import { displayPhone } from '@wp/shared';
+import { displayPhone, splitCircles } from '@wp/shared';
 
 /** Everything the admin screens show about one wedding, read in one batch. */
 
@@ -51,6 +51,10 @@ export interface AdminGuest {
   seatsHeld: number;
   /** Group, e.g. "Alex's side" (seating colours and filters). */
   party: string;
+  /** Whose side they're on ('p1', 'p2', 'both' or ''), how they know the couple, and their circles (who knows who). */
+  side: string;
+  relation: string;
+  circles: string[];
   optOut: boolean;
   version: number;
   createdAt: string;
@@ -99,7 +103,7 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
   const [w, ev, inv, ppl, ie, rs, cp, sl, last, inbox, tb] = await db.batch([
     q(`SELECT id, slug, name1, name2, monogram, theme, timezone, sms_sender, content, guide FROM wedding WHERE id = ? AND deleted_at IS NULL`),
     q(`SELECT id, key, name, pending_label, starts_at, sort, has_seating, catered, venue, questions FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`),
-    q(`SELECT id, phone, email, channel, seats_held, party, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
+    q(`SELECT id, phone, email, channel, seats_held, party, side, relation, circles, sms_optout, version, created_at, opened_at FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`),
     // Each person's seat at each event ({ eventKey: table name }); "table" is their first event's.
     q(`SELECT p.id, p.invitation_id, p.idx, p.name, p.diet, p.party_role,
               (SELECT json_group_object(e.key, json_object('menu', m.menu_id, 'entree', m.entree, 'main', m.main, 'dessert', m.dessert))
@@ -129,9 +133,9 @@ export async function loadWedding(db: D1Database, weddingId: string): Promise<We
   if (!wr) return null;
 
   const guests = new Map<string, AdminGuest>();
-  for (const r of inv!.results as { id: string; phone: string | null; email: string | null; channel: string; seats_held: number; party: string; sms_optout: number; version: number; created_at: string; opened_at: string | null }[]) {
+  for (const r of inv!.results as { id: string; phone: string | null; email: string | null; channel: string; seats_held: number; party: string; side: string; relation: string; circles: string; sms_optout: number; version: number; created_at: string; opened_at: string | null }[]) {
     guests.set(r.id, {
-      id: r.id, phone: r.phone, phoneDisplay: r.phone ? displayPhone(r.phone) : '', email: r.email ?? '', channel: r.channel ?? '', seatsHeld: r.seats_held, party: r.party, optOut: !!r.sms_optout,
+      id: r.id, phone: r.phone, phoneDisplay: r.phone ? displayPhone(r.phone) : '', email: r.email ?? '', channel: r.channel ?? '', seatsHeld: r.seats_held, party: r.party, side: r.side ?? '', relation: r.relation ?? '', circles: splitCircles(r.circles), optOut: !!r.sms_optout,
       version: r.version, createdAt: r.created_at, openedAt: r.opened_at, people: [], invited: [], rsvp: {}, repliedAt: null, lastSms: null,
     });
   }

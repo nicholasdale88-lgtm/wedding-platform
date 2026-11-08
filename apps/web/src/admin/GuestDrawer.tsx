@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { groupSuggestions } from './groups';
+import { CirclesInput, RelationSelect, SideSelect } from './GuestTies';
 import { canShareNative, fallbackMessage, sendMessenger, sendWhatsApp, shareNative } from './share';
 import { useAdmin } from './Shell';
 import { Drawer, Eyebrow, inputCls, Label, Pill, useToast } from './ui';
@@ -18,7 +19,7 @@ const VIA: Record<string, string> = { invitation: 'Invitation', sms: 'Text reply
  * design/RSVP Admin.dc.html → guest drawer. Text fields save when you leave them; buttons save straight away.
  * `isNew`: just made by "Add guest", so closing it with nothing filled in removes it again.
  */
-export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: { wid: string; id: string; tz: string; isNew?: boolean; onClose: () => void; onChanged: () => Promise<void> }) {
+export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, circleOptions = [] }: { wid: string; id: string; tz: string; isNew?: boolean; onClose: () => void; onChanged: () => Promise<void>; circleOptions?: string[] }) {
   const toast = useToast();
   const { overview, event: chosen } = useAdmin();
   const [d, setD] = useState<GuestDetail | null>(null);
@@ -334,6 +335,16 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged }: 
             <input value={table} placeholder="e.g. 4" onChange={(e) => setTable(e.target.value)} onBlur={() => table !== (g.people.find((p) => p.table)?.table ?? '') && void patch({ table: table.trim() || null, ...(overview?.events.some((e) => e.key === chosen) ? { tableEvent: chosen } : {}) })} className={inputCls} />
           </Label>
         </div>
+        {/* Who they are to you, for seating: side, how they know you, and who they know (circles). */}
+        <fieldset className="flex flex-col gap-2 m-0 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)]">
+          <legend className="px-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">Who they are to you (for seating)</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <SideSelect value={g.side ?? ''} onChange={(side) => void patch({ side })} />
+            <RelationSelect value={g.relation ?? ''} onChange={(relation) => void patch({ relation })} />
+          </div>
+          <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Circles: who they know (“Uni crew”, “Acme work”). Guests who share a circle sit together.</span>
+          <CirclesInput value={g.circles ?? []} options={circleOptions} onChange={(circles) => void patch({ circles })} />
+        </fieldset>
         {!g.phone && <div className="text-[13px] text-[#8a5a45]">No mobile, so this guest will not receive any texts.</div>}
         {g.optOut && <div className="text-[13px] text-[#8a5a45]">Opted out of texts (replied STOP).</div>}
         <div className="flex gap-2 items-center flex-wrap">

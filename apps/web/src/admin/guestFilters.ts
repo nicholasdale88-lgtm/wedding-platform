@@ -1,4 +1,4 @@
-import { isSerious } from '@wp/shared';
+import { isSerious, RELATIONS } from '@wp/shared';
 import type { EventInfo, Guest } from '../lib/api';
 import { shortLabel } from '../lib/format';
 
@@ -54,8 +54,10 @@ export interface Dropdown {
   test?: (g: Guest, v: string) => boolean;
 }
 
-export function dropdowns(events: EventInfo[]): Dropdown[] {
+/** Side, relationship and circle filters: `ties` gives the sides' names and the circles in use. */
+export function dropdowns(events: EventInfo[], ties?: { sides: Record<string, string>; circles: string[] }): Dropdown[] {
   const keys = events.map((e) => e.key);
+  const lc = (s: string) => s.toLowerCase();
   return [
     {
       key: 'inv', label: 'Invited to',
@@ -72,6 +74,21 @@ export function dropdowns(events: EventInfo[]): Dropdown[] {
     {
       key: 'size', label: 'Invitation', options: [['', 'Any size'], ['1', 'Just one'], ['2', 'Couples'], ['3', '3 or more']],
       test: (g, v) => (v === '3' ? g.people.length >= 3 : g.people.length === Number(v)),
+    },
+    {
+      key: 'side', label: 'Side',
+      options: [['', 'Any'], ...(['p1', 'p2', 'both'] as const).map((k) => [k, ties?.sides[k] ?? k] as [string, string]), ['none', 'Not set']],
+      test: (g, v) => (v === 'none' ? !g.side : g.side === v),
+    },
+    {
+      key: 'rel', label: 'Knows you as',
+      options: [['', 'Any'], ...RELATIONS.map((r) => [r.key, r.label] as [string, string]), ['none', 'Not set']],
+      test: (g, v) => (v === 'none' ? !g.relation : g.relation === v),
+    },
+    {
+      key: 'circle', label: 'Circle',
+      options: [['', 'Any'], ...(ties?.circles ?? []).map((c) => [c, c] as [string, string]), ['none', 'In no circle']],
+      test: (g, v) => (v === 'none' ? !g.circles?.length : !!g.circles?.some((c) => lc(c) === lc(v))),
     },
     { key: 'sort', label: 'Sort', options: [['', 'A to Z'], ['za', 'Z to A'], ['recent', 'Latest reply'], ['table', 'By table']] },
   ];

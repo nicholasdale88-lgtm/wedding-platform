@@ -367,6 +367,24 @@ describe('Guests', () => {
     expect(screen.getByText('3 invitations')).toBeInTheDocument();
   });
 
+  it('Select: tick guests and set their side, how they know you and a circle in one go', async () => {
+    const calls = mockApi({ '/api/a/w/w1/guests/bulk': () => json(200, { updated: 2 }) });
+    renderAt('/admin/w1/wedding/guests?show=all');
+    await screen.findByText('Robin Hart');
+    await userEvent.click(screen.getByRole('button', { name: 'Select' }));
+    await userEvent.click(screen.getByText('Robin Hart'));
+    await userEvent.click(screen.getByText('Jo Banks'));
+    expect(screen.getByText('2 ticked')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull(); // ticking doesn't open the guest
+    await userEvent.selectOptions(screen.getByLabelText('Side for the ticked guests'), 'p1');
+    await userEvent.selectOptions(screen.getByLabelText('How the ticked guests know you'), 'friend_uni');
+    await userEvent.type(screen.getByLabelText('Add a circle to the ticked guests'), 'Uni crew');
+    await userEvent.click(screen.getByRole('button', { name: 'Set for 2 guests' }));
+    const post = calls.find((c) => c.path === '/api/a/w/w1/guests/bulk')!;
+    expect(JSON.parse(String(post.init!.body))).toEqual({ ids: ['g1', 'g2'], side: 'p1', relation: 'friend_uni', addCircles: ['Uni crew'] });
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved for 2 guests');
+  });
+
   it('opens the drawer; editing a reply sends If-Match and shows Saved', async () => {
     const g1 = guests[0]!;
     const calls = mockApi({
@@ -439,6 +457,9 @@ describe('guest filters (pure)', () => {
     expect(run({ seat: 'no' })).toEqual(['Casey Lund', 'Jo Banks']);
     expect(run({ size: '2' })).toEqual(['Robin Hart']);
     expect(run({ sort: 'za' })).toEqual(['Robin Hart', 'Jo Banks', 'Casey Lund']);
+    expect(run({ side: 'none' })).toEqual(['Casey Lund', 'Jo Banks', 'Robin Hart']);
+    expect(run({ side: 'p1' })).toEqual([]);
+    expect(applyFilters(guests.map((g) => (g.id === 'g2' ? { ...g, side: 'p1' as const, relation: 'work', circles: ['Acme work'] } : g)), events, { filter: 'all', q: '', circle: 'acme WORK', rel: 'work', side: 'p1' }).map((g) => g.id)).toEqual(['g2']);
   });
   it('searches names and mobile digits in any format', () => {
     expect(run({ q: 'sam' })).toEqual(['Robin Hart']);

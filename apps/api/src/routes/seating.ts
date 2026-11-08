@@ -1,4 +1,4 @@
-import { allows, anyChanges, seatBaseline, seatChanges, seatStage, TABLE_SHAPES, type SeatBaseline, type SeatStage } from '@wp/shared';
+import { allows, anyChanges, seatBaseline, seatChanges, seatStage, splitCircles, TABLE_SHAPES, type SeatBaseline, type SeatStage } from '@wp/shared';
 import { needsUpgrade, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -73,7 +73,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
       db.prepare(
         `SELECT p.id, p.invitation_id AS invitationId, p.idx, p.name, p.diet, (SELECT s.table_id FROM seat s WHERE s.person_id = p.id AND s.event_id = ?1) AS tableId,
-                i.party, p.party_role AS role,
+                i.party, i.side, i.relation, i.circles, p.party_role AS role,
                 ie.event_id IS NOT NULL AS invited, r.attending, r.count
            FROM person p JOIN invitation i ON i.id = p.invitation_id
            LEFT JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
@@ -93,7 +93,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     const versionRows = vers!.results as { id: string; name: string; snapshot: string; created_at: string }[];
     const tableIds = new Set((tables!.results as { id: string }[]).map((t) => t.id));
     const p = plan!.results[0] as { aspect: string; image_key: string | null; current_version: string | null } | undefined;
-    type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; role: string; invited: number; attending: number | null; count: number | null };
+    type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; party: string; side: string; relation: string; circles: string; role: string; invited: number; attending: number | null; count: number | null };
     const rows = people!.results as Row[];
     // A yes is for the first N people on the invitation (N = the reply's count, as the overview counts them):
     // the others on it aren't coming, so they get no seat and are never shown to guests.
@@ -124,7 +124,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     const served = await servedAt(db, w.id, ev);
     const list = rows
       .filter(seatable)
-      .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), coming: x.attending === 1 }));
+      .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, side: x.side ?? '', relation: x.relation ?? '', circles: splitCircles(x.circles), role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), coming: x.attending === 1 }));
 
     // Where the plan is in its life, and what changed since it was last saved.
     const doc = (kind: string) => (docs!.results as { kind: string; data: string }[]).find((d) => d.kind === kind)?.data;
@@ -346,6 +346,38 @@ export function seatingRoutes() {
       db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.version', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, body.data.event, JSON.stringify({ name: body.data.name }), now),
     ]);
     return c.json((await load(c, body.data.event))!.view);
+  });
+
+  /**
+   * "Suggest a plan from who knows who": the suggested seats (worked out on the couple's screen) kept as a
+   * new version beside the saved plan. Nothing else changes: the current arrangement stays current until
+   * the couple makes this one current (or deletes it).
+   */
+  app.post('/versions/suggest', requireMember('owner', 'editor'), async (c) => {
+    const body = z
+      .object({ event: z.string().max(40), name: VersionName, seats: z.record(z.string().max(60), z.string().max(60).nullable()) })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!body.success) return err(c, 400, 'invalid', body.error.issues[0]?.message ?? 'Check the suggestion.');
+    const loaded = await load(c, body.data.event);
+    if (!loaded || loaded.view.event.key !== body.data.event) return err(c, 404, 'not_found', 'That event no longer exists.');
+    if (loaded.view.versions.length >= MAX_VERSIONS) return err(c, 400, 'too_many', `Up to ${MAX_VERSIONS} versions per event. Delete an old one first.`);
+    const people = new Set(loaded.view.people.map((p) => p.id));
+    const tables = new Set(loaded.draft.tables.map((t) => t.id));
+    const seats: Record<string, string> = {};
+    for (const [pid, tid] of Object.entries(body.data.seats)) {
+      if (!tid) continue;
+      if (!people.has(pid) || !tables.has(tid)) return err(c, 400, 'invalid', 'The plan changed while that was worked out. Try again.');
+      seats[pid] = tid;
+    }
+    const db = c.env.DB;
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await db.batch([
+      db.prepare(`INSERT INTO seat_version (id, wedding_id, event_id, name, snapshot, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind(id, wid(c), loaded.eventId, body.data.name, JSON.stringify({ ...loaded.draft, seats }), now, c.get('user').id),
+      db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.suggest', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, body.data.event, JSON.stringify({ name: body.data.name, seated: Object.keys(seats).length }), now),
+    ]);
+    return c.json({ ...(await load(c, body.data.event))!.view, created: id });
   });
 
   /** One version's plan, to look at (nothing changes). */

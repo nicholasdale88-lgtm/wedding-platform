@@ -1,6 +1,6 @@
-import { NO_RULES, SEAT_PRESETS, seatProblems, SeatRules as SeatRulesSchema, type SeatRules } from '@wp/shared';
+import { KNOWS_NO_ONE, NO_RULES, SEAT_PRESETS, SIDE_PREFS, seatProblems, SeatRules as SeatRulesSchema, type SeatRules } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiError, plannerApi, type SeatingData, type SeatTable } from '../../lib/api';
+import { api, ApiError, plannerApi, type SeatingData, type SeatTable } from '../../lib/api';
 import { useDocSave } from '../planner/useDocSave';
 import { useAdmin } from '../Shell';
 import { inputCls, useToast } from '../ui';
@@ -41,9 +41,49 @@ export function useSeatRules(ev: string | undefined) {
  * wedding party at the head table, fill tables first) and your own pairs to keep apart or together.
  * Auto-seat follows them all; anything in the plan that breaks one is listed here as you seat.
  */
-export function SeatChecks({ data, tables, seats, seatRules }: { data: SeatingData; tables: SeatTable[]; seats: Record<string, string | null>; seatRules: ReturnType<typeof useSeatRules> }) {
+export function SeatChecks({
+  data,
+  tables,
+  seats,
+  seatRules,
+  onCircle,
+}: {
+  data: SeatingData;
+  tables: SeatTable[];
+  seats: Record<string, string | null>;
+  seatRules: ReturnType<typeof useSeatRules>;
+  /** A circle was added to these invitations (quick pairing): show it without reloading the plan. */
+  onCircle?: (invitationIds: string[], circle: string) => void;
+}) {
   const { rules, loaded, save } = seatRules;
-  const [pick, setPick] = useState({ a: '', b: '', kind: 'apart' as 'apart' | 'together' });
+  const { wid } = useAdmin();
+  const toast = useToast();
+  const [pick, setPick] = useState({ a: '', b: '', kind: 'apart' as 'apart' | 'together' | 'knows' });
+  const [loner, setLoner] = useState('');
+  const [pairing, setPairing] = useState(false);
+  /** "These two know each other": a circle they share (one of theirs, or a new one named after them). */
+  const knows = async (a: string, b: string) => {
+    const pa = data.people.find((p) => p.id === a);
+    const pb = data.people.find((p) => p.id === b);
+    if (!pa || !pb) return;
+    const real = (x: typeof pa) => (x.circles ?? []).filter((c) => c !== KNOWS_NO_ONE);
+    const shared = real(pa).find((c) => real(pb).some((d) => d.toLowerCase() === c.toLowerCase()));
+    if (shared) return toast(`${pa.name} and ${pb.name} already share “${shared}”.`);
+    const circle = real(pa)[0] ?? real(pb)[0] ?? `${pa.name.split(' ')[0] ?? pa.name} & ${pb.name.split(' ')[0] ?? pb.name}`;
+    await addCircle([pa.invitationId, pb.invitationId], circle, `${pa.name} and ${pb.name} now share “${circle}”.`);
+  };
+  const addCircle = async (ids: string[], circle: string, done: string) => {
+    setPairing(true);
+    try {
+      await api.bulkGuests(wid, { ids: [...new Set(ids)], addCircles: [circle] });
+      onCircle?.([...new Set(ids)], circle);
+      toast(done);
+    } catch (e) {
+      toast((e as Error).message);
+    } finally {
+      setPairing(false);
+    }
+  };
   const [open, setOpen] = useState(false);
   const coming = data.people.filter((p) => p.coming);
   const nameOf = (id: string) => data.people.find((p) => p.id === id)?.name ?? 'Someone';
@@ -67,6 +107,18 @@ export function SeatChecks({ data, tables, seats, seatRules }: { data: SeatingDa
         <div className="flex flex-col gap-3">
           <p className="m-0 text-[13px] text-[#5b6a52]">Auto-seat follows these, and anything that breaks one shows above.</p>
           <fieldset className="flex flex-col gap-2 m-0 p-0 border-0" disabled={!loaded}>
+            <select
+              aria-label="The two sides"
+              value={rules.sides ?? ''}
+              onChange={(e) => void save({ ...rules, sides: e.target.value as SeatRules['sides'] })}
+              className={`${inputCls} !py-[6px] !text-[13px] self-start`}
+            >
+              {SIDE_PREFS.map((x) => (
+                <option key={x.key} value={x.key}>
+                  {x.label}
+                </option>
+              ))}
+            </select>
             {SEAT_PRESETS.map((x) => (
               <label key={x.key} className="flex gap-2 items-start text-[14px] cursor-pointer">
                 <input
@@ -103,9 +155,10 @@ export function SeatChecks({ data, tables, seats, seatRules }: { data: SeatingDa
                   </option>
                 ))}
               </select>
-              <select aria-label="Rule" value={pick.kind} onChange={(e) => setPick({ ...pick, kind: e.target.value as 'apart' | 'together' })} className={`${inputCls} !py-[6px] !text-[13px]`}>
+              <select aria-label="Rule" value={pick.kind} onChange={(e) => setPick({ ...pick, kind: e.target.value as 'apart' | 'together' | 'knows' })} className={`${inputCls} !py-[6px] !text-[13px]`}>
                 <option value="apart">apart from</option>
                 <option value="together">with</option>
+                <option value="knows">knows</option>
               </select>
               <select aria-label="Second guest" value={pick.b} onChange={(e) => setPick({ ...pick, b: e.target.value })} className={`${inputCls} !py-[6px] !text-[13px] w-full min-w-0`}>
                 <option value="">Someone…</option>
@@ -120,15 +173,39 @@ export function SeatChecks({ data, tables, seats, seatRules }: { data: SeatingDa
             </div>
             <button
               type="button"
-              disabled={!loaded || !pick.a || !pick.b}
+              disabled={!loaded || !pick.a || !pick.b || pairing}
               onClick={() => {
-                void save({ ...rules, pairs: [...rules.pairs, { a: pick.a, b: pick.b, kind: pick.kind }] });
+                if (pick.kind === 'knows') void knows(pick.a, pick.b);
+                else void save({ ...rules, pairs: [...rules.pairs, { a: pick.a, b: pick.b, kind: pick.kind }] });
                 setPick({ a: '', b: '', kind: pick.kind });
               }}
               className="self-start py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer disabled:opacity-50"
             >
-              + Add rule
+              {pick.kind === 'knows' ? '+ They know each other' : '+ Add rule'}
             </button>
+            <span className="text-[12px] text-[#7a7466]">“Knows” puts the two in a shared circle, so Suggest a plan sits them together.</span>
+            <div className="flex gap-2 items-center flex-wrap">
+              <select aria-label="Someone who knows no one" value={loner} onChange={(e) => setLoner(e.target.value)} className={`${inputCls} !py-[6px] !text-[13px] flex-1 min-w-0`}>
+                <option value="">Someone…</option>
+                {coming.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!loner || pairing}
+                onClick={() => {
+                  const p = data.people.find((x) => x.id === loner);
+                  if (p) void addCircle([p.invitationId], KNOWS_NO_ONE, `${p.name} is marked as knowing no one: Suggest a plan seats them at a friendly table.`);
+                  setLoner('');
+                }}
+                className="py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer disabled:opacity-50"
+              >
+                + Knows no one here
+              </button>
+            </div>
           </div>
         </div>
       )}
