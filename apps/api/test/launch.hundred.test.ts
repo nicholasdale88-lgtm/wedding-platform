@@ -208,6 +208,7 @@ describe('a hundred weddings, generated', () => {
     const tag = `#${n} (${plan})`;
     const w = await signup({ firstName: FIRST[n % 25]!, partnerName: PARTNERS[n % 8]!, email: `couple${n}@example.com`, date: day(60 + (n % 200)) });
     if (plan !== 'free') await upgrade(w, plan);
+    else await t.db.prepare(`UPDATE wedding SET plan = 'basic' WHERE id = ?`).bind(w.id).run(); // Basic, paid: guests' pages are live
 
     // A second event for some (Free can't add one: it asks for the add-on).
     const keys = ['wedding'];

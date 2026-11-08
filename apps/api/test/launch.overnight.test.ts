@@ -298,8 +298,9 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
       w.tag = `#${n} (${plan})`;
       if (w.tz !== TZ) await t.db.prepare(`UPDATE wedding SET timezone = ? WHERE id = ?`).bind(w.tz, w.id).run();
       weddings.push(w);
-      // Free: a second event is an add-on.
+      // Basic (paid, so guests' pages are live): a second event is an add-on.
       if (plan === 'free') {
+        await t.db.prepare(`UPDATE wedding SET plan = 'basic' WHERE id = ?`).bind(w.id).run();
         if (n % 4 === 0) expect((await post(w, '/events', { name: 'Welcome drinks', startsAt: `${day(89 + (n % 300))}T08:00:00.000Z` })).status, w.tag).toBe(402);
         continue;
       }
@@ -347,7 +348,7 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
     const st = await json<Stats>(await company('/stats'));
     const plans = (p: Plan) => weddings.filter((w) => w.plan === p).length;
     expect(st.weddings).toBe(WEDDINGS + 1);
-    expect(st.plans).toMatchObject({ free: plans('free') + 1, essentials: plans('essentials'), complete: plans('complete') });
+    expect(st.plans).toMatchObject({ free: 1, basic: plans('free'), essentials: plans('essentials'), complete: plans('complete') }); // 'free': the one not paid yet
     expect(st.revenue).toMatchObject({ total: payments.reduce((a, p) => a + p.cents, 0), payments: payments.length });
     const money = await json<{ total: { gross: number; sales: number } }>(await company('/money'));
     expect(money.total).toMatchObject({ gross: payments.reduce((a, p) => a + p.cents, 0), sales: payments.length });
