@@ -9,7 +9,7 @@ import { testD1 } from './support/d1';
 import { fakeClock, FakeProvider } from './support/fakes';
 
 /**
- * The overnight run: 120 sample weddings in ONE database, built from a seed so any failure reproduces, taken
+ * The overnight run: 60 sample weddings on every push (500 in the Nightly workflow) in ONE database, built from a seed so any failure reproduces, taken
  * through a couple's whole year phase by phase (each phase an `it`, in order). Sizes 10 to 350 guests, one to
  * three events, Free, Essentials and Deluxe (upgraded by the platform, a promo code, a card payment and a
  * payment link), guest lists with odd data, a concept seating plan before the invitations, invitations by text
@@ -26,7 +26,10 @@ function rng(seed: number) {
   return () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
 }
 
-const WEDDINGS = 120;
+/** 60 on every push; the Nightly workflow runs 500 (STRESS_WEDDINGS=500). */
+const WEDDINGS = Math.max(30, Number(process.env.STRESS_WEDDINGS) || 60);
+/** Each phase gets more time as the number of weddings grows. */
+const PHASE_MS = Math.round(300_000 * Math.max(1, WEDDINGS / 60));
 const BOSS = 'boss@overnight.example';
 const PASSCODE = 'overnight-2027';
 const WHSEC = 'whsec_overnight';
@@ -72,7 +75,7 @@ type SeatView = {
 };
 type Stats = { weddings: number; plans: Record<string, number>; revenue: { total: number; payments: number }; guests: number; replies: number };
 
-describe('overnight: 120 sample weddings, phase by phase', () => {
+describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
   let t: Awaited<ReturnType<typeof testD1>>;
   let env: Env;
   const provider = new FakeProvider();
@@ -252,7 +255,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 1
-  it('1. 120 couples sign up; plans by the platform, a promo code, a card (webhook twice) and a payment link; 1 to 3 events', { timeout: 300_000 }, async () => {
+  it(`1. ${WEDDINGS} couples sign up; plans by the platform, a promo code, a card (webhook twice) and a payment link; 1 to 3 events`, { timeout: PHASE_MS }, async () => {
     const signup = async (firstName: string, partnerName: string, email: string, date: string) => {
       const r = await call('/a/signup', { method: 'POST', body: JSON.stringify({ firstName, partnerName, email, date, passcode: PASSCODE, plan: 'free', marketing: false, website: '' }) }, '', nextIp());
       expect(r.status, `${email}: ${await r.clone().text()}`).toBe(200);
@@ -354,7 +357,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 2
-  it('2. guest lists with odd data: duplicates, no mobiles, emails, unicode, huge households, plus-ones, Free over its limit', { timeout: 300_000 }, async () => {
+  it('2. guest lists with odd data: duplicates, no mobiles, emails, unicode, huge households, plus-ones, Free over its limit', { timeout: PHASE_MS }, async () => {
     for (const w of weddings) {
       const r = rng(7919 * (w.n + 11));
       const free = w.plan === 'free';
@@ -434,7 +437,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 3
-  it('3. a concept seating plan before any invitation: everyone pencilled in by auto-seat, no table over its seats', { timeout: 300_000 }, async () => {
+  it('3. a concept seating plan before any invitation: everyone pencilled in by auto-seat, no table over its seats', { timeout: PHASE_MS }, async () => {
     for (const w of weddings) {
       const s0 = await json<SeatView>(await admin(w, '/seating'));
       if (w.plan === 'free') {
@@ -466,7 +469,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 4
-  it('4. invitations by text and email through the real cron: quiet hours, daily caps, each guest once, Free emails only', { timeout: 300_000 }, async () => {
+  it('4. invitations by text and email through the real cron: quiet hours, daily caps, each guest once, Free emails only', { timeout: PHASE_MS }, async () => {
     const D = day(2);
     const paid = weddings.filter((w) => w.plan !== 'free');
     for (const w of paid) {
@@ -539,7 +542,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 5
-  it('5. replies: yes for some of the household, no, split answers, changes of mind, dietary needs, late replies after the close', { timeout: 300_000 }, async () => {
+  it('5. replies: yes for some of the household, no, split answers, changes of mind, dietary needs, late replies after the close', { timeout: PHASE_MS }, async () => {
     const rsvp = async (w: Wd, g: Inv, answers: Record<string, boolean>, count: number, extra: Record<string, unknown> = {}) => {
       const r = await call(
         `/p/${w.slug}/rsvp`,
@@ -598,7 +601,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 6
-  it('6. seating after the replies: auto-seat, versions, published with only the people coming', { timeout: 300_000 }, async () => {
+  it('6. seating after the replies: auto-seat, versions, published with only the people coming', { timeout: PHASE_MS }, async () => {
     for (const w of weddings.filter((x) => x.plan !== 'free')) {
       const s1 = await seatingMatches(w, 'wedding');
       // Auto-seat everyone still on the plan (pencilled-in guests keep a place), keeping who's already seated.
@@ -628,7 +631,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 7
-  it('7. declines after being seated (on the website, by the couple, by email, fewer coming): seats and meals freed, guests told once republished', { timeout: 300_000 }, async () => {
+  it('7. declines after being seated (on the website, by the couple, by email, fewer coming): seats and meals freed, guests told once republished', { timeout: PHASE_MS }, async () => {
     for (const w of weddings.filter((x) => x.plan !== 'free' && !x.closed)) {
       const seated = await json<SeatView>(await admin(w, '/seating?event=wedding'));
       const seatedInv = new Set(seated.people.filter((p) => p.tableId && p.coming).map((p) => p.invitationId));
@@ -674,7 +677,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 8
-  it('8. the planner: budget, vendors with quotes and a booking, the wedding party with its own page', { timeout: 300_000 }, async () => {
+  it('8. the planner: budget, vendors with quotes and a booking, the wedding party with its own page', { timeout: PHASE_MS }, async () => {
     for (const w of weddings.filter((x) => x.plan !== 'free')) {
       const budget = { total: 20_000 + w.n * 250, guests: w.invs.length, lines: [{ category: 'Venue and catering', item: 'Venue hire', estimate: 9000 + w.n }, { category: 'Music', item: 'DJ', estimate: 1800 }] };
       const b = await put(w, '/planner/doc/budget', 0, budget);
@@ -713,7 +716,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 9
-  it("9. the inbox: each wedding's email lands only in its own inbox; a guest's emailed no frees their seat; a vendor's quote is filed", { timeout: 300_000 }, async () => {
+  it("9. the inbox: each wedding's email lands only in its own inbox; a guest's emailed no frees their seat; a vendor's quote is filed", { timeout: PHASE_MS }, async () => {
     const mail = (to: string, from: string, subject: string, text: string, id: string, attach = '') => {
       const raw = attach
         ? `From: ${from}\r\nSubject: ${subject}\r\nMessage-ID: <${id}@overnight.example>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary="b"\r\n\r\n--b\r\nContent-Type: text/plain\r\n\r\n${text}\r\n--b\r\nContent-Type: application/pdf; name="${attach}"\r\nContent-Disposition: attachment; filename="${attach}"\r\nContent-Transfer-Encoding: base64\r\n\r\n${btoa('%PDF-1.4 quote')}\r\n--b--\r\n`
@@ -770,7 +773,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 10
-  it('10. the company portal against every wedding: stats, money, feedback, staff and a bot see the same totals', { timeout: 300_000 }, async () => {
+  it('10. the company portal against every wedding: stats, money, feedback, staff and a bot see the same totals', { timeout: PHASE_MS }, async () => {
     const people = weddings.reduce((a, w) => a + w.invs.reduce((b, g) => b + g.people.length, 0), 0);
     const replies = weddings.reduce((a, w) => a + w.invs.reduce((b, g) => b + g.invited.filter((k) => g.rsvp[k]).length, 0), 0);
     const cents = payments.reduce((a, p) => a + p.cents, 0);
@@ -806,7 +809,7 @@ describe('overnight: 120 sample weddings, phase by phase', () => {
   });
 
   // ------------------------------------------------------------------------------------------------ 11
-  it("11. isolation: every couple's session and every guest link is refused by every other wedding", { timeout: 300_000 }, async () => {
+  it("11. isolation: every couple's session and every guest link is refused by every other wedding", { timeout: PHASE_MS }, async () => {
     for (let k = 0; k < weddings.length; k++) {
       const me = weddings[k]!;
       const other = weddings[(k + 1) % weddings.length]!;

@@ -7,6 +7,10 @@ on:
     - cron: '0 16 * * *' # 2am Sydney: backup and security check
     - cron: '0 4 * * *' # 2pm Sydney: backup only
   workflow_dispatch:
+    inputs:
+      weddings:
+        description: How many sample weddings the stress run builds
+        default: "500"
 
 permissions:
   contents: read
@@ -110,3 +114,31 @@ jobs:
             echo "$h" | grep -q "^$want" || { echo "::error::The live site is missing $want"; exit 1; }
           done
           echo "Headers OK"
+
+  stress:
+    # The overnight stress run at full size (apps/api/test/launch.overnight.test.ts): 500 sample weddings in one
+    # database, through every flow, with the invariants checked after each phase. Every push runs it with 60.
+    # Once a day (the 2am run), or by hand with any number.
+    if: ${{ github.event.schedule != '0 4 * * *' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Stress run (sample weddings)
+        env:
+          STRESS_WEDDINGS: ${{ inputs.weddings || '500' }}
+        run: pnpm --filter ./apps/api exec vitest run test/launch.overnight.test.ts
