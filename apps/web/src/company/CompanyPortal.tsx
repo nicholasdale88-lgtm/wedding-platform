@@ -632,7 +632,7 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
   );
 }
 
-function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { id: string; name: string; role: string }[]; meId: string; onSaved: (msg: string) => void }) {
+function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { id: string; name: string; role: string; roleName?: string }[]; meId: string; onSaved: (msg: string) => void }) {
   const [note, setNote] = useState(f.note);
   const [problem, setProblem] = useState('');
   const update = async (body: { status?: CompanyFeedback['status']; note?: string; assignee?: string }, msg: string) => {
