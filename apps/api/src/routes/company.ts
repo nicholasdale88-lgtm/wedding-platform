@@ -112,7 +112,7 @@ export function companyRoutes() {
       }
     };
     const monthStart = `${now.toISOString().slice(0, 7)}-01`;
-    const revenue = { total: paid.reduce((a, p) => a + cents(p.detail), 0), thisMonth: paid.filter((p) => p.at >= monthStart).reduce((a, p) => a + cents(p.detail), 0), payments: paid.filter((p) => cents(p.detail) > 0).length };
+    const revenue = { total: paid.reduce((a, p) => a + cents(p.detail), 0), thisMonth: paid.filter((p) => p.at >= monthStart).reduce((a, p) => a + cents(p.detail), 0), payments: paid.filter((p) => cents(p.detail) >= 0).length }; // a free code's $0 is still a payment; refunds aren't
     const requests = await one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND json_valid(content) AND json_extract(content, '$.planRequested') IS NOT NULL`);
     const { results: refs } = await db
       .prepare(
