@@ -36,10 +36,8 @@ describe('site security headers', () => {
     for (const bot of ['GPTBot', 'ClaudeBot', 'Google-Extended', 'CCBot', 'PerplexityBot', 'Bytespider', 'meta-externalagent', 'Applebot-Extended']) {
       expect(robots).toContain(`User-agent: ${bot}`);
     }
-    expect(robots).toMatch(/User-agent: TikTokSpider
-Disallow: \//);
+    expect(robots).toMatch(/User-agent: TikTokSpider\r?\nDisallow: \//);
     expect(headers).toMatch(/X-Robots-Tag: noindex, nofollow, noai, noimageai/);
-    expect(headers.match(/! X-Robots-Tag
- {2}X-Robots-Tag: noai, noimageai/g)?.length).toBe(headers.match(/! X-Robots-Tag/g)?.length);
+    expect(headers.match(/! X-Robots-Tag\r?\n {2}X-Robots-Tag: noai, noimageai/g)?.length).toBe(headers.match(/! X-Robots-Tag/g)?.length);
   });
 });
