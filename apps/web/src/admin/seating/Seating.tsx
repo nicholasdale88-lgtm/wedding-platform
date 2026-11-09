@@ -1,6 +1,6 @@
 import { autoSeat as autoSeatPlan, chairsAt, clampTable, metresAspect, roomMetres, roomSizeM, sizeLabel, TABLE_SIZE_M, tableMetres, compareLine, planSummary, suggestName, suggestSeating, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData } from '../../lib/api';
 import { fileName } from '../../lib/csv';
@@ -175,8 +175,15 @@ function SeatingPlan() {
   // Printing (the Print floor plan button, or the browser's own Print) prints only the paper floor plan
   // and table list, not the admin around it.
   useEffect(() => {
-    const on = () => document.documentElement.classList.add('seat-printing');
-    const off = () => document.documentElement.classList.remove('seat-printing');
+    // The document is only built while printing (it's big, and the page doesn't need it otherwise).
+    const on = () => {
+      flushSync(() => setPrinting(true));
+      document.documentElement.classList.add('seat-printing');
+    };
+    const off = () => {
+      document.documentElement.classList.remove('seat-printing');
+      setPrinting(false);
+    };
     window.addEventListener('beforeprint', on);
     window.addEventListener('afterprint', off);
     return () => {
@@ -201,6 +208,7 @@ function SeatingPlan() {
   // Who sits in each chair at each table (chosen chairs kept, everyone else in the next free one).
   // The seating PDF: what goes in it (all of it unless unticked).
   const [printOpen, setPrintOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [printParts, setPrintParts] = useState<SeatingPrintOptions>(ALL_PARTS);
   const chairMap = useMemo(() => new Map(tables.map((t) => [t.id, chairsAt(byTable.get(t.id) ?? [], chairs, t.seats)])), [tables, byTable, chairs]);
   const seatRules = useSeatRules(s?.event.key);
@@ -788,7 +796,8 @@ function SeatingPlan() {
                       disabled={!Object.values(printParts).some(Boolean)}
                       onClick={() => {
                         setPrintOpen(false);
-                        window.setTimeout(() => window.print(), 50);
+                        flushSync(() => setPrinting(true));
+                        window.print();
                       }}
                     >
                       Make the PDF
@@ -1276,8 +1285,8 @@ function SeatingPlan() {
       </div>
 
       {/* What's printed (and only that): the branded seating document. Outside the page so it prints on its own. */}
-      {createPortal(
-        <div className="hidden print:block">
+      {printing && createPortal(
+        <div className="seat-print hidden print:block">
           <SeatingPrint
             couple={couple}
             eventName={s.event.name}

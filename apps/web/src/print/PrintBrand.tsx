@@ -31,6 +31,8 @@ export const PRINT_BASE_CSS = `
 }
 @media print {
   @page { size: A4; margin: 11mm 11mm 13mm; }
+  /* Printing from the admin: only the document, not the screens around it. */
+  html.seat-printing body > *:not(.seat-print) { display: none !important; }
   .yl-sheet { break-after: page; padding: 0; }
   .yl-sheet:last-child { break-after: auto; }
 }`;
