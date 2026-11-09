@@ -102,3 +102,31 @@ test('seating: the couple are there to seat without being guests', async ({ page
   await expect(page.getByText('Olivia').first()).toBeVisible();
   await expect(page.getByText('James').first()).toBeVisible();
 });
+
+test('seating: Move tables drags a table (and never opens it); in Seat guests a tap opens it; changes save themselves', async ({ page }) => {
+  await page.goto(`/admin/${wid}/wedding/seating`);
+  await page.getByRole('button', { name: 'Edit seating' }).click();
+  await page.getByRole('tab', { name: 'Move tables' }).click();
+  await page.getByRole('button', { name: '+ Add tables' }).click();
+  const plan = page.getByRole('application', { name: 'Floor plan' });
+  const box = (await plan.boundingBox())!;
+  await plan.click({ position: { x: box.width * 0.3, y: box.height * 0.4 } });
+  await page.getByRole('button', { name: 'Done adding' }).click();
+  const table = page.getByRole('button', { name: /^Table 1, / });
+  await expect(table).toBeVisible();
+  const before = (await table.boundingBox())!;
+  // Drag it across the room (a finger on a phone, the mouse on a computer).
+  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(before.x + before.width / 2 + box.width * 0.3, before.y + before.height / 2 + 10, { steps: 12 });
+  await page.mouse.up();
+  const after = (await table.boundingBox())!;
+  expect(after.x - before.x).toBeGreaterThan(box.width * 0.15);
+  await expect(page.getByRole('dialog', { name: /seat by seat/ })).toHaveCount(0); // moving never opens it
+  // It saves itself.
+  await expect(page.getByRole('button', { name: 'Saved ✓' })).toBeVisible({ timeout: 15_000 });
+  // Seat guests: a tap opens the table.
+  await page.getByRole('tab', { name: 'Seat guests' }).click();
+  await table.click();
+  await expect(page.getByRole('dialog', { name: /seat by seat/ })).toBeVisible();
+});

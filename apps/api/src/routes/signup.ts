@@ -88,7 +88,8 @@ export function signupRoutes() {
       db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
         userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
       ),
-      db.prepare(`INSERT INTO wedding (id, slug, name1, name2, monogram, timezone, content, plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'free', ?, ?)`).bind(
+      // Staging only (no texts, emails or payments there): every feature, to try it all.
+      db.prepare(`INSERT INTO wedding (id, slug, name1, name2, monogram, timezone, content, plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '${c.env.STAGING === '1' ? 'complete' : 'free'}', ?, ?)`).bind(
         weddingId, slug, b.firstName, b.partnerName, monogram, tz, content, now, now,
       ),
       db.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES (?, ?, 'owner')`).bind(weddingId, userId),

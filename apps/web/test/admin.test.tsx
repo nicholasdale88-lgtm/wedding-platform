@@ -911,7 +911,7 @@ describe('seating tab', () => {
     await userEvent.type(screen.getByRole('searchbox', { name: 'Find a guest' }), 'jo');
     expect(screen.getByText('Not seated · not replied yet')).toBeInTheDocument();
     // Numbered row by row: the top table (9) becomes 1.
-    await userEvent.click(screen.getByRole('tab', { name: 'Tables' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Move tables' }));
     await userEvent.click(screen.getByRole('button', { name: 'Number tables 1, 2, 3…' }));
     expect(screen.getByRole('button', { name: 'Table 1, 2 of 4' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Table 2, 0 of 4' })).toBeInTheDocument();
@@ -1077,7 +1077,7 @@ describe('seating publish', () => {
     expect(await screen.findByText(/2 saved changes are not live yet/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeEnabled();
     await userEvent.click(screen.getByRole('button', { name: 'Edit seating' }));
-    await userEvent.click(screen.getByRole('tab', { name: 'Tables' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Move tables' }));
     await userEvent.click(screen.getByRole('button', { name: 'Line up tables' })); // an unsaved edit
     expect(screen.getByRole('button', { name: 'Publish 2 changes' })).toBeDisabled();
   });

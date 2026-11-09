@@ -33,7 +33,7 @@ type Sel = { kind: 'table'; id: string } | { kind: 'area'; i: number } | null;
 type Tool = 'guests' | 'tables' | 'room';
 const TOOLS: [Tool, string][] = [
   ['guests', 'Seat guests'],
-  ['tables', 'Tables'],
+  ['tables', 'Move tables'],
   ['room', 'Room'],
 ];
 const round10 = (n: number) => Math.round(n * 10) / 10;
@@ -72,6 +72,14 @@ function SeatingPlan() {
   const [params] = useSearchParams();
   const [s, setS] = useState<SeatingData | null>(null);
   const [{ doc, past, future, dirty }, dispatch] = useReducer(history, emptyHistory);
+  // Autosave (see autoSave below): a moment after the last change. Hooks here, before any early return.
+  const autoSaving = useRef(false);
+  const autoSaveRef = useRef<() => void>(() => undefined);
+  useEffect(() => {
+    if (!dirty) return;
+    const t = window.setTimeout(() => autoSaveRef.current(), 1500);
+    return () => window.clearTimeout(t);
+  }, [doc, dirty]);
   const [sel, setSel] = useState<Sel>(null);
   const [adding, setAdding] = useState(false);
   const [shape, setShape] = useState<TableShape>('round');
@@ -85,6 +93,9 @@ function SeatingPlan() {
   const roomTools = editing;
   // Which tab of tools shows while editing.
   const [tool, setTool] = useState<Tool>('guests');
+  // The tool, for the pointer handlers (they're made once per render but read it when pressed).
+  const toolRef = useRef<Tool>('guests');
+  toolRef.current = tool;
   const [groupFilter, setGroupFilter] = useState('');
   // Who to seat, if chosen: everyone invited (guests still to reply are pencilled in), or only those who
   // said yes. Until chosen it follows the stage: everyone invited while drafting and replies come in.
@@ -285,13 +296,16 @@ function SeatingPlan() {
   const down = (kind: Drag['kind'], key: string | number, x: number, y: number) => (e: PointerEvent) => {
     e.stopPropagation();
     if (!editingRef.current) return;
+    // Seating guests: a table is chosen (and a tap opens it); it never moves by accident.
+    if (kind === 'table' && toolRef.current !== 'tables') return select(kind, key);
+    const moving = toolRef.current !== 'guests'; // Move tables and Room: a drag moves straight away, no hold
     const grab = (clientX: number, clientY: number) => {
       const p = at({ clientX, clientY });
       drag.current = { kind, key, dx: p.x - x, dy: p.y - y, moved: false };
       select(kind, key);
     };
     cancelPress();
-    if (e.pointerType === 'touch' && !isSelected(kind, key)) {
+    if (e.pointerType === 'touch' && !isSelected(kind, key) && !moving) {
       const { clientX, clientY } = e;
       press.current = {
         x: clientX,
@@ -337,6 +351,7 @@ function SeatingPlan() {
     if (kind === 'table' || editingRef.current) select(kind, key);
     // Looking, or seating guests: the table opens up big, chair by chair (moving tables is under Tables).
     if (kind === 'table' && !wasDrag && (!editingRef.current || tool === 'guests')) setFocus(key as string);
+    // (Move tables and Room: a tap only chooses it, so its settings show.)
   };
   const planClick = (e: MouseEvent) => {
     if (!adding) return setSel(null);
@@ -398,7 +413,6 @@ function SeatingPlan() {
    * it saves is saved next time. A clash or someone saying no meanwhile goes through the full save (which
    * explains what happened).
    */
-  const autoSaving = useRef(false);
   const autoSave = async () => {
     if (autoSaving.current || busy || viewing) return;
     autoSaving.current = true;
@@ -421,11 +435,7 @@ function SeatingPlan() {
       setBusy(false);
     }
   };
-  useEffect(() => {
-    if (!dirty || viewing) return;
-    const t = window.setTimeout(() => void autoSave(), 1500);
-    return () => window.clearTimeout(t);
-  }, [doc, dirty, viewing]); // eslint-disable-line
+  autoSaveRef.current = () => void autoSave();
 
   /** Guests' guides and the night-before text switch to the saved plan. Save first; publish again after changes. */
   const publish = async () => {
@@ -773,6 +783,18 @@ function SeatingPlan() {
           >
             {editing ? 'Done editing' : 'Edit seating'}
           </Pill>
+          {!editing && tables.length > 0 && (
+            <Pill
+              disabled={!!viewing}
+              onClick={() => {
+                setEditing(true);
+                setTool('tables');
+                setAdding(false);
+              }}
+            >
+              Move tables
+            </Pill>
+          )}
           {editing && (
             <>
               <Pill onClick={undo} disabled={!past.length} aria-label="Undo">
@@ -980,12 +1002,12 @@ function SeatingPlan() {
             ? 'Tap the plan to drop a table. Tap Done adding when finished.'
             : tool === 'guests'
               ? mob
-                ? 'Tap a table to open it and seat people. To move a table: hold it until it lifts, then drag.'
-                : 'Click a table to open it and seat people, or drag guests onto it. Drag a table to move it.'
+                ? 'Tap a table to open it and seat people. To move tables, tap Move tables above.'
+                : 'Click a table to open it and seat people, or drag guests onto it. To move tables, choose Move tables above.'
               : tool === 'tables'
                 ? mob
-                  ? 'Hold a table until it lifts, then drag it to move it. Tap a table to change its seats, type and size.'
-                  : 'Drag tables to arrange the room. Tap a table to change its seats, type and size in metres. Ctrl+Z undoes.'
+                  ? 'Drag any table to move it (the plan holds still while you do). Tap a table to change its seats, type and size. Done editing when you’re happy.'
+                  : 'Drag any table to move it. Click a table to change its seats, type and size in metres. Ctrl+Z undoes.'
                 : 'Choose the room’s shape and size, add the dance floor, bar and other areas, then tap an area to size it.'}
       </div>
 
@@ -1001,7 +1023,7 @@ function SeatingPlan() {
             onPointerLeave={up}
             role="application"
             aria-label="Floor plan"
-            className={`relative select-none touch-pan-x touch-pan-y ${adding ? 'cursor-crosshair' : ''}`}
+            className={`relative select-none ${editing && tool !== 'guests' && !adding ? 'touch-none' : 'touch-pan-x touch-pan-y'} ${adding ? 'cursor-crosshair' : ''}`}
             style={{ width: `${zoom * 100}%`, aspectRatio: cssAspect(aspect), background: '#fbf8f2', backgroundImage: 'radial-gradient(#e2d7bc 1px, transparent 1.2px)', backgroundSize: '18px 18px' }}
           >
             {areas.map((a, i) => (
