@@ -12,7 +12,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 1,
-  reporter: [['list'], ['html', { open: 'never' }]],
+  // On GitHub, each failure also shows as a note on the run page.
+  reporter: process.env.CI ? [['github'], ['list'], ['html', { open: 'never' }]] : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'retain-on-failure',

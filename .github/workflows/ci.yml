@@ -134,8 +134,9 @@ jobs:
       - name: Logs and report (when something failed)
         if: failure()
         run: |
-          tail -80 "$RUNNER_TEMP/api.log" || true
-          tail -40 "$RUNNER_TEMP/web.log" || true
+          # The app's own errors, as notes on the run page.
+          grep -iE 'error|exception|fail' "$RUNNER_TEMP/api.log" | tail -15 | while IFS= read -r l; do echo "::warning title=API log::${l:0:400}"; done || true
+          grep -iE 'error|fail' "$RUNNER_TEMP/web.log" | tail -5 | while IFS= read -r l; do echo "::warning title=Web log::${l:0:400}"; done || true
 
       - uses: actions/upload-artifact@v4
         if: failure()
