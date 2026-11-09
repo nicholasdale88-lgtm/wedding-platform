@@ -64,8 +64,8 @@ function build() {
       email: i % 4 === 0 ? `${people[0]!.name.split(' ')[0]!.toLowerCase()}@example.com` : '',
       channel: '',
       seatsHeld: people.length,
-      party: PARTIES[i % PARTIES.length]!,
-      side: i % 2 ? 'p2' : 'p1',
+      party: PARTIES[Math.floor(i / 6) % PARTIES.length]!, // neighbours in the list share a group (and a table)
+      side: Math.floor(i / 6) % 2 ? 'p2' : 'p1',
       relation: '',
       circles: [],
       delivery: 'digital',
