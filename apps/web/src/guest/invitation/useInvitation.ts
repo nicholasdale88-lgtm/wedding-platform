@@ -138,7 +138,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
   // ---------------------------------------------------------------- theme
   // Before the first paint: otherwise the design's own (green) colours flash up, every time the preview reloads.
   useLayoutEffect(() => {
-    const look = themeOf(data.wedding.theme, data.content.custom);
+    const look = themeOf(data.wedding.theme, data.content.custom, true);
     // Their own envelope paper (Setup → Invitation → Envelope and seal) over the look's envelope colour.
     const th = { ...look, ...paperVars(data.content.envelope?.paper, look.dg ?? '#33402f') };
     const st = document.documentElement.style;

@@ -204,7 +204,8 @@ export const themeLabel = (name: string) => THEME_LABELS[name] ?? name;
 export const THEME_NAMES = [...Object.keys(THEMES), ...Object.keys(PRESETS)];
 
 /** A theme's full settings, with the couple's own colours and names style on top. */
-export function themeOf(name: string | undefined, custom?: ThemeCustom): Record<string, string> {
+/** withLook: the invitation itself, where the names are also lettered to suit the look (when no names style is chosen). */
+export function themeOf(name: string | undefined, custom?: ThemeCustom, withLook = false): Record<string, string> {
   const n = name ?? '';
   const own = custom && (isHex(custom.paper) || isHex(custom.ink) || isHex(custom.accent) || isHex(custom.soft) || isHex(custom.envelope));
   let t: Record<string, string>;
@@ -219,7 +220,7 @@ export function themeOf(name: string | undefined, custom?: ThemeCustom): Record<
   const vars = custom?.names ? NAMES_STYLES[custom.names]?.vars : undefined;
   if (vars) t = { ...t, ...vars };
   // No names style chosen: lettered to suit the look.
-  else if (!custom?.names) t = { ...t, ...(LOOK_NAMES[lookOf(n, custom)] ?? {}) };
+  else if (withLook) t = { ...t, ...(LOOK_NAMES[lookOf(n, custom)] ?? {}) };
   if (custom?.names === 'script') {
     const { nf: _nf, nls: _nls, ntt: _ntt, nsz: _nsz, ...rest } = t;
     void _nf;
