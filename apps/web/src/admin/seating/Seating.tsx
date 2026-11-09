@@ -91,9 +91,10 @@ function SeatingPlan() {
   const [editing, setEditing] = useState(false);
   const editingRef = useRef(false);
   editingRef.current = editing;
-  const roomTools = editing && tool === 'setup';
   // Which tab of tools shows while editing.
   const [tool, setTool] = useState<Tool>('guests');
+  // A table's seats, type and size are changed in Table settings only.
+  const roomTools = editing && tool === 'setup';
   // The tool, for the pointer handlers (they're made once per render but read it when pressed).
   const toolRef = useRef<Tool>('guests');
   toolRef.current = tool;
