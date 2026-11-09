@@ -3,7 +3,7 @@ import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, us
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
-import { downloadCsv, fileName } from '../lib/csv';
+import { fileName } from '../lib/csv';
 import { downloadDressed } from './exportLook';
 import { GuestDrawer } from './GuestDrawer';
 import { exportSheets, labelRows } from './guestImport';
@@ -265,8 +265,8 @@ export function Guests() {
               <Pill disabled={!labels.length} onClick={() => (setMore(false), printLabels(labels, overview?.wedding.slug ?? 'wedding'))} title="A printable A4 sheet of address labels for everyone getting a printed invitation">
                 Address labels
               </Pill>
-              <Pill disabled={!labels.length} onClick={() => (setMore(false), downloadCsv(fileName(overview?.wedding.slug ?? 'wedding', 'address-labels'), [['To', 'Address line 1', 'Address line 2', 'Address line 3', 'Address line 4'], ...labels.map((l) => [l.to, ...l.lines])]))}>
-                Address labels (CSV)
+              <Pill disabled={!labels.length} onClick={() => (setMore(false), void downloadDressed(wid, overview, fileName(overview?.wedding.slug ?? 'wedding', 'address-labels', 'xlsx'), 'Addresses', [{ name: 'Addresses', rows: [['To', 'Address line 1', 'Address line 2', 'Address line 3', 'Address line 4'], ...labels.map((l) => [l.to, ...l.lines])] }]))}>
+                Address list (Excel)
               </Pill>
               <Pill
                 disabled={!guests.length}

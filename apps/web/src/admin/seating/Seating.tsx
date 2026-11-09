@@ -39,6 +39,16 @@ const TOOLS: [Tool, string][] = [
 const round10 = (n: number) => Math.round(n * 10) / 10;
 type Drag = { kind: 'table' | 'area'; key: string | number; dx: number; dy: number; moved: boolean };
 type Person = SeatingData['people'][number];
+/** The bride and groom (in the seating without being guests): their own colour everywhere they appear. */
+const COUPLE = '#a4566a';
+const isCouple = (p: { id: string } | null | undefined) => !!p && p.id.startsWith('couple-');
+function CoupleMark({ p }: { p: { id: string } }) {
+  return isCouple(p) ? (
+    <span aria-label="the couple" className="ml-1 inline-block px-[6px] rounded-full text-[10px] leading-[16px] font-semibold align-middle text-white" style={{ background: COUPLE }}>
+      ♥
+    </span>
+  ) : null;
+}
 const AREAS = ['Dance floor', 'DJ', 'Bar', 'Entrance', 'Balcony', 'Fireplace', 'Cake table', 'Photo booth', 'Gift table', 'Area'];
 const round1 = (n: number) => Math.round(n * 10) / 10;
 /** How far (px) a press can wander and still be a tap, and how long a finger holds before a drag starts. */
@@ -1120,6 +1130,7 @@ function SeatingPlan() {
                       style={editing ? { WebkitTouchCallout: 'none', ...tapTarget(mob) } : undefined}
                     >
                       <span className={p.coming ? undefined : 'italic text-[#7a7466]'}>{p.name}</span>
+                      <CoupleMark p={p} />
                       {p.diet && <span className={`block text-[12px] ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span>}
                       {!p.coming && <span className="block text-[12px] text-[#5e5130]">Not replied yet · pencilled in</span>}
                     </span>
@@ -1156,6 +1167,7 @@ function SeatingPlan() {
                         className="py-2 px-3 min-h-[40px] rounded-full border border-[#c6b794] bg-[#f6f0e2] text-[14px] cursor-pointer text-[#33402f] select-none"
                       >
                         {p.name}
+                        <CoupleMark p={p} />
                         {isSerious(p.diet) && <span className="ml-1 text-[#7a4a37]">●</span>}
                       </button>
                     ))}
@@ -1238,6 +1250,7 @@ function SeatingPlan() {
                       className={`${mob ? 'py-2 min-h-[40px]' : 'py-[5px]'} px-3 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[13px] ${editing ? 'cursor-grab' : 'cursor-pointer'} select-none hover:bg-[#efe7d3] text-[#33402f]`}
                     >
                       {p.name}
+                      <CoupleMark p={p} />
                       {isSerious(p.diet) && <span className="ml-1 text-[#7a4a37]">●</span>}
                     </button>
                   ))}
@@ -1269,7 +1282,7 @@ function SeatingPlan() {
             couple={couple}
             eventName={s.event.name}
             when={when}
-            venue={[ev?.venue, ev?.address].filter((x) => x?.trim()).join(', ')}
+            venue={ev?.venue ?? ''}
             aspect={aspect}
             tables={tables}
             areas={areas}
@@ -1625,7 +1638,7 @@ function TableShapeView({
             width: dot,
             height: dot,
             transform: 'translate(-50%,-50%)',
-            background: chairs[i] ? (chairs[i]!.party ? groupColour(chairs[i]!.party) : selected ? '#b39563' : '#5d6b47') : '#fbf8f2',
+            background: chairs[i] ? (isCouple(chairs[i]) ? COUPLE : chairs[i]!.party ? groupColour(chairs[i]!.party) : selected ? '#b39563' : '#5d6b47') : '#fbf8f2',
             border: `1px solid ${chairs[i] ? 'transparent' : '#c6b794'}`,
             opacity: chairs[i] && !chairs[i]!.coming ? 0.45 : undefined, // pencilled in: not replied yet
           }}
@@ -1989,7 +2002,7 @@ function TableFocus({
         disabled={!editing}
         onClick={() => setChair(on ? null : i + 1)}
         className={`flex-none flex flex-col items-center justify-center rounded-full border text-center leading-tight cursor-pointer disabled:cursor-default ${mob ? 'text-[10px]' : 'text-[11px]'} ${
-          on ? 'border-[#33402f] border-2 bg-[#33402f] text-[#f3ecd6]' : p ? 'border-transparent bg-[#5d6b47] text-white' : 'border-dashed border-[#c6b794] bg-white text-[#7a7466]'
+          on ? 'border-[#33402f] border-2 bg-[#33402f] text-[#f3ecd6]' : p ? `border-transparent ${isCouple(p) ? 'bg-[#a4566a]' : 'bg-[#5d6b47]'} text-white` : 'border-dashed border-[#c6b794] bg-white text-[#7a7466]'
         }`}
         style={{ width: CH, height: CH, opacity: p && !p.coming ? 0.6 : undefined, ...style }}
       >
@@ -2004,6 +2017,7 @@ function TableFocus({
     const name = (
       <span className={`min-w-0 flex-1 truncate text-[14px] ${nameLeft ? 'text-right' : ''} ${p ? 'text-[#33402f]' : 'italic text-[#9a9384]'}`}>
         {p ? p.name : 'Empty'}
+        {p && <CoupleMark p={p} />}
         {p?.diet ? <span className={`block text-[11px] truncate ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span> : null}
       </span>
     );
@@ -2158,6 +2172,7 @@ function TableFocus({
               <span className={`w-[52px] flex-none text-[12px] ${i < t.seats ? 'text-[#7a7466]' : 'text-[#7a4a37] font-semibold'}`}>{i < t.seats ? `Seat ${i + 1}` : 'No chair'}</span>
               <span className={`flex-1 min-w-0 ${p ? '' : 'italic text-[#7a7466]'}`}>
                 {p ? p.name : 'Empty'}
+                {p && <CoupleMark p={p} />}
                 {p?.diet && <span className={`block text-[12px] ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span>}
               </span>
               {editing && p && <UpDown name={p.name} at={i + 1} seats={t.seats} mob={mob} onMove={(k) => onPlace(p.id, k)} />}

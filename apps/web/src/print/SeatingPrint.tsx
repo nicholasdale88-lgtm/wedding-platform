@@ -28,7 +28,7 @@ export const ALL_PARTS: SeatingPrintOptions = { floor: true, tables: true, diet:
 
 const tableWord = (name: string) => (/^\d+$/.test(name.trim()) ? `Table ${name.trim()}` : name.trim());
 const meals = (p: PrintPerson) => [p.meal.e, p.meal.m, p.meal.d].filter(Boolean).join(' · ');
-const chairFill = (p: PrintPerson | null) => (!p ? '#fff' : isSerious(p.diet) ? BRAND.red : p.diet.trim() ? BRAND.amber : BRAND.sage);
+const chairFill = (p: PrintPerson | null) => (!p ? '#fff' : isSerious(p.diet) ? BRAND.red : p.diet.trim() ? BRAND.amber : p.id.startsWith('couple-') ? '#a4566a' : BRAND.sage);
 const byTableName = (a: SeatTable, b: SeatTable) => a.name.localeCompare(b.name, undefined, { numeric: true });
 
 export function SeatingPrint({
@@ -186,6 +186,7 @@ function Legend() {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2mm 6mm', marginTop: '3mm', fontSize: '9pt', color: BRAND.soft }}>
       {dot(BRAND.sage, 'Guest seated')}
+      {dot('#a4566a', 'The couple')}
       {dot(BRAND.amber, 'Dietary need')}
       {dot(BRAND.red, 'Serious allergy')}
       {dot('#fff', 'Empty seat', true)}
