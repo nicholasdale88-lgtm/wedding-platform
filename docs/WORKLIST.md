@@ -35,6 +35,11 @@ then take the next one if there's time. Never leave a red CI run behind.
 - [ ] 7. Visual pass on each invitation look (/designs, every look) at phone size in the browser pane; fix
       overlaps or clipped ornaments in guest/looks.css.
 
+- [ ] ALWAYS (when nothing above is open, and at least once a day): stress test and refine. Read the latest
+      CI e2e results; add a tap-through test for a flow not yet covered and fix what it finds; review one
+      screen for clutter, slow re-renders or snap-back choices and fix them; look for console errors on the
+      public pages in the browser pane. Log what was done.
+
 ## Waiting on the owner (don't start)
 - Guest languages: which ones first.
 - Terms placeholders: business name, ABN, state or territory.
