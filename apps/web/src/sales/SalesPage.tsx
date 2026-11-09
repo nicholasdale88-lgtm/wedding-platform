@@ -175,7 +175,7 @@ export function SalesPage() {
                 Start your wedding
               </a>
               <span className="text-[14px]" style={{ color: SOFT }}>
-                From {fromPrice}, once. No subscription.
+                From {fromPrice}, once. No subscription. Australian owned and operated.
               </span>
             </div>
           </div>
@@ -382,7 +382,7 @@ export function SalesPage() {
 
       <footer className="py-8 px-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px]" style={{ color: SOFT }}>
         <span>
-          © {new Date().getFullYear()} {BRAND}. All rights reserved: our designs, templates and software are protected by copyright. Made in Australia.
+          © {new Date().getFullYear()} {BRAND}. All rights reserved: our designs, templates and software are protected by copyright. Australian owned and operated.
         </span>
         <Link to="/admin" style={{ color: SOFT }}>
           Sign in
@@ -564,6 +564,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
           <span>✓ Nothing to pay today</span>
           <span>✓ No subscription</span>
           <span>✓ Your guests download nothing</span>
+          <span>✓ Australian owned and operated</span>
         </div>
       </div>
       <p className="m-0 mt-5 text-[14px] text-center" style={{ color: SOFT }}>

@@ -63,7 +63,7 @@ function LegalFooter() {
   return (
     <footer className="border-t border-[#e2d7bc] py-6 px-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px]" style={{ color: SOFT }}>
       <span>
-        © {new Date().getFullYear()} {BRAND}. Made in Australia.
+        © {new Date().getFullYear()} {BRAND}. All rights reserved. Australian owned and operated.
       </span>
       <Link to="/" style={{ color: SOFT }}>
         Home
@@ -228,7 +228,7 @@ export function TermsPage() {
 
       <H2>Our work</H2>
       <P>
-        {BRAND}’s name, logo, designs, invitation templates, wording, help guides, videos and software are ours and protected by copyright and trade mark law. You
+        {BRAND}’s name, logo, designs, invitation templates, wording, help guides, videos and software are ours and protected by Australian law, including the Copyright Act 1968 (Cth) and the Trade Marks Act 1995 (Cth), and by copyright law in other countries. You
         may use them for your own events through the service. Please don’t copy, resell, scrape, frame or reverse-engineer them, or use them to build a competing
         product. What you make with them (your words, photos and guest list) stays yours. Copying our designs, templates, wording or software, in whole or in part, breaches these terms and copyright law, and we will enforce our rights, including asking for the copy to be taken down and seeking damages. You may not collect, scrape or copy any part of the site (including with bots or AI tools), or use it to train, prompt or build an AI system, model or product.
       </P>
