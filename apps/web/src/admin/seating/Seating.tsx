@@ -177,13 +177,12 @@ function SeatingPlan() {
    */
   const touchDrag = useRef<Drag | null>(null);
   const live = useRef<{ at: (e: { clientX: number; clientY: number }) => { x: number; y: number }; table: (id: string) => SeatTable | undefined; move: (id: string, x: number, y: number) => void; checkpoint: () => void; pick: (id: string) => void } | null>(null);
-  const planReady = !!s;
   useEffect(() => {
-    const el = plan.current;
-    if (!el) return;
+    // Listened for on the page (the plan is redrawn when editing starts, so a listener on it would go stale).
     const start = (e: TouchEvent) => {
       const L = live.current;
       if (!L || !editingRef.current || toolRef.current !== 'tables' || e.touches.length !== 1) return;
+      if (!plan.current?.contains(e.target as Node)) return;
       const hit = (e.target as Element | null)?.closest?.('[data-table-id]') as HTMLElement | null;
       const t = hit ? L.table(hit.dataset.tableId ?? '') : undefined;
       if (!t) return;
@@ -205,17 +204,17 @@ function SeatingPlan() {
     const end = () => {
       touchDrag.current = null;
     };
-    el.addEventListener('touchstart', start, { passive: false });
+    document.addEventListener('touchstart', start, { passive: false });
     document.addEventListener('touchmove', move, { passive: false });
     document.addEventListener('touchend', end);
     document.addEventListener('touchcancel', end);
     return () => {
-      el.removeEventListener('touchstart', start);
+      document.removeEventListener('touchstart', start);
       document.removeEventListener('touchmove', move);
       document.removeEventListener('touchend', end);
       document.removeEventListener('touchcancel', end);
     };
-  }, [planReady]);
+  }, []);
 
   // Once a finger has picked up a table, an area or a name, the page mustn't scroll under it. Tables and
   // names allow scrolling (so a swipe over them scrolls), so the browser has to be told no here; this
