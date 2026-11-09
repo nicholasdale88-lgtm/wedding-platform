@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import headers from '../public/_headers?raw';
+import robots from '../public/robots.txt?raw';
 
 /** The site's security headers must stay strict without breaking what guests use (music, video, maps, preview). */
 const csp = Object.fromEntries(
@@ -29,5 +30,16 @@ describe('site security headers', () => {
     expect(csp['upgrade-insecure-requests']).toBeDefined();
     expect(headers).toMatch(/Strict-Transport-Security: max-age=\d{8,}/);
     expect(headers).toMatch(/Referrer-Policy: same-origin/);
+  });
+
+  it('AI crawlers are turned away, and every page says no AI use', () => {
+    for (const bot of ['GPTBot', 'ClaudeBot', 'Google-Extended', 'CCBot', 'PerplexityBot', 'Bytespider', 'meta-externalagent', 'Applebot-Extended']) {
+      expect(robots).toContain(`User-agent: ${bot}`);
+    }
+    expect(robots).toMatch(/User-agent: TikTokSpider
+Disallow: \//);
+    expect(headers).toMatch(/X-Robots-Tag: noindex, nofollow, noai, noimageai/);
+    expect(headers.match(/! X-Robots-Tag
+ {2}X-Robots-Tag: noai, noimageai/g)?.length).toBe(headers.match(/! X-Robots-Tag/g)?.length);
   });
 });
