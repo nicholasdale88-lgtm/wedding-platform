@@ -203,7 +203,7 @@ export const api = {
   /** Whether paying by card (Stripe Checkout) is switched on. */
   planCard: (wid: string) => request<{ on: boolean }>(`${w(wid)}/plan/card`),
   /** Opens a Stripe Checkout page for a plan or another event; the browser goes to `url` to pay. */
-  checkout: (wid: string, what: 'basic' | 'essentials' | 'complete' | 'event', code = '') => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what, code }),
+  checkout: (wid: string, what: 'basic' | 'essentials' | 'complete' | 'event', code = '', textsAck = false) => send<{ url: string }>('POST', `${w(wid)}/plan/checkout`, { what, code, textsAck }),
   /** Buy texts: opens a Stripe Checkout page for a pack of text credits (texts are never included in a plan). */
   buyTexts: (wid: string, credits: number) => send<{ url: string }>('POST', `${w(wid)}/texts/checkout`, { credits }),
   /** What a promo code makes the price. */

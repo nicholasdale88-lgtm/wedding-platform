@@ -1,4 +1,4 @@
-import { allows, chargeCents, EVENT_ADDON, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature, type Purchase, isPaid, PRICE_CENTS } from '@wp/shared';
+import { allows, chargeCents, EVENT_ADDON, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature, type Purchase, isPaid, PRICE_CENTS, TEXT_CREDIT_ALL_IN, TEXT_RATE } from '@wp/shared';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, UPGRADE_EVENT } from '../lib/api';
 import { useAdmin } from './Shell';
@@ -114,10 +114,11 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
       setBusy(false);
     }
   };
+  const [textsOk, setTextsOk] = useState(false);
   const pay = async () => {
     setBusy(true);
     try {
-      const { url } = await api.checkout(wid, need, deal?.code ?? '');
+      const { url } = await api.checkout(wid, need, deal?.code ?? '', textsOk);
       window.location.assign(url);
       // Stay busy while the browser leaves for Stripe, so a second tap doesn't open a second payment.
     } catch (e) {
@@ -137,8 +138,9 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
             ? "You've asked to upgrade: we'll email you a link to pay, and it switches on as soon as it's paid."
             : 'Everything you’ve added so far stays as it is.'}
       </span>
+      {!thanks && !addon && (card === true || deal?.cents === 0 || (card === false && !asked)) && <TextsNotIncluded ok={textsOk} onOk={setTextsOk} />}
       {!thanks && (card === true || deal?.cents === 0) && (
-        <Pill kind="primary" className="self-start" disabled={busy} onClick={() => void pay()}>
+        <Pill kind="primary" className="self-start" disabled={busy || (!addon && !textsOk)} onClick={() => void pay()}>
           {busy ? 'Opening the payment page…' : deal?.cents === 0 ? `Switch on ${addon ? 'the extra event' : info.name} free` : addon ? `Add an event: ${price} by card` : `Pay ${price} by card`}
         </Pill>
       )}
@@ -172,7 +174,7 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
         </div>
       )}
       {!thanks && card !== true && !asked && (
-        <Pill kind="primary" className="self-start" disabled={busy || card === null} onClick={() => void ask()}>
+        <Pill kind="primary" className="self-start" disabled={busy || card === null || (!addon && !textsOk)} onClick={() => void ask()}>
           {busy ? 'Asking…' : addon ? `Add an event (${info.price})` : `Upgrade to ${info.name}`}
         </Pill>
       )}
@@ -230,6 +232,7 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
   const { paid } = usePlan();
   const [busy, setBusy] = useState('');
   const [card, setCard] = useState<boolean | null>(null);
+  const [textsOk, setTextsOk] = useState(false);
   useEffect(() => {
     let live = true;
     void cardStatus(wid).then((on) => live && setCard(on));
@@ -242,7 +245,7 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
     setBusy(what);
     try {
       if (card) {
-        const { url } = await api.checkout(wid, what);
+        const { url } = await api.checkout(wid, what, '', true);
         window.location.assign(url);
         return;
       }
@@ -262,12 +265,14 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
     <section aria-label="Go live" className={`flex flex-col gap-3 ${compact ? 'p-4' : 'p-5'} rounded-[16px] border border-[#33402f] bg-[#fbf8f0]`}>
       <strong className="text-[17px]">Your invitations aren’t live yet</strong>
       <span className="text-[14px] text-[#5b6a52]">Set everything up and preview it as much as you like. Choose a plan, paid once, when you’re ready for guests to open their invitations. No subscription.</span>
+      <TextsNotIncluded ok={textsOk} onOk={setTextsOk} />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {plans.map(([k, info, what]) => (
           <button
             key={k}
             type="button"
-            disabled={!!busy}
+            disabled={!!busy || !textsOk}
+            title={textsOk ? undefined : 'Tick the box above first'}
             onClick={() => void choose(k)}
             className="flex flex-col gap-1 p-3 rounded-[12px] border border-[#c6b794] bg-white text-left cursor-pointer disabled:opacity-60 hover:border-[#33402f]"
           >
@@ -280,5 +285,28 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * Before paying for a plan: a clear notice that text messages aren't included, ticked to go on. The tick
+ * is sent with the payment and kept with it.
+ */
+export function TextsNotIncluded({ ok, onOk }: { ok: boolean; onOk: (ok: boolean) => void }) {
+  const perGuest = (TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN) / 100;
+  return (
+    <div role="group" aria-label="Text messages are not included" className="flex flex-col gap-2 p-4 rounded-[14px] border-2 border-[#c98a3e] bg-[#fdf3e2]">
+      <strong className="text-[16px] text-[#6b3f12]">Text messages are not included in any plan</strong>
+      <span className="text-[14px] text-[#5b4a2f]">
+        Sending invitations and reminders from your own phone or by email is free. If you’d like us to text your guests, you buy text credits separately:{' '}
+        <strong>
+          {TEXT_CREDIT_ALL_IN}c a credit, about ${perGuest.toFixed(2)} a guest
+        </strong>{' '}
+        if you send every text (invitation, reminders, thank-yous). You’ll see the total before you pay for any.
+      </span>
+      <label className="flex items-start gap-3 pt-1 text-[15px] font-semibold text-[#33402f] cursor-pointer">
+        <input type="checkbox" checked={ok} onChange={(e) => onOk(e.target.checked)} className="mt-[2px] w-[22px] h-[22px] flex-none accent-[#33402f]" />I understand text messages aren’t included in my plan.
+      </label>
+    </div>
   );
 }

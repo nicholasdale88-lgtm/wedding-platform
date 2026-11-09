@@ -25,7 +25,8 @@ const TOLERANCE_S = 300;
 
 const cardOn = (env: Env) => !!env.STRIPE_SECRET_KEY && !!env.STRIPE_WEBHOOK_SECRET;
 
-const Checkout = z.object({ what: z.enum(['basic', 'essentials', 'complete', 'event']), code: z.string().trim().max(30).default('') }).strict();
+/** textsAck: they ticked "I understand text messages aren't included" (kept with the payment). */
+const Checkout = z.object({ what: z.enum(['basic', 'essentials', 'complete', 'event']), code: z.string().trim().max(30).default(''), textsAck: z.boolean().default(false) }).strict();
 
 /** The price of `what` for this wedding, with a promo code if one was given: cents, or why not. */
 type Price = { ok: false; error: string; promo: boolean } | { ok: true; cents: number; off: number; code: string; current: ReturnType<typeof planOf> };
@@ -112,6 +113,7 @@ export function billingRoutes() {
       'line_items[0][price_data][product_data][name]': `The Yes List: ${label} for ${w.name1} & ${w.name2}`,
       'metadata[wedding]': wid,
       'metadata[what]': what,
+      'metadata[texts_not_included_ack]': b.data.textsAck ? 'yes' : 'no',
       ...(price.code ? { 'metadata[promo]': price.code } : {}),
       client_reference_id: wid,
       customer_email: user.email,
