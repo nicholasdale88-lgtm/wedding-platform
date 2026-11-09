@@ -1736,7 +1736,6 @@ function TableShapeView({
   const dot = mob ? 11 : 9;
   return (
     <div
-      data-table-id={t.id}
       onPointerDown={onPointerDown}
       data-table-id={t.id}
       onClick={onClick}
