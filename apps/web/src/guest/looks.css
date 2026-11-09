@@ -131,3 +131,19 @@
     transition: none;
   }
 }
+
+/* ---------- Classic's own ornaments give way to each look's ---------- */
+/* Its corner sprigs and stems (small rotated pieces) belong to the cut-corner cards only. */
+[class*='yl-look-']:not(.yl-look-classic) #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) > div[style*='rotate('][style*='pointer-events: none'] {
+  display: none !important;
+}
+/* Its dashed inner frame: follows the arch (Romantic), softens (Garden), and gives way to the others' own. */
+.yl-look-romantic #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) > div[style*='inset: 14px'] {
+  border-radius: 226px 226px 24px 24px !important;
+}
+.yl-look-garden #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) > div[style*='inset: 14px'],
+.yl-look-coastal #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) > div[style*='inset: 14px'],
+.yl-look-luxe #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) > div[style*='inset: 14px'],
+.yl-look-modern #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) > div[style*='inset: 14px'] {
+  display: none !important;
+}
