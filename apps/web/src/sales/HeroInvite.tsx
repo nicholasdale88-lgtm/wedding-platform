@@ -15,11 +15,12 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true }: { src?: st
   // A new frame plays the envelope again from the start.
   const [run, setRun] = useState(0);
   const screen = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0);
+  // 280px of screen in a 300px frame until it's measured (the usual size).
+  const [scale, setScale] = useState(280 / PHONE_W);
   useEffect(() => {
     const el = screen.current;
     if (!el) return;
-    const fit = () => setScale(el.clientWidth / PHONE_W);
+    const fit = () => el.clientWidth > 0 && setScale(el.clientWidth / PHONE_W);
     fit();
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(fit) : null;
     ro?.observe(el);
@@ -38,16 +39,14 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true }: { src?: st
       >
         <span aria-hidden className="absolute z-10 top-[18px] left-1/2 w-[78px] h-[20px] -ml-[39px] rounded-full bg-[#151a13]" />
         <div ref={screen} className="relative w-full overflow-hidden rounded-[34px] bg-[#f6f0e2]" style={{ aspectRatio: `${PHONE_W} / ${PHONE_H}` }}>
-          {scale > 0 && (
-            <iframe
-              key={`${src}#${run}`}
-              src={src}
-              title={`Sample invitation for ${SAMPLE.couple}: tap the seal to open it`}
-              loading="lazy"
-              className="absolute top-0 left-0 block border-0 bg-[#f6f0e2]"
-              style={{ width: PHONE_W, height: PHONE_H, transform: `scale(${scale})`, transformOrigin: '0 0' }}
-            />
-          )}
+          <iframe
+            key={`${src}#${run}`}
+            src={src}
+            title={`Sample invitation for ${SAMPLE.couple}: tap the seal to open it`}
+            loading="lazy"
+            className="absolute top-0 left-0 block border-0 bg-[#f6f0e2]"
+            style={{ width: PHONE_W, height: PHONE_H, transform: `scale(${scale})`, transformOrigin: '0 0' }}
+          />
         </div>
       </div>
       {caption && (
