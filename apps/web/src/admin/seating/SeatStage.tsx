@@ -37,9 +37,6 @@ export function StageBar({ stage, data, next, busy, onChoose }: { stage: SeatSta
           </li>
         ))}
       </ol>
-      <p className="m-0 text-[14px] text-[#33402f]">
-        {SEAT_STAGES[at]?.hint} <span className="text-[#7a7466]">{why}</span>
-      </p>
       <div className="flex flex-wrap gap-2 items-center">
         {next ? (
           <Pill kind="primary" disabled={busy || next.disabled} onClick={next.run}>
@@ -48,13 +45,19 @@ export function StageBar({ stage, data, next, busy, onChoose }: { stage: SeatSta
         ) : (
           <span className="text-[14px] text-[#55633f]">Nothing to do right now ✓</span>
         )}
-        <span className="flex-1" />
+      </div>
+      {/* What the stage means, and choosing it by hand: a tap away, so the room comes sooner. */}
+      <details className="text-[13px]">
+        <summary className="cursor-pointer text-[#5b6a52]">About this stage</summary>
+        <p className="m-0 mt-2 text-[14px] text-[#33402f]">
+          {SEAT_STAGES[at]?.hint} <span className="text-[#7a7466]">{why}</span>
+        </p>
         <select
           aria-label="Stage"
           value={st?.chosen ?? ''}
           disabled={busy}
           onChange={(e) => onChoose((e.target.value || null) as SeatStage | null)}
-          className="max-w-full min-w-0 py-[6px] px-2 rounded-[10px] border border-[#d3c6a4] bg-[#fbf8f2] text-[13px] text-[#33402f]"
+          className="mt-2 max-w-full min-w-0 py-[6px] px-2 rounded-[10px] border border-[#d3c6a4] bg-[#fbf8f2] text-[13px] text-[#33402f]"
         >
           <option value="">Stage: worked out for me ({SEAT_STAGES.find((x) => x.key === st?.auto)?.label ?? 'Concept plan'})</option>
           {SEAT_STAGES.map((x) => (
@@ -63,7 +66,7 @@ export function StageBar({ stage, data, next, busy, onChoose }: { stage: SeatSta
             </option>
           ))}
         </select>
-      </div>
+      </details>
     </section>
   );
 }
