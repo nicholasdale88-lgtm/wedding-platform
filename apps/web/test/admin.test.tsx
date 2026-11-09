@@ -785,6 +785,7 @@ describe('seating tab', () => {
     });
     renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Table settings' }));
     fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
     const size = screen.getByLabelText('Diameter (m)');
     await userEvent.type(size, '2.4');
@@ -1017,6 +1018,7 @@ describe('seating tab', () => {
     });
     renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Edit seating' })); // the plan opens to look at; Edit seating to change it
+    await userEvent.click(screen.getByRole('tab', { name: 'Table settings' }));
     fireEvent.pointerDown(await screen.findByRole('button', { name: 'Table 1, 1 of 4' }));
     await userEvent.selectOptions(screen.getByLabelText('Table 1 type'), 'long');
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));

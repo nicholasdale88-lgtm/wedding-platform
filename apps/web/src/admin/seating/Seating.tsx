@@ -30,10 +30,11 @@ import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
  */
 
 type Sel = { kind: 'table'; id: string } | { kind: 'area'; i: number } | null;
-type Tool = 'guests' | 'tables' | 'room';
+type Tool = 'guests' | 'tables' | 'setup' | 'room';
 const TOOLS: [Tool, string][] = [
   ['guests', 'Seat guests'],
   ['tables', 'Move tables'],
+  ['setup', 'Table settings'],
   ['room', 'Room'],
 ];
 const round10 = (n: number) => Math.round(n * 10) / 10;
@@ -90,7 +91,7 @@ function SeatingPlan() {
   const [editing, setEditing] = useState(false);
   const editingRef = useRef(false);
   editingRef.current = editing;
-  const roomTools = editing;
+  const roomTools = editing && tool === 'setup';
   // Which tab of tools shows while editing.
   const [tool, setTool] = useState<Tool>('guests');
   // The tool, for the pointer handlers (they're made once per render but read it when pressed).
@@ -266,8 +267,6 @@ function SeatingPlan() {
   // Who sits in each chair at each table (chosen chairs kept, everyone else in the next free one).
   // The seating PDF: what goes in it (all of it unless unticked).
   const [printOpen, setPrintOpen] = useState(false);
-  // Phones, moving tables: the chosen table's full settings are open (only after Table settings is tapped).
-  const [sheetFor, setSheetFor] = useState('');
   const [printing, setPrinting] = useState(false);
   const [printParts, setPrintParts] = useState<SeatingPrintOptions>(ALL_PARTS);
   const chairMap = useMemo(() => new Map(tables.map((t) => [t.id, chairsAt(byTable.get(t.id) ?? [], chairs, t.seats)])), [tables, byTable, chairs]);
@@ -1074,9 +1073,11 @@ function SeatingPlan() {
                 : 'Click a table to open it and seat people, or drag guests onto it. To move tables, choose Move tables above.'
               : tool === 'tables'
                 ? mob
-                  ? 'Drag any table to move it (the plan holds still while you do). Tap a table to change its seats, type and size. Done editing when you’re happy.'
-                  : 'Drag any table to move it. Click a table to change its seats, type and size in metres. Ctrl+Z undoes.'
-                : 'Choose the room’s shape and size, add the dance floor, bar and other areas, then tap an area to size it.'}
+                  ? 'Drag any table to move it (the plan holds still while you do). To change a table’s seats, type or size, use Table settings.'
+                  : 'Drag any table to move it. To change a table’s seats, type or size, use Table settings. Ctrl+Z undoes.'
+                : tool === 'setup'
+                  ? 'Tap a table to change its name, seats, type and size. Tables stay where they are here.'
+                  : 'Choose the room’s shape and size, add the dance floor, bar and other areas, then tap an area to size it.'}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
@@ -1091,7 +1092,7 @@ function SeatingPlan() {
             onPointerLeave={up}
             role="application"
             aria-label="Floor plan"
-            className={`relative select-none ${editing && tool !== 'guests' && !adding ? 'touch-none' : 'touch-pan-x touch-pan-y'} ${adding ? 'cursor-crosshair' : ''}`}
+            className={`relative select-none ${editing && (tool === 'tables' || tool === 'room') && !adding ? 'touch-none' : 'touch-pan-x touch-pan-y'} ${adding ? 'cursor-crosshair' : ''}`}
             style={{ width: `${zoom * 100}%`, aspectRatio: cssAspect(aspect), background: '#fbf8f2', backgroundImage: 'radial-gradient(#e2d7bc 1px, transparent 1.2px)', backgroundSize: '18px 18px' }}
           >
             {areas.map((a, i) => (
@@ -1162,12 +1163,12 @@ function SeatingPlan() {
 
           {/* Phones, moving tables: just a slim bar for the chosen table (the settings open from it), so nothing
               covers the room while you move things. */}
-          {selTable && mob && tool === 'tables' && sheetFor !== selTable.id && (
-            <div role="region" aria-label="Chosen table" className="fixed inset-x-0 bottom-0 z-[17] flex items-center gap-2 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-[#fbf8f2] border-t border-[#d3c6a4] shadow-[0_-6px_18px_rgba(51,64,47,.14)]">
+          {selTable && tool === 'tables' && (
+            <div role="region" aria-label="Chosen table" className={mob ? 'fixed inset-x-0 bottom-0 z-[17] flex items-center gap-2 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-[#fbf8f2] border-t border-[#d3c6a4] shadow-[0_-6px_18px_rgba(51,64,47,.14)]' : 'flex items-center gap-2 p-3 rounded-[14px] border border-[#e2d7bc]'}>
               <span className="flex-1 min-w-0 truncate font-display text-[19px]">
                 {/^\d+$/.test(selTable.name) ? `Table ${selTable.name}` : selTable.name} · {(byTable.get(selTable.id) ?? []).length}/{selTable.seats}
               </span>
-              <Pill size="sm" onClick={() => setSheetFor(selTable.id)}>
+              <Pill size="sm" onClick={() => setTool('setup')}>
                 Table settings
               </Pill>
               <button type="button" aria-label="Close table" onClick={() => setSel(null)} className="w-10 h-10 flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer">
@@ -1175,7 +1176,7 @@ function SeatingPlan() {
               </button>
             </div>
           )}
-          {selTable && !(mob && tool === 'tables' && sheetFor !== selTable.id) && (
+          {selTable && tool !== 'tables' && (
             <div
               className={
                 mob
@@ -1187,7 +1188,7 @@ function SeatingPlan() {
                 <span className="font-display text-[22px]">
                   {/^\d+$/.test(selTable.name) ? `Table ${selTable.name}` : selTable.name} · {(byTable.get(selTable.id) ?? []).length} of {selTable.seats}
                 </span>
-                <button type="button" aria-label="Close table" onClick={() => (setSel(null), setSheetFor(''))} className={`${mob ? 'w-10 h-10' : 'w-8 h-8'} flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer`}>
+                <button type="button" aria-label="Close table" onClick={() => setSel(null)} className={`${mob ? 'w-10 h-10' : 'w-8 h-8'} flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer`}>
                   ×
                 </button>
               </div>
