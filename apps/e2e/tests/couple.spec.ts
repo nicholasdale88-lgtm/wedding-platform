@@ -116,11 +116,22 @@ test('seating: Move tables drags a table (and never opens it); in Seat guests a 
   const table = page.getByRole('button', { name: /^Table 1, / });
   await expect(table).toBeVisible();
   const before = (await table.boundingBox())!;
-  // Drag it across the room (a finger on a phone, the mouse on a computer).
-  await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(before.x + before.width / 2 + box.width * 0.3, before.y + before.height / 2 + 10, { steps: 12 });
-  await page.mouse.up();
+  // Drag it across the room: a real finger (touch events) on the phone, the mouse on a computer.
+  const x0 = before.x + before.width / 2;
+  const y0 = before.y + before.height / 2;
+  const dx = box.width * 0.3;
+  if (test.info().project.name === 'iphone') {
+    const cdp = await page.context().newCDPSession(page);
+    const touch = (type: string, x: number, y: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+    await touch('touchStart', x0, y0);
+    for (let k = 1; k <= 12; k++) await touch('touchMove', x0 + (dx * k) / 12, y0 + (10 * k) / 12);
+    await touch('touchEnd', x0 + dx, y0 + 10);
+  } else {
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    await page.mouse.move(x0 + dx, y0 + 10, { steps: 12 });
+    await page.mouse.up();
+  }
   const after = (await table.boundingBox())!;
   expect(after.x - before.x).toBeGreaterThan(box.width * 0.15);
   await expect(page.getByRole('dialog', { name: /seat by seat/ })).toHaveCount(0); // moving never opens it
