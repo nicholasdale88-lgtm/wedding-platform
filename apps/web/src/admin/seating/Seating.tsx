@@ -310,11 +310,13 @@ function SeatingPlan() {
     const me = tables.find((t) => t.id === id);
     if (!me) return false;
     const a = footprint(me, x, y);
-    return tables.some((o) => {
-      if (o.id === id) return false;
-      const b = footprint(o, o.x, o.y);
-      return Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2;
-    });
+    return (
+      tables.some((o) => {
+        if (o.id === id) return false;
+        const b = footprint(o, o.x, o.y);
+        return Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2;
+      }) || areas.some((r) => Math.abs(a.x - r.x) < (a.w + r.w) / 2 && Math.abs(a.y - r.y) < (a.h + r.h) / 2)
+    );
   };
   const freeSpot = (id: string, x: number, y: number): { x: number; y: number } | null => {
     const me = tables.find((t) => t.id === id);
@@ -456,8 +458,13 @@ function SeatingPlan() {
     const t = clampTable({ id: crypto.randomUUID(), name: nextName(), shape, dir: 'h' as const, len: 40, x: snapTo(p.x), y: snapTo(p.y), seats: DEFAULT_SEATS[shape] }, aspect);
     // Not on top of another table (or its chairs).
     const mine = footprint(t, t.x, t.y);
-    if (tables.some((o) => { const b = footprint(o, o.x, o.y); return Math.abs(mine.x - b.x) < (mine.w + b.w) / 2 && Math.abs(mine.y - b.y) < (mine.h + b.h) / 2; })) {
-      toast('There’s a table there: tap an empty spot.');
+    const onTable = tables.some((o) => {
+      const b = footprint(o, o.x, o.y);
+      return Math.abs(mine.x - b.x) < (mine.w + b.w) / 2 && Math.abs(mine.y - b.y) < (mine.h + b.h) / 2;
+    });
+    const onArea = areas.find((r) => Math.abs(mine.x - r.x) < (mine.w + r.w) / 2 && Math.abs(mine.y - r.y) < (mine.h + r.h) / 2);
+    if (onTable || onArea) {
+      toast(onArea ? `That’s the ${onArea.label.toLowerCase() || 'area'}: tap an empty spot.` : 'There’s a table there: tap an empty spot.');
       return;
     }
     commit((d) => ({ ...d, tables: [...d.tables, t] }));
@@ -906,7 +913,7 @@ function SeatingPlan() {
               <Pill onClick={redo} disabled={!future.length} aria-label="Redo">
                 ↷ Redo
               </Pill>
-              <div role="tablist" aria-label="Seating tools" className="inline-flex p-[3px] rounded-full border border-[#c6b794] bg-[#fbf8f2]">
+              <div role="tablist" aria-label="Seating tools" className="inline-flex max-w-full overflow-x-auto [scrollbar-width:none] p-[3px] rounded-full border border-[#c6b794] bg-[#fbf8f2]">
                 {TOOLS.map(([k, label]) => (
                   <button
                     key={k}
@@ -918,7 +925,7 @@ function SeatingPlan() {
                       setAdding(false);
                       setSel(null); // a fresh start in each tab (nothing left open over the plan)
                     }}
-                    className={`${mob ? 'min-h-[40px]' : ''} py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}
+                    className={`${mob ? 'min-h-[40px]' : ''} flex-none whitespace-nowrap py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}
                   >
                     {label}
                   </button>
@@ -1032,15 +1039,34 @@ function SeatingPlan() {
                 Set out {tablesShort} {tablesShort === 1 ? 'table' : 'tables'} for about {planFor} guests
               </Pill>
             )}
-            <Pill onClick={applyShapeToAll} disabled={!tables.length}>
-              Make all tables this type
-            </Pill>
-            <Pill onClick={lineUp} disabled={!tables.length}>
-              Line up tables
-            </Pill>
-            <Pill onClick={renumber} disabled={tables.length < 2}>
-              Number tables 1, 2, 3…
-            </Pill>
+            {mob ? (
+              <details className="w-full">
+                <summary className="cursor-pointer py-2 text-[14px] font-semibold text-[#33402f]">More table tools</summary>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Pill onClick={applyShapeToAll} disabled={!tables.length}>
+                    Make all tables this type
+                  </Pill>
+                  <Pill onClick={lineUp} disabled={!tables.length}>
+                    Line up tables
+                  </Pill>
+                  <Pill onClick={renumber} disabled={tables.length < 2}>
+                    Number tables 1, 2, 3…
+                  </Pill>
+                </div>
+              </details>
+            ) : (
+              <>
+                <Pill onClick={applyShapeToAll} disabled={!tables.length}>
+                  Make all tables this type
+                </Pill>
+                <Pill onClick={lineUp} disabled={!tables.length}>
+                  Line up tables
+                </Pill>
+                <Pill onClick={renumber} disabled={tables.length < 2}>
+                  Number tables 1, 2, 3…
+                </Pill>
+              </>
+            )}
           </div>
         )}
 

@@ -81,8 +81,8 @@ function build() {
     } as Guest);
   }
   tables = [
-    { id: 'dt0', name: 'Bridal table', shape: 'head', dir: 'h', len: 40, x: 50, y: 14, seats: 8, sides: 1 } as SeatTable,
-    ...[1, 2, 3, 4, 5, 6].map((k) => ({ id: `dt${k}`, name: String(k), shape: 'round', dir: 'h', len: 30, x: 18 + ((k - 1) % 3) * 32, y: k <= 3 ? 44 : 76, seats: 10 }) as SeatTable),
+    { id: 'dt0', name: 'Bridal table', shape: 'head', dir: 'h', len: 40, x: 50, y: 12, seats: 8, sides: 1 } as SeatTable,
+    ...[1, 2, 3, 4, 5, 6].map((k) => ({ id: `dt${k}`, name: String(k), shape: 'round', dir: 'h', len: 30, x: 18 + ((k - 1) % 3) * 32, y: k <= 3 ? 38 : 64, seats: 10 }) as SeatTable),
   ];
   seats = {};
   chairs = {};
@@ -140,7 +140,7 @@ function seating(): SeatingData {
     aspect: '4 / 3',
     planImg: '',
     tables,
-    areas: [{ label: 'Dance floor', x: 50, y: 60, w: 22, h: 10 }],
+    areas: [{ label: 'Dance floor', x: 50, y: 88, w: 26, h: 10 }],
     people: coming.flatMap((g) =>
       g.people.map((p) => ({ id: p.id, invitationId: g.id, name: p.name, party: g.party, side: g.side ?? '', relation: '', circles: [], role: p.role ?? '', diet: p.diet, meal: { e: '', m: '', d: '' }, tableId: seats[p.id] ?? null, chair: chairs[p.id] ?? null, coming: !!g.rsvp.wedding?.attending })),
     ),
