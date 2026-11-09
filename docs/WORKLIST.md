@@ -17,7 +17,7 @@ then take the next one if there's time. Never leave a red CI run behind.
 - Don't enter passwords or tokens, don't create accounts outside staging, don't spend money.
 
 ## Worklist (top first)
-- [ ] 1. "Try the app" sandbox from the front page: a sample wedding's admin (made-up guests, tables, budget)
+- [x] 1. (2026-11-09, first version: overview, guests, seating; more screens to fill in) "Try the app" sandbox from the front page: a sample wedding's admin (made-up guests, tables, budget)
       running with no server writes, a Basic / Essentials / Deluxe switch showing what each plan adds
       (locked features shown with what they do), clear Back to the front page and Start your wedding buttons.
       Route /try. Tap-through test.
@@ -28,7 +28,7 @@ then take the next one if there's time. Never leave a red CI run behind.
       everyday actions visible, roll the rest into More / Advanced. Keep labels the tests use, or update tests.
 - [ ] 4. More tap-through tests: a guest opens their invitation and RSVPs (yes with a diet); budget line added;
       checklist item ticked; texts screen shows the 8c price and the per-guest figure.
-- [ ] 5. Seating sample PDF (/demo/seating-pdf): seat the sample couple with ids couple-1 / couple-2 so their
+- [x] 5. (2026-11-09) Seating sample PDF (/demo/seating-pdf): seat the sample couple with ids couple-1 / couple-2 so their
       rose colour shows; check every page by eye in the browser pane.
 - [ ] 6. Front page speed on phones: the hero phone frame loads after the page is shown (keep the iframe
       title the tests look for); check Lighthouse-style weight by reading the built asset sizes in CI logs.
@@ -47,3 +47,4 @@ then take the next one if there's time. Never leave a red CI run behind.
 
 ## Log
 - 2026-11-09: worklist created.
+- 2026-11-09: Try the app live (/try); seating Move tables / Table settings tabs; finger drag fixed (touch events); tables can't overlap; looks drop Classic's ornaments; sample PDF shows the couple.
