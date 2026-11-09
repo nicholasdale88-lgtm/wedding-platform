@@ -267,12 +267,40 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
     fit();
     vv?.addEventListener('resize', fit);
     vv?.addEventListener('scroll', fit);
+    // iPhone: tapping a choice while typing in a box first closes the keyboard; the panel moves as it closes
+    // and the tap was lost, so every choice needed two taps. A tap that started on a button while typing, and
+    // didn't scroll, is carried out if the browser dropped it.
+    let tap: { el: HTMLElement; x: number; y: number } | null = null;
+    let clicked = false;
+    const typing = () => document.activeElement instanceof HTMLElement && document.activeElement.matches('input:not([type=checkbox]):not([type=radio]), textarea');
+    const onDown = (e: PointerEvent) => {
+      const el = e.target instanceof Element ? (e.target.closest('button, [role=button], label, a[href]') as HTMLElement | null) : null;
+      tap = el && box.current?.contains(el) && typing() ? { el, x: e.clientX, y: e.clientY } : null;
+      clicked = false;
+    };
+    const onClick = () => {
+      clicked = true;
+    };
+    const onUp = (e: PointerEvent) => {
+      const t = tap;
+      tap = null;
+      if (!t || Math.hypot(e.clientX - t.x, e.clientY - t.y) > 10) return;
+      window.setTimeout(() => {
+        if (!clicked && t.el.isConnected && !(t.el as HTMLButtonElement).disabled) t.el.click();
+      }, 350);
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('pointerup', onUp, true);
+    document.addEventListener('click', onClick, true);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKey);
       vv?.removeEventListener('resize', fit);
       vv?.removeEventListener('scroll', fit);
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('pointerup', onUp, true);
+      document.removeEventListener('click', onClick, true);
       document.body.style.overflow = prev;
     };
   }, []);
