@@ -1254,7 +1254,7 @@ function SeatingPlan() {
             <div
               className={
                 mob
-                  ? 'fixed inset-x-0 bottom-0 pb-[calc(16px+env(safe-area-inset-bottom))] z-[17] max-h-[58vh] overflow-y-auto flex flex-col gap-3 p-4 rounded-t-[20px] border-t border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_-8px_24px_rgba(51,64,47,.18)]'
+                  ? 'fixed inset-x-0 bottom-0 pb-[calc(16px+env(safe-area-inset-bottom))] z-[17] max-h-[46vh] overflow-y-auto flex flex-col gap-3 p-4 rounded-t-[20px] border-t border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_-8px_24px_rgba(51,64,47,.18)]'
                   : 'flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]'
               }
             >
@@ -1266,10 +1266,15 @@ function SeatingPlan() {
                   ×
                 </button>
               </div>
-              <Pill size="sm" kind="primary" className="self-start" onClick={() => setFocus(selTable.id)}>
-                Open this table: who sits in each seat
-              </Pill>
-              <TableSummary people={byTable.get(selTable.id) ?? []} />
+              {/* Table settings is only the table's settings; who sits where is Seat guests' job. */}
+              {tool !== 'setup' && (
+                <>
+                  <Pill size="sm" kind="primary" className="self-start" onClick={() => setFocus(selTable.id)}>
+                    Open this table: who sits in each seat
+                  </Pill>
+                  <TableSummary people={byTable.get(selTable.id) ?? []} />
+                </>
+              )}
               {roomTools && (
               <div className="grid grid-cols-2 gap-3">
                 <Label text="Table name">
@@ -1319,6 +1324,7 @@ function SeatingPlan() {
                   <Slider min={10} max={90} value={selTable.len} checkpoint={checkpoint} onSlide={(len) => setTable(selTable.id, { len }, false)} />
                 </Label>
               )}
+              {tool !== 'setup' && (
               <div className="flex flex-col" aria-label="Seats at this table">
                 {/* Every chair, so each guest can be put in exactly the seat you want (empty chairs show while editing). */}
                 {(editing || byTable.get(selTable.id)?.length ? (chairMap.get(selTable.id) ?? []) : []).map((p, i) =>
@@ -1375,6 +1381,7 @@ function SeatingPlan() {
                 {(byTable.get(selTable.id)?.length ?? 0) > selTable.seats && <div className="text-[13px] text-[#7a4a37]">More people than seats. Add seats or move someone.</div>}
                 {!byTable.get(selTable.id)?.length && <div className="text-[13px] text-[#7a7466]">Nobody here yet.{editing ? ' Choose someone for a seat above, or tap or drag guests below.' : ''}</div>}
               </div>
+              )}
               {editing && mob && unseated.length > 0 && (
                 <div className="flex flex-col gap-2 pt-2 border-t border-[#e2d7bc]">
                   <span className="text-[13px] text-[#5b6a52]">Tap a name to seat them here, or hold it and drag it onto any table</span>
