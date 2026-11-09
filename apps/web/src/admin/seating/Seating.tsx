@@ -912,6 +912,17 @@ function SeatingPlan() {
             <Pill kind={adding ? 'outline' : 'secondary'} onClick={() => setAdding((a) => !a)}>
               {adding ? 'Done adding' : '+ Add tables'}
             </Pill>
+            {/* Phones: while dropping tables, Done is always in reach at the bottom (the toolbar scrolls away). */}
+            {adding && mob && (
+              <button
+                type="button"
+                onClick={() => setAdding(false)}
+                className="fixed z-[40] left-1/2 -translate-x-1/2 bottom-[calc(18px+env(safe-area-inset-bottom))] py-3 px-6 rounded-full border-0 text-[16px] font-semibold shadow-[0_10px_28px_rgba(27,34,24,.3)] cursor-pointer"
+                style={{ background: '#33402f', color: '#fbf8f2' }}
+              >
+                Done adding tables
+              </button>
+            )}
             {tablesShort > 0 && (
               <Pill kind="primary" onClick={setOutTables}>
                 Set out {tablesShort} {tablesShort === 1 ? 'table' : 'tables'} for about {planFor} guests

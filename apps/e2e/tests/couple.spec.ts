@@ -111,7 +111,8 @@ test('seating: Move tables drags a table (and never opens it); in Seat guests a 
   const plan = page.getByRole('application', { name: 'Floor plan' });
   const box = (await plan.boundingBox())!;
   await plan.click({ position: { x: box.width * 0.3, y: box.height * 0.4 } });
-  await page.getByRole('button', { name: 'Done adding' }).click();
+  // Phones get a Done button floating at the bottom; computers the one in the toolbar.
+  await page.getByRole('button', { name: /^Done adding/ }).last().click();
   const table = page.getByRole('button', { name: /^Table 1, / });
   await expect(table).toBeVisible();
   const before = (await table.boundingBox())!;
