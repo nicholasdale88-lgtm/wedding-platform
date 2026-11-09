@@ -9,6 +9,8 @@ export type Snapshot = { aspect: string; tables: SeatTable[]; areas: SeatArea[];
 export type Hist = { doc: Snapshot; past: Snapshot[]; future: Snapshot[]; dirty: boolean };
 export type Act =
   | { type: 'reset'; doc: Snapshot }
+  /** Saved in the background: no longer unsaved if nothing changed since (undo history kept). */
+  | { type: 'saved'; doc: Snapshot }
   | { type: 'change'; fn: (d: Snapshot) => Snapshot; record: boolean }
   | { type: 'checkpoint' }
   | { type: 'undo' }
@@ -19,6 +21,8 @@ export function history(h: Hist, a: Act): Hist {
   switch (a.type) {
     case 'reset':
       return { doc: a.doc, past: [], future: [], dirty: false };
+    case 'saved':
+      return h.doc === a.doc ? { ...h, dirty: false } : h;
     case 'change':
       return { doc: a.fn(h.doc), past: a.record ? [...h.past.slice(-MAX_HISTORY + 1), h.doc] : h.past, future: a.record ? [] : h.future, dirty: true };
     case 'checkpoint':

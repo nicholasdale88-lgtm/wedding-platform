@@ -393,6 +393,40 @@ function SeatingPlan() {
     }
   };
 
+  /**
+   * Autosave: a moment after the last change the plan saves itself, quietly, keeping undo. A change made while
+   * it saves is saved next time. A clash or someone saying no meanwhile goes through the full save (which
+   * explains what happened).
+   */
+  const autoSaving = useRef(false);
+  const autoSave = async () => {
+    if (autoSaving.current || busy || viewing) return;
+    autoSaving.current = true;
+    const snap = doc;
+    setBusy(true);
+    try {
+      const d = await seatingApi.save(wid, s.version, { event: s.event.key, aspect: snap.aspect, tables: snap.tables, areas: snap.areas, seats: snap.seats, chairs: resolvedChairs() });
+      setS(d);
+      dispatch({ type: 'saved', doc: snap });
+      void reloadOverview();
+    } catch (e) {
+      if (e instanceof ApiError && (e.status === 409 || e.status === 400)) {
+        autoSaving.current = false;
+        setBusy(false);
+        return void save();
+      }
+      toast(`Couldn’t save the seating just now: ${(e as Error).message}`);
+    } finally {
+      autoSaving.current = false;
+      setBusy(false);
+    }
+  };
+  useEffect(() => {
+    if (!dirty || viewing) return;
+    const t = window.setTimeout(() => void autoSave(), 1500);
+    return () => window.clearTimeout(t);
+  }, [doc, dirty, viewing]); // eslint-disable-line
+
   /** Guests' guides and the night-before text switch to the saved plan. Save first; publish again after changes. */
   const publish = async () => {
     setBusy(true);
@@ -666,7 +700,7 @@ function SeatingPlan() {
             Versions{versions.length ? ` (${versions.length})` : ''}
           </Pill>
           <Pill kind={changed && !viewing ? 'primary' : 'secondary'} disabled={!changed || busy || !!viewing} onClick={() => void save()}>
-            {busy && changed ? 'Saving…' : changed ? 'Save seating' : 'Saved'}
+            {busy && changed ? 'Saving…' : changed ? 'Save seating' : 'Saved ✓'}
           </Pill>
           <Pill kind={!changed && unpublished ? 'primary' : 'secondary'} disabled={changed || busy || !unpublished || !tables.length || !!viewing} onClick={() => void publish()} title={changed ? 'Save first' : undefined}>
             {!s.published ? 'Publish to guests' : unpublished ? `Publish ${s.published.changes} ${s.published.changes === 1 ? 'change' : 'changes'}` : 'Published'}
