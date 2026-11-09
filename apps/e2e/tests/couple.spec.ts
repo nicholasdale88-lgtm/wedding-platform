@@ -87,7 +87,7 @@ test('a guest left blank is not kept in the list', async ({ page }) => {
 
 test('wedding party: the role menu always opens, asks for an email first, then adds them', async ({ page }) => {
   const drawer = await addGuest(page, 'Priya Nair');
-  await drawer.getByText(/^Wedding party/).click();
+  await drawer.locator('summary', { hasText: 'Wedding party' }).click();
   const role = drawer.getByLabel("Priya Nair's wedding party role");
   await expect(role).toBeEnabled();
   await role.selectOption('Bridesmaid');
