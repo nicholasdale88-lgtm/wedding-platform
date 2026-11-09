@@ -924,7 +924,10 @@ function SeatingPlan() {
                       setTool(k);
                       setAdding(false);
                       setSel(null); // a fresh start in each tab (nothing left open over the plan)
-                      e.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); // phones: the chosen tab fully in view
+                      // Phones: the chosen tab fully in view, by scrolling the row of tabs only (never the page).
+                      const tab = e.currentTarget;
+                      const row = tab.parentElement;
+                      if (row && (tab.offsetLeft < row.scrollLeft || tab.offsetLeft + tab.offsetWidth > row.scrollLeft + row.clientWidth)) row.scrollLeft = tab.offsetLeft - 8;
                     }}
                     className={`${mob ? 'min-h-[40px]' : ''} flex-none whitespace-nowrap py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}
                   >
