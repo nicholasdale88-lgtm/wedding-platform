@@ -65,9 +65,11 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   // What the boxes last showed from the server: a box still being typed in (its text differs from that) keeps
   // what's typed when another change saves, instead of jumping back (the "glitchy" boxes).
   const shown = useRef<Record<string, string> | null>(null);
+  // Choices waiting for the server: shown straight away (and kept shown when another save's answer arrives).
+  const pending = useRef<((g: GuestDetail['guest']) => GuestDetail['guest'])[]>([]);
   const fill = useCallback((x: GuestDetail) => {
     latest.current = x;
-    setD(x);
+    setD(pending.current.length ? { ...x, guest: pending.current.reduce((g, f) => f(g), x.guest) } : x);
     const next = {
       names: JSON.stringify(x.guest.people.map((p) => p.name)),
       phone: x.guest.phoneDisplay,
@@ -120,19 +122,32 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
     void load();
   }, [load]);
 
-  /** Queue a save; on success refresh from the server's answer, on a clash reload. */
-  function save(run: (g: GuestDetail['guest']) => Promise<GuestDetail>) {
-    const next = queue.current.then(() => saveNow(run));
+  /**
+   * Queue a save; on success refresh from the server's answer, on a clash reload. `local` shows the change
+   * at once (the tap is answered straight away, not after the round trip); it's dropped if the save fails.
+   */
+  function save(run: (g: GuestDetail['guest']) => Promise<GuestDetail>, local?: (g: GuestDetail['guest']) => GuestDetail['guest']) {
+    if (local) {
+      pending.current = [...pending.current, local];
+      setD((cur) => (cur ? { ...cur, guest: local(cur.guest) } : cur));
+    }
+    const next = queue.current.then(() => saveNow(run, local));
     queue.current = next;
     return next;
   }
-  async function saveNow(run: (g: GuestDetail['guest']) => Promise<GuestDetail>) {
-    if (!latest.current) return;
+  async function saveNow(run: (g: GuestDetail['guest']) => Promise<GuestDetail>, local?: (g: GuestDetail['guest']) => GuestDetail['guest']) {
+    const done = () => {
+      if (local) pending.current = pending.current.filter((f) => f !== local);
+    };
+    if (!latest.current) return done();
     try {
-      fill(await run(latest.current.guest));
+      const x = await run(latest.current.guest);
+      done();
+      fill(x);
       toast('Saved');
       changedSoon();
     } catch (e) {
+      done();
       if (e instanceof ApiError && e.status === 409) {
         toast('Updated elsewhere, reloaded.');
         await load();
@@ -143,8 +158,8 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
       }
     }
   }
-  const patch = (p: GuestPatch) => save((g) => api.patchGuest(wid, g, p));
-  const rsvp = (r: RsvpPut) => save((g) => api.putRsvp(wid, g, r));
+  const patch = (p: GuestPatch) => save((g) => api.patchGuest(wid, g, p), (g) => patchedLocally(g, p));
+  const rsvp = (r: RsvpPut) => save((g) => api.putRsvp(wid, g, r), (g) => repliedLocally(g, r));
 
   /** Close once pending saves are sent; a new guest left blank (no name, no mobile) is removed, not kept empty. */
   const close = () => {
@@ -698,4 +713,33 @@ function ChildTick({ on, name, compact = true, onChange }: { on: boolean; name: 
       Child
     </label>
   );
+}
+
+type G = GuestDetail['guest'];
+/** A change to a guest as it will look once saved, for the simple choices (the server's answer replaces it). */
+function patchedLocally(g: G, p: GuestPatch): G {
+  const next: G = { ...g };
+  if (p.channel !== undefined) next.channel = p.channel;
+  if (p.side !== undefined) next.side = p.side;
+  if (p.relation !== undefined) next.relation = p.relation;
+  if (p.circles !== undefined) next.circles = p.circles;
+  if (p.delivery !== undefined) next.delivery = p.delivery;
+  if (p.invited !== undefined) next.invited = p.invited;
+  if (p.party !== undefined) next.party = p.party;
+  if (p.seatsHeld !== undefined) next.seatsHeld = p.seatsHeld;
+  if (p.email !== undefined) next.email = p.email ?? '';
+  if (p.address) next.address = { street: '', suburb: '', state: '', postcode: '', country: '', ...g.address, ...p.address };
+  if (p.children) next.people = g.people.map((x, i) => ({ ...x, child: p.children![i] ?? x.child }));
+  return next;
+}
+/** A reply as it will look once saved. */
+function repliedLocally(g: G, r: RsvpPut): G {
+  const rsvp = { ...g.rsvp };
+  const blank = { attending: null, count: 1, answers: {}, message: '', via: 'admin', updatedAt: new Date().toISOString() };
+  for (const [k, v] of Object.entries(r.events)) {
+    const was = rsvp[k] ?? blank;
+    rsvp[k] = { ...was, attending: v.attending, ...(v.answers ? { answers: v.answers } : {}) };
+  }
+  if (r.count !== undefined) for (const k of Object.keys(rsvp)) rsvp[k] = { ...rsvp[k]!, count: r.count };
+  return { ...g, rsvp };
 }
