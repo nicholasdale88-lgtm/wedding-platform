@@ -319,7 +319,7 @@ export function Passcode() {
  */
 function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
   const toast = useToast();
-  const rate = s.rate ?? { centsPerCredit: 5, serviceFeePct: 2, minCredits: 100, maxCredits: 20000, creditsPerGuest: 6 };
+  const rate = s.rate ?? { centsPerCredit: 5, serviceFeePct: 2, minCredits: 100, maxCredits: 20000, creditsPerGuest: 13 };
   const credits = s.credits ?? 0;
   const planned = Math.max(0, (s.plannedCredits ?? 0) - credits);
   const [guests, setGuests] = useState('');

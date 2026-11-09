@@ -59,9 +59,10 @@ describe('text credits', () => {
     expect(TEXT_CREDIT_ALL_IN).toBeCloseTo(5.1);
     expect(textServiceFee(720)).toBe(72);
     expect(textCreditsCents(720)).toBe(3672);
-    expect(textCreditsForGuests(120)).toBe(720);
+    expect(textCreditsForGuests(120)).toBe(1560);
     expect(textCreditsForGuests(3)).toBe(100); // the smallest purchase
-    expect(textCreditsForGuests(101)).toBe(610); // rounded up to the next 10
+    expect(textCreditsForGuests(7)).toBe(100);
+    expect(textCreditsForGuests(101)).toBe(1320); // 1313, rounded up to the next 10
     expect(TEXT_COST_NOTE).toMatch(/not included in any plan/);
     expect(TEXT_COST_NOTE).toMatch(/5\.1c a credit, all-in/);
     expect(TEXT_COST_NOTE).toMatch(/2% service fee/);

@@ -97,11 +97,13 @@ export const TEXT_RATE = {
   minCredits: 100,
   maxCredits: 20_000,
   /**
-   * Credits a guest usually needs: the invitation, a reminder or two for those yet to reply, the RSVP
-   * thank-you, the night-before guide and the thank-you after (about 4 texts), most of them 2 credits long
-   * because of the link. Used before the guest list is in; after that, the planned texts are counted exactly.
+   * Credits a guest's mobile needs if every starter text goes to them (texts go to one mobile per
+   * invitation): save the date 2, invitation 2, RSVP reminder 2, last call 2, RSVP thank-you 2, night
+   * before 2 and the thank-you after 1 = 13. Each with their personal link runs past 160 characters, so it
+   * is 2 credits. A guest who replies early skips the reminders, so this is the most it takes, not less.
+   * Used before the guest list is in; after that, the planned texts are counted exactly.
    */
-  creditsPerGuest: 6,
+  creditsPerGuest: 13,
 } as const;
 
 /** Credits to buy for this many guests (with a mobile), rounded up to the next 10. */
@@ -121,4 +123,4 @@ export const TEXT_CREDIT_ALL_IN = (TEXT_RATE.centsPerCredit * (100 + TEXT_RATE.s
 
 /** The notice shown wherever prices are: the sales page, the pricing table, Terms, Help and Texting. */
 export const TEXT_COST_NOTE =
-  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 5.1c a credit, all-in (5c a credit plus a 2% service fee, GST included; the fee is the same however you pay). It’s about 6 credits a guest for the invitation, reminders and thank-yous: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';
+  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 5.1c a credit, all-in (5c a credit plus a 2% service fee, GST included; the fee is the same however you pay). It’s up to 13 credits (about 66c) per guest’s mobile if you send every text: save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after. A couple on one invitation share one mobile, so they cost the same as one guest: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';

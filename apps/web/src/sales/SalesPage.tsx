@@ -54,6 +54,9 @@ const typicalTexts = `$${(textCreditsCents(textCreditsForGuests(TYPICAL_GUESTS))
 
 const guestsLine = (k: PlanKey) => (allows(k, 'unlimitedGuests') ? 'As many guests as you like' : `Up to ${FREE_GUEST_LIMIT} guests`);
 const TEXTS_LINE = 'Automatic text invitations and reminders (text credits extra)';
+/** Texts are never part of a plan: the most they cost a guest's mobile, all-in (13 credits at 5.1c, every text sent). */
+const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN);
+const TEXTS_PRICE_LINE = `Texts not included: up to ${TEXT_PER_GUEST}c a guest, all-in, for every text`;
 
 const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] = [
   {
@@ -65,7 +68,7 @@ const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] =
     key: 'essentials',
     note: 'The whole plan',
     pick: true,
-    items: [`Everything in ${PLAN_INFO.free.name}`, guestsLine('essentials'), 'The seating plan', 'Budget, payments, checklist and vendors', TEXTS_LINE],
+    items: [`Everything in ${PLAN_INFO.free.name}`, guestsLine('essentials'), 'The seating plan', 'Budget, payments, checklist and vendors', TEXTS_LINE, TEXTS_PRICE_LINE],
   },
   {
     key: 'complete',
@@ -76,6 +79,7 @@ const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] =
       'Guests’ photos by QR code, and a live photo wall',
       'Wedding party sign-ins',
       'Daily backups to your own Drive',
+      TEXTS_PRICE_LINE,
     ],
   },
 ];

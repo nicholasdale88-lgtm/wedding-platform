@@ -15,6 +15,14 @@ const pill =
  */
 export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) => void; tone?: 'wedding' | 'company' }) {
   const co = tone === 'company';
+  // Signed out (or never signed in): a way back to The Yes List's front page.
+  const home = co ? null : (
+    <a href="/" className="absolute top-[max(16px,env(safe-area-inset-top))] left-4 inline-flex items-center gap-2 py-2 px-3 rounded-full no-underline text-[14px] text-[#33402f] hover:bg-[#ece3cd]">
+      <span aria-hidden>←</span>
+      <LogoMark size={22} />
+      The Yes List
+    </a>
+  );
   const screen = co ? 'fixed inset-0 z-50 flex items-center justify-center p-6 text-[#f3ecd6]' : 'fixed inset-0 z-50 bg-[#f6f0e2] flex items-center justify-center p-6';
   const screenStyle = co ? { background: 'radial-gradient(120% 90% at 80% 10%, #3f4f39 0%, #263021 55%, #1b2218 100%)', fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" } : undefined;
   const field = co ? 'w-full py-3 px-4 border border-[rgba(243,236,214,.3)] rounded-[12px] bg-[rgba(255,255,255,.06)] text-[16px] text-[#fbf8f2] placeholder:text-[#c9c4b2]' : pill;
@@ -70,6 +78,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
   if (forgot)
     return (
       <main className={screen} style={screenStyle}>
+        {home}
         <form onSubmit={askReset} noValidate className="w-[min(380px,100%)] flex flex-col items-center gap-[14px] text-center">
           <h1 className="m-0 font-display font-medium text-[32px] leading-[1.15]">Forgot your passcode?</h1>
           <p className="m-0 text-[14px] text-[#5b6a52]">We’ll email you a link to set a new one.</p>
@@ -98,6 +107,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
 
   return (
     <main className={screen} style={screenStyle}>
+      {home}
       <form onSubmit={submit} noValidate className="w-[min(380px,100%)] flex flex-col items-center gap-[14px] text-center">
         {co ? (
           <>
