@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { createBrowserRouter, Route, RouterProvider, Routes, useLocation } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Route, RouterProvider, Routes, useLocation } from 'react-router-dom';
 import { countPage } from './lib/stats';
 import { GuestNotFound } from './guest/GuestMessage';
 
@@ -87,6 +87,8 @@ function Pages() {
         <Route path="/demo" element={<DemoPage />} />
         <Route path="/demo/seating-pdf" element={<SampleSeatingPage />} />
         <Route path="/designs" element={<DesignsPage />} />
+        {/* Try the app: the admin for a made-up wedding, answered in the browser (try/demo.ts). */}
+        <Route path="/try" element={<Navigate to="/admin/demo" replace />} />
         <Route path="/templates" element={<DesignsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />

@@ -200,6 +200,14 @@ export function SalesPage() {
               </p>
             </div>
             <PhoneFan />
+            <div className="flex flex-col items-center gap-2">
+              <a href="/try" className="py-[14px] px-8 rounded-full no-underline text-[16px] font-semibold shadow-[0_10px_24px_rgba(51,64,47,.18)]" style={{ background: INK, color: PAPER }}>
+                Try the app yourself
+              </a>
+              <span className="text-[14px]" style={{ color: SOFT }}>
+                A sample wedding to play with: switch between Basic, Essentials and Deluxe. Nothing to sign up for.
+              </span>
+            </div>
             <div className="grid gap-10 md:grid-cols-3 max-w-[1000px] mx-auto">
               {AFTER.map((a) => (
                 <article key={a.title} className="flex flex-col gap-2">

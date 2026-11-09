@@ -1,4 +1,5 @@
 import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
+import { demoRequest, isDemo } from '../try/demo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -15,6 +16,8 @@ export class ApiError extends Error {
 export const UPGRADE_EVENT = 'wp:upgrade';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Try the app (/admin/demo): a made-up wedding answered in the browser; nothing reaches the server.
+  if (isDemo()) return demoRequest<T>(path, init);
   let res: Response;
   try {
     const go = () =>

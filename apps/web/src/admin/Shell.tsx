@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { DemoBar } from '../try/DemoBar';
+import { DEMO_WID } from '../try/demo';
 import { themeOf } from '../guest/themeKit';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
@@ -329,9 +331,9 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
             ?
           </Link>
         </header>
-        <main className="min-w-0 pt-5 px-4 pb-[calc(40px+env(safe-area-inset-bottom))]">{children}</main>
+        <main className={`min-w-0 pt-5 px-4 ${wid === DEMO_WID ? 'pb-[120px]' : 'pb-[calc(40px+env(safe-area-inset-bottom))]'}`}>{children}</main>
         {more && <MoreSheet onClose={() => setMore(false)} onSignOut={signOut} />}
-        <FeedbackButton wid={wid} />
+        {wid === DEMO_WID ? <DemoBar /> : <FeedbackButton wid={wid} />}
       </div>
     );
   }
@@ -358,10 +360,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           </div>
         </div>
       </aside>
-      <main className="min-w-0 pt-9 px-[clamp(20px,4vw,48px)] pb-[60px]">
+      <main className={`min-w-0 pt-9 px-[clamp(20px,4vw,48px)] ${wid === DEMO_WID ? 'pb-[110px]' : 'pb-[60px]'}`}>
         <div className="max-w-[1180px] mx-auto">{children}</div>
       </main>
-      <FeedbackButton wid={wid} />
+      {wid === DEMO_WID ? <DemoBar /> : <FeedbackButton wid={wid} />}
     </div>
   );
 }

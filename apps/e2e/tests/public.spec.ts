@@ -47,3 +47,26 @@ test('sample seating PDF: branded, the room, each table with numbered seats, the
   await expect(page.getByText('Everyone, A to Z')).toBeVisible();
   await expect(page.getByText('Made with The Yes List').first()).toBeVisible();
 });
+
+test('try the app: the sample admin opens with no sign-up, switches plans, edits a guest, and leads back', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Try the app yourself' }).click();
+  await expect(page).toHaveURL(/\/admin\/demo/);
+  const bar = page.getByRole('region', { name: 'Sample wedding' });
+  await expect(bar).toBeVisible();
+  await bar.getByRole('radio', { name: 'Deluxe' }).click();
+  await expect(bar.getByRole('radio', { name: 'Deluxe' })).toHaveAttribute('aria-checked', 'true');
+  // The guest list, and a guest's details: a choice shows at once.
+  await page.goto('/admin/demo/wedding/guests?show=all');
+  await expect(page.getByText('Charlotte Hale').first()).toBeVisible();
+  await page.getByText('Charlotte Hale').first().click();
+  const drawer = page.getByRole('dialog');
+  await drawer.getByLabel('Send them messages by').selectOption('email');
+  await expect(drawer.getByLabel('Send them messages by')).toHaveValue('email');
+  await drawer.getByRole('button', { name: 'Close' }).click();
+  // Seating, with the couple in their own colour.
+  await page.goto('/admin/demo/wedding/seating');
+  await expect(page.getByRole('button', { name: /^Table 1, / })).toBeVisible();
+  await page.getByRole('region', { name: 'Sample wedding' }).getByRole('link', { name: '← The Yes List' }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
