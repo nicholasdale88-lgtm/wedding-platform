@@ -352,7 +352,17 @@ function SeatingPlan() {
     e.stopPropagation();
     if (!editingRef.current) return;
     // Seating guests: a table is chosen (and a tap opens it); it never moves by accident.
-    if (kind === 'table' && toolRef.current !== 'tables') return select(kind, key);
+    if (kind === 'table' && toolRef.current !== 'tables') {
+      select(kind, key);
+      // Seat guests: the table opens when the finger or button lifts without moving. Choosing it shows its panel,
+      // which can move the page under the pointer, so the click itself may never arrive.
+      if (toolRef.current === 'guests') {
+        const x = e.clientX;
+        const y = e.clientY;
+        window.addEventListener('pointerup', (u) => Math.hypot(u.clientX - x, u.clientY - y) < SLOP * 2 && setFocus(key as string), { once: true });
+      }
+      return;
+    }
     if (kind === 'table' && e.pointerType === 'touch') return; // a finger: the touch handling above moves it
     const moving = toolRef.current !== 'guests'; // Move tables and Room: a drag moves straight away, no hold
     const grab = (clientX: number, clientY: number) => {
