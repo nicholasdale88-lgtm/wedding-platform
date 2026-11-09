@@ -82,7 +82,7 @@ export function Guests() {
   };
   const [open, openGuest, closeGuest] = useOpenParam('g'); // a pushed entry: the phone's Back closes the guest
   // New replies appear by themselves, but not while a guest's details are open over the list.
-  useAutoRefresh(load, 30_000, !open);
+  useAutoRefresh(load, 120_000, !open);
   // The search box answers each key at once; the address bar (and the filtering) catch up a moment later.
   const [q, setQ] = useState(state.q);
   const dq = useDeferredValue(q);

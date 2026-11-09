@@ -30,6 +30,8 @@ let last = '';
 export function countPage(path: string) {
   if (typeof navigator === 'undefined' || navigator.webdriver || /localhost|127\.0\.0\.1/.test(location.hostname)) return;
   const kind = pageKind(path);
+  // Public and guest pages only: clicks around the admin would cost a database write each.
+  if (kind === 'admin' || kind === 'company') return;
   if (`${kind}|${path}` === last) return;
   last = `${kind}|${path}`;
   beacon('/api/site/hit', { page: kind });

@@ -339,7 +339,8 @@ export function useMedia(query: string): boolean {
  * Keeps a screen current without reloading: runs `refresh` every `ms` while the page is visible, and
  * straight away when you come back to it (new RSVPs, replies and photos appear by themselves).
  */
-export function useAutoRefresh(refresh: () => unknown, ms = 30_000, enabled = true) {
+/** Every 2 minutes while the page is in view, and when you come back to it (each refresh reads the database). */
+export function useAutoRefresh(refresh: () => unknown, ms = 120_000, enabled = true) {
   const latest = useRef(refresh);
   latest.current = refresh;
   useEffect(() => {

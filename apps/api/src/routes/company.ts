@@ -907,9 +907,8 @@ export function siteRoutes() {
     const b = z.object({ page: z.string().max(20) }).safeParse(await readJson(c.req.raw).catch(() => null));
     if (!b.success) return c.body(null, 204);
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
-    if (await allow(c.env.DB, `hit:${ip}`, 600, 60 * 60_000)) {
-      await recordHit(c.env.DB, b.data.page, ip, c.req.header('User-Agent') ?? '', c.env.SESSION_SECRET ?? 'yes-list').catch(() => undefined);
-    }
+    // Never in the way: a counting problem is not the visitor's problem.
+    await recordHit(c.env.DB, b.data.page, ip, c.req.header('User-Agent') ?? '', c.env.SESSION_SECRET ?? 'yes-list').catch(() => undefined);
     return c.body(null, 204);
   });
   /** Something went wrong in a visitor's browser: kept for Traffic & errors (a few an hour from each network). */
