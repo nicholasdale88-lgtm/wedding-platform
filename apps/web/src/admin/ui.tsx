@@ -244,6 +244,7 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
   // Set up once while it's open (not again on every change inside it, which made the page behind jump).
   const close = useRef(onClose);
   close.current = onClose;
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
@@ -252,15 +253,31 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
       close.current();
     };
     document.addEventListener('keydown', onKey);
+    // iPhone: with the keyboard up, Safari slides the page up under it, which left the top of the panel
+    // above the screen where it couldn't be scrolled back to. The panel follows the part of the screen
+    // you can actually see instead, so it always scrolls from its top to its bottom.
+    const vv = window.visualViewport;
+    const fit = () => {
+      const el = box.current;
+      if (!el || !vv) return;
+      el.style.top = `${vv.offsetTop}px`;
+      el.style.height = `${vv.height}px`;
+      el.style.bottom = 'auto';
+    };
+    fit();
+    vv?.addEventListener('resize', fit);
+    vv?.addEventListener('scroll', fit);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKey);
+      vv?.removeEventListener('resize', fit);
+      vv?.removeEventListener('scroll', fit);
       document.body.style.overflow = prev;
     };
   }, []);
   return (
-    <div className="fixed inset-0 z-20 flex justify-end">
+    <div ref={box} className="fixed inset-0 z-20 flex justify-end">
       <div onClick={onClose} className="yl-backdrop absolute inset-0 bg-[rgba(51,64,47,.32)]" />
       <aside
         role="dialog"

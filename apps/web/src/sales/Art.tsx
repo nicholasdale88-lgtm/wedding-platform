@@ -1,21 +1,25 @@
 /**
  * The Yes List's own graphics, drawn as SVG so they stay sharp at any size and weigh almost nothing: the
- * logo (a list card with a gold tick and a ring) and the wordmark. Colours follow the front page (sage ink,
+ * logo (two interlocking gold rings, as on the app icon) and the wordmark. Colours follow the front page (sage ink,
  * gold, cream).
  */
 const INK = '#33402f';
 const GOLD = '#c8a46a';
 const CREAM = '#fbf8f2';
 
-/** The logo mark: a list card, a gold tick on the top line, and a ring tucked at the corner. */
+/** The logo mark: two interlocking gold rings on sage, the same as the app icon saved to a phone's home screen. */
 export function LogoMark({ size = 34 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden>
-      <rect x="6" y="5" width="24" height="30" rx="4" fill={CREAM} stroke={INK} strokeWidth="2" />
-      <path d="M10.5 13.5 l2.6 2.6 l5-5.4" fill="none" stroke={GOLD} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M21 13.5 h5.5 M10.5 21 h16 M10.5 27 h11" stroke={INK} strokeWidth="2" strokeLinecap="round" opacity=".75" />
-      <circle cx="31" cy="30" r="6.2" fill="none" stroke={GOLD} strokeWidth="2.4" />
-      <path d="M28.6 23.6 l2.4 -2.6 l2.4 2.6" fill={GOLD} />
+      <rect width="40" height="40" rx="9" fill="#2f3b2b" />
+      <defs>
+        <linearGradient id="yl-gold" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#e6c98f" />
+          <stop offset="1" stopColor="#b8914f" />
+        </linearGradient>
+      </defs>
+      <circle cx="15.6" cy="20" r="7.6" fill="none" stroke="url(#yl-gold)" strokeWidth="2.6" />
+      <circle cx="24.4" cy="20" r="7.6" fill="none" stroke="url(#yl-gold)" strokeWidth="2.6" />
     </svg>
   );
 }

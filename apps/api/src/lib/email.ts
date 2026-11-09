@@ -15,7 +15,15 @@ export function buttonEmail(o: { heading: string; lines: string[]; button: strin
   const tag = 'The Yes List · weddings, beautifully organised';
   const text = [...(o.brand ? ['The Yes List', ''] : []), o.heading, '', ...o.lines, '', `${o.button}: ${o.link}`, ...(o.footer ? ['', o.footer] : []), ...(o.brand ? ['', tag] : [])].join('\n');
   // From The Yes List itself (not a couple's own message): its wordmark at the top and a line at the foot.
-  const mark = o.brand ? `<p style="margin:0 0 22px;font-family:Arial,sans-serif;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#7a7466">The Yes List</p>\n` : '';
+  // The rings (the app icon), from the site the button links to.
+  let icon = '';
+  try {
+    icon = `${new URL(o.link).origin}/icons/icon-180.png`;
+  } catch {
+    icon = '';
+  }
+  const rings = icon ? `<img src="${esc(icon)}" width="28" height="28" alt="" style="vertical-align:middle;border-radius:7px;margin-right:10px">` : '';
+  const mark = o.brand ? `<p style="margin:0 0 22px;font-family:Arial,sans-serif;font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:#7a7466">${rings}The Yes List</p>\n` : '';
   const foot = o.brand ? `\n<p style="margin:28px 0 0;padding-top:14px;border-top:1px solid #e2d7bc;font-family:Arial,sans-serif;font-size:12px;color:#7a7466">${tag}</p>` : '';
   const html = `<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;padding:28px 20px;color:#33402f;background:#fbf8f2">
 ${mark}<h1 style="font-weight:normal;font-size:28px;margin:0 0 16px">${esc(o.heading)}</h1>

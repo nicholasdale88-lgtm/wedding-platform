@@ -496,7 +496,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     }
     if (p.children) {
       p.children.forEach((kid, idx) =>
-        stmts.push(db.prepare(`UPDATE person SET child = ?, version = version + 1 WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(kid ? 1 : 0, invId, idx)),
+        stmts.push(db.prepare(`UPDATE person SET child = ?, version = version + 1 WHERE invitation_id = ? AND idx = ? AND deleted_at IS NULL`).bind(kid && idx > 0 ? 1 : 0, invId, idx)),
       );
     }
     if (p.invited) {

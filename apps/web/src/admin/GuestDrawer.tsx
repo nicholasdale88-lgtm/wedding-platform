@@ -307,7 +307,6 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         <Label text="Main contact · gets the texts">
           <input value={names[0] ?? ''} onChange={(e) => setNames([e.target.value, ...names.slice(1)])} onBlur={() => names[0] !== g.people[0]?.name && savePeople(names)} className={inputCls} />
         </Label>
-        {g.people[0] && <ChildTick on={!!g.people[0].child} name={names[0] || 'the main contact'} onChange={(v) => setChild(0, v)} />}
         {names.slice(1).map((n, i) => (
           <div key={i} className="flex gap-2 items-center">
             <input
@@ -692,7 +691,7 @@ function previewUrl(link: string, page = ''): string {
 }
 
 /** "Child": unticked means an adult (the default); ticked, they count as a child for the caterer and seating. */
-function ChildTick({ on, name, compact = false, onChange }: { on: boolean; name: string; compact?: boolean; onChange: (child: boolean) => void }) {
+function ChildTick({ on, name, compact = true, onChange }: { on: boolean; name: string; compact?: boolean; onChange: (child: boolean) => void }) {
   return (
     <label className={`flex items-center gap-1 text-[13px] text-[var(--adm-muted,#5b6a52)] cursor-pointer select-none ${compact ? 'flex-none' : 'self-start -mt-1'}`}>
       <input type="checkbox" aria-label={`${name} is a child`} checked={on} onChange={(e) => onChange(e.target.checked)} className="w-4 h-4 accent-[#33402f]" />
