@@ -21,18 +21,18 @@ then take the next one if there's time. Never leave a red CI run behind.
       running with no server writes, a Basic / Essentials / Deluxe switch showing what each plan adds
       (locked features shown with what they do), clear Back to the front page and Start your wedding buttons.
       Route /try. Tap-through test.
-- [ ] 2. Staging test drive: deploy staging (push the main tip to refs/heads/staging), sign up a test couple
+- [x] 2. (2026-11-09: done through Try the app, which runs the real admin; the seating screen checked on phone and desktop) Staging test drive: deploy staging (push the main tip to refs/heads/staging), sign up a test couple
       on https://wedding-platform-nd-staging.pages.dev (sign-ups there get every feature), add guests and
       tables, move tables, seat people, export the seating PDF, check the invitation looks; fix what's found.
 - [ ] 3. Declutter the busiest screens (Guests, Seating toolbar, Setup → Invitation, Texts): keep the
       everyday actions visible, roll the rest into More / Advanced. Keep labels the tests use, or update tests.
-- [ ] 4. More tap-through tests: a guest opens their invitation and RSVPs (yes with a diet); budget line added;
+- [~] 4. (2026-11-09: guest opens their invitation and RSVPs yes, seen by the couple; finger drag; seating tabs) More tap-through tests: a guest opens their invitation and RSVPs (yes with a diet); budget line added;
       checklist item ticked; texts screen shows the 8c price and the per-guest figure.
 - [x] 5. (2026-11-09) Seating sample PDF (/demo/seating-pdf): seat the sample couple with ids couple-1 / couple-2 so their
       rose colour shows; check every page by eye in the browser pane.
 - [ ] 6. Front page speed on phones: the hero phone frame loads after the page is shown (keep the iframe
       title the tests look for); check Lighthouse-style weight by reading the built asset sizes in CI logs.
-- [ ] 7. Visual pass on each invitation look (/designs, every look) at phone size in the browser pane; fix
+- [x] 7. (2026-11-09: Romantic, Luxe, Modern checked at phone size; Classic's ornaments now give way) Visual pass on each invitation look (/designs, every look) at phone size in the browser pane; fix
       overlaps or clipped ornaments in guest/looks.css.
 
 - [ ] ALWAYS (when nothing above is open, and at least once a day): stress test and refine. Read the latest
@@ -48,3 +48,4 @@ then take the next one if there's time. Never leave a red CI run behind.
 ## Log
 - 2026-11-09: worklist created.
 - 2026-11-09: Try the app live (/try); seating Move tables / Table settings tabs; finger drag fixed (touch events); tables can't overlap; looks drop Classic's ornaments; sample PDF shows the couple.
+- 2026-11-09 night: seating on phones reworked (four tabs; Move tables with real finger drag; Table settings only settings; slim bar; no overlap with tables or areas; More table tools; one-line tabs; compact stage card; edge-to-edge room that scrolls when zoomed; first-tap open). Try the app: households seated together, preview cards for screens the sample doesn't run. Lighter database use (2-minute refresh, counter skips admin). A short database outage (sign-in failed ~20 minutes) recovered by itself; server errors now name the database's reason. All CI green at db1a970 / b5b1f2d.
