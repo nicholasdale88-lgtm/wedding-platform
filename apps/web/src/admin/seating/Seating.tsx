@@ -1147,7 +1147,7 @@ function SeatingPlan() {
                 : 'Click a table to open it and seat people, or drag guests onto it. To move tables, choose Move tables above.'
               : tool === 'tables'
                 ? mob
-                  ? 'Drag any table to move it (the plan holds still while you do). To change a table’s seats, type or size, use Table settings.'
+                  ? 'Drag a table to move it; swipe the empty floor to scroll (use + to make the room bigger). To change a table’s seats, type or size, use Table settings.'
                   : 'Drag any table to move it. To change a table’s seats, type or size, use Table settings. Ctrl+Z undoes.'
                 : tool === 'setup'
                   ? 'Tap a table to change its name, seats, type and size. Tables stay where they are here.'
@@ -1155,7 +1155,7 @@ function SeatingPlan() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
-        <div className="overflow-auto rounded-[14px] border border-[#d3c6a4]">
+        <div className={`overflow-auto border border-[#d3c6a4] ${mob ? '-mx-4 rounded-none border-x-0' : 'rounded-[14px]'}`}>
           {/* Phones: swipe the floor (or a table) to scroll the plan. Editing: drag the selected table, or hold any table or area to pick it up. */}
           <div
             ref={plan}
@@ -1166,7 +1166,7 @@ function SeatingPlan() {
             onPointerLeave={up}
             role="application"
             aria-label="Floor plan"
-            className={`relative select-none ${editing && (tool === 'tables' || tool === 'room') && !adding ? 'touch-none' : 'touch-pan-x touch-pan-y'} ${adding ? 'cursor-crosshair' : ''}`}
+            className={`relative select-none ${editing && tool === 'room' && !adding ? 'touch-none' : 'touch-pan-x touch-pan-y'} ${adding ? 'cursor-crosshair' : ''}`}
             style={{ width: `${zoom * 100}%`, aspectRatio: cssAspect(aspect), background: '#fbf8f2', backgroundImage: 'radial-gradient(#e2d7bc 1px, transparent 1.2px)', backgroundSize: '18px 18px' }}
           >
             {areas.map((a, i) => (
