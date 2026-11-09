@@ -239,7 +239,7 @@ function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () =
       /* next time */
     }
   }, [wid, inv]); // eslint-disable-line
-  useAutoRefresh(refresh, 15_000);
+  useAutoRefresh(refresh, 60_000); // an open conversation: new messages within a minute
   useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [c?.messages.length]);
 
   const send = async () => {
