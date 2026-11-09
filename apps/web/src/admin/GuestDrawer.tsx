@@ -301,8 +301,8 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
 
   return (
     <Drawer onClose={close} label={`Guest: ${g.people[0]?.name || 'New guest'}`}>
-      {/* The name and Close stay in view while you scroll the guest's details. */}
-      <div className="sticky top-0 z-[2] -mx-[18px] sm:-mx-[26px] -mt-3 px-[18px] sm:px-[26px] pt-3 pb-3 bg-[var(--adm-card,#f6f0e2)] border-b border-[var(--adm-line,#e2d7bc)] flex justify-between items-start gap-3">
+      {/* The name and Close stay in view while you scroll the guest's details, flush with the top (no gap above it). */}
+      <div className="sticky z-[2] top-[calc(-1*max(20px,env(safe-area-inset-top)))] sm:top-[-26px] -mx-[18px] sm:-mx-[26px] -mt-[calc(max(20px,env(safe-area-inset-top))+12px)] sm:-mt-[38px] px-[18px] sm:px-[26px] pt-[calc(max(20px,env(safe-area-inset-top))+12px)] sm:pt-[38px] pb-3 bg-[var(--adm-card,#f6f0e2)] border-b border-[var(--adm-line,#e2d7bc)] flex justify-between items-start gap-3">
         <div className="min-w-0">
           <button type="button" onClick={close} className="sm:hidden -ml-1 mb-1 py-1 px-1 min-h-[36px] border-0 bg-transparent text-[14px] text-[var(--adm-ink,#33402f)] cursor-pointer">
             ← Guests
