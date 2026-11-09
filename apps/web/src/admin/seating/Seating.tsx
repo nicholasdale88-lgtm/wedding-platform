@@ -266,6 +266,8 @@ function SeatingPlan() {
   // Who sits in each chair at each table (chosen chairs kept, everyone else in the next free one).
   // The seating PDF: what goes in it (all of it unless unticked).
   const [printOpen, setPrintOpen] = useState(false);
+  // Phones, moving tables: the chosen table's full settings are open (only after Table settings is tapped).
+  const [sheetFor, setSheetFor] = useState('');
   const [printing, setPrinting] = useState(false);
   const [printParts, setPrintParts] = useState<SeatingPrintOptions>(ALL_PARTS);
   const chairMap = useMemo(() => new Map(tables.map((t) => [t.id, chairsAt(byTable.get(t.id) ?? [], chairs, t.seats)])), [tables, byTable, chairs]);
@@ -1158,7 +1160,22 @@ function SeatingPlan() {
             </div>
           )}
 
-          {selTable && (
+          {/* Phones, moving tables: just a slim bar for the chosen table (the settings open from it), so nothing
+              covers the room while you move things. */}
+          {selTable && mob && tool === 'tables' && sheetFor !== selTable.id && (
+            <div role="region" aria-label="Chosen table" className="fixed inset-x-0 bottom-0 z-[17] flex items-center gap-2 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-[#fbf8f2] border-t border-[#d3c6a4] shadow-[0_-6px_18px_rgba(51,64,47,.14)]">
+              <span className="flex-1 min-w-0 truncate font-display text-[19px]">
+                {/^\d+$/.test(selTable.name) ? `Table ${selTable.name}` : selTable.name} · {(byTable.get(selTable.id) ?? []).length}/{selTable.seats}
+              </span>
+              <Pill size="sm" onClick={() => setSheetFor(selTable.id)}>
+                Table settings
+              </Pill>
+              <button type="button" aria-label="Close table" onClick={() => setSel(null)} className="w-10 h-10 flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer">
+                ×
+              </button>
+            </div>
+          )}
+          {selTable && !(mob && tool === 'tables' && sheetFor !== selTable.id) && (
             <div
               className={
                 mob
@@ -1170,7 +1187,7 @@ function SeatingPlan() {
                 <span className="font-display text-[22px]">
                   {/^\d+$/.test(selTable.name) ? `Table ${selTable.name}` : selTable.name} · {(byTable.get(selTable.id) ?? []).length} of {selTable.seats}
                 </span>
-                <button type="button" aria-label="Close table" onClick={() => setSel(null)} className={`${mob ? 'w-10 h-10' : 'w-8 h-8'} flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer`}>
+                <button type="button" aria-label="Close table" onClick={() => (setSel(null), setSheetFor(''))} className={`${mob ? 'w-10 h-10' : 'w-8 h-8'} flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer`}>
                   ×
                 </button>
               </div>
