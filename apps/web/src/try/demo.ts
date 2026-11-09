@@ -86,10 +86,18 @@ function build() {
   ];
   seats = {};
   chairs = {};
-  const coming = guests.filter((g) => g.rsvp.wedding?.attending).flatMap((g) => g.people);
-  coming.slice(0, 34).forEach((p, i) => {
-    seats[p.id] = `dt${1 + (i % 6)}`;
-  });
+  // Households together, a table filled before the next; a few left to seat so there's something to try.
+  let t = 1;
+  let used = 0;
+  for (const g of guests.filter((x) => x.rsvp.wedding?.attending).slice(0, 18)) {
+    if (used + g.people.length > 10) {
+      t += 1;
+      used = 0;
+    }
+    if (t > 6) break;
+    for (const p of g.people) seats[p.id] = `dt${t}`;
+    used += g.people.length;
+  }
   version = 1;
 }
 
