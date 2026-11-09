@@ -136,7 +136,11 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
     }
     // Briefly busy (a burst of saves at once): ask the page to try again rather than reporting a fault.
     if (isBusy(err)) return c.json({ error: { code: 'busy', message: 'Busy for a moment. Please try again.' } }, 503, { 'Retry-After': '1' });
-    return c.json({ error: { code: 'server_error', message: 'Something went wrong. Your changes are safe.' } }, 500);
+    // The database's own reason, when it's the database (a limit reached, unavailable): says what's wrong
+    // without anything private, so it can be fixed fast.
+    const msg = String((err as Error)?.message ?? '');
+    const db = /D1_|SQLITE|database|limit/i.test(msg) ? msg.replace(/[^\w .:,()'-]/g, '').slice(0, 160) : undefined;
+    return c.json({ error: { code: 'server_error', message: 'Something went wrong. Your changes are safe.', ...(db ? { db } : {}) } }, 500);
   });
   return app;
 }
