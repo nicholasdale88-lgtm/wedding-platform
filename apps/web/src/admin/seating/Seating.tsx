@@ -169,6 +169,53 @@ function SeatingPlan() {
     return () => document.removeEventListener('keydown', onKey);
   }, [undo, redo]);
 
+  /**
+   * Move tables with a finger: handled as touches, not pointer events. On a phone the browser treats the
+   * start of a touch as a possible scroll and cancels the pointer, so a table never moved. Here the touch is
+   * claimed the moment it lands on a table (Move tables only), and the table follows the finger.
+   */
+  const touchDrag = useRef<Drag | null>(null);
+  const live = useRef<{ at: (e: { clientX: number; clientY: number }) => { x: number; y: number }; table: (id: string) => SeatTable | undefined; move: (id: string, x: number, y: number) => void; checkpoint: () => void; pick: (id: string) => void } | null>(null);
+  const planReady = !!s;
+  useEffect(() => {
+    const el = plan.current;
+    if (!el) return;
+    const start = (e: TouchEvent) => {
+      const L = live.current;
+      if (!L || !editingRef.current || toolRef.current !== 'tables' || e.touches.length !== 1) return;
+      const hit = (e.target as Element | null)?.closest?.('[data-table-id]') as HTMLElement | null;
+      const t = hit ? L.table(hit.dataset.tableId ?? '') : undefined;
+      if (!t) return;
+      e.preventDefault(); // no scroll, no click: this touch moves the table
+      const p = L.at(e.touches[0]!);
+      touchDrag.current = { kind: 'table', key: t.id, dx: p.x - t.x, dy: p.y - t.y, moved: false };
+      L.pick(t.id);
+    };
+    const move = (e: TouchEvent) => {
+      const d = touchDrag.current;
+      const L = live.current;
+      if (!d || !L || !e.touches[0]) return;
+      e.preventDefault();
+      if (!d.moved) L.checkpoint();
+      d.moved = true;
+      const p = L.at(e.touches[0]);
+      L.move(d.key as string, p.x - d.dx, p.y - d.dy);
+    };
+    const end = () => {
+      touchDrag.current = null;
+    };
+    el.addEventListener('touchstart', start, { passive: false });
+    document.addEventListener('touchmove', move, { passive: false });
+    document.addEventListener('touchend', end);
+    document.addEventListener('touchcancel', end);
+    return () => {
+      el.removeEventListener('touchstart', start);
+      document.removeEventListener('touchmove', move);
+      document.removeEventListener('touchend', end);
+      document.removeEventListener('touchcancel', end);
+    };
+  }, [planReady]);
+
   // Once a finger has picked up a table, an area or a name, the page mustn't scroll under it. Tables and
   // names allow scrolling (so a swipe over them scrolls), so the browser has to be told no here; this
   // listener must not be passive for preventDefault to count.
@@ -236,6 +283,13 @@ function SeatingPlan() {
     const r = plan.current!.getBoundingClientRect();
     return { x: ((e.clientX - r.left) / (r.width || 1)) * 100, y: ((e.clientY - r.top) / (r.height || 1)) * 100 };
   };
+  live.current = {
+    at,
+    table: (id) => tables.find((t) => t.id === id),
+    move: (id, x, y) => setTable(id, { x: snapTo(x), y: snapTo(y) }, false),
+    checkpoint,
+    pick: (id) => select('table', id),
+  };
   const nextName = () => String(Math.max(0, ...tables.map((t) => Number(t.name)).filter((n) => Number.isFinite(n))) + 1);
   const selTable = sel?.kind === 'table' ? tables.find((t) => t.id === sel.id) : undefined;
   const selArea = sel?.kind === 'area' ? areas[sel.i] : undefined;
@@ -298,6 +352,7 @@ function SeatingPlan() {
     if (!editingRef.current) return;
     // Seating guests: a table is chosen (and a tap opens it); it never moves by accident.
     if (kind === 'table' && toolRef.current !== 'tables') return select(kind, key);
+    if (kind === 'table' && e.pointerType === 'touch') return; // a finger: the touch handling above moves it
     const moving = toolRef.current !== 'guests'; // Move tables and Room: a drag moves straight away, no hold
     const grab = (clientX: number, clientY: number) => {
       const p = at({ clientX, clientY });
@@ -1683,6 +1738,7 @@ function TableShapeView({
     <div
       data-table-id={t.id}
       onPointerDown={onPointerDown}
+      data-table-id={t.id}
       onClick={onClick}
       onContextMenu={(e) => editing && e.preventDefault()}
       role="button"
