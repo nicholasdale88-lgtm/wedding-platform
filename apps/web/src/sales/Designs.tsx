@@ -2,7 +2,7 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MOOD_OF, MOODS, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
+import { LOOK_LABEL, lookOf, MOOD_OF, MOODS, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
 import { Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { BRAND } from './SalesPage';
@@ -28,9 +28,14 @@ export function DesignsPage() {
   return (
     <div className="min-h-screen" style={{ background: PAPER, color: INK, fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" }}>
       <header className="max-w-[1100px] mx-auto px-4 py-5 flex justify-between items-center gap-3">
-        <Link to="/" aria-label={`${BRAND} home`} className="no-underline">
-          <Wordmark size={22} />
-        </Link>
+        <span className="flex items-center gap-3">
+          <Link to="/" className="no-underline py-2 px-3 rounded-full border text-[14px]" style={{ color: INK, borderColor: '#d3c6a4' }}>
+            ← Home
+          </Link>
+          <Link to="/" aria-label={`${BRAND} home`} className="no-underline hidden sm:inline">
+            <Wordmark size={22} />
+          </Link>
+        </span>
         <Link to="/#start" className="py-[10px] px-5 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
           Start your wedding
         </Link>
@@ -90,7 +95,7 @@ export function DesignsPage() {
                       {themeLabel(name)}
                     </span>
                     <span className="px-1 -mt-2 text-[12px]" style={{ color: SOFT }}>
-                      {MOOD_OF[name] ?? ''}
+                      {LOOK_LABEL[lookOf(name)].name} look
                     </span>
                   </button>
                 );
@@ -101,11 +106,14 @@ export function DesignsPage() {
           <div id="design-phone" className="scroll-mt-4 order-1 md:order-2 md:sticky md:top-6 flex flex-col items-center gap-3">
             <HeroInvite src={src} caption={false} />
             <span className="text-[15px] font-medium">{themeLabel(theme)}</span>
+            <span className="-mt-2 text-[13px]" style={{ color: SOFT }}>
+              {LOOK_LABEL[lookOf(theme)].name} look: {LOOK_LABEL[lookOf(theme)].about.toLowerCase()}
+            </span>
             <span className="text-[14px] text-center" style={{ color: SOFT }}>
               Tap the seal to open it.
             </span>
             <div className="flex gap-3 flex-wrap justify-center">
-              <a href={`/demo?theme=${encodeURIComponent(theme)}`} target="_blank" rel="noopener" className="py-[10px] px-5 rounded-full no-underline text-[15px] border" style={{ color: INK, borderColor: '#c6b794' }}>
+              <a href={`/demo?theme=${encodeURIComponent(theme)}&from=designs`} className="py-[10px] px-5 rounded-full no-underline text-[15px] border" style={{ color: INK, borderColor: '#c6b794' }}>
                 Open full screen
               </a>
               <Link to="/#start" className="py-[10px] px-5 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>

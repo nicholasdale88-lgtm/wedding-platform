@@ -230,7 +230,7 @@ export function TermsPage() {
       <P>
         {BRAND}’s name, logo, designs, invitation templates, wording, help guides, videos and software are ours and protected by copyright and trade mark law. You
         may use them for your own events through the service. Please don’t copy, resell, scrape, frame or reverse-engineer them, or use them to build a competing
-        product. What you make with them (your words, photos and guest list) stays yours.
+        product. What you make with them (your words, photos and guest list) stays yours. Copying our designs, templates, wording or software, in whole or in part, breaches these terms and copyright law, and we will enforce our rights, including asking for the copy to be taken down and seeking damages.
       </P>
 
       <H2>Your own storage</H2>

@@ -6,7 +6,8 @@ import { InvitationView } from '../guest/generated/InvitationView';
 import { EnvelopeExtras } from '../guest/invitation/EnvelopeExtras';
 import { paperHex, SealOverlay } from '../guest/invitation/WaxSeal';
 import { useInvitation } from '../guest/invitation/useInvitation';
-import { THEME_NAMES, themeOf } from '../guest/themeKit';
+import { lookOf, THEME_NAMES, themeOf } from '../guest/themeKit';
+import '../guest/looks.css';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 import { BRAND } from './SalesPage';
 
@@ -30,8 +31,11 @@ export function DemoPage() {
       <SampleInvitation key={theme ?? ''} theme={theme} />
       {!embed && (
         <div className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-3 py-2 pl-4 pr-2 rounded-full text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]" style={{ background: 'rgba(51,64,47,.92)' }}>
-          <span>
-            <strong className="font-semibold">A sample.</strong> Replies here aren’t saved.
+          <Link to={params.get('from') === 'designs' ? '/designs' : '/'} className="flex-none py-[7px] px-3 rounded-full no-underline font-semibold !text-[#fbf8f2] border border-[rgba(251,248,242,.4)]">
+            ← {params.get('from') === 'designs' ? 'Designs' : 'Back'}
+          </Link>
+          <span className="min-w-0 truncate">
+            <strong className="font-semibold">A sample.</strong> Replies aren’t saved.
           </span>
           <Link to="/#start" className="flex-none py-[7px] px-4 rounded-full no-underline font-semibold !text-[#1b2218] bg-[#e6cf9e]">
             Make your own
@@ -51,7 +55,7 @@ export function SampleInvitation({ theme }: { theme?: string } = {}) {
   const th = themeOf(data.wedding.theme, data.content.custom);
   return (
     <>
-      <div className="dz">
+      <div className={`dz yl-look-${lookOf(data.wedding.theme, data.content.custom)}`}>
         <InvitationView v={v} t={t} />
       </div>
       <EnvelopeExtras

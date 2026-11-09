@@ -1,5 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
-import { themeOf } from '../themeKit';
+import { themeOf, lookOf } from '../themeKit';
+import '../looks.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -66,7 +67,7 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
   const guestName = people.length > 2 ? `${people[0]!.name} & family` : people.map((p) => (people.length > 1 ? p.name.split(' ')[0] : p.name)).join(' & ');
   return (
     <>
-      <div className="dz">
+      <div className={`dz yl-look-${lookOf(data.wedding.theme, data.content.custom)}`}>
         <InvitationView v={v} t={t} />
       </div>
       {/* The couple's own order of the sections (none: the design's). */}

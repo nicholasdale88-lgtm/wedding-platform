@@ -1,0 +1,133 @@
+/*
+ * Invitation looks: the same invitation reshaped (section shapes, frames, ornaments, typography), so each
+ * design feels like its own. Set by the wrapper's class (yl-look-…), from the design's mood or the couple's
+ * own choice. All ornaments are drawn here (our own SVG); fonts are the open-licence ones the site loads.
+ * The welcome (envelope) and the countdown keep their own look; every card section below it changes.
+ */
+
+/* ---------- Romantic: tall arches, soft shadows, a rose sprig over each card ---------- */
+.yl-look-romantic #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) {
+  position: relative !important;
+  clip-path: none !important;
+  border-radius: 240px 240px 36px 36px !important;
+  margin: 22px 14px !important;
+  padding-top: 120px !important;
+  box-shadow: 0 22px 46px rgba(120, 70, 80, 0.14);
+}
+.yl-look-romantic #inv-scroll section[data-screen-label]:not([data-screen-label^='01'])::before {
+  content: '';
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  width: 150px;
+  height: 52px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0.9;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 150 52'%3E%3Cg fill='none' stroke='%23b9897a' stroke-width='1.2'%3E%3Cpath d='M8 30 Q40 14 75 26 Q110 14 142 30'/%3E%3C/g%3E%3Cg fill='%238fa07a' opacity='.85'%3E%3Cellipse cx='30' cy='22' rx='9' ry='3.6' transform='rotate(-25 30 22)'/%3E%3Cellipse cx='46' cy='30' rx='8' ry='3.2' transform='rotate(20 46 30)'/%3E%3Cellipse cx='104' cy='30' rx='8' ry='3.2' transform='rotate(-20 104 30)'/%3E%3Cellipse cx='120' cy='22' rx='9' ry='3.6' transform='rotate(25 120 22)'/%3E%3C/g%3E%3Cg fill='%23e3b7b4'%3E%3Ccircle cx='68' cy='22' r='7'/%3E%3Ccircle cx='82' cy='22' r='7'/%3E%3Ccircle cx='75' cy='15' r='7'/%3E%3Ccircle cx='75' cy='29' r='7'/%3E%3C/g%3E%3Ccircle cx='75' cy='22' r='5' fill='%23c98f8c'/%3E%3Ccircle cx='75' cy='22' r='2' fill='%23f6dcd6'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* ---------- Garden & rustic: rounded cards on textured paper, a stitched border, botanical sprigs ---------- */
+.yl-look-garden #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) {
+  position: relative !important;
+  clip-path: none !important;
+  border-radius: 30px !important;
+  margin: 16px !important;
+  background-image: radial-gradient(rgba(110, 90, 50, 0.07) 1px, transparent 1.5px), radial-gradient(rgba(110, 90, 50, 0.05) 1px, transparent 1.5px) !important;
+  background-size: 9px 9px, 14px 14px !important;
+  background-position: 0 0, 4px 6px !important;
+  outline: 1.5px dashed rgba(105, 120, 78, 0.45);
+  outline-offset: -13px;
+}
+.yl-look-garden #inv-scroll section[data-screen-label]:not([data-screen-label^='01'])::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  width: 92px;
+  height: 92px;
+  pointer-events: none;
+  opacity: 0.75;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 92 92'%3E%3Cpath d='M86 86 Q52 60 20 12' fill='none' stroke='%236f8256' stroke-width='1.6'/%3E%3Cg fill='%237d8f62'%3E%3Cellipse cx='70' cy='68' rx='10' ry='4' transform='rotate(-55 70 68)'/%3E%3Cellipse cx='60' cy='56' rx='10' ry='4' transform='rotate(-20 60 56)'/%3E%3Cellipse cx='50' cy='44' rx='10' ry='4' transform='rotate(-62 50 44)'/%3E%3Cellipse cx='41' cy='33' rx='9' ry='3.6' transform='rotate(-25 41 33)'/%3E%3Cellipse cx='32' cy='24' rx='9' ry='3.6' transform='rotate(-65 32 24)'/%3E%3Cellipse cx='24' cy='15' rx='8' ry='3.2' transform='rotate(-30 24 15)'/%3E%3C/g%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+/* ---------- Coastal & bright: open full-width bands with a wave between, clean sans-serif ---------- */
+.yl-look-coastal #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) {
+  position: relative !important;
+  clip-path: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  padding-top: 120px !important;
+}
+.yl-look-coastal #inv-scroll section[data-screen-label]:not([data-screen-label^='01'])::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 54px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 54' preserveAspectRatio='none'%3E%3Cpath d='M0 0 H400 V22 Q350 48 300 26 T200 26 T100 26 T0 22 Z' fill='%23ffffff' fill-opacity='.6'/%3E%3Cpath d='M0 30 Q50 52 100 32 T200 32 T300 32 T400 30' fill='none' stroke='%237fa6bf' stroke-opacity='.55' stroke-width='1.4'/%3E%3C/svg%3E")
+    top / 100% 100% no-repeat;
+}
+.yl-look-coastal #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) *:not([style*='--nf']) {
+  font-family: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif !important;
+}
+
+/* ---------- Moody & luxe: double gold frames with Art Deco fans in the corners ---------- */
+.yl-look-luxe #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) {
+  position: relative !important;
+  clip-path: none !important;
+  border-radius: 0 !important;
+  margin: 16px !important;
+  border: 1px solid var(--fgo, #c8a46a) !important;
+  outline: 1px solid var(--fgo, #c8a46a);
+  outline-offset: -9px;
+}
+.yl-look-luxe #inv-scroll section[data-screen-label]:not([data-screen-label^='01'])::before,
+.yl-look-luxe #inv-scroll section[data-screen-label]:not([data-screen-label^='01'])::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+  opacity: 0.9;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23c8a46a' stroke-width='1.1'%3E%3Cpath d='M2 2 L2 40 M2 2 L40 2'/%3E%3Cpath d='M2 2 L30 30'/%3E%3Cpath d='M2 2 Q40 8 40 40'/%3E%3Cpath d='M2 2 Q26 6 28 28'/%3E%3Cpath d='M2 2 L14 38 M2 2 L38 14'/%3E%3Cpath d='M8 54 L8 8 L54 8'/%3E%3C/g%3E%3Ccircle cx='30' cy='30' r='2.2' fill='%23c8a46a'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+.yl-look-luxe #inv-scroll section[data-screen-label]:not([data-screen-label^='01'])::before {
+  left: 18px;
+}
+.yl-look-luxe #inv-scroll section[data-screen-label]:not([data-screen-label^='01'])::after {
+  right: 18px;
+  transform: scaleX(-1);
+}
+
+/* ---------- Modern: no frames or ornaments, square edges, hairline dividers, sans-serif throughout ---------- */
+.yl-look-modern #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) {
+  position: relative !important;
+  clip-path: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  min-height: auto !important;
+  padding-top: 76px !important;
+  padding-bottom: 76px !important;
+  border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+.yl-look-modern #inv-scroll section[data-screen-label]:not([data-screen-label^='01']) *:not([style*='--nf']) {
+  font-family: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif !important;
+  letter-spacing: 0.01em;
+}
+.yl-look-modern #inv-scroll section[data-screen-label='01 Welcome'] {
+  background: var(--hb2, #1f3224) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*='yl-look-'] #inv-scroll section::before,
+  [class*='yl-look-'] #inv-scroll section::after {
+    transition: none;
+  }
+}

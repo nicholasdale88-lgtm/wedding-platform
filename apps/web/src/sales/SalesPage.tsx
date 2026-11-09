@@ -382,7 +382,7 @@ export function SalesPage() {
 
       <footer className="py-8 px-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px]" style={{ color: SOFT }}>
         <span>
-          © {new Date().getFullYear()} {BRAND}. Made in Australia.
+          © {new Date().getFullYear()} {BRAND}. All rights reserved: our designs, templates and software are protected by copyright. Made in Australia.
         </span>
         <Link to="/admin" style={{ color: SOFT }}>
           Sign in

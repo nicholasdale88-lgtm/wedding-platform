@@ -25,9 +25,37 @@ export interface ThemeCustom {
   names?: NamesStyle;
   /** The names a little smaller or larger (1 is as the style sets them). */
   nameSize?: number;
+  /** The invitation's look (shapes, frames, ornaments, lettering); the design's own when unset. */
+  look?: Look;
 }
 
 export type NamesStyle = 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair';
+
+/**
+ * Looks: the invitation reshaped, not just recoloured (guest/looks.css). Each design has the look of its
+ * mood; a couple can choose another. The names are lettered to suit the look unless they chose a style.
+ */
+export const LOOKS = ['classic', 'romantic', 'garden', 'coastal', 'luxe', 'modern'] as const;
+export type Look = (typeof LOOKS)[number];
+export const LOOK_LABEL: Record<Look, { name: string; about: string }> = {
+  classic: { name: 'Classic', about: 'Cut-corner cards and a fine serif' },
+  romantic: { name: 'Romantic', about: 'Tall arches, soft shadows and a rose over each card' },
+  garden: { name: 'Garden', about: 'Rounded cards on textured paper, stitched borders and leaves' },
+  coastal: { name: 'Coastal', about: 'Open full-width bands with a wave between, clean lettering' },
+  luxe: { name: 'Luxe', about: 'Double gold frames with Art Deco corners' },
+  modern: { name: 'Modern', about: 'No frames, square edges, hairlines and sans-serif' },
+};
+const LOOK_OF_MOOD: Record<string, Look> = { Classic: 'classic', Romantic: 'romantic', 'Garden & rustic': 'garden', 'Coastal & bright': 'coastal', 'Moody & luxe': 'luxe', Modern: 'modern' };
+/** How the names are lettered in each look (when the couple hasn't chosen a style). */
+const LOOK_NAMES: Partial<Record<Look, Record<string, string>>> = {
+  romantic: { nf: "'Great Vibes',cursive", nsz: 'clamp(44px,12vw,58px)', nls: '0', ntt: 'none' },
+  garden: { nf: "'Parisienne',cursive", nsz: 'clamp(34px,9.5vw,46px)', nls: '0', ntt: 'none' },
+  coastal: { nf: "'Playfair Display',Georgia,serif", nsz: 'clamp(30px,8vw,40px)', nls: '.02em', ntt: 'none' },
+  luxe: { nf: "'Cormorant Garamond',serif", nsz: 'clamp(22px,6vw,30px)', nls: '.22em', ntt: 'uppercase' },
+  modern: { nf: "'DM Sans Variable','DM Sans',sans-serif", nsz: 'clamp(28px,8vw,38px)', nls: '.04em', ntt: 'none' },
+};
+/** The look a wedding's invitation has: theirs if chosen, otherwise the design's own. */
+export const lookOf = (theme: string | undefined, custom?: ThemeCustom): Look => custom?.look ?? LOOK_OF_MOOD[MOOD_OF[theme ?? ''] ?? ''] ?? 'classic';
 /** How the names can be set: the font, size, spacing and case for each. */
 export const NAMES_STYLES: Record<NamesStyle, { label: string; font: string; vars?: Record<string, string> }> = {
   script: { label: 'Classic script', font: "'Pinyon Script', cursive" },
@@ -190,6 +218,8 @@ export function themeOf(name: string | undefined, custom?: ThemeCustom): Record<
   }
   const vars = custom?.names ? NAMES_STYLES[custom.names]?.vars : undefined;
   if (vars) t = { ...t, ...vars };
+  // No names style chosen: lettered to suit the look.
+  else if (!custom?.names) t = { ...t, ...(LOOK_NAMES[lookOf(n, custom)] ?? {}) };
   if (custom?.names === 'script') {
     const { nf: _nf, nls: _nls, ntt: _ntt, nsz: _nsz, ...rest } = t;
     void _nf;

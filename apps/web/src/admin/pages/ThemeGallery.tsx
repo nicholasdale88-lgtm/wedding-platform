@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isHex, themeLabel, MOOD_OF, MOODS, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
+import { isHex, themeLabel, LOOK_LABEL, LOOKS, lookOf, MOOD_OF, MOODS, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
 
 /**
  * Setup → Invitation → Look and feel: every theme as a little card in its own colours (the design's five
@@ -67,6 +67,26 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
                 {on ? ' ✓' : ''}
               </span>
               {PRESETS[name] && <span className="text-[11px] leading-tight opacity-75" style={{ color: t.dg }}>{PRESETS[name]!.style}</span>}
+            </button>
+          );
+        })}
+      </div>
+      <span className="text-[13px] font-semibold text-[#33402f] pt-1">Look</span>
+      <span className="-mt-2 text-[12px] text-[#5b6a52]">The shape and style of the whole invitation. Your design comes with {LOOK_LABEL[lookOf(theme, custom)].name}; any look works with any colours.</span>
+      <div role="radiogroup" aria-label="Look" className="grid gap-2 grid-cols-2 sm:grid-cols-3">
+        {LOOKS.map((k) => {
+          const on = lookOf(theme, custom) === k;
+          return (
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => onCustom({ ...custom, look: k })}
+              className={`flex flex-col gap-[2px] p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f] bg-white' : 'border-[#e2d7bc] bg-[#fbf8f0] hover:border-[#b39563]'}`}
+            >
+              <span className="text-[14px] font-semibold text-[#33402f]">{LOOK_LABEL[k].name}</span>
+              <span className="text-[11px] text-[#5b6a52] leading-snug">{LOOK_LABEL[k].about}</span>
             </button>
           );
         })}

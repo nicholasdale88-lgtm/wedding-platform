@@ -50,6 +50,8 @@ export const InvitationContent = z
         names: z.enum(['script', 'caps', 'vibes', 'parisienne', 'playfair']),
         /** The names a little smaller or larger than the style sets them (1 is as designed). */
         nameSize: z.number().min(0.6).max(1.5),
+        /** The invitation's look (shapes, frames, ornaments, lettering); the design's own when unset. */
+        look: z.enum(['classic', 'romantic', 'garden', 'coastal', 'luxe', 'modern']),
       })
       .partial(),
     /** The last day replies can be changed online ("2027-08-01"); after it, guests are asked to email. */
