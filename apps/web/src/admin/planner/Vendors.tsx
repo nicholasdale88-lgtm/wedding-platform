@@ -589,11 +589,12 @@ function Manage({
     const w = window.open('', '_blank');
     if (!w) return toast('Allow pop-ups to print the contact sheet');
     const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
-    w.document.write(`<!doctype html><meta charset="utf-8"><title>Vendor contacts</title><style>body{font:14px system-ui,sans-serif;color:#222;margin:24px}h1{font:400 26px Georgia,serif;margin:0 0 4px}p{margin:0 0 16px;color:#555}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #ccc;padding:8px 6px;text-align:left;vertical-align:top}th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:#555}</style>
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>Vendor contacts</title><style>*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font:14px system-ui,sans-serif;color:#33402f;margin:24px}.brand{display:flex;align-items:center;gap:10px;font:400 20px Georgia,serif}.brand em{color:#b39563}.rule{height:2px;background:linear-gradient(90deg,#b39563,#e6cf9e,#b39563);margin:10px 0 16px}h1{font:400 28px Georgia,serif;margin:0 0 4px}p{margin:0 0 16px;color:#5b6a52}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #e2d7bc;padding:8px 6px;text-align:left;vertical-align:top}tr:nth-child(odd) td{background:#faf6ec}th{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#5b6a52;border-bottom:2px solid #b39563}.foot{margin-top:18px;padding-top:6px;border-top:1px solid #e2d7bc;font-size:11px;color:#5b6a52}</style>
+<div class="brand"><svg width="34" height="34" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#2b3727"/><circle cx="38" cy="54" r="20" fill="none" stroke="#d6b270" stroke-width="6.2"/><circle cx="62" cy="54" r="20" fill="none" stroke="#d6b270" stroke-width="6.2"/></svg>The <em>Yes</em> List</div><div class="rule"></div>
 <h1>Vendors on the day</h1><p>${esc(couple)} · ${esc(dayText)}${ev?.venue ? ` · ${esc(ev.venue)}` : ''}</p>
 <table><tr><th>Arrives</th><th>Vendor</th><th>Contact</th><th>Phone</th><th>Meals</th><th>Still to pay</th></tr>${booked
       .map((v, i) => `<tr><td>${esc(v.arrival || '—')}</td><td><strong>${esc(v.name)}</strong><br>${esc(v.category)}</td><td>${esc(v.contact || '')}<br>${esc(v.email)}</td><td>${esc(v.phone)}</td><td>${v.meals || ''}</td><td>${money[i]!.owing ? esc(aud(money[i]!.owing)) : 'Paid'}</td></tr>`)
-      .join('')}</table><script>window.onload=()=>window.print()</script>`);
+      .join('')}</table><div class="foot">Made with The Yes List · weddings, beautifully organised</div><script>window.onload=()=>window.print()</script>`);
     w.document.close();
   };
 

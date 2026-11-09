@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { pagesApi, photosApi, plannerApi, seatingApi, type PagesData, type PartyData, type SeatingData } from '../../lib/api';
 import { themeOf } from '../../guest/themeKit';
 import { SignStudio } from '../signs/SignStudio';
+import { LogoMark } from '../../sales/Art';
 import { ALL_EVENTS, useAdmin } from '../Shell';
 import { H2, Pill } from '../ui';
 
@@ -273,7 +274,10 @@ export function Print() {
             <section className="pp pp-flow pp-serif text-[4mm] leading-snug">
               <div className="flex justify-between items-end gap-[6mm] border-b-[0.5mm] border-[#c8a46a] pb-[3mm]">
                 <div>
-                  <div className="pp-small">Run sheet</div>
+                  <div className="pp-small flex items-center gap-[2mm]">
+                    <LogoMark size={22} />
+                    The Yes List · Run sheet
+                  </div>
                   <div className="pp-script text-[14mm] leading-none mt-[2mm]">{couple}</div>
                 </div>
                 <div className="text-right text-[4.2mm]">

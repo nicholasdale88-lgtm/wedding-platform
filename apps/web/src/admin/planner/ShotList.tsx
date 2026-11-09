@@ -1,4 +1,5 @@
 import { progressOf, shotTemplate, type PartySetup, type ShotList as ShotDoc } from '@wp/shared';
+import { PrintHeader } from '../../print/PrintBrand';
 import { useEffect, useState } from 'react';
 import { plannerApi, type PartyData } from '../../lib/api';
 import { Ring } from '../checklists/PhasedChecklist';
@@ -47,8 +48,14 @@ export function ShotList() {
   };
   const set = (id: string, patch: Partial<ShotDoc['shots'][number]>, now = false) => live.set({ shots: shots.map((s) => (s.id === id ? { ...s, ...patch } : s)) }, now);
 
+  const coupleName = overview ? `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}` : '';
+  const ev = overview?.events.find((e) => e.key === event) ?? overview?.events[0];
   return (
     <div className="flex flex-col gap-4">
+      {/* On paper: The Yes List's header with the couple and the event. */}
+      <div className="hidden print:block yl-doc">
+        <PrintHeader couple={coupleName} title="Photo list" lines={[ev?.name ?? '', ev?.startsAt ? new Date(ev.startsAt).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '', ev?.venue ?? '']} />
+      </div>
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
           <H2>Photo list</H2>
