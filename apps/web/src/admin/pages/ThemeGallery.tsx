@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isHex, MOOD_OF, MOODS, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
+import { isHex, themeLabel, MOOD_OF, MOODS, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
 
 /**
  * Setup → Invitation → Look and feel: every theme as a little card in its own colours (the design's five
@@ -63,7 +63,7 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
                 <span className="w-8 h-[2px]" style={{ background: t.acc }} />
               </span>
               <span className="text-[12px] font-medium leading-tight" style={{ color: t.dg }}>
-                {name}
+                {themeLabel(name)}
                 {on ? ' ✓' : ''}
               </span>
               {PRESETS[name] && <span className="text-[11px] leading-tight opacity-75" style={{ color: t.dg }}>{PRESETS[name]!.style}</span>}

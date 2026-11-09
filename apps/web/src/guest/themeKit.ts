@@ -165,6 +165,13 @@ export function paletteOf(name: string): Palette {
   return { paper: t.b1 ?? '#f6f0e2', ink: t.dg ?? '#33402f', accent: t.acc ?? '#b39563', soft: t.b2 ?? '#cfd8bb', envelope: t.e1 ?? '#e6dcc4' };
 }
 
+/**
+ * What a theme is called on screen. The stored name never changes (couples who chose it keep it); only the
+ * label does, e.g. a name that borrows someone else's brand.
+ */
+const THEME_LABELS: Record<string, string> = { 'Bridgerton Blush': 'Regency Blush' };
+export const themeLabel = (name: string) => THEME_LABELS[name] ?? name;
+
 /** Every theme name, the design's own first. */
 export const THEME_NAMES = [...Object.keys(THEMES), ...Object.keys(PRESETS)];
 

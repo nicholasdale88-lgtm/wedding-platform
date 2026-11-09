@@ -2,7 +2,7 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MOOD_OF, MOODS, THEME_NAMES, themeOf } from '../guest/themeKit';
+import { MOOD_OF, MOODS, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
 import { Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { BRAND } from './SalesPage';
@@ -87,7 +87,7 @@ export function DesignsPage() {
                       <span className="block w-10 h-px" style={{ background: t.acc ?? '#c8a46a' }} />
                     </span>
                     <span className="px-1 text-[14px] font-medium" style={{ color: t.dg ?? INK }}>
-                      {name}
+                      {themeLabel(name)}
                     </span>
                     <span className="px-1 -mt-2 text-[12px]" style={{ color: SOFT }}>
                       {MOOD_OF[name] ?? ''}
@@ -100,7 +100,7 @@ export function DesignsPage() {
 
           <div id="design-phone" className="scroll-mt-4 order-1 md:order-2 md:sticky md:top-6 flex flex-col items-center gap-3">
             <HeroInvite src={src} caption={false} />
-            <span className="text-[15px] font-medium">{theme}</span>
+            <span className="text-[15px] font-medium">{themeLabel(theme)}</span>
             <span className="text-[14px] text-center" style={{ color: SOFT }}>
               Tap the seal to open it.
             </span>

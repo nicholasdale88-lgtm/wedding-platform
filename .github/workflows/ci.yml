@@ -90,6 +90,62 @@ jobs:
           SEED_OWNER_EMAIL=ci@example.com SEED_OWNER_PASSCODE=ci-only-passcode pnpm seed:sql ../../seed/sophie-nicholas.json "$RUNNER_TEMP/seed.sql"
           test "$(wc -l < "$RUNNER_TEMP/seed.sql")" -gt 100
 
+  # Tap-through tests: the app runs here (API with its own throwaway local database, and the website) and a
+  # real browser, phone-sized, clicks through what couples and guests do. Never touches the live site.
+  e2e:
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install the test browser
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+
+      - name: Start the app (local API and database, and the website)
+        run: |
+          cd apps/api
+          pnpm exec wrangler d1 migrations apply DB --local
+          nohup pnpm exec wrangler dev --port 8787 --var SESSION_SECRET:e2e-only-secret > "$RUNNER_TEMP/api.log" 2>&1 &
+          cd ../web
+          nohup pnpm exec vite --port 5173 --strictPort > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:5173/ > /dev/null && curl -s http://localhost:5173/api/site > /dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:5173/api/site || { echo "::error::The app didn't start"; tail -50 "$RUNNER_TEMP/api.log"; tail -50 "$RUNNER_TEMP/web.log"; exit 1; }
+
+      - name: Tap through it
+        run: pnpm --filter e2e e2e
+
+      - name: Logs and report (when something failed)
+        if: failure()
+        run: |
+          tail -80 "$RUNNER_TEMP/api.log" || true
+          tail -40 "$RUNNER_TEMP/web.log" || true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-report
+          path: |
+            apps/e2e/playwright-report
+            apps/e2e/test-results
+          retention-days: 7
+
   deploy:
     needs: check
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
