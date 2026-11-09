@@ -363,10 +363,16 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
                     <select
                       aria-label={`${p.name}'s wedding party role`}
                       value={p.role ?? ''}
-                      disabled={roleBusy === p.id || (!p.role && !okMail)}
-                      title={!p.role && !okMail ? 'Add their email first' : undefined}
+                      disabled={roleBusy === p.id}
                       onChange={async (e) => {
                         const role = e.target.value;
+                        // Joining needs their email (their join invitation goes there): say so and go to the box.
+                        if (role && !p.role && !okMail) {
+                          e.target.value = '';
+                          toast(`Add ${p.name.split(' ')[0]}’s email first: their wedding party invitation goes there.`);
+                          document.getElementById(`party-email-${p.id}`)?.focus();
+                          return;
+                        }
                         setRoleBusy(p.id);
                         try {
                           await plannerApi.setRole(wid, p.id, role);
@@ -403,6 +409,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
                       type="email"
                       inputMode="email"
                       autoComplete="email"
+                      id={`party-email-${p.id}`}
                       aria-label={`${p.name}'s email, for the wedding party`}
                       placeholder={`${p.name.split(' ')[0]}’s email (needed for the wedding party)`}
                       value={partyEmail[p.id] ?? (i === 0 ? (g.email ?? '') : '')}

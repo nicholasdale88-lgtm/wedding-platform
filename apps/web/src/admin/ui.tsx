@@ -274,7 +274,10 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
     let clicked = false;
     const typing = () => document.activeElement instanceof HTMLElement && document.activeElement.matches('input:not([type=checkbox]):not([type=radio]), textarea');
     const onDown = (e: PointerEvent) => {
-      const el = e.target instanceof Element ? (e.target.closest('button, [role=button], label, a[href]') as HTMLElement | null) : null;
+      // Never a menu, a box or anything holding one: those open themselves (a second tap would shut them).
+      const t = e.target instanceof Element ? e.target : null;
+      const hit = t && !t.closest('select, option, input, textarea') ? (t.closest('button, [role=button], label, a[href]') as HTMLElement | null) : null;
+      const el = hit && !hit.querySelector('select, input:not([type=checkbox]):not([type=radio]), textarea') ? hit : null;
       tap = el && box.current?.contains(el) && typing() ? { el, x: e.clientX, y: e.clientY } : null;
       clicked = false;
     };
