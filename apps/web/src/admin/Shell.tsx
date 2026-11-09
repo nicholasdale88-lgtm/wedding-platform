@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { themeOf } from '../guest/themeKit';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';
@@ -74,7 +74,9 @@ export function AdminDataProvider({ wid, section, children, onSignedOut }: { wid
   const path = useCallback((tab: string, ev?: string) => `/admin/${wid}/${sectionOf(ev ?? event)}/${tab}`, [wid, event]);
   // While a section's own figures load, the overview last seen for it (so switching doesn't blank the page).
   const shown = overview && (overview.focus ?? ALL_EVENTS) !== event ? (seen.current.get(event) ?? overview) : overview;
-  return <Ctx.Provider value={{ wid, overview: shown, error, reload, event, path, seen: seen.current }}>{children}</Ctx.Provider>;
+  // The same value until something in it changes (a new one each render redrew every screen using it).
+  const value = useMemo(() => ({ wid, overview: shown, error, reload, event, path, seen: seen.current }), [wid, shown, error, reload, event, path]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 /** Overview data for the section in the address (not one still loading for the section you just left). */
@@ -378,7 +380,7 @@ function FeedbackButton({ wid }: { wid: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className="fixed z-[20] right-4 bottom-[calc(16px+env(safe-area-inset-bottom))] py-[9px] px-4 rounded-full border border-[#c6b794] bg-[#fbf8f0] text-[#33402f] text-[13px] font-semibold shadow-[0_6px_18px_rgba(0,0,0,.14)] cursor-pointer print:hidden"
+        className="fixed z-[11] right-4 bottom-[calc(16px+env(safe-area-inset-bottom))] py-[9px] px-4 rounded-full border border-[#c6b794] bg-[#fbf8f0] text-[#33402f] text-[13px] font-semibold shadow-[0_6px_18px_rgba(0,0,0,.14)] cursor-pointer print:hidden"
       >
         Feedback &amp; ideas
       </button>

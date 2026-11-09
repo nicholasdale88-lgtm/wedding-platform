@@ -1,5 +1,5 @@
 import { circleSuggestions, contactGaps, GAP_LABEL } from '@wp/shared';
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
@@ -18,6 +18,10 @@ import { Eyebrow, Pill, StatusPill, useAutoRefresh, useMedia, useToast } from '.
 
 const FILTER_KEYS = ['filter', 'q', 'inv', 'diet', 'seat', 'mob', 'size', 'by', 'side', 'rel', 'circle', 'sort'] as const;
 
+type GuestsData = { events: EventInfo[]; guests: Guest[]; links?: Record<string, string> };
+/** The list as last loaded, per wedding (for coming back to Guests). */
+const listCache = new Map<string, GuestsData>();
+
 /** design/RSVP Admin.dc.html → Guests. Filters live in the address bar, so they survive a reload and can be shared. */
 export function Guests() {
   const { wid, overview, reload: reloadOverview, event: chosen } = useAdmin();
@@ -26,7 +30,8 @@ export function Guests() {
   const toast = useToast();
   const mob = useMedia('(max-width: 759px)');
   const [params, setParams] = useSearchParams();
-  const [data, setData] = useState<{ events: EventInfo[]; guests: Guest[]; links?: Record<string, string> } | null>(null);
+  // Coming back to Guests shows the list as last seen while it refreshes (no blank screen).
+  const [data, setData] = useState<GuestsData | null>(() => listCache.get(wid) ?? null);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
   const [contacts, setContacts] = useState(false); // Import contacts (phone or a contacts file)
@@ -41,18 +46,29 @@ export function Guests() {
   const [gapsOpen, setGapsOpen] = useState(false); // the missing-details banner: one line until opened
   const { labels: sideNames } = useSideLabels();
 
+  // Only the newest load counts (an older one answering late can't put back older data), and an answer
+  // that changes nothing doesn't redraw the list.
+  const seq = useRef(0);
+  const lastJson = useRef('');
   const load = useCallback(async () => {
+    const n = ++seq.current;
     try {
-      setData(await api.guests(wid));
+      const d = await api.guests(wid);
+      if (n !== seq.current) return;
+      listCache.set(wid, d);
+      const j = JSON.stringify(d);
+      if (j !== lastJson.current) {
+        lastJson.current = j;
+        setData(d);
+      }
       setError('');
     } catch (e) {
-      setError((e as Error).message);
+      if (n === seq.current) setError((e as Error).message);
     }
   }, [wid]);
   useEffect(() => {
     void load();
   }, [load]);
-  useAutoRefresh(load); // new replies appear in the list by themselves
 
   const state: FilterState = Object.fromEntries(FILTER_KEYS.map((k) => [k, params.get(k) ?? ''])) as FilterState;
   if (!state.filter) state.filter = 'all';
@@ -65,6 +81,27 @@ export function Guests() {
     setParams(next, { replace: true });
   };
   const [open, openGuest, closeGuest] = useOpenParam('g'); // a pushed entry: the phone's Back closes the guest
+  // New replies appear by themselves, but not while a guest's details are open over the list.
+  useAutoRefresh(load, 30_000, !open);
+  // The search box answers each key at once; the address bar (and the filtering) catch up a moment later.
+  const [q, setQ] = useState(state.q);
+  const dq = useDeferredValue(q);
+  const wrote = useRef(state.q); // what the box last put in the address bar
+  useEffect(() => {
+    if (q === wrote.current) return;
+    const t = window.setTimeout(() => {
+      wrote.current = q;
+      set({ q });
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [q]); // eslint-disable-line
+  // Changed from elsewhere (Clear filters, Back): the box follows.
+  useEffect(() => {
+    if (state.q !== wrote.current) {
+      wrote.current = state.q;
+      setQ(state.q);
+    }
+  }, [state.q]);
 
   // The guest list is joint by default; "just this event" narrows it to the sidebar's event.
   const focusEv = data?.events.find((e) => e.key === chosen);
@@ -79,7 +116,7 @@ export function Guests() {
     .filter((g) => !blank(g))
     .filter((g) => !one || g.invited.includes(focusEv!.key))
     .map((g) => (one ? { ...g, invited: [focusEv!.key] } : g));
-  const shown = useMemo(() => (data ? applyFilters(guests, events, state) : []), [data, params, chosen]);
+  const shown = useMemo(() => (data ? applyFilters(guests, events, { ...state, q: dq }) : []), [data, params, chosen, dq]);
   const quick = quickFilters(events);
   const circles = circleSuggestions((data?.guests ?? []).map((g) => g.circles ?? []));
   const drops = dropdowns(events, { sides: sideNames, circles }).filter((d) => d.key !== 'circle' || circles.length > 0);
@@ -131,8 +168,12 @@ export function Guests() {
   const anyFilter = FILTER_KEYS.some((k) => k !== 'sort' && k !== 'filter' && state[k]) || state.filter !== 'all';
   const questions = events.flatMap((e) => e.questions.filter((q) => q.type === 'choice').map((q) => ({ event: e.key, key: q.key })));
 
+  // After a change: the list straight away; the overview's figures a moment later (one reload for a run of changes).
+  const ovTimer = useRef<number | undefined>(undefined);
   const changed = async () => {
-    await Promise.all([load(), reloadOverview()]);
+    window.clearTimeout(ovTimer.current);
+    ovTimer.current = window.setTimeout(() => void reloadOverview(), 1200);
+    await load();
   };
 
   /** Swiped left and tapped Delete: the whole invitation goes (after a yes). */
@@ -148,7 +189,10 @@ export function Guests() {
     }
   }
 
+  const addingNow = useRef(false);
   async function addGuest() {
+    if (addingNow.current) return; // a double tap makes one guest, not two
+    addingNow.current = true;
     try {
       // A new guest is invited to every event (untick one in their details if they're not coming to it).
       const d = await api.addGuest(wid);
@@ -158,6 +202,8 @@ export function Guests() {
       void changed();
     } catch (e) {
       toast((e as Error).message);
+    } finally {
+      addingNow.current = false;
     }
   }
 
@@ -172,6 +218,9 @@ export function Guests() {
   }, [adding, data]); // eslint-disable-line
 
   async function setInvited(g: Guest, invited: string[]) {
+    // Shown at once; saved behind it (put back by the reload if the save fails).
+    setData((d) => d && { ...d, guests: d.guests.map((x) => (x.id === g.id ? { ...x, invited } : x)) });
+    lastJson.current = ''; // the next load always redraws (so a failed save is put back)
     try {
       await api.patchGuest(wid, g, { invited });
       toast('Saved');
@@ -318,8 +367,8 @@ export function Guests() {
       <div className="flex gap-3 flex-wrap items-center">
         <input
           type="search"
-          value={state.q}
-          onChange={(e) => set({ q: e.target.value })}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
           placeholder="Search name or mobile"
           aria-label="Search name or mobile"
           className={`${mob ? 'w-full' : 'flex-[0_1_280px] min-w-[200px]'} py-[10px] px-[14px] border border-[var(--adm-line,#d3c6a4)] rounded-full bg-[var(--adm-card,#fbf8f2)] text-[14px]`}
@@ -374,8 +423,13 @@ export function Guests() {
         >
           {state.sort === 'side' ? 'Grouped by side ✓' : 'Group by side'}
         </button>
-        {anyFilter && (
-          <button onClick={() => set(Object.fromEntries(FILTER_KEYS.map((k) => [k, ''])))} className="py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[#5d6b47] text-[12px] cursor-pointer">
+        {(anyFilter || q) && (
+          <button
+            onClick={() => {
+              wrote.current = '';
+              setQ('');
+              set(Object.fromEntries(FILTER_KEYS.map((k) => [k, ''])));
+            }} className="py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[#5d6b47] text-[12px] cursor-pointer">
             Clear filters
           </button>
         )}
@@ -533,9 +587,13 @@ function SwipeToDelete({ label, off, onDelete, children }: { label: string; off:
   const W = 92;
   const [x, setX] = useState(0);
   const start = useRef<{ x: number; y: number; from: number; side: boolean | null } | null>(null);
-  if (off) return <>{children}</>;
+  // Always the same wrapper (switching Select on or off doesn't rebuild every row); while off, no swiping.
+  useEffect(() => {
+    if (off) setX(0);
+  }, [off]);
   return (
     <div className="relative overflow-hidden">
+      {!off && (
       <button
         type="button"
         aria-label={`Delete ${label}`}
@@ -549,10 +607,12 @@ function SwipeToDelete({ label, off, onDelete, children }: { label: string; off:
       >
         Delete
       </button>
+      )}
       <div
         className="relative"
         style={{ transform: `translateX(${x}px)`, transition: start.current ? 'none' : 'transform .2s ease', touchAction: 'pan-y' }}
         onTouchStart={(e) => {
+          if (off) return;
           const t = e.touches[0]!;
           start.current = { x: t.clientX, y: t.clientY, from: x, side: null };
         }}

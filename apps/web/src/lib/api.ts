@@ -20,6 +20,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const go = () =>
       fetch(`/api${path}`, {
         credentials: 'same-origin',
+        // On a bad connection a request gives up after 30 seconds (and says so) instead of hanging.
+        ...(init.signal || typeof AbortSignal === 'undefined' || !('timeout' in AbortSignal) ? {} : { signal: AbortSignal.timeout(30_000) }),
         ...init,
         headers: { ...(init.body ? { 'content-type': 'application/json' } : {}), ...init.headers },
       });

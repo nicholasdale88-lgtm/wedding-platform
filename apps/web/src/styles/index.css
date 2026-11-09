@@ -107,7 +107,7 @@
 }
 .yl-drawer { animation: yl-slide-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .yl-backdrop { animation: yl-fade 0.2s ease-out both; }
-.yl-page { animation: yl-rise 0.2s ease-out both; }
+.yl-page { animation: yl-rise 0.2s ease-out backwards; } /* not held after it ends: a held transform traps fixed panels inside */
 @media (prefers-reduced-motion: reduce) {
   .yl-drawer,
   .yl-backdrop,
