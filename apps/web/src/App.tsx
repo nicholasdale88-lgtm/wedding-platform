@@ -1,5 +1,6 @@
-import { lazy, Suspense, useState } from 'react';
-import { createBrowserRouter, Route, RouterProvider, Routes } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { createBrowserRouter, Route, RouterProvider, Routes, useLocation } from 'react-router-dom';
+import { countPage } from './lib/stats';
 import { GuestNotFound } from './guest/GuestMessage';
 
 /**
@@ -55,6 +56,9 @@ const CompanyPortal = lazy(() => fresh(import('./company/CompanyPortal')).then((
 const VendorHomePage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.VendorHomePage })));
 
 function Pages() {
+  // Traffic & errors (company portal): the kind of page opened, counted as the address changes.
+  const { pathname } = useLocation();
+  useEffect(() => countPage(pathname), [pathname]);
   return (
     <Suspense fallback={<div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />}>
       <Routes>

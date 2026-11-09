@@ -4,7 +4,7 @@ import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
 import { chargeCents, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
-import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding } from '../lib/api';
+import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding, type CompanyTraffic } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -41,6 +41,7 @@ const TABS = [
   ['vendors', 'Vendors', 'vendors'],
   ['money', 'Money & tax', 'money'],
   ['team', 'Team', 'team'],
+  ['traffic', 'Traffic & errors', 'activity'],
   ['activity', 'Activity', 'activity'],
   ['settings', 'Settings', 'settings'],
 ] as const satisfies readonly (readonly [string, string, StaffPerm])[];
@@ -208,6 +209,7 @@ function Portal() {
             {shown === 'vendors' && <Vendors onNote={setNote} />}
             {shown === 'money' && <Money onNote={setNote} />}
             {shown === 'team' && <Team onNote={setNote} />}
+            {shown === 'traffic' && <Traffic />}
             {shown === 'activity' && <Activity />}
             {shown === 'settings' && <Settings onNote={setNote} />}
           </main>
@@ -223,7 +225,7 @@ function Portal() {
 }
 
 /** A small symbol for each section in the sidebar. */
-const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', activity: '≡', settings: '⚙' };
+const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', traffic: '↗', activity: '≡', settings: '⚙' };
 
 /** Loads something once (and again on reload()), with an error if it fails. */
 function useLoad<T>(fn: () => Promise<T>) {
@@ -1252,6 +1254,123 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
         </dl>
       </section>
     </>
+  );
+}
+
+const PAGE_NAME: Record<string, string> = {
+  home: 'Front page',
+  designs: 'Designs',
+  demo: 'Sample invitation',
+  vendors: 'Vendor directory',
+  legal: 'Privacy, terms, contact',
+  invitation: 'Guests: invitations',
+  guide: 'Guests: night-before guides',
+  photos: 'Guests: photos',
+  'guest-other': 'Guests: other pages',
+  admin: 'Couples’ admin',
+  company: 'Company portal',
+  other: 'Other',
+};
+
+/** Traffic & errors: who visits, who signs in, new couples, and anything that went wrong (last 30 days). */
+function Traffic() {
+  const { data, error } = useLoad(companyApi.traffic);
+  const [open, setOpen] = useState('');
+  if (error) return <Problem text={error} />;
+  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  const sum = (k: keyof CompanyTraffic['days'][number], n = 30) => data.days.slice(-n).reduce((a, d) => a + Number(d[k]), 0);
+  const today = data.days[data.days.length - 1];
+  const tiles: [string, string, string][] = [
+    ['Visitors today', String(today?.visitors ?? 0), `${sum('visitors', 7)} in 7 days · ${sum('visitors')} in 30`],
+    ['Page views (30 days)', String(sum('views')), `${today?.views ?? 0} today`],
+    ['Sign-ins (7 days)', String(sum('logins', 7)), `${sum('failedLogins', 7)} wrong passcode`],
+    ['New couples (30 days)', String(sum('newCouples')), `${sum('newCouples', 7)} this week`],
+    ['Errors (7 days)', String(sum('errors', 7)), `${sum('errors')} in 30 days`],
+  ];
+  const top = Math.max(1, ...data.days.map((d) => d.visitors));
+  return (
+    <section className="flex flex-col gap-4">
+      <H sub="Visitors are counted once a day without cookies (no one can be followed from day to day). Errors come from the server and from visitors’ browsers.">Traffic & errors</H>
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
+        {tiles.map(([label, big, small]) => (
+          <div key={label} className={card}>
+            <span className="text-[12px] font-semibold uppercase tracking-[.08em] text-[#5b6a52]">{label}</span>
+            <span className="text-[30px] font-semibold leading-none tabular-nums">{big}</span>
+            <span className="text-[13px] text-[#5b6a52]">{small}</span>
+          </div>
+        ))}
+      </div>
+      <div className={card}>
+        <strong className="text-[15px]">Visitors a day</strong>
+        <div className="flex items-end gap-[3px] h-[140px]" role="img" aria-label={`Visitors a day for 30 days, most ${top}`}>
+          {data.days.map((d) => (
+            <div key={d.day} className="flex-1 flex flex-col justify-end h-full" title={`${day(d.day)}: ${d.visitors} visitors, ${d.views} views, ${d.logins} sign-ins, ${d.errors} errors`}>
+              <div className="rounded-t-[3px] bg-[#5d6b47]" style={{ height: `${Math.max(d.visitors ? 4 : 0, (d.visitors / top) * 100)}%` }} />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between text-[12px] text-[#5b6a52]">
+          <span>{day(data.days[0]?.day ?? '')}</span>
+          <span>Today</span>
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className={card}>
+          <strong className="text-[15px]">Pages opened (30 days)</strong>
+          {!data.pages.length ? (
+            <p className="m-0 text-[#5b6a52]">Nothing counted yet.</p>
+          ) : (
+            <ul className="m-0 p-0 list-none flex flex-col">
+              {data.pages.map((p) => (
+                <li key={p.page} className="flex justify-between py-2 border-b border-[#ece3cd] text-[14px]">
+                  <span>{PAGE_NAME[p.page] ?? p.page}</span>
+                  <span className="tabular-nums font-semibold">{p.views}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className={card}>
+          <strong className="text-[15px]">Sign-ins and new couples, by day</strong>
+          <ul className="m-0 p-0 list-none flex flex-col max-h-[320px] overflow-y-auto">
+            {[...data.days].reverse().filter((d) => d.logins || d.failedLogins || d.newCouples).map((d) => (
+              <li key={d.day} className="flex justify-between gap-3 py-2 border-b border-[#ece3cd] text-[14px]">
+                <span>{day(d.day)}</span>
+                <span className="text-[#5b6a52]">
+                  {d.logins} sign-ins{d.failedLogins ? ` · ${d.failedLogins} wrong passcode` : ''}
+                  {d.newCouples ? ` · ${d.newCouples} new ${d.newCouples === 1 ? 'couple' : 'couples'}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <div className={card}>
+        <strong className="text-[15px]">Errors (latest first, the same one counted together)</strong>
+        {!data.errors.length ? (
+          <p className="m-0 text-[#5b6a52]">No errors in the last 30 days.</p>
+        ) : (
+          <ul className="m-0 p-0 list-none flex flex-col">
+            {data.errors.map((e) => {
+              const k = `${e.source}|${e.message}`;
+              return (
+                <li key={k} className="py-2 border-b border-[#ece3cd] text-[14px] flex flex-col gap-1">
+                  <button type="button" onClick={() => setOpen(open === k ? '' : k)} className="p-0 border-0 bg-transparent text-left cursor-pointer flex flex-wrap gap-x-3 gap-y-1 items-baseline">
+                    <span className={`px-2 py-[1px] rounded-full text-[11px] font-semibold uppercase ${e.source === 'server' ? 'bg-[#f3e0da] text-[#7a3b2c]' : 'bg-[#e6ecdc] text-[#3f4f39]'}`}>{e.source === 'server' ? 'Server' : 'Browser'}</span>
+                    <strong className="flex-1 min-w-[200px] break-words">{e.message}</strong>
+                    <span className="text-[#5b6a52]">
+                      {e.n}× · last {new Date(e.last).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                      {e.path ? ` · ${PAGE_NAME[e.path] ?? e.path}` : ''}
+                    </span>
+                  </button>
+                  {open === k && e.detail && <pre className="m-0 p-3 rounded-[8px] bg-[#f6f4ee] text-[12px] whitespace-pre-wrap break-words max-h-[260px] overflow-auto">{e.detail}</pre>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </section>
   );
 }
 

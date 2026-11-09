@@ -1116,6 +1116,7 @@ export const companyApi = {
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
   setRole: (userId: string, role: string) => send<{ ok: true }>('PUT', `/a/company/team/${encodeURIComponent(userId)}`, { role }),
   activity: () => request<{ activity: CompanyActivity[] }>('/a/company/activity'),
+  traffic: () => request<CompanyTraffic>('/a/company/traffic'),
   todo: () => request<{ items: CompanyTodo[]; canEdit: boolean }>('/a/company/todo'),
   saveTodo: (items: CompanyTodo[]) => send<{ items: CompanyTodo[]; canEdit: boolean }>('PUT', '/a/company/todo', { items }),
   connections: () => request<{ status: Record<string, 'deploy' | 'saved' | ''>; redirectUri: string; stripeHook: string }>('/a/company/connections'),
@@ -1163,3 +1164,10 @@ export const feedbackApi = {
 
 /** What can be set for several ticked guests at once. */
 export type BulkSet = { side?: '' | 'p1' | 'p2' | 'both'; relation?: string; addCircles?: string[]; removeCircles?: string[]; delivery?: 'digital' | 'post' | 'both'; channel?: '' | 'text' | 'email' | 'both' | 'phone' };
+
+/** Traffic & errors (company portal): the last 30 days. */
+export interface CompanyTraffic {
+  days: { day: string; visitors: number; views: number; logins: number; failedLogins: number; newCouples: number; errors: number }[];
+  pages: { page: string; views: number }[];
+  errors: { message: string; source: string; n: number; last: string; first: string; path: string; detail: string }[];
+}

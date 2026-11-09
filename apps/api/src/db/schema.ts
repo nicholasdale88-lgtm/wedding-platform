@@ -709,3 +709,30 @@ export const emailOut = sqliteTable('email_out', {
   createdAt: text('created_at').notNull(),
   sentAt: text('sent_at'),
 });
+
+// migration 0046: traffic and errors for the company portal
+export const siteDay = sqliteTable(
+  'site_day',
+  {
+    day: text('day').notNull(),
+    page: text('page').notNull(),
+    views: integer('views').notNull().default(0),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.day, t.page] }) }),
+);
+export const siteVisitor = sqliteTable(
+  'site_visitor',
+  {
+    day: text('day').notNull(),
+    hash: text('hash').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.day, t.hash] }) }),
+);
+export const errorLog = sqliteTable('error_log', {
+  id: text('id').primaryKey(),
+  at: text('at').notNull(),
+  source: text('source').notNull(),
+  path: text('path').notNull().default(''),
+  message: text('message').notNull(),
+  detail: text('detail').notNull().default(''),
+});

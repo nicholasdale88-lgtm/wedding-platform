@@ -163,8 +163,16 @@ export function authRoutes() {
       .bind(body.data.email)
       .first<{ id: string; email: string; pass_hash: string | null }>();
     if (!(await verifyPasscode(body.data.passcode, user?.pass_hash ?? null)) || !user) {
+      await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, NULL, ?, 'auth.login_failed', NULL, NULL, ?)`)
+        .bind(crypto.randomUUID(), user?.id ?? null, new Date().toISOString())
+        .run()
+        .catch(() => undefined);
       return err(c, 401, 'bad_login', "That email and passcode don't match.");
     }
+    await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, NULL, ?, 'auth.login', NULL, NULL, ?)`)
+      .bind(crypto.randomUUID(), user.id, new Date().toISOString())
+      .run()
+      .catch(() => undefined);
 
     return c.json(await signIn(c, user));
   });

@@ -164,7 +164,7 @@ describe('admin API', () => {
   it('every change is in the audit log', async () => {
     const g = await guestNamed('Ivy Scott');
     await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ seatsHeld: 2 }) });
-    const row = await t.db.prepare(`SELECT action, target FROM audit`).first<{ action: string; target: string }>();
+    const row = await t.db.prepare(`SELECT action, target FROM audit WHERE action NOT LIKE 'auth.%'`).first<{ action: string; target: string }>();
     expect(row).toEqual({ action: 'guest.edit', target: g.id });
   });
 

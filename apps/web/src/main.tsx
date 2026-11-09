@@ -1,4 +1,5 @@
 import '@fontsource-variable/dm-sans';
+import { reportErrors } from './lib/stats';
 import '@fontsource/cormorant-garamond/500.css';
 import '@fontsource/cormorant-garamond/600.css';
 import '@fontsource/cormorant-garamond/500-italic.css';
@@ -29,6 +30,7 @@ if (typeof FontFace !== 'undefined' && document.fonts) {
 // The right home-screen app for this page (the admin, or the wedding for its guests).
 setUpInstall();
 // iPhone: no page left half off the screen after switching apps.
+reportErrors();
 keepViewportSteady();
 
 createRoot(document.getElementById('root')!).render(

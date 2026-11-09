@@ -1,4 +1,5 @@
 import { HTTPException } from 'hono/http-exception';
+import { recordError } from './lib/stats';
 import { Hono } from 'hono';
 import { engineDeps, type Env } from './env';
 import { hardening, isBusy } from './lib/security';
@@ -123,6 +124,16 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.onError((err, c) => {
     if (err instanceof HTTPException) return err.getResponse(); // an answer on purpose (e.g. an invitation not live yet)
     console.error(err);
+    // Kept for the company portal's Traffic & errors (the path without its query, which can hold a guest's link).
+    if (!isBusy(err)) {
+      const e = err as Error;
+      const keep = recordError(c.env.DB, 'server', `${c.req.method} ${new URL(c.req.url).pathname}`, e.message || String(err), e.stack ?? '').catch(() => undefined);
+      try {
+        c.executionCtx.waitUntil(keep);
+      } catch {
+        /* no execution context (tests): it finishes on its own */
+      }
+    }
     // Briefly busy (a burst of saves at once): ask the page to try again rather than reporting a fault.
     if (isBusy(err)) return c.json({ error: { code: 'busy', message: 'Busy for a moment. Please try again.' } }, 503, { 'Retry-After': '1' });
     return c.json({ error: { code: 'server_error', message: 'Something went wrong. Your changes are safe.' } }, 500);

@@ -12,6 +12,7 @@ import { customRoles, jsonWritesOnly, requireMember, requireUser, signIn, superA
 import { applyPurchase } from './billing';
 import { CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
 import { PLANS } from './signup';
+import { recordError, recordHit, traffic } from '../lib/stats';
 
 /**
  * The company portal (/api/a/company): for the people who run the app (staff), each route gated by what
@@ -812,6 +813,9 @@ export function companyRoutes() {
     return c.json({ activity: results.map((r) => ({ id: r.id, action: r.action, target: r.target ?? '', detail: r.detail ?? '', at: r.at, who: r.action === 'plan.paid' && !r.who ? 'Card payment' : r.who, names: r.names })) });
   });
 
+  /** Traffic & errors: visitors and page views a day, sign-ins, new couples and every error (last 30 days). */
+  app.get('/traffic', can('activity'), async (c) => c.json(await traffic(c.env.DB, 30)));
+
   /** The directory's vendor listings, newest first, hidden ones included. */
   app.get('/listings', can('vendors'), async (c) => {
     const { results } = await c.env.DB.prepare(
@@ -897,6 +901,26 @@ export function siteRoutes() {
     return c.html(
       `<!doctype html><meta name="viewport" content="width=device-width"><title>The Yes List</title><body style="font-family:Georgia,serif;max-width:480px;margin:60px auto;padding:0 16px;color:#33402f"><h1 style="font-weight:normal">${ok ? 'Done: we won’t email you again.' : 'That link didn’t work.'}</h1><p>${ok ? 'Sorry to have bothered you.' : 'Reply to the email and we’ll take you off by hand.'}</p></body>`,
     );
+  });
+  /** A page was opened (the kind of page only). Counted once per load; no cookies, nothing personal kept. */
+  app.post('/hit', async (c) => {
+    const b = z.object({ page: z.string().max(20) }).safeParse(await readJson(c.req.raw).catch(() => null));
+    if (!b.success) return c.body(null, 204);
+    const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+    if (await allow(c.env.DB, `hit:${ip}`, 600, 60 * 60_000)) {
+      await recordHit(c.env.DB, b.data.page, ip, c.req.header('User-Agent') ?? '', c.env.SESSION_SECRET ?? 'yes-list').catch(() => undefined);
+    }
+    return c.body(null, 204);
+  });
+  /** Something went wrong in a visitor's browser: kept for Traffic & errors (a few an hour from each network). */
+  app.post('/error', async (c) => {
+    const b = z.object({ message: z.string().max(500), detail: z.string().max(2000).default(''), path: z.string().max(200).default('') }).safeParse(await readJson(c.req.raw).catch(() => null));
+    if (!b.success) return c.body(null, 204);
+    const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+    if (await allow(c.env.DB, `err:${ip}`, 30, 60 * 60_000)) {
+      await recordError(c.env.DB, 'browser', b.data.path, b.data.message, `${b.data.detail}\n${c.req.header('User-Agent') ?? ''}`).catch(() => undefined);
+    }
+    return c.body(null, 204);
   });
   app.get('/', async (c) => {
     const s = await readSetting(c.env.DB, 'site', SiteSettings);
