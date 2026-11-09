@@ -269,7 +269,8 @@ function TablePage({ t, layout }: { t: SeatTable; layout: (PrintPerson | null)[]
           {people.some((p) => p?.diet.trim()) ? ` · ${people.filter((p) => p?.diet.trim()).length} dietary` : ''}
         </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr', gap: '5mm', alignItems: 'start', marginTop: '2mm' }}>
+      {/* Long tables run across the whole page (names stay big), with the list below; round ones sit beside it. */}
+      <div style={{ display: 'grid', gridTemplateColumns: STRETCHES(t.shape as TableShape) || t.shape === 'sweetheart' ? '1fr' : '1.15fr 1fr', gap: '5mm', alignItems: 'start', marginTop: '2mm' }}>
         <TableDrawing t={t} people={people} />
         <table>
           <thead>
