@@ -1,4 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType, type ReactNode } from 'react';
+import { DEMO_WID } from '../try/demo';
+import { DemoFeature, DEMO_HANDS_ON } from '../try/DemoFeature';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
 import { GuestPlanningBar } from './GuestPlanning';
@@ -172,7 +174,7 @@ function SectionPage({ section, tab }: { section: string; tab: string }) {
 }
 
 function SectionBody({ section, tab }: { section: string; tab: string }) {
-  const { overview: o, path } = useAdmin();
+  const { wid, overview: o, path } = useAdmin();
   const { search } = useLocation();
   // Account's texting setup and admin look are views of Settings now.
   if (tab === 'look') return <Navigate to={`${path('settings', ALL_EVENTS)}?view=look`} replace />;
@@ -201,6 +203,8 @@ function SectionBody({ section, tab }: { section: string; tab: string }) {
     const first = o.events[0]?.key;
     return <Navigate to={first ? path(tab, first) + search : path('overview')} replace />;
   }
+  // Try the app: the parts the sample doesn't run say what they do instead (guests, dietary and seating are hands-on).
+  if (wid === DEMO_WID && !DEMO_HANDS_ON.has(tab)) return <DemoFeature tab={tab} />;
   switch (tab) {
     case 'overview':
       return <Overview />;
