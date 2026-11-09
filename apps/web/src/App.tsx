@@ -43,6 +43,7 @@ const QuotePage = lazy(() => fresh(import('./guest/quote/QuotePage')).then((m) =
 const SalesPage = lazy(() => fresh(import('./sales/SalesPage')).then((m) => ({ default: m.SalesPage })));
 // The front page's sample invitation and its footer pages (privacy, terms, contact).
 const DemoPage = lazy(() => fresh(import('./sales/Demo')).then((m) => ({ default: m.DemoPage })));
+const SampleSeatingPage = lazy(() => fresh(import('./sales/SampleSeating')).then((m) => ({ default: m.SampleSeatingPage })));
 const DesignsPage = lazy(() => fresh(import('./sales/Designs')).then((m) => ({ default: m.DesignsPage })));
 const PrivacyPage = lazy(() => fresh(import('./sales/Legal')).then((m) => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => fresh(import('./sales/Legal')).then((m) => ({ default: m.TermsPage })));
@@ -84,6 +85,7 @@ function Pages() {
         <Route path="/w/:slug/vendor" element={<VendorPage />} />
         <Route path="/" element={<SalesPage />} />
         <Route path="/demo" element={<DemoPage />} />
+        <Route path="/demo/seating-pdf" element={<SampleSeatingPage />} />
         <Route path="/designs" element={<DesignsPage />} />
         <Route path="/templates" element={<DesignsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />

@@ -86,7 +86,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
            FROM person p JOIN invitation i ON i.id = p.invitation_id
            LEFT JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
            LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ?1
-          WHERE i.wedding_id = ?2 AND i.deleted_at IS NULL AND p.deleted_at IS NULL
+          WHERE i.wedding_id = ?2 AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND TRIM(p.name) <> ''
           ORDER BY i.created_at, p.idx`,
       ).bind(ev.id, w.id),
       db.prepare(`SELECT snapshot, published_at FROM seat_publish WHERE event_id = ?`).bind(ev.id),

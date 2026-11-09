@@ -809,7 +809,7 @@ describe('seating tab', () => {
     const edit = await screen.findByRole('button', { name: 'Edit seating' });
     expect(screen.queryByRole('button', { name: 'Auto-seat the rest' })).toBeNull();
     expect(screen.queryByLabelText('Room size')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Print floor plan' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Seating PDF' })).toBeInTheDocument();
     await userEvent.click(edit);
     await userEvent.click(screen.getByRole('tab', { name: 'Room' })); // the tools come in three tabs
     await userEvent.selectOptions(screen.getByLabelText('Room size'), '2');

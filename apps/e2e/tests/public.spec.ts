@@ -37,3 +37,13 @@ test('sign-in page has a way back to the front page', async ({ page }) => {
   await page.getByRole('link', { name: /The Yes List/ }).first().click();
   await expect(page).toHaveURL(/\/$/);
 });
+
+test('sample seating PDF: branded, the room, each table with numbered seats, the dietary list and A to Z', async ({ page }) => {
+  await page.goto('/demo/seating-pdf');
+  await expect(page.getByText('The room')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bridal table' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Table 1' })).toBeVisible();
+  await expect(page.getByText('Dietary requirements, by table and seat')).toBeVisible();
+  await expect(page.getByText('Everyone, A to Z')).toBeVisible();
+  await expect(page.getByText('Made with The Yes List').first()).toBeVisible();
+});

@@ -1,5 +1,5 @@
-import { aspectRatio, autoSeat as autoSeatPlan, chairsAt, clampTable, metresAspect, roomMetres, roomSizeM, sizeLabel, TABLE_SIZE_M, tableMetres, compareLine, planSummary, suggestName, suggestSeating, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import { autoSeat as autoSeatPlan, chairsAt, clampTable, metresAspect, roomMetres, roomSizeM, sizeLabel, TABLE_SIZE_M, tableMetres, compareLine, planSummary, suggestName, suggestSeating, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData } from '../../lib/api';
@@ -13,6 +13,7 @@ import { emptyHistory, history, type Snapshot } from './history';
 import { SeatChecks, useSeatRules } from './SeatChecks';
 import { SinceSave, StageBar, type NextStep } from './SeatStage';
 import { Gate } from '../Upgrade';
+import { ALL_PARTS, SeatingPrint, type SeatingPrintOptions } from '../../print/SeatingPrint';
 import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
 
 /**
@@ -188,6 +189,9 @@ function SeatingPlan() {
     return m;
   }, [s, seats]);
   // Who sits in each chair at each table (chosen chairs kept, everyone else in the next free one).
+  // The seating PDF: what goes in it (all of it unless unticked).
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printParts, setPrintParts] = useState<SeatingPrintOptions>(ALL_PARTS);
   const chairMap = useMemo(() => new Map(tables.map((t) => [t.id, chairsAt(byTable.get(t.id) ?? [], chairs, t.seats)])), [tables, byTable, chairs]);
   const seatRules = useSeatRules(s?.event.key);
 
@@ -747,12 +751,40 @@ function SeatingPlan() {
               <Pill onClick={exportList} disabled={!tables.length}>
                 Table list for the caterer
               </Pill>
-              <Pill onClick={() => window.print()} disabled={!tables.length} title="The floor plan with every name, each table seat by seat, and every dietary need, under The Yes List's header with the event details. Print it, or choose Save as PDF to share it.">
-                Print floor plan
-              </Pill>
-              <Pill onClick={() => window.print()} disabled={!tables.length} title="Choose Save as PDF (or Print → Share on a phone) to send it to your caterer">
-                Caterer’s PDF
-              </Pill>
+              <span className="relative">
+                <Pill onClick={() => setPrintOpen((o) => !o)} disabled={!tables.length} aria-expanded={printOpen}>
+                  Seating PDF
+                </Pill>
+                {printOpen && (
+                  <div role="dialog" aria-label="What to put in the PDF" className="absolute z-30 left-0 top-[calc(100%+6px)] w-[280px] p-4 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f2] shadow-[0_10px_30px_rgba(27,34,24,.18)] flex flex-col gap-2 text-[14px]">
+                    <strong className="text-[15px]">For your caterer and venue</strong>
+                    {(
+                      [
+                        ['floor', 'The room: every table'],
+                        ['tables', 'Each table: names at their seats'],
+                        ['diet', 'Dietary list, by table and seat'],
+                        ['az', 'Everyone A to Z'],
+                      ] as const
+                    ).map(([k, label]) => (
+                      <label key={k} className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={printParts[k]} onChange={(e) => setPrintParts({ ...printParts, [k]: e.target.checked })} className="w-[18px] h-[18px] accent-[#33402f]" />
+                        {label}
+                      </label>
+                    ))}
+                    <Pill
+                      kind="primary"
+                      disabled={!Object.values(printParts).some(Boolean)}
+                      onClick={() => {
+                        setPrintOpen(false);
+                        window.setTimeout(() => window.print(), 50);
+                      }}
+                    >
+                      Make the PDF
+                    </Pill>
+                    <span className="text-[12px] text-[#5b6a52]">Then choose Save as PDF (on iPhone: Print, then Share).</span>
+                  </div>
+                )}
+              </span>
             </>
           )}
           <span className="flex-1" />
@@ -1228,53 +1260,22 @@ function SeatingPlan() {
         </aside>
       </div>
 
-      {/* What's printed (and only that): the floor plan on paper, then who sits at each table. Outside the page so it prints on its own. */}
+      {/* What's printed (and only that): the branded seating document. Outside the page so it prints on its own. */}
       {createPortal(
-        <PrintPlan
-          aspect={aspect}
-          tables={tables}
-          areas={areas}
-          byTable={byTable}
-          chairs={chairMap}
-          title={couple || s.event.name}
-          subtitle={[couple ? s.event.name : '', when, ev?.venue].filter(Boolean).join(' · ')}
-          details={[
-            ['Event', s.event.name],
-            ['Date', when],
-            ['Venue', ev?.venue ?? ''],
-            ['Guests seated', `${seated} of ${s.people.filter((p) => p.coming).length} coming`],
-            ['Tables', `${tables.length} · ${seatCount} seats`],
-            ['Dietary needs', `${s.people.filter((p) => seats[p.id] && p.diet.trim()).length} (${s.people.filter((p) => seats[p.id] && isSerious(p.diet)).length} serious)`],
-          ]}
-        >
-          <section className="seat-print-list">
-            <h2 className="font-display text-[22px] m-0 mb-3">Tables, seat by seat</h2>
-            <div className="columns-3 gap-6 text-[12px]">
-              {ordered.map((t) => (
-                <div key={t.id} className="break-inside-avoid mb-3">
-                  <strong>
-                    Table {t.name} · {byTable.get(t.id)?.length ?? 0}/{t.seats}
-                  </strong>
-                  {(chairMap.get(t.id) ?? []).map(
-                    (p, i) =>
-                      p && (
-                        <div key={p.id}>
-                          {i < t.seats ? `${i + 1}. ` : ''}
-                          {p.name}
-                          {p.diet ? ` (${p.diet})` : ''}
-                        </div>
-                      ),
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-          <DietPrint people={s.people.filter((p) => seats[p.id])} tableOf={(p) => tables.find((t) => t.id === seats[p.id])} chairOf={(p) => {
-            const t = tables.find((x) => x.id === seats[p.id]);
-            const i = t ? (chairMap.get(t.id) ?? []).findIndex((x) => x?.id === p.id) : -1;
-            return t && i >= 0 && i < t.seats ? i + 1 : null;
-          }} />
-        </PrintPlan>,
+        <div className="hidden print:block">
+          <SeatingPrint
+            couple={couple}
+            eventName={s.event.name}
+            when={when}
+            venue={[ev?.venue, ev?.address].filter((x) => x?.trim()).join(', ')}
+            aspect={aspect}
+            tables={tables}
+            areas={areas}
+            chairs={chairMap}
+            coming={s.people.filter((p) => p.coming).length}
+            parts={printParts}
+          />
+        </div>,
         document.body,
       )}
 
@@ -1450,175 +1451,6 @@ function Slider({ min, max, value, checkpoint, onSlide }: { min: number; max: nu
  * tables with their names and guests/seats, areas labelled, a key, and the couple and date at the top.
  * Drawn fresh as an SVG rather than printing the on-screen plan (which is zoomed, scrolled and coloured).
  */
-function PrintPlan({
-  aspect,
-  tables,
-  areas,
-  byTable,
-  chairs,
-  title,
-  subtitle,
-  details = [],
-  children,
-}: {
-  aspect: string;
-  tables: SeatTable[];
-  areas: SeatArea[];
-  byTable: Map<string, Person[]>;
-  chairs: Map<string, (Person | null)[]>;
-  /** The event's details for the header block (label, value); blanks are left out. */
-  details?: [string, string][];
-  title: string;
-  subtitle: string;
-  children: ReactNode;
-}) {
-  const W = 1000;
-  const H = Math.round(W / aspectRatio(aspect));
-  const landscape = W >= H;
-  const k = 1 / roomScale(aspect); // a bigger room: everything smaller on the page
-  const chairR = 7 * k;
-  const seated = tables.reduce((n, t) => n + (byTable.get(t.id)?.length ?? 0), 0);
-  const seats = tables.reduce((n, t) => n + t.seats, 0);
-  const css = `
-.seat-print { color: #000; background: #fff; font-family: 'DM Sans', Arial, sans-serif; }
-@media print {
-  @page seatplan { size: A4 ${landscape ? 'landscape' : 'portrait'}; margin: 10mm; }
-  html.seat-printing body > *:not(.seat-print) { display: none !important; }
-  .seat-print-plan { page: seatplan; break-after: page; }
-  .seat-print-svg { width: 100%; height: ${landscape ? '150mm' : '225mm'}; }
-}`;
-  return (
-    <div className="seat-print hidden print:block">
-      <style>{css}</style>
-      <section className="seat-print-plan">
-        <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '8pt', letterSpacing: '.32em', textTransform: 'uppercase', marginBottom: '4mm' }}>The Yes List · seating plan</div>
-        <div className="flex justify-between items-end gap-4 pb-2 mb-3 border-b-2 border-black">
-          <div>
-            <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: '24pt', lineHeight: 1.1 }}>{title}</div>
-            {subtitle && <div style={{ fontSize: '10pt' }}>{subtitle}</div>}
-          </div>
-          <div style={{ fontSize: '10pt', textAlign: 'right' }}>
-            Floor plan
-            <br />
-            {tables.length} {tables.length === 1 ? 'table' : 'tables'} · {seats} seats · {seated} seated
-          </div>
-        </div>
-        <svg className="seat-print-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Printed floor plan" fontFamily="'DM Sans', Arial, sans-serif">
-          <rect x={1.5} y={1.5} width={W - 3} height={H - 3} fill="#fff" stroke="#000" strokeWidth={3} />
-          {areas.map((a, i) => {
-            const w = (a.w / 100) * W;
-            const h = (a.h / 100) * H;
-            const fs = Math.max(9, Math.min(18, h * 0.3, (w * 0.9) / Math.max(3, a.label.length * 0.7)));
-            return (
-              <g key={`a${i}`}>
-                <rect x={(a.x / 100) * W - w / 2} y={(a.y / 100) * H - h / 2} width={w} height={h} fill="none" stroke="#000" strokeWidth={1.5} strokeDasharray="8 6" rx={4} />
-                <text x={(a.x / 100) * W} y={(a.y / 100) * H} fontSize={fs} textAnchor="middle" dominantBaseline="central" letterSpacing="0.12em">
-                  {a.label.toUpperCase()}
-                </text>
-              </g>
-            );
-          })}
-          {tables.map((t) => {
-            const box = tableBox(t, aspect);
-            const bw = (box.w / 100) * W;
-            const bh = (box.h / 100) * H;
-            const cx = (t.x / 100) * W;
-            const cy = (t.y / 100) * H;
-            const left = cx - bw / 2;
-            const top = cy - bh / 2;
-            const n = byTable.get(t.id)?.length ?? 0;
-            const shape = t.shape as TableShape;
-            // Long tables standing up and down get their writing turned to run along them.
-            const turned = t.dir === 'v' && (STRETCHES(shape) || shape === 'sweetheart');
-            const along = turned ? bh : bw;
-            const across = turned ? bw : bh;
-            const count = `${n}/${t.seats}${n > t.seats ? '!' : ''}`;
-            const oneLine = STRETCHES(shape) || across < 40 * k;
-            const text = oneLine ? `${t.name} · ${count}` : t.name;
-            const fs = Math.max(7, Math.min(across * (oneLine ? 0.55 : 0.4), (along * 0.85) / Math.max(1.5, text.length * 0.6), 34));
-            return (
-              <g key={t.id}>
-                {seatSpots(t, t.seats).map((p, i) => {
-                  const who = chairs.get(t.id)?.[i];
-                  const x = left + (p.x / 100) * bw;
-                  const y = top + (p.y / 100) * bh;
-                  // Their first name just outside the chair, away from the table (as a marked-up drawing).
-                  const dx = x - cx;
-                  const dy = y - cy;
-                  const len = Math.hypot(dx, dy) || 1;
-                  const tx = x + (dx / len) * chairR * 1.6;
-                  const ty = y + (dy / len) * chairR * 1.6;
-                  return (
-                    <g key={i}>
-                      <circle cx={x} cy={y} r={chairR} fill={who ? '#000' : '#fff'} stroke="#000" strokeWidth={1.2} />
-                      {who && (
-                        <text x={tx} y={ty} fontSize={Math.max(5, 8 * k)} textAnchor={Math.abs(dx) < 2 ? 'middle' : dx > 0 ? 'start' : 'end'} dominantBaseline="central">
-                          {who.name.split(' ')[0]}
-                          {isSerious(who.diet) ? ' !' : who.diet.trim() ? ' *' : ''}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
-                {shape === 'round' || shape === 'oval' ? (
-                  <ellipse cx={cx} cy={cy} rx={bw / 2} ry={bh / 2} fill="#fff" stroke="#000" strokeWidth={2} />
-                ) : (
-                  <rect x={left} y={top} width={bw} height={bh} rx={shape === 'sweetheart' ? Math.min(bw, bh) / 2 : 3} fill="#fff" stroke="#000" strokeWidth={2} />
-                )}
-                <g transform={turned ? `rotate(-90 ${cx} ${cy})` : undefined}>
-                  <text x={cx} y={oneLine ? cy : cy - fs * 0.15} fontSize={fs} fontWeight={700} textAnchor="middle" dominantBaseline="central">
-                    {text}
-                  </text>
-                  {!oneLine && (
-                    <text x={cx} y={cy + fs * 0.75} fontSize={fs * 0.55} textAnchor="middle" dominantBaseline="central">
-                      {count}
-                    </text>
-                  )}
-                </g>
-              </g>
-            );
-          })}
-        </svg>
-        {/* The key. */}
-        <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 items-center" style={{ fontSize: '9pt' }}>
-          <span className="inline-flex items-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ width: 12, height: 12 }}>
-              <circle cx="6" cy="6" r="5" fill="#000" />
-            </svg>
-            Seat taken
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden style={{ width: 12, height: 12 }}>
-              <circle cx="6" cy="6" r="5" fill="#fff" stroke="#000" />
-            </svg>
-            Empty seat
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <svg width="22" height="12" viewBox="0 0 22 12" aria-hidden style={{ width: 22, height: 12 }}>
-              <rect x="1" y="1" width="20" height="10" fill="none" stroke="#000" strokeDasharray="3 2" />
-            </svg>
-            Area of the room
-          </span>
-          <span>7/10: guests seated / seats at the table (! means more guests than seats)</span>
-          <span>Name * : a dietary need · Name ! : a serious allergy (see Dietary requirements)</span>
-        </div>
-        {details.some(([, v]) => v) && (
-          <div className="grid grid-cols-3 gap-x-6 gap-y-1 mt-3 pt-2 border-t border-black" style={{ fontSize: '9pt' }}>
-            {details
-              .filter(([, v]) => v)
-              .map(([k2, v]) => (
-                <div key={k2}>
-                  <strong>{k2}:</strong> {v}
-                </div>
-              ))}
-          </div>
-        )}
-      </section>
-      {children}
-    </div>
-  );
-}
-
 /** Named versions of the seating: save the plan as one, look at any, nominate the current arrangement. */
 function VersionsPanel({
   versions,
@@ -2339,59 +2171,3 @@ function TableFocus({
  * The caterer's page: every dietary need, serious ones first, each with the table and seat, plus how many of
  * each need and each main. Printed after the tables (and saved as a PDF with them).
  */
-function DietPrint({ people, tableOf, chairOf }: { people: Person[]; tableOf: (p: Person) => SeatTable | undefined; chairOf: (p: Person) => number | null }) {
-  const needs = people.filter((p) => p.diet.trim()).sort((a, b) => Number(isSerious(b.diet)) - Number(isSerious(a.diet)) || (tableOf(a)?.name ?? '').localeCompare(tableOf(b)?.name ?? '', undefined, { numeric: true }));
-  const count = (xs: string[]) => [...xs.filter(Boolean).reduce((m, x) => m.set(x, (m.get(x) ?? 0) + 1), new Map<string, number>())].sort((a, b) => b[1] - a[1]);
-  const mains = count(people.map((p) => p.meal.m));
-  const kinds = count(needs.map((p) => p.diet.trim().toLowerCase()));
-  const where = (p: Person) => {
-    const t = tableOf(p);
-    const c = chairOf(p);
-    return t ? `${/^\d+$/.test(t.name) ? `Table ${t.name}` : t.name}${c ? `, seat ${c}` : ''}` : '';
-  };
-  return (
-    <section className="seat-print-diet" style={{ breakBefore: 'page' }}>
-      <h2 className="font-display text-[22px] m-0 mb-1">Dietary requirements</h2>
-      <p className="m-0 mb-3 text-[11px]">
-        {needs.length} {needs.length === 1 ? 'guest has' : 'guests have'} a dietary need, {needs.filter((p) => isSerious(p.diet)).length} serious (marked !).
-        {kinds.length ? ` ${kinds.map(([k, n]) => `${n} × ${k}`).join(' · ')}.` : ''}
-      </p>
-      {mains.length > 0 && (
-        <p className="m-0 mb-3 text-[11px]">
-          <strong>Mains:</strong> {mains.map(([m, n]) => `${n} × ${m}`).join(' · ')}
-        </p>
-      )}
-      <table className="w-full text-[11px] border-collapse">
-        <thead>
-          <tr className="text-left border-b border-black">
-            <th className="py-1 pr-2">Guest</th>
-            <th className="py-1 pr-2">Table and seat</th>
-            <th className="py-1 pr-2">Dietary need</th>
-            <th className="py-1">Meals</th>
-          </tr>
-        </thead>
-        <tbody>
-          {needs.map((p) => (
-            <tr key={p.id} className="border-b border-[#bbb] align-top">
-              <td className="py-1 pr-2">
-                {isSerious(p.diet) ? '! ' : ''}
-                {p.name}
-              </td>
-              <td className="py-1 pr-2 whitespace-nowrap">{where(p)}</td>
-              <td className={`py-1 pr-2 ${isSerious(p.diet) ? 'font-bold' : ''}`}>{p.diet}</td>
-              <td className="py-1">{[p.meal.e, p.meal.m, p.meal.d].filter(Boolean).join(' · ')}</td>
-            </tr>
-          ))}
-          {!needs.length && (
-            <tr>
-              <td colSpan={4} className="py-2">
-                No dietary needs among the seated guests.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-      <p className="mt-4 text-[9px]">Made with The Yes List · seating and dietary list for the caterer</p>
-    </section>
-  );
-}
