@@ -3,8 +3,8 @@ import type { Env } from '../env';
 /**
  * Who pays for a wedding's texts: the couple, always.
  *
- * Couples buy text credits with their card (Texting → Buy texts, Stripe Checkout; the rate and 2% service
- * fee in @wp/shared TEXT_RATE). There's nothing to sign up to and no keys to paste: their texts go out through the site's
+ * Couples buy text credits with their card (Texting → Buy texts, Stripe Checkout; the rate
+ * in @wp/shared TEXT_RATE). There's nothing to sign up to and no keys to paste: their texts go out through the site's
  * Mobile Message account, one credit per text part, and stop when the credits run out. The site never pays
  * for a couple's texts: a wedding with no credits texts nothing automatically (sending from their own phone
  * or by email stays free).

@@ -166,7 +166,7 @@ export function billingRoutes() {
       'line_items[0][quantity]': '1',
       'line_items[0][price_data][currency]': 'aud',
       'line_items[0][price_data][unit_amount]': String(cents),
-      'line_items[0][price_data][product_data][name]': `The Yes List: ${credits.toLocaleString('en-AU')} text credits for ${w.name1} & ${w.name2} (incl. ${TEXT_RATE.serviceFeePct}% service fee and GST)`,
+      'line_items[0][price_data][product_data][name]': `The Yes List: ${credits.toLocaleString('en-AU')} text credits for ${w.name1} & ${w.name2} (${TEXT_RATE.serviceFeePct ? `incl. ${TEXT_RATE.serviceFeePct}% service fee and GST` : 'GST included'})`,
       'metadata[wedding]': wid,
       'metadata[what]': 'texts',
       'metadata[credits]': String(credits),

@@ -86,14 +86,14 @@ export const EVENT_ADDON = { name: 'Extra event', price: '$39' };
  */
 export const TEXT_RATE = {
   /** What a couple pays per credit, in cents incl. GST. */
-  centsPerCredit: 5,
+  centsPerCredit: 8,
   /**
    * A service fee on every text purchase, in percent. Australian law: it is part of the price, never a card
    * surcharge (surcharges on Visa, Mastercard and eftpos are banned from 1 Oct 2026), so it's the same
    * however the couple pays; and the one total, fee included, is what's shown first everywhere (no drip
-   * pricing): "5.1c a credit, all-in". The breakdown is shown beside it.
+   * pricing). Set 9 Nov 2026: 8c a credit all-in, no separate fee (about 4.4c goes to the texting service, about 3c is ours after card fees).
    */
-  serviceFeePct: 2,
+  serviceFeePct: 0,
   minCredits: 100,
   maxCredits: 20_000,
   /**
@@ -123,4 +123,4 @@ export const TEXT_CREDIT_ALL_IN = (TEXT_RATE.centsPerCredit * (100 + TEXT_RATE.s
 
 /** The notice shown wherever prices are: the sales page, the pricing table, Terms, Help and Texting. */
 export const TEXT_COST_NOTE =
-  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 5.1c a credit, all-in (5c a credit plus a 2% service fee, GST included; the fee is the same however you pay). It’s up to 13 credits (about 66c) per guest’s mobile if you send every text: save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after. A couple on one invitation share one mobile, so they cost the same as one guest: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';
+  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 8c a credit, all-in (GST included, no other fees). It’s up to 13 credits (about $1.04) per guest’s mobile if you send every text: save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after. A couple on one invitation share one mobile, so they cost the same as one guest: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';

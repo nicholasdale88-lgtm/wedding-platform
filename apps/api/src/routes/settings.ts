@@ -223,7 +223,7 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
           ? 'Invitations, reminders and replies go through Texto.'
           : `${credits} text ${credits === 1 ? 'credit' : 'credits'} left.`
         : 'No text credits, so nothing is texted automatically. Sending from your own phone or by email is free.',
-      fix: sms ? '' : 'Texting → Buy texts (by card, 5c a credit: tell it how many guests and it works out how many).',
+      fix: sms ? '' : 'Texting → Buy texts (by card, 8c a credit: tell it how many guests and it works out how many).',
     });
 
     const links = await activeLinks(env.DB, wid(c));

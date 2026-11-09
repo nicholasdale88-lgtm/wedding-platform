@@ -60,7 +60,7 @@ export type RequestResult = { ok: true; own: OwnNumber } | { ok: false; message:
 /** Step 1: text their mobile a confirmation link. */
 export async function requestOwnNumber(env: Env, weddingId: string, mobile: string, label: string, now = new Date()): Promise<RequestResult> {
   const a = await smsAccountFor(env, weddingId);
-  if (!a) return { ok: false, message: 'Buy some texts first (Texting → Buy texts, 5c a credit). Or text from your own phone instead (free).' };
+  if (!a) return { ok: false, message: 'Buy some texts first (Texting → Buy texts, 8c a credit). Or text from your own phone instead (free).' };
   const number = toE164(mobile);
   if (!number) return { ok: false, message: 'That doesn’t look like an Australian mobile (04xx xxx xxx).' };
   let status = 0;

@@ -36,8 +36,8 @@ describe('front page', () => {
 
   it('shows texts at the all-in price first, never inside a plan', () => {
     page();
-    expect(TEXT_CREDIT_ALL_IN).toBe(5.1);
-    expect(screen.getByText('5.1c a credit, all-in')).toBeInTheDocument();
+    expect(TEXT_CREDIT_ALL_IN).toBe(8);
+    expect(screen.getByText('8c a credit, all-in')).toBeInTheDocument();
     expect(screen.getByText(TEXT_COST_NOTE)).toBeInTheDocument();
     expect(screen.getByText(/Not included in any plan: text credits are bought separately/)).toBeInTheDocument();
   });

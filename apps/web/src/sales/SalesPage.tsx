@@ -54,9 +54,9 @@ const typicalTexts = `$${(textCreditsCents(textCreditsForGuests(TYPICAL_GUESTS))
 
 const guestsLine = (k: PlanKey) => (allows(k, 'unlimitedGuests') ? 'As many guests as you like' : `Up to ${FREE_GUEST_LIMIT} guests`);
 const TEXTS_LINE = 'Automatic text invitations and reminders (text credits extra)';
-/** Texts are never part of a plan: the most they cost a guest's mobile, all-in (13 credits at 5.1c, every text sent). */
+/** Texts are never part of a plan: the most they cost a guest's mobile, all-in (13 credits at 8c, every text sent). */
 const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN);
-const TEXTS_PRICE_LINE = `Texts not included: up to ${TEXT_PER_GUEST}c a guest, all-in, for every text`;
+const TEXTS_PRICE_LINE = `Texts not included: up to ${TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest, all-in, for every text`;
 
 const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] = [
   {
@@ -105,7 +105,7 @@ const FAQ: [string, string][] = [
   ['Is it a subscription?', 'No. Set everything up first, then pay once for your wedding when you’re ready to send your invitations. Nothing renews.'],
   [
     'Are text messages included?',
-    `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (${TEXT_RATE.centsPerCredit}c a credit plus a ${TEXT_RATE.serviceFeePct}% service fee, GST included), and you see the total before you pay.`,
+    `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (GST included, no other fees), and you see the total before you pay.`,
   ],
   ['Can we move to a bigger plan later?', 'Yes. Everything you’ve set up stays, and you only pay the difference.'],
   ['Do guests need to download anything?', 'No. They open their own link: no app, no account, no password.'],
