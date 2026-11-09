@@ -18,7 +18,7 @@ import {
 } from '@wp/shared';
 import { api } from '../lib/api';
 import { rememberRef, savedRef, useSite } from '../lib/site';
-import { Wordmark } from './Art';
+import { LogoMark, Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 
@@ -39,7 +39,6 @@ const CREAM = '#f6f0e2';
 const PAPER = '#fbf8f2';
 const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
-const field = 'w-full py-[11px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px]';
 
 /** "$50" → 50 (NaN when it isn't a price). */
 const dollars = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
@@ -437,81 +436,142 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
       setBusy(false);
     }
   };
+  // A field: its label above, a soft box that never runs off the screen (iPhone draws date boxes wide).
+  const box = 'block w-full min-w-0 max-w-full appearance-none py-[13px] px-4 rounded-[14px] border border-[#ddd0b2] bg-[#fffdf8] text-[16px] text-[#33402f] shadow-[inset_0_1px_2px_rgba(51,64,47,.05)] focus:outline-none focus:border-[#a9843f] focus:shadow-[0_0_0_3px_rgba(169,132,63,.18)]';
+  const lab = 'flex flex-col gap-[6px] text-[13px] font-medium tracking-[.02em] min-w-0';
+  const step = (n: string, title: string) => (
+    <div className="flex items-center gap-3 pt-2">
+      <span className="w-7 h-7 flex-none rounded-full flex items-center justify-center text-[13px] font-semibold" style={{ background: INK, color: PAPER }}>
+        {n}
+      </span>
+      <span className="text-[13px] font-semibold tracking-[.16em] uppercase" style={{ color: SOFT }}>
+        {title}
+      </span>
+      <span className="flex-1 h-px" style={{ background: '#e2d7bc' }} />
+    </div>
+  );
   return (
-    <form onSubmit={(e) => void submit(e)} className="max-w-[560px] mx-auto flex flex-col gap-4">
-      <div className="text-center pb-2">
-        <h2 className="m-0 text-[clamp(38px,6vw,56px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
-          Start your wedding
+    <form onSubmit={(e) => void submit(e)} className="max-w-[620px] mx-auto">
+      <div className="text-center pb-8 flex flex-col items-center gap-3">
+        <LogoMark size={56} />
+        <h2 className="m-0 text-[clamp(40px,6.5vw,60px)] leading-[1.02] font-normal" style={{ fontFamily: serif }}>
+          Start your <em style={{ color: GOLD }}>wedding</em>
         </h2>
-        <p className="m-0 mt-3 text-[16px]" style={{ color: SOFT }}>
-          Takes a minute. Set everything up and see your invitation before you pay.
+        <p className="m-0 text-[16px] max-w-[440px]" style={{ color: SOFT }}>
+          It takes a minute. Set everything up and see your own invitation before you pay a cent.
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-[14px]">
-          Your first name
-          <input required value={f.firstName} onChange={set('firstName')} autoComplete="given-name" className={field} />
-        </label>
-        <label className="flex flex-col gap-1 text-[14px]">
-          Your partner’s first name
-          <input required value={f.partnerName} onChange={set('partnerName')} className={field} />
-        </label>
-      </div>
-      <label className="flex flex-col gap-1 text-[14px]">
-        Email
-        <input required type="email" value={f.email} onChange={set('email')} autoComplete="email" className={field} />
-      </label>
-      <label className="flex flex-col gap-1 text-[14px]">
-        Choose a passcode (8 characters or more)
-        <input required type="password" minLength={8} value={f.passcode} onChange={set('passcode')} autoComplete="new-password" className={field} />
-      </label>
-      <label className="flex flex-col gap-1 text-[14px]">
-        Wedding date (if you have one)
-        <input type="date" value={f.date} onChange={set('date')} className={field} />
-      </label>
-      <label className="flex flex-col gap-1 text-[14px]">
-        About how many guests? (a guess is fine)
-        <input type="number" inputMode="numeric" min={0} max={3000} value={f.guests} onChange={set('guests')} placeholder="e.g. 120" className={field} />
-      </label>
-      <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">
-        <legend className="text-[14px] mb-1">Plan</legend>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {PLANS.map((p) => (
-            <label key={p.key} className="flex items-center gap-2 py-2 px-3 rounded-[10px] bg-white border cursor-pointer text-[14px]" style={{ borderColor: plan === p.key ? INK : '#d3c6a4' }}>
-              <input type="radio" name="plan" checked={plan === p.key} onChange={() => setPlan(p.key)} className="accent-[#33402f]" />
-              {PLAN_INFO[p.key].name} · {PLAN_INFO[p.key].price}
-            </label>
-          ))}
+      <div className="flex flex-col gap-5 p-6 sm:p-9 rounded-[28px] border border-[#e6dcc4] shadow-[0_30px_70px_rgba(51,64,47,.12)]" style={{ background: 'linear-gradient(180deg,#fffdf8 0%,#fbf6ea 100%)' }}>
+        {step('1', 'The two of you')}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3 items-end">
+          <label className={lab}>
+            Your first name
+            <input required value={f.firstName} onChange={set('firstName')} autoComplete="given-name" placeholder="Olivia" className={box} />
+          </label>
+          <span aria-hidden className="pb-[10px] text-[30px] leading-none" style={{ fontFamily: serif, color: GOLD }}>
+            &amp;
+          </span>
+          <label className={lab}>
+            Your partner’s first name
+            <input required value={f.partnerName} onChange={set('partnerName')} placeholder="James" className={box} />
+          </label>
         </div>
-        <span className="text-[13px]" style={{ color: SOFT }}>
-          Nothing to pay now: you pay once, when you’re ready to send your invitations. You can change plan any time before then.
-        </span>
-      </fieldset>
-      {/* Left empty by people (hidden); bots fill it in. */}
-      <input tabIndex={-1} aria-hidden="true" autoComplete="off" value={f.website} onChange={set('website')} name="website" className="absolute left-[-9999px] w-px h-px opacity-0" />
-      <label className="flex items-start gap-2 text-[14px] cursor-pointer">
-        <input type="checkbox" checked={f.marketing} onChange={set('marketing')} className="mt-[3px] w-[16px] h-[16px] accent-[#33402f]" />
-        Send me the odd planning tip by email. No spam, and you can stop any time.
-      </label>
-      {problem && (
-        <p role="alert" className="m-0 text-[15px] text-[#7a4a37]">
-          {problem}{' '}
-          {/already an account/i.test(problem) && (
-            <Link to="/admin" className="!text-[#7a4a37]">
-              Sign in
-            </Link>
-          )}
-        </p>
-      )}
-      <button type="submit" disabled={busy} className="py-4 rounded-full border-0 text-[17px] font-medium cursor-pointer disabled:opacity-60" style={{ background: INK, color: PAPER }}>
-        {busy ? 'Setting up your wedding…' : 'Create our wedding'}
-      </button>
-      <span className="text-[13px] text-center" style={{ color: SOFT }}>
+        {step('2', 'Your account')}
+        <label className={lab}>
+          Email
+          <input required type="email" value={f.email} onChange={set('email')} autoComplete="email" placeholder="you@example.com" className={box} />
+        </label>
+        <label className={lab}>
+          Choose a passcode (8 characters or more)
+          <input required type="password" minLength={8} value={f.passcode} onChange={set('passcode')} autoComplete="new-password" className={box} />
+        </label>
+        {step('3', 'Your day')}
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+          <label className={lab}>
+            Wedding date (if you have one)
+            <input type="date" value={f.date} onChange={set('date')} className={`${box} min-h-[50px]`} />
+          </label>
+          <label className={lab}>
+            About how many guests? (a guess is fine)
+            <input type="number" inputMode="numeric" min={0} max={3000} value={f.guests} onChange={set('guests')} placeholder="e.g. 120" className={box} />
+          </label>
+        </div>
+        {step('4', 'Your plan')}
+        <fieldset className="m-0 p-0 border-0 flex flex-col gap-3 min-w-0">
+          <legend className="sr-only">Plan</legend>
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            {PLANS.map((p) => {
+              const on = plan === p.key;
+              return (
+                <label
+                  key={p.key}
+                  className="relative flex sm:flex-col gap-3 sm:gap-1 items-center sm:items-start p-4 rounded-[18px] border-2 cursor-pointer transition-[border-color,box-shadow] duration-150"
+                  style={{ borderColor: on ? INK : '#e6dcc4', background: on ? '#fffdf8' : 'rgba(255,253,248,.6)', boxShadow: on ? '0 10px 24px rgba(51,64,47,.12)' : undefined }}
+                >
+                  {p.pick && (
+                    <span className="absolute -top-[11px] right-3 py-[2px] px-[10px] rounded-full text-[11px] font-semibold tracking-[.06em]" style={{ background: GOLD, color: '#fff' }}>
+                      Most popular
+                    </span>
+                  )}
+                  <input type="radio" name="plan" checked={on} onChange={() => setPlan(p.key)} className="w-[18px] h-[18px] flex-none accent-[#33402f]" />
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-[17px]" style={{ fontFamily: serif, fontWeight: 600 }}>
+                      {PLAN_INFO[p.key].name}
+                    </span>
+                    <span className="text-[12px]" style={{ color: SOFT }}>
+                      {p.note}
+                    </span>
+                  </span>
+                  <span className="ml-auto sm:ml-0 sm:mt-1 text-[26px] leading-none" style={{ fontFamily: serif, color: INK }}>
+                    {PLAN_INFO[p.key].price}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <span className="text-[13px] text-center" style={{ color: SOFT }}>
+            Paid once, when you’re ready to send. Change plan any time before then.
+          </span>
+          <span className="text-[13px] text-center p-3 rounded-[12px] bg-[#f3ecd9]" style={{ color: INK }}>
+            Texting your guests is optional: <strong>{TEXT_CREDIT_ALL_IN}c a text credit</strong>, about <strong>{TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest</strong> for every text (invitation, reminders, thank-yous). From your own phone or by email it’s free.
+          </span>
+        </fieldset>
+        {/* Left empty by people (hidden); bots fill it in. */}
+        <input tabIndex={-1} aria-hidden="true" autoComplete="off" value={f.website} onChange={set('website')} name="website" className="absolute left-[-9999px] w-px h-px opacity-0" />
+        <label className="flex items-start gap-3 text-[14px] cursor-pointer pt-1" style={{ color: SOFT }}>
+          <input type="checkbox" checked={f.marketing} onChange={set('marketing')} className="mt-[2px] w-[18px] h-[18px] flex-none accent-[#33402f]" />
+          <span>Send me the odd planning tip by email. No spam, and you can stop any time.</span>
+        </label>
+        {problem && (
+          <p role="alert" className="m-0 p-3 rounded-[12px] text-[15px] text-[#7a4a37] bg-[#f8e3dd]">
+            {problem}{' '}
+            {/already an account/i.test(problem) && (
+              <Link to="/admin" className="!text-[#7a4a37]">
+                Sign in
+              </Link>
+            )}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={busy}
+          className="py-[18px] rounded-full border-0 text-[18px] font-semibold cursor-pointer disabled:opacity-60 shadow-[0_14px_30px_rgba(51,64,47,.25)] transition-transform active:scale-[.99]"
+          style={{ background: `linear-gradient(180deg, #3d4c38, ${INK})`, color: PAPER }}
+        >
+          {busy ? 'Setting up your wedding…' : 'Create our wedding'}
+        </button>
+        <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px]" style={{ color: SOFT }}>
+          <span>✓ Nothing to pay today</span>
+          <span>✓ No subscription</span>
+          <span>✓ Your guests download nothing</span>
+        </div>
+      </div>
+      <p className="m-0 mt-5 text-[14px] text-center" style={{ color: SOFT }}>
         Already have one?{' '}
         <Link to="/admin" style={{ color: INK }}>
           Sign in
         </Link>
-      </span>
+      </p>
     </form>
   );
 }
