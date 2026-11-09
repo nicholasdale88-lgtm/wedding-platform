@@ -287,13 +287,42 @@ function SeatingPlan() {
   live.current = {
     at,
     table: (id) => tables.find((t) => t.id === id),
-    move: (id, x, y) => setTable(id, { x: snapTo(x), y: snapTo(y) }, false),
+    move: (id, x, y) => {
+      const spot = freeSpot(id, snapTo(x), snapTo(y));
+      if (spot) setTable(id, spot, false);
+    },
     checkpoint,
     pick: (id) => select('table', id),
   };
   const nextName = () => String(Math.max(0, ...tables.map((t) => Number(t.name)).filter((n) => Number.isFinite(n))) + 1);
   const selTable = sel?.kind === 'table' ? tables.find((t) => t.id === sel.id) : undefined;
   const selArea = sel?.kind === 'area' ? areas[sel.i] : undefined;
+  /**
+   * Where a table can stand: not on another table or its chairs (it can't in a real room). Dragged into one, it
+   * slides along it (keeping across or up and down) or stays where it was.
+   */
+  const footprint = (t: SeatTable, x: number, y: number) => {
+    const b = tableBox(t, aspect);
+    const pad = 3.4 / roomScale(aspect); // room for the chairs around it
+    return { x, y, w: b.w + 2 * pad, h: b.h + 2 * pad };
+  };
+  const clash = (id: string, x: number, y: number) => {
+    const me = tables.find((t) => t.id === id);
+    if (!me) return false;
+    const a = footprint(me, x, y);
+    return tables.some((o) => {
+      if (o.id === id) return false;
+      const b = footprint(o, o.x, o.y);
+      return Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.y - b.y) < (a.h + b.h) / 2;
+    });
+  };
+  const freeSpot = (id: string, x: number, y: number): { x: number; y: number } | null => {
+    const me = tables.find((t) => t.id === id);
+    if (!me || !clash(id, x, y)) return { x, y };
+    if (!clash(id, x, me.y)) return { x, y: me.y };
+    if (!clash(id, me.x, y)) return { x: me.x, y };
+    return null;
+  };
   const setTable = (id: string, patch: Partial<SeatTable>, record = true) =>
     commit((d) => ({ ...d, tables: d.tables.map((t) => (t.id === id ? clampTable({ ...t, ...patch }, d.aspect) : t)) }), record);
   const setArea = (i: number, patch: Partial<SeatArea>, record = true) => commit((d) => ({ ...d, areas: d.areas.map((a, j) => (j === i ? { ...a, ...patch } : a)) }), record);
@@ -401,8 +430,10 @@ function SeatingPlan() {
     const p = at(e);
     const x = snapTo(p.x - d.dx);
     const y = snapTo(p.y - d.dy);
-    if (d.kind === 'table') setTable(d.key as string, { x, y }, false);
-    else setArea(d.key as number, { x: Math.min(98, Math.max(2, x)), y: Math.min(98, Math.max(2, y)) }, false);
+    if (d.kind === 'table') {
+      const spot = freeSpot(d.key as string, x, y);
+      if (spot) setTable(d.key as string, spot, false);
+    } else setArea(d.key as number, { x: Math.min(98, Math.max(2, x)), y: Math.min(98, Math.max(2, y)) }, false);
   };
   const up = () => {
     cancelPress();
@@ -423,6 +454,12 @@ function SeatingPlan() {
     if (!adding) return setSel(null);
     const p = at(e);
     const t = clampTable({ id: crypto.randomUUID(), name: nextName(), shape, dir: 'h' as const, len: 40, x: snapTo(p.x), y: snapTo(p.y), seats: DEFAULT_SEATS[shape] }, aspect);
+    // Not on top of another table (or its chairs).
+    const mine = footprint(t, t.x, t.y);
+    if (tables.some((o) => { const b = footprint(o, o.x, o.y); return Math.abs(mine.x - b.x) < (mine.w + b.w) / 2 && Math.abs(mine.y - b.y) < (mine.h + b.h) / 2; })) {
+      toast('There’s a table there: tap an empty spot.');
+      return;
+    }
     commit((d) => ({ ...d, tables: [...d.tables, t] }));
     setSel({ kind: 'table', id: t.id });
   };
