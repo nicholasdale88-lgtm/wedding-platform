@@ -6,7 +6,7 @@ import { InvitationView } from '../guest/generated/InvitationView';
 import { EnvelopeExtras } from '../guest/invitation/EnvelopeExtras';
 import { paperHex, SealOverlay } from '../guest/invitation/WaxSeal';
 import { useInvitation } from '../guest/invitation/useInvitation';
-import { themeOf } from '../guest/themeKit';
+import { THEME_NAMES, themeOf } from '../guest/themeKit';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 import { BRAND } from './SalesPage';
 
@@ -14,17 +14,20 @@ import { BRAND } from './SalesPage';
  * /demo: the real invitation, exactly as a guest sees it on their phone (the same view and behaviour as
  * /w/<slug>: the wax seal, the envelope opening, the card, the reply), for a made-up wedding (./sample).
  * Nothing is loaded from the server and nothing is saved: it runs as a preview, so a reply is never sent.
- * /demo?embed=1 is the same without the bar, for the phone on the front page.
+ * /demo?embed=1 is the same without the bar, for the phone on the front page; ?theme=<name> shows it in
+ * another design (the Designs page).
  */
 export function DemoPage() {
   const [params] = useSearchParams();
   const embed = params.get('embed') === '1';
+  const asked = params.get('theme') ?? '';
+  const theme = THEME_NAMES.includes(asked) ? asked : undefined;
   useEffect(() => {
     document.title = `Sample invitation · ${BRAND}`;
   }, []);
   return (
     <>
-      <SampleInvitation />
+      <SampleInvitation key={theme ?? ''} theme={theme} />
       {!embed && (
         <div className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-3 py-2 pl-4 pr-2 rounded-full text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]" style={{ background: 'rgba(51,64,47,.92)' }}>
           <span>
@@ -40,8 +43,8 @@ export function DemoPage() {
 }
 
 /** The guest invitation for the sample wedding: the generated design view, run by the real invitation logic. */
-export function SampleInvitation() {
-  const data = SAMPLE_INVITE;
+export function SampleInvitation({ theme }: { theme?: string } = {}) {
+  const data = theme ? { ...SAMPLE_INVITE, wedding: { ...SAMPLE_INVITE.wedding, theme } } : SAMPLE_INVITE;
   const { v: core, t, phase, seal } = useInvitation(data.wedding.slug, data, true);
   // No "Add to your calendar" links: there's no real wedding behind them.
   const v = { ...core, after: () => undefined };

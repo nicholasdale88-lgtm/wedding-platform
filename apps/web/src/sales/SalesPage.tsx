@@ -181,7 +181,12 @@ export function SalesPage() {
             </div>
           </div>
           <div className="pt-16 flex justify-center">
-            <HeroInvite />
+            <div className="flex flex-col items-center gap-4">
+              <HeroInvite />
+              <Link to="/designs" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold border" style={{ color: INK, borderColor: '#c6b794' }}>
+                See all the designs
+              </Link>
+            </div>
           </div>
         </section>
 
