@@ -9,13 +9,36 @@ import { downloadXlsx, type Sheet, type XlsxLook } from '../lib/xlsx';
  * a caterer or venue knows exactly what it's for.
  */
 
-/** The couple's monogram on a wax seal, in the invitation theme's colours, as a PNG (none where the browser can't draw). */
+/**
+ * The title band's picture: The Yes List's mark (two gold rings on sage) beside the couple's monogram on a
+ * wax seal in the invitation's colours, as one PNG (none where the browser can't draw).
+ */
 async function sealPng(monogram: string, gold: string, ink: string): Promise<Uint8Array | undefined> {
   try {
     const c = document.createElement('canvas');
-    c.width = c.height = 112;
+    c.width = 224;
+    c.height = 112;
     const g = c.getContext('2d');
     if (!g) return undefined;
+    // Our mark, on the left.
+    g.fillStyle = '#2b3727';
+    g.beginPath();
+    g.roundRect?.(6, 6, 100, 100, 22);
+    if (!g.roundRect) g.rect(6, 6, 100, 100);
+    g.fill();
+    const ring = g.createLinearGradient(0, 30, 0, 82);
+    ring.addColorStop(0, '#f5e1aa');
+    ring.addColorStop(0.5, '#c9a35e');
+    ring.addColorStop(1, '#e8cd91');
+    g.strokeStyle = ring;
+    g.lineWidth = 6.5;
+    for (const x of [44, 68]) {
+      g.beginPath();
+      g.arc(x, 58, 21, 0, Math.PI * 2);
+      g.stroke();
+    }
+    // The couple's seal, on the right.
+    g.translate(112, 0);
     const grad = g.createRadialGradient(42, 38, 6, 56, 56, 56);
     grad.addColorStop(0, '#fff3dc');
     grad.addColorStop(0.45, gold);
@@ -72,7 +95,7 @@ export async function downloadDressed(wid: string, o: Overview | null, file: str
     /* the export still works without the event lines */
   }
   const covered = eventKeys ? events.filter((e) => eventKeys.includes(e.key)) : events;
-  const lines = [...covered.map((e) => eventLine(e, tz)), `Exported ${fmtWhen(new Date().toISOString(), tz)}`];
+  const lines = [...covered.map((e) => eventLine(e, tz)), `Exported ${fmtWhen(new Date().toISOString(), tz)} · Made with The Yes List`];
   const look = await lookOf(o);
   downloadXlsx(
     file,

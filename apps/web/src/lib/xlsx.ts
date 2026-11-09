@@ -118,6 +118,7 @@ function sheetXml(s: Sheet, hasSeal: boolean): string {
     (merges.length ? `<mergeCells count="${merges.length}">${merges.join('')}</mergeCells>` : '') +
     '<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/>' +
     '<pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>' +
+    '<headerFooter><oddHeader>&amp;L&amp;"Georgia,Italic"&amp;11The Yes List</oddHeader><oddFooter>&amp;L&amp;8Made with The Yes List · weddings, beautifully organised&amp;R&amp;8Page &amp;P of &amp;N</oddFooter></headerFooter>' +
     (hasSeal ? '<drawing r:id="rId1"/>' : '') +
     '</worksheet>'
   );
@@ -130,10 +131,10 @@ function drawingXml(col: number): string {
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
     `<xdr:oneCellAnchor><xdr:from><xdr:col>${col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>0</xdr:row><xdr:rowOff>${4 * emu}</xdr:rowOff></xdr:from>` +
-    `<xdr:ext cx="${56 * emu}" cy="${56 * emu}"/>` +
+    `<xdr:ext cx="${112 * emu}" cy="${56 * emu}"/>` +
     '<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="2" name="Seal"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>' +
     '<xdr:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>' +
-    `<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${56 * emu}" cy="${56 * emu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>` +
+    `<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${112 * emu}" cy="${56 * emu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic>` +
     '<xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>'
   );
 }
@@ -192,7 +193,7 @@ export function writeXlsx(sheets: Sheet[], look: XlsxLook = PLAIN): Uint8Array {
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${i + 1}.xml"/></Relationships>`,
     );
-    files[`xl/drawings/drawing${i + 1}.xml`] = strToU8(drawingXml(Math.max(0, width - 1)));
+    files[`xl/drawings/drawing${i + 1}.xml`] = strToU8(drawingXml(Math.max(0, width - 2)));
     files[`xl/drawings/_rels/drawing${i + 1}.xml.rels`] = strToU8(
       '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/seal.png"/></Relationships>',
