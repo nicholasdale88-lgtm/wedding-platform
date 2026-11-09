@@ -65,7 +65,7 @@ export function vendorHubRoutes() {
       const s = await loadSeating(db, w.id);
       if (s) {
         const plan = s.publishedPlan ?? s.draft;
-        const people = s.view.people.filter((p) => p.coming && plan.seats[p.id]);
+        const people = [...s.view.couple, ...s.view.people].filter((p) => p.coming && plan.seats[p.id]); // the couple too, where they sit
         const num = (t: string) => (/^\d+$/.test(t) ? `Table ${t}` : t);
         const tables = [...plan.tables].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
         const special = (p: (typeof people)[number]) => !!(p.diet.trim() || p.meal.e || p.meal.m || p.meal.d);

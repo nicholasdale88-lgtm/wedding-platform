@@ -24,6 +24,7 @@ export const unseatEveryoneNotComing = (db: D1Database, eventId: string): D1Prep
     .prepare(
       `DELETE FROM seat
         WHERE event_id = ?1
+          AND person_id NOT LIKE 'couple-%'
           AND person_id NOT IN (
             SELECT p.id FROM person p JOIN invite_event ie ON ie.invitation_id = p.invitation_id
               LEFT JOIN rsvp r ON r.invitation_id = ie.invitation_id AND r.event_id = ie.event_id

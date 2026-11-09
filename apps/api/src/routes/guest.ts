@@ -295,6 +295,11 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
         .all<{ id: string; name: string }>();
       const tableFor = new Map(mateIds);
       for (const m of results) (mates[tableFor.get(m.id)!] ??= []).push(m.name);
+      // The couple, when they sit at this table.
+      [w.name1, w.name2].forEach((name, i) => {
+        const t = tableFor.get(`couple-${i + 1}`);
+        if (t && name.trim()) (mates[t] ??= []).push(name.trim());
+      });
     }
 
     const base = (c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '');

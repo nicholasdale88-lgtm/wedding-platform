@@ -472,6 +472,8 @@ export interface SeatingData {
   tables: SeatTable[];
   areas: SeatArea[];
   people: { id: string; invitationId: string; name: string; party: string; side?: string; relation?: string; circles?: string[]; role?: string; diet: string; meal: { e: string; m: string; d: string }; tableId: string | null; chair?: number | null; coming: boolean }[];
+  /** The couple themselves (always in the seating; not on their own guest list). */
+  couple?: SeatingData['people'];
 }
 export interface SeatingSave {
   event: string;
@@ -483,20 +485,23 @@ export interface SeatingSave {
   chairs: Record<string, number>;
 }
 
+/** The couple are always in the seating: they come first, beside their guests. */
+const withCouple = <T extends SeatingData>(d: T): T => (d.couple?.length ? { ...d, people: [...d.couple, ...d.people.filter((p) => !p.id.startsWith('couple-'))], couple: [] } : d);
+
 export const seatingApi = {
-  get: (wid: string, event?: string) => request<SeatingData>(`${w(wid)}/seating${event ? `?event=${encodeURIComponent(event)}` : ''}`),
-  save: (wid: string, version: number, body: SeatingSave) => send<SeatingData>('PUT', `${w(wid)}/seating`, body, version),
-  publish: (wid: string, version: number, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/publish`, { event }, version),
-  saveVersion: (wid: string, event: string, name: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions`, { event, name }),
+  get: (wid: string, event?: string) => request<SeatingData>(`${w(wid)}/seating${event ? `?event=${encodeURIComponent(event)}` : ''}`).then(withCouple),
+  save: (wid: string, version: number, body: SeatingSave) => send<SeatingData>('PUT', `${w(wid)}/seating`, body, version).then(withCouple),
+  publish: (wid: string, version: number, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/publish`, { event }, version).then(withCouple),
+  saveVersion: (wid: string, event: string, name: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions`, { event, name }).then(withCouple),
   /** A suggested plan kept as a new version beside the current one (it doesn't become current). */
   suggestVersion: (wid: string, event: string, name: string, seats: Record<string, string | null>) =>
-    send<SeatingData & { created: string }>('POST', `${w(wid)}/seating/versions/suggest`, { event, name, seats }),
+    send<SeatingData & { created: string }>('POST', `${w(wid)}/seating/versions/suggest`, { event, name, seats }).then(withCouple),
   version: (wid: string, id: string) => request<{ id: string; name: string; aspect: string; tables: SeatTable[]; areas: SeatArea[]; seats: Record<string, string>; chairs?: Record<string, number> }>(`${w(wid)}/seating/versions/${encodeURIComponent(id)}`),
-  renameVersion: (wid: string, id: string, name: string) => send<SeatingData>('PATCH', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, { name }),
-  deleteVersion: (wid: string, id: string) => send<SeatingData>('DELETE', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, {}),
-  makeCurrent: (wid: string, version: number, id: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions/${encodeURIComponent(id)}/current`, {}, version),
-  setStage: (wid: string, event: string, stage: SeatStage | null) => send<SeatingData>('PUT', `${w(wid)}/seating/stage`, { event, stage }),
-  seen: (wid: string, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/seen`, { event }),
+  renameVersion: (wid: string, id: string, name: string) => send<SeatingData>('PATCH', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, { name }).then(withCouple),
+  deleteVersion: (wid: string, id: string) => send<SeatingData>('DELETE', `${w(wid)}/seating/versions/${encodeURIComponent(id)}`, {}).then(withCouple),
+  makeCurrent: (wid: string, version: number, id: string) => send<SeatingData>('POST', `${w(wid)}/seating/versions/${encodeURIComponent(id)}/current`, {}, version).then(withCouple),
+  setStage: (wid: string, event: string, stage: SeatStage | null) => send<SeatingData>('PUT', `${w(wid)}/seating/stage`, { event, stage }).then(withCouple),
+  seen: (wid: string, event: string) => send<SeatingData>('POST', `${w(wid)}/seating/seen`, { event }).then(withCouple),
 };
 
 // ---------------------------------------------------------------- Photos

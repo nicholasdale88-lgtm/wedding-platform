@@ -21,6 +21,8 @@ import { servedAt } from '../lib/meals';
  */
 
 type C = Context<AdminEnv>;
+/** The couple's own places in the seating (they're not people on an invitation). */
+export const COUPLE_IDS = ['couple-1', 'couple-2'] as const;
 const err = (c: C, status: 400 | 404 | 409 | 428, code: string, message: string) => c.json({ error: { code, message } }, status);
 const wid = (c: C) => c.req.param('wid')!;
 const pct = z.number().min(0).max(100);
@@ -64,7 +66,7 @@ const Save = z
  * guide lists a table mate who may not come.
  */
 export async function loadSeating(db: D1Database, weddingId: string, eventKey?: string) {
-    const w = await db.prepare(`SELECT id, version, content FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(weddingId).first<{ id: string; version: number; content: string | null }>();
+    const w = await db.prepare(`SELECT id, version, content, name1, name2 FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(weddingId).first<{ id: string; version: number; content: string | null; name1: string; name2: string }>();
     if (!w) return null;
     const { results: events } = await db
       .prepare(`SELECT id, key, name, has_seating, catered FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`)
@@ -72,7 +74,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       .all<{ id: string; key: string; name: string; has_seating: number; catered: number }>();
     const ev = events.find((e) => e.key === eventKey) ?? events.find((e) => e.has_seating) ?? events.find((e) => e.catered) ?? events[0];
     if (!ev) return null;
-    const [plan, tables, areas, people, pub, vers, docs, sent] = await db.batch([
+    const [plan, tables, areas, people, pub, vers, docs, sent, coupleSeats] = await db.batch([
       db.prepare(`SELECT aspect, image_key, current_version FROM seat_plan WHERE event_id = ?`).bind(ev.id),
       db.prepare(`SELECT id, name, shape, dir, length_pct AS len, x, y, seats, sides, size_m AS size FROM seat_table WHERE event_id = ? AND deleted_at IS NULL ORDER BY name`).bind(ev.id),
       db.prepare(`SELECT label, x, y, w, h FROM seat_area WHERE event_id = ? AND deleted_at IS NULL`).bind(ev.id),
@@ -95,12 +97,21 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
         `SELECT EXISTS (SELECT 1 FROM sms_out WHERE wedding_id = ?1 AND invitation_id IS NOT NULL AND status IN ('sent', 'delivered'))
              OR EXISTS (SELECT 1 FROM invitation WHERE wedding_id = ?1 AND opened_at IS NOT NULL AND deleted_at IS NULL) AS sent`,
       ).bind(w.id),
+      db.prepare(`SELECT person_id AS id, table_id AS tableId, chair FROM seat WHERE event_id = ? AND person_id IN ('${COUPLE_IDS[0]}', '${COUPLE_IDS[1]}')`).bind(ev.id),
     ]);
     const versionRows = vers!.results as { id: string; name: string; snapshot: string; created_at: string }[];
     const tableIds = new Set((tables!.results as { id: string }[]).map((t) => t.id));
     const p = plan!.results[0] as { aspect: string; image_key: string | null; current_version: string | null } | undefined;
     type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; chair: number | null; party: string; side: string; relation: string; circles: string; role: string; invited: number; attending: number | null; count: number | null };
-    const rows = people!.results as Row[];
+    const guestRows = people!.results as Row[];
+    // The couple are always in the seating (they aren't on their own guest list): two people, coming.
+    const theirSeats = coupleSeats!.results as { id: string; tableId: string | null; chair: number | null }[];
+    const couple: Row[] = [w.name1, w.name2].map((name, idx) => {
+      const id = COUPLE_IDS[idx]!;
+      const s = theirSeats.find((x) => x.id === id);
+      return { id, invitationId: 'couple', idx, name: (name ?? '').trim() || (idx ? 'Partner two' : 'Partner one'), diet: '', tableId: s?.tableId ?? null, chair: s?.chair ?? null, party: 'The couple', side: idx ? 'p2' : 'p1', relation: '', circles: '', role: '', invited: 1, attending: 1, count: 2 };
+    });
+    const rows = [...couple, ...guestRows];
     // A yes is for the first N people on the invitation (N = the reply's count, as the overview counts them):
     // the others on it aren't coming, so they get no seat and are never shown to guests.
     const beyondCount = (x: Row) => x.attending === 1 && x.idx >= Math.max(1, x.count ?? 1);
@@ -133,16 +144,17 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     // Pencilled-in guests are never shown to guests, so they don't count as changes waiting to go live.
     const published = pubRow && pubSnap ? { at: pubRow.published_at, changes: changesBetween(pubSnap, publishable), saidNo: gone } : null;
     const served = await servedAt(db, w.id, ev);
-    const list = rows
-      .filter(seatable)
-      .map((x) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, side: x.side ?? '', relation: x.relation ?? '', circles: splitCircles(x.circles), role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), chair: seatOf(x) ? (x.chair ?? null) : null, coming: x.attending === 1 }));
+    const asPerson = (x: Row) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, side: x.side ?? '', relation: x.relation ?? '', circles: splitCircles(x.circles), role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), chair: seatOf(x) ? (x.chair ?? null) : null, coming: x.attending === 1 });
+    const list = guestRows.filter(seatable).map(asPerson);
+    /** The couple: always in the seating, without being on their own guest list. */
+    const coupleList = couple.map(asPerson);
 
     // Where the plan is in its life, and what changed since it was last saved.
     const doc = (kind: string) => (docs!.results as { kind: string; data: string }[]).find((d) => d.kind === kind)?.data;
     const baseline = safeJson<SeatBaseline | null>(doc('seat-baseline') ?? 'null', null);
     const chosen = safeJson<{ stage?: SeatStage } | null>(doc('seat-stage') ?? 'null', null)?.stage ?? null;
     const close = safeJson<{ invitation?: { rsvpClose?: unknown } }>(w.content ?? '{}', {}).invitation?.rsvpClose;
-    const invitedRows = rows.filter((x) => x.invited);
+    const invitedRows = guestRows.filter((x) => x.invited);
     const facts = {
       sent: !!(sent!.results[0] as { sent: number } | undefined)?.sent,
       invited: invitedRows.length,
@@ -171,6 +183,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
         tables: tables!.results as Snapshot['tables'],
         areas: areas!.results,
         people: list,
+        couple: coupleList,
         stage: { auto: seatStage(facts), chosen, ...facts },
         /** Since the plan was last saved (null: never saved, or nothing changed). */
         sinceSave: baseline && anyChanges(changes) ? { at: baseline.at, ...changes } : null,
@@ -230,7 +243,7 @@ export function seatingRoutes() {
       if (clash!.n) return err(c, 400, 'invalid', 'Reload and try again.');
     }
     const keep = new Set(b.tables.map((t) => t.id));
-    const people = new Set(cur.people.map((p) => p.id));
+    const people = new Set([...cur.people, ...cur.couple].map((p) => p.id));
     // Everyone in the seating is invited and hasn't said no (still to reply is fine: pencilled in).
     for (const [pid, tid] of Object.entries(b.seats)) {
       if (!people.has(pid)) return err(c, 400, 'invalid', 'Someone in the seating is no longer coming. Reload and try again.');
@@ -381,7 +394,7 @@ export function seatingRoutes() {
     const loaded = await load(c, body.data.event);
     if (!loaded || loaded.view.event.key !== body.data.event) return err(c, 404, 'not_found', 'That event no longer exists.');
     if (loaded.view.versions.length >= MAX_VERSIONS) return err(c, 400, 'too_many', `Up to ${MAX_VERSIONS} versions per event. Delete an old one first.`);
-    const people = new Set(loaded.view.people.map((p) => p.id));
+    const people = new Set([...loaded.view.people, ...loaded.view.couple].map((p) => p.id));
     const tables = new Set(loaded.draft.tables.map((t) => t.id));
     const seats: Record<string, string> = {};
     for (const [pid, tid] of Object.entries(body.data.seats)) {
