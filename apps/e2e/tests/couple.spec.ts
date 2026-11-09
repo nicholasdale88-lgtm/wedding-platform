@@ -142,3 +142,28 @@ test('seating: Move tables drags a table (and never opens it); in Seat guests a 
   await table.click();
   await expect(page.getByRole('dialog', { name: /seat by seat/ })).toBeVisible();
 });
+
+test('a guest opens their own invitation, says yes, and the couple sees it', async ({ page, browser }) => {
+  // The couple adds a guest (through the same API the admin uses).
+  const added = await page.request.post(`/api/a/w/${wid}/guests`, { data: {} });
+  expect(added.status()).toBe(201);
+  const d = (await added.json()) as { guest: { id: string; version: number }; link: string };
+  const named = await page.request.patch(`/api/a/w/${wid}/guests/${d.guest.id}`, { headers: { 'If-Match': String(d.guest.version) }, data: { people: ['Robin Hart'] } });
+  expect(named.status()).toBe(200);
+  // The guest, on their own phone (no couple's sign-in), opens their link.
+  const guest = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const g = await guest.newPage();
+  g.on('pageerror', (e) => {
+    throw new Error(`Guest page error: ${e.message}`);
+  });
+  await g.goto(new URL(d.link).pathname + new URL(d.link).search);
+  await g.getByRole('button', { name: 'Open invitation' }).click();
+  await g.getByText("Yes, I'll be there").first().click();
+  await g.getByText('Send RSVP').click();
+  await expect(g.getByText(/We have your reply/)).toBeVisible();
+  await guest.close();
+  // The couple's guest list shows the yes.
+  await page.goto(`/admin/${wid}/wedding/guests?show=all`);
+  await expect(page.getByText('Robin Hart').first()).toBeVisible();
+  await expect(page.getByText('Attending').first()).toBeVisible();
+});
