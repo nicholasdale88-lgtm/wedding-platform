@@ -160,7 +160,7 @@ const FEATURE_OF: [RegExp, string][] = [
 
 function patchGuest(g: Guest, p: GuestPatch): Guest {
   const next = { ...g, version: g.version + 1 } as Guest;
-  for (const k of ['channel', 'side', 'relation', 'circles', 'delivery', 'invited', 'party', 'seatsHeld'] as const) if (p[k] !== undefined) (next as Record<string, unknown>)[k] = p[k];
+  for (const k of ['channel', 'side', 'relation', 'circles', 'delivery', 'invited', 'party', 'seatsHeld'] as const) if (p[k] !== undefined) (next as unknown as Record<string, unknown>)[k] = p[k];
   if (p.email !== undefined) next.email = p.email ?? '';
   if (p.phone !== undefined) {
     next.phone = p.phone;
