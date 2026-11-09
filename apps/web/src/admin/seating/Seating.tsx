@@ -869,6 +869,7 @@ function SeatingPlan() {
                     onClick={() => {
                       setTool(k);
                       setAdding(false);
+                      setSel(null); // a fresh start in each tab (nothing left open over the plan)
                     }}
                     className={`${mob ? 'min-h-[40px]' : ''} py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}
                   >
