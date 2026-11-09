@@ -6,8 +6,6 @@
 import { useId } from 'react';
 
 const INK = '#33402f';
-const GOLD = '#c8a46a';
-const CREAM = '#fbf8f2';
 
 /**
  * The logo mark, as on the app icon: two interlocking gold rings (one with a small diamond) on deep sage,
