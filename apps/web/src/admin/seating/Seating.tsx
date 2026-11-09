@@ -281,6 +281,8 @@ function SeatingPlan() {
         timer: window.setTimeout(() => {
           press.current = null;
           grab(clientX, clientY);
+          // Picked up: letting go (moved or not) never opens the table; a quick tap does.
+          dragged.current = true;
           setLifted(key);
           navigator.vibrate?.(8);
         }, HOLD_MS),
@@ -920,16 +922,16 @@ function SeatingPlan() {
       </div>
       <div className="text-[14px] text-[#5b6a52] print:hidden">
         {!editing
-          ? 'Tap a table to see who sits where. Edit seating to seat people, change tables or set up the room.'
+          ? 'Tap a table to see who sits where. To move tables or seat people, tap Edit seating.'
           : adding
             ? 'Tap the plan to drop a table. Tap Done adding when finished.'
             : tool === 'guests'
               ? mob
-                ? 'Tap a table, then tap names to seat them there (or hold a name and drag it onto a table). In the table, choose each guest’s exact seat.'
-                : 'Tap a table, then tap or drag guests onto it. In the table, choose each guest’s exact seat.'
+                ? 'Tap a table to open it and seat people. To move a table: hold it until it lifts, then drag.'
+                : 'Click a table to open it and seat people, or drag guests onto it. Drag a table to move it.'
               : tool === 'tables'
                 ? mob
-                  ? 'Tap a table, then drag it to move it (or hold any table, then drag). Tap a table to change its seats, type and size.'
+                  ? 'Hold a table until it lifts, then drag it to move it. Tap a table to change its seats, type and size.'
                   : 'Drag tables to arrange the room. Tap a table to change its seats, type and size in metres. Ctrl+Z undoes.'
                 : 'Choose the room’s shape and size, add the dance floor, bar and other areas, then tap an area to size it.'}
       </div>
