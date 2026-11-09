@@ -920,10 +920,11 @@ function SeatingPlan() {
                     type="button"
                     role="tab"
                     aria-selected={tool === k}
-                    onClick={() => {
+                    onClick={(e) => {
                       setTool(k);
                       setAdding(false);
                       setSel(null); // a fresh start in each tab (nothing left open over the plan)
+                      e.currentTarget.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); // phones: the chosen tab fully in view
                     }}
                     className={`${mob ? 'min-h-[40px]' : ''} flex-none whitespace-nowrap py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}
                   >
