@@ -20,6 +20,8 @@ import { api } from '../lib/api';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
+import { TextThread } from './TextThread';
+import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 
 /**
@@ -37,6 +39,7 @@ const SOFT = '#5b6a52';
 const GOLD = '#a9843f';
 const CREAM = '#f6f0e2';
 const PAPER = '#fbf8f2';
+const THEME_COUNT = THEME_NAMES.length;
 const serif = "'Cormorant Garamond', Georgia, serif";
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 
@@ -162,26 +165,52 @@ export function SalesPage() {
       </header>
 
       <main>
-        <section className="px-4 pt-14 pb-24 md:pt-20">
-          <div className="max-w-[900px] mx-auto flex flex-col items-center text-center gap-6">
-            <h1 className="m-0 text-[clamp(48px,9vw,96px)] leading-[1] font-normal tracking-[-.01em]" style={{ fontFamily: serif }}>
-              The invitation they’ll <em style={{ color: GOLD }}>actually</em> open.
-            </h1>
-            <p className="m-0 text-[clamp(18px,2.4vw,22px)] leading-[1.5] max-w-[600px]" style={{ color: SOFT }}>
-              Invitations, replies and the whole wedding plan, in one place. Paid once.
-            </p>
-            <div className="flex flex-col items-center gap-3 pt-2">
-              <a href="#start" className="py-[16px] px-9 rounded-full no-underline text-[17px] font-semibold shadow-[0_10px_24px_rgba(51,64,47,.18)]" style={{ background: INK, color: PAPER }}>
-                Start your wedding
-              </a>
-              <span className="text-[14px]" style={{ color: SOFT }}>
-                From {fromPrice}, once. No subscription. Australian owned and operated.
+        {/* The hero: what we do that a pretty invitation alone doesn't. Guests answer by text, and the list,
+            dietary needs and seating fill themselves in. */}
+        <section className="px-4 pt-14 pb-20 md:pt-20 md:pb-24" style={{ background: 'radial-gradient(120% 90% at 85% 0%, #3f4f39 0%, #2b3727 55%, #1f281c 100%)', color: '#f3ecd6' }}>
+          <div className="max-w-[1100px] mx-auto grid gap-12 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center">
+            <div className="flex flex-col gap-6 text-center md:text-left items-center md:items-start">
+              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#e6cf9e' }}>
+                Invitations · RSVPs · The whole plan
+              </span>
+              <h1 className="m-0 text-[clamp(44px,7.5vw,84px)] leading-[1.02] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                RSVPs, sorted by text.
+              </h1>
+              <span aria-hidden className="block h-[3px] w-[96px] rounded-full" style={{ background: 'linear-gradient(90deg,#e6cf9e,#b39563)' }} />
+              <p className="m-0 text-[clamp(17px,2.2vw,20px)] leading-[1.55] max-w-[520px]" style={{ color: '#d6dccb' }}>
+                Each guest gets their own invitation by text or email. They reply in seconds, and your guest list, dietary list and seating plan fill themselves in.
+              </p>
+              <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-1">
+                <a href="#start" className="py-[15px] px-8 rounded-full no-underline text-[17px] font-semibold shadow-[0_12px_28px_rgba(0,0,0,.25)]" style={{ background: '#e6cf9e', color: '#1b2218' }}>
+                  Start your wedding
+                </a>
+                <a href="/try" className="py-[15px] px-7 rounded-full no-underline text-[17px] font-semibold border" style={{ color: '#f3ecd6', borderColor: 'rgba(243,236,214,.45)' }}>
+                  Try the app
+                </a>
+              </div>
+              <span className="text-[14px]" style={{ color: '#c9d0bd' }}>
+                From {fromPrice}, paid once. No subscription. Australian owned and operated.
               </span>
             </div>
+            <div className="flex justify-center">
+              <TextThread />
+            </div>
           </div>
-          <div className="pt-16 flex justify-center">
-            <div className="flex flex-col items-center gap-4">
+        </section>
+
+        {/* The invitation itself: the real one, tap the seal. */}
+        <section aria-labelledby="see" className="px-4 py-20">
+          <div className="max-w-[1100px] mx-auto grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center">
+            <div className="flex justify-center md:order-2">
               <HeroInvite />
+            </div>
+            <div className="flex flex-col gap-4 text-center md:text-left items-center md:items-start md:order-1">
+              <h2 id="see" className="m-0 text-[clamp(34px,5vw,52px)] leading-[1.08] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+                And an invitation worth opening.
+              </h2>
+              <p className="m-0 text-[17px] leading-[1.55] max-w-[460px]" style={{ color: SOFT }}>
+                {THEME_COUNT} designs in six looks, from romantic arches to clean and modern. Your colours, your lettering, your words.
+              </p>
               <Link to="/designs" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold border" style={{ color: INK, borderColor: '#c6b794' }}>
                 See all the designs
               </Link>
@@ -463,7 +492,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
       <div className="text-center pb-8 flex flex-col items-center gap-3">
         <LogoMark size={56} />
         <h2 className="m-0 text-[clamp(40px,6.5vw,60px)] leading-[1.02] font-normal" style={{ fontFamily: serif }}>
-          Start your <em style={{ color: GOLD }}>wedding</em>
+          Start your wedding
         </h2>
         <p className="m-0 text-[16px] max-w-[440px]" style={{ color: SOFT }}>
           It takes a minute. Set everything up and see your own invitation before you pay a cent.
@@ -474,14 +503,14 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3 items-end">
           <label className={lab}>
             Your first name
-            <input required value={f.firstName} onChange={set('firstName')} autoComplete="given-name" placeholder="Olivia" className={box} />
+            <input required value={f.firstName} onChange={set('firstName')} autoComplete="given-name" placeholder="Harriet" className={box} />
           </label>
           <span aria-hidden className="pb-[10px] text-[30px] leading-none" style={{ fontFamily: serif, color: GOLD }}>
             &amp;
           </span>
           <label className={lab}>
             Your partner’s first name
-            <input required value={f.partnerName} onChange={set('partnerName')} placeholder="James" className={box} />
+            <input required value={f.partnerName} onChange={set('partnerName')} placeholder="Theo" className={box} />
           </label>
         </div>
         {step('2', 'Your account')}

@@ -8,10 +8,11 @@ import type { InvitePayload } from '../guest/invitation/api';
  * (accommodation, registry, questions) are switched off, the way a couple can switch them off.
  */
 export const SAMPLE = {
-  couple: 'Olivia & James',
-  venue: 'Bellbird Estate',
+  couple: 'Harriet & Theo',
+  venue: 'Larkwood Estate',
   region: 'Hunter Valley, NSW',
   guests: 'Emma & Tom',
+  date: 'Saturday 20 March 2027',
 } as const;
 
 const FILLS: Record<string, string> = {
@@ -37,7 +38,7 @@ const FILLS: Record<string, string> = {
 };
 
 export const SAMPLE_INVITE: InvitePayload = {
-  wedding: { slug: 'olivia-and-james-sample', name1: 'Olivia Bennett', name2: 'James Carter', monogram: 'O&J', theme: 'Cream & Sage', timezone: 'Australia/Sydney' },
+  wedding: { slug: 'harriet-and-theo-sample', name1: 'Harriet Lane', name2: 'Theo Marsh', monogram: 'H&T', theme: 'Cream & Sage', timezone: 'Australia/Sydney' },
   content: {
     rsvpBy: 'Kindly reply by 1 February',
     seal: 'Sandstone',

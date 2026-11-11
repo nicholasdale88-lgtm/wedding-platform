@@ -15,9 +15,9 @@ const page = () =>
 describe('front page', () => {
   it('leads with one line, one call to action and the real invitation on a phone', () => {
     page();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The invitation they’ll actually open.');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('RSVPs, sorted by text.');
     expect(screen.getByRole('link', { name: 'Start your wedding' })).toHaveAttribute('href', '#start');
-    const phone = screen.getByTitle(/^Sample invitation for Olivia & James/);
+    const phone = screen.getByTitle(/^Sample invitation for Harriet & Theo/);
     expect(phone.tagName).toBe('IFRAME');
     expect(phone).toHaveAttribute('src', '/demo?embed=1');
     expect(screen.getByRole('heading', { name: 'And everything after the yes.' })).toBeInTheDocument();
@@ -77,7 +77,7 @@ describe('sample invitation (/demo)', () => {
     );
     expect(await screen.findByText('Dear Emma & Tom')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open invitation' })).toBeInTheDocument();
-    expect(screen.getAllByText('Bellbird Estate').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Larkwood Estate').length).toBeGreaterThan(0);
     expect(screen.queryByText('[Ceremony venue]')).toBeNull();
     expect(screen.getByRole('link', { name: 'Make your own' })).toHaveAttribute('href', '/#start');
   });

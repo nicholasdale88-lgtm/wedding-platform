@@ -25,7 +25,7 @@ function sample() {
     return { id: `p${i}`, name: name ?? `${FIRST[i % FIRST.length]} ${LAST[(i * 7) % LAST.length]}`, diet: DIETS[i % DIETS.length]!, meal: { e: '', m: DIETS[i % DIETS.length] === 'Vegetarian' ? 'Mushroom risotto' : i % 2 ? 'Beef fillet' : 'Barramundi', d: '' } };
   };
   const chairs = new Map<string, (PrintPerson | null)[]>();
-  chairs.set('t0', [person('Grace Walsh'), person('Liam Brooks'), person('Ava Chen'), { ...person('Olivia Bennett'), id: 'couple-1' }, { ...person('James Carter'), id: 'couple-2' }, person('Noah Russo'), person('Isla Fraser'), person('Jack Murphy')]);
+  chairs.set('t0', [person('Grace Walsh'), person('Liam Brooks'), person('Ava Chen'), { ...person('Harriet Lane'), id: 'couple-1' }, { ...person('Theo Marsh'), id: 'couple-2' }, person('Noah Russo'), person('Isla Fraser'), person('Jack Murphy')]);
   for (const t of tables.slice(1)) chairs.set(t.id, Array.from({ length: t.seats }, (_, i) => (t.id === 't3' && i === 7 ? null : person())));
   return { tables, chairs, coming: k };
 }
@@ -45,7 +45,7 @@ export function SampleSeatingPage() {
           Save as PDF
         </button>
       </div>
-      <SeatingPrint couple="Olivia & James" eventName="The wedding" when="Saturday 20 March 2027, 4:00pm" venue="Bellbird Estate, Hunter Valley" aspect="4 / 3" tables={tables} areas={[{ label: 'Dance floor', x: 50, y: 66, w: 22, h: 12 }]} chairs={chairs} coming={coming + 2} />
+      <SeatingPrint couple="Harriet & Theo" eventName="The wedding" when="Saturday 20 March 2027, 4:00pm" venue="Larkwood Estate, Hunter Valley" aspect="4 / 3" tables={tables} areas={[{ label: 'Dance floor', x: 50, y: 66, w: 22, h: 12 }]} chairs={chairs} coming={coming + 2} />
     </div>
   );
 }

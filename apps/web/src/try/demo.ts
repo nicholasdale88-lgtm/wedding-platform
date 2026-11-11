@@ -105,7 +105,7 @@ function overview(): Overview {
   const coming = guests.filter((g) => g.rsvp.wedding?.attending);
   const people = guests.flatMap((g) => g.people);
   return {
-    wedding: { id: DEMO_WID, slug: 'olivia-and-james-sample', name1: 'Olivia Bennett', name2: 'James Carter', monogram: 'O&J', theme: 'Cream & Sage', timezone: TZ, adminName: '', plan },
+    wedding: { id: DEMO_WID, slug: 'harriet-and-theo-sample', name1: 'Harriet Lane', name2: 'Theo Marsh', monogram: 'H&T', theme: 'Cream & Sage', timezone: TZ, adminName: '', plan },
     total: guests.length,
     replied: guests.filter((g) => g.repliedAt).length,
     awaiting: guests.filter((g) => !g.repliedAt).length,
@@ -113,7 +113,7 @@ function overview(): Overview {
     yesInv: coming.length,
     noInv: guests.filter((g) => g.rsvp.wedding?.attending === false).length,
     seatsHeld: guests.reduce((a, g) => a + g.seatsHeld, 0),
-    events: [{ key: 'wedding', name: 'The wedding', startsAt: DAY, venue: 'Bellbird Estate', coming: coming.reduce((a, g) => a + g.people.length, 0) }],
+    events: [{ key: 'wedding', name: 'The wedding', startsAt: DAY, venue: 'Larkwood Estate', coming: coming.reduce((a, g) => a + g.people.length, 0) }],
     diet: { people: people.filter((p) => p.diet).length, serious: people.filter((p) => /allerg|anaphyl/i.test(p.diet)).length, mealsSet: 0 },
     daysToGo: Math.max(0, Math.round((Date.parse(DAY) - Date.now()) / 86_400_000)),
     needsYou: [{ kind: 'awaiting', title: `${guests.filter((g) => !g.repliedAt).length} invitations still to reply`, detail: 'A gentle reminder goes out by itself two weeks before replies close.', cta: 'See who', link: 'guests?filter=awaiting' }],
@@ -123,13 +123,13 @@ function overview(): Overview {
       .slice(0, 5)
       .map((g) => ({ id: g.id, name: g.people[0]!.name, at: g.repliedAt!, summary: `The wedding: ${g.rsvp.wedding?.attending ? 'Attending' : 'Declined'}`, message: g.rsvp.wedding?.message ?? '' })),
     nav: { guests: guests.length, dietary: people.filter((p) => p.diet).length, autopilot: 6, smsLive: false },
-    partySides: { p1: 'Olivia', p2: 'James' },
+    partySides: { p1: 'Harriet', p2: 'Theo' },
     focus: null,
   };
 }
 
 const eventsFull = (): EventFull[] => [
-  { id: 'de1', key: 'wedding', name: 'The wedding', pendingLabel: 'the wedding', startsAt: DAY, venue: 'Bellbird Estate', address: 'Hunter Valley NSW', mapUrl: '', catered: true, hasSeating: true, questions: [], sort: 0, version: 1, invited: guests.length, coming: overview().events[0]!.coming },
+  { id: 'de1', key: 'wedding', name: 'The wedding', pendingLabel: 'the wedding', startsAt: DAY, venue: 'Larkwood Estate', address: 'Hunter Valley NSW', mapUrl: '', catered: true, hasSeating: true, questions: [], sort: 0, version: 1, invited: guests.length, coming: overview().events[0]!.coming },
 ];
 
 const detail = (g: Guest): GuestDetail => ({ guest: g, link: `${location.origin}/demo`, sms: g.lastSms ? [g.lastSms] : [], events: EVENTS, campaigns: [{ id: 'dc1', name: 'Invitation' }, { id: 'dc2', name: 'RSVP reminder' }] });
@@ -153,8 +153,8 @@ function seating(): SeatingData {
       g.people.map((p) => ({ id: p.id, invitationId: g.id, name: p.name, party: g.party, side: g.side ?? '', relation: '', circles: [], role: p.role ?? '', diet: p.diet, meal: { e: '', m: '', d: '' }, tableId: seats[p.id] ?? null, chair: chairs[p.id] ?? null, coming: !!g.rsvp.wedding?.attending })),
     ),
     couple: [
-      { id: 'couple-1', invitationId: 'couple', name: 'Olivia Bennett', party: 'The couple', side: 'p1', diet: '', meal: { e: '', m: '', d: '' }, tableId: seats['couple-1'] ?? 'dt0', chair: chairs['couple-1'] ?? 4, coming: true },
-      { id: 'couple-2', invitationId: 'couple', name: 'James Carter', party: 'The couple', side: 'p2', diet: '', meal: { e: '', m: '', d: '' }, tableId: seats['couple-2'] ?? 'dt0', chair: chairs['couple-2'] ?? 5, coming: true },
+      { id: 'couple-1', invitationId: 'couple', name: 'Harriet Lane', party: 'The couple', side: 'p1', diet: '', meal: { e: '', m: '', d: '' }, tableId: seats['couple-1'] ?? 'dt0', chair: chairs['couple-1'] ?? 4, coming: true },
+      { id: 'couple-2', invitationId: 'couple', name: 'Theo Marsh', party: 'The couple', side: 'p2', diet: '', meal: { e: '', m: '', d: '' }, tableId: seats['couple-2'] ?? 'dt0', chair: chairs['couple-2'] ?? 5, coming: true },
     ],
   };
 }
@@ -191,7 +191,7 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
   const at = path.split('?')[0]!;
   const w = `/a/w/${DEMO_WID}`;
   const ok = (x: unknown) => x as T;
-  if (at === '/a/me') return ok({ user: { id: 'demo-user', email: 'you@example.com', superAdmin: false }, weddings: [{ id: DEMO_WID, slug: 'olivia-and-james-sample', name1: 'Olivia Bennett', name2: 'James Carter', role: 'owner' }] });
+  if (at === '/a/me') return ok({ user: { id: 'demo-user', email: 'you@example.com', superAdmin: false }, weddings: [{ id: DEMO_WID, slug: 'harriet-and-theo-sample', name1: 'Harriet Lane', name2: 'Theo Marsh', role: 'owner' }] });
   if (at === '/a/auth/logout') return ok({ ok: true });
   if (!at.startsWith(w)) throw notHere();
   const rest = at.slice(w.length);

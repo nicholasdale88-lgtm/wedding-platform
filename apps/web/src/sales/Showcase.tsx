@@ -1,7 +1,7 @@
 /**
  * The front page's product pictures, drawn (no screenshots to go stale): a fan of three phones (the guest
  * list filling itself in, the seating plan, the budget). All made-up
- * details for the sample couple, Olivia & James.
+ * details for the sample couple, Harriet & Theo.
  */
 
 const INK = '#33402f';
@@ -43,13 +43,13 @@ const GUESTS: [string, string, string][] = [
   ['Priya', 'Coming · 1', ''],
   ['Lucy & Ben', 'Can’t make it', ''],
   ['Aunty Marg', 'Coming · 1', 'Low salt'],
-  ['James’s uni crew', 'Opened', 'Reminder Thu'],
+  ['Theo’s uni crew', 'Opened', 'Reminder Thu'],
 ];
 
 function GuestList() {
   return (
     <>
-      <Bar title="Guest list" sub="Olivia & James" />
+      <Bar title="Guest list" sub="Harriet & Theo" />
       <div style={{ display: 'flex', gap: 6, padding: '10px 12px' }}>
         {[
           ['86', 'coming'],
