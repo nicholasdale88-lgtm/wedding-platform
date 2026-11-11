@@ -112,6 +112,17 @@ const FAQ: [string, string][] = [
   ['Can we move to a bigger plan later?', 'Yes. Everything you’ve set up stays, and you only pay the difference.'],
   ['Do guests need to download anything?', 'No. They open their own link: no app, no account, no password.'],
   ['Who can see our guest list?', 'Only the two of you and anyone you invite to help. Each wedding is kept separate, and we never share or sell your data.'],
+  ['Who are you?', 'An Australian business, owned and operated here. Prices are in Australian dollars with GST included, and we answer your emails in Australian hours.'],
+];
+
+/** The questions every couple asks about invitations, whoever they use. */
+const INVITE_FAQ: [string, string][] = [
+  ['When should we send our wedding invitations?', 'Six to eight weeks before the day is usual. Allow ten to twelve weeks if many guests travel, or for a destination wedding. Save the dates go out six to twelve months ahead.'],
+  ['When should the RSVP date be?', 'Three to four weeks before the wedding. That leaves time to chase late replies and give your caterer and venue final numbers, usually due one to two weeks out.'],
+  ['Is it OK to send invitations digitally?', 'Yes, it’s now common in Australia. Guests can’t lose a link, replies come back in seconds, and changes reach everyone. For a guest who’d rather have paper, print theirs from your invitation.'],
+  ['What should a wedding invitation include?', 'Who is getting married, the date and time, the venue and its address, the RSVP date and how to reply. Dress code, accommodation, the registry and the day’s timeline can sit on the invitation’s own pages.'],
+  ['How do we word “no plus-ones” or “no children”?', 'Name exactly who is invited, and the invitation does the work. Each guest’s own invitation lists only their names, so there is no extra seat to claim. A gentle line such as “We love your little ones, but our day is adults only” helps too.'],
+  ['Should we put registry or gift details on the invitation?', 'On a digital invitation, yes: a gift registry or wishing-well page is fine, as guests look for it there. On paper, it’s usually left to the website or a separate card.'],
 ];
 
 export function SalesPage() {
@@ -170,6 +181,16 @@ export function SalesPage() {
         <section className="px-4 pt-14 pb-20 md:pt-20 md:pb-24" style={{ background: 'radial-gradient(120% 90% at 85% 0%, #3f4f39 0%, #2b3727 55%, #1f281c 100%)', color: '#f3ecd6' }}>
           <div className="max-w-[1100px] mx-auto grid gap-12 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center">
             <div className="flex flex-col gap-6 text-center md:text-left items-center md:items-start">
+              <span
+                data-testid="aussie-badge"
+                className="inline-flex items-center gap-2 py-[6px] px-[14px] rounded-full text-[13px] font-semibold"
+                style={{ background: 'rgba(230,207,158,.14)', border: '1px solid rgba(230,207,158,.55)', color: '#f3ecd6' }}
+              >
+                <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="#e6cf9e">
+                  <path d="M12 2l2.4 5.6 6 .6-4.5 4 1.3 5.9L12 15l-5.2 3.1 1.3-5.9-4.5-4 6-.6z" />
+                </svg>
+                Australian owned and operated
+              </span>
               <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#e6cf9e' }}>
                 Invitations · RSVPs · The whole plan
               </span>
@@ -189,7 +210,7 @@ export function SalesPage() {
                 </a>
               </div>
               <span className="text-[14px]" style={{ color: '#c9d0bd' }}>
-                From {fromPrice}, paid once. No subscription. Australian owned and operated.
+                From {fromPrice}, paid once. No subscription. Prices in Australian dollars, GST included.
               </span>
             </div>
             <div className="flex justify-center">
@@ -405,14 +426,32 @@ export function SalesPage() {
             <h2 id="questions" className="m-0 pb-2 text-[clamp(34px,5vw,48px)] font-normal text-center" style={{ fontFamily: serif }}>
               Questions
             </h2>
-            {FAQ.map(([q, a]) => (
-              <details key={q} className="py-4 border-b border-[#e6dcc4]">
-                <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
-                <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
-                  {a}
-                </p>
-              </details>
-            ))}
+            <h3 className="m-0 pt-2 text-[13px] font-semibold tracking-[.18em] uppercase" style={{ color: SOFT }}>
+              About {BRAND}
+            </h3>
+            <div role="group" aria-label={`About ${BRAND}`}>
+              {FAQ.map(([q, a]) => (
+                <details key={q} className="py-4 border-b border-[#e6dcc4]">
+                  <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
+                  <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
+                    {a}
+                  </p>
+                </details>
+              ))}
+            </div>
+            <h3 className="m-0 pt-6 text-[13px] font-semibold tracking-[.18em] uppercase" style={{ color: SOFT }}>
+              Wedding invitations, answered
+            </h3>
+            <div role="group" aria-label="Wedding invitations, answered">
+              {INVITE_FAQ.map(([q, a]) => (
+                <details key={q} className="py-4 border-b border-[#e6dcc4]">
+                  <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
+                  <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
+                    {a}
+                  </p>
+                </details>
+              ))}
+            </div>
           </div>
         </section>
       </main>

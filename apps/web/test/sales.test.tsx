@@ -61,8 +61,17 @@ describe('front page', () => {
   it('keeps the questions short', () => {
     page();
     const faq = screen.getByRole('region', { name: 'Questions' });
-    expect(faq.querySelectorAll('details').length).toBeLessThanOrEqual(6);
-    expect(within(faq).getByText('Is it a subscription?')).toBeInTheDocument();
+    const ours = within(faq).getByRole('group', { name: /^About / });
+    const invites = within(faq).getByRole('group', { name: 'Wedding invitations, answered' });
+    expect(ours.querySelectorAll('details').length).toBeLessThanOrEqual(6);
+    expect(invites.querySelectorAll('details').length).toBeLessThanOrEqual(6);
+    expect(within(ours).getByText('Is it a subscription?')).toBeInTheDocument();
+    expect(within(invites).getByText('When should we send our wedding invitations?')).toBeInTheDocument();
+  });
+
+  it('says clearly it is Australian owned and operated', () => {
+    page();
+    expect(screen.getByTestId('aussie-badge')).toHaveTextContent('Australian owned and operated');
   });
 });
 
