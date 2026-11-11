@@ -1,6 +1,6 @@
 import type { EnvelopeOptions } from './EnvelopeExtras';
 /** Guest API: the invitation, the night-before guides and the photo page. */
-import type { DayoutGuide, Forecast, ReceptionGuide, SealColour, SealLetters, SealStyle, TableShape, TimelineItem } from '@wp/shared';
+import type { DayoutGuide, Forecast, ReceptionGuide, SealColour, SealLetters, SealStyle, TableShape, TimelineItem, Motion } from '@wp/shared';
 
 export interface GuestInvitation {
   token: string;
@@ -26,6 +26,10 @@ export interface InvitePayload {
     envelope?: EnvelopeOptions;
     /** How the envelope opens (one of OPENINGS); the classic lift when unset. */
     opening?: string;
+    /** A moving scene over the opening (one of MOTIONS); the look's own when unset. */
+    motion?: Motion;
+    /** Their own film behind their names (a video file link), or ''. */
+    film?: string;
     custom?: { paper?: string; ink?: string; accent?: string; soft?: string; envelope?: string; names?: 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair'; nameSize?: number };
     images?: Record<string, string>;
     hidden?: Record<string, boolean>;

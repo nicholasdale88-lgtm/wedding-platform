@@ -421,6 +421,24 @@ export const TONES: Tone[] = [
  * How the envelope opens. All CSS transitions on the envelope the invitation already draws (no extra
  * downloads), and a quick plain fade for guests whose phone asks for less motion.
  */
+/**
+ * Moving scenes over the opening of the invitation (our own animation, drawn in the page): 'auto' is the
+ * look's own (petals for Romantic, leaves for Garden, shimmer for Coastal, sparkle for Luxe, none otherwise).
+ */
+export const MOTIONS = ['auto', 'none', 'petals', 'leaves', 'lights', 'sparkle', 'confetti', 'snow', 'shimmer'] as const;
+export type Motion = (typeof MOTIONS)[number];
+export const MOTION_LABEL: Record<Motion, string> = {
+  auto: 'The look’s own',
+  none: 'None',
+  petals: 'Falling rose petals',
+  leaves: 'Drifting leaves',
+  lights: 'Fairy lights',
+  sparkle: 'Gold sparkle',
+  confetti: 'Confetti',
+  snow: 'Soft snow',
+  shimmer: 'Sunlight shimmer',
+};
+
 export const OPENINGS = ['classic', 'crack', 'stamp', 'gatefold', 'slide', 'letterpress', 'ribbon', 'petals', 'confetti', 'golddust', 'stars'] as const;
 export type Opening = (typeof OPENINGS)[number];
 export const OPENING_INFO: Record<Opening, { label: string; hint: string }> = {

@@ -209,7 +209,7 @@ export function SalesPage() {
                 And an invitation worth opening.
               </h2>
               <p className="m-0 text-[17px] leading-[1.55] max-w-[460px]" style={{ color: SOFT }}>
-                {THEME_COUNT} designs in six looks, from romantic arches to clean and modern. Your colours, your lettering, your words.
+                {THEME_COUNT} designs in six looks, from romantic arches to clean and modern. Falling petals, fairy lights or your own film moving behind your names, on every plan. Your colours, your lettering, your words.
               </p>
               <Link to="/designs" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold border" style={{ color: INK, borderColor: '#c6b794' }}>
                 See all the designs

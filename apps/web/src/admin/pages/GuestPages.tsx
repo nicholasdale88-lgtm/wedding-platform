@@ -5,7 +5,7 @@ import { ThemeGallery } from './ThemeGallery';
 import { DesignBuilder } from './DesignBuilder';
 import { SealPicker } from './SealPicker';
 import { initialsOf } from '../../guest/invitation/WaxSeal';
-import { ENVELOPE_PAPER_INFO, SEAL_STYLE_INFO } from '@wp/shared';
+import { ENVELOPE_PAPER_INFO, SEAL_STYLE_INFO, MOTIONS, MOTION_LABEL, type Motion } from '@wp/shared';
 import { LiveEditBar } from './LiveEditBar';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -452,6 +452,38 @@ function InvitationEditor({
 
       <Section n={n()} title="Extras" hint="Each shows what’s set now. Tap Change to make it yours; anything you leave keeps the design’s own.">
         <div className="flex flex-col gap-2">
+          <Rollup title="Moving background" now={`${MOTION_LABEL[(inv.motion ?? 'auto') as Motion]}${inv.film ? ' · your own film' : ''}`}>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Moves gently over the opening of your invitation, on every plan. Guests who prefer less motion see it still.</span>
+            <div role="radiogroup" aria-label="Moving background" className="flex flex-wrap gap-2">
+              {MOTIONS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={(inv.motion ?? 'auto') === k}
+                  onClick={() => setInv({ motion: k })}
+                  className={`py-[7px] px-3 rounded-full border text-[13px] cursor-pointer ${(inv.motion ?? 'auto') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+                >
+                  {MOTION_LABEL[k]}
+                </button>
+              ))}
+            </div>
+            <Label text="Your own film behind your names (optional)">
+              <input
+                type="url"
+                inputMode="url"
+                placeholder="https://… a link to a video file (MP4)"
+                defaultValue={inv.film ?? ''}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && !/^https:\/\/\S+$/.test(v)) return;
+                  if (v !== (inv.film ?? '')) setInv({ film: v });
+                }}
+                className={inputCls}
+              />
+            </Label>
+            <span className="-mt-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">A short, quiet clip works best (10 to 30 seconds; it plays silently on a loop). From Dropbox, paste the share link. Leave empty for none.</span>
+          </Rollup>
           <Rollup title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal${sealStyle === 'classic' ? '' : ` (${SEAL_STYLE_INFO[sealStyle].label.toLowerCase()})`}${paper} · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
             <SealPicker inv={inv} theme={doc.theme} initials={initials} setInv={setInv} />
             <Grid>

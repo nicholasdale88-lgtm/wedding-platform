@@ -8,6 +8,7 @@ import { paperHex, SealOverlay } from '../guest/invitation/WaxSeal';
 import { useInvitation } from '../guest/invitation/useInvitation';
 import { lookOf, THEME_NAMES, themeOf } from '../guest/themeKit';
 import '../guest/looks.css';
+import { MotionPortal } from '../guest/invitation/Motion';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 import { BRAND } from './SalesPage';
 
@@ -58,6 +59,7 @@ export function SampleInvitation({ theme }: { theme?: string } = {}) {
       <div className={`dz yl-look-${lookOf(data.wedding.theme, data.content.custom)}`}>
         <InvitationView v={v} t={t} />
       </div>
+      <MotionPortal motion={data.content.motion} look={lookOf(data.wedding.theme, data.content.custom)} />
       <EnvelopeExtras
         phase={phase}
         opts={data.content.envelope ?? {}}

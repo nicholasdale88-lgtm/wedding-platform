@@ -1,6 +1,7 @@
 import '@fontsource/cormorant-garamond/400.css';
 import { themeOf, lookOf } from '../themeKit';
 import '../looks.css';
+import { MotionPortal } from './Motion';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -70,6 +71,7 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
       <div className={`dz yl-look-${lookOf(data.wedding.theme, data.content.custom)}`}>
         <InvitationView v={v} t={t} />
       </div>
+      <MotionPortal motion={data.content.motion} film={data.content.film} look={lookOf(data.wedding.theme, data.content.custom)} />
       {/* The couple's own order of the sections (none: the design's). */}
       {orderCss(data.content.order) && <style>{orderCss(data.content.order)}</style>}
       {editing && <LiveEditor keys={keys.current} text={tLive} onText={(k, value) => live && setLive({ ...live, texts: { ...live.texts, [k]: value } })} />}
