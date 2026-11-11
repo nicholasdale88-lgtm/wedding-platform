@@ -40,7 +40,7 @@ const GOLD = '#a9843f';
 const CREAM = '#f6f0e2';
 const PAPER = '#fbf8f2';
 const THEME_COUNT = THEME_NAMES.length;
-const serif = "'Cormorant Garamond', Georgia, serif";
+const serif = "'Playfair Display', Georgia, serif"; // our headings (the invitations keep their own lettering)
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 
 /** "$50" → 50 (NaN when it isn't a price). */
