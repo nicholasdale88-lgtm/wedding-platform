@@ -1,14 +1,16 @@
 import { InvitationContent, SCENES } from '@wp/shared';
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { SceneOverlay } from '../src/guest/invitation/Scene';
+import { sceneArt, SceneOverlay } from '../src/guest/invitation/Scene';
 import { sceneOf, SIGNATURE, SIGNATURE_NAMES, THEME_NAMES } from '../src/guest/themeKit';
 
 const colours = { paper: '#fbf3f1', ink: '#4a1f2b', accent: '#c9a27a', soft: '#ecd0cf', envelope: '#6b2737' };
 
 describe('opening scenes', () => {
   it('each Signature design comes with its own scene, and is one of the designs', () => {
-    expect(SIGNATURE_NAMES.length).toBeGreaterThanOrEqual(4);
+    expect(SIGNATURE_NAMES.length).toBeGreaterThanOrEqual(7);
+    // Daytime first: no evening scene among the first five.
+    expect(SIGNATURE_NAMES.slice(0, 5).map((n) => SIGNATURE[n]!.scene)).not.toContain('curtain');
     for (const n of SIGNATURE_NAMES) {
       expect(THEME_NAMES).toContain(n);
       expect(sceneOf(n)).toBe(SIGNATURE[n]!.scene);
@@ -26,7 +28,7 @@ describe('opening scenes', () => {
   });
 
   it('draws every scene with its art, the guest’s name and “Tap to open”, lets the tap through, and leaves once open', () => {
-    for (const kind of ['doors', 'bow', 'curtain', 'lanterns'] as const) {
+    for (const kind of ['doors', 'barn', 'book', 'gates', 'beach', 'bow', 'curtain', 'lanterns'] as const) {
       const { container, rerender, unmount } = render(<SceneOverlay kind={kind} phase={0} colours={colours} initials="H & T" guestName="Emma & Tom" />);
       const root = container.querySelector(`[data-scene="${kind}"]`) as HTMLElement;
       expect(root).toBeTruthy();
@@ -34,8 +36,9 @@ describe('opening scenes', () => {
       expect(root.textContent).toContain('Emma & Tom');
       expect(root.textContent).toContain('Tap to open');
       // Drawn as images (SVG), in the design's colours.
-      const art = [...root.querySelectorAll<HTMLElement>('div')].map((d) => d.style.backgroundImage).join(' ');
+      const art = Object.values(sceneArt(kind, colours, 'H & T')).join(' ');
       expect(art).toContain('data:image/svg+xml');
+      expect(decodeURIComponent(art)).toMatch(/#6b2737|#c9a27a|#ecd0cf/);
       rerender(<SceneOverlay kind={kind} phase={2} colours={colours} initials="H & T" guestName="Emma & Tom" />);
       expect((container.querySelector(`[data-scene="${kind}"]`) as HTMLElement).style.opacity).toBe('0');
       rerender(<SceneOverlay kind={kind} phase={3} colours={colours} initials="H & T" guestName="Emma & Tom" />);
@@ -44,9 +47,9 @@ describe('opening scenes', () => {
     }
   });
 
-  it('the doors carry a wax seal with the couple’s initials, split across the two doors', () => {
-    const { container } = render(<SceneOverlay kind="doors" phase={0} colours={colours} initials="H & T" guestName="" />);
-    const imgs = [...container.querySelectorAll<HTMLElement>('div')].map((d) => decodeURIComponent(d.style.backgroundImage));
-    expect(imgs.filter((s) => s.includes('H &amp; T')).length).toBe(2);
+  it('the doors carry a wax seal with the couple’s initials, and two doors lit alike', () => {
+    const art = sceneArt('doors', colours, 'H & T');
+    expect(decodeURIComponent(art.seal!)).toContain('H &amp; T');
+    expect(art.door).not.toBe(art.door2);
   });
 });

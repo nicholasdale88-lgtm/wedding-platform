@@ -736,3 +736,14 @@ export const errorLog = sqliteTable('error_log', {
   message: text('message').notNull(),
   detail: text('detail').notNull().default(''),
 });
+
+/** Free trial bookings from the front page (/try). */
+export const trialBooking = sqliteTable('trial_booking', {
+  id: text('id').primaryKey(),
+  at: text('at').notNull(),
+  name1: text('name1').notNull(),
+  name2: text('name2').notNull().default(''),
+  email: text('email').notNull(),
+  weddingDate: text('wedding_date').notNull().default(''),
+  news: integer('news').notNull().default(0),
+});

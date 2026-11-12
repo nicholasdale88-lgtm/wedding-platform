@@ -49,7 +49,7 @@ export function DesignsPage() {
             The designs
           </h1>
           <p className="m-0 text-[18px] leading-[1.5] max-w-[560px] mx-auto" style={{ color: SOFT }}>
-            {THEME_NAMES.length} designs, each the real invitation your guests open. The Signature designs open with a scene: floral doors, a satin bow, velvet curtains or lanterns. Tap one to see it, then make it yours.
+            {THEME_NAMES.length} designs, each the real invitation your guests open. The Signature designs open with a scene: Regency doors, a fairytale storybook, rustic barn doors, garden gates, the beach and more. Tap one to see it, then make it yours.
           </p>
         </div>
 
