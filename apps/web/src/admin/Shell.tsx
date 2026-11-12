@@ -147,9 +147,10 @@ type Group = { key: string; name: string; tabs: readonly { key: TabKey; label: s
 function useSections() {
   const { tab = 'overview' } = useParams();
   const go = useNavigate();
-  const { overview: o, event, path } = useAdmin();
+  const { wid, overview: o, event, path } = useAdmin();
   const groups: Group[] = [
-    { key: ALL_EVENTS, name: 'Account', tabs: ACCOUNT_TABS },
+    // Try the app: no Account section (sign-in, texting setup and messages are about a real account).
+    ...(wid === DEMO_WID ? [] : [{ key: ALL_EVENTS, name: 'Account', tabs: ACCOUNT_TABS }]),
     // Dietary and Seating live inside Guests (shown there only where the event uses them).
     ...(o?.events ?? []).map((e, i) => ({ key: e.key, name: e.name, tabs: EVENT_TABS.filter((t) => (i === 0 ? t.key !== 'day' : t.key !== 'planner' && t.key !== 'party')) })),
   ];

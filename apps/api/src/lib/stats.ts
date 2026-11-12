@@ -40,7 +40,7 @@ export async function recordError(db: D1Database, source: 'server' | 'browser', 
 export async function traffic(db: D1Database, days = 30) {
   const from = ymd(new Date(Date.now() - (days - 1) * 86_400_000));
   const fromIso = `${from}T00:00:00.000Z`;
-  const [views, visitors, pages, logins, couples, errDays, errors] = await db.batch([
+  const [views, visitors, pages, logins, couples, errDays, errors, trials] = await db.batch([
     db.prepare(`SELECT day, SUM(views) AS n FROM site_day WHERE day >= ? GROUP BY day`).bind(from),
     db.prepare(`SELECT day, COUNT(*) AS n FROM site_visitor WHERE day >= ? GROUP BY day`).bind(from),
     db.prepare(`SELECT page, SUM(views) AS n FROM site_day WHERE day >= ? GROUP BY page ORDER BY n DESC`).bind(from),
@@ -53,6 +53,7 @@ export async function traffic(db: D1Database, days = 30) {
               (SELECT e2.detail FROM error_log e2 WHERE e2.message = e.message AND e2.source = e.source ORDER BY e2.at DESC LIMIT 1) AS detail
          FROM error_log e WHERE at >= ? GROUP BY message, source ORDER BY last DESC LIMIT 100`,
     ).bind(fromIso),
+    db.prepare(`SELECT at, name1, name2, email, wedding_date AS weddingDate, news FROM trial_booking WHERE at >= ? ORDER BY at DESC LIMIT 200`).bind(fromIso),
   ]);
   const byDay = (rows: unknown) => new Map((rows as { results: { day: string; n: number }[] }).results.map((r) => [r.day, Number(r.n)]));
   const v = byDay(views), u = byDay(visitors), c = byDay(couples), e = byDay(errDays);
@@ -62,6 +63,7 @@ export async function traffic(db: D1Database, days = 30) {
   return {
     days: list.map((day) => ({ day, visitors: u.get(day) ?? 0, views: v.get(day) ?? 0, logins: ok.get(day) ?? 0, failedLogins: bad.get(day) ?? 0, newCouples: c.get(day) ?? 0, errors: e.get(day) ?? 0 })),
     pages: (pages as { results: { page: string; n: number }[] }).results.map((r) => ({ page: r.page, views: Number(r.n) })),
+    trials: (trials as { results: { at: string; name1: string; name2: string; email: string; weddingDate: string; news: number }[] }).results.map((r) => ({ ...r, news: !!r.news })),
     errors: (errors as { results: { message: string; source: string; n: number; last: string; first: string; path: string; detail: string }[] }).results.map((r) => ({ ...r, n: Number(r.n) })),
   };
 }

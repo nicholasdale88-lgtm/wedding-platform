@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { DEMO_WID } from '../try/demo';
+import { trialBooked } from '../try/TrialPage';
 import { DemoFeature, DEMO_HANDS_ON } from '../try/DemoFeature';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
@@ -58,7 +59,7 @@ function preloadScreens() {
   if (idle) idle(go, { timeout: 4000 });
   else setTimeout(go, 2500);
 }
-import { ACCOUNT, ALL_EVENTS, AdminDataProvider, lastSection, Shell, TABS, useAdmin } from './Shell';
+import { ACCOUNT, ALL_EVENTS, AdminDataProvider, EVENT_TABS, lastSection, Shell, TABS, useAdmin } from './Shell';
 import { Eyebrow, Loading, Pill, ToastProvider } from './ui';
 import { UpgradeWhenRefused } from './Upgrade';
 import { lastPlace, placesOf, rememberPlace } from '../lib/places';
@@ -73,6 +74,8 @@ export function AdminRoot() {
   useEffect(() => {
     document.title = 'Admin';
   }, []);
+  // Try the app opens once a free trial is booked (/try).
+  const demoLocked = pathname.startsWith(`/admin/${DEMO_WID}`) && !trialBooked();
 
   useEffect(() => {
     api
@@ -88,6 +91,7 @@ export function AdminRoot() {
     setState({ kind: 'signed-out' });
   }, []);
 
+  if (demoLocked) return <Navigate to="/try" replace />;
   // An invitation to help run a wedding opens its own page, signed in or not.
   if (pathname.replace(/\/+$/, '') === '/admin/join') {
     return (
@@ -202,6 +206,11 @@ function SectionBody({ section, tab }: { section: string; tab: string }) {
     if (!o) return <Loading />;
     const first = o.events[0]?.key;
     return <Navigate to={first ? path(tab, first) + search : path('overview')} replace />;
+  }
+  // Try the app has no Account section: its pages open in the wedding's own section.
+  if (wid === DEMO_WID && section === ACCOUNT) {
+    if (!o?.events[0]) return <Loading />;
+    return <Navigate to={path(EVENT_TABS.some((t) => t.key === tab) ? tab : 'overview', o.events[0].key) + search} replace />;
   }
   // Try the app: the parts the sample doesn't run say what they do instead (guests, dietary and seating are hands-on).
   if (wid === DEMO_WID && !DEMO_HANDS_ON.has(tab)) return <DemoFeature tab={tab} />;

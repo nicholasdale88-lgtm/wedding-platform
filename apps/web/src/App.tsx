@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { createBrowserRouter, Navigate, Route, RouterProvider, Routes, useLocation } from 'react-router-dom';
+import { createBrowserRouter, Route, RouterProvider, Routes, useLocation } from 'react-router-dom';
 import { countPage } from './lib/stats';
 import { GuestNotFound } from './guest/GuestMessage';
 
@@ -40,6 +40,7 @@ const LivePage = lazy(() => fresh(import('./guest/live/LivePage')).then((m) => (
 const ShuttlePage = lazy(() => fresh(import('./guest/shuttle/ShuttlePage')).then((m) => ({ default: m.ShuttlePage })));
 const AlbumPage = lazy(() => fresh(import('./guest/album/AlbumPage')).then((m) => ({ default: m.AlbumPage })));
 const QuotePage = lazy(() => fresh(import('./guest/quote/QuotePage')).then((m) => ({ default: m.QuotePage })));
+const TrialPage = lazy(() => fresh(import('./try/TrialPage')).then((m) => ({ default: m.TrialPage })));
 const SalesPage = lazy(() => fresh(import('./sales/SalesPage')).then((m) => ({ default: m.SalesPage })));
 // The front page's sample invitation and its footer pages (privacy, terms, contact).
 const DemoPage = lazy(() => fresh(import('./sales/Demo')).then((m) => ({ default: m.DemoPage })));
@@ -88,7 +89,7 @@ function Pages() {
         <Route path="/demo/seating-pdf" element={<SampleSeatingPage />} />
         <Route path="/designs" element={<DesignsPage />} />
         {/* Try the app: the admin for a made-up wedding, answered in the browser (try/demo.ts). */}
-        <Route path="/try" element={<Navigate to="/admin/demo" replace />} />
+        <Route path="/try" element={<TrialPage />} />
         <Route path="/templates" element={<DesignsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />

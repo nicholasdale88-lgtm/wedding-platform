@@ -911,6 +911,28 @@ export function siteRoutes() {
     await recordHit(c.env.DB, b.data.page, ip, c.req.header('User-Agent') ?? '', c.env.SESSION_SECRET ?? 'yes-list').catch(() => undefined);
     return c.body(null, 204);
   });
+  /** Book a free trial (/try): kept for the company portal, a few an hour from each network. */
+  app.post('/trial', async (c) => {
+    const b = z
+      .object({
+        name1: z.string().trim().min(1).max(60),
+        name2: z.string().trim().max(60).default(''),
+        email: z.string().trim().max(200).email(),
+        date: z.union([z.literal(''), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]).default(''),
+        news: z.boolean().default(false),
+        website: z.string().max(200).default(''),
+      })
+      .safeParse(await readJson(c.req.raw).catch(() => null));
+    if (!b.success) return c.json({ error: { code: 'invalid', message: 'Please check your name and email.' } }, 400);
+    // A robot filled in the hidden box: thanked, not kept.
+    if (b.data.website) return c.body(null, 204);
+    const ip = c.req.header('CF-Connecting-IP') ?? 'local';
+    if (!(await allow(c.env.DB, `trial:${ip}`, 10, 60 * 60_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a few minutes and try again.' } }, 429);
+    await c.env.DB.prepare(`INSERT INTO trial_booking (id, at, name1, name2, email, wedding_date, news) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .bind(crypto.randomUUID(), new Date().toISOString(), b.data.name1, b.data.name2, b.data.email.toLowerCase(), b.data.date, b.data.news ? 1 : 0)
+      .run();
+    return c.body(null, 204);
+  });
   /** Something went wrong in a visitor's browser: kept for Traffic & errors (a few an hour from each network). */
   app.post('/error', async (c) => {
     const b = z.object({ message: z.string().max(500), detail: z.string().max(2000).default(''), path: z.string().max(200).default('') }).safeParse(await readJson(c.req.raw).catch(() => null));

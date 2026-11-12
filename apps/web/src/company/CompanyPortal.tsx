@@ -1346,6 +1346,28 @@ function Traffic() {
         </div>
       </div>
       <div className={card}>
+        <strong className="text-[15px]">Trial bookings (last 30 days)</strong>
+        {!data.trials?.length ? (
+          <p className="m-0 text-[#5b6a52]">No trial bookings yet.</p>
+        ) : (
+          <ul className="m-0 p-0 list-none flex flex-col">
+            {data.trials.map((t) => (
+              <li key={`${t.at}|${t.email}`} className="py-2 border-b border-[#ece3cd] text-[14px] flex flex-wrap gap-x-3 gap-y-1">
+                <strong>{[t.name1, t.name2].filter(Boolean).join(' & ')}</strong>
+                <a href={`mailto:${t.email}`} className="text-[#33402f]">
+                  {t.email}
+                </a>
+                <span className="text-[#5b6a52]">
+                  {t.weddingDate ? `wedding ${t.weddingDate} · ` : ''}
+                  {new Date(t.at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                  {t.news ? ' · said yes to news' : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className={card}>
         <strong className="text-[15px]">Errors (latest first, the same one counted together)</strong>
         {!data.errors.length ? (
           <p className="m-0 text-[#5b6a52]">No errors in the last 30 days.</p>

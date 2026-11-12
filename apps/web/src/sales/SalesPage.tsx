@@ -107,7 +107,7 @@ const AFTER: { title: string; text: string }[] = [
  * How we compare with the usual made-for-you digital invitation: no one named, only what is common in the
  * market, and only what is true of us (check against plan.ts before changing a line).
  */
-const COMPARE: { what: string; usual: string; ours: string }[] = [
+const VS_USUAL: { what: string; usual: string; ours: string }[] = [
   { what: 'Ready', usual: 'A day or more, while someone builds it for you', ours: 'The minute you are. Make it yourself and see every change as you go.' },
   { what: 'Changes after sending', usual: 'Often one free change, then a fee', ours: 'Free, as often as you like. Every guest sees the change straight away.' },
   { what: 'The link', usual: 'One link for everyone, and guests type their names', ours: 'Each guest gets their own, with their names on the envelope. Nobody uninvited can reply.' },
@@ -218,11 +218,11 @@ export function SalesPage() {
                   Start your wedding
                 </a>
                 <a href="/try" className="py-[15px] px-7 rounded-full no-underline text-[17px] font-semibold border" style={{ color: '#f3ecd6', borderColor: 'rgba(243,236,214,.45)' }}>
-                  Try the app
+                  Book a free trial
                 </a>
               </div>
               <span className="text-[14px]" style={{ color: '#c9d0bd' }}>
-                From {fromPrice}, paid once. No subscription. Prices in Australian dollars, GST included.
+                From {fromPrice}, paid once. No subscription. Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Prices in Australian dollars, GST included.
               </span>
             </div>
             <div className="flex justify-center">
@@ -264,10 +264,10 @@ export function SalesPage() {
             <PhoneFan />
             <div className="flex flex-col items-center gap-2">
               <a href="/try" className="py-[14px] px-8 rounded-full no-underline text-[16px] font-semibold shadow-[0_10px_24px_rgba(51,64,47,.18)]" style={{ background: INK, color: PAPER }}>
-                Try the app yourself
+                Book your free trial
               </a>
               <span className="text-[14px]" style={{ color: SOFT }}>
-                A sample wedding to play with: switch between Basic, Essentials and Deluxe. Nothing to sign up for.
+                Step inside a sample wedding: switch between Basic, Essentials and Deluxe. Free, and nothing to pay.
               </span>
             </div>
             <div className="grid gap-10 md:grid-cols-3 max-w-[1000px] mx-auto">
@@ -305,7 +305,7 @@ export function SalesPage() {
                   With {BRAND}
                 </span>
               </div>
-              {COMPARE.map((r) => (
+              {VS_USUAL.map((r) => (
                 <div key={r.what} role="row" className="grid md:grid-cols-[180px_1fr_1.3fr] border-t border-[#e6dcc4] first-of-type:border-t-0">
                   <span role="rowheader" className="px-4 pt-4 md:pb-4 text-[17px] font-semibold" style={{ fontFamily: serif }}>
                     {r.what}
@@ -348,7 +348,7 @@ export function SalesPage() {
                 One payment. No subscription.
               </h2>
               <p className="m-0 text-[18px] leading-[1.55] max-w-[620px] mx-auto" style={{ color: SOFT }}>
-                Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, GST included.
+                Set everything up first. Pay once, when you’re ready to send your invitations. Texts to guests aren’t in any plan: {TEXT_CREDIT_ALL_IN}c a credit if we send them, or free from your own phone or by email. Australian dollars, GST included.
               </p>
             </div>
             <div className="grid gap-5 md:grid-cols-3 items-stretch">
@@ -691,7 +691,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
         </button>
         <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-[13px]" style={{ color: SOFT }}>
           <span>✓ Nothing to pay today</span>
-          <span>✓ No subscription</span>
+          <span>✓ No subscription (texts extra, {TEXT_CREDIT_ALL_IN}c a credit)</span>
           <span>✓ Your guests download nothing</span>
           <span>✓ Australian owned and operated</span>
         </div>

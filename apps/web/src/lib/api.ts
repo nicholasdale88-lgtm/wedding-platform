@@ -194,6 +194,8 @@ const w = (wid: string) => `/a/w/${encodeURIComponent(wid)}`;
 
 export const api = {
   me: () => request<Me>('/a/me'),
+  /** Book a free trial (/try) before the sample app opens. */
+  bookTrial: (b: { name1: string; name2: string; email: string; date: string; news: boolean; website: string }) => send<null>('POST', '/site/trial', b),
   login: (email: string, passcode: string) => send<Me>('POST', '/a/auth/login', { email, passcode }),
   logout: () => send<{ ok: true }>('POST', '/a/auth/logout'),
   /** Forgot your passcode: emailed: false when the site can't send email yet. */
@@ -1173,4 +1175,6 @@ export interface CompanyTraffic {
   days: { day: string; visitors: number; views: number; logins: number; failedLogins: number; newCouples: number; errors: number }[];
   pages: { page: string; views: number }[];
   errors: { message: string; source: string; n: number; last: string; first: string; path: string; detail: string }[];
+  /** Free trial bookings (/try), latest first. */
+  trials?: { at: string; name1: string; name2: string; email: string; weddingDate: string; news: boolean }[];
 }

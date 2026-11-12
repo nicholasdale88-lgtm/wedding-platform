@@ -57,6 +57,17 @@ describe('company portal', () => {
     expect(csv).toContain('"kim@example.com"');
   });
 
+  it('free trial bookings: kept for the company (Traffic), robots and bad emails refused', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const book = (b: Record<string, unknown>) => call('/site/trial', { method: 'POST', body: JSON.stringify({ name1: 'Harriet', name2: 'Theo', email: 'Harriet@Example.com', date: '2027-03-20', news: true, website: '', ...b }), headers: { 'CF-Connecting-IP': '9.9.9.9' } });
+    expect((await book({})).status).toBe(204);
+    expect((await book({ email: 'not-an-email' })).status).toBe(400);
+    expect((await book({ name1: '' })).status).toBe(400);
+    expect((await book({ website: 'spam.example' })).status).toBe(204); // a robot: thanked, not kept
+    const tr = (await (await call('/a/company/traffic', {}, boss.cookie)).json()) as { trials: { name1: string; email: string; weddingDate: string; news: boolean }[] };
+    expect(tr.trials).toEqual([expect.objectContaining({ name1: 'Harriet', email: 'harriet@example.com', weddingDate: '2027-03-20', news: true })]);
+  });
+
   it('settings: social links and the banner show on the public site settings; bad links are refused', async () => {
     const boss = await signup('Boss', 'boss@example.com');
     expect(await (await call('/site')).json()).toEqual({ social: { instagram: '', tiktok: '', facebook: '', pinterest: '', youtube: '' }, supportEmail: '', banner: null, madeWith: true });

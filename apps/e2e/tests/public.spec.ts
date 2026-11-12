@@ -48,10 +48,21 @@ test('sample seating PDF: branded, the room, each table with numbered seats, the
   await expect(page.getByText('Made with The Yes List').first()).toBeVisible();
 });
 
-test('try the app: the sample admin opens with no sign-up, switches plans, edits a guest, and leads back', async ({ page }) => {
+test('try the app: book a free trial, then the sample admin opens, switches plans, edits a guest, and leads back', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'Try the app yourself' }).click();
+  // The sample app opens only after booking a free trial.
+  await page.goto('/admin/demo');
+  await expect(page).toHaveURL(/\/try$/);
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Book your free trial' }).click();
+  await expect(page).toHaveURL(/\/try$/);
+  const form = page.getByRole('form', { name: 'Book your free trial' });
+  await form.getByLabel('Your first name').fill('Harriet');
+  await form.getByLabel('Email').fill('harriet@example.com');
+  await form.getByRole('button', { name: 'Start my free trial' }).click();
   await expect(page).toHaveURL(/\/admin\/demo/);
+  // No Account section in the sample.
+  await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0);
   const bar = page.getByRole('region', { name: 'Sample wedding' });
   await expect(bar).toBeVisible();
   await bar.getByRole('radio', { name: 'Deluxe' }).click();
