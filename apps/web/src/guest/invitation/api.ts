@@ -30,6 +30,8 @@ export interface InvitePayload {
     motion?: Motion;
     /** A full-screen opening scene (one of SCENES); the design's own when unset. */
     scene?: Scene;
+    /** Their photo (images.backdrop) behind the words. */
+    backdrop?: { where?: 'none' | 'welcome' | 'all'; veil?: number };
     /** Their own film behind their names (a video file link), or ''. */
     film?: string;
     custom?: { paper?: string; ink?: string; accent?: string; soft?: string; envelope?: string; names?: 'script' | 'caps' | 'vibes' | 'parisienne' | 'playfair'; nameSize?: number };

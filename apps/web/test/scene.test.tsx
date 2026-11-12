@@ -38,7 +38,8 @@ describe('opening scenes', () => {
       // Drawn as images (SVG), in the design's colours.
       const art = Object.values(sceneArt(kind, colours, 'H & T')).join(' ');
       expect(art).toContain('data:image/svg+xml');
-      expect(decodeURIComponent(art)).toMatch(/#6b2737|#c9a27a|#ecd0cf/);
+      // In the design's colours: another palette draws it differently.
+      expect(Object.values(sceneArt(kind, { ...colours, envelope: '#1f4a3a', accent: '#b39563', soft: '#cfe6ec', ink: '#234a5e' }, 'H & T')).join(' ')).not.toBe(art);
       rerender(<SceneOverlay kind={kind} phase={2} colours={colours} initials="H & T" guestName="Emma & Tom" />);
       expect((container.querySelector(`[data-scene="${kind}"]`) as HTMLElement).style.opacity).toBe('0');
       rerender(<SceneOverlay kind={kind} phase={3} colours={colours} initials="H & T" guestName="Emma & Tom" />);

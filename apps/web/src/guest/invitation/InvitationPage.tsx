@@ -3,6 +3,7 @@ import { themeOf, lookOf, sceneOf } from '../themeKit';
 import '../looks.css';
 import { MotionPortal } from './Motion';
 import { SceneOverlay } from './Scene';
+import { backdropCss } from './Backdrop';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -78,6 +79,10 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
       <MotionPortal motion={data.content.motion} film={data.content.film} look={lookOf(data.wedding.theme, data.content.custom)} />
       {/* The couple's own order of the sections (none: the design's). */}
       {orderCss(data.content.order) && <style>{orderCss(data.content.order)}</style>}
+      {/* Their photo behind the words. */}
+      {backdropCss(data.content.images?.backdrop, data.content.backdrop?.where, data.content.backdrop?.veil, th.b1 ?? '#fbf8f2') && (
+        <style>{backdropCss(data.content.images?.backdrop, data.content.backdrop?.where, data.content.backdrop?.veil, th.b1 ?? '#fbf8f2')}</style>
+      )}
       {editing && <LiveEditor keys={keys.current} text={tLive} onText={(k, value) => live && setLive({ ...live, texts: { ...live.texts, [k]: value } })} />}
       {/* The app's quiet advert, on Free plans only, once the envelope is open (switched off for all in the company portal). */}
       {site?.madeWith && data.branded && phase >= 3 && (

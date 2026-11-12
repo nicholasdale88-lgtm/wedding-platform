@@ -17,6 +17,7 @@ import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/genera
 import { ORIGINAL, Wording } from './Wording';
 import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
 import { checkMusic } from '../../guest/audio';
+import { photoData } from '../../guest/invitation/LiveEdit';
 import { SaveToPhone } from '../../lib/SaveToPhone';
 
 /**
@@ -408,6 +409,7 @@ function InvitationEditor({
   setTheme: (t: string) => void;
 }) {
   const inv = doc.invitation;
+  const toast = useToast();
   const text = (key: string) => {
     const f = field(key);
     return <TextField key={f.key} label={f.label} value={String(inv[f.key] ?? '')} placeholder={f.ph} hint={f.hint} type={f.type} onChange={(v) => setInv({ [f.key]: v })} />;
@@ -537,6 +539,69 @@ function InvitationEditor({
                 </label>
               ))}
             </div>
+          </Rollup>
+
+          <Rollup
+            title="Photo behind the words"
+            now={set(inv.images?.backdrop) && (inv.backdrop?.where ?? 'none') !== 'none' ? (inv.backdrop?.where === 'all' ? 'Behind the whole invitation' : 'Behind the opening') : 'None'}
+          >
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">A photo of the two of you behind your names, or behind the whole invitation. The words stay easy to read.</span>
+            <div className="flex flex-wrap items-center gap-3">
+              {set(inv.images?.backdrop) && <img src={inv.images!.backdrop!} alt="Your photo" className="w-[72px] h-[96px] object-cover rounded-[8px] border border-[#e2d7bc]" />}
+              <label className="py-[9px] px-4 rounded-full border border-[#c6b794] bg-white text-[14px] font-semibold cursor-pointer">
+                {set(inv.images?.backdrop) ? 'Change photo' : 'Choose a photo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  aria-label="Photo behind the words"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!f) return;
+                    const data = await photoData(f);
+                    if (!data) return toast('That photo couldn’t be used. Try a JPEG or PNG.');
+                    setInv({ images: { ...inv.images, backdrop: data }, backdrop: { veil: 0.25, ...inv.backdrop, where: inv.backdrop?.where && inv.backdrop.where !== 'none' ? inv.backdrop.where : 'welcome' } });
+                  }}
+                />
+              </label>
+              {set(inv.images?.backdrop) && (
+                <button type="button" onClick={() => setInv({ images: { ...inv.images, backdrop: '' }, backdrop: { ...inv.backdrop, where: 'none' } })} className="py-[9px] px-4 rounded-full border border-[#c6b794] bg-transparent text-[14px] cursor-pointer">
+                  Remove
+                </button>
+              )}
+            </div>
+            <div role="radiogroup" aria-label="Where the photo goes" className="flex flex-wrap gap-2">
+              {(
+                [
+                  ['none', 'Off'],
+                  ['welcome', 'Behind the opening'],
+                  ['all', 'Behind everything'],
+                ] as const
+              ).map(([k, l]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={(inv.backdrop?.where ?? 'none') === k}
+                  onClick={() => setInv({ backdrop: { veil: 0.25, ...inv.backdrop, where: k } })}
+                  className={`py-[7px] px-3 rounded-full border text-[13px] cursor-pointer ${(inv.backdrop?.where ?? 'none') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <Label text={`Softness over the photo: ${Math.round((inv.backdrop?.veil ?? 0.25) * 100)}%`}>
+              <input
+                type="range"
+                min={0}
+                max={0.8}
+                step={0.05}
+                value={inv.backdrop?.veil ?? 0.25}
+                onChange={(e) => setInv({ backdrop: { ...inv.backdrop, veil: Number(e.target.value) } })}
+                className="w-full accent-[#5d6b47]"
+              />
+            </Label>
           </Rollup>
 
           <Rollup title="Photo" now={set(inv.images?.lookout) ? `Your photo: ${shortUrl(inv.images!.lookout!)}` : 'The design’s photo'}>

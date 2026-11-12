@@ -87,6 +87,8 @@ export const InvitationContent = z
     motion: z.enum(MOTIONS),
     /** A full-screen opening scene in place of the envelope (doors, a bow…); the design's own when unset or 'auto'. */
     scene: z.enum(SCENES),
+    /** Their photo (images.backdrop) behind the words: the opening only, or the whole invitation; the veil (0 to .8) keeps it readable. */
+    backdrop: z.object({ where: z.enum(['none', 'welcome', 'all']), veil: z.number().min(0).max(0.8) }).partial(),
     /** Their own film behind their names: a link to a video file, played silently on a loop ('' for none). */
     film: z.union([z.literal(''), z.string().max(500).regex(/^https:\/\/\S+$/)]),
     /** What the couple started from and the wording tone they chose, so the builder shows their picks. */
