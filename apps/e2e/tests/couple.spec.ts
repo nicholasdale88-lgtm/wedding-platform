@@ -115,7 +115,15 @@ test('seating: Move tables drags a table (and never opens it); in Seat guests a 
   await page.getByRole('button', { name: /^Done adding/ }).last().click();
   const table = page.getByRole('button', { name: /^Table 1, / });
   await expect(table).toBeVisible();
-  const before = (await table.boundingBox())!;
+  await table.scrollIntoViewIfNeeded();
+  // Wait for the plan to settle (the floating Done button goes, the page may shift) before putting a finger on it.
+  let before = (await table.boundingBox())!;
+  for (let i = 0; i < 20; i++) {
+    await page.waitForTimeout(100);
+    const now = (await table.boundingBox())!;
+    if (Math.abs(now.x - before.x) < 0.5 && Math.abs(now.y - before.y) < 0.5) break;
+    before = now;
+  }
   // Drag it across the room: a real finger (touch events) on the phone, the mouse on a computer.
   const x0 = before.x + before.width / 2;
   const y0 = before.y + before.height / 2;
@@ -132,8 +140,7 @@ test('seating: Move tables drags a table (and never opens it); in Seat guests a 
     await page.mouse.move(x0 + dx, y0 + 10, { steps: 12 });
     await page.mouse.up();
   }
-  const after = (await table.boundingBox())!;
-  expect(after.x - before.x).toBeGreaterThan(box.width * 0.15);
+  await expect.poll(async () => (await table.boundingBox())!.x - before.x).toBeGreaterThan(box.width * 0.15);
   await expect(page.getByRole('dialog', { name: /seat by seat/ })).toHaveCount(0); // moving never opens it
   // It saves itself.
   await expect(page.getByRole('button', { name: 'Saved ✓' })).toBeVisible({ timeout: 15_000 });
