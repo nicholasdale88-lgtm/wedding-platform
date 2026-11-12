@@ -61,7 +61,8 @@ describe('photos (admin)', () => {
     expect(page).toMatchObject({ open: true, qr: true, linked: false });
     const put = (q: string) => app.request(`/api/p/sophie-and-nicholas/photos?${q}`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-By': 'Table 4' }, body: new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 9, 9, 9]) }, env, ctx);
     expect((await put(`t=${code}`)).status).toBe(200);
-    expect((await put(`t=${code.slice(0, 15)}x`)).status).toBe(404);
+    // A wrong code: its last letter changed (never to the same letter).
+    expect((await put(`t=${code.slice(0, 15)}${code.endsWith('x') ? 'y' : 'x'}`)).status).toBe(404);
     expect((await put('')).status).toBe(404);
     expect(((await (await app.request(`/api/p/sophie-and-nicholas/photos?t=nope`, {}, env, ctx)).json()) as { open: boolean }).open).toBe(false);
     const list = (await (await call(`/a/w/${wid}/photos`)).json()) as List;
