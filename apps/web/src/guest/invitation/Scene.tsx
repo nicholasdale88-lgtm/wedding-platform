@@ -674,10 +674,9 @@ export function sceneArt(kind: Exclude<Scene, 'auto' | 'none'>, c: SceneColours,
 
 const LAYER: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' };
 
-export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }: { kind: Exclude<Scene, 'auto' | 'none'>; phase: number; colours: SceneColours; initials: string; guestName: string }) {
+export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, contained = false }: { kind: Exclude<Scene, 'auto' | 'none'>; phase: number; colours: SceneColours; initials: string; guestName: string; contained?: boolean }) {
   const still = useMemo(() => prefersLessMotion(), []);
   // Drawn once for these colours (the page re-renders as it opens; new pictures would be decoded again).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   const art = useMemo(() => sceneArt(kind, c, initials), [kind, c.paper, c.ink, c.accent, c.soft, c.envelope, initials]);
   if (p >= 3) return null;
   const open = p >= 1;
@@ -709,8 +708,8 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
       position: 'absolute',
       top: '50%',
       [side === 'left' ? 'right' : 'left']: 0,
-      width: 'min(30vw,128px)',
-      height: 'min(30vw,128px)',
+      width: 'min(30cqw,128px)',
+      height: 'min(30cqw,128px)',
       transform: `translate(${side === 'left' ? '50%' : '-50%'},-50%) scale(${p === 1 ? 1.06 : 1})`,
       backgroundImage: art.seal,
       backgroundSize: 'contain',
@@ -740,7 +739,7 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
             position: 'absolute',
             left: '50%',
             top: '44%',
-            width: 'min(96vw,460px)',
+            width: 'min(96cqw,460px)',
             aspectRatio: '440 / 400',
             transform: `translate(-50%,-37.5%) scale(${open && !still ? 0.15 : p === 1 ? 1.04 : 1}) rotate(${open && !still ? -25 : 0}deg)`,
             opacity: open ? 0 : 1,
@@ -771,7 +770,7 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
       <div style={{ ...LAYER, background: `radial-gradient(ellipse at 50% 38%, ${light(c.paper, 0.5)} 0%, ${mix(c.paper, c.envelope, 0.25)} 45%, ${dark(c.envelope, 0.55)} 100%)` }}>
         <div style={side('left')} />
         <div style={side('right')} />
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 'min(26vh,240px)', backgroundImage: art.pelmet, backgroundSize: 'cover', backgroundPosition: 'center top', transform: open && !still ? 'translateY(-110%)' : 'none', transition: t(1.2, 1.4) }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 'min(26cqh,240px)', backgroundImage: art.pelmet, backgroundSize: 'cover', backgroundPosition: 'center top', transform: open && !still ? 'translateY(-110%)' : 'none', transition: t(1.2, 1.4) }} />
       </div>
     );
   } else if (kind === 'barn') {
@@ -795,8 +794,8 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
       position: 'absolute',
       top: '30%',
       [s === 'left' ? 'right' : 'left']: 0,
-      width: 'min(58vw,240px)',
-      height: 'min(58vw,240px)',
+      width: 'min(58cqw,240px)',
+      height: 'min(58cqw,240px)',
       transform: `translate(${s === 'left' ? '50%' : '-50%'},-50%)`,
       backgroundImage: art.wreath,
       backgroundSize: 'contain',
@@ -814,13 +813,13 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
         {/* The rail and its rollers. */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(5% - 16px)', height: 16, background: 'linear-gradient(#4a4642, #23201e)', boxShadow: '0 4px 10px rgba(0,0,0,.35)' }} />
         {[18, 32, 68, 82].map((x, i) => (
-          <div key={x} style={{ position: 'absolute', top: 'calc(5% - 22px)', left: `${x}%`, width: 22, height: 22, marginLeft: -11, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #8d8780, #2a2724 70%)', transform: open && !still ? `translateX(${i < 2 ? '-50vw' : '50vw'})` : 'none', transition: t(2.2, 0.3) }} />
+          <div key={x} style={{ position: 'absolute', top: 'calc(5% - 22px)', left: `${x}%`, width: 22, height: 22, marginLeft: -11, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #8d8780, #2a2724 70%)', transform: open && !still ? `translateX(${i < 2 ? '-50cqw' : '50cqw'})` : 'none', transition: t(2.2, 0.3) }} />
         ))}
       </div>
     );
   } else if (kind === 'book') {
     // A storybook on the table: its cover swings open to the first page.
-    const size: CSSProperties = { position: 'absolute', left: '50%', top: '50%', width: 'min(84vw,52vh,440px)', aspectRatio: '300 / 620', transform: 'translate(-50%,-52%)' };
+    const size: CSSProperties = { position: 'absolute', left: '50%', top: '50%', width: 'min(84cqw,52cqh,440px)', aspectRatio: '300 / 620', transform: 'translate(-50%,-52%)' };
     body = (
       <div style={{ ...LAYER, perspective: '1800px', background: `radial-gradient(ellipse at 50% 40%, ${light(c.paper, 0.5)} 0%, ${mix(c.paper, c.soft, 0.6)} 55%, ${mix(c.soft, c.ink, 0.25)} 100%)` }}>
         <div style={{ ...size, borderRadius: 6, boxShadow: '0 30px 60px rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.18)', backgroundImage: art.page, backgroundSize: 'cover' }} />
@@ -921,7 +920,8 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
     <div
       aria-hidden
       data-scene={kind}
-      style={{ position: 'fixed', inset: 0, zIndex: 25, pointerEvents: 'none', overflow: 'hidden', opacity: gone ? 0 : 1, transition: 'opacity .9s ease' }}
+      /* Sized by its box (cqw, cqh): the same scene fills a phone's screen, or a little phone on the front page. */
+      style={{ position: contained ? 'absolute' : 'fixed', inset: 0, zIndex: 25, pointerEvents: 'none', overflow: 'hidden', containerType: 'size', opacity: gone ? 0 : 1, transition: 'opacity .9s ease' }}
     >
       <style>{`@keyframes ylBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } } @keyframes ylHint { 0%,100% { opacity: .65 } 50% { opacity: 1 } }`}</style>
       {body}
@@ -930,7 +930,7 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
           position: 'absolute',
           left: 0,
           right: 0,
-          bottom: 'calc(9vh + env(safe-area-inset-bottom))',
+          bottom: 'calc(9cqh + env(safe-area-inset-bottom))',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -941,8 +941,8 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName }
           transition: 'opacity .5s ease',
         }}
       >
-        {guestName && <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 'clamp(28px,8vw,40px)', lineHeight: 1.1 }}>{guestName}</span>}
-        <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontSize: 19, letterSpacing: '.06em', animation: still ? undefined : 'ylHint 2.4s ease-in-out infinite' }}>Tap to open</span>
+        {guestName && <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 'clamp(16px,8cqw,40px)', lineHeight: 1.1 }}>{guestName}</span>}
+        <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(12px,4.8cqw,19px)', letterSpacing: '.06em', animation: still ? undefined : 'ylHint 2.4s ease-in-out infinite' }}>Tap to open</span>
       </div>
     </div>
   );

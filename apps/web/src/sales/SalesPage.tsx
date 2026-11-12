@@ -21,6 +21,7 @@ import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { TextThread } from './TextThread';
+import { SceneShowcase } from './SceneShowcase';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 
@@ -227,6 +228,29 @@ export function SalesPage() {
             </div>
             <div className="flex justify-center">
               <TextThread />
+            </div>
+          </div>
+        </section>
+
+        {/* The Signature designs, each opening by itself: the wow, before anything else. */}
+        <section aria-labelledby="scenes" className="pt-20 pb-12 px-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f3ecdf 0%, #fbf8f2 100%)' }}>
+          <div className="max-w-[1200px] mx-auto flex flex-col gap-10">
+            <div className="text-center flex flex-col gap-3 items-center">
+              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#a9843f' }}>
+                Signature designs
+              </span>
+              <h2 id="scenes" className="m-0 text-[clamp(36px,5.6vw,60px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
+                Opened like a gift.
+              </h2>
+              <p className="m-0 text-[18px] leading-[1.55] max-w-[600px]" style={{ color: SOFT }}>
+                Regency doors that swing open, a fairytale storybook, rustic barn doors, garden gates, a wave across the sand. Every one drawn by us, in your colours, with your initials.
+              </p>
+            </div>
+            <SceneShowcase />
+            <div className="flex justify-center">
+              <Link to="/designs" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
+                See every design
+              </Link>
             </div>
           </div>
         </section>

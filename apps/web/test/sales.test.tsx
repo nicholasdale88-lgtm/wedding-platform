@@ -76,6 +76,15 @@ describe('front page', () => {
     expect(within(list).getByText(/Free, as often as you like/)).toBeInTheDocument();
   });
 
+  it('shows the Signature designs opening, each leading to its sample', () => {
+    page();
+    const row = screen.getByRole('list', { name: 'Signature designs' });
+    const links = within(row).getAllByRole('link');
+    expect(links.length).toBe(5);
+    expect(links[0]).toHaveAttribute('href', '/demo?theme=Rosewood%20Doors');
+    expect(row.querySelectorAll('[data-scene]').length).toBe(5);
+  });
+
   it('says clearly it is Australian owned and operated', () => {
     page();
     expect(screen.getByTestId('aussie-badge')).toHaveTextContent('Australian owned and operated');
