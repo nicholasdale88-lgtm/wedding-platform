@@ -1,7 +1,8 @@
 import '@fontsource/cormorant-garamond/400.css';
-import { themeOf, lookOf } from '../themeKit';
+import { themeOf, lookOf, sceneOf } from '../themeKit';
 import '../looks.css';
 import { MotionPortal } from './Motion';
+import { SceneOverlay } from './Scene';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -56,7 +57,10 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
   const base = editing ? { ...core, image: (id: string) => `${core.image(id)}#wp-slot=${id}` } : core;
   // Invited only to the second event (the birthday): its own invitation, without the wedding's sections.
   const solo = data.invitation && !data.events.some((e) => e.slot === 0) ? data.events.find((e) => e.slot === 1) : undefined;
-  const v = solo ? { ...base, hide: (label: string) => SOLO_HIDDEN.has(label) || base.hide(label), initialsFull: sealFor(solo.name) } : base;
+  const v0 = solo ? { ...base, hide: (label: string) => SOLO_HIDDEN.has(label) || base.hide(label), initialsFull: sealFor(solo.name) } : base;
+  // An opening scene (doors, a bow…) takes the envelope's place: the envelope is there to take the tap, unseen.
+  const scene = solo ? 'none' : sceneOf(data.wedding.theme, data.content.scene);
+  const v = scene === 'none' ? v0 : { ...v0, envOp: 0, hintOp: 0 };
   useEffect(() => {
     document.title = solo ? solo.name : `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
   }, [data.wedding, solo]);
@@ -92,16 +96,25 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
           colours={{ bg: 'var(--bdbg,var(--bdtx,#2f3d5c))', ink: 'var(--bdtx,var(--btx,#f3ecd6))', accent: 'var(--bdac,#9fb6d9)' }}
         />
       )}
-      <EnvelopeExtras
+      {scene !== 'none' && (
+        <SceneOverlay
+          kind={scene}
+          phase={phase}
+          colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
+          initials={`${data.wedding.name1.trim()[0] ?? ''} & ${data.wedding.name2.trim()[0] ?? ''}`}
+          guestName={guestName}
+        />
+      )}
+      {scene === 'none' && <EnvelopeExtras
         phase={phase}
         opts={data.content.envelope ?? {}}
         colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
         guestName={guestName}
         music={!!data.content.audioUrl?.trim()}
         opening={data.content.opening}
-      />
+      />}
       {/* A seal other than the design's own: a newer colour or design, or their own words on it. */}
-      {seal && <SealOverlay seal={seal} phase={phase} />}
+      {seal && scene === 'none' && <SealOverlay seal={seal} phase={phase} />}
       {/* Once the envelope is open: a guest with their own link can write to the couple (Account → Messages), and
           the wedding party has a link to their own run sheet. */}
       {welcome && phase >= 3 && (

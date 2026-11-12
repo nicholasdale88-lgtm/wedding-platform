@@ -1,4 +1,4 @@
-import { TEMPLATES } from '@wp/shared';
+import { TEMPLATES, type Scene } from '@wp/shared';
 import { THEMES } from './generated/themes';
 
 /**
@@ -65,6 +65,20 @@ export const NAMES_STYLES: Record<NamesStyle, { label: string; font: string; var
   playfair: { label: 'Modern serif', font: "'Playfair Display', Georgia, serif", vars: { nf: "'Playfair Display',Georgia,serif", nsz: 'clamp(30px,8vw,40px)', nls: '.02em', ntt: 'none' } },
 };
 
+/**
+ * The Signature designs: a full-screen scene opens each one (guest/invitation/Scene.tsx), in colours made
+ * for it. Any design can have any scene (Setup → Extras → Opening scene); these come with theirs.
+ */
+export const SIGNATURE: Record<string, Palette & { style: string; mood: string; scene: Exclude<Scene, 'auto' | 'none'> }> = {
+  'Rosewood Doors': { paper: '#fbf3f1', ink: '#4a1f2b', accent: '#c9a27a', soft: '#ecd0cf', envelope: '#6b2737', style: 'Pressed floral doors that swing open', mood: 'Romantic', scene: 'doors' },
+  'Satin Bow': { paper: '#f7f9fb', ink: '#2f3f5c', accent: '#aeb8c6', soft: '#d6e2ef', envelope: '#e3ebf4', style: 'A satin bow and a pearl that untie', mood: 'Classic', scene: 'bow' },
+  'Opening Night': { paper: '#f7f3e8', ink: '#173a2e', accent: '#c6a35c', soft: '#cfe0d4', envelope: '#1f4a3a', style: 'Velvet curtains that draw apart', mood: 'Moody & luxe', scene: 'curtain' },
+  'Lantern Garden': { paper: '#f6f2ea', ink: '#1d2a44', accent: '#e7c27a', soft: '#d8dfee', envelope: '#1b2540', style: 'Lanterns rising over a garden at night', mood: 'Garden & rustic', scene: 'lanterns' },
+};
+export const SIGNATURE_NAMES = Object.keys(SIGNATURE);
+/** The scene a wedding opens with: theirs if chosen, otherwise the design's own (none for most). */
+export const sceneOf = (theme: string | undefined, chosen?: Scene): Exclude<Scene, 'auto'> => (chosen && chosen !== 'auto' ? chosen : (SIGNATURE[theme ?? '']?.scene ?? 'none'));
+
 /** The most-chosen invitation styles, as palettes (the design's own five stay as they are). */
 export const PRESETS: Record<string, Palette & { style: string }> = {
   'Classic Ivory & Gold': { paper: '#fbf7ee', ink: '#3a3226', accent: '#b8955a', soft: '#ece2cf', envelope: '#efe6d3', style: 'Timeless and formal' },
@@ -85,6 +99,8 @@ export const PRESETS: Record<string, Palette & { style: string }> = {
   'Butter Yellow': { paper: '#fffcf1', ink: '#4a4426', accent: '#d9b44a', soft: '#f6e7a8', envelope: '#f4ebc6', style: 'Sunny, cheerful, garden party' },
   'Amalfi Lemon & Blue': { paper: '#fdfbf3', ink: '#1f3f73', accent: '#e0b93a', soft: '#cfdcef', envelope: '#e6ecf5', style: 'Mediterranean summer' },
   'Silver Winter': { paper: '#f8f9fa', ink: '#2b3240', accent: '#9ea4ad', soft: '#dde2e8', envelope: '#e6e9ee', style: 'Icy, silver, candlelit' },
+  // The Signature designs: each opens with its own scene (SIGNATURE).
+  ...Object.fromEntries(Object.entries(SIGNATURE).map(([n, d]) => [n, { paper: d.paper, ink: d.ink, accent: d.accent, soft: d.soft, envelope: d.envelope, style: d.style }])),
   // The invitation templates' looks (each with its own names font, envelope and wording: Setup → Design it your way).
   ...Object.fromEntries(TEMPLATES.map((t) => [t.name, { ...t.palette, style: t.style }])),
 };
@@ -116,6 +132,7 @@ export const MOOD_OF: Record<string, (typeof MOODS)[number]> = {
   'Amalfi Lemon & Blue': 'Coastal & bright',
   'Silver Winter': 'Classic',
   ...Object.fromEntries(TEMPLATES.map((t) => [t.name, t.mood])),
+  ...Object.fromEntries(Object.entries(SIGNATURE).map(([n, d]) => [n, d.mood as (typeof MOODS)[number]])),
 };
 
 const hex = (h: string) => {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ENVELOPE_PAPERS, MOTIONS, OPENINGS, SEAL_COLOURS, SEAL_LETTERS, SEAL_STYLES } from './designs';
+import { ENVELOPE_PAPERS, MOTIONS, OPENINGS, SEAL_COLOURS, SEAL_LETTERS, SEAL_STYLES, SCENES } from './designs';
 import { INV_SCOPES } from './generated/invScopes';
 
 /** A photo dropped onto the invitation is kept with it, made small enough to load quickly (characters of its data link). */
@@ -85,6 +85,8 @@ export const InvitationContent = z
     opening: z.enum(OPENINGS),
     /** A moving scene over the opening (petals, fairy lights…); the look's own when unset or 'auto'. */
     motion: z.enum(MOTIONS),
+    /** A full-screen opening scene in place of the envelope (doors, a bow…); the design's own when unset or 'auto'. */
+    scene: z.enum(SCENES),
     /** Their own film behind their names: a link to a video file, played silently on a loop ('' for none). */
     film: z.union([z.literal(''), z.string().max(500).regex(/^https:\/\/\S+$/)]),
     /** What the couple started from and the wording tone they chose, so the builder shows their picks. */

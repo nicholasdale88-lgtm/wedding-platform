@@ -6,7 +6,8 @@ import { InvitationView } from '../guest/generated/InvitationView';
 import { EnvelopeExtras } from '../guest/invitation/EnvelopeExtras';
 import { paperHex, SealOverlay } from '../guest/invitation/WaxSeal';
 import { useInvitation } from '../guest/invitation/useInvitation';
-import { lookOf, THEME_NAMES, themeOf } from '../guest/themeKit';
+import { lookOf, sceneOf, THEME_NAMES, themeOf } from '../guest/themeKit';
+import { SceneOverlay } from '../guest/invitation/Scene';
 import '../guest/looks.css';
 import { MotionPortal } from '../guest/invitation/Motion';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
@@ -52,7 +53,8 @@ export function SampleInvitation({ theme }: { theme?: string } = {}) {
   const data = theme ? { ...SAMPLE_INVITE, wedding: { ...SAMPLE_INVITE.wedding, theme } } : SAMPLE_INVITE;
   const { v: core, t, phase, seal } = useInvitation(data.wedding.slug, data, true);
   // No "Add to your calendar" links: there's no real wedding behind them.
-  const v = { ...core, after: () => undefined };
+  const scene = sceneOf(data.wedding.theme, data.content.scene);
+  const v = { ...core, after: () => undefined, ...(scene === 'none' ? {} : { envOp: 0, hintOp: 0 }) };
   const th = themeOf(data.wedding.theme, data.content.custom);
   return (
     <>
@@ -60,14 +62,26 @@ export function SampleInvitation({ theme }: { theme?: string } = {}) {
         <InvitationView v={v} t={t} />
       </div>
       <MotionPortal motion={data.content.motion} look={lookOf(data.wedding.theme, data.content.custom)} />
-      <EnvelopeExtras
-        phase={phase}
-        opts={data.content.envelope ?? {}}
-        colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
-        guestName={SAMPLE.guests}
-        opening={data.content.opening}
-      />
-      {seal && <SealOverlay seal={seal} phase={phase} />}
+      {scene === 'none' ? (
+        <>
+          <EnvelopeExtras
+            phase={phase}
+            opts={data.content.envelope ?? {}}
+            colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
+            guestName={SAMPLE.guests}
+            opening={data.content.opening}
+          />
+          {seal && <SealOverlay seal={seal} phase={phase} />}
+        </>
+      ) : (
+        <SceneOverlay
+          kind={scene}
+          phase={phase}
+          colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: th.e1 ?? '#e6dcc4' }}
+          initials="H & T"
+          guestName={SAMPLE.guests}
+        />
+      )}
     </>
   );
 }

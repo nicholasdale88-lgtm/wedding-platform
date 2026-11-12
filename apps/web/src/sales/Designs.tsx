@@ -2,7 +2,7 @@ import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LOOK_LABEL, lookOf, MOOD_OF, MOODS, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
+import { LOOK_LABEL, lookOf, MOOD_OF, MOODS, SIGNATURE, SIGNATURE_NAMES, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
 import { Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { BRAND } from './SalesPage';
@@ -19,11 +19,13 @@ const serif = "'Cormorant Garamond', Georgia, serif";
  */
 export function DesignsPage() {
   const [mood, setMood] = useState<string>('All');
-  const [theme, setTheme] = useState<string>(THEME_NAMES[0] ?? 'Cream & Sage');
+  const [theme, setTheme] = useState<string>(SIGNATURE_NAMES[0] ?? THEME_NAMES[0] ?? 'Cream & Sage');
   useEffect(() => {
     document.title = `Invitation designs · ${BRAND}`;
   }, []);
-  const shown = THEME_NAMES.filter((n) => mood === 'All' || MOOD_OF[n] === mood);
+  // The Signature designs first: each opens with its own scene.
+  const ordered = [...SIGNATURE_NAMES, ...THEME_NAMES.filter((n) => !SIGNATURE[n])];
+  const shown = ordered.filter((n) => mood === 'All' || (mood === 'Signature' ? !!SIGNATURE[n] : MOOD_OF[n] === mood));
   const src = `/demo?embed=1&theme=${encodeURIComponent(theme)}`;
   return (
     <div className="min-h-screen" style={{ background: PAPER, color: INK, fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" }}>
@@ -47,14 +49,14 @@ export function DesignsPage() {
             The designs
           </h1>
           <p className="m-0 text-[18px] leading-[1.5] max-w-[560px] mx-auto" style={{ color: SOFT }}>
-            {THEME_NAMES.length} looks, each the real invitation your guests open. Tap one to see it. You can change the colours, the lettering and the wax seal to make it yours.
+            {THEME_NAMES.length} designs, each the real invitation your guests open. The Signature designs open with a scene: floral doors, a satin bow, velvet curtains or lanterns. Tap one to see it, then make it yours.
           </p>
         </div>
 
         <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_340px] items-start">
           <div className="flex flex-col gap-4 order-2 md:order-1">
             <div role="group" aria-label="Moods" className="flex gap-2 flex-wrap">
-              {['All', ...MOODS].map((m) => (
+              {['All', 'Signature', ...MOODS].map((m) => (
                 <button
                   key={m}
                   type="button"
@@ -85,9 +87,14 @@ export function DesignsPage() {
                     className="flex flex-col gap-2 p-2 rounded-[14px] border text-left cursor-pointer"
                     style={{ background: t.b1 ?? '#fff', borderColor: on ? INK : '#e2d7bc', boxShadow: on ? `0 0 0 2px ${INK}` : undefined }}
                   >
-                    <span className="flex flex-col items-center justify-center gap-1 h-[84px] rounded-[10px]" style={{ background: t.b2 ?? t.b1 }}>
-                      <span className="font-script text-[24px] leading-none" style={{ color: t.dg }}>
-                        O &amp; J
+                    <span className="relative flex flex-col items-center justify-center gap-1 h-[84px] rounded-[10px]" style={{ background: SIGNATURE[name] ? SIGNATURE[name]!.envelope : (t.b2 ?? t.b1) }}>
+                      {SIGNATURE[name] && (
+                        <span className="absolute top-1 left-1 px-2 py-[1px] rounded-full text-[10px] font-semibold tracking-[.08em] uppercase" style={{ background: '#e6cf9e', color: '#1b2218' }}>
+                          Signature
+                        </span>
+                      )}
+                      <span className="font-script text-[24px] leading-none" style={{ color: SIGNATURE[name] ? t.b1 : t.dg }}>
+                        H &amp; T
                       </span>
                       <span className="block w-10 h-px" style={{ background: t.acc ?? '#c8a46a' }} />
                     </span>
@@ -95,7 +102,7 @@ export function DesignsPage() {
                       {themeLabel(name)}
                     </span>
                     <span className="px-1 -mt-2 text-[12px]" style={{ color: SOFT }}>
-                      {LOOK_LABEL[lookOf(name)].name} look
+                      {SIGNATURE[name] ? SIGNATURE[name]!.style : `${LOOK_LABEL[lookOf(name)].name} look`}
                     </span>
                   </button>
                 );
@@ -110,7 +117,7 @@ export function DesignsPage() {
               {LOOK_LABEL[lookOf(theme)].name} look: {LOOK_LABEL[lookOf(theme)].about.toLowerCase()}
             </span>
             <span className="text-[14px] text-center" style={{ color: SOFT }}>
-              Tap the seal to open it.
+              {SIGNATURE[theme] ? 'Tap anywhere to open it.' : 'Tap the seal to open it.'}
             </span>
             <div className="flex gap-3 flex-wrap justify-center">
               <a href={`/demo?theme=${encodeURIComponent(theme)}&from=designs`} className="py-[10px] px-5 rounded-full no-underline text-[15px] border" style={{ color: INK, borderColor: '#c6b794' }}>

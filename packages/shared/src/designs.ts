@@ -439,6 +439,21 @@ export const MOTION_LABEL: Record<Motion, string> = {
   shimmer: 'Sunlight shimmer',
 };
 
+/**
+ * Opening scenes: the whole screen is a scene the guest opens with a tap, in place of the envelope (our own
+ * artwork: guest/invitation/Scene.tsx). 'auto' is the design's own (the Signature designs have one).
+ */
+export const SCENES = ['auto', 'none', 'doors', 'bow', 'curtain', 'lanterns'] as const;
+export type Scene = (typeof SCENES)[number];
+export const SCENE_INFO: Record<Scene, { label: string; hint: string }> = {
+  auto: { label: 'The design’s own', hint: 'The scene that comes with the design (the envelope when it has none)' },
+  none: { label: 'The envelope', hint: 'The envelope and wax seal' },
+  doors: { label: 'Floral doors', hint: 'Pressed floral doors; the seal splits and they swing open' },
+  bow: { label: 'Satin bow', hint: 'A satin bow and pearl untie, and the ribbons slide away' },
+  curtain: { label: 'Velvet curtains', hint: 'Theatre curtains draw apart' },
+  lanterns: { label: 'Lantern garden', hint: 'Lanterns rise over a garden at night' },
+};
+
 export const OPENINGS = ['classic', 'crack', 'stamp', 'gatefold', 'slide', 'letterpress', 'ribbon', 'petals', 'confetti', 'golddust', 'stars'] as const;
 export type Opening = (typeof OPENINGS)[number];
 export const OPENING_INFO: Record<Opening, { label: string; hint: string }> = {

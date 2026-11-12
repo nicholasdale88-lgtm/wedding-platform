@@ -235,7 +235,7 @@ export function SalesPage() {
         <section aria-labelledby="see" className="px-4 py-20">
           <div className="max-w-[1100px] mx-auto grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center">
             <div className="flex justify-center md:order-2">
-              <HeroInvite />
+              <HeroInvite src="/demo?embed=1&theme=Rosewood%20Doors" />
             </div>
             <div className="flex flex-col gap-4 text-center md:text-left items-center md:items-start md:order-1">
               <h2 id="see" className="m-0 text-[clamp(34px,5vw,52px)] leading-[1.08] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>

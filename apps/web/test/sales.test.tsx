@@ -19,7 +19,7 @@ describe('front page', () => {
     expect(screen.getByRole('link', { name: 'Start your wedding' })).toHaveAttribute('href', '#start');
     const phone = screen.getByTitle(/^Sample invitation for Harriet & Theo/);
     expect(phone.tagName).toBe('IFRAME');
-    expect(phone).toHaveAttribute('src', '/demo?embed=1');
+    expect(phone).toHaveAttribute('src', '/demo?embed=1&theme=Rosewood%20Doors');
     expect(screen.getByRole('heading', { name: 'And everything after the yes.' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Vendor directory' }).length).toBeGreaterThan(0);
   });

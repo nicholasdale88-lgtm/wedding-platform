@@ -5,7 +5,7 @@ import { ThemeGallery } from './ThemeGallery';
 import { DesignBuilder } from './DesignBuilder';
 import { SealPicker } from './SealPicker';
 import { initialsOf } from '../../guest/invitation/WaxSeal';
-import { ENVELOPE_PAPER_INFO, SEAL_STYLE_INFO, MOTIONS, MOTION_LABEL, type Motion } from '@wp/shared';
+import { ENVELOPE_PAPER_INFO, SEAL_STYLE_INFO, MOTIONS, MOTION_LABEL, type Motion, SCENES, SCENE_INFO, type Scene } from '@wp/shared';
 import { LiveEditBar } from './LiveEditBar';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
@@ -452,6 +452,24 @@ function InvitationEditor({
 
       <Section n={n()} title="Extras" hint="Each shows what’s set now. Tap Change to make it yours; anything you leave keeps the design’s own.">
         <div className="flex flex-col gap-2">
+          <Rollup title="Opening scene" now={SCENE_INFO[(inv.scene ?? 'auto') as Scene].label}>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">What guests tap to open, in place of the envelope. Drawn in your colours, on every plan.</span>
+            <div role="radiogroup" aria-label="Opening scene" className="flex flex-col gap-2">
+              {SCENES.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={(inv.scene ?? 'auto') === k}
+                  onClick={() => setInv({ scene: k })}
+                  className={`flex flex-col items-start text-left py-2 px-3 rounded-[12px] border cursor-pointer ${(inv.scene ?? 'auto') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+                >
+                  <span className="text-[14px] font-semibold">{SCENE_INFO[k].label}</span>
+                  <span className="text-[12px] opacity-80">{SCENE_INFO[k].hint}</span>
+                </button>
+              ))}
+            </div>
+          </Rollup>
           <Rollup title="Moving background" now={`${MOTION_LABEL[(inv.motion ?? 'auto') as Motion]}${inv.film ? ' · your own film' : ''}`}>
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Moves gently over the opening of your invitation, on every plan. Guests who prefer less motion see it still.</span>
             <div role="radiogroup" aria-label="Moving background" className="flex flex-wrap gap-2">
