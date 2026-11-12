@@ -103,6 +103,18 @@ const AFTER: { title: string; text: string }[] = [
   { title: 'Every meal on the right plate', text: 'Special menus go to everyone who needs one, and the caterer gets one clear list.' },
 ];
 
+/**
+ * How we compare with the usual made-for-you digital invitation: no one named, only what is common in the
+ * market, and only what is true of us (check against plan.ts before changing a line).
+ */
+const COMPARE: { what: string; usual: string; ours: string }[] = [
+  { what: 'Ready', usual: 'A day or more, while someone builds it for you', ours: 'The minute you are. Make it yourself and see every change as you go.' },
+  { what: 'Changes after sending', usual: 'Often one free change, then a fee', ours: 'Free, as often as you like. Every guest sees the change straight away.' },
+  { what: 'The link', usual: 'One link for everyone, and guests type their names', ours: 'Each guest gets their own, with their names on the envelope. Nobody uninvited can reply.' },
+  { what: 'More than one event', usual: 'Often a second invitation, paid again', ours: `Welcome drinks or a recovery brunch on the same invitation: two events on Deluxe, or add one for ${EVENT_ADDON.price}.` },
+  { what: 'After the replies', usual: 'A list of who’s coming', ours: 'Reminders, a dietary list for your caterer, the seating plan and the whole wedding plan.' },
+];
+
 const FAQ: [string, string][] = [
   ['Is it a subscription?', 'No. Set everything up first, then pay once for your wedding when you’re ready to send your invitations. Nothing renews.'],
   [
@@ -273,7 +285,48 @@ export function SalesPage() {
           </div>
         </section>
 
-        <section aria-labelledby="founders" className="py-24 px-4">
+        <section aria-labelledby="compare" className="py-24 px-4">
+          <div className="max-w-[960px] mx-auto flex flex-col gap-10">
+            <div className="text-center flex flex-col gap-4">
+              <h2 id="compare" className="m-0 text-[clamp(34px,5.4vw,56px)] leading-[1.06] font-normal" style={{ fontFamily: serif }}>
+                More than a pretty link.
+              </h2>
+              <p className="m-0 text-[18px] leading-[1.55] max-w-[620px] mx-auto" style={{ color: SOFT }}>
+                How we compare with the usual made-for-you digital invitation.
+              </p>
+            </div>
+            <div role="table" aria-label="How we compare" className="flex flex-col rounded-[22px] overflow-hidden border border-[#e6dcc4]">
+              <div role="row" className="hidden md:grid grid-cols-[180px_1fr_1.3fr] text-[13px] font-semibold tracking-[.14em] uppercase" style={{ background: PAPER, color: SOFT }}>
+                <span role="columnheader" className="p-4" />
+                <span role="columnheader" className="p-4">
+                  Usually
+                </span>
+                <span role="columnheader" className="p-4" style={{ color: INK }}>
+                  With {BRAND}
+                </span>
+              </div>
+              {COMPARE.map((r) => (
+                <div key={r.what} role="row" className="grid md:grid-cols-[180px_1fr_1.3fr] border-t border-[#e6dcc4] first-of-type:border-t-0">
+                  <span role="rowheader" className="px-4 pt-4 md:pb-4 text-[17px] font-semibold" style={{ fontFamily: serif }}>
+                    {r.what}
+                  </span>
+                  <span role="cell" className="px-4 pt-1 md:pt-4 md:pb-4 text-[15px] leading-[1.5]" style={{ color: SOFT }}>
+                    <span className="md:hidden font-semibold">Usually: </span>
+                    {r.usual}
+                  </span>
+                  <span role="cell" className="flex gap-2 px-4 pt-2 pb-4 md:pt-4 text-[16px] leading-[1.5]" style={{ color: INK, background: 'rgba(167,184,143,.12)' }}>
+                    <span aria-hidden className="font-bold" style={{ color: '#6f8256' }}>
+                      ✓
+                    </span>
+                    <span>{r.ours}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="founders" className="py-24 px-4 border-t border-[#efe6d3]">
           <figure className="max-w-[760px] mx-auto m-0 flex flex-col items-center gap-6 text-center">
             <h2 id="founders" className="m-0 text-[13px] tracking-[.2em] uppercase font-semibold" style={{ color: SOFT }}>
               Built for our own wedding

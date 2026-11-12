@@ -69,6 +69,13 @@ describe('front page', () => {
     expect(within(invites).getByText('When should we send our wedding invitations?')).toBeInTheDocument();
   });
 
+  it('compares itself without naming anyone', () => {
+    page();
+    const table = screen.getByRole('table', { name: 'How we compare' });
+    expect(within(table).getAllByRole('row').length).toBeGreaterThanOrEqual(5);
+    expect(within(table).getByText(/Free, as often as you like/)).toBeInTheDocument();
+  });
+
   it('says clearly it is Australian owned and operated', () => {
     page();
     expect(screen.getByTestId('aussie-badge')).toHaveTextContent('Australian owned and operated');
