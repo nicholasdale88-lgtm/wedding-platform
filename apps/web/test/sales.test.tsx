@@ -71,9 +71,9 @@ describe('front page', () => {
 
   it('compares itself without naming anyone', () => {
     page();
-    const table = screen.getByRole('table', { name: 'How we compare' });
-    expect(within(table).getAllByRole('row').length).toBeGreaterThanOrEqual(5);
-    expect(within(table).getByText(/Free, as often as you like/)).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'How we compare' });
+    expect(within(list).getAllByRole('listitem').length).toBe(5);
+    expect(within(list).getByText(/Free, as often as you like/)).toBeInTheDocument();
   });
 
   it('says clearly it is Australian owned and operated', () => {

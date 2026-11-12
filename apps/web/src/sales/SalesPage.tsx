@@ -295,26 +295,24 @@ export function SalesPage() {
                 How we compare with the usual made-for-you digital invitation.
               </p>
             </div>
-            <div role="table" aria-label="How we compare" className="flex flex-col rounded-[22px] overflow-hidden border border-[#e6dcc4]">
-              <div role="row" className="hidden md:grid grid-cols-[180px_1fr_1.3fr] text-[13px] font-semibold tracking-[.14em] uppercase" style={{ background: PAPER, color: SOFT }}>
-                <span role="columnheader" className="p-4" />
-                <span role="columnheader" className="p-4">
-                  Usually
-                </span>
-                <span role="columnheader" className="p-4" style={{ color: INK }}>
+            <div role="list" aria-label="How we compare" className="flex flex-col rounded-[22px] overflow-hidden border border-[#e6dcc4]">
+              <div aria-hidden className="hidden md:grid grid-cols-[180px_1fr_1.3fr] text-[13px] font-semibold tracking-[.14em] uppercase" style={{ background: PAPER, color: SOFT }}>
+                <span className="p-4" />
+                <span className="p-4">Usually</span>
+                <span className="p-4" style={{ color: INK }}>
                   With {BRAND}
                 </span>
               </div>
               {VS_USUAL.map((r) => (
-                <div key={r.what} role="row" className="grid md:grid-cols-[180px_1fr_1.3fr] border-t border-[#e6dcc4] first-of-type:border-t-0">
-                  <span role="rowheader" className="px-4 pt-4 md:pb-4 text-[17px] font-semibold" style={{ fontFamily: serif }}>
+                <div key={r.what} role="listitem" className="grid md:grid-cols-[180px_1fr_1.3fr] border-t border-[#e6dcc4] first-of-type:border-t-0">
+                  <span className="px-4 pt-4 md:pb-4 text-[17px] font-semibold" style={{ fontFamily: serif }}>
                     {r.what}
                   </span>
-                  <span role="cell" className="px-4 pt-1 md:pt-4 md:pb-4 text-[15px] leading-[1.5]" style={{ color: SOFT }}>
+                  <span className="px-4 pt-1 md:pt-4 md:pb-4 text-[15px] leading-[1.5]" style={{ color: SOFT }}>
                     <span className="md:hidden font-semibold">Usually: </span>
                     {r.usual}
                   </span>
-                  <span role="cell" className="flex gap-2 px-4 pt-2 pb-4 md:pt-4 text-[16px] leading-[1.5]" style={{ color: INK, background: 'rgba(167,184,143,.12)' }}>
+                  <span className="flex gap-2 px-4 pt-2 pb-4 md:pt-4 text-[16px] leading-[1.5]" style={{ color: INK, background: 'rgba(167,184,143,.12)' }}>
                     <span aria-hidden className="font-bold" style={{ color: '#6f8256' }}>
                       ✓
                     </span>
