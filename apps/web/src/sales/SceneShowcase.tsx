@@ -10,7 +10,7 @@ import { SAMPLE } from './sample';
  * anyone who prefers less motion. Tap one to open the full sample in that design.
  */
 const SHOWN = SIGNATURE_NAMES.slice(0, 5);
-const CYCLE = 7200;
+const CYCLE = 6600;
 
 function Phone({ name, delay, playing }: { name: string; delay: number; playing: boolean }) {
   const [phase, setPhase] = useState(0);
@@ -21,9 +21,9 @@ function Phone({ name, delay, playing }: { name: string; delay: number; playing:
     const go = (at: number, fn: () => void) => timers.push(window.setTimeout(fn, at));
     const loop = () => {
       setPhase(0);
-      go(2200, () => setPhase(1));
-      go(4700, () => setPhase(2));
-      go(5700, () => setPhase(3));
+      go(1800, () => setPhase(1));
+      go(3700, () => setPhase(2));
+      go(4700, () => setPhase(3));
       go(CYCLE, () => {
         setRun((r) => r + 1);
         loop();

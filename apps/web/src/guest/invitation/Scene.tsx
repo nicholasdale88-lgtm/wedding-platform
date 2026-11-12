@@ -648,9 +648,9 @@ function beachArt(c: SceneColours, initials: string): string {
     <path d='M0 600 C80 590 160 612 250 600 C340 588 420 610 500 598' fill='none' stroke='#fff' stroke-width='4' stroke-opacity='.85'/>
     <rect y='600' width='500' height='400' filter='url(#grit)'/>
     <g filter='url(#dug)' fill='none' stroke='${dark(sand, 0.28)}' stroke-width='4' stroke-linecap='round'>
-      <path d='M250 840 C210 805 200 770 225 760 C240 754 250 768 250 775 C250 768 260 754 275 760 C300 770 290 805 250 840Z'/>
+      <path d='M250 765 C210 730 200 695 225 685 C240 679 250 693 250 700 C250 693 260 679 275 685 C300 695 290 730 250 765Z'/>
     </g>
-    <text x='250' y='740' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='44' fill='${dark(sand, 0.3)}' fill-opacity='.85'>${text}</text>
+    <text x='250' y='668' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='44' fill='${dark(sand, 0.3)}' fill-opacity='.85'>${text}</text>
     ${shell(110, 900, 1.8, -20)}${shell(390, 880, 1.5, 25)}${shell(170, 965, 1.2, 10)}`,
     500,
     1000,
