@@ -30,7 +30,7 @@ export function DemoPage() {
   }, []);
   return (
     <>
-      <SampleInvitation key={theme ?? ''} theme={theme} />
+      <SampleInvitation key={theme ?? ''} theme={theme} play={params.get('play') === '1'} />
       {!embed && (
         <div className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-3 py-2 pl-4 pr-2 rounded-full text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]" style={{ background: 'rgba(51,64,47,.92)' }}>
           <Link to={params.get('from') === 'designs' ? '/designs' : '/'} className="flex-none py-[7px] px-3 rounded-full no-underline font-semibold !text-[#fbf8f2] border border-[rgba(251,248,242,.4)]">
@@ -49,9 +49,16 @@ export function DemoPage() {
 }
 
 /** The guest invitation for the sample wedding: the generated design view, run by the real invitation logic. */
-export function SampleInvitation({ theme }: { theme?: string } = {}) {
+export function SampleInvitation({ theme, play = false }: { theme?: string; play?: boolean } = {}) {
   const data = theme ? { ...SAMPLE_INVITE, wedding: { ...SAMPLE_INVITE.wedding, theme } } : SAMPLE_INVITE;
   const { v: core, t, phase, seal } = useInvitation(data.wedding.slug, data, true);
+  // The front page's phone: the seal breaks by itself after a moment, so the envelope opens as people watch.
+  const openNow = core.open;
+  useEffect(() => {
+    if (!play) return;
+    const id = window.setTimeout(() => openNow(), 2200);
+    return () => window.clearTimeout(id);
+  }, [play, openNow]);
   // No "Add to your calendar" links: there's no real wedding behind them.
   const scene = sceneOf(data.wedding.theme, data.content.scene);
   const v = { ...core, after: () => undefined, ...(scene === 'none' ? {} : { envOp: 0, hintOp: 0 }) };

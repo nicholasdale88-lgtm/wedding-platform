@@ -34,10 +34,10 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true }: { src?: st
     <figure className="m-0 flex flex-col items-center gap-4">
       {/* The frame keeps a phone's proportions at any width. */}
       <div
-        className="relative rounded-[44px] p-[10px] bg-[#151a13] shadow-[0_40px_80px_rgba(27,34,24,.28),inset_0_0_0_2px_#3a4236]"
+        className="relative rounded-[44px] p-[10px] bg-[#1c1719] shadow-[0_40px_80px_rgba(70,40,40,.3),inset_0_0_0_2px_#3a3036]"
         style={{ width: 'min(300px, 82vw)' }}
       >
-        <span aria-hidden className="absolute z-10 top-[18px] left-1/2 w-[78px] h-[20px] -ml-[39px] rounded-full bg-[#151a13]" />
+        <span aria-hidden className="absolute z-10 top-[18px] left-1/2 w-[78px] h-[20px] -ml-[39px] rounded-full bg-[#1c1719]" />
         <div ref={screen} className="relative w-full overflow-hidden rounded-[34px] bg-[#f6f0e2]" style={{ aspectRatio: `${PHONE_W} / ${PHONE_H}` }}>
           <iframe
             key={`${src}#${run}`}
@@ -50,9 +50,9 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true }: { src?: st
         </div>
       </div>
       {caption && (
-        <figcaption className="flex flex-col items-center gap-1 text-[14px] text-center" style={{ color: '#5b6a52' }}>
+        <figcaption className="flex flex-col items-center gap-1 text-[14px] text-center" style={{ color: '#6e6068' }}>
           <span>Tap the seal. This is the real invitation, with sample names.</span>
-          <button type="button" onClick={() => setRun((n) => n + 1)} className="p-0 border-0 bg-transparent underline underline-offset-2 cursor-pointer text-[14px]" style={{ color: '#33402f' }}>
+          <button type="button" onClick={() => setRun((n) => n + 1)} className="p-0 border-0 bg-transparent underline underline-offset-2 cursor-pointer text-[14px]" style={{ color: '#2e2430' }}>
             Play it again
           </button>
         </figcaption>

@@ -19,8 +19,7 @@ describe('front page', () => {
     expect(screen.getByText(/guest list updated/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Start your wedding' })).toHaveAttribute('href', '#start');
     expect(screen.getByRole('heading', { name: 'Opened like a gift.' })).toBeInTheDocument();
-    // Condensed: the separate sample-invitation phone and the founders' section are folded away.
-    expect(screen.queryByTitle(/^Sample invitation for Harriet & Theo/)).toBeNull();
+    // Condensed: the founders' section is folded into the comparison.
     expect(screen.getByText(/The founders, who built it for their own wedding/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'And everything after the yes.' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Vendor directory' }).length).toBeGreaterThan(0);
@@ -78,14 +77,13 @@ describe('front page', () => {
     expect(within(list).getByText(/Free, as often as you like/)).toBeInTheDocument();
   });
 
-  it('shows the Signature designs opening, each leading to its sample', async () => {
+  it('leads with the real envelope and wax seal, opening by itself in the phone', () => {
     page();
-    // The showcase loads just after the page (its artwork is large).
-    const row = await screen.findByRole('list', { name: 'Signature designs' });
-    const links = within(row).getAllByRole('link');
-    expect(links.length).toBe(4);
-    expect(links[0]).toHaveAttribute('href', '/demo?theme=Rosewood%20Doors');
-    expect(row.querySelectorAll('[data-scene]').length).toBe(4);
+    const phone = screen.getByTitle(/^Sample invitation for/);
+    expect(phone.tagName).toBe('IFRAME');
+    expect(phone).toHaveAttribute('src', '/demo?embed=1&play=1');
+    expect(screen.getByRole('img', { name: /sealed envelope/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See every design' })).toHaveAttribute('href', '/designs');
   });
 
   it('shows how sending works, step by step, with text credits bought separately', () => {

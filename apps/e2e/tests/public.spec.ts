@@ -11,8 +11,8 @@ test('front page: one headline, the call to action, and the invitations opening'
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('never forget');
   await expect(page.getByRole('link', { name: 'Start your wedding' }).first()).toBeVisible();
-  // The hero's phone opens the Signature designs (it loads just after the page).
-  await expect(page.locator('[data-scene]').first()).toBeAttached();
+  // The hero's phone is the real invitation: the envelope and its wax seal.
+  await expect(page.getByTitle(/^Sample invitation for/)).toBeAttached();
   // The page never scrolls sideways on a phone.
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(wide).toBeLessThanOrEqual(1);

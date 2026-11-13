@@ -1,6 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   allows,
@@ -19,6 +19,7 @@ import {
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
 import { envelopeClose, flatLay } from './Stills';
+import { HeroInvite } from './HeroInvite';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 
@@ -61,20 +62,6 @@ const TEXTS_LINE = 'Automatic text invitations and reminders (text credits extra
 const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN);
 /** How sending invitations works, start to finish, with the one cost that isn't in a plan (text credits). */
 /** The opening scenes are big (their artwork is drawn in code): they load after the page has shown. */
-const SceneShowcase = lazy(() => import('./SceneShowcase').then((m) => ({ default: m.SceneShowcase })));
-const HeroScene = lazy(() => import('./SceneShowcase').then((m) => ({ default: m.HeroScene })));
-
-/** While the hero's phone loads: the same phone, showing the card. */
-function HeroPhoneStill() {
-  return (
-    <span className="relative z-10 block w-[min(290px,74vw)] aspect-[290/600] rounded-[46px] p-[10px] bg-[#1c1719] shadow-[0_50px_90px_rgba(70,40,40,.32)]">
-      <span className="flex flex-col items-center justify-center gap-3 w-full h-full rounded-[37px] text-center" style={{ background: '#fbf3f1', color: '#4a1f2b' }}>
-        <span className="text-[11px] tracking-[.26em] uppercase opacity-80">Together with their families</span>
-        <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 44, lineHeight: 1.05 }}>Harriet &amp; Theo</span>
-      </span>
-    </span>
-  );
-}
 
 /**
  * Everything after the yes, as tiles: two of our still lifes with the words over them, then softly tinted
@@ -124,6 +111,12 @@ function Tiles() {
       {card('linear-gradient(160deg,#f9e9e6,#f2d9d4)', 'Every meal on the right plate', 'Special menus go to everyone who needs one, and the caterer gets one clear list.')}
     </div>
   );
+}
+
+/** The envelope section's picture: one sealed envelope, close up, on linen. */
+function EnvelopeStill() {
+  const src = useMemo(() => envelopeClose('#f6f1e9', '#9c7432'), []);
+  return <img alt="A sealed envelope with the couple's initials pressed into a gold wax seal" src={src} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-[30px] shadow-[0_34px_70px_rgba(70,40,40,.2)]" />;
 }
 
 /** Behind the hero's phone: our own still life of sealed envelopes on linen, set like a product photograph. */
@@ -356,9 +349,10 @@ export function SalesPage() {
             </div>
             <div className="relative flex justify-center py-6">
               <HeroStill />
-              <Suspense fallback={<HeroPhoneStill />}>
-                <HeroScene />
-              </Suspense>
+              {/* The real invitation: the envelope and its wax seal, which breaks and opens by itself. */}
+              <span className="relative z-10">
+                <HeroInvite src="/demo?embed=1&play=1" caption={false} />
+              </span>
               <Bubble from="us" className="top-[6%] left-0 md:-left-6 hidden sm:block">
                 Harriet &amp; Theo would love you to celebrate with them. Your invitation and RSVP: <u>tap here</u>
               </Bubble>
@@ -372,25 +366,21 @@ export function SalesPage() {
           </div>
         </section>
 
-        {/* The Signature designs, each opening by itself: the wow, before anything else. */}
-        <section aria-labelledby="scenes" className="pt-16 pb-10 px-4 overflow-hidden" style={{ background: `linear-gradient(180deg, ${BLUSH} 0%, ${PAPER} 100%)` }}>
-          <div className="max-w-[1200px] mx-auto flex flex-col gap-10">
-            <div className="text-center flex flex-col gap-3 items-center">
-              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#a8834a' }}>
-                Signature designs
+        {/* The envelope and its seal, close up: what every guest opens first. */}
+        <section aria-labelledby="scenes" className="py-16 md:py-20 px-4 overflow-hidden" style={{ background: `linear-gradient(180deg, ${BLUSH} 0%, ${PAPER} 100%)` }}>
+          <div className="max-w-[1100px] mx-auto grid gap-10 md:grid-cols-2 items-center">
+            <EnvelopeStill />
+            <div className="flex flex-col gap-4 items-center md:items-start text-center md:text-left">
+              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: GOLD }}>
+                The envelope and the seal
               </span>
-              <h2 id="scenes" className="m-0 text-[clamp(36px,5.6vw,60px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
+              <h2 id="scenes" className="m-0 text-[clamp(38px,5.6vw,60px)] leading-[1.02] font-medium" style={{ fontFamily: serif }}>
                 Opened like a gift.
               </h2>
-              <p className="m-0 text-[18px] leading-[1.55] max-w-[600px]" style={{ color: SOFT }}>
-                Lacquered doors in gold leaf, sheets of vellum lifting away, velvet curtains on a lit stage, a satin bow, a barn hung with eucalyptus, your own photograph. Every one drawn by us, in your colours, with your initials. And {THEME_COUNT} designs in six looks to choose from.
+              <p className="m-0 text-[18px] leading-[1.6] max-w-[480px]" style={{ color: SOFT }}>
+                Every guest’s invitation arrives sealed, with your initials pressed into the wax. One tap breaks the seal, the flap lifts and the card rises out to meet them. Choose the paper, the wax and the colours; {THEME_COUNT} designs to start from.
               </p>
-            </div>
-            <Suspense fallback={<div aria-hidden className="min-h-[clamp(360px,62vw,560px)]" />}>
-              <SceneShowcase />
-            </Suspense>
-            <div className="flex justify-center">
-              <Link to="/designs" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
+              <Link to="/designs" className="mt-2 py-3 px-6 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: '#fbf1e8' }}>
                 See every design
               </Link>
             </div>
