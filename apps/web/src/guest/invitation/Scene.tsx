@@ -1155,7 +1155,7 @@ function wisteriaArt(c: SceneColours): string {
       const col = mix(deep, pale, Math.min(1, t * 1.15));
       const per = t < 0.85 ? 3 : 2;
       for (let j = 0; j < per; j++) {
-        const u = per === 1 ? 0 : j / (per - 1) - 0.5;
+        const u = j / (per - 1) - 0.5;
         const fx = x + u * spread * 1.6 + (rnd(i * 7 + j + k * 50, 1) - 0.5) * 5;
         const fy = y + (rnd(i * 7 + j + k * 50, 2) - 0.5) * 5;
         const turn = u * 70 + (rnd(i + j, 3) - 0.5) * 50;
