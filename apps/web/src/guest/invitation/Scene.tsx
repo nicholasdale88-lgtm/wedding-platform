@@ -154,15 +154,16 @@ function doorArt(c: SceneColours, mirror = false): string {
     </g>`;
   const flip = mirror ? 'translate(300 0) scale(-1 1)' : '';
   return svgUrl(
-    `<defs>${RELIEF('r', 6, 1.6)}${GRAIN('g', 0.75, 0.07)}
-      <filter id='brush' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='0.55 0.012' numOctaves='2' seed='3'/><feColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .22 -.07'/></filter>
+    `<defs>${RELIEF('r', 3.4, 1.05)}${GRAIN('g', 0.9, 0.035)}
+      <linearGradient id='lac' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='#000' stop-opacity='.22'/><stop offset='.18' stop-color='#fff' stop-opacity='.03'/><stop offset='.34' stop-color='#fff' stop-opacity='.13'/><stop offset='.42' stop-color='#fff' stop-opacity='.05'/><stop offset='.7' stop-color='#000' stop-opacity='.04'/><stop offset='1' stop-color='#000' stop-opacity='.2'/></linearGradient>
+      <radialGradient id='key' cx='.3' cy='.18' r='.95'><stop offset='0' stop-color='#fff' stop-opacity='.14'/><stop offset='.55' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.28'/></radialGradient>
       <linearGradient id='sh' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.12'/><stop offset='.55' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.2'/></linearGradient>
       <linearGradient id='seam' x1='${mirror ? 1 : 0}' x2='${mirror ? 0 : 1}'><stop offset='.84' stop-color='#000' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.34'/></linearGradient>
       <linearGradient id='gilt' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${light(gold, 0.55)}'/><stop offset='.3' stop-color='${gold}'/><stop offset='.55' stop-color='${light(gold, 0.4)}'/><stop offset='1' stop-color='${dark(gold, 0.3)}'/></linearGradient>
       <linearGradient id='brass' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${light(gold, 0.5)}'/><stop offset='.45' stop-color='${gold}'/><stop offset='.7' stop-color='${light(gold, 0.25)}'/><stop offset='1' stop-color='${dark(gold, 0.4)}'/></linearGradient>
     </defs>
     <rect width='300' height='1000' fill='${door}'/>
-    <rect width='300' height='1000' filter='url(#brush)'/>
+    <rect width='300' height='1000' fill='url(#lac)'/>
     <rect width='300' height='1000' fill='url(#sh)'/>
     <g filter='url(#r)'><g transform='${flip}'>${relief}</g></g>
     <g transform='${flip}' fill='none' stroke='url(#gilt)'>
@@ -171,6 +172,7 @@ function doorArt(c: SceneColours, mirror = false): string {
     </g>
     ${plate}
     <rect width='300' height='1000' filter='url(#g)'/>
+    <rect width='300' height='1000' fill='url(#key)'/>
     <rect width='300' height='1000' fill='url(#seam)'/>
     <rect x='${mirror ? 0 : 0}' y='0' width='300' height='3' fill='#fff' fill-opacity='.18'/>`,
     300,
@@ -207,8 +209,9 @@ function sealArt(colour: string, initials: string): string {
       <circle cx='110' cy='110' r='64' fill='none' stroke='#fff' stroke-opacity='.75' stroke-width='3'/>
       <circle cx='110' cy='110' r='58' fill='#fff' fill-opacity='.25'/>
       ${sprig(1)}${sprig(-1)}
-      <text x='110' y='124' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='40' fill='#fff' fill-opacity='.9'>${text}</text>
     </g>
+    <text x='110' y='125.5' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='38' fill='#fff' fill-opacity='.6'>${text}</text>
+    <text x='110' y='124' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='38' fill='${dark(colour, 0.55)}' fill-opacity='1'>${text}</text>
     <ellipse cx='84' cy='76' rx='38' ry='24' fill='url(#gloss)'/>`,
     220,
     220,
@@ -673,6 +676,37 @@ export function sceneArt(kind: Exclude<Scene, 'auto' | 'none'>, c: SceneColours,
 }
 
 const LAYER: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' };
+/** Scenes on light paper (the name sits in the ink colour on a light scrim). */
+const light3: string[] = ['bow', 'book', 'beach'];
+
+/** Specks of light drifting up through an opening (each its own path and pace, the same every time). */
+function Motes({ colour, from = 0.5, n = 16 }: { colour: string; from?: number; n?: number }) {
+  return (
+    <>
+      {Array.from({ length: n }, (_, i) => {
+        const size = 2 + rnd(i, 21) * 4;
+        return (
+          <span
+            key={i}
+            style={{
+              position: 'absolute',
+              left: `${f1(30 + rnd(i, 22) * 40)}%`,
+              top: `${f1(42 + rnd(i, 23) * 30)}%`,
+              width: size,
+              height: size,
+              borderRadius: '50%',
+              background: colour,
+              boxShadow: `0 0 ${f1(size * 3)}px ${colour}`,
+              opacity: 0,
+              ['--dx' as string]: `${f1((rnd(i, 24) - 0.5) * 120)}px`,
+              animation: `ylMote ${f1(2.2 + rnd(i, 25) * 1.6)}s ease-out ${f1(from + rnd(i, 26) * 1.1)}s both`,
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, contained = false }: { kind: Exclude<Scene, 'auto' | 'none'>; phase: number; colours: SceneColours; initials: string; guestName: string; contained?: boolean }) {
   const still = useMemo(() => prefersLessMotion(), []);
@@ -686,45 +720,62 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, 
   let body: ReactNode = null;
 
   if (kind === 'doors') {
-    // Hinged at the screen's edges, both swinging toward the guest.
+    // Hinged at the screen's edges, both swinging toward the guest after a small press, the camera easing in.
     const doorStyle = (side: 'left' | 'right'): CSSProperties => ({
       position: 'absolute',
       top: 0,
       bottom: 0,
       [side]: 0,
       width: '50.2%',
-      transform: `rotateY(${open && !still ? (side === 'left' ? -108 : 108) : 0}deg)`,
+      transform: `rotateY(${open && !still ? (side === 'left' ? -112 : 112) : 0}deg)`,
       transformOrigin: side === 'left' ? 'left center' : 'right center',
-      transition: t(2.3, 0.35),
-      boxShadow: open ? '0 0 60px rgba(0,0,0,.45)' : 'none',
+      transition: still ? 'opacity .4s ease' : `transform 2.4s cubic-bezier(.55,.02,.2,1) .42s`,
       overflow: 'hidden',
       willChange: 'transform',
       backfaceVisibility: 'hidden',
     });
     // The right door is drawn as the left one's mirror image (flipping it on screen can show black on some phones).
     const panel = (mirror: boolean): CSSProperties => ({ position: 'absolute', inset: 0, backgroundImage: mirror ? art.door2 : art.door, backgroundSize: 'cover', backgroundPosition: 'center' });
-    // The seal sits across the seam: each door shows its own half, so it splits as they open.
-    const half = (side: 'left' | 'right'): CSSProperties => ({
-      position: 'absolute',
-      top: '50%',
-      [side === 'left' ? 'right' : 'left']: 0,
-      width: 'min(30cqw,128px)',
-      height: 'min(30cqw,128px)',
-      transform: `translate(${side === 'left' ? '50%' : '-50%'},-50%) scale(${p === 1 ? 1.06 : 1})`,
-      backgroundImage: art.seal,
-      backgroundSize: 'contain',
-      backgroundRepeat: 'no-repeat',
-      transition: 'transform .3s ease',
+    // As a door turns away from the light it darkens (so it reads as turning, not shrinking).
+    const turnShade = (side: 'left' | 'right'): CSSProperties => ({
+      ...LAYER,
+      background: `linear-gradient(to ${side === 'left' ? 'right' : 'left'}, rgba(0,0,0,.15), rgba(0,0,0,.55))`,
+      opacity: open && !still ? 1 : 0,
+      transition: 'opacity 1.6s ease .6s',
     });
+    // The seal sits across the seam: each door shows its own half; they break apart and fall away.
+    const half = (side: 'left' | 'right'): CSSProperties => {
+      const k = side === 'left' ? -1 : 1;
+      return {
+        position: 'absolute',
+        top: '50%',
+        [side === 'left' ? 'right' : 'left']: 0,
+        width: 'min(30cqw,128px)',
+        height: 'min(30cqw,128px)',
+        transform: open && !still ? `translate(${side === 'left' ? '50%' : '-50%'},-50%) translate(${k * 14}px, 46px) rotate(${k * 16}deg)` : `translate(${side === 'left' ? '50%' : '-50%'},-50%) scale(${p === 1 ? 1.05 : 1})`,
+        opacity: open && !still ? 0 : 1,
+        backgroundImage: art.seal,
+        backgroundSize: 'contain',
+        backgroundRepeat: 'no-repeat',
+        transition: 'transform .7s cubic-bezier(.4,0,.7,.2) .12s, opacity .45s ease .4s',
+      };
+    };
     body = (
-      <div style={{ ...LAYER, perspective: '1600px', background: `radial-gradient(circle at 50% 45%, ${light(c.paper, 0.4)}, ${c.paper} 60%)` }}>
-        <div style={doorStyle('left')}>
-          <div style={panel(false)} />
-          <div style={half('left')} />
-        </div>
-        <div style={doorStyle('right')}>
-          <div style={panel(true)} />
-          <div style={half('right')} />
+      <div style={{ ...LAYER, transform: open && !still ? 'scale(1.07)' : 'scale(1)', transition: 'transform 3s cubic-bezier(.3,0,.2,1) .3s' }}>
+        <div style={{ ...LAYER, perspective: '1500px', background: `radial-gradient(circle at 50% 46%, #fffaf0 0%, ${light(c.paper, 0.35)} 30%, ${mix(c.paper, c.envelope, 0.3)} 100%)`, animation: open && !still ? 'ylPress .42s cubic-bezier(.3,0,.3,1)' : undefined }}>
+          {/* The light behind the doors, flooding out as they part. */}
+          <div style={{ ...LAYER, background: 'radial-gradient(ellipse 60% 55% at 50% 48%, rgba(255,246,222,.95), rgba(255,246,222,0) 70%)', opacity: open && !still ? 1 : 0, transition: 'opacity 1.4s ease .5s' }} />
+          {open && !still && <Motes colour="#fff3d6" from={0.7} />}
+          <div style={doorStyle('left')}>
+            <div style={panel(false)} />
+            <div style={turnShade('left')} />
+            <div style={half('left')} />
+          </div>
+          <div style={doorStyle('right')}>
+            <div style={panel(true)} />
+            <div style={turnShade('right')} />
+            <div style={half('right')} />
+          </div>
         </div>
       </div>
     );
@@ -732,8 +783,8 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, 
     const ribbon = mix(c.soft, c.ink, 0.18);
     body = (
       <div style={{ ...LAYER, backgroundImage: art.paper, backgroundSize: 'cover', transform: open && !still ? 'translateY(-104%)' : 'none', transition: t(1.5, 1.05) }}>
-        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 58, marginLeft: -29, background: satin(ribbon), boxShadow: '0 0 14px rgba(0,0,0,.18)', transform: open && !still ? 'translateY(100%)' : 'none', transition: t(1.1, 0.45) }} />
-        <div style={{ position: 'absolute', left: 0, right: 0, top: '44%', height: 58, marginTop: -29, background: satin(ribbon, '180deg'), boxShadow: '0 0 14px rgba(0,0,0,.18)', transform: open && !still ? 'translateX(100%)' : 'none', transition: t(1.1, 0.5) }} />
+        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 58, marginLeft: -29, background: satin(ribbon), boxShadow: '0 0 14px rgba(0,0,0,.18)', transform: open && !still ? 'translateY(115%)' : 'none', opacity: open && !still ? 0 : 1, transition: still ? 'opacity .4s ease' : `transform 1.1s ${ease} .45s, opacity .5s ease 1s` }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, top: '44%', height: 58, marginTop: -29, background: satin(ribbon, '180deg'), boxShadow: '0 0 14px rgba(0,0,0,.18)', transform: open && !still ? 'translateX(115%)' : 'none', opacity: open && !still ? 0 : 1, transition: still ? 'opacity .4s ease' : `transform 1.1s ${ease} .5s, opacity .5s ease 1.05s` }} />
         <div
           style={{
             position: 'absolute',
@@ -741,7 +792,7 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, 
             top: '44%',
             width: 'min(96cqw,460px)',
             aspectRatio: '440 / 400',
-            transform: `translate(-50%,-37.5%) scale(${open && !still ? 0.15 : p === 1 ? 1.04 : 1}) rotate(${open && !still ? -25 : 0}deg)`,
+            transform: open && !still ? 'translate(-50%,-62%) scale(1.14) rotate(-5deg)' : `translate(-50%,-37.5%) scale(${p === 1 ? 1.04 : 1})`,
             opacity: open ? 0 : 1,
             backgroundImage: art.bow,
             backgroundSize: 'contain',
@@ -804,11 +855,9 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, 
     body = (
       <div style={{ ...LAYER, backgroundImage: art.field, backgroundSize: 'cover', backgroundPosition: 'center' }}>
         <div style={{ ...LAYER, background: 'radial-gradient(ellipse at 50% 40%, rgba(255,250,230,.0), rgba(255,250,230,.0) 40%, rgba(0,0,0,.25))' }} />
-        <div style={door('left')}>
+        <div style={door('right')} />
+        <div style={{ ...door('left'), overflow: 'visible', zIndex: 1 }}>
           <div style={half('left')} />
-        </div>
-        <div style={door('right')}>
-          <div style={half('right')} />
         </div>
         {/* The rail and its rollers. */}
         <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(5% - 16px)', height: 16, background: 'linear-gradient(#4a4642, #23201e)', boxShadow: '0 4px 10px rgba(0,0,0,.35)' }} />
@@ -819,7 +868,7 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, 
     );
   } else if (kind === 'book') {
     // A storybook on the table: its cover swings open to the first page.
-    const size: CSSProperties = { position: 'absolute', left: '50%', top: '50%', width: 'min(84cqw,52cqh,440px)', aspectRatio: '300 / 620', transform: 'translate(-50%,-52%)' };
+    const size: CSSProperties = { position: 'absolute', left: '50%', top: '44%', width: 'min(68cqw,36cqh,360px)', aspectRatio: '300 / 620', transform: 'translate(-50%,-52%)' };
     body = (
       <div style={{ ...LAYER, perspective: '1800px', background: `radial-gradient(ellipse at 50% 40%, ${light(c.paper, 0.5)} 0%, ${mix(c.paper, c.soft, 0.6)} 55%, ${mix(c.soft, c.ink, 0.25)} 100%)` }}>
         <div style={{ ...size, borderRadius: 6, boxShadow: '0 30px 60px rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.18)', backgroundImage: art.page, backgroundSize: 'cover' }} />
@@ -923,20 +972,35 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, 
       /* Sized by its box (cqw, cqh): the same scene fills a phone's screen, or a little phone on the front page. */
       style={{ position: contained ? 'absolute' : 'fixed', inset: 0, zIndex: 25, pointerEvents: 'none', overflow: 'hidden', containerType: 'size', opacity: gone ? 0 : 1, transition: 'opacity .9s ease' }}
     >
-      <style>{`@keyframes ylBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } } @keyframes ylHint { 0%,100% { opacity: .65 } 50% { opacity: 1 } }`}</style>
+      <style>{`@keyframes ylBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } } @keyframes ylHint { 0%,100% { opacity: .65 } 50% { opacity: 1 } } @keyframes ylPress { 0% { transform: scale(1) } 35% { transform: scale(.982) } 100% { transform: scale(1) } } @keyframes ylMote { 0% { transform: translate(0,0); opacity: 0 } 20% { opacity: .9 } 100% { transform: translate(var(--dx), -38cqh); opacity: 0 } }`}</style>
       {body}
+      {/* A soft scrim at the foot of the scene, under the name. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: '34cqh',
+          zIndex: 2,
+          background: light3.includes(kind) ? 'linear-gradient(to top, rgba(255,255,255,.72), rgba(255,255,255,0))' : 'linear-gradient(to top, rgba(10,8,6,.62), rgba(10,8,6,0))',
+          opacity: open ? 0 : 1,
+          transition: 'opacity .5s ease',
+        }}
+      />
       <div
         style={{
           position: 'absolute',
           left: 0,
           right: 0,
           bottom: 'calc(9cqh + env(safe-area-inset-bottom))',
+          zIndex: 3,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           gap: 6,
-          color: kind === 'bow' || kind === 'book' || kind === 'beach' ? c.ink : '#fbf6ea',
-          textShadow: kind === 'bow' || kind === 'book' || kind === 'beach' ? '0 1px 0 rgba(255,255,255,.6)' : '0 2px 10px rgba(0,0,0,.45)',
+          color: light3.includes(kind) ? c.ink : '#fbf6ea',
+          textShadow: light3.includes(kind) ? '0 1px 0 rgba(255,255,255,.6)' : '0 2px 12px rgba(0,0,0,.55)',
           opacity: open ? 0 : 1,
           transition: 'opacity .5s ease',
         }}

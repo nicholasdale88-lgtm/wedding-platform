@@ -59,6 +59,20 @@ const guestsLine = (k: PlanKey) => (allows(k, 'unlimitedGuests') ? 'As many gues
 const TEXTS_LINE = 'Automatic text invitations and reminders (text credits extra)';
 /** Texts are never part of a plan: the most they cost a guest's mobile, all-in (13 credits at 8c, every text sent). */
 const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN);
+/** How sending invitations works, start to finish, with the one cost that isn't in a plan (text credits). */
+const SEND_STEPS: { title: string; text: string; extra?: string }[] = [
+  { title: 'Add your guests', text: 'Bring them in from your phone’s contacts or a spreadsheet, or type them in. Each household gets its own private invitation link.' },
+  { title: 'Make the invitation yours', text: 'Choose a design and the opening, then your words, photos and music. Preview it exactly as a guest will see it.' },
+  { title: 'Pay for your plan, once', text: `From ${fromPrice}, when you’re ready to send. No subscription.` },
+  {
+    title: 'Choose how it goes out',
+    text: 'Free from your own phone (we open a ready-written message for each guest) or by email. Or let us text everyone for you, with reminders sent automatically.',
+    extra: `Texting from us needs text credits, bought separately: they’re not included in any plan. ${TEXT_CREDIT_ALL_IN}c a credit, all-in, about ${typicalTexts} for ${TYPICAL_GUESTS} guests from invitations to thank-yous. You see the total before you pay.`,
+  },
+  { title: 'Send, and watch the yeses arrive', text: 'Guests tap their link, open the invitation and reply in seconds. Anyone who hasn’t answered gets a gentle reminder.' },
+  { title: 'Replies sort themselves', text: 'Every reply fills your guest list, dietary list and seating plan as it comes in.' },
+];
+
 const TEXTS_PRICE_LINE = `Texts not included: up to ${TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest, all-in, for every text`;
 
 const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] = [
@@ -306,6 +320,42 @@ export function SalesPage() {
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="how-send" className="py-24 px-4">
+          <div className="max-w-[1000px] mx-auto flex flex-col gap-12">
+            <div className="text-center flex flex-col gap-4">
+              <p className="m-0 text-[13px] tracking-[.2em] uppercase font-semibold" style={{ color: GOLD }}>
+                How sending works
+              </p>
+              <h2 id="how-send" className="m-0 text-[clamp(34px,5.4vw,56px)] leading-[1.06] font-normal" style={{ fontFamily: serif }}>
+                From your guest list to their yes.
+              </h2>
+            </div>
+            <ol className="m-0 p-0 list-none grid gap-x-10 gap-y-8 md:grid-cols-2">
+              {SEND_STEPS.map((step, i) => (
+                <li key={step.title} className="flex gap-5 min-w-0">
+                  <span aria-hidden className="flex-none w-11 h-11 rounded-full flex items-center justify-center text-[18px]" style={{ background: INK, color: PAPER, fontFamily: serif }}>
+                    {i + 1}
+                  </span>
+                  <span className="flex flex-col gap-2 min-w-0">
+                    <h3 className="m-0 text-[24px] leading-[1.2] font-normal" style={{ fontFamily: serif }}>
+                      {step.title}
+                    </h3>
+                    <p className="m-0 text-[16px] leading-[1.6]" style={{ color: SOFT }}>
+                      {step.text}
+                    </p>
+                    {step.extra && (
+                      <p className="m-0 p-4 rounded-[14px] text-[15px] leading-[1.55]" style={{ background: CREAM, border: '1px solid #e6dcc4' }}>
+                        <strong className="font-semibold">Text credits: </strong>
+                        {step.extra}
+                      </p>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ol>
           </div>
         </section>
 

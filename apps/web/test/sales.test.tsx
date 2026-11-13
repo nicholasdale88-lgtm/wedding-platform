@@ -80,9 +80,17 @@ describe('front page', () => {
     page();
     const row = screen.getByRole('list', { name: 'Signature designs' });
     const links = within(row).getAllByRole('link');
-    expect(links.length).toBe(5);
+    expect(links.length).toBe(3);
     expect(links[0]).toHaveAttribute('href', '/demo?theme=Rosewood%20Doors');
-    expect(row.querySelectorAll('[data-scene]').length).toBe(5);
+    expect(row.querySelectorAll('[data-scene]').length).toBe(3);
+  });
+
+  it('shows how sending works, step by step, with text credits bought separately', () => {
+    page();
+    const steps = screen.getByRole('heading', { name: 'From your guest list to their yes.' }).closest('section')!;
+    expect(within(steps).getAllByRole('listitem')).toHaveLength(6);
+    expect(within(steps).getByText(/not included in any plan/)).toBeInTheDocument();
+    expect(within(steps).getByText(/Free from your own phone/)).toBeInTheDocument();
   });
 
   it('says clearly it is Australian owned and operated', () => {

@@ -9,7 +9,8 @@ import { SAMPLE } from './sample';
  * open to the card, closed again), a little apart from each other. Only while on screen, and still for
  * anyone who prefers less motion. Tap one to open the full sample in that design.
  */
-const SHOWN = SIGNATURE_NAMES.slice(0, 5);
+// The finished ones only (docs/SCENE_AUDIT.md): the rest stay for couples who chose them, off the front page.
+const SHOWN = ['Rosewood Doors', 'Opening Night', 'Satin Bow'].filter((n) => SIGNATURE_NAMES.includes(n));
 const CYCLE = 6600;
 
 function Phone({ name, delay, playing }: { name: string; delay: number; playing: boolean }) {
