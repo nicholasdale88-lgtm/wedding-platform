@@ -57,7 +57,7 @@ function Phone({ name, delay, playing }: { name: string; delay: number; playing:
       </span>
       <span className="flex flex-col items-center gap-[2px]">
         <span className="text-[15px] font-semibold">{themeLabel(name)}</span>
-        <span className="text-[12px] max-w-[176px] text-center" style={{ color: '#5b6a52' }}>
+        <span className="text-[12px] max-w-[176px] text-center" style={{ color: '#6e6068' }}>
           {d.style}
         </span>
       </span>
@@ -83,5 +83,48 @@ export function SceneShowcase() {
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * The hero's phone: one large phone that opens each finished Signature design in turn (the doors, the vellum,
+ * the curtains, the bow), the card underneath in that design's colours. Still for anyone who prefers less motion.
+ */
+export function HeroScene() {
+  const [i, setI] = useState(0);
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    const timers: number[] = [];
+    const go = (at: number, fn: () => void) => timers.push(window.setTimeout(fn, at));
+    go(1400, () => setPhase(1));
+    go(3600, () => setPhase(2));
+    go(4600, () => setPhase(3));
+    go(7200, () => {
+      setPhase(0);
+      setI((n) => (n + 1) % SHOWN.length);
+    });
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [i]);
+  const name = SHOWN[i] ?? SHOWN[0]!;
+  const t = themeOf(name);
+  const d = SIGNATURE[name]!;
+  return (
+    <span className="relative block w-[min(290px,74vw)] aspect-[290/600] rounded-[46px] p-[10px] bg-[#1c1719] shadow-[0_50px_90px_rgba(70,40,40,.32),0_0_0_1px_rgba(255,255,255,.06)_inset]">
+      <span aria-hidden className="absolute z-10 top-[18px] left-1/2 w-[80px] h-[22px] -ml-[40px] rounded-full bg-[#1c1719]" />
+      <span className="relative block w-full h-full rounded-[37px] overflow-hidden" style={{ background: t.b1 ?? '#fbf8f2' }}>
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ color: t.dg ?? '#33402f' }}>
+          <span className="text-[11px] tracking-[.26em] uppercase opacity-80">Together with their families</span>
+          <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 44, lineHeight: 1.05 }}>{SAMPLE.couple}</span>
+          <span className="block w-12 h-px" style={{ background: t.acc ?? '#b39563' }} />
+          <span className="text-[14px]">{SAMPLE.date}</span>
+          <span className="text-[12px] opacity-80">{SAMPLE.venue}</span>
+          <span className="mt-3 py-2 px-5 rounded-full text-[12px] font-semibold" style={{ background: t.dg ?? '#33402f', color: t.b1 ?? '#fbf8f2' }}>
+            RSVP
+          </span>
+        </span>
+        <SceneOverlay key={i} contained kind={d.scene} phase={phase} colours={{ paper: t.b1 ?? '#fbf8f2', ink: t.dg ?? '#33402f', accent: t.acc ?? '#b39563', soft: t.b2 ?? '#efe6d3', envelope: d.envelope }} initials="H & T" guestName={SAMPLE.guests} />
+      </span>
+    </span>
   );
 }

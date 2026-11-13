@@ -4,14 +4,14 @@
  * details for the sample couple, Harriet & Theo.
  */
 
-const INK = '#33402f';
-const SOFT = '#5b6a52';
+const INK = '#2e2430';
+const SOFT = '#6e6068';
 const GOLD = '#c8a46a';
 const serif = "'Cormorant Garamond', Georgia, serif";
 
 const CSS = `
 .sc-fan{position:relative;height:560px;max-width:980px;margin:0 auto}
-.sc-ph{position:absolute;top:30px;width:250px;height:510px;border-radius:40px;padding:10px;background:#151a13;box-shadow:0 30px 60px rgba(27,34,24,.35),inset 0 0 0 2px #3a4236;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.sc-ph{position:absolute;top:30px;width:250px;height:510px;border-radius:40px;padding:10px;background:#1c1719;box-shadow:0 30px 60px rgba(27,34,24,.35),inset 0 0 0 2px #3a3036;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
 .sc-ph>div{width:100%;height:100%;border-radius:31px;overflow:hidden;background:#fbf8f2;display:flex;flex-direction:column}
 .sc-l{left:calc(50% - 125px - 230px);transform:rotate(-8deg) translateY(30px)}
 .sc-m{left:calc(50% - 125px);top:0;z-index:2}

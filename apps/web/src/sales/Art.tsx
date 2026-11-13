@@ -5,7 +5,7 @@
  */
 import { useId } from 'react';
 
-const INK = '#33402f';
+const INK = '#2e2430';
 
 /**
  * The logo mark, as on the app icon: two interlocking gold rings (one with a small diamond) on deep sage,
@@ -21,8 +21,8 @@ export function LogoMark({ size = 34 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
       <defs>
         <linearGradient id={bg} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#344230" />
-          <stop offset="1" stopColor="#212b1e" />
+          <stop offset="0" stopColor="#4a3a4c" />
+          <stop offset="1" stopColor="#2a1f2c" />
         </linearGradient>
         <linearGradient id={g} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#f5e1aa" />
@@ -41,7 +41,7 @@ export function LogoMark({ size = 34 }: { size?: number }) {
       <circle cx="62" cy="54" r="20" fill="none" stroke={`url(#${g})`} strokeWidth="6.2" />
       {/* the right ring over the left at the bottom crossing, with a hairline gap */}
       <g clipPath={`url(#${clip})`}>
-        <circle cx="62" cy="54" r="20" fill="none" stroke="#1e271b" strokeWidth="8" />
+        <circle cx="62" cy="54" r="20" fill="none" stroke="#2a1f2c" strokeWidth="8" />
         <circle cx="62" cy="54" r="20" fill="none" stroke={`url(#${g})`} strokeWidth="6.2" />
       </g>
       <path d="M43.5 47 A17 17 0 0 1 55 40" fill="none" stroke="#fff4d0" strokeOpacity=".45" strokeWidth="1.2" />

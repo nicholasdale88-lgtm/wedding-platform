@@ -15,7 +15,8 @@ const page = () =>
 describe('front page', () => {
   it('leads with one line and one call to action, then the invitations opening (no second phone)', () => {
     page();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('RSVPs, sorted by text.');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The invitation they’ll never forget.');
+    expect(screen.getByText(/guest list updated/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Start your wedding' })).toHaveAttribute('href', '#start');
     expect(screen.getByRole('heading', { name: 'Opened like a gift.' })).toBeInTheDocument();
     // Condensed: the separate sample-invitation phone and the founders' section are folded away.

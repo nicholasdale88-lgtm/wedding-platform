@@ -1,6 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   allows,
@@ -18,7 +18,6 @@ import {
 } from '@wp/shared';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
-import { TextThread } from './TextThread';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 
@@ -32,11 +31,13 @@ export const BRAND = 'The Yes List';
 
 type PlanKey = 'free' | 'essentials' | 'complete';
 
-const INK = '#33402f';
-const SOFT = '#5b6a52';
-const GOLD = '#a9843f';
-const CREAM = '#f6f0e2';
-const PAPER = '#fbf8f2';
+// Warm ivory and blush, champagne gold, and a deep plum ink: the colours of the day itself, not of an office.
+const INK = '#2e2430';
+const SOFT = '#6e6068';
+const GOLD = '#a8834a';
+const CREAM = '#fbf5f0';
+const PAPER = '#fffcf8';
+const BLUSH = '#f6e6e0';
 const THEME_COUNT = THEME_NAMES.length;
 const serif = "'Playfair Display', Georgia, serif"; // our headings (the invitations keep their own lettering)
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
@@ -59,6 +60,34 @@ const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN
 /** How sending invitations works, start to finish, with the one cost that isn't in a plan (text credits). */
 /** The opening scenes are big (their artwork is drawn in code): they load after the page has shown. */
 const SceneShowcase = lazy(() => import('./SceneShowcase').then((m) => ({ default: m.SceneShowcase })));
+const HeroScene = lazy(() => import('./SceneShowcase').then((m) => ({ default: m.HeroScene })));
+
+/** While the hero's phone loads: the same phone, showing the card. */
+function HeroPhoneStill() {
+  return (
+    <span className="relative block w-[min(290px,74vw)] aspect-[290/600] rounded-[46px] p-[10px] bg-[#1c1719] shadow-[0_50px_90px_rgba(70,40,40,.32)]">
+      <span className="flex flex-col items-center justify-center gap-3 w-full h-full rounded-[37px] text-center" style={{ background: '#fbf3f1', color: '#4a1f2b' }}>
+        <span className="text-[11px] tracking-[.26em] uppercase opacity-80">Together with their families</span>
+        <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 44, lineHeight: 1.05 }}>Harriet &amp; Theo</span>
+      </span>
+    </span>
+  );
+}
+
+/** A text message beside the hero's phone: the invitation going out, the reply coming back, the list updating. */
+function Bubble({ from, children, className = '' }: { from: 'us' | 'them' | 'note'; children: ReactNode; className?: string }) {
+  const look =
+    from === 'us'
+      ? { background: '#ffffff', color: INK, borderRadius: '20px 20px 20px 6px' }
+      : from === 'them'
+        ? { background: 'linear-gradient(135deg,#c9a46a,#a8834a)', color: '#fffaf2', borderRadius: '20px 20px 6px 20px' }
+        : { background: INK, color: '#fbf1e8', borderRadius: 999 };
+  return (
+    <span className={`absolute z-20 max-w-[230px] py-3 px-4 text-[13.5px] leading-[1.4] shadow-[0_18px_40px_rgba(70,40,40,.18)] ${className}`} style={look}>
+      {children}
+    </span>
+  );
+}
 
 /** Under the sending steps: what texting from us costs, replies and back-and-forth included. */
 const SEND_CREDITS_NOTE = `texting from us is bought separately and not included in any plan: ${TEXT_CREDIT_ALL_IN}c a credit, all-in. Budget about ${typicalTexts} for ${TYPICAL_GUESTS} guests: every text from the invitation to the thank-you, plus the back-and-forth when guests text you back. You see the total before you pay.`;
@@ -198,7 +227,7 @@ export function SalesPage() {
           <Link to="/admin" className="no-underline" style={{ color: INK }}>
             Sign in
           </Link>
-          <a href="#start" className="py-[8px] px-4 rounded-full no-underline text-[14px] font-semibold" style={{ background: INK, color: PAPER }}>
+          <a href="#start" className="py-[9px] px-5 rounded-full no-underline text-[14px] font-semibold" style={{ background: INK, color: '#fbf1e8' }}>
             Get started
           </a>
         </nav>
@@ -207,52 +236,84 @@ export function SalesPage() {
       <main>
         {/* The hero: what we do that a pretty invitation alone doesn't. Guests answer by text, and the list,
             dietary needs and seating fill themselves in. */}
-        <section className="px-4 pt-14 pb-20 md:pt-20 md:pb-24" style={{ background: 'radial-gradient(120% 90% at 85% 0%, #3f4f39 0%, #2b3727 55%, #1f281c 100%)', color: '#f3ecd6' }}>
-          <div className="max-w-[1100px] mx-auto grid gap-12 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-center">
+        <section
+          className="relative overflow-hidden px-4 pt-10 pb-20 md:pt-16 md:pb-24"
+          style={{ background: `radial-gradient(70% 60% at 85% 15%, #f6dcd6 0%, rgba(246,220,214,0) 70%), radial-gradient(60% 55% at 5% 95%, #f1e3cc 0%, rgba(241,227,204,0) 70%), ${CREAM}` }}
+        >
+          {/* Fine gold botanical line work in the corners, our own. */}
+          <svg aria-hidden className="absolute -top-6 -left-10 w-[340px] opacity-[.35] pointer-events-none" viewBox="0 0 200 200" fill="none" stroke={GOLD} strokeWidth="1">
+            <path d="M10 190 C40 140 60 100 120 60 S180 20 196 6" />
+            {[30, 55, 80, 105, 130, 155].map((t, i) => (
+              <ellipse key={t} cx={20 + t * 0.9} cy={180 - t * 0.85} rx="10" ry="4" transform={`rotate(${i % 2 ? -50 : 40} ${20 + t * 0.9} ${180 - t * 0.85})`} />
+            ))}
+          </svg>
+          <svg aria-hidden className="absolute -bottom-10 -right-6 w-[300px] opacity-[.3] pointer-events-none rotate-180" viewBox="0 0 200 200" fill="none" stroke={GOLD} strokeWidth="1">
+            <path d="M10 190 C40 140 60 100 120 60 S180 20 196 6" />
+            {[30, 55, 80, 105, 130, 155].map((t, i) => (
+              <ellipse key={t} cx={20 + t * 0.9} cy={180 - t * 0.85} rx="10" ry="4" transform={`rotate(${i % 2 ? -50 : 40} ${20 + t * 0.9} ${180 - t * 0.85})`} />
+            ))}
+          </svg>
+          <div className="relative max-w-[1140px] mx-auto grid gap-14 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] items-center">
             <div className="flex flex-col gap-6 text-center md:text-left items-center md:items-start">
               <span
                 data-testid="aussie-badge"
                 className="inline-flex items-center gap-2 py-[6px] px-[14px] rounded-full text-[13px] font-semibold"
-                style={{ background: 'rgba(230,207,158,.14)', border: '1px solid rgba(230,207,158,.55)', color: '#f3ecd6' }}
+                style={{ background: 'rgba(255,255,255,.7)', border: `1px solid ${'#e8d2c4'}`, color: INK }}
               >
-                <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="#e6cf9e">
+                <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill={GOLD}>
                   <path d="M12 2l2.4 5.6 6 .6-4.5 4 1.3 5.9L12 15l-5.2 3.1 1.3-5.9-4.5-4 6-.6z" />
                 </svg>
                 Australian owned and operated
               </span>
-              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#e6cf9e' }}>
-                Invitations · RSVPs · The whole plan
+              <span className="text-[12px] font-semibold tracking-[.28em] uppercase" style={{ color: GOLD }}>
+                Wedding invitations · RSVPs · The whole plan
               </span>
-              <h1 className="m-0 text-[clamp(44px,7.5vw,84px)] leading-[1.02] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-                RSVPs, sorted by text.
+              <h1 className="m-0 text-[clamp(44px,7vw,82px)] leading-[1.02] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: INK }}>
+                The invitation they’ll <em className="italic" style={{ color: GOLD }}>never</em> forget.
               </h1>
-              <span aria-hidden className="block h-[3px] w-[96px] rounded-full" style={{ background: 'linear-gradient(90deg,#e6cf9e,#b39563)' }} />
-              <p className="m-0 text-[clamp(17px,2.2vw,20px)] leading-[1.55] max-w-[520px]" style={{ color: '#d6dccb' }}>
-                Each guest gets their own invitation by text or email. They reply in seconds, and your guest list, dietary list and seating plan fill themselves in.
+              <p className="m-0 text-[clamp(17px,2.1vw,20px)] leading-[1.6] max-w-[520px]" style={{ color: SOFT }}>
+                Opened like a gift on every guest’s phone. They reply in seconds, by text or a tap, and your guest list, dietary list and seating plan fill themselves in.
               </p>
               <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-1">
-                <a href="#start" className="py-[15px] px-8 rounded-full no-underline text-[17px] font-semibold shadow-[0_12px_28px_rgba(0,0,0,.25)]" style={{ background: '#e6cf9e', color: '#1b2218' }}>
+                <a href="#start" className="py-[15px] px-8 rounded-full no-underline text-[17px] font-semibold shadow-[0_14px_30px_rgba(46,36,48,.25)]" style={{ background: INK, color: '#fbf1e8' }}>
                   Start your wedding
                 </a>
-                <a href="/try" className="py-[15px] px-7 rounded-full no-underline text-[17px] font-semibold border" style={{ color: '#f3ecd6', borderColor: 'rgba(243,236,214,.45)' }}>
+                <a href="/try" className="py-[15px] px-7 rounded-full no-underline text-[17px] font-semibold border bg-white/60" style={{ color: INK, borderColor: '#dcc2b4' }}>
                   Book a free trial
                 </a>
               </div>
-              <span className="text-[14px]" style={{ color: '#c9d0bd' }}>
-                From {fromPrice}, paid once. No subscription. Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Prices in Australian dollars, GST included.
+              <ul className="m-0 p-0 list-none flex flex-wrap justify-center md:justify-start gap-x-5 gap-y-2 text-[14px]" style={{ color: SOFT }}>
+                <li>✓ From {fromPrice}, paid once</li>
+                <li>✓ No subscription</li>
+                <li>✓ Set up in an evening</li>
+              </ul>
+              <span className="text-[13px]" style={{ color: SOFT }}>
+                Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Australian dollars, GST included.
               </span>
             </div>
-            <div className="flex justify-center">
-              <TextThread />
+            <div className="relative flex justify-center py-6">
+              <span aria-hidden className="absolute inset-x-[10%] top-[8%] bottom-[8%] rounded-full blur-3xl opacity-70" style={{ background: 'radial-gradient(circle, #f3d2c6 0%, rgba(243,210,198,0) 70%)' }} />
+              <Suspense fallback={<HeroPhoneStill />}>
+                <HeroScene />
+              </Suspense>
+              <Bubble from="us" className="top-[6%] left-0 md:-left-6 hidden sm:block">
+                Harriet &amp; Theo would love you to celebrate with them. Your invitation and RSVP: <u>tap here</u>
+              </Bubble>
+              <Bubble from="them" className="top-[46%] right-0 md:-right-4 hidden sm:block">
+                Yes! Both of us, can’t wait 🥂
+              </Bubble>
+              <Bubble from="note" className="bottom-[4%] left-[2%] md:-left-2 py-2 text-[13px]">
+                ✓ Emma &amp; Tom are coming · guest list updated
+              </Bubble>
             </div>
           </div>
         </section>
 
         {/* The Signature designs, each opening by itself: the wow, before anything else. */}
-        <section aria-labelledby="scenes" className="pt-16 pb-10 px-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f3ecdf 0%, #fbf8f2 100%)' }}>
+        <section aria-labelledby="scenes" className="pt-16 pb-10 px-4 overflow-hidden" style={{ background: `linear-gradient(180deg, ${BLUSH} 0%, ${PAPER} 100%)` }}>
           <div className="max-w-[1200px] mx-auto flex flex-col gap-10">
             <div className="text-center flex flex-col gap-3 items-center">
-              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#a9843f' }}>
+              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#a8834a' }}>
                 Signature designs
               </span>
               <h2 id="scenes" className="m-0 text-[clamp(36px,5.6vw,60px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
@@ -286,7 +347,7 @@ export function SalesPage() {
             </div>
             <PhoneFan />
             <div className="flex flex-col items-center gap-2">
-              <a href="/try" className="py-[14px] px-8 rounded-full no-underline text-[16px] font-semibold shadow-[0_10px_24px_rgba(51,64,47,.18)]" style={{ background: INK, color: PAPER }}>
+              <a href="/try" className="py-[14px] px-8 rounded-full no-underline text-[16px] font-semibold shadow-[0_10px_24px_rgba(70,40,48,.18)]" style={{ background: INK, color: PAPER }}>
                 Book your free trial
               </a>
               <span className="text-[14px]" style={{ color: SOFT }}>
@@ -335,7 +396,7 @@ export function SalesPage() {
                 </li>
               ))}
             </ol>
-            <p className="m-0 p-4 rounded-[14px] text-[15px] leading-[1.55] max-w-[820px] mx-auto" style={{ background: CREAM, border: '1px solid #e6dcc4' }}>
+            <p className="m-0 p-4 rounded-[14px] text-[15px] leading-[1.55] max-w-[820px] mx-auto" style={{ background: CREAM, border: '1px solid #ecdcd3' }}>
               <strong className="font-semibold">Text credits: </strong>
               {SEND_CREDITS_NOTE}
             </p>
@@ -352,7 +413,7 @@ export function SalesPage() {
                 How we compare with the usual made-for-you digital invitation.
               </p>
             </div>
-            <div role="list" aria-label="How we compare" className="flex flex-col rounded-[22px] overflow-hidden border border-[#e6dcc4]">
+            <div role="list" aria-label="How we compare" className="flex flex-col rounded-[22px] overflow-hidden border border-[#ecdcd3]">
               <div aria-hidden className="hidden md:grid grid-cols-[180px_1fr_1.3fr] text-[13px] font-semibold tracking-[.14em] uppercase" style={{ background: PAPER, color: SOFT }}>
                 <span className="p-4" />
                 <span className="p-4">Usually</span>
@@ -361,7 +422,7 @@ export function SalesPage() {
                 </span>
               </div>
               {VS_USUAL.map((r) => (
-                <div key={r.what} role="listitem" className="grid md:grid-cols-[180px_1fr_1.3fr] border-t border-[#e6dcc4] first-of-type:border-t-0">
+                <div key={r.what} role="listitem" className="grid md:grid-cols-[180px_1fr_1.3fr] border-t border-[#ecdcd3] first-of-type:border-t-0">
                   <span className="px-4 pt-4 md:pb-4 text-[17px] font-semibold" style={{ fontFamily: serif }}>
                     {r.what}
                   </span>
@@ -370,7 +431,7 @@ export function SalesPage() {
                     {r.usual}
                   </span>
                   <span className="flex gap-2 px-4 pt-2 pb-4 md:pt-4 text-[16px] leading-[1.5]" style={{ color: INK, background: 'rgba(167,184,143,.12)' }}>
-                    <span aria-hidden className="font-bold" style={{ color: '#6f8256' }}>
+                    <span aria-hidden className="font-bold" style={{ color: '#a8834a' }}>
                       ✓
                     </span>
                     <span>{r.ours}</span>
@@ -404,7 +465,7 @@ export function SalesPage() {
                 <article
                   key={p.key}
                   className="flex flex-col gap-5 p-7 rounded-[24px] bg-white"
-                  style={{ border: `${p.pick ? 2 : 1}px solid ${p.pick ? INK : '#e6dcc4'}` }}
+                  style={{ border: `${p.pick ? 2 : 1}px solid ${p.pick ? INK : '#ecdcd3'}` }}
                 >
                   <div className="flex flex-col gap-1">
                     <h3 className="m-0 text-[20px] font-semibold">{PLAN_INFO[p.key].name}</h3>
@@ -473,7 +534,7 @@ export function SalesPage() {
               {TEXT_COST_NOTE}
             </p>
 
-            <details className="max-w-[900px] w-full mx-auto rounded-[20px] border border-[#e6dcc4] bg-white">
+            <details className="max-w-[900px] w-full mx-auto rounded-[20px] border border-[#ecdcd3] bg-white">
               <summary className="cursor-pointer py-4 px-6 text-[15px] font-semibold">Compare every feature</summary>
               <div className="overflow-x-auto px-6 pb-6">
                 <table className="w-full text-[14px] border-collapse">
@@ -488,7 +549,7 @@ export function SalesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t border-[#ece3cc]">
+                    <tr className="border-t border-[#f0e2da]">
                       <td className="py-2 pr-3">Your invitation, RSVP page and guest list</td>
                       {PLANS.map((p) => (
                         <td key={p.key} className="py-2 px-2 text-center" aria-label={`${PLAN_INFO[p.key].name}: included`}>
@@ -497,14 +558,14 @@ export function SalesPage() {
                       ))}
                     </tr>
                     {COMPARE.map((f) => (
-                      <tr key={f} className="border-t border-[#ece3cc]">
+                      <tr key={f} className="border-t border-[#f0e2da]">
                         <td className="py-2 pr-3">{ROW_LABEL[f] ?? FEATURE_LABEL[f]}</td>
                         {PLANS.map((p) => (
                           <td
                             key={p.key}
                             className="py-2 px-2 text-center"
                             aria-label={`${PLAN_INFO[p.key].name}: ${allows(p.key, f) ? 'included' : 'not included'}`}
-                            style={{ color: allows(p.key, f) ? INK : '#b9ae94' }}
+                            style={{ color: allows(p.key, f) ? INK : '#c9b3a8' }}
                           >
                             {allows(p.key, f) ? '✓' : '–'}
                           </td>
@@ -532,7 +593,7 @@ export function SalesPage() {
             </h3>
             <div role="group" aria-label={`About ${BRAND}`}>
               {FAQ.map(([q, a]) => (
-                <details key={q} className="py-4 border-b border-[#e6dcc4]">
+                <details key={q} className="py-4 border-b border-[#ecdcd3]">
                   <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
                   <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
                     {a}
@@ -545,7 +606,7 @@ export function SalesPage() {
             </h3>
             <div role="group" aria-label="Wedding invitations, answered">
               {INVITE_FAQ.map(([q, a]) => (
-                <details key={q} className="py-4 border-b border-[#e6dcc4]">
+                <details key={q} className="py-4 border-b border-[#ecdcd3]">
                   <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
                   <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
                     {a}
@@ -616,7 +677,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
     }
   };
   // A field: its label above, a soft box that never runs off the screen (iPhone draws date boxes wide).
-  const box = 'block w-full min-w-0 max-w-full appearance-none py-[13px] px-4 rounded-[14px] border border-[#ddd0b2] bg-[#fffdf8] text-[16px] text-[#33402f] shadow-[inset_0_1px_2px_rgba(51,64,47,.05)] focus:outline-none focus:border-[#a9843f] focus:shadow-[0_0_0_3px_rgba(169,132,63,.18)]';
+  const box = 'block w-full min-w-0 max-w-full appearance-none py-[13px] px-4 rounded-[14px] border border-[#e6d3c8] bg-[#fffdf8] text-[16px] text-[#2e2430] shadow-[inset_0_1px_2px_rgba(70,40,48,.05)] focus:outline-none focus:border-[#a8834a] focus:shadow-[0_0_0_3px_rgba(169,132,63,.18)]';
   const lab = 'flex flex-col gap-[6px] text-[13px] font-medium tracking-[.02em] min-w-0';
   const step = (n: string, title: string) => (
     <div className="flex items-center gap-3 pt-2">
@@ -626,7 +687,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
       <span className="text-[13px] font-semibold tracking-[.16em] uppercase" style={{ color: SOFT }}>
         {title}
       </span>
-      <span className="flex-1 h-px" style={{ background: '#e2d7bc' }} />
+      <span className="flex-1 h-px" style={{ background: '#ecdcd3' }} />
     </div>
   );
   return (
@@ -640,7 +701,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
           It takes a minute. Set everything up and see your own invitation before you pay a cent.
         </p>
       </div>
-      <div className="flex flex-col gap-5 p-6 sm:p-9 rounded-[28px] border border-[#e6dcc4] shadow-[0_30px_70px_rgba(51,64,47,.12)]" style={{ background: 'linear-gradient(180deg,#fffdf8 0%,#fbf6ea 100%)' }}>
+      <div className="flex flex-col gap-5 p-6 sm:p-9 rounded-[28px] border border-[#ecdcd3] shadow-[0_30px_70px_rgba(70,40,48,.12)]" style={{ background: 'linear-gradient(180deg,#fffdf8 0%,#fffaf5 100%)' }}>
         {step('1', 'The two of you')}
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-3 items-end">
           <label className={lab}>
@@ -685,14 +746,14 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
                 <label
                   key={p.key}
                   className="relative flex sm:flex-col gap-3 sm:gap-1 items-center sm:items-start p-4 rounded-[18px] border-2 cursor-pointer transition-[border-color,box-shadow] duration-150"
-                  style={{ borderColor: on ? INK : '#e6dcc4', background: on ? '#fffdf8' : 'rgba(255,253,248,.6)', boxShadow: on ? '0 10px 24px rgba(51,64,47,.12)' : undefined }}
+                  style={{ borderColor: on ? INK : '#ecdcd3', background: on ? '#fffdf8' : 'rgba(255,253,248,.6)', boxShadow: on ? '0 10px 24px rgba(70,40,48,.12)' : undefined }}
                 >
                   {p.pick && (
                     <span className="absolute -top-[11px] right-3 py-[2px] px-[10px] rounded-full text-[11px] font-semibold tracking-[.06em]" style={{ background: GOLD, color: '#fff' }}>
                       Most popular
                     </span>
                   )}
-                  <input type="radio" name="plan" checked={on} onChange={() => setPlan(p.key)} className="w-[18px] h-[18px] flex-none accent-[#33402f]" />
+                  <input type="radio" name="plan" checked={on} onChange={() => setPlan(p.key)} className="w-[18px] h-[18px] flex-none accent-[#2e2430]" />
                   <span className="flex flex-col min-w-0">
                     <span className="text-[17px]" style={{ fontFamily: serif, fontWeight: 600 }}>
                       {PLAN_INFO[p.key].name}
@@ -711,14 +772,14 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
           <span className="text-[13px] text-center" style={{ color: SOFT }}>
             Paid once, when you’re ready to send. Change plan any time before then.
           </span>
-          <span className="text-[13px] text-center p-3 rounded-[12px] bg-[#f3ecd9]" style={{ color: INK }}>
+          <span className="text-[13px] text-center p-3 rounded-[12px] bg-[#f8ece6]" style={{ color: INK }}>
             Texting your guests is optional: <strong>{TEXT_CREDIT_ALL_IN}c a text credit</strong>, about <strong>{TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest</strong> for every text (invitation, reminders, thank-yous) and the back-and-forth when guests reply. From your own phone or by email it’s free.
           </span>
         </fieldset>
         {/* Left empty by people (hidden); bots fill it in. */}
         <input tabIndex={-1} aria-hidden="true" autoComplete="off" value={f.website} onChange={set('website')} name="website" className="absolute left-[-9999px] w-px h-px opacity-0" />
         <label className="flex items-start gap-3 text-[14px] cursor-pointer pt-1" style={{ color: SOFT }}>
-          <input type="checkbox" checked={f.marketing} onChange={set('marketing')} className="mt-[2px] w-[18px] h-[18px] flex-none accent-[#33402f]" />
+          <input type="checkbox" checked={f.marketing} onChange={set('marketing')} className="mt-[2px] w-[18px] h-[18px] flex-none accent-[#2e2430]" />
           <span>Send me the odd planning tip by email. No spam, and you can stop any time.</span>
         </label>
         {problem && (
@@ -734,8 +795,8 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
         <button
           type="submit"
           disabled={busy}
-          className="py-[18px] rounded-full border-0 text-[18px] font-semibold cursor-pointer disabled:opacity-60 shadow-[0_14px_30px_rgba(51,64,47,.25)] transition-transform active:scale-[.99]"
-          style={{ background: `linear-gradient(180deg, #3d4c38, ${INK})`, color: PAPER }}
+          className="py-[18px] rounded-full border-0 text-[18px] font-semibold cursor-pointer disabled:opacity-60 shadow-[0_14px_30px_rgba(70,40,48,.25)] transition-transform active:scale-[.99]"
+          style={{ background: `linear-gradient(180deg, #4a3a4c, ${INK})`, color: PAPER }}
         >
           {busy ? 'Setting up your wedding…' : 'Create our wedding'}
         </button>
