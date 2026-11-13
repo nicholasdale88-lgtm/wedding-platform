@@ -323,10 +323,10 @@ export function PaperVsPhone({ ink, soft, gold, serif, script, fromPrice }: { in
           </p>
           <div className="flex flex-wrap justify-center gap-3 pt-1">
             <a href="/demo" className="py-[13px] px-7 rounded-full no-underline text-[16px] font-semibold border bg-white/70" style={{ color: ink, borderColor: '#dcc2b4' }}>
-              Open the sample invitation
+              See a sample
             </a>
             <a href="#start" className="py-[13px] px-7 rounded-full no-underline text-[16px] font-semibold shadow-[0_12px_26px_rgba(46,36,48,.22)]" style={{ background: ink, color: '#fbf1e8' }}>
-              Start your wedding
+              Make yours
             </a>
           </div>
         </div>

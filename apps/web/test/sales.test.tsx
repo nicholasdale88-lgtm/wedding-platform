@@ -22,6 +22,10 @@ describe('front page', () => {
     // Condensed: the founders' section is folded into the comparison.
     expect(screen.getByText(/The founders, who built it for their own wedding/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'And everything after the yes.' })).toBeInTheDocument();
+    // Paper or phone: the same invitation two ways, and the sample one tap away.
+    expect(screen.getByRole('heading', { name: /Every bit as beautiful/ })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /letterpress invitation/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open the sample invitation' })).toHaveAttribute('href', '/demo');
     expect(screen.getAllByRole('link', { name: 'Vendor directory' }).length).toBeGreaterThan(0);
   });
 
