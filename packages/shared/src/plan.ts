@@ -101,9 +101,16 @@ export const TEXT_RATE = {
    * invitation): save the date 2, invitation 2, RSVP reminder 2, last call 2, RSVP thank-you 2, night
    * before 2 and the thank-you after 1 = 13. Each with their personal link runs past 160 characters, so it
    * is 2 credits. A guest who replies early skips the reminders, so this is the most it takes, not less.
-   * Used before the guest list is in; after that, the planned texts are counted exactly.
    */
-  creditsPerGuest: 13,
+  sendCreditsPerGuest: 13,
+  /**
+   * The back-and-forth, on average per mobile: a guest who texts the number back gets an automatic answer
+   * with their link (2 credits); about half send something more, which is forwarded to the couple's phone
+   * (1 to 2) and answered from Messages (1). About 4 in all. An allowance, not a count: chatty guests use more.
+   */
+  replyCreditsPerGuest: 4,
+  /** Both together: what to budget per guest's mobile (13 + 4). Used before the guest list is in. */
+  creditsPerGuest: 17,
 } as const;
 
 /** Credits to buy for this many guests (with a mobile), rounded up to the next 10. */
@@ -123,4 +130,4 @@ export const TEXT_CREDIT_ALL_IN = (TEXT_RATE.centsPerCredit * (100 + TEXT_RATE.s
 
 /** The notice shown wherever prices are: the sales page, the pricing table, Terms, Help and Texting. */
 export const TEXT_COST_NOTE =
-  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 8c a credit, all-in (GST included, no other fees). It’s up to 13 credits (about $1.04) per guest’s mobile if you send every text: save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after. A couple on one invitation share one mobile, so they cost the same as one guest: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';
+  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 8c a credit, all-in (GST included, no other fees). Budget about 17 credits (about $1.36) per guest’s mobile: up to 13 for every text we send (save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after), plus about 4 for the back-and-forth (when a guest texts back we answer with their link, anything that needs you is forwarded to your phone, and your answers from Messages are texts too). A couple on one invitation share one mobile, so they cost the same as one guest: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';

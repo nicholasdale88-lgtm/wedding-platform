@@ -302,7 +302,7 @@ export function TextsNotIncluded({ ok, onOk }: { ok: boolean; onOk: (ok: boolean
         <strong>
           {TEXT_CREDIT_ALL_IN}c a credit, about ${perGuest.toFixed(2)} a guest
         </strong>{' '}
-        if you send every text (invitation, reminders, thank-yous). You’ll see the total before you pay for any.
+        with every text (invitation, reminders, thank-yous) and the back-and-forth when guests text you back. You’ll see the total before you pay for any.
       </span>
       <label className="flex items-start gap-3 pt-1 text-[15px] font-semibold text-[#33402f] cursor-pointer">
         <input type="checkbox" checked={ok} onChange={(e) => onOk(e.target.checked)} className="mt-[2px] w-[22px] h-[22px] flex-none accent-[#33402f]" />I understand text messages aren’t included in my plan.

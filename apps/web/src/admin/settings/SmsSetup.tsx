@@ -319,7 +319,7 @@ export function Passcode() {
  */
 function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
   const toast = useToast();
-  const rate = s.rate ?? { centsPerCredit: 8, serviceFeePct: 0, minCredits: 100, maxCredits: 20000, creditsPerGuest: 13 };
+  const rate = s.rate ?? { centsPerCredit: 8, serviceFeePct: 0, minCredits: 100, maxCredits: 20000, sendCreditsPerGuest: 13, replyCreditsPerGuest: 4, creditsPerGuest: 17 };
   const credits = s.credits ?? 0;
   const planned = Math.max(0, (s.plannedCredits ?? 0) - credits);
   const [guests, setGuests] = useState('');
@@ -358,7 +358,7 @@ function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
           </Label>
           {need > 0 && (
             <p className="m-0 text-[14px]" aria-live="polite">
-              {g ? `${g} guests × about ${rate.creditsPerGuest} credits each (about $${((rate.creditsPerGuest * rate.centsPerCredit) / 100).toFixed(2)} a guest)` : 'Your planned texts, less what you have'} = <strong>{need.toLocaleString('en-AU')} credits</strong>. Total{' '}
+              {g ? `${g} guests × about ${rate.creditsPerGuest} credits each, replies included (about $${((rate.creditsPerGuest * rate.centsPerCredit) / 100).toFixed(2)} a guest)` : 'Your planned texts and replies, less what you have'} = <strong>{need.toLocaleString('en-AU')} credits</strong>. Total{' '}
               <strong>{money(sub + fee)}</strong>, all-in ({rate.centsPerCredit}c a credit{fee ? ` + ${rate.serviceFeePct}% service fee ${money(fee)}` : ''}; GST included).
             </p>
           )}

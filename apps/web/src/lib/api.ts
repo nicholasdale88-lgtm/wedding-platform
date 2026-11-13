@@ -359,7 +359,7 @@ export interface SettingsData {
   canBuy?: boolean;
   /** Text credits left: bought by the couple, one per text part. */
   credits?: number;
-  rate?: { centsPerCredit: number; serviceFeePct: number; minCredits: number; maxCredits: number; creditsPerGuest: number };
+  rate?: { centsPerCredit: number; serviceFeePct: number; minCredits: number; maxCredits: number; sendCreditsPerGuest?: number; replyCreditsPerGuest?: number; creditsPerGuest: number };
   /** Credits the texts planned so far need, for the guests on the list now. */
   plannedCredits?: number;
   /** "Text messages are not included in any plan…" */

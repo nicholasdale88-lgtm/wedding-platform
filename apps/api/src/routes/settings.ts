@@ -1,4 +1,4 @@
-import { displayPhone, TEXT_COST_NOTE, TEXT_RATE, toE164 } from '@wp/shared';
+import { displayPhone, TEXT_COST_NOTE, TEXT_RATE, textCreditsCents, toE164 } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -76,10 +76,18 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     const estimates = await estimateAll(d, w.id, campaigns.map((x) => x.id)).catch(() => new Map<string, Estimate>());
     // Credits every planned text needs, to the guests on the list now (what "Buy what you need" offers).
     let parts = 0;
+    let mobiles = 0;
     for (const x of campaigns) {
       const e = estimates.get(x.id);
       if (e) parts += e.parts;
+      if (e) mobiles = Math.max(mobiles, e.count);
       if (e) plan.push({ name: x.name, detail: `${e.count} ${e.count === 1 ? 'guest' : 'guests'} · ${e.parts} ${e.parts === 1 ? 'credit' : 'credits'}`, costCents: e.costCents, auto: x.enabled && x.mode !== 'manual' });
+    }
+    // Replies cost too: the automatic answer when a guest texts back, forwards to the couple, their answers.
+    if (mobiles) {
+      const back = mobiles * TEXT_RATE.replyCreditsPerGuest;
+      parts += back;
+      plan.push({ name: 'Replies and back-and-forth', detail: `About ${TEXT_RATE.replyCreditsPerGuest} credits for each of ${mobiles} ${mobiles === 1 ? 'mobile' : 'mobiles'} (an allowance)`, costCents: textCreditsCents(back), auto: true });
     }
     const texto = c.env.SMS_PROVIDER === 'texto';
     // Texto: guests can only text back to a dedicated number (about $15 a month), kept until the last event is over.

@@ -13,13 +13,14 @@ const page = () =>
   );
 
 describe('front page', () => {
-  it('leads with one line, one call to action and the real invitation on a phone', () => {
+  it('leads with one line and one call to action, then the invitations opening (no second phone)', () => {
     page();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('RSVPs, sorted by text.');
     expect(screen.getByRole('link', { name: 'Start your wedding' })).toHaveAttribute('href', '#start');
-    const phone = screen.getByTitle(/^Sample invitation for Harriet & Theo/);
-    expect(phone.tagName).toBe('IFRAME');
-    expect(phone).toHaveAttribute('src', '/demo?embed=1&theme=Rosewood%20Doors');
+    expect(screen.getByRole('heading', { name: 'Opened like a gift.' })).toBeInTheDocument();
+    // Condensed: the separate sample-invitation phone and the founders' section are folded away.
+    expect(screen.queryByTitle(/^Sample invitation for Harriet & Theo/)).toBeNull();
+    expect(screen.getByText(/The founders, who built it for their own wedding/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'And everything after the yes.' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Vendor directory' }).length).toBeGreaterThan(0);
   });

@@ -274,7 +274,7 @@ export const HELP: HelpArticle[] = [
     group: 'Your account',
     steps: [
       'Texts aren’t included in any plan. Sending from your own phone or by email is always free; automatic texts need text credits, which you buy separately.',
-      'Open Settings → Texting, and type how many guests you’ll text. It works out the credits (up to 13 for each guest’s mobile if you send every text: save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after; each with its link is 2 credits) and shows the total, all-in: 8c a credit, GST included, no other fees. A couple on one invitation share one mobile.',
+      'Open Settings → Texting, and type how many guests you’ll text. It works out the credits (about 17 for each guest’s mobile: up to 13 for every text we send, the save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after, each with its link 2 credits; plus about 4 for the back-and-forth when guests text you back: our automatic answer, forwards to your phone and your replies from Messages) and shows the total, all-in: 8c a credit, GST included, no other fees. A couple on one invitation share one mobile.',
       'Tap Buy and pay by card. The credits are added straight away and never expire. When they run out, automatic texts stop until you buy more: nothing is charged without you choosing to.',
     ],
     also: 'sms text cost price credits buy texts top up how much are texts included extra fee service fee charge per text money',

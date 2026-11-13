@@ -18,7 +18,6 @@ import {
 } from '@wp/shared';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
-import { HeroInvite } from './HeroInvite';
 import { TextThread } from './TextThread';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
@@ -55,26 +54,28 @@ const typicalTexts = `$${(textCreditsCents(textCreditsForGuests(TYPICAL_GUESTS))
 
 const guestsLine = (k: PlanKey) => (allows(k, 'unlimitedGuests') ? 'As many guests as you like' : `Up to ${FREE_GUEST_LIMIT} guests`);
 const TEXTS_LINE = 'Automatic text invitations and reminders (text credits extra)';
-/** Texts are never part of a plan: the most they cost a guest's mobile, all-in (13 credits at 8c, every text sent). */
+/** Texts are never part of a plan: what to budget per guest's mobile, all-in (17 credits at 8c: every text sent, plus replies). */
 const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN);
 /** How sending invitations works, start to finish, with the one cost that isn't in a plan (text credits). */
 /** The opening scenes are big (their artwork is drawn in code): they load after the page has shown. */
 const SceneShowcase = lazy(() => import('./SceneShowcase').then((m) => ({ default: m.SceneShowcase })));
 
-const SEND_STEPS: { title: string; text: string; extra?: string }[] = [
+/** Under the sending steps: what texting from us costs, replies and back-and-forth included. */
+const SEND_CREDITS_NOTE = `texting from us is bought separately and not included in any plan: ${TEXT_CREDIT_ALL_IN}c a credit, all-in. Budget about ${typicalTexts} for ${TYPICAL_GUESTS} guests: every text from the invitation to the thank-you, plus the back-and-forth when guests text you back. You see the total before you pay.`;
+
+const SEND_STEPS: { title: string; text: string }[] = [
   { title: 'Add your guests', text: 'Bring them in from your phone’s contacts or a spreadsheet, or type them in. Each household gets its own private invitation link.' },
   { title: 'Make the invitation yours', text: 'Choose a design and the opening, then your words, photos and music. Preview it exactly as a guest will see it.' },
   { title: 'Pay for your plan, once', text: `From ${fromPrice}, when you’re ready to send. No subscription.` },
   {
     title: 'Choose how it goes out',
     text: 'Free from your own phone (we open a ready-written message for each guest) or by email. Or let us text everyone for you, with reminders sent automatically.',
-    extra: `Texting from us needs text credits, bought separately: they’re not included in any plan. ${TEXT_CREDIT_ALL_IN}c a credit, all-in, about ${typicalTexts} for ${TYPICAL_GUESTS} guests from invitations to thank-yous. You see the total before you pay.`,
   },
   { title: 'Send, and watch the yeses arrive', text: 'Guests tap their link, open the invitation and reply in seconds. Anyone who hasn’t answered gets a gentle reminder.' },
   { title: 'Replies sort themselves', text: 'Every reply fills your guest list, dietary list and seating plan as it comes in.' },
 ];
 
-const TEXTS_PRICE_LINE = `Texts not included: up to ${TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest, all-in, for every text`;
+const TEXTS_PRICE_LINE = `Texts not included: about ${TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest, all-in, every text and the replies`;
 
 const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] = [
   {
@@ -248,7 +249,7 @@ export function SalesPage() {
         </section>
 
         {/* The Signature designs, each opening by itself: the wow, before anything else. */}
-        <section aria-labelledby="scenes" className="pt-20 pb-12 px-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f3ecdf 0%, #fbf8f2 100%)' }}>
+        <section aria-labelledby="scenes" className="pt-16 pb-10 px-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f3ecdf 0%, #fbf8f2 100%)' }}>
           <div className="max-w-[1200px] mx-auto flex flex-col gap-10">
             <div className="text-center flex flex-col gap-3 items-center">
               <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#a9843f' }}>
@@ -258,7 +259,7 @@ export function SalesPage() {
                 Opened like a gift.
               </h2>
               <p className="m-0 text-[18px] leading-[1.55] max-w-[600px]" style={{ color: SOFT }}>
-                Lacquered doors in gold leaf, sheets of vellum lifting away, velvet curtains on a lit stage, a satin bow, a barn hung with eucalyptus, your own photograph. Every one drawn by us, in your colours, with your initials.
+                Lacquered doors in gold leaf, sheets of vellum lifting away, velvet curtains on a lit stage, a satin bow, a barn hung with eucalyptus, your own photograph. Every one drawn by us, in your colours, with your initials. And {THEME_COUNT} designs in six looks to choose from.
               </p>
             </div>
             <Suspense fallback={<div aria-hidden className="min-h-[clamp(360px,62vw,560px)]" />}>
@@ -273,27 +274,8 @@ export function SalesPage() {
         </section>
 
         {/* The invitation itself: the real one, tap the seal. */}
-        <section aria-labelledby="see" className="px-4 py-20">
-          <div className="max-w-[1100px] mx-auto grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-center">
-            <div className="flex justify-center md:order-2">
-              <HeroInvite src="/demo?embed=1&theme=Rosewood%20Doors" />
-            </div>
-            <div className="flex flex-col gap-4 text-center md:text-left items-center md:items-start md:order-1">
-              <h2 id="see" className="m-0 text-[clamp(34px,5vw,52px)] leading-[1.08] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
-                And an invitation worth opening.
-              </h2>
-              <p className="m-0 text-[17px] leading-[1.55] max-w-[460px]" style={{ color: SOFT }}>
-                {THEME_COUNT} designs in six looks, from romantic arches to clean and modern. Falling petals, fairy lights or your own film moving behind your names, on every plan. Your colours, your lettering, your words.
-              </p>
-              <Link to="/designs" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold border" style={{ color: INK, borderColor: '#c6b794' }}>
-                See all the designs
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        <section aria-labelledby="after" className="py-24 px-4" style={{ background: PAPER }}>
-          <div className="max-w-[1100px] mx-auto flex flex-col gap-12">
+        <section aria-labelledby="after" className="py-16 md:py-20 px-4" style={{ background: PAPER }}>
+          <div className="max-w-[1100px] mx-auto flex flex-col gap-9">
             <div className="text-center flex flex-col gap-4">
               <h2 id="after" className="m-0 text-[clamp(38px,6vw,64px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
                 And everything after the yes.
@@ -326,8 +308,8 @@ export function SalesPage() {
           </div>
         </section>
 
-        <section aria-labelledby="how-send" className="py-24 px-4">
-          <div className="max-w-[1000px] mx-auto flex flex-col gap-12">
+        <section aria-labelledby="how-send" className="py-16 md:py-20 px-4">
+          <div className="max-w-[1000px] mx-auto flex flex-col gap-8">
             <div className="text-center flex flex-col gap-4">
               <p className="m-0 text-[13px] tracking-[.2em] uppercase font-semibold" style={{ color: GOLD }}>
                 How sending works
@@ -336,33 +318,31 @@ export function SalesPage() {
                 From your guest list to their yes.
               </h2>
             </div>
-            <ol className="m-0 p-0 list-none grid gap-x-10 gap-y-8 md:grid-cols-2">
+            <ol className="m-0 p-0 list-none grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
               {SEND_STEPS.map((step, i) => (
-                <li key={step.title} className="flex gap-5 min-w-0">
-                  <span aria-hidden className="flex-none w-11 h-11 rounded-full flex items-center justify-center text-[18px]" style={{ background: INK, color: PAPER, fontFamily: serif }}>
+                <li key={step.title} className="flex gap-4 min-w-0">
+                  <span aria-hidden className="flex-none w-9 h-9 rounded-full flex items-center justify-center text-[16px]" style={{ background: INK, color: PAPER, fontFamily: serif }}>
                     {i + 1}
                   </span>
-                  <span className="flex flex-col gap-2 min-w-0">
-                    <h3 className="m-0 text-[24px] leading-[1.2] font-normal" style={{ fontFamily: serif }}>
+                  <span className="flex flex-col gap-1 min-w-0">
+                    <h3 className="m-0 text-[20px] leading-[1.2] font-normal" style={{ fontFamily: serif }}>
                       {step.title}
                     </h3>
-                    <p className="m-0 text-[16px] leading-[1.6]" style={{ color: SOFT }}>
+                    <p className="m-0 text-[15px] leading-[1.55]" style={{ color: SOFT }}>
                       {step.text}
                     </p>
-                    {step.extra && (
-                      <p className="m-0 p-4 rounded-[14px] text-[15px] leading-[1.55]" style={{ background: CREAM, border: '1px solid #e6dcc4' }}>
-                        <strong className="font-semibold">Text credits: </strong>
-                        {step.extra}
-                      </p>
-                    )}
                   </span>
                 </li>
               ))}
             </ol>
+            <p className="m-0 p-4 rounded-[14px] text-[15px] leading-[1.55] max-w-[820px] mx-auto" style={{ background: CREAM, border: '1px solid #e6dcc4' }}>
+              <strong className="font-semibold">Text credits: </strong>
+              {SEND_CREDITS_NOTE}
+            </p>
           </div>
         </section>
 
-        <section aria-labelledby="compare" className="py-24 px-4">
+        <section aria-labelledby="compare" className="py-16 md:py-20 px-4">
           <div className="max-w-[960px] mx-auto flex flex-col gap-10">
             <div className="text-center flex flex-col gap-4">
               <h2 id="compare" className="m-0 text-[clamp(34px,5.4vw,56px)] leading-[1.06] font-normal" style={{ fontFamily: serif }}>
@@ -398,32 +378,25 @@ export function SalesPage() {
                 </div>
               ))}
             </div>
+            <figure className="m-0 max-w-[720px] mx-auto flex flex-col items-center gap-3 text-center">
+              <blockquote className="m-0 text-[clamp(20px,2.8vw,26px)] leading-[1.4] italic" style={{ fontFamily: serif }}>
+                “Our replies came in by text, email and word of mouth, and every evening went on chasing them. So we made the thing we wanted: one link each, and a list that keeps itself.”
+              </blockquote>
+              <figcaption className="text-[14px]" style={{ color: SOFT }}>
+                The founders, who built it for their own wedding
+              </figcaption>
+            </figure>
           </div>
         </section>
 
-        <section aria-labelledby="founders" className="py-24 px-4 border-t border-[#efe6d3]">
-          <figure className="max-w-[760px] mx-auto m-0 flex flex-col items-center gap-6 text-center">
-            <h2 id="founders" className="m-0 text-[13px] tracking-[.2em] uppercase font-semibold" style={{ color: SOFT }}>
-              Built for our own wedding
-            </h2>
-            <blockquote className="m-0 text-[clamp(24px,3.6vw,34px)] leading-[1.35] italic" style={{ fontFamily: serif }}>
-              “Our replies came in by text, email and word of mouth, and every evening went on chasing them. So we made the thing we wanted: one link each, and a list that keeps
-              itself.”
-            </blockquote>
-            <figcaption className="text-[15px]" style={{ color: SOFT }}>
-              The founders
-            </figcaption>
-          </figure>
-        </section>
-
-        <section id="pricing" aria-labelledby="pricing-title" className="py-24 px-4" style={{ background: PAPER }}>
-          <div className="max-w-[1100px] mx-auto flex flex-col gap-12">
+        <section id="pricing" aria-labelledby="pricing-title" className="py-16 md:py-20 px-4" style={{ background: PAPER }}>
+          <div className="max-w-[1100px] mx-auto flex flex-col gap-9">
             <div className="text-center flex flex-col gap-4">
               <h2 id="pricing-title" className="m-0 text-[clamp(38px,6vw,64px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
                 One payment. No subscription.
               </h2>
               <p className="m-0 text-[18px] leading-[1.55] max-w-[620px] mx-auto" style={{ color: SOFT }}>
-                Set everything up first. Pay once, when you’re ready to send your invitations. Texts to guests aren’t in any plan: {TEXT_CREDIT_ALL_IN}c a credit if we send them, or free from your own phone or by email. Australian dollars, GST included.
+                Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, GST included.
               </p>
             </div>
             <div className="grid gap-5 md:grid-cols-3 items-stretch">
@@ -492,7 +465,7 @@ export function SalesPage() {
                   {TEXT_ALL_IN}
                 </span>
                 <p className="m-0 text-[15px] leading-[1.55]" style={{ color: SOFT }}>
-                  Not included in any plan: text credits are bought separately, on {textingPlans}. About {typicalTexts} for {TYPICAL_GUESTS} guests, invitations to thank-yous.
+                  Not included in any plan: text credits are bought separately, on {textingPlans}. About {typicalTexts} for {TYPICAL_GUESTS} guests, invitations to thank-yous and the replies back and forth.
                 </p>
               </div>
             </div>
@@ -545,11 +518,11 @@ export function SalesPage() {
           </div>
         </section>
 
-        <section id="start" className="py-24 px-4">
+        <section id="start" className="py-16 md:py-20 px-4">
           <SignUp plan={plan} setPlan={setPlan} />
         </section>
 
-        <section aria-labelledby="questions" className="py-24 px-4" style={{ background: PAPER }}>
+        <section aria-labelledby="questions" className="py-16 md:py-20 px-4" style={{ background: PAPER }}>
           <div className="max-w-[760px] mx-auto flex flex-col gap-4">
             <h2 id="questions" className="m-0 pb-2 text-[clamp(34px,5vw,48px)] font-normal text-center" style={{ fontFamily: serif }}>
               Questions
@@ -739,7 +712,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
             Paid once, when you’re ready to send. Change plan any time before then.
           </span>
           <span className="text-[13px] text-center p-3 rounded-[12px] bg-[#f3ecd9]" style={{ color: INK }}>
-            Texting your guests is optional: <strong>{TEXT_CREDIT_ALL_IN}c a text credit</strong>, about <strong>{TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest</strong> for every text (invitation, reminders, thank-yous). From your own phone or by email it’s free.
+            Texting your guests is optional: <strong>{TEXT_CREDIT_ALL_IN}c a text credit</strong>, about <strong>{TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest</strong> for every text (invitation, reminders, thank-yous) and the back-and-forth when guests reply. From your own phone or by email it’s free.
           </span>
         </fieldset>
         {/* Left empty by people (hidden); bots fill it in. */}
