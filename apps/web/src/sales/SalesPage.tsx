@@ -68,7 +68,7 @@ const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN
  * cards for what the app does. Each is a sentence, not a paragraph.
  */
 function Tiles() {
-  const close = useMemo(() => envelopeClose(), []);
+  const close = useMemo(() => envelopeClose('#b6bea7', '#5e1a2a'), []);
   const lay = useMemo(() => flatLay(), []);
   const picture = (src: string, title: string, sub: string, span = '') => (
     <article className={`relative min-h-[300px] rounded-[26px] overflow-hidden shadow-[0_24px_50px_rgba(70,40,40,.14)] ${span}`}>
@@ -115,12 +115,12 @@ function Tiles() {
 
 /** The envelope section's picture: one sealed envelope, close up, on linen. */
 function EnvelopeStill() {
-  const src = useMemo(() => envelopeClose('#f6f1e9', '#9c7432'), []);
-  return <img alt="A sealed envelope with the couple's initials pressed into a gold wax seal" src={src} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-[30px] shadow-[0_34px_70px_rgba(70,40,40,.2)]" />;
+  const src = useMemo(() => envelopeClose(), []);
+  return <img alt="A sealed envelope with the couple's initials pressed into a burgundy wax seal, tied with a silk ribbon and eucalyptus" src={src} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-[30px] shadow-[0_34px_70px_rgba(70,40,40,.2)]" />;
 }
 
 /** The hero phone's screen while the invitation loads: a sealed envelope, close up. */
-const posterSrc = envelopeClose('#efe8dc', '#9c7432');
+const posterSrc = envelopeClose();
 
 /** Behind the hero's phone: our own still life of sealed envelopes on linen, set like a product photograph. */
 function HeroStill() {
