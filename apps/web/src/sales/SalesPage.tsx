@@ -119,6 +119,9 @@ function EnvelopeStill() {
   return <img alt="A sealed envelope with the couple's initials pressed into a gold wax seal" src={src} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-[30px] shadow-[0_34px_70px_rgba(70,40,40,.2)]" />;
 }
 
+/** The hero phone's screen while the invitation loads: a sealed envelope, close up. */
+const posterSrc = envelopeClose('#efe8dc', '#9c7432');
+
 /** Behind the hero's phone: our own still life of sealed envelopes on linen, set like a product photograph. */
 function HeroStill() {
   const src = useMemo(() => flatLay(), []);
@@ -351,7 +354,7 @@ export function SalesPage() {
               <HeroStill />
               {/* The real invitation: the envelope and its wax seal, which breaks and opens by itself. */}
               <span className="relative z-10">
-                <HeroInvite src="/demo?embed=1&play=1" caption={false} />
+                <HeroInvite src="/demo?embed=1&play=1" caption={false} poster={posterSrc} />
               </span>
               <Bubble from="us" className="top-[6%] left-0 md:-left-6 hidden sm:block">
                 Harriet &amp; Theo would love you to celebrate with them. Your invitation and RSVP: <u>tap here</u>
