@@ -79,6 +79,7 @@ export const SIGNATURE: Record<string, Palette & { style: string; mood: string; 
   'Vellum & Gold': { paper: '#fbf8f1', ink: '#3b3426', accent: '#bf9b5a', soft: '#ece4d4', envelope: '#efe6d3', style: 'Fine stationery: frosted vellum sheets lift to a gilt card', mood: 'Classic', scene: 'vellum' },
   'Our Photograph': { paper: '#faf8f4', ink: '#2b2b2b', accent: '#a88a5c', soft: '#e6e0d6', envelope: '#e9e4da', style: 'Your own photo develops, then the invitation is drawn in', mood: 'Modern', scene: 'photo' },
   'Opening Night': { paper: '#f7f3e8', ink: '#173a2e', accent: '#c6a35c', soft: '#cfe0d4', envelope: '#1f4a3a', style: 'Black tie: velvet curtains draw apart', mood: 'Moody & luxe', scene: 'curtain' },
+  'Curtain Call': { paper: '#fbf5ee', ink: '#3d1418', accent: '#d2a85a', soft: '#efd6cf', envelope: '#8e1b26', style: 'For theatre lovers: red velvet curtains part, footlights up, and the show begins', mood: 'Moody & luxe', scene: 'curtain' },
 };
 export const SIGNATURE_NAMES = Object.keys(SIGNATURE);
 /** The scene a wedding opens with: theirs if chosen, otherwise the design's own (none for most). */
