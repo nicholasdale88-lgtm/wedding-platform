@@ -163,9 +163,13 @@ export function GuestPages() {
   const evSlot = ev && data ? data.events.indexOf(ev) : 0;
 
   const samples = useMemo(() => (data?.samples ?? []).filter((s) => !eventKey || s.invited.includes(eventKey)), [data, eventKey]);
-  const pv = params.get('as') ?? '';
+  // In a later event's section (the 30th), its invitation is previewed as its own guests get it: invited to that
+  // event only. "Preview as" also offers each event on its own, and everything together.
+  const laterEvent = !!data && !!ev && data.events.indexOf(ev) > 0;
+  const pv = params.get('as') ?? (laterEvent && ev ? `ev:${ev.key}` : '');
   // No guest picked: the invitation as a stranger sees it, the guides and photo page with a stand-in guest.
   const sample = samples.find((s) => s.token === pv) ?? null;
+  const asEvents = !sample && pv.startsWith('ev:') ? pv.slice(3) : '';
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
   if (!data || !doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your pages…</div>;
@@ -184,7 +188,7 @@ export function GuestPages() {
   const base = `/w/${data.slug}`;
   const path = page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
   const editingCard = liveEdit && page === 'invitation';
-  const previewUrl = `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
+  const previewUrl = `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}${asEvents && path === '/' ? `events=${encodeURIComponent(asEvents)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
   const shareUrl = `${window.location.origin}${base}${path}${sample ? `?g=${encodeURIComponent(sample.token)}` : ''}`;
 
   const guide = eventKey ? doc.guides[eventKey] : undefined;
@@ -297,8 +301,18 @@ export function GuestPages() {
           ))}
         </nav>
         <Label text="Preview as" className="!flex-row items-center gap-2 ml-auto">
-          <select value={sample?.token ?? ''} onChange={(e) => setParam('as', e.target.value)} className={`${inputCls} !py-2`}>
+          <select value={sample?.token ?? (asEvents ? pv : '')} onChange={(e) => setParam('as', e.target.value || (laterEvent ? 'none' : ''))} className={`${inputCls} !py-2`}>
             <option value="">{page === 'invitation' ? 'Someone without their link' : 'A sample guest'}</option>
+            {data.events.length > 1 && (
+              <optgroup label="Who's invited to what">
+                {data.events.map((e) => (
+                  <option key={e.key} value={`ev:${e.key}`}>
+                    Invited to {e.name} only
+                  </option>
+                ))}
+                <option value={`ev:${data.events.map((e) => e.key).join(',')}`}>Invited to everything</option>
+              </optgroup>
+            )}
             {samples.map((s) => (
               <option key={s.token} value={s.token}>
                 {s.label}

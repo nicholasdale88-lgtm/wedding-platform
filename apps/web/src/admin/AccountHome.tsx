@@ -140,7 +140,7 @@ function Status({ label, value, sub, go }: { label: string; value: string; sub: 
 /** What needs doing, across every area, each opening the place to do it. */
 export function NeedsYou({ o, to }: { o: Overview; to: To }) {
   return (
-    <section className="flex flex-col gap-1" aria-label="Needs you">
+    <section className="flex flex-col gap-1 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0" aria-label="Needs you">
       <div className="flex justify-between items-baseline gap-3 mb-[6px]">
         <H2>Needs you</H2>
         {o.needsYou.length > 0 && (
@@ -150,7 +150,7 @@ export function NeedsYou({ o, to }: { o: Overview; to: To }) {
         )}
       </div>
       {o.needsYou.map((t) => (
-        <div key={t.kind} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-center py-[13px] border-t border-[#e2d7bc]">
+        <div key={t.kind} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-center py-[13px] border-t border-[#ece3cc]">
           <span className="w-[18px] h-[18px] rounded-full border-[1.5px] border-[#8a5a45]" />
           <span className="min-w-0">
             <span className="block font-semibold">{t.title}</span>
@@ -164,7 +164,7 @@ export function NeedsYou({ o, to }: { o: Overview; to: To }) {
           </button>
         </div>
       ))}
-      {o.needsYou.length === 0 && <div className="py-4 border-t border-[#e2d7bc] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>}
+      {o.needsYou.length === 0 && <div className="py-4 border-t border-[#ece3cc] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>}
     </section>
   );
 }

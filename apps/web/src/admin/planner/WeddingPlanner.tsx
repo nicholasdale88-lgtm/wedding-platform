@@ -88,7 +88,12 @@ function Planner() {
   };
   return (
     <div className="flex flex-col gap-5">
-      <header>
+      <header className="flex flex-col gap-2 items-start">
+        {view !== 'glance' && (
+          <button type="button" onClick={() => go('glance')} className="p-0 border-0 bg-transparent text-[14px] font-medium underline cursor-pointer text-[var(--adm-ink,#33402f)]">
+            ← Planner overview
+          </button>
+        )}
         <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Wedding planner</h1>
       </header>
       {/* The same menu as every page's: pills in a soft bar (scrolling sideways on a phone). */}

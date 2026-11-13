@@ -396,89 +396,254 @@ const daySkyBody = (w: number, horizon: number) => `
   <circle cx='${w * 0.78}' cy='${horizon * 0.22}' r='${w * 0.32}' fill='url(#sun)'/>
   <rect y='${horizon * 0.06}' width='${w}' height='${horizon * 0.5}' filter='url(#cloud)' clip-path='url(#skyclip)' opacity='.9'/>`;
 
-/** Planks of timber with grain, knots and nail heads: one barn door (the right one mirrored), with an X brace and iron straps. */
+/**
+ * One barn door (the right one mirrored), built like a real one: tongue-and-groove planks with running
+ * grain, knots and weathering, a framed edge of thicker boards with bevelled edges, a diagonal brace, forged
+ * strap hinges with rivets, and a pull handle. Lit from the top left, with contact shadows under every board.
+ */
 function barnArt(c: SceneColours, mirror = false): string {
   const wood = c.envelope;
-  const planks = Array.from({ length: 5 }, (_, i) => {
-    const x = i * 60;
-    const tone = mix(wood, i % 2 ? '#000000' : '#ffffff', 0.04 + rnd(i, 4) * 0.06);
-    const knots = [0, 1].map((k) => `<ellipse cx='${f1(x + 16 + rnd(i, k + 5) * 28)}' cy='${f1(120 + rnd(i, k + 8) * 760)}' rx='${f1(5 + rnd(i, k) * 4)}' ry='${f1(9 + rnd(i, k) * 6)}' fill='${dark(wood, 0.35)}' fill-opacity='.55'/><ellipse cx='${f1(x + 16 + rnd(i, k + 5) * 28)}' cy='${f1(120 + rnd(i, k + 8) * 760)}' rx='${f1(9 + rnd(i, k) * 5)}' ry='${f1(16 + rnd(i, k) * 8)}' fill='none' stroke='${dark(wood, 0.3)}' stroke-opacity='.35' stroke-width='1.2'/>`).join('');
-    return `<rect x='${x}' y='0' width='60' height='1000' fill='${tone}'/>${knots}<rect x='${x}' y='0' width='2.2' height='1000' fill='${dark(wood, 0.5)}'/><rect x='${x + 2.2}' y='0' width='1' height='1000' fill='${light(wood, 0.35)}' fill-opacity='.5'/>`;
+  const W = 300;
+  const H = 1000;
+  // Six planks, each its own tone, with a rounded (lit) face and fine grain running its length.
+  const planks = Array.from({ length: 6 }, (_, i) => {
+    const x = i * 50;
+    const tone = mix(wood, i % 2 ? '#000000' : '#ffffff', 0.03 + rnd(i, 4) * 0.07);
+    const grain = Array.from({ length: 9 }, (_, k) => {
+      const gx = x + 4 + k * 5.2 + rnd(i * 9 + k, 1) * 2;
+      const wob = 2 + rnd(i * 9 + k, 2) * 3;
+      return `<path d='M${f1(gx)} 0 C${f1(gx + wob)} 250 ${f1(gx - wob)} 500 ${f1(gx + wob * 0.6)} 750 S${f1(gx - wob)} 950 ${f1(gx)} ${H}' fill='none' stroke='${dark(tone, 0.32)}' stroke-opacity='${f1(0.18 + rnd(i * 9 + k, 3) * 0.22)}' stroke-width='${f1(0.6 + rnd(i * 9 + k, 5) * 0.9)}'/>`;
+    }).join('');
+    const knots = [0, 1, 2]
+      .filter((k) => rnd(i, k + 30) > 0.35)
+      .map((k) => {
+        const kx = x + 12 + rnd(i, k + 5) * 26;
+        const ky = 60 + rnd(i, k + 8) * 880;
+        const rx = 3 + rnd(i, k) * 3;
+        return `<g transform='translate(${f1(kx)} ${f1(ky)})'>${[3.2, 2.3, 1.6, 1].map((m, j) => `<ellipse rx='${f1(rx * m)}' ry='${f1(rx * m * 2.1)}' fill='${j === 3 ? dark(tone, 0.5) : 'none'}' stroke='${dark(tone, 0.38)}' stroke-opacity='${f1(0.25 + j * 0.12)}' stroke-width='.9'/>`).join('')}<ellipse cx='-1' cy='-2' rx='${f1(rx * 0.4)}' ry='${f1(rx * 0.8)}' fill='#fff' fill-opacity='.12'/></g>`;
+      })
+      .join('');
+    // Weathering: a few short end checks (cracks) near the top and bottom.
+    const checks = [0, 1].map((k) => `<path d='M${f1(x + 10 + rnd(i, k + 40) * 30)} ${k ? H - 4 : 4} l${f1((rnd(i, k + 41) - 0.5) * 3)} ${k ? -(18 + rnd(i, k) * 30) : 18 + rnd(i, k) * 30}' stroke='${dark(tone, 0.55)}' stroke-opacity='.5' stroke-width='1'/>`).join('');
+    return `<rect x='${x}' y='0' width='50' height='${H}' fill='${tone}'/><rect x='${x}' y='0' width='50' height='${H}' fill='url(#plankRound)'/>${grain}${knots}${checks}
+      <rect x='${x}' y='0' width='3' height='${H}' fill='${dark(wood, 0.62)}'/><rect x='${x + 3}' y='0' width='4' height='${H}' fill='#000' fill-opacity='.14'/><rect x='${x + 48.6}' y='0' width='1.4' height='${H}' fill='${light(wood, 0.4)}' fill-opacity='.45'/>`;
   }).join('');
-  const nail = (x: number, y: number) => `<circle cx='${x}' cy='${y}' r='3.4' fill='#2a2724'/><circle cx='${x - 0.8}' cy='${y - 0.8}' r='1.2' fill='#8d8780'/>`;
-  const brace = (d: string) => `<path d='${d}' stroke='${dark(wood, 0.45)}' stroke-width='52' stroke-opacity='.35' fill='none'/><path d='${d}' stroke='${light(wood, 0.12)}' stroke-width='44' fill='none'/><path d='${d}' stroke='url(#grainB)' stroke-width='44' fill='none'/>`;
-  const strap = (y: number) => `<rect x='0' y='${y}' width='300' height='22' fill='#2b2826'/><rect x='0' y='${y}' width='300' height='3' fill='#5a5550'/>${[24, 92, 160, 228, 280].map((x) => nail(x, y + 11)).join('')}`;
-  const flip = mirror ? 'translate(300 0) scale(-1 1)' : '';
+  // A thick board with bevelled edges: lit top and left, shaded bottom and right, a soft shadow beneath.
+  const board = (x: number, y: number, w: number, h: number, k: number) => {
+    const tone = light(wood, 0.08 + rnd(k, 61) * 0.05);
+    const lines = Array.from({ length: Math.max(3, Math.round(h / 7)) }, (_, j) => {
+      const gy = y + 4 + j * ((h - 8) / Math.max(2, Math.round(h / 7) - 1));
+      const wob = 1.5 + rnd(k * 13 + j, 62) * 2.5;
+      return `<path d='M${x} ${f1(gy)} C${f1(x + w * 0.3)} ${f1(gy + wob)} ${f1(x + w * 0.6)} ${f1(gy - wob)} ${x + w} ${f1(gy + wob * 0.4)}' fill='none' stroke='${dark(tone, 0.3)}' stroke-opacity='.3' stroke-width='.8'/>`;
+    }).join('');
+    return `<rect x='${x + 3}' y='${y + 6}' width='${w}' height='${h}' fill='#000' fill-opacity='.38' filter='url(#soft)'/>
+      <rect x='${x}' y='${y}' width='${w}' height='${h}' fill='${tone}'/>${lines}
+      <rect x='${x}' y='${y}' width='${w}' height='${h}' fill='url(#boardLit)'/>
+      <rect x='${x}' y='${y}' width='${w}' height='2.4' fill='#fff' fill-opacity='.32'/><rect x='${x}' y='${y}' width='2' height='${h}' fill='#fff' fill-opacity='.2'/>
+      <rect x='${x}' y='${y + h - 3}' width='${w}' height='3' fill='#000' fill-opacity='.4'/><rect x='${x + w - 2.4}' y='${y}' width='2.4' height='${h}' fill='#000' fill-opacity='.3'/>`;
+  };
+  const rivet = (x: number, y: number, r = 4) => `<circle cx='${x}' cy='${y + 1.5}' r='${r}' fill='#000' fill-opacity='.45'/><circle cx='${x}' cy='${y}' r='${r}' fill='url(#iron)'/><circle cx='${f1(x - r * 0.35)}' cy='${f1(y - r * 0.35)}' r='${f1(r * 0.35)}' fill='#fff' fill-opacity='.55'/>`;
+  // A forged strap hinge: tapering, with a spear-and-scroll end.
+  const strap = (y: number) => `<g>
+      <path d='M0 ${y + 6} H178 L200 ${y - 4} L232 ${y + 15} L200 ${y + 34} L178 ${y + 24} H0Z' fill='#000' fill-opacity='.4' filter='url(#soft)' transform='translate(3 6)'/>
+      <path d='M0 ${y} H178 L200 ${y - 10} L232 ${y + 15} L200 ${y + 40} L178 ${y + 30} H0Z' fill='url(#iron)'/>
+      <path d='M0 ${y} H178 L200 ${y - 10} L232 ${y + 15}' fill='none' stroke='#fff' stroke-opacity='.28' stroke-width='1.4'/>
+      <path d='M206 ${y + 15} m-8 0 a8 8 0 1 0 16 0 a8 8 0 1 0 -16 0' fill='${dark(wood, 0.2)}' fill-opacity='.6'/>
+      ${[26, 74, 122, 166].map((x) => rivet(x, y + 15)).join('')}
+    </g>`;
+  const flip = mirror ? `translate(${W} 0) scale(-1 1)` : '';
+  // The brace: one board from the lower hinge side up to the latch side (the strongest way to brace a door).
+  const len = Math.hypot(220, 560);
+  const ang = (Math.atan2(560, 220) * 180) / Math.PI;
   return svgUrl(
     `<defs>
-      <filter id='grain' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.9 .012' numOctaves='3' seed='11'/><feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 -.18'/></filter>
-      <pattern id='grainB' width='300' height='1000' patternUnits='userSpaceOnUse'><rect width='300' height='1000' filter='url(#grain)'/></pattern>
-      <linearGradient id='lit' x1='0' y1='0' x2='1' y2='.4'><stop offset='0' stop-color='#fff' stop-opacity='.16'/><stop offset='.5' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.2'/></linearGradient>
+      <filter id='soft' x='-10%' y='-10%' width='120%' height='130%'><feGaussianBlur stdDeviation='4'/></filter>
+      <filter id='grain' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.85 .01' numOctaves='3' seed='11'/><feColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .5 -.2'/></filter>
+      <linearGradient id='plankRound' x1='0' x2='1'><stop offset='0' stop-color='#000' stop-opacity='.16'/><stop offset='.35' stop-color='#fff' stop-opacity='.07'/><stop offset='.7' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.12'/></linearGradient>
+      <linearGradient id='boardLit' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.12'/><stop offset='.5' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.16'/></linearGradient>
+      <linearGradient id='iron' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#6d6762'/><stop offset='.45' stop-color='#3a3633'/><stop offset='1' stop-color='#1d1b1a'/></linearGradient>
+      <linearGradient id='lit' x1='0' y1='0' x2='1' y2='.5'><stop offset='0' stop-color='#ffe8c0' stop-opacity='.2'/><stop offset='.45' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.28'/></linearGradient>
+      <radialGradient id='ao' cx='.5' cy='.5' r='.75'><stop offset='.62' stop-color='#000' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.4'/></radialGradient>
     </defs>
     <g transform='${flip}'>
       ${planks}
-      <rect width='300' height='1000' filter='url(#grain)'/>
-      ${brace('M30 190 L270 810')}
-      <rect x='18' y='160' width='264' height='46' fill='${light(wood, 0.1)}'/><rect x='18' y='160' width='264' height='46' filter='url(#grain)'/><rect x='18' y='204' width='264' height='3' fill='${dark(wood, 0.45)}' fill-opacity='.6'/>
-      <rect x='18' y='794' width='264' height='46' fill='${light(wood, 0.1)}'/><rect x='18' y='794' width='264' height='46' filter='url(#grain)'/><rect x='18' y='838' width='264' height='3' fill='${dark(wood, 0.45)}' fill-opacity='.6'/>
-      ${strap(110)}${strap(880)}
-      <rect x='262' y='420' width='14' height='160' rx='7' fill='#2b2826'/><rect x='264' y='424' width='4' height='150' rx='2' fill='#5a5550'/>
+      <rect width='${W}' height='${H}' filter='url(#grain)'/>
+      <g transform='translate(150 500) rotate(${f1(ang)})'>${board(-len / 2, -23, len, 46, 7)}</g>
+      ${board(0, 0, W, 64, 1)}
+      ${board(0, 210, W, 54, 2)}
+      ${board(0, 736, W, 54, 3)}
+      ${board(0, 936, W, 64, 4)}
+      ${board(0, 0, 40, H, 5)}
+      ${board(W - 40, 0, 40, H, 6)}
+      ${strap(120)}${strap(846)}
+      <rect x='${W - 74}' y='436' width='26' height='14' rx='3' fill='url(#iron)'/><rect x='${W - 74}' y='552' width='26' height='14' rx='3' fill='url(#iron)'/>
+      <rect x='${W - 66}' y='436' width='10' height='130' rx='5' fill='#000' fill-opacity='.35' filter='url(#soft)' transform='translate(4 6)'/>
+      <rect x='${W - 66}' y='440' width='10' height='122' rx='5' fill='url(#iron)'/><rect x='${W - 64}' y='446' width='2.5' height='110' rx='1' fill='#fff' fill-opacity='.3'/>
+      ${rivet(W - 68, 443, 2.6)}${rivet(W - 54, 443, 2.6)}${rivet(W - 68, 559, 2.6)}${rivet(W - 54, 559, 2.6)}
     </g>
-    <rect width='300' height='1000' fill='url(#lit)'/>`,
-    300,
-    1000,
+    <rect width='${W}' height='${H}' fill='url(#lit)'/>
+    <rect width='${W}' height='${H}' fill='url(#ao)'/>`,
+    W,
+    H,
   );
 }
 
-/** The sunlit view through the barn: a lawn, an arbour and the hills. */
+/**
+ * Through the barn doors: the ceremony at golden hour. A low sun over a tree line, rolling hills, the lawn
+ * striped with light, rows of cross-back chairs down an aisle of petals, and a timber arbour draped in
+ * chiffon with flowers at its corners.
+ */
 function fieldArt(c: SceneColours): string {
-  const hill1 = mix('#9db37f', c.soft, 0.3);
-  const hill2 = mix('#7f9a64', c.ink, 0.15);
+  const hill1 = mix('#a7b47f', c.soft, 0.25);
+  const hill2 = mix('#86996a', c.ink, 0.12);
+  const trees = Array.from({ length: 26 }, (_, i) => `<circle cx='${f1(i * 20 + rnd(i, 1) * 10)}' cy='${f1(520 - rnd(i, 2) * 26)}' r='${f1(16 + rnd(i, 3) * 14)}'/>`).join('');
+  // Chairs: rows either side of the aisle, smaller (further away) towards the arbour.
+  const chairs = Array.from({ length: 6 }, (_, row) => {
+    const t = row / 5;
+    const y = 690 + t * 250;
+    const s = 0.55 + t * 0.75;
+    const aisle = 22 + t * 34;
+    return Array.from({ length: 4 }, (_, k) =>
+      [-1, 1]
+        .map((side) => {
+          const x = 250 + side * (aisle + k * 26 * s + 12 * s);
+          return `<g transform='translate(${f1(x)} ${f1(y)}) scale(${f1(s)})'><ellipse cx='0' cy='26' rx='11' ry='3' fill='#000' fill-opacity='.18'/><rect x='-9' y='-16' width='18' height='4' rx='1' fill='${mix('#9a7b58', c.envelope, 0.3)}'/><path d='M-8 -14 L8 2 M8 -14 L-8 2' stroke='${mix('#8a6c4c', c.envelope, 0.3)}' stroke-width='2'/><rect x='-10' y='2' width='20' height='5' rx='1.5' fill='${mix('#b08f69', c.envelope, 0.3)}'/><path d='M-8 7 V26 M8 7 V26' stroke='${mix('#7c6046', c.envelope, 0.3)}' stroke-width='2.2'/></g>`;
+        })
+        .join(''),
+    ).join('');
+  }).join('');
+  const petals = Array.from({ length: 70 }, (_, i) => {
+    const t = rnd(i, 1);
+    const y = 690 + t * 310;
+    const x = 250 + (rnd(i, 2) - 0.5) * (30 + t * 70);
+    return `<ellipse cx='${f1(x)}' cy='${f1(y)}' rx='${f1(1.5 + t * 2.5)}' ry='${f1(1 + t * 1.5)}' fill='${i % 3 ? '#f6d9dc' : '#fffaf2'}' transform='rotate(${f1(rnd(i, 3) * 180)} ${f1(x)} ${f1(y)})'/>`;
+  }).join('');
+  const bloomAt = (x: number, y: number, r: number) =>
+    Array.from({ length: 9 }, (_, i) => `<circle cx='${f1(x + (rnd(i, 4) - 0.5) * r * 2)}' cy='${f1(y + (rnd(i, 5) - 0.5) * r * 1.4)}' r='${f1(r * (0.32 + rnd(i, 6) * 0.25))}' fill='${['#fffaf2', '#f6d9dc', light(c.soft, 0.3), '#eef1e6'][i % 4]}'/>`).join('') +
+    Array.from({ length: 6 }, (_, i) => `<ellipse cx='${f1(x + (rnd(i, 7) - 0.5) * r * 2.6)}' cy='${f1(y + (rnd(i, 8) - 0.2) * r * 1.4)}' rx='${f1(r * 0.35)}' ry='${f1(r * 0.16)}' fill='#7f9478' transform='rotate(${f1(rnd(i, 9) * 180)} ${f1(x)} ${f1(y)})'/>`).join('');
   return svgUrl(
-    `<defs>${daySky(500, 1000, 560)}
-      <linearGradient id='lawn' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${mix('#a7bf88', c.soft, 0.2)}'/><stop offset='1' stop-color='${mix('#7e9c5e', c.ink, 0.1)}'/></linearGradient>
+    `<defs>
+      <linearGradient id='gsky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#8fb3cf'/><stop offset='.45' stop-color='#f3d9b5'/><stop offset='.8' stop-color='#f7c991'/><stop offset='1' stop-color='#f9e4c0'/></linearGradient>
+      <radialGradient id='gsun' cx='.5' cy='.5' r='.5'><stop offset='0' stop-color='#fff8dc'/><stop offset='.18' stop-color='#ffe9b0' stop-opacity='.95'/><stop offset='1' stop-color='#ffd890' stop-opacity='0'/></radialGradient>
+      <linearGradient id='lawnG' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${mix('#b3bf83', c.soft, 0.15)}'/><stop offset='1' stop-color='${mix('#738e55', c.ink, 0.12)}'/></linearGradient>
+      <linearGradient id='haze' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff1d6' stop-opacity='0'/><stop offset='1' stop-color='#fff1d6' stop-opacity='.55'/></linearGradient>
+      <linearGradient id='chif' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.95'/><stop offset='1' stop-color='#fff' stop-opacity='.55'/></linearGradient>
+      <filter id='blurT' x='-5%' y='-20%' width='110%' height='140%'><feGaussianBlur stdDeviation='2.5'/></filter>
     </defs>
-    ${daySkyBody(500, 560)}
-    <path d='M0 560 C90 520 170 540 250 515 C340 490 420 530 500 510 V640 H0Z' fill='${hill1}'/>
-    <path d='M0 600 C110 570 200 600 300 575 C390 555 450 585 500 575 V700 H0Z' fill='${hill2}'/>
-    <rect y='640' width='500' height='360' fill='url(#lawn)'/>
-    <path d='M190 1000 L238 650 H262 L310 1000Z' fill='#efe6d3' fill-opacity='.75'/>
-    <path d='M190 700 V600 A60 60 0 0 1 310 600 V700' fill='none' stroke='#f7f1e3' stroke-width='9'/>
-    ${Array.from({ length: 18 }, (_, i) => { const a = Math.PI + (i / 17) * Math.PI; return `<circle cx='${f1(250 + Math.cos(a) * 60)}' cy='${f1(600 + Math.sin(a) * 60)}' r='${f1(7 + rnd(i, 2) * 5)}' fill='${i % 3 ? '#f4d6d6' : '#fffaf2'}'/>`; }).join('')}
-    ${Array.from({ length: 10 }, (_, i) => `<rect x='${f1(60 + (i % 5) * 26)}' y='${f1(760 + Math.floor(i / 5) * 60)}' width='16' height='34' rx='3' fill='#f7f1e3'/><rect x='${f1(330 + (i % 5) * 26)}' y='${f1(760 + Math.floor(i / 5) * 60)}' width='16' height='34' rx='3' fill='#f7f1e3'/>`).join('')}`,
+    <rect width='500' height='600' fill='url(#gsky)'/>
+    <circle cx='330' cy='505' r='190' fill='url(#gsun)'/>
+    <g fill='${mix('#6f7f5a', c.ink, 0.25)}' fill-opacity='.75' filter='url(#blurT)'>${trees}</g>
+    <rect y='470' width='500' height='80' fill='url(#haze)'/>
+    <path d='M0 555 C90 520 170 540 250 520 C340 498 420 535 500 515 V660 H0Z' fill='${hill1}'/>
+    <path d='M0 600 C110 575 200 602 300 580 C390 560 450 590 500 580 V700 H0Z' fill='${hill2}'/>
+    <rect y='640' width='500' height='360' fill='url(#lawnG)'/>
+    ${Array.from({ length: 7 }, (_, i) => `<path d='M${250 - 40 - i * 90} 1000 L248 640 H252 L${250 + 40 + i * 90} 1000' fill='#fff' fill-opacity='${i % 2 ? 0.04 : 0}'/>`).join('')}
+    <path d='M222 1000 L246 650 H254 L278 1000Z' fill='#f4ece0' fill-opacity='.85'/>
+    ${petals}
+    <g transform='translate(250 600)'>
+      <ellipse cx='0' cy='52' rx='70' ry='8' fill='#000' fill-opacity='.18'/>
+      <rect x='-52' y='-70' width='7' height='122' fill='#7b5d42'/><rect x='45' y='-70' width='7' height='122' fill='#6c5039'/>
+      <rect x='-62' y='-78' width='124' height='9' fill='#87684b'/><rect x='-62' y='-78' width='124' height='2' fill='#fff' fill-opacity='.3'/>
+      <path d='M-60 -70 C-40 -30 -20 -30 0 -60 C20 -30 40 -30 60 -70 L60 -62 C40 -24 20 -24 0 -52 C-20 -24 -40 -24 -60 -62Z' fill='url(#chif)'/>
+      <path d='M-52 -66 C-62 -20 -44 10 -58 52 L-46 52 C-38 14 -54 -20 -46 -66Z' fill='url(#chif)'/>
+      <path d='M52 -66 C62 -20 44 10 58 52 L46 52 C38 14 54 -20 46 -66Z' fill='url(#chif)'/>
+      ${bloomAt(-50, -74, 16)}${bloomAt(52, -74, 13)}${bloomAt(-48, 44, 12)}
+    </g>
+    ${chairs}
+    <rect width='500' height='1000' fill='#ffcf8a' fill-opacity='.08'/>`,
     500,
     1000,
     'xMidYMid slice',
   );
 }
 
-/** A eucalyptus wreath with a twine bow and a little tag: hung across the barn doors' seam. */
+/** Festoon lights strung above the barn: warm bulbs on two swags, glowing. */
+function festoonArt(): string {
+  const swag = (y: number, sag: number, n: number, k: number) => {
+    const pts = Array.from({ length: n }, (_, i) => {
+      const t = i / (n - 1);
+      return { x: t * 500, y: y + Math.sin(t * Math.PI) * sag };
+    });
+    const wire = `<path d='M0 ${y} Q250 ${y + sag * 2} 500 ${y}' fill='none' stroke='#1d1b1a' stroke-width='1.6'/>`;
+    const bulbs = pts
+      .slice(1, -1)
+      .map((p, i) => `<g transform='translate(${f1(p.x)} ${f1(p.y)})'><circle cy='14' r='${f1(18 + rnd(i + k, 3) * 6)}' fill='url(#halo)'/><rect x='-2.4' y='0' width='4.8' height='6' fill='#2a2724'/><ellipse cy='13' rx='5' ry='7' fill='url(#bulb)'/><ellipse cx='-1.6' cy='10.5' rx='1.3' ry='2.4' fill='#fff' fill-opacity='.85'/></g>`)
+      .join('');
+    return wire + bulbs;
+  };
+  return svgUrl(
+    `<defs>
+      <radialGradient id='bulb' cx='.45' cy='.4' r='.65'><stop offset='0' stop-color='#fffbe6'/><stop offset='.5' stop-color='#ffe2a0'/><stop offset='1' stop-color='#f0b45c'/></radialGradient>
+      <radialGradient id='halo' cx='.5' cy='.5' r='.5'><stop offset='0' stop-color='#ffe6a8' stop-opacity='.6'/><stop offset='1' stop-color='#ffe6a8' stop-opacity='0'/></radialGradient>
+    </defs>
+    ${swag(30, 46, 11, 0)}${swag(10, 70, 13, 5)}`,
+    500,
+    180,
+    'xMidYMin slice',
+  );
+}
+
+/**
+ * A full eucalyptus wreath: a twig base, three layers of round silver-dollar leaves and long willow leaves,
+ * cream roses clustered low on one side, white berries, and a linen bow with long tails and a little tag.
+ */
 function wreathArt(c: SceneColours, initials: string): string {
-  const leaves = Array.from({ length: 46 }, (_, i) => {
-    const a = (i / 46) * Math.PI * 2;
-    const r = 78 + (i % 2 ? 6 : -6);
-    const x = 110 + Math.cos(a) * r;
-    const y = 110 + Math.sin(a) * r;
-    const g = i % 3 === 0 ? '#9fb3a0' : i % 3 === 1 ? '#7f9784' : '#b7c6b2';
-    return `<ellipse cx='${f1(x)}' cy='${f1(y)}' rx='${f1(9 + rnd(i, 1) * 4)}' ry='${f1(14 + rnd(i, 2) * 4)}' transform='rotate(${f1((a * 180) / Math.PI + 30 + rnd(i, 3) * 40)} ${f1(x)} ${f1(y)})' fill='${g}' stroke='#5f7564' stroke-width='.6'/>`;
+  const C0 = 120;
+  const twigs = Array.from({ length: 14 }, (_, i) => {
+    const a0 = (i / 14) * Math.PI * 2;
+    const r = 70 + rnd(i, 1) * 10;
+    const x1 = C0 + Math.cos(a0) * r;
+    const y1 = C0 + Math.sin(a0) * r;
+    const x2 = C0 + Math.cos(a0 + 0.7) * (r + 4);
+    const y2 = C0 + Math.sin(a0 + 0.7) * (r + 4);
+    return `<path d='M${f1(x1)} ${f1(y1)} Q${f1(C0 + Math.cos(a0 + 0.35) * (r + 12))} ${f1(C0 + Math.sin(a0 + 0.35) * (r + 12))} ${f1(x2)} ${f1(y2)}' fill='none' stroke='#6b5038' stroke-width='${f1(1.6 + rnd(i, 2) * 1.6)}' stroke-linecap='round'/>`;
   }).join('');
-  const berries = Array.from({ length: 10 }, (_, i) => {
-    const a = (i / 10) * Math.PI * 2 + 0.3;
-    return `<circle cx='${f1(110 + Math.cos(a) * 80)}' cy='${f1(110 + Math.sin(a) * 80)}' r='3.2' fill='#f2ece0' stroke='#c7bba3' stroke-width='.6'/>`;
+  const greens = ['#8fa592', '#a8b9a7', '#7a9180', '#b9c7b3', '#6f8775'];
+  const roundLeaf = (i: number, layer: number) => {
+    const a = (i / 30) * Math.PI * 2 + layer * 0.11;
+    const r = 72 + (layer - 1) * 9 + (rnd(i + layer * 40, 1) - 0.5) * 10;
+    const x = C0 + Math.cos(a) * r;
+    const y = C0 + Math.sin(a) * r;
+    const sz = 8 + rnd(i + layer * 40, 2) * 5;
+    const g = greens[(i + layer) % greens.length]!;
+    return `<g transform='translate(${f1(x)} ${f1(y)}) rotate(${f1((a * 180) / Math.PI + rnd(i, 3) * 60)})'><ellipse cx='1.5' cy='2.5' rx='${f1(sz)}' ry='${f1(sz * 0.92)}' fill='#000' fill-opacity='.18'/><ellipse rx='${f1(sz)}' ry='${f1(sz * 0.92)}' fill='${g}'/><ellipse cx='${f1(-sz * 0.3)}' cy='${f1(-sz * 0.3)}' rx='${f1(sz * 0.55)}' ry='${f1(sz * 0.45)}' fill='#fff' fill-opacity='.18'/><path d='M${f1(-sz * 0.8)} 0 H${f1(sz * 0.8)}' stroke='${dark(g, 0.25)}' stroke-width='.6'/></g>`;
+  };
+  const willow = Array.from({ length: 22 }, (_, i) => {
+    const a = (i / 22) * Math.PI * 2 + 0.2;
+    const r = 80 + rnd(i, 4) * 12;
+    const x = C0 + Math.cos(a) * r;
+    const y = C0 + Math.sin(a) * r;
+    return `<path transform='translate(${f1(x)} ${f1(y)}) rotate(${f1((a * 180) / Math.PI + 70 + rnd(i, 5) * 30)})' d='M0 0 C6 -4 18 -4 26 0 C18 4 6 4 0 0Z' fill='${i % 2 ? '#6e8a74' : '#8aa08c'}'/>`;
+  }).join('');
+  const rose = (x: number, y: number, r: number) =>
+    `<g transform='translate(${x} ${y})'><circle r='${r + 1.5}' fill='#000' fill-opacity='.2' transform='translate(1.5 2.5)'/><circle r='${r}' fill='#f3e6d6'/>${[0.82, 0.62, 0.42, 0.24]
+      .map((m, j) => `<path d='M${f1(-r * m)} 0 A${f1(r * m)} ${f1(r * m)} 0 1 1 ${f1(r * m * 0.6)} ${f1(r * m * 0.8)}' fill='none' stroke='#cdb69c' stroke-width='${f1(1.2 - j * 0.15)}' transform='rotate(${j * 70})'/>`)
+      .join('')}<circle cx='${f1(-r * 0.35)}' cy='${f1(-r * 0.4)}' r='${f1(r * 0.35)}' fill='#fff' fill-opacity='.35'/></g>`;
+  const berries = Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * Math.PI * 2 + 0.4;
+    const r = 70 + rnd(i, 6) * 22;
+    return `<circle cx='${f1(C0 + Math.cos(a) * r)}' cy='${f1(C0 + Math.sin(a) * r)}' r='2.8' fill='#f6f1e7' stroke='#c9bda6' stroke-width='.5'/>`;
   }).join('');
   const text = initials.replace(/&/g, '&amp;').replace(/</g, '');
+  const linen = light(c.paper, 0.2);
   return svgUrl(
-    `<defs><filter id='ws' x='-20%' y='-20%' width='140%' height='140%'><feDropShadow dx='0' dy='6' stdDeviation='5' flood-color='#000' flood-opacity='.35'/></filter></defs>
+    `<defs><filter id='ws' x='-20%' y='-20%' width='140%' height='150%'><feDropShadow dx='2' dy='9' stdDeviation='6' flood-color='#000' flood-opacity='.42'/></filter></defs>
     <g filter='url(#ws)'>
-      <circle cx='110' cy='110' r='78' fill='none' stroke='#6a5338' stroke-width='5'/>
-      ${leaves}${berries}
-      <path d='M110 34 C90 18 78 30 96 40 M110 34 C130 18 142 30 124 40' fill='none' stroke='#cdb68c' stroke-width='3'/>
-      <path d='M108 38 L98 62 M112 38 L124 60' stroke='#cdb68c' stroke-width='2.4'/>
-      <rect x='86' y='132' width='48' height='30' rx='3' fill='${light(c.paper, 0.4)}' stroke='#b9a37c' stroke-width='1'/>
-      <text x='110' y='152' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='14' fill='${c.ink}'>${text}</text>
+      ${twigs}
+      ${Array.from({ length: 30 }, (_, i) => roundLeaf(i, 0)).join('')}
+      ${willow}
+      ${Array.from({ length: 30 }, (_, i) => roundLeaf(i, 1)).join('')}
+      ${Array.from({ length: 30 }, (_, i) => roundLeaf(i, 2)).join('')}
+      ${berries}
+      ${rose(64, 170, 13)}${rose(84, 186, 10)}${rose(52, 148, 9)}${rose(92, 166, 7)}
+      <path d='M120 44 C96 20 78 34 100 48 M120 44 C144 20 162 34 140 48' fill='${linen}' stroke='#cdbf9f' stroke-width='1.2'/>
+      <path d='M116 46 C108 70 104 96 92 124 L100 126 C110 98 116 72 120 50Z M124 46 C132 72 138 96 152 120 L144 124 C132 98 126 72 120 50Z' fill='${linen}' stroke='#cdbf9f' stroke-width='.8'/>
+      <circle cx='120' cy='46' r='6' fill='${linen}' stroke='#cdbf9f' stroke-width='1'/>
+      <path d='M120 52 L120 148' stroke='#b9a37c' stroke-width='.8'/>
+      <g transform='translate(120 162) rotate(-4)'><rect x='-28' y='-14' width='56' height='30' rx='3' fill='${light(c.paper, 0.45)}' stroke='#b9a37c' stroke-width='1'/><circle cx='-20' cy='1' r='2.2' fill='none' stroke='#b9a37c'/><text x='4' y='7' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='15' fill='${c.ink}'>${text}</text></g>
     </g>`,
-    220,
-    220,
+    240,
+    240,
     'xMidYMid meet',
   );
 }
@@ -554,7 +719,7 @@ function pageArt(c: SceneColours): string {
 }
 
 /** A wrought-iron garden gate (the right one mirrored): bars with spear tips, scrolls, an arched rail and a monogram plate. */
-function gateArt(c: SceneColours, initials: string, mirror = false): string {
+function gateArt(c: SceneColours, mirror = false): string {
   const iron = dark(c.envelope, 0.1);
   const bars = Array.from({ length: 9 }, (_, i) => {
     const x = 26 + i * 31;
@@ -562,9 +727,6 @@ function gateArt(c: SceneColours, initials: string, mirror = false): string {
     return `<rect x='${x - 3}' y='${f1(top)}' width='6' height='${f1(940 - top)}' fill='url(#ironG)'/><path d='M${x} ${f1(top - 26)} L${x + 7} ${f1(top - 4)} L${x} ${f1(top + 2)} L${x - 7} ${f1(top - 4)}Z' fill='url(#ironG)'/>`;
   }).join('');
   const scroll = (x: number, y: number, s: number, f = 1) => `<g transform='translate(${x} ${y}) scale(${s * f} ${s})' fill='none' stroke='url(#ironG)' stroke-width='${f1(5 / s)}' stroke-linecap='round'><path d='M0 0 C0 -30 40 -30 40 0 C40 18 18 22 14 8 C11 -2 24 -4 24 4'/><path d='M0 0 C0 30 -40 30 -40 0 C-40 -18 -18 -22 -14 -8 C-11 2 -24 4 -24 -4'/></g>`;
-  const text = initials.replace(/&/g, '&amp;').replace(/</g, '');
-  // The monogram plate across the meeting bars: each gate has its half.
-  const plate = `<g transform='translate(${mirror ? 0 : 300} 520)'><circle r='46' fill='${iron}' stroke='url(#ironG)' stroke-width='4'/><circle r='38' fill='none' stroke='${light(c.accent, 0.2)}' stroke-width='1.6'/><text y='9' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='24' fill='${light(c.accent, 0.2)}'>${text}</text></g>`;
   const flip = mirror ? 'translate(300 0) scale(-1 1)' : '';
   return svgUrl(
     `<defs>
@@ -581,7 +743,7 @@ function gateArt(c: SceneColours, initials: string, mirror = false): string {
       ${scroll(90, 300, 1.1)}${scroll(210, 290, 1.1, -1)}${scroll(150, 690, 1.3)}${scroll(80, 800, 0.9, -1)}${scroll(220, 810, 0.9)}
       ${Array.from({ length: 7 }, (_, i) => `<circle cx='${36 + i * 40}' cy='606' r='7' fill='url(#ironG)'/>`).join('')}
     </g>
-    ${plate}`,
+`,
     300,
     1000,
   );
@@ -616,34 +778,116 @@ function gardenArt(c: SceneColours): string {
   );
 }
 
-/** A beach at midday: sky, a sparkling sea, wet and dry sand, their initials and a heart drawn in it, and shells. */
+/**
+ * A beach at golden hour: a warm sky, the sun low over a headland with its light laid across the water,
+ * layered swell and lace-edged foam, glistening wet sand, a driftwood arbour draped in chiffon, footprints,
+ * shells, and their initials written in the sand.
+ */
 function beachArt(c: SceneColours, initials: string): string {
-  const sea = mix('#3f8fb0', c.ink, 0.2);
-  const sand = mix('#ead9b8', c.envelope, 0.35);
-  const sparkles = Array.from({ length: 40 }, (_, i) => `<rect x='${f1(rnd(i, 1) * 500)}' y='${f1(470 + rnd(i, 2) * 120)}' width='${f1(4 + rnd(i, 3) * 10)}' height='1.6' fill='#fff' fill-opacity='${f1(0.4 + rnd(i, 4) * 0.5)}'/>`).join('');
-  const shell = (x: number, y: number, s: number, a: number) => `<g transform='translate(${x} ${y}) rotate(${a}) scale(${s})'><path d='M0 0 C-14 -4 -16 -22 0 -26 C16 -22 14 -4 0 0Z' fill='#f6e8dc' stroke='#d8bfa8' stroke-width='.8'/>${[-10, -5, 0, 5, 10].map((d) => `<path d='M0 -1 L${d} -23' stroke='#dcc3ad' stroke-width='.7'/>`).join('')}</g>`;
+  const sea = mix('#3b86a6', c.ink, 0.18);
+  const sand = mix('#ecd8b2', c.envelope, 0.3);
+  const glints = Array.from({ length: 70 }, (_, i) => {
+    const y = 486 + rnd(i, 2) * 110;
+    const spread = 18 + (y - 486) * 0.9;
+    return `<rect x='${f1(330 + (rnd(i, 1) - 0.5) * spread * 2)}' y='${f1(y)}' width='${f1(3 + rnd(i, 3) * 12)}' height='1.6' fill='#fff6d8' fill-opacity='${f1(0.45 + rnd(i, 4) * 0.5)}'/>`;
+  }).join('');
+  const swell = Array.from({ length: 6 }, (_, i) => {
+    const y = 500 + i * 16;
+    return `<path d='M0 ${y} C60 ${y - 4} 120 ${y + 4} 180 ${y} S300 ${y - 4} 360 ${y} S460 ${y + 3} 500 ${y}' fill='none' stroke='#fff' stroke-opacity='${f1(0.08 + i * 0.03)}' stroke-width='${f1(1 + i * 0.4)}'/>`;
+  }).join('');
+  const lace = Array.from({ length: 3 }, (_, k) => {
+    const y = 602 + k * 9;
+    return `<path d='M0 ${y} C50 ${y - 7} 90 ${y + 8} 140 ${y + 1} C190 ${y - 6} 230 ${y + 9} 290 ${y + 2} C350 ${y - 6} 400 ${y + 8} 450 ${y} C470 ${y - 3} 490 ${y + 2} 500 ${y}' fill='none' stroke='#fff' stroke-opacity='${f1(0.9 - k * 0.28)}' stroke-width='${f1(3.4 - k)}' stroke-dasharray='${k ? '14 6 4 6' : 'none'}'/>`;
+  }).join('');
+  const shell = (x: number, y: number, s: number, a: number) => `<g transform='translate(${x} ${y}) rotate(${a}) scale(${s})'><ellipse cx='1' cy='2' rx='14' ry='5' fill='#000' fill-opacity='.15'/><path d='M0 0 C-14 -4 -16 -22 0 -26 C16 -22 14 -4 0 0Z' fill='#f8ebdf' stroke='#d8bfa8' stroke-width='.8'/>${[-10, -5, 0, 5, 10].map((d) => `<path d='M0 -1 L${d} -23' stroke='#dcc3ad' stroke-width='.7'/>`).join('')}</g>`;
+  const foot = (x: number, y: number, a: number, s: number) => `<g transform='translate(${x} ${y}) rotate(${a}) scale(${s})' fill='${dark(sand, 0.16)}' fill-opacity='.5'><ellipse rx='5' ry='9'/><ellipse cy='-14' rx='4' ry='3.6'/></g>`;
   const text = initials.replace(/&/g, '&amp;').replace(/</g, '');
   return svgUrl(
-    `<defs>${daySky(500, 1000, 470)}
-      <linearGradient id='sea' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${dark(sea, 0.15)}'/><stop offset='.6' stop-color='${sea}'/><stop offset='1' stop-color='${light(sea, 0.35)}'/></linearGradient>
-      <linearGradient id='sand' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${dark(sand, 0.08)}'/><stop offset='.25' stop-color='${sand}'/><stop offset='1' stop-color='${light(sand, 0.25)}'/></linearGradient>
+    `<defs>
+      <linearGradient id='bsky' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#7fa8c9'/><stop offset='.5' stop-color='#efcfae'/><stop offset='.85' stop-color='#f6c48c'/><stop offset='1' stop-color='#fbe3bd'/></linearGradient>
+      <radialGradient id='bsun' cx='.5' cy='.5' r='.5'><stop offset='0' stop-color='#fffbe8'/><stop offset='.14' stop-color='#ffeab4'/><stop offset='1' stop-color='#ffd38e' stop-opacity='0'/></radialGradient>
+      <linearGradient id='sea' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${dark(sea, 0.2)}'/><stop offset='.55' stop-color='${sea}'/><stop offset='1' stop-color='${light(sea, 0.4)}'/></linearGradient>
+      <linearGradient id='sand' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${dark(sand, 0.1)}'/><stop offset='.2' stop-color='${sand}'/><stop offset='1' stop-color='${light(sand, 0.2)}'/></linearGradient>
+      <linearGradient id='wet' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${dark(sand, 0.25)}' stop-opacity='.75'/><stop offset='1' stop-color='${dark(sand, 0.1)}' stop-opacity='0'/></linearGradient>
+      <linearGradient id='chif2' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.95'/><stop offset='1' stop-color='#fff' stop-opacity='.5'/></linearGradient>
       <filter id='grit' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='1.3' numOctaves='2' seed='4'/><feColorMatrix type='matrix' values='0 0 0 0 .4  0 0 0 0 .3  0 0 0 0 .2  0 0 0 .5 -.18'/></filter>
+      <filter id='bl' x='-5%' y='-20%' width='110%' height='140%'><feGaussianBlur stdDeviation='1.6'/></filter>
       <filter id='dug' x='-10%' y='-10%' width='120%' height='120%'><feGaussianBlur in='SourceAlpha' stdDeviation='1.5' result='b'/><feOffset dx='1.5' dy='2' in='b' result='o'/><feComposite in='SourceGraphic' in2='o' operator='over'/></filter>
     </defs>
-    ${daySkyBody(500, 470)}
-    <rect y='466' width='500' height='150' fill='url(#sea)'/>
-    <rect y='466' width='500' height='3' fill='${dark(sea, 0.3)}' fill-opacity='.6'/>
-    ${sparkles}
+    <rect width='500' height='490' fill='url(#bsky)'/>
+    ${Array.from({ length: 5 }, (_, i) => `<ellipse cx='${f1(60 + i * 100 + rnd(i, 9) * 40)}' cy='${f1(170 + rnd(i, 8) * 160)}' rx='${f1(60 + rnd(i, 7) * 50)}' ry='${f1(6 + rnd(i, 6) * 5)}' fill='#fff2df' fill-opacity='.5' filter='url(#bl)'/>`).join('')}
+    <circle cx='330' cy='470' r='170' fill='url(#bsun)'/>
+    <path d='M-10 486 C40 440 90 430 130 452 C160 468 190 470 220 486Z' fill='${mix('#7c7a74', c.ink, 0.3)}' fill-opacity='.75' filter='url(#bl)'/>
+    <path d='M380 486 C410 466 450 460 510 470 V486Z' fill='${mix('#8a8780', c.ink, 0.3)}' fill-opacity='.6' filter='url(#bl)'/>
+    <rect y='484' width='500' height='130' fill='url(#sea)'/>
+    ${swell}${glints}
     <path d='M0 600 C80 590 160 612 250 600 C340 588 420 610 500 598 V1000 H0Z' fill='url(#sand)'/>
-    <path d='M0 600 C80 590 160 612 250 600 C340 588 420 610 500 598 V640 C420 652 340 630 250 642 C160 654 80 632 0 642Z' fill='${dark(sand, 0.12)}' fill-opacity='.6'/>
-    <path d='M0 600 C80 590 160 612 250 600 C340 588 420 610 500 598' fill='none' stroke='#fff' stroke-width='4' stroke-opacity='.85'/>
+    <path d='M0 600 C80 590 160 612 250 600 C340 588 420 610 500 598 V680 H0Z' fill='url(#wet)'/>
+    <rect x='290' y='606' width='80' height='60' fill='#ffe6b0' fill-opacity='.25' filter='url(#bl)'/>
+    ${lace}
     <rect y='600' width='500' height='400' filter='url(#grit)'/>
-    <g filter='url(#dug)' fill='none' stroke='${dark(sand, 0.28)}' stroke-width='4' stroke-linecap='round'>
-      <path d='M250 765 C210 730 200 695 225 685 C240 679 250 693 250 700 C250 693 260 679 275 685 C300 695 290 730 250 765Z'/>
+    <g transform='translate(400 700)'>
+      <ellipse cx='0' cy='92' rx='70' ry='9' fill='#000' fill-opacity='.16'/>
+      <path d='M-46 92 C-50 40 -42 -10 -48 -60' stroke='#9c8466' stroke-width='7' fill='none' stroke-linecap='round'/><path d='M46 92 C50 40 42 -10 48 -60' stroke='#8d7558' stroke-width='7' fill='none' stroke-linecap='round'/>
+      <path d='M-62 -58 C-20 -70 20 -66 62 -60' stroke='#a68d6e' stroke-width='7' fill='none' stroke-linecap='round'/>
+      <path d='M-58 -58 C-40 -20 -54 30 -40 90 L-30 90 C-44 30 -30 -20 -46 -58Z' fill='url(#chif2)'/>
+      <path d='M58 -58 C40 -20 54 30 40 90 L30 90 C44 30 30 -20 46 -58Z' fill='url(#chif2)'/>
+      <path d='M-60 -60 C-30 -30 30 -30 60 -60 C30 -40 -30 -40 -60 -60Z' fill='#fff' fill-opacity='.85'/>
+      ${Array.from({ length: 10 }, (_, i) => `<circle cx='${f1(-56 + rnd(i, 3) * 22)}' cy='${f1(-64 + rnd(i, 4) * 16)}' r='${f1(3 + rnd(i, 5) * 3)}' fill='${['#fffaf2', '#f6d9dc', '#f3e6d6'][i % 3]}'/>`).join('')}
+      ${Array.from({ length: 5 }, (_, i) => `<ellipse cx='${f1(-50 + rnd(i, 6) * 26)}' cy='${f1(-58 + rnd(i, 7) * 14)}' rx='6' ry='2.4' fill='#86a08b' transform='rotate(${f1(rnd(i, 8) * 180)} -40 -58)'/>`).join('')}
     </g>
-    <text x='250' y='668' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='44' fill='${dark(sand, 0.3)}' fill-opacity='.85'>${text}</text>
-    ${shell(110, 900, 1.8, -20)}${shell(390, 880, 1.5, 25)}${shell(170, 965, 1.2, 10)}`,
+    ${foot(120, 980, -8, 1.3)}${foot(140, 940, 6, 1.2)}${foot(124, 900, -6, 1.1)}${foot(142, 864, 8, 1)}${foot(130, 830, -4, 0.9)}
+    <g filter='url(#dug)' fill='none' stroke='${dark(sand, 0.3)}' stroke-width='4' stroke-linecap='round'>
+      <path d='M220 790 C180 755 170 720 195 710 C210 704 220 718 220 725 C220 718 230 704 245 710 C270 720 260 755 220 790Z'/>
+    </g>
+    <text x='220' y='690' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='44' fill='${dark(sand, 0.32)}' fill-opacity='.85'>${text}</text>
+    ${shell(90, 900, 1.8, -20)}${shell(300, 930, 1.5, 25)}${shell(250, 980, 1.2, 10)}
+    <rect width='500' height='1000' fill='#ffc27a' fill-opacity='.07'/>`,
     500,
+    1000,
+    'xMidYMid slice',
+  );
+}
+
+/** A stone gate pillar (the right one mirrored), with a capstone and ball finial, ivy and climbing roses. */
+function pillarArt(c: SceneColours, mirror = false): string {
+  const stone = mix('#d9d2c4', c.paper, 0.3);
+  const blocks = Array.from({ length: 12 }, (_, i) => {
+    const y = 140 + i * 72;
+    const tone = mix(stone, i % 2 ? '#000000' : '#ffffff', 0.04 + rnd(i, 1) * 0.05);
+    return `<rect x='10' y='${y}' width='100' height='70' fill='${tone}'/><rect x='10' y='${y}' width='100' height='2.5' fill='#fff' fill-opacity='.45'/><rect x='10' y='${y + 67}' width='100' height='3' fill='#000' fill-opacity='.22'/>${rnd(i, 2) > 0.5 ? `<path d='M${f1(20 + rnd(i, 3) * 60)} ${y + 10} l${f1(rnd(i, 4) * 12)} ${f1(14 + rnd(i, 5) * 20)}' stroke='#000' stroke-opacity='.15' stroke-width='.8'/>` : ''}`;
+  }).join('');
+  const ivy = Array.from({ length: 60 }, (_, i) => {
+    const t = rnd(i, 6);
+    const y = 150 + t * 820;
+    const x = 96 + Math.sin(t * 9) * 14 + (rnd(i, 7) - 0.5) * 22;
+    const g = ['#4f6b45', '#5f7d52', '#6e8b5d', '#435d3c'][i % 4];
+    return `<path transform='translate(${f1(x)} ${f1(y)}) rotate(${f1(rnd(i, 8) * 360)}) scale(${f1(0.7 + rnd(i, 9) * 0.6)})' d='M0 0 C-8 -4 -10 -12 -4 -14 C-2 -16 0 -14 0 -12 C0 -14 2 -16 4 -14 C10 -12 8 -4 0 0Z' fill='${g}'/>`;
+  }).join('');
+  const roses = Array.from({ length: 12 }, (_, i) => {
+    const t = rnd(i, 10);
+    const y = 170 + t * 600;
+    const x = 100 + Math.sin(t * 9) * 12 + (rnd(i, 11) - 0.5) * 14;
+    const col = [light(c.soft, 0.25), '#f3cdd3', '#fff8ee'][i % 3];
+    return `<g transform='translate(${f1(x)} ${f1(y)})'><circle r='7' fill='${col}'/><circle r='4.4' fill='none' stroke='#000' stroke-opacity='.12'/><circle r='2' fill='#000' fill-opacity='.1'/><circle cx='-2' cy='-2' r='2.5' fill='#fff' fill-opacity='.5'/></g>`;
+  }).join('');
+  const flip = mirror ? 'translate(130 0) scale(-1 1)' : '';
+  return svgUrl(
+    `<defs>
+      <linearGradient id='pl' x1='0' x2='1'><stop offset='0' stop-color='#fff' stop-opacity='.18'/><stop offset='.6' stop-color='#000' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.3'/></linearGradient>
+      <radialGradient id='ball' cx='.35' cy='.35' r='.7'><stop offset='0' stop-color='${light(stone, 0.5)}'/><stop offset='1' stop-color='${dark(stone, 0.3)}'/></radialGradient>
+      <filter id='ps' x='-20%' y='-5%' width='140%' height='110%'><feDropShadow dx='4' dy='0' stdDeviation='6' flood-color='#000' flood-opacity='.4'/></filter>
+    </defs>
+    <g transform='${flip}' filter='url(#ps)'>
+      <rect x='10' y='140' width='100' height='860' fill='${stone}'/>
+      ${blocks}
+      <rect x='10' y='140' width='100' height='860' fill='url(#pl)'/>
+      <rect x='0' y='112' width='120' height='30' fill='${light(stone, 0.12)}'/><rect x='0' y='112' width='120' height='3' fill='#fff' fill-opacity='.5'/><rect x='0' y='139' width='120' height='4' fill='#000' fill-opacity='.25'/>
+      <rect x='30' y='92' width='60' height='22' fill='${stone}'/>
+      <circle cx='60' cy='62' r='32' fill='url(#ball)'/>
+      ${ivy}${roses}
+    </g>`,
+    130,
     1000,
     'xMidYMid slice',
   );
@@ -739,9 +983,9 @@ export function sceneArt(kind: Exclude<Scene, 'auto' | 'none'>, c: SceneColours,
   if (kind === 'doors') return { door: doorArt(c), door2: doorArt(c, true), seal: sealArt(mix(c.soft, c.accent, 0.35), initials) };
   if (kind === 'bow') return { paper: satinPaper(c), bow: bowArt(mix(c.soft, c.ink, 0.18)) };
   if (kind === 'curtain') return { left: curtainArt(c, 1), right: curtainArt(c, -1), pelmet: pelmetArt(c, initials) };
-  if (kind === 'barn') return { field: fieldArt(c), left: barnArt(c), right: barnArt(c, true), wreath: wreathArt(c, initials) };
+  if (kind === 'barn') return { field: fieldArt(c), left: barnArt(c), right: barnArt(c, true), wreath: wreathArt(c, initials), lights: festoonArt() };
   if (kind === 'book') return { cover: bookArt(c, initials), page: pageArt(c) };
-  if (kind === 'gates') return { garden: gardenArt(c), left: gateArt(c, initials), right: gateArt(c, initials, true) };
+  if (kind === 'gates') return { garden: gardenArt(c), left: gateArt(c), right: gateArt(c, true), pillarL: pillarArt(c), pillarR: pillarArt(c, true) };
   if (kind === 'beach') return { beach: beachArt(c, initials) };
   if (kind === 'vellum') return { card: vellumCardArt(c, initials), s0: vellumArt(c, 0), s1: vellumArt(c, 1), s2: vellumArt(c, 2) };
   if (kind === 'photo') return { mount: photoMountArt(c) };
@@ -909,8 +1153,14 @@ export function SceneOverlay({
     });
     body = (
       <div style={{ ...LAYER, background: `radial-gradient(ellipse at 50% 38%, ${light(c.paper, 0.5)} 0%, ${mix(c.paper, c.envelope, 0.25)} 45%, ${dark(c.envelope, 0.55)} 100%)` }}>
+        {/* Behind the curtain: a lit stage, a spotlight pool on the boards, and dust in the beam. */}
+        <div style={{ ...LAYER, background: 'radial-gradient(ellipse 46% 30% at 50% 84%, rgba(255,236,196,.55), rgba(255,236,196,0) 70%), linear-gradient(to top, rgba(60,40,24,.5), rgba(60,40,24,0) 22%)' }} />
+        <div style={{ ...LAYER, background: 'linear-gradient(170deg, rgba(255,244,214,0) 30%, rgba(255,244,214,.22) 48%, rgba(255,244,214,0) 62%)', opacity: open ? 1 : 0, transition: 'opacity 1.4s ease .6s' }} />
+        {open && !still && <Motes colour="#fff3d6" from={0.8} n={12} />}
         <div style={side('left')} />
         <div style={side('right')} />
+        {/* Footlights: warm light washing up the velvet from the front of the stage. */}
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '30cqh', background: `linear-gradient(to top, ${light(c.accent, 0.3)}55, rgba(255,220,160,.18) 35%, rgba(255,220,160,0))`, mixBlendMode: 'screen', opacity: open ? 0 : 1, transition: 'opacity .8s ease' }} />
         <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 'min(26cqh,240px)', backgroundImage: art.pelmet, backgroundSize: 'cover', backgroundPosition: 'center top', transform: open && !still ? 'translateY(-110%)' : 'none', transition: t(1.2, 1.4) }} />
       </div>
     );
@@ -935,8 +1185,8 @@ export function SceneOverlay({
       position: 'absolute',
       top: '30%',
       [s === 'left' ? 'right' : 'left']: 0,
-      width: 'min(58cqw,240px)',
-      height: 'min(58cqw,240px)',
+      width: 'min(66cqw,280px)',
+      height: 'min(66cqw,280px)',
       transform: `translate(${s === 'left' ? '50%' : '-50%'},-50%)`,
       backgroundImage: art.wreath,
       backgroundSize: 'contain',
@@ -949,10 +1199,15 @@ export function SceneOverlay({
         <div style={{ ...door('left'), overflow: 'visible', zIndex: 1 }}>
           <div style={half('left')} />
         </div>
-        {/* The rail and its rollers. */}
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(5% - 16px)', height: 16, background: 'linear-gradient(#4a4642, #23201e)', boxShadow: '0 4px 10px rgba(0,0,0,.35)' }} />
+        {/* Warm light spills through the gap as the doors part. */}
+        <div style={{ ...LAYER, background: 'radial-gradient(ellipse 40% 60% at 50% 55%, rgba(255,226,170,.55), rgba(255,226,170,0) 70%)', opacity: open && !still ? 1 : 0, transition: 'opacity 1.2s ease .5s', zIndex: 1 }} />
+        {open && !still && <Motes colour="#fff1cf" from={0.6} />}
+        {/* The header beam, the rail and its rollers, and festoon lights strung above. */}
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 'calc(5% - 12px)', zIndex: 2, background: `linear-gradient(${dark(c.envelope, 0.35)}, ${dark(c.envelope, 0.55)})`, boxShadow: 'inset 0 -3px 0 rgba(0,0,0,.35), 0 6px 14px rgba(0,0,0,.35)' }} />
+        <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(5% - 16px)', height: 16, zIndex: 2, background: 'linear-gradient(#4a4642, #23201e)', boxShadow: '0 4px 10px rgba(0,0,0,.35)' }} />
+        <div style={{ position: 'absolute', left: '-4%', right: '-4%', top: 'calc(5% - 6px)', height: '19cqh', zIndex: 2, backgroundImage: art.lights, backgroundSize: '100% 100%', transform: open && !still ? 'translateY(-26cqh)' : 'none', transition: t(1.8, 0.9), filter: 'drop-shadow(0 0 6px rgba(255,214,140,.6))' }} />
         {[18, 32, 68, 82].map((x, i) => (
-          <div key={x} style={{ position: 'absolute', top: 'calc(5% - 22px)', left: `${x}%`, width: 22, height: 22, marginLeft: -11, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #8d8780, #2a2724 70%)', transform: open && !still ? `translateX(${i < 2 ? '-50cqw' : '50cqw'})` : 'none', transition: t(2.2, 0.3) }} />
+          <div key={x} style={{ position: 'absolute', zIndex: 2, top: 'calc(5% - 22px)', left: `${x}%`, width: 22, height: 22, marginLeft: -11, borderRadius: '50%', background: 'radial-gradient(circle at 35% 35%, #8d8780, #2a2724 70%)', transform: open && !still ? `translateX(${i < 2 ? '-50cqw' : '50cqw'})` : 'none', transition: t(2.2, 0.3) }} />
         ))}
       </div>
     );
@@ -961,7 +1216,7 @@ export function SceneOverlay({
     const size: CSSProperties = { position: 'absolute', left: '50%', top: '44%', width: 'min(68cqw,36cqh,360px)', aspectRatio: '300 / 620', transform: 'translate(-50%,-52%)' };
     body = (
       <div style={{ ...LAYER, perspective: '1800px', background: `radial-gradient(ellipse at 50% 40%, ${light(c.paper, 0.5)} 0%, ${mix(c.paper, c.soft, 0.6)} 55%, ${mix(c.soft, c.ink, 0.25)} 100%)` }}>
-        <div style={{ ...size, borderRadius: 6, boxShadow: '0 30px 60px rgba(0,0,0,.28), 0 8px 18px rgba(0,0,0,.18)', backgroundImage: art.page, backgroundSize: 'cover' }} />
+        <div style={{ ...size, borderRadius: 6, boxShadow: `1px 1px 0 #f4ead2, 2px 2px 0 ${light(c.accent, 0.35)}, 3px 3px 0 #efe3c6, 4px 4px 0 ${c.accent}, 5px 5px 0 #eadcbc, 6px 6px 0 ${dark(c.accent, 0.1)}, 0 30px 60px rgba(0,0,0,.3), 0 8px 18px rgba(0,0,0,.2)`, backgroundImage: art.page, backgroundSize: 'cover' }} />
         <div
           style={{
             ...size,
@@ -999,6 +1254,12 @@ export function SceneOverlay({
         <div style={{ ...LAYER, backgroundImage: art.garden, backgroundSize: 'cover', backgroundPosition: 'center', transform: open && !still ? 'scale(1.3)' : 'scale(1)', transition: t(2.6, 0.5) }} />
         <div style={gate('left')} />
         <div style={gate('right')} />
+        {/* Their monogram on a round iron plate where the gates meet; it lifts away as they open. */}
+        <div style={{ position: 'absolute', left: '50%', top: '47%', width: 'min(24cqw,110px)', aspectRatio: '1', transform: `translate(-50%,-50%) scale(${open && !still ? 0.85 : 1})`, opacity: open ? 0 : 1, transition: 'opacity .5s ease .1s, transform .5s ease', borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, ${light(dark(c.envelope, 0.1), 0.3)}, ${dark(c.envelope, 0.35)} 70%)`, boxShadow: `0 0 0 3px ${dark(c.envelope, 0.4)}, inset 0 0 0 5px ${dark(c.envelope, 0.2)}, inset 0 0 0 6.5px ${light(c.accent, 0.2)}, 0 8px 18px rgba(0,0,0,.45)`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: light(c.accent, 0.25), fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 'min(6.5cqw,28px)', textShadow: '0 1px 0 rgba(0,0,0,.5)' }}>
+          {initials}
+        </div>
+        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '-4cqw', width: '17cqw', backgroundImage: art.pillarL, backgroundSize: 'cover', backgroundPosition: 'right center' }} />
+        <div style={{ position: 'absolute', top: 0, bottom: 0, right: '-4cqw', width: '17cqw', backgroundImage: art.pillarR, backgroundSize: 'cover', backgroundPosition: 'left center' }} />
       </div>
     );
   } else if (kind === 'vellum') {
@@ -1137,6 +1398,21 @@ export function SceneOverlay({
     >
       <style>{`@keyframes ylBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } } @keyframes ylHint { 0%,100% { opacity: .65 } 50% { opacity: 1 } } @keyframes ylPress { 0% { transform: scale(1) } 35% { transform: scale(.982) } 100% { transform: scale(1) } } @keyframes ylMote { 0% { transform: translate(0,0); opacity: 0 } 20% { opacity: .9 } 100% { transform: translate(var(--dx), -38cqh); opacity: 0 } }`}</style>
       {body}
+      {/* Light and depth over every scene: a warm key light from the top left and a soft vignette, so it
+          reads as a lit place rather than a flat picture. It lifts as the scene opens. */}
+      {kind !== 'photo' && (
+        <div
+          style={{
+            ...LAYER,
+            zIndex: 1,
+            background: light3.includes(kind) || kind === 'vellum'
+              ? 'radial-gradient(110% 70% at 18% 8%, rgba(255,244,220,.22), rgba(255,244,220,0) 55%), radial-gradient(150% 110% at 50% 42%, rgba(0,0,0,0) 58%, rgba(40,30,20,.22))'
+              : 'radial-gradient(110% 70% at 18% 8%, rgba(255,236,200,.2), rgba(255,236,200,0) 55%), radial-gradient(150% 110% at 50% 42%, rgba(0,0,0,0) 52%, rgba(0,0,0,.45))',
+            opacity: open ? 0 : 1,
+            transition: 'opacity 1.2s ease .4s',
+          }}
+        />
+      )}
       {/* A soft scrim at the foot of the scene, under the name. */}
       <div
         style={{

@@ -277,8 +277,8 @@ describe('Overview', () => {
       '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }),
     });
     renderAt('/admin/w1/wedding/overview');
-    // On a phone (and in tests) the dashboard opens with one tap.
-    await userEvent.click(await screen.findByRole('button', { name: /Planning dashboard/ }));
+    // The dashboard is always open in the wedding's overview.
+    expect(await screen.findByRole('region', { name: 'Planning dashboard' })).toBeInTheDocument();
     const tasks = await screen.findByRole('region', { name: 'Planning tasks' });
     expect(within(tasks).getByText('33%')).toBeInTheDocument();
     const glance = screen.getByRole('region', { name: 'Key figures' });
@@ -290,12 +290,22 @@ describe('Overview', () => {
     expect(screen.getByRole('region', { name: 'Budget' })).toHaveTextContent('$5,000 paid · $12,000 committed · $30,000 budget');
   });
 
+  it('every other page has a way back to its overview', async () => {
+    mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
+    renderAt('/admin/w1/wedding/texts');
+    const back = await screen.findByRole('link', { name: /overview$/i });
+    expect(back).toHaveAttribute('href', '/admin/w1/wedding/overview');
+  });
+
   it("an event's overview: replies, its figures, Needs you and latest replies", async () => {
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/overview');
     expect(await screen.findByRole('heading', { name: '2 of 3 invitations answered' })).toBeInTheDocument();
     expect(screen.getByText('138 days to the wedding')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Wedding\s*2\s*guests coming/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Coming\s*2\s*guests coming/ })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Replies' })).toHaveTextContent('67%');
+    // The overview is the main page: no way "back" from it.
+    expect(screen.queryByRole('link', { name: /← .*overview/i })).toBeNull();
     const needs = screen.getByRole('region', { name: 'Needs you' });
     expect(within(needs).getByText('2 things to do')).toBeInTheDocument();
     expect(within(needs).getByText('1 invitation has no mobile')).toBeInTheDocument();

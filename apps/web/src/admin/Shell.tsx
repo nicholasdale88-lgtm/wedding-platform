@@ -291,6 +291,29 @@ function MobileTabs({ tab, section, children }: { tab: string; section: string; 
   );
 }
 
+/**
+ * "← Overview": on every page but the overview, the way back to the main page of the section you're in
+ * (the wedding's overview, the 30th's, or Account's). Leaving with unsaved edits asks first.
+ */
+function BackBar() {
+  const { tab = 'overview' } = useParams();
+  const { overview: o, event, path } = useAdmin();
+  if (tab === 'overview') return null;
+  const where = o?.events.find((e) => e.key === event)?.name;
+  return (
+    <Link
+      to={path('overview')}
+      onClick={(e) => {
+        if (!confirmLeave()) e.preventDefault();
+      }}
+      className="self-start inline-flex items-center gap-2 mb-4 py-[7px] pl-3 pr-4 min-h-[40px] rounded-full border border-[#d3c6a4] bg-[#fbf8f0] text-[14px] font-medium no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[#efe7d3]"
+    >
+      <span aria-hidden>←</span>
+      {where ? `${where.replace(/^the\s+/i, 'The ')} overview` : 'Overview'}
+    </Link>
+  );
+}
+
 /** design/RSVP Admin.dc.html shell: 236px sidebar #33402f; under 760px a sticky top bar with scrolling nav pills. */
 export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut: () => void }) {
   const { wid, overview: o, event, path } = useAdmin();
@@ -332,7 +355,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
             ?
           </Link>
         </header>
-        <main className={`min-w-0 pt-5 px-4 ${wid === DEMO_WID ? 'pb-[120px]' : 'pb-[calc(40px+env(safe-area-inset-bottom))]'}`}>{children}</main>
+        <main className={`min-w-0 pt-5 px-4 ${wid === DEMO_WID ? 'pb-[120px]' : 'pb-[calc(40px+env(safe-area-inset-bottom))]'}`}>
+          <BackBar />
+          {children}
+        </main>
         {more && <MoreSheet onClose={() => setMore(false)} onSignOut={signOut} />}
         {wid === DEMO_WID ? <DemoBar /> : <FeedbackButton wid={wid} />}
       </div>
@@ -362,7 +388,10 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         </div>
       </aside>
       <main className={`min-w-0 pt-9 px-[clamp(20px,4vw,48px)] ${wid === DEMO_WID ? 'pb-[110px]' : 'pb-[60px]'}`}>
-        <div className="max-w-[1180px] mx-auto">{children}</div>
+        <div className="max-w-[1180px] mx-auto">
+          <BackBar />
+          {children}
+        </div>
       </main>
       {wid === DEMO_WID ? <DemoBar /> : <FeedbackButton wid={wid} />}
     </div>

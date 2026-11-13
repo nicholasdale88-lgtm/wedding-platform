@@ -22,6 +22,13 @@ import { LiveEditor, markedT, orderCss, useLiveState } from './LiveEdit';
  * /w/:slug/?g=<token>: the invitation. The design view is generated (guest/generated/InvitationView);
  * this page loads the guest's data and runs the behaviour. ?preview=1 is the admin's "Preview as guest".
  */
+/** A pretend guest invited to these events only (the couple's preview). */
+function standIn(d: InvitePayload, keys: string[]): InvitePayload {
+  const invited = d.events.map((e) => e.key).filter((k) => keys.includes(k));
+  if (!invited.length) return d;
+  return { ...d, invitation: { token: '', people: [{ idx: 0, name: 'Your guest', diet: '' }], seatsHeld: 2, invited, rsvp: {}, message: '', repliedAt: null } };
+}
+
 export function InvitationPage() {
   const { slug = '' } = useParams();
   const [params] = useSearchParams();
@@ -34,12 +41,15 @@ export function InvitationPage() {
   const [data, setData] = useState<InvitePayload | null>(null);
   const [error, setError] = useState('');
 
+  // Setup's "Preview as: invited to the 30th only" (or to everything): a stand-in guest invited to just
+  // those events, so the couple sees exactly the invitation those guests get. The preview never saves a reply.
+  const asEvents = preview && !token ? (params.get('events') ?? '') : '';
   useEffect(() => {
     guestApi
       .invite(slug, token, preview)
-      .then(setData)
+      .then((d) => setData(asEvents && !d.invitation ? standIn(d, asEvents.split(',')) : d))
       .catch((e: Error) => setError(e.message));
-  }, [slug, token, preview]);
+  }, [slug, token, preview, asEvents]);
 
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;

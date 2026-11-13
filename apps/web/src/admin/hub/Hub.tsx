@@ -126,15 +126,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
 
   return (
     <div className="flex flex-col gap-[34px]">
-      <section aria-label="Key figures" className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
-        {kpis.map((k) => (
-          <button key={k.label} type="button" onClick={k.go} className="flex flex-col gap-1 p-4 border-0 bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6] min-w-0">
-            <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{k.label}</span>
-            <span className={`font-display text-[30px] leading-none truncate ${k.warn ? 'text-[#a4553c]' : ''}`}>{k.value}</span>
-            <span className={`text-[12px] truncate ${k.warn ? 'text-[#a4553c] font-semibold' : 'text-[#5b6a52]'}`}>{k.sub}</span>
-          </button>
-        ))}
-      </section>
+      <Kpis label="Key figures" items={kpis} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card title="Replies coming in" action={['Guest list', () => to('guests?show=all', first?.key)]}>
@@ -265,7 +257,22 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
   );
 }
 
-function Card({ title, action, children }: { title: string; action?: [string, () => void]; children: ReactNode }) {
+/** A strip of headline figures, each opening the page it's about (the dashboard's top row). */
+export function Kpis({ label, items }: { label: string; items: { label: string; value: ReactNode; sub: string; go: () => void; warn?: boolean }[] }) {
+  return (
+    <section aria-label={label} className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
+      {items.map((k) => (
+        <button key={k.label} type="button" onClick={k.go} className="flex flex-col gap-1 p-4 border-0 bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6] min-w-0">
+          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{k.label}</span>
+          <span className={`font-display text-[30px] leading-none truncate ${k.warn ? 'text-[#a4553c]' : ''}`}>{k.value}</span>
+          <span className={`text-[12px] truncate ${k.warn ? 'text-[#a4553c] font-semibold' : 'text-[#5b6a52]'}`}>{k.sub}</span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
+export function Card({ title, action, children }: { title: string; action?: [string, () => void]; children: ReactNode }) {
   return (
     <section aria-label={title} className="flex flex-col gap-4 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0">
       <div className="flex justify-between items-baseline gap-3">
@@ -281,7 +288,7 @@ function Card({ title, action, children }: { title: string; action?: [string, ()
   );
 }
 
-function Tile({ label, value, sub, go, warn }: { label: string; value: ReactNode; sub?: string; go: () => void; warn?: boolean }) {
+export function Tile({ label, value, sub, go, warn }: { label: string; value: ReactNode; sub?: string; go: () => void; warn?: boolean }) {
   return (
     <button type="button" onClick={go} className="flex flex-col gap-[2px] p-3 rounded-[12px] border border-[#ece3cc] bg-[#f6f0e2] text-left cursor-pointer hover:bg-[#efe7d3] min-w-0">
       <span className={`font-display text-[26px] leading-none ${warn ? 'text-[#a4553c]' : ''}`}>{value}</span>

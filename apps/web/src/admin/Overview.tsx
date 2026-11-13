@@ -1,15 +1,11 @@
-import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fmtDay, fmtWhen, shortLabel } from '../lib/format';
+import { fmtDay, fmtWhen } from '../lib/format';
 import { AccountHome, NeedsYou, RehearseCard } from './AccountHome';
-import { Hub } from './hub/Hub';
+import { Card, Hub, Kpis } from './hub/Hub';
+import { C, Donut } from './hub/charts';
 import { useAdmin, useSectionOverview } from './Shell';
-import { ErrorState, Eyebrow, H2, Loading, useMedia, useToast } from './ui';
+import { ErrorState, Eyebrow, H2, Loading, useToast } from './ui';
 
-const pc = (n: number, total: number) => `${total ? ((n / total) * 100).toFixed(1) : 0}%`;
-const dot = (bg: string, border?: string) => (
-  <span className="w-[9px] h-[9px] rounded-full" style={{ background: bg, border: border ? `1px solid ${border}` : undefined }} />
-);
 
 /** design/RSVP Admin.dc.html → Overview. */
 export function Overview() {
@@ -31,87 +27,83 @@ export function Overview() {
   const home = o.focus ?? o.events[0]?.key;
   const all = o.focus ? '' : 'show=all&';
 
+  const ev = firstEvent;
   const figures = [
-    // Account is about you and your guests overall; each event's own figures are in its section.
-    ...(o.focus
-      ? shown.map((e) => ({ label: shortLabel(e.name), val: e.coming, sub: 'guests coming', link: `guests?filter=attending:${e.key}`, event: e.key }))
-      : [{ label: 'Coming', val: o.yesInv, sub: 'invitations said yes', link: 'guests?show=all', event: home }]),
-    { label: 'Awaiting', val: o.awaiting, sub: 'invitations to reply', link: `guests?${all}filter=awaiting`, event: home },
-    { label: 'Dietary', val: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, link: 'dietary', event: o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home },
+    { label: 'Coming', value: ev ? ev.coming : o.yesInv, sub: ev ? 'guests coming' : 'invitations said yes', go: () => to(ev ? `guests?filter=attending:${ev.key}` : 'guests?show=all', ev?.key ?? home) },
+    { label: 'Awaiting', value: o.awaiting, sub: 'invitations to reply', go: () => to(`guests?${all}filter=awaiting`, home), warn: false },
+    { label: 'Declined', value: o.noInv, sub: 'invitations said no', go: () => to(`guests?${all}filter=declined`, home) },
+    { label: 'Dietary', value: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, go: () => to('dietary', o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home), warn: o.diet.serious > 0 && o.diet.mealsSet < o.diet.people },
   ];
+  const isWedding = o.focus === o.events[0]?.key;
 
   return (
-    <div className="flex flex-col gap-[34px]">
-      <header className="flex flex-col gap-[14px]">
-        {firstEvent && o.daysToGo !== null && <Eyebrow>{o.focus ? `${o.daysToGo} days to ${firstEvent.name.replace(/^the\s+/i, 'the ')}` : `${o.daysToGo} days until the big day`}</Eyebrow>}
+    <div className="flex flex-col gap-[30px]">
+      <header className="flex flex-col gap-[10px]">
+        {firstEvent && o.daysToGo !== null && <Eyebrow>{`${o.daysToGo} days to ${firstEvent.name.replace(/^the\s+/i, 'the ')}`}</Eyebrow>}
         <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance]">
           {o.replied} of {o.total} invitations answered
         </h1>
-        <div className="flex h-[10px] rounded-[99px] overflow-hidden bg-[#e6dcc4]" aria-hidden="true">
-          <div style={{ width: pc(o.yesInv, o.total), background: '#5d6b47' }} />
-          <div style={{ width: pc(o.noInv, o.total), background: '#b9a07a' }} />
-        </div>
-        <div className="flex gap-[18px] flex-wrap text-[13px] text-[#5b6a52]">
-          <span className="flex items-center gap-[6px]">{dot('#5d6b47')}{o.yesInv} coming</span>
-          <span className="flex items-center gap-[6px]">{dot('#b9a07a')}{o.noInv} declined</span>
-          <span className="flex items-center gap-[6px]">{dot('#e6dcc4', '#c6b794')}{o.awaiting} awaiting</span>
-        </div>
       </header>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] border-t-2 border-[#33402f] border-b border-b-[#c6b794]">
-        {figures.map((f) => (
-          <button key={f.label} onClick={() => to(f.link, f.event)} className="flex flex-col gap-[6px] py-[18px] pr-4 pl-0 border-0 bg-transparent text-left cursor-pointer hover:bg-[#f1e9d6]">
-            <Eyebrow>{f.label}</Eyebrow>
-            <span className="font-display text-[52px] leading-[.95]">{f.val}</span>
-            <span className="text-[13px] text-[#5b6a52]">{f.sub}</span>
-          </button>
-        ))}
-      </div>
+      <Kpis label="Replies at a glance" items={figures} />
 
       {/* Quick actions belong to an event: its guests, its messages, its texts. */}
-      {o.focus && <Today o={o} to={to} event={o.focus} />}
+      <Today o={o} to={to} event={o.focus} />
 
-      <NeedsYou o={o} to={to} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Card title="Replies" action={['Guest list', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
+          <Donut
+            label="Invitations"
+            centre={`${o.total ? Math.round((o.replied / o.total) * 100) : 0}%`}
+            sub="answered"
+            slices={[
+              { label: 'Coming', value: o.yesInv, colour: C.accent },
+              { label: 'Declined', value: o.noInv, colour: C.gold },
+              { label: 'Awaiting', value: o.awaiting, colour: C.sand },
+            ]}
+          />
+        </Card>
 
-      <RehearseCard to={to} />
+        <NeedsYou o={o} to={to} />
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,320px),1fr))] gap-[34px]">
-        <section className="flex flex-col" aria-label="Latest replies">
-          <div className="mb-2"><H2>Latest replies</H2></div>
-          {o.latest.map((r) => (
-            <button key={r.id} onClick={() => to(`guests?${all}g=${r.id}`, home)} className="flex flex-col gap-[2px] py-[11px] border-0 border-t border-[#e2d7bc] bg-transparent text-left cursor-pointer hover:bg-[#f1e9d6]">
-              <span className="flex justify-between gap-[10px] w-full">
-                <strong className="font-semibold">{r.name}</strong>
-                <span className="text-[12px] text-[#5b6a52] whitespace-nowrap">{fmtWhen(r.at, tz)}</span>
-              </span>
-              <span className="text-[13px] text-[#5b6a52]">{r.summary}</span>
-              {r.message && <span className="font-display italic text-[17px]">{r.message}</span>}
-            </button>
-          ))}
-          {o.latest.length === 0 && <div className="py-[11px] border-t border-[#e2d7bc] text-[13px] text-[#5b6a52]">No replies yet.</div>}
-        </section>
-        <section className="flex flex-col" aria-label="Coming up">
-          <div className="flex justify-between items-center mb-2">
-            <H2>Coming up</H2>
-            <button onClick={() => to('texts', home)} className="py-2 px-1 min-h-[40px] border-0 bg-transparent text-[var(--adm-ink,#33402f)] font-medium underline cursor-pointer">All texts</button>
+        <Card title="Latest replies" action={['Everyone', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
+          <div className="flex flex-col">
+            {o.latest.map((r) => (
+              <button key={r.id} onClick={() => to(`guests?${all}g=${r.id}`, home)} className="flex flex-col gap-[2px] py-[10px] border-0 border-t border-[#ece3cc] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[#f3ecd6]">
+                <span className="flex justify-between gap-[10px] w-full">
+                  <strong className="font-semibold">{r.name}</strong>
+                  <span className="text-[12px] text-[#5b6a52] whitespace-nowrap">{fmtWhen(r.at, tz)}</span>
+                </span>
+                <span className="text-[13px] text-[#5b6a52]">{r.summary}</span>
+                {r.message && <span className="font-display italic text-[17px]">{r.message}</span>}
+              </button>
+            ))}
+            {o.latest.length === 0 && <p className="m-0 text-[14px] text-[#5b6a52]">No replies yet. They show here as they come in.</p>}
           </div>
-          {o.nextUp.map((u) => (
-            <button key={u.campaignId} onClick={() => to('texts', home)} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 items-baseline py-[11px] border-0 border-t border-[#e2d7bc] bg-transparent text-left cursor-pointer hover:bg-[#f1e9d6]">
-              <span className="font-display text-[20px] italic">{fmtDay(u.sendAt, tz)}</span>
-              <span className="font-medium min-w-0">{u.name}</span>
-            </button>
-          ))}
-          {o.nextUp.length === 0 && <div className="py-[11px] border-t border-[#e2d7bc] text-[13px] text-[#5b6a52]">No dated texts scheduled.</div>}
-        </section>
+        </Card>
+
+        <Card title="Coming up" action={['All texts', () => to('texts', home)]}>
+          <div className="flex flex-col">
+            {o.nextUp.map((u) => (
+              <button key={u.campaignId} onClick={() => to('texts', home)} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 items-baseline py-[10px] border-0 border-t border-[#ece3cc] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[#f3ecd6]">
+                <span className="font-display text-[20px] italic">{fmtDay(u.sendAt, tz)}</span>
+                <span className="font-medium min-w-0">{u.name}</span>
+              </button>
+            ))}
+            {o.nextUp.length === 0 && <p className="m-0 text-[14px] text-[#5b6a52]">No dated texts scheduled.</p>}
+          </div>
+        </Card>
       </div>
 
       {/* The planning dashboard (tasks, payments, budget) is the wedding's: it sits in the wedding's overview. */}
-      {o.focus && o.focus === o.events[0]?.key && (
-        <Dashboard>
+      {isWedding && (
+        <section aria-label="Planning dashboard" className="flex flex-col gap-4">
+          <H2>Planning dashboard</H2>
           <Hub wid={wid} o={o} to={to} />
-        </Dashboard>
+        </section>
       )}
 
+      <RehearseCard to={to} />
     </div>
   );
 }
@@ -163,27 +155,3 @@ function Today({ o, to, event }: { o: NonNullable<ReturnType<typeof useAdmin>['o
     </section>
   );
 }
-
-/** The planning charts: open on a computer, one tap away on a phone (so the page isn't fifteen screens long). */
-function Dashboard({ children }: { children: ReactNode }) {
-  const wide = useMedia('(min-width: 760px)');
-  const [open, setOpen] = useState<boolean | null>(null);
-  const shown = open ?? wide;
-  return (
-    <section aria-label="Planning dashboard" className="flex flex-col gap-4">
-      <button
-        type="button"
-        aria-expanded={shown}
-        onClick={() => setOpen(!shown)}
-        className="flex items-center justify-between gap-3 py-3 px-4 min-h-[48px] rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer"
-      >
-        <span className="font-display text-[24px]">Planning dashboard</span>
-        <span className="text-[13px] text-[#5b6a52]">{shown ? 'Hide' : 'Tasks, payments, budget'} <span aria-hidden>{shown ? '▴' : '▾'}</span></span>
-      </button>
-      {shown && children}
-    </section>
-  );
-}
-
-
-
