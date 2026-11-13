@@ -67,14 +67,14 @@ export function DemoFeature({ tab }: { tab: string }) {
           <li key={p}>{p}</li>
         ))}
       </ul>
-      <div className="p-4 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f2] text-[14px] text-[#5b6a52]">
+      <div className="p-4 rounded-[14px] border border-[#ecdcd2] bg-[#fbf8f2] text-[14px] text-[#6e6068]">
         The sample lets you try your guest list, dietary needs and seating hands-on. This part works with your own wedding: start one free, set everything up, and only pay when you’re ready to send.
       </div>
       <div className="flex flex-wrap gap-2">
-        <a href="/#start" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold" style={{ background: '#33402f', color: '#fbf8f2' }}>
+        <a href="/#start" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold" style={{ background: '#3a2532', color: '#fbf8f2' }}>
           Start your wedding
         </a>
-        <Link to="/admin/demo/wedding/seating" className="py-3 px-6 rounded-full no-underline text-[15px] border border-[#c6b794] text-[#33402f]">
+        <Link to="/admin/demo/wedding/seating" className="py-3 px-6 rounded-full no-underline text-[15px] border border-[#e3cfc6] text-[#3a2532]">
           Try the seating plan
         </Link>
       </div>

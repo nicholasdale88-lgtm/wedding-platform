@@ -24,9 +24,9 @@ const markBooked = () => {
   }
 };
 
-const INK = '#33402f';
-const SOFT = '#5b6a52';
-const field = 'w-full py-3 px-4 rounded-[12px] border border-[#c6b794] bg-white text-[16px] text-[#33402f] outline-none focus:border-[#33402f]';
+const INK = '#3a2532';
+const SOFT = '#6e6068';
+const field = 'w-full py-3 px-4 rounded-[12px] border border-[#e3cfc6] bg-white text-[16px] text-[#3a2532] outline-none focus:border-[#3a2532]';
 
 export function TrialPage() {
   const go = useNavigate();
@@ -53,8 +53,8 @@ export function TrialPage() {
     }
   };
   return (
-    <div className="min-h-screen" style={{ background: 'radial-gradient(120% 90% at 85% 0%, #3f4f39 0%, #2b3727 55%, #1f281c 100%)', color: '#f3ecd6' }}>
-      <div style={{ background: '#fbf8f2' }}>
+    <div className="min-h-screen" style={{ background: 'radial-gradient(120% 90% at 85% 0%, #5e2c3c 0%, #3d2634 55%, #2a1c26 100%)', color: '#f3ecd6' }}>
+      <div style={{ background: '#fffcf8' }}>
         <header className="max-w-[1100px] mx-auto px-4 py-5 flex justify-between items-center">
           <Link to="/" aria-label="The Yes List" className="no-underline">
             <Wordmark size={22} />
@@ -67,22 +67,22 @@ export function TrialPage() {
       <main className="px-4 pt-6 pb-20">
         <div className="max-w-[1000px] mx-auto grid gap-10 md:grid-cols-2 items-center">
           <div className="flex flex-col gap-5 text-center md:text-left items-center md:items-start">
-            <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#e6cf9e' }}>
+            <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: '#d6b780' }}>
               Free trial · Nothing to pay
             </span>
-            <h1 className="m-0 text-[clamp(40px,6.5vw,68px)] leading-[1.04] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif" }}>
+            <h1 className="m-0 text-[clamp(40px,6.5vw,68px)] leading-[1.04] font-normal" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}>
               Book your free trial.
             </h1>
-            <p className="m-0 text-[18px] leading-[1.55] max-w-[460px]" style={{ color: '#d6dccb' }}>
+            <p className="m-0 text-[18px] leading-[1.55] max-w-[460px]" style={{ color: '#ecd9d6' }}>
               Step inside a real wedding, fully set up: the guest list, replies coming in, dietary needs and the seating plan. Change anything you like. Nothing is sent.
             </p>
-            <ul className="m-0 p-0 list-none flex flex-col gap-2 text-[15px]" style={{ color: '#d6dccb' }}>
+            <ul className="m-0 p-0 list-none flex flex-col gap-2 text-[15px]" style={{ color: '#ecd9d6' }}>
               <li>✓ Opens straight away, on your phone or computer</li>
               <li>✓ Try every plan, side by side</li>
               <li>✓ Australian owned and operated</li>
             </ul>
           </div>
-          <form onSubmit={submit} aria-label="Book your free trial" className="flex flex-col gap-4 p-6 md:p-8 rounded-[24px] bg-[#fbf8f2] shadow-[0_24px_60px_rgba(0,0,0,.3)]" style={{ color: INK }}>
+          <form onSubmit={submit} aria-label="Book your free trial" className="flex flex-col gap-4 p-6 md:p-8 rounded-[24px] bg-[#fffcf8] shadow-[0_24px_60px_rgba(0,0,0,.3)]" style={{ color: INK }}>
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 text-[14px] font-semibold">
                 Your first name
@@ -104,7 +104,7 @@ export function TrialPage() {
             {/* For robots only. */}
             <input type="text" tabIndex={-1} autoComplete="off" aria-hidden value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} className="absolute left-[-9999px] w-px h-px opacity-0" />
             <label className="flex gap-3 items-start text-[14px] cursor-pointer" style={{ color: SOFT }}>
-              <input type="checkbox" checked={f.news} onChange={(e) => setF({ ...f, news: e.target.checked })} className="mt-1 w-[18px] h-[18px] accent-[#33402f]" />
+              <input type="checkbox" checked={f.news} onChange={(e) => setF({ ...f, news: e.target.checked })} className="mt-1 w-[18px] h-[18px] accent-[#3a2532]" />
               Send me ideas and offers for our wedding now and then (unsubscribe any time).
             </label>
             {problem && (
@@ -112,7 +112,7 @@ export function TrialPage() {
                 {problem}
               </p>
             )}
-            <button type="submit" disabled={busy} className="py-[16px] rounded-full border-0 text-[17px] font-semibold cursor-pointer disabled:opacity-60" style={{ background: INK, color: '#fbf8f2' }}>
+            <button type="submit" disabled={busy} className="py-[16px] rounded-full border-0 text-[17px] font-semibold cursor-pointer disabled:opacity-60" style={{ background: INK, color: '#fffcf8' }}>
               {busy ? 'Opening your trial…' : 'Start my free trial'}
             </button>
             <span className="text-[12px] text-center" style={{ color: SOFT }}>

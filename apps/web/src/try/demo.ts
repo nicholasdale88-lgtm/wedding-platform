@@ -101,7 +101,8 @@ function build() {
   version = 1;
 }
 
-function overview(): Overview {
+/** The sample's overview: of the one event when the admin asks for it (its section), or of everything. */
+function overview(focus: string | null = null): Overview {
   const coming = guests.filter((g) => g.rsvp.wedding?.attending);
   const people = guests.flatMap((g) => g.people);
   return {
@@ -124,7 +125,7 @@ function overview(): Overview {
       .map((g) => ({ id: g.id, name: g.people[0]!.name, at: g.repliedAt!, summary: `The wedding: ${g.rsvp.wedding?.attending ? 'Attending' : 'Declined'}`, message: g.rsvp.wedding?.message ?? '' })),
     nav: { guests: guests.length, dietary: people.filter((p) => p.diet).length, autopilot: 6, smsLive: false },
     partySides: { p1: 'Harriet', p2: 'Theo' },
-    focus: null,
+    focus,
   };
 }
 
@@ -202,7 +203,7 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
       throw new ApiError(402, 'upgrade', 'That comes with Essentials.');
     }
   }
-  if (rest === '/overview') return ok(overview());
+  if (rest === '/overview') return ok(overview(new URLSearchParams(path.split('?')[1] ?? '').get('event')));
   if (rest === '/events') return ok({ timezone: TZ, events: eventsFull() });
   if (rest === '/guests' && method === 'GET') return ok({ events: EVENTS, guests: guests.filter((g) => !(g as Guest & { gone?: boolean }).gone) });
   if (rest === '/guests' && method === 'POST') {
