@@ -1,6 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { lazy, Suspense, useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   allows,
@@ -18,6 +18,7 @@ import {
 } from '@wp/shared';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
+import { envelopeClose, flatLay } from './Stills';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 
@@ -39,7 +40,8 @@ const CREAM = '#fbf5f0';
 const PAPER = '#fffcf8';
 const BLUSH = '#f6e6e0';
 const THEME_COUNT = THEME_NAMES.length;
-const serif = "'Playfair Display', Georgia, serif"; // our headings (the invitations keep their own lettering)
+const serif = "'Cormorant Garamond', Georgia, serif"; // our headings: light and airy (the invitations keep their own lettering)
+const script = "'Great Vibes', 'Pinyon Script', cursive"; // one word at a time, in gold
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 
 /** "$50" → 50 (NaN when it isn't a price). */
@@ -71,6 +73,70 @@ function HeroPhoneStill() {
         <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 44, lineHeight: 1.05 }}>Harriet &amp; Theo</span>
       </span>
     </span>
+  );
+}
+
+/**
+ * Everything after the yes, as tiles: two of our still lifes with the words over them, then softly tinted
+ * cards for what the app does. Each is a sentence, not a paragraph.
+ */
+function Tiles() {
+  const close = useMemo(() => envelopeClose(), []);
+  const lay = useMemo(() => flatLay(), []);
+  const picture = (src: string, title: string, sub: string, span = '') => (
+    <article className={`relative min-h-[300px] rounded-[26px] overflow-hidden shadow-[0_24px_50px_rgba(70,40,40,.14)] ${span}`}>
+      <img aria-hidden alt="" src={src} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+      <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(46,30,36,.62), rgba(46,30,36,0) 55%)' }} />
+      <span className="absolute left-6 right-6 bottom-6 flex flex-col gap-1" style={{ color: '#fffaf3' }}>
+        <h3 className="m-0 text-[30px] leading-[1.1] font-medium" style={{ fontFamily: serif }}>
+          {title}
+        </h3>
+        <span className="text-[19px] italic" style={{ fontFamily: serif }}>
+          {sub}
+        </span>
+      </span>
+    </article>
+  );
+  const card = (bg: string, title: string, text: string, extra?: ReactNode) => (
+    <article className="flex flex-col gap-3 p-7 rounded-[26px] min-h-[220px] shadow-[0_18px_40px_rgba(70,40,40,.08)]" style={{ background: bg }}>
+      <h3 className="m-0 text-[28px] leading-[1.15] font-medium" style={{ fontFamily: serif, color: INK }}>
+        {title}
+      </h3>
+      <p className="m-0 text-[16px] leading-[1.6]" style={{ color: SOFT }}>
+        {text}
+      </p>
+      {extra}
+    </article>
+  );
+  return (
+    <div className="grid gap-5 md:grid-cols-3 max-w-[1100px] mx-auto w-full">
+      {picture(close, 'Your envelope, your seal', 'your initials, pressed in wax')}
+      {picture(lay, 'Every colour you love', `${THEME_COUNT} designs in six looks`, 'md:col-span-2')}
+      {card(
+        'linear-gradient(160deg,#eef4ec,#e2ecdf)',
+        'Replies chase themselves',
+        'Guests tap yes or no, say who’s coming and what they can’t eat. Anyone who hasn’t answered gets a gentle reminder.',
+        <span className="self-start mt-auto py-2 px-4 rounded-[16px_16px_16px_4px] bg-white text-[14px] shadow-sm" style={{ color: INK }}>
+          Yes! Both of us 🥂
+        </span>,
+      )}
+      {card('linear-gradient(160deg,#fbf1e2,#f5e4c8)', 'Seating in a second', 'Set your rules: couples together, the two who mustn’t be. Auto-seat fills every table, and you drag to change anything.')}
+      {card('linear-gradient(160deg,#f9e9e6,#f2d9d4)', 'Every meal on the right plate', 'Special menus go to everyone who needs one, and the caterer gets one clear list.')}
+    </div>
+  );
+}
+
+/** Behind the hero's phone: our own still life of sealed envelopes on linen, set like a product photograph. */
+function HeroStill() {
+  const src = useMemo(() => flatLay(), []);
+  return (
+    <img
+      aria-hidden
+      alt=""
+      src={src}
+      decoding="async"
+      className="absolute top-[4%] bottom-[4%] left-[2%] right-[2%] w-[96%] h-[92%] object-cover rounded-[34px] rotate-[-3deg] shadow-[0_40px_80px_rgba(70,40,40,.22)]"
+    />
   );
 }
 
@@ -141,13 +207,6 @@ const textingPlans = PLANS.filter((p) => allows(p.key, 'texts'))
 const COMPARE: Feature[] = ['unlimitedGuests', 'texts', 'seating', 'planner', 'extraEvent', 'photoQr', 'partySignIns', 'dailyBackups'];
 /** The table's own wording where the shared label could be misread (texts are never part of a plan). */
 const ROW_LABEL: Partial<Record<Feature, string>> = { texts: TEXTS_LINE };
-
-/** After the yes: three things it does for you, a line each. */
-const AFTER: { title: string; text: string }[] = [
-  { title: 'Replies chase themselves', text: 'Guests tap yes or no, say who’s coming and what they can’t eat. Anyone who hasn’t answered gets a gentle reminder.' },
-  { title: 'Seating in a second', text: 'Set your rules: couples together, the two who mustn’t be. Auto-seat fills every table, and you drag to change anything.' },
-  { title: 'Every meal on the right plate', text: 'Special menus go to everyone who needs one, and the caterer gets one clear list.' },
-];
 
 /**
  * How we compare with the usual made-for-you digital invitation: no one named, only what is common in the
@@ -268,8 +327,12 @@ export function SalesPage() {
               <span className="text-[12px] font-semibold tracking-[.28em] uppercase" style={{ color: GOLD }}>
                 Wedding invitations · RSVPs · The whole plan
               </span>
-              <h1 className="m-0 text-[clamp(44px,7vw,82px)] leading-[1.02] font-normal" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: INK }}>
-                The invitation they’ll <em className="italic" style={{ color: GOLD }}>never</em> forget.
+              <h1 className="m-0 text-[clamp(48px,7.6vw,92px)] leading-[1] font-medium tracking-[-.01em]" style={{ fontFamily: serif, color: INK }}>
+                The invitation they’ll{' '}
+                <span className="font-normal" style={{ fontFamily: script, color: GOLD, fontSize: '1.08em' }}>
+                  never
+                </span>{' '}
+                forget.
               </h1>
               <p className="m-0 text-[clamp(17px,2.1vw,20px)] leading-[1.6] max-w-[520px]" style={{ color: SOFT }}>
                 Opened like a gift on every guest’s phone. They reply in seconds, by text or a tap, and your guest list, dietary list and seating plan fill themselves in.
@@ -292,7 +355,7 @@ export function SalesPage() {
               </span>
             </div>
             <div className="relative flex justify-center py-6">
-              <span aria-hidden className="absolute inset-x-[10%] top-[8%] bottom-[8%] rounded-full blur-3xl opacity-70" style={{ background: 'radial-gradient(circle, #f3d2c6 0%, rgba(243,210,198,0) 70%)' }} />
+              <HeroStill />
               <Suspense fallback={<HeroPhoneStill />}>
                 <HeroScene />
               </Suspense>
@@ -354,18 +417,7 @@ export function SalesPage() {
                 Step inside a sample wedding: switch between Basic, Essentials and Deluxe. Free, and nothing to pay.
               </span>
             </div>
-            <div className="grid gap-10 md:grid-cols-3 max-w-[1000px] mx-auto">
-              {AFTER.map((a) => (
-                <article key={a.title} className="flex flex-col gap-2">
-                  <h3 className="m-0 text-[26px] leading-[1.15] font-normal" style={{ fontFamily: serif }}>
-                    {a.title}
-                  </h3>
-                  <p className="m-0 text-[16px] leading-[1.6]" style={{ color: SOFT }}>
-                    {a.text}
-                  </p>
-                </article>
-              ))}
-            </div>
+            <Tiles />
           </div>
         </section>
 
