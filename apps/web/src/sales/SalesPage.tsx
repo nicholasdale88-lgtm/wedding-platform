@@ -67,7 +67,7 @@ const HeroScene = lazy(() => import('./SceneShowcase').then((m) => ({ default: m
 /** While the hero's phone loads: the same phone, showing the card. */
 function HeroPhoneStill() {
   return (
-    <span className="relative block w-[min(290px,74vw)] aspect-[290/600] rounded-[46px] p-[10px] bg-[#1c1719] shadow-[0_50px_90px_rgba(70,40,40,.32)]">
+    <span className="relative z-10 block w-[min(290px,74vw)] aspect-[290/600] rounded-[46px] p-[10px] bg-[#1c1719] shadow-[0_50px_90px_rgba(70,40,40,.32)]">
       <span className="flex flex-col items-center justify-center gap-3 w-full h-full rounded-[37px] text-center" style={{ background: '#fbf3f1', color: '#4a1f2b' }}>
         <span className="text-[11px] tracking-[.26em] uppercase opacity-80">Together with their families</span>
         <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 44, lineHeight: 1.05 }}>Harriet &amp; Theo</span>
@@ -149,7 +149,7 @@ function Bubble({ from, children, className = '' }: { from: 'us' | 'them' | 'not
         ? { background: 'linear-gradient(135deg,#c9a46a,#a8834a)', color: '#fffaf2', borderRadius: '20px 20px 6px 20px' }
         : { background: INK, color: '#fbf1e8', borderRadius: 999 };
   return (
-    <span className={`absolute z-20 max-w-[230px] py-3 px-4 text-[13.5px] leading-[1.4] shadow-[0_18px_40px_rgba(70,40,40,.18)] ${className}`} style={look}>
+    <span className={`absolute z-30 max-w-[230px] py-3 px-4 text-[13.5px] leading-[1.4] shadow-[0_18px_40px_rgba(70,40,40,.18)] ${className}`} style={look}>
       {children}
     </span>
   );

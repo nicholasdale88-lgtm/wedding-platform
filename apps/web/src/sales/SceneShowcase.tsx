@@ -110,7 +110,7 @@ export function HeroScene() {
   const t = themeOf(name);
   const d = SIGNATURE[name]!;
   return (
-    <span className="relative block w-[min(290px,74vw)] aspect-[290/600] rounded-[46px] p-[10px] bg-[#1c1719] shadow-[0_50px_90px_rgba(70,40,40,.32),0_0_0_1px_rgba(255,255,255,.06)_inset]">
+    <span className="relative z-10 block w-[min(290px,74vw)] aspect-[290/600] rounded-[46px] p-[10px] bg-[#1c1719] shadow-[0_50px_90px_rgba(70,40,40,.32),0_0_0_1px_rgba(255,255,255,.06)_inset]">
       <span aria-hidden className="absolute z-10 top-[18px] left-1/2 w-[80px] h-[22px] -ml-[40px] rounded-full bg-[#1c1719]" />
       <span className="relative block w-full h-full rounded-[37px] overflow-hidden" style={{ background: t.b1 ?? '#fbf8f2' }}>
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center" style={{ color: t.dg ?? '#33402f' }}>
