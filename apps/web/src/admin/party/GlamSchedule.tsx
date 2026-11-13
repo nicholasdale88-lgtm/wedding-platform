@@ -50,11 +50,11 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
   const byId = new Map(s.rows.map((r) => [r.id, r]));
 
   return (
-    <section aria-label={title} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label={title} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
           <H2>{title}</H2>
-          <div className="text-[13px] text-[#5b6a52]">Who’s in the chairs and for how long; the start times work themselves out.</div>
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Who’s in the chairs and for how long; the start times work themselves out.</div>
         </div>
         {glam.people.length > 0 && (
           <span className="text-[14px]">
@@ -70,7 +70,7 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
           </span>
         )}
       </div>
-      <div className="flex gap-4 flex-wrap items-end text-[13px] text-[#5b6a52]">
+      <div className="flex gap-4 flex-wrap items-end text-[13px] text-[var(--adm-muted,#5b6a52)]">
         <label className="flex flex-col gap-1">
           Everyone ready by
           <input aria-label="Ready by" placeholder="12:30pm" value={glam.finish} maxLength={20} onChange={(e) => set({ ...glam, finish: e.target.value })} className={`${inputCls} !py-2 w-[110px]`} />
@@ -92,10 +92,10 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
           {glam.people.map((p) => {
             const r = byId.get(p.id);
             return (
-              <div key={p.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-white">
+              <div key={p.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white">
                 <div className="flex gap-2 items-center">
                   <input aria-label="Who" value={p.who} maxLength={80} onChange={(e) => setP(p.id, { who: e.target.value })} className={`${inputCls} !py-2 flex-1 min-w-0`} />
-                  <button type="button" aria-label={`Remove ${p.who}`} onClick={() => set({ ...glam, people: glam.people.filter((x) => x.id !== p.id) }, true)} className="w-10 h-10 flex-none rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer text-[#7a7466] text-[18px]">
+                  <button type="button" aria-label={`Remove ${p.who}`} onClick={() => set({ ...glam, people: glam.people.filter((x) => x.id !== p.id) }, true)} className="w-10 h-10 flex-none rounded-full border border-[var(--adm-line,#d3c6a4)] bg-transparent cursor-pointer text-[#7a7466] text-[18px]">
                     ×
                   </button>
                 </div>
@@ -104,7 +104,7 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
                   Hair
                   <Mins label={`${p.who} hair minutes`} value={p.hairMins} disabled={!p.hair} onValue={(n) => setP(p.id, { hairMins: n }, true)} />
                   min
-                  <span className="ml-auto text-[12px] text-[#5b6a52] tabular-nums">{p.hair && timed ? span(r?.hair) : ''}</span>
+                  <span className="ml-auto text-[12px] text-[var(--adm-muted,#5b6a52)] tabular-nums">{p.hair && timed ? span(r?.hair) : ''}</span>
                 </label>
                 {makeup && (
                   <label className="flex items-center gap-2 text-[14px]">
@@ -112,10 +112,10 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
                     Makeup
                     <Mins label={`${p.who} makeup minutes`} value={p.makeupMins} disabled={!p.makeup} onValue={(n) => setP(p.id, { makeupMins: n }, true)} />
                     min
-                    <span className="ml-auto text-[12px] text-[#5b6a52] tabular-nums">{p.makeup && timed ? span(r?.makeup) : ''}</span>
+                    <span className="ml-auto text-[12px] text-[var(--adm-muted,#5b6a52)] tabular-nums">{p.makeup && timed ? span(r?.makeup) : ''}</span>
                   </label>
                 )}
-                <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
+                <label className="flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)]">
                   <input type="checkbox" aria-label={`${p.who} goes last`} checked={p.last} onChange={(e) => setP(p.id, { last: e.target.checked }, true)} className="w-5 h-5 accent-[#b39563]" />
                   Goes last (freshest for the photos)
                 </label>
@@ -128,7 +128,7 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
         <div className="overflow-x-auto hidden sm:block">
           <table className={`w-full border-collapse text-[14px] ${makeup ? "min-w-[620px]" : "min-w-[440px]"}`}>
             <thead>
-              <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[#5b6a52]">
+              <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">
                 <th className="py-1 font-semibold">Who</th>
                 <th className="py-1 font-semibold">Hair</th>
                 {makeup && <th className="py-1 font-semibold">Makeup</th>}
@@ -150,7 +150,7 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
                         <Mins label={`${p.who} hair minutes`} value={p.hairMins} disabled={!p.hair} onValue={(n) => setP(p.id, { hairMins: n }, true)} />
                         min
                       </label>
-                      <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.hair && timed ? span(r?.hair) : ''}</span>
+                      <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] mt-1 tabular-nums">{p.hair && timed ? span(r?.hair) : ''}</span>
                     </td>
                     {makeup && (
                     <td className="py-2 pr-2">
@@ -159,7 +159,7 @@ export function GlamSchedule({ glam, set, names, star, makeup = true }: { glam: 
                         <Mins label={`${p.who} makeup minutes`} value={p.makeupMins} disabled={!p.makeup} onValue={(n) => setP(p.id, { makeupMins: n }, true)} />
                         min
                       </label>
-                      <span className="block text-[12px] text-[#5b6a52] mt-1 tabular-nums">{p.makeup && timed ? span(r?.makeup) : ''}</span>
+                      <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] mt-1 tabular-nums">{p.makeup && timed ? span(r?.makeup) : ''}</span>
                     </td>
                     )}
                     <td className="py-2 pr-2">

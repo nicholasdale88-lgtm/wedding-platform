@@ -112,7 +112,7 @@ function Planner() {
               type="button"
               aria-current={view === k ? 'page' : undefined}
               onClick={() => go(k)}
-              className={`p-0 pb-[3px] border-0 border-b-2 bg-transparent cursor-pointer ${view === k ? 'border-[var(--adm-ink,#33402f)] text-[var(--adm-ink,#33402f)] font-semibold' : 'border-transparent text-[#5b6a52] hover:text-[#33402f]'}`}
+              className={`p-0 pb-[3px] border-0 border-b-2 bg-transparent cursor-pointer ${view === k ? 'border-[var(--adm-ink,#33402f)] text-[var(--adm-ink,#33402f)] font-semibold' : 'border-transparent text-[var(--adm-muted,#5b6a52)] hover:text-[var(--adm-ink,#33402f)]'}`}
             >
               {l}
             </button>
@@ -143,7 +143,7 @@ function Glance({ go }: { go: (v: View) => void }) {
       .then((r) => setVendors(r.data.list))
       .catch(() => setVendors([]));
   }, [wid]);
-  if (!budget || !vendors) return <div aria-busy="true" className="text-[#5b6a52]">Loading your planner…</div>;
+  if (!budget || !vendors) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your planner…</div>;
 
   const first = overview?.events[0];
   const tz = overview?.wedding.timezone;
@@ -171,12 +171,12 @@ function Glance({ go }: { go: (v: View) => void }) {
     <div className="flex flex-col gap-5">
       <InstallApp what="your wedding admin" />
       <section aria-label="Where things stand" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        <div className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Days to go</span>
+        <div className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">Days to go</span>
           <span className="font-display text-[34px] leading-none">{days === null ? '–' : Math.max(0, days)}</span>
         </div>
-        <button type="button" onClick={() => go('budget')} className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6]">
-          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Budget</span>
+        <button type="button" onClick={() => go('budget')} className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
+          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">Budget</span>
           <span className="font-display text-[26px] leading-none">{budget.total ? `${aud(committed)} of ${aud(budget.total)}` : 'Not set yet'}</span>
           {budget.total > 0 && (
             <span className="h-[6px] rounded-full bg-[#e9e2cc] overflow-hidden">
@@ -184,13 +184,13 @@ function Glance({ go }: { go: (v: View) => void }) {
             </span>
           )}
         </button>
-        <div className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Paid so far</span>
+        <div className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">Paid so far</span>
           <span className="font-display text-[26px] leading-none">{aud(paid)}</span>
           <span className="text-[12px] text-[#7a7466]">{aud(Math.max(0, committed - paid))} still to pay</span>
         </div>
-        <button type="button" onClick={() => go('vendors')} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6]">
-          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Vendors booked</span>
+        <button type="button" onClick={() => go('vendors')} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
+          <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">Vendors booked</span>
           <span className="font-display text-[34px] leading-none">
             {booked.length}
             <span className="text-[16px] text-[#7a7466]"> of {vendors.length}</span>
@@ -198,10 +198,10 @@ function Glance({ go }: { go: (v: View) => void }) {
         </button>
       </section>
 
-      <section aria-label="Next up" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <section aria-label="Next up" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         <div className="flex justify-between items-baseline gap-2">
           <H2>Next up</H2>
-          <button type="button" onClick={() => go('checklist')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          <button type="button" onClick={() => go('checklist')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
             {plan.length ? 'The whole checklist' : 'Start your checklist'}
           </button>
         </div>
@@ -209,24 +209,24 @@ function Glance({ go }: { go: (v: View) => void }) {
           nextTasks(plan, first ? Date.parse(first.startsAt) : null).map((t) => {
             const late = !!t.due && t.due.getTime() < Date.now();
             return (
-              <div key={t.id} className="flex justify-between gap-3 text-[14px] py-1 border-t border-[#e2d7bc] first:border-t-0">
+              <div key={t.id} className="flex justify-between gap-3 text-[14px] py-1 border-t border-[var(--adm-line,#e2d7bc)] first:border-t-0">
                 <span className="min-w-0">
                   {t.legal && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#f1e1d6] text-[#7a4a37] text-[11px] font-semibold">Legal</span>}
                   {t.text}
                 </span>
-                <span className={`flex-none ${late ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}`}>
+                <span className={`flex-none ${late ? 'text-[#7a4a37] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
                   {t.due ? `${late ? 'Overdue · ' : ''}${t.due.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
                 </span>
               </div>
             );
           })
         ) : (
-          <span className="text-[14px] text-[#5b6a52]">The usual Australian plan, counted back from your date, including the Notice of Intended Marriage deadlines.</span>
+          <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">The usual Australian plan, counted back from your date, including the Notice of Intended Marriage deadlines.</span>
         )}
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section aria-label="Still to book" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <section aria-label="Still to book" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
           <H2>Still to book</H2>
           {missing.length ? (
             <div className="flex gap-2 flex-wrap">
@@ -234,7 +234,7 @@ function Glance({ go }: { go: (v: View) => void }) {
                 <span
                   key={r.what}
                   title={r.late ? 'Most couples have booked this by now' : `Most couples book by ${new Date(`${r.bookBy}T00:00`).toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })}`}
-                  className={`py-[5px] px-3 rounded-full border text-[13px] ${r.late ? 'border-[#a5533c] text-[#7a4a37]' : 'border-[#c6b794]'}`}
+                  className={`py-[5px] px-3 rounded-full border text-[13px] ${r.late ? 'border-[#a5533c] text-[#7a4a37]' : 'border-[var(--adm-line,#c6b794)]'}`}
                 >
                   {r.what}
                   <span className="opacity-70">
@@ -248,24 +248,24 @@ function Glance({ go }: { go: (v: View) => void }) {
           ) : (
             <span className="text-[14px] text-[#3d4a2f]">Everything usual is booked ✓</span>
           )}
-          <button type="button" onClick={() => go('vendors')} className="self-start mt-1 p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          <button type="button" onClick={() => go('vendors')} className="self-start mt-1 p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
             Get quotes from vendors
           </button>
         </section>
 
-        <section aria-label="Payments coming up" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <section aria-label="Payments coming up" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
           <div className="flex justify-between items-baseline gap-2">
             <H2>Payments coming up</H2>
-            <button type="button" onClick={() => go('payments')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+            <button type="button" onClick={() => go('payments')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
               Every payment
             </button>
           </div>
           {payments.length ? (
             payments.map((p, i) => (
-              <div key={i} className="flex justify-between gap-3 text-[14px] py-1 border-t border-[#e2d7bc] first:border-t-0">
+              <div key={i} className="flex justify-between gap-3 text-[14px] py-1 border-t border-[var(--adm-line,#e2d7bc)] first:border-t-0">
                 <span className="min-w-0 truncate">{p.what}</span>
                 <span className="tabular-nums flex gap-3 flex-none">
-                  <span className={p.due < today ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}>
+                  <span className={p.due < today ? 'text-[#7a4a37] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}>
                     {p.due < today ? 'Overdue ' : ''}
                     {new Date(`${p.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
                   </span>
@@ -274,20 +274,20 @@ function Glance({ go }: { go: (v: View) => void }) {
               </div>
             ))
           ) : (
-            <span className="text-[14px] text-[#5b6a52]">Nothing with a due date yet. Add due dates in Budget or on a booked vendor.</span>
+            <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">Nothing with a due date yet. Add due dates in Budget or on a booked vendor.</span>
           )}
         </section>
       </div>
 
       {expiring.length > 0 && (
-        <section aria-label="Quotes to decide on" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <section aria-label="Quotes to decide on" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
           <H2>Quotes to decide on</H2>
           {expiring.map(({ v, q }) => (
-            <div key={q.id} className="flex justify-between gap-3 text-[14px] py-1 border-t border-[#e2d7bc] first:border-t-0">
+            <div key={q.id} className="flex justify-between gap-3 text-[14px] py-1 border-t border-[var(--adm-line,#e2d7bc)] first:border-t-0">
               <span className="min-w-0 truncate">
-                {v.name} <span className="text-[#5b6a52]">· {aud(q.amount)}</span>
+                {v.name} <span className="text-[var(--adm-muted,#5b6a52)]">· {aud(q.amount)}</span>
               </span>
-              <span className="text-[#5b6a52] flex-none">valid until {new Date(`${q.validUntil}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</span>
+              <span className="text-[var(--adm-muted,#5b6a52)] flex-none">valid until {new Date(`${q.validUntil}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</span>
             </div>
           ))}
         </section>
@@ -301,7 +301,7 @@ function Glance({ go }: { go: (v: View) => void }) {
 
       <section aria-label="Ask the assistant" className="flex justify-between items-center gap-3 flex-wrap p-4 rounded-[16px] bg-[#33402f] text-[#f3ecd6]">
         <span className="text-[15px]">Not sure what's next? The assistant knows your dates, budget, vendors and wedding party.</span>
-        <button type="button" onClick={() => go('assistant')} className="py-2 px-4 rounded-full border-0 bg-[#f3ecd6] text-[#33402f] text-[14px] font-medium cursor-pointer">
+        <button type="button" onClick={() => go('assistant')} className="py-2 px-4 rounded-full border-0 bg-[var(--adm-tint,#f3ecd6)] text-[var(--adm-ink,#33402f)] text-[14px] font-medium cursor-pointer">
           Ask the assistant
         </button>
       </section>

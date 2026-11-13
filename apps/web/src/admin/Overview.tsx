@@ -5,6 +5,15 @@ import { Card, Hub, Kpis } from './hub/Hub';
 import { C, Donut } from './hub/charts';
 import { useAdmin, useSectionOverview } from './Shell';
 import { ErrorState, Eyebrow, H2, Loading, useToast } from './ui';
+import { envelopeClose } from '../sales/Stills';
+
+/** The overview's cover picture, drawn once per couple (it's a few milliseconds, but no need to redo it). */
+const covers = new Map<string, string>();
+const coverOf = (initials: string, names: string) => {
+  const key = `${initials}|${names}`;
+  if (!covers.has(key)) covers.set(key, envelopeClose(undefined, undefined, initials, names));
+  return covers.get(key)!;
+};
 
 
 /** design/RSVP Admin.dc.html → Overview. */
@@ -35,14 +44,39 @@ export function Overview() {
     { label: 'Dietary', value: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, go: () => to('dietary', o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home), warn: o.diet.serious > 0 && o.diet.mealsSet < o.diet.people },
   ];
   const isWedding = o.focus === o.events[0]?.key;
+  const first1 = o.wedding.name1.split(' ')[0] || o.wedding.name1;
+  const first2 = o.wedding.name2.split(' ')[0] || o.wedding.name2;
+  const cover = coverOf(`${first1[0] ?? ''} & ${first2[0] ?? ''}`, `${first1} & ${first2}`);
 
   return (
     <div className="flex flex-col gap-[30px]">
-      <header className="flex flex-col gap-[10px]">
-        {firstEvent && o.daysToGo !== null && <Eyebrow>{`${o.daysToGo} days to ${firstEvent.name.replace(/^the\s+/i, 'the ')}`}</Eyebrow>}
-        <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance]">
-          {o.replied} of {o.total} invitations answered
-        </h1>
+      {/* The event's cover: your names over a still life of your sealed invitation, the countdown and the replies so far. */}
+      <header
+        className="relative overflow-hidden rounded-[28px] border border-[var(--adm-line,#e2d7bc)] shadow-[0_26px_60px_rgba(60,30,40,.12)]"
+        style={{ background: 'linear-gradient(120deg, var(--adm-card,#fbf8f0) 0%, var(--adm-card,#fbf8f0) 45%, var(--adm-tint,#f3ecd6) 100%)' }}
+      >
+        <img
+          aria-hidden
+          alt=""
+          src={cover}
+          decoding="async"
+          className="absolute inset-y-0 right-0 h-full w-[62%] sm:w-[52%] object-cover opacity-[.42] sm:opacity-100"
+          style={{ maskImage: 'linear-gradient(to right, transparent, #000 38%)', WebkitMaskImage: 'linear-gradient(to right, transparent, #000 38%)' }}
+        />
+        <div className="relative flex flex-col gap-3 p-6 sm:p-9 sm:max-w-[60%]">
+          {firstEvent && o.daysToGo !== null && <Eyebrow>{`${o.daysToGo} days to ${firstEvent.name.replace(/^the\s+/i, 'the ')}`}</Eyebrow>}
+          <div aria-hidden className="font-display text-[clamp(34px,6vw,52px)] leading-[1.02] text-[var(--adm-ink,#33402f)]">
+            {first1}
+            <span className="font-script text-[var(--adm-gold,#b9a07a)] mx-2 text-[.9em]">&amp;</span>
+            {first2}
+          </div>
+          <h1 className="m-0 font-display font-medium italic text-[clamp(20px,4vw,26px)] leading-[1.15] [text-wrap:balance] text-[var(--adm-muted,#5b6a52)]">
+            {o.replied} of {o.total} invitations answered
+          </h1>
+          <div aria-hidden className="h-[6px] max-w-[320px] rounded-full bg-[var(--adm-line,#e2d7bc)] overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${o.total ? Math.round((o.replied / o.total) * 100) : 0}%`, background: 'linear-gradient(90deg, var(--adm-accent,#5d6b47), var(--adm-gold,#b9a07a))' }} />
+          </div>
+        </div>
       </header>
 
       <Kpis label="Replies at a glance" items={figures} />
@@ -69,28 +103,28 @@ export function Overview() {
         <Card title="Latest replies" action={['Everyone', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
           <div className="flex flex-col">
             {o.latest.map((r) => (
-              <button key={r.id} onClick={() => to(`guests?${all}g=${r.id}`, home)} className="flex flex-col gap-[2px] py-[10px] border-0 border-t border-[#ece3cc] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[#f3ecd6]">
+              <button key={r.id} onClick={() => to(`guests?${all}g=${r.id}`, home)} className="flex flex-col gap-[2px] py-[10px] border-0 border-t border-[var(--adm-line,#ece3cc)] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
                 <span className="flex justify-between gap-[10px] w-full">
                   <strong className="font-semibold">{r.name}</strong>
-                  <span className="text-[12px] text-[#5b6a52] whitespace-nowrap">{fmtWhen(r.at, tz)}</span>
+                  <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{fmtWhen(r.at, tz)}</span>
                 </span>
-                <span className="text-[13px] text-[#5b6a52]">{r.summary}</span>
+                <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{r.summary}</span>
                 {r.message && <span className="font-display italic text-[17px]">{r.message}</span>}
               </button>
             ))}
-            {o.latest.length === 0 && <p className="m-0 text-[14px] text-[#5b6a52]">No replies yet. They show here as they come in.</p>}
+            {o.latest.length === 0 && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">No replies yet. They show here as they come in.</p>}
           </div>
         </Card>
 
         <Card title="Coming up" action={['All texts', () => to('texts', home)]}>
           <div className="flex flex-col">
             {o.nextUp.map((u) => (
-              <button key={u.campaignId} onClick={() => to('texts', home)} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 items-baseline py-[10px] border-0 border-t border-[#ece3cc] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[#f3ecd6]">
+              <button key={u.campaignId} onClick={() => to('texts', home)} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 items-baseline py-[10px] border-0 border-t border-[var(--adm-line,#ece3cc)] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
                 <span className="font-display text-[20px] italic">{fmtDay(u.sendAt, tz)}</span>
                 <span className="font-medium min-w-0">{u.name}</span>
               </button>
             ))}
-            {o.nextUp.length === 0 && <p className="m-0 text-[14px] text-[#5b6a52]">No dated texts scheduled.</p>}
+            {o.nextUp.length === 0 && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">No dated texts scheduled.</p>}
           </div>
         </Card>
       </div>
@@ -146,7 +180,7 @@ function Today({ o, to, event }: { o: NonNullable<ReturnType<typeof useAdmin>['o
           key={a.label}
           type="button"
           onClick={a.run}
-          className="flex-none flex items-center gap-2 py-[9px] px-4 min-h-[44px] rounded-full border border-[#d3c6a4] bg-[#fbf8f0] text-[14px] font-medium cursor-pointer whitespace-nowrap hover:bg-[#efe7d3]"
+          className="flex-none flex items-center gap-2 py-[9px] px-4 min-h-[44px] rounded-full border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[14px] font-medium cursor-pointer whitespace-nowrap hover:bg-[var(--adm-tint,#efe7d3)]"
         >
           {a.label}
           {!!a.badge && <span className="min-w-[20px] h-[20px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[12px] leading-[20px] text-center">{a.badge}</span>}

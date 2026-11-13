@@ -318,7 +318,7 @@ export function Guests() {
             <ul className="m-0 p-0 list-none flex flex-col max-h-[40vh] overflow-y-auto border-t border-[#e6cdbf]">
               {gapped.map(({ g, gaps }) => (
                 <li key={g.id} className="border-b border-[#e6cdbf]">
-                  <button type="button" onClick={() => openGuest(g.id)} className="w-full flex justify-between gap-3 py-2 px-1 border-0 bg-transparent text-left cursor-pointer text-[14px] text-[#33402f]">
+                  <button type="button" onClick={() => openGuest(g.id)} className="w-full flex justify-between gap-3 py-2 px-1 border-0 bg-transparent text-left cursor-pointer text-[14px] text-[var(--adm-ink,#33402f)]">
                     <span className="font-medium">{g.people[0]?.name || 'New guest'}</span>
                     <span className="text-[13px] text-[#7a4a37]">{gaps.map((k) => GAP_LABEL[k]).join(' · ')}</span>
                   </button>
@@ -419,7 +419,7 @@ export function Guests() {
           type="button"
           aria-pressed={state.sort === 'side'}
           onClick={() => set({ sort: state.sort === 'side' ? '' : 'side' })}
-          className={`py-[6px] px-3 rounded-full border text-[12px] cursor-pointer ${state.sort === 'side' ? 'border-[#33402f] bg-[#33402f] text-[#f3ecd6]' : 'border-[#c6b794] bg-transparent text-[#33402f]'}`}
+          className={`py-[6px] px-3 rounded-full border text-[12px] cursor-pointer ${state.sort === 'side' ? 'border-[#33402f] bg-[#33402f] text-[#f3ecd6]' : 'border-[var(--adm-line,#c6b794)] bg-transparent text-[var(--adm-ink,#33402f)]'}`}
         >
           {state.sort === 'side' ? 'Grouped by side ✓' : 'Group by side'}
         </button>

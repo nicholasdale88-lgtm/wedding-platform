@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { accountApi, ApiError, type Me } from '../lib/api';
 
-const pill = 'w-full py-3 px-4 border border-[#d3c6a4] rounded-full bg-[#fbf8f2] text-[16px] text-center placeholder:text-[#5b6a52]/70';
+const pill = 'w-full py-3 px-4 border border-[var(--adm-line,#d3c6a4)] rounded-full bg-[#fbf8f2] text-[16px] text-center placeholder:text-[var(--adm-muted,#5b6a52)]/70';
 
 /**
  * /admin/join?t=…: someone was invited to help run a wedding. New to us: their name and a passcode make
@@ -39,7 +39,7 @@ export function Join({ onJoined }: { onJoined: (me: Me) => void }) {
   }
 
   return (
-    <main className="fixed inset-0 z-50 overflow-y-auto bg-[#f6f0e2] flex items-center justify-center p-6">
+    <main className="fixed inset-0 z-50 overflow-y-auto bg-[var(--adm-bg,#f6f0e2)] flex items-center justify-center p-6">
       {gone ? (
         <p role="alert" className="max-w-[380px] text-center text-[15px] text-[#8a5a45]">
           {gone}
@@ -49,7 +49,7 @@ export function Join({ onJoined }: { onJoined: (me: Me) => void }) {
       ) : (
         <form onSubmit={submit} noValidate className="w-[min(380px,100%)] flex flex-col items-center gap-[14px] text-center">
           <h1 className="m-0 font-script font-normal text-[40px] leading-[1.15]">{info.couple}</h1>
-          <p className="m-0 text-[15px] text-[#5b6a52]">
+          <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)]">
             You&apos;re invited to help run the wedding admin, as <strong>{info.email}</strong>.
           </p>
           {!info.hasAccount && (
@@ -71,7 +71,7 @@ export function Join({ onJoined }: { onJoined: (me: Me) => void }) {
             className={pill}
           />
           {!info.hasAccount && (
-            <label className="flex items-start gap-2 text-left text-[13px] text-[#5b6a52] cursor-pointer">
+            <label className="flex items-start gap-2 text-left text-[13px] text-[var(--adm-muted,#5b6a52)] cursor-pointer">
               <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} className="mt-[2px] w-[18px] h-[18px] accent-[#5d6b47]" />
               Send me wedding-planning tips and news by email (optional)
             </label>

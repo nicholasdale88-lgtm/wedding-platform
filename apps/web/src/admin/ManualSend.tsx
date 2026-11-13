@@ -50,22 +50,22 @@ export function ManualSend({ guests, links, onClose, mode = 'unreachable' }: { g
 
   const text = g ? fallbackMessage(g.people[0]?.name.split(' ')[0] ?? 'there', couple, links[g.id]!) : '';
   return (
-    <section className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#c6b794] bg-[#fbf8f2]">
+    <section className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#c6b794)] bg-[#fbf8f2]">
       <div className="flex justify-between items-baseline gap-3 flex-wrap">
         <h2 className="m-0 font-display font-medium text-[26px]">{own ? 'Text from my own phone' : 'Share invitation links yourself'}</h2>
-        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[#33402f]">
+        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[var(--adm-ink,#33402f)]">
           Close
         </button>
       </div>
-      <p className="m-0 text-[14px] text-[#5b6a52]">
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
         {own
           ? `Free, from your own number: each tap opens your Messages app with the guest's number and personal invitation ready. Press send, come back, next. Easiest on your phone. ${queue.length - left.length} of ${queue.length} done.`
           : `${queue.length} ${queue.length === 1 ? 'guest' : 'guests'} can't get texts (no mobile, or they replied STOP). Send each their personal invitation another way. ${queue.length - left.length} done.`}
       </p>
       {g ? (
-        <div className="flex flex-col gap-2 p-4 rounded-[12px] bg-[#f3ecd6]">
+        <div className="flex flex-col gap-2 p-4 rounded-[12px] bg-[var(--adm-tint,#f3ecd6)]">
           <strong className="font-display text-[22px] font-medium">{g.people.map((p) => p.name).join(' & ')}</strong>
-          <span className="text-[13px] text-[#5b6a52] whitespace-pre-wrap break-words">{text}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] whitespace-pre-wrap break-words">{text}</span>
           <div className="flex gap-2 flex-wrap">
             {own && g.phone && (
               <a href={smsHref(g.phone, text)} className="py-[9px] px-5 rounded-full no-underline text-[15px] font-medium bg-[#33402f] !text-[#fbf8f2]">

@@ -25,12 +25,12 @@ export function EventDayChecklist() {
     <header>
       <Eyebrow>{section} · Party checklist</Eyebrow>
       <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Party checklist</h1>
-      <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">Everything to do for {ev?.name ?? 'the day'}, from a month out to the clean-up. Tick things off on your phone.</p>
+      <p className="m-0 mt-1 text-[15px] text-[var(--adm-muted,#5b6a52)]">Everything to do for {ev?.name ?? 'the day'}, from a month out to the clean-up. Tick things off on your phone.</p>
     </header>
   );
   if (!event) return header;
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
-  if (!live.doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading the checklist…</div>;
+  if (!live.doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the checklist…</div>;
   const items = live.doc.data.items;
   const p = progressOf(items);
   const now = phaseNow(ev ? daysUntil(ev.startsAt, overview?.wedding.timezone) : null);
@@ -43,14 +43,14 @@ export function EventDayChecklist() {
         {items.length > 0 && (
           <span className="flex items-center gap-3">
             <Ring done={p.done} total={p.total} size={68} />
-            <span className="text-[14px] text-[#5b6a52]">{p.total - p.done ? `${p.total - p.done} to go` : 'All done ✓'}</span>
+            <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">{p.total - p.done ? `${p.total - p.done} to go` : 'All done ✓'}</span>
           </span>
         )}
       </div>
       {!items.length ? (
-        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[#c6b794] bg-[#fbf8f0]">
+        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)]">
           <strong className="font-display text-[22px] font-medium">Start with the usual list</strong>
-          <p className="m-0 text-[14px] text-[#5b6a52]">{PARTY_CHECK_TEMPLATE.items.length} things a host usually needs, from the cake order to the thank-yous. Change anything.</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">{PARTY_CHECK_TEMPLATE.items.length} things a host usually needs, from the cake order to the thank-yous. Change anything.</p>
           <Pill kind="primary" onClick={() => live.set({ items: PARTY_CHECK_TEMPLATE.items.map((x) => ({ ...x })) }, true)}>
             Start the list
           </Pill>
@@ -58,9 +58,9 @@ export function EventDayChecklist() {
       ) : (
         <>
           {extra.length > 0 && (
-            <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[#f3ecd6] text-[13px] text-[#5b6a52]">
+            <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[var(--adm-tint,#f3ecd6)] text-[13px] text-[var(--adm-muted,#5b6a52)]">
               <span>{extra.length} suggested {extra.length === 1 ? 'item isn’t' : 'items aren’t'} on your list.</span>
-              <button type="button" onClick={() => live.set({ items: [...items, ...extra.map((x) => ({ ...x }))] }, true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f] font-medium">
+              <button type="button" onClick={() => live.set({ items: [...items, ...extra.map((x) => ({ ...x }))] }, true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)] font-medium">
                 Add them
               </button>
             </div>

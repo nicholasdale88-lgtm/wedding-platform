@@ -66,11 +66,11 @@ export function BudgetImport({ budget, prominent, onDone }: { budget: BudgetDoc;
   const unbooked = imp ? imp.lines.filter((l) => !l.vendor) : [];
   const saved = imp ? imp.savings.reduce((a, s) => a + s.amount, 0) : 0;
   return (
-    <section aria-label="Bring in a spreadsheet" className={`flex flex-col gap-3 p-4 rounded-[16px] border ${prominent || found ? 'border-[#8a9670] bg-[#f3f6ea]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}>
+    <section aria-label="Bring in a spreadsheet" className={`flex flex-col gap-3 p-4 rounded-[16px] border ${prominent || found ? 'border-[#8a9670] bg-[#f3f6ea]' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]'}`}>
       <div className="flex justify-between items-center gap-3 flex-wrap">
         <span className="w-full lg:w-auto lg:flex-1 min-w-0">
           <strong className="block text-[16px]">Keeping your budget in a spreadsheet?</strong>
-          <span className="text-[13px] text-[#5b6a52]">Bring it in: your booked vendors and their payment schedules, the budget lines and your savings. Run it again whenever the spreadsheet changes.</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Bring it in: your booked vendors and their payment schedules, the budget lines and your savings. Run it again whenever the spreadsheet changes.</span>
         </span>
         <Pill kind={prominent ? 'primary' : 'secondary'} disabled={!!busy} onClick={() => input.current?.click()}>
           {busy === 'Reading it…' ? busy : 'Choose the spreadsheet (.xlsx)'}
@@ -83,11 +83,11 @@ export function BudgetImport({ budget, prominent, onDone }: { budget: BudgetDoc;
         </p>
       )}
       {imp && (
-        <div className="flex flex-col gap-3 p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[14px]">
+        <div className="flex flex-col gap-3 p-3 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[14px]">
           <strong>From {found!.name}:</strong>
           {imp.vendors.length > 0 && (
             <div className="flex flex-col gap-1">
-              <span className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">Booked vendors</span>
+              <span className="text-[12px] font-semibold tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">Booked vendors</span>
               <ul className="m-0 p-0 list-none flex flex-col">
                 {imp.vendors.map((v) => {
                   const paid = v.payments.filter((p) => p.paid).reduce((a, p) => a + p.amount, 0);
@@ -95,9 +95,9 @@ export function BudgetImport({ budget, prominent, onDone }: { budget: BudgetDoc;
                     <li key={v.name} className="flex justify-between gap-3 py-1 border-b border-[#efe6d0] flex-wrap">
                       <span>
                         <strong>{v.name}</strong>
-                        {v.category && <span className="text-[#5b6a52]"> · {v.category}</span>}
+                        {v.category && <span className="text-[var(--adm-muted,#5b6a52)]"> · {v.category}</span>}
                       </span>
-                      <span className="tabular-nums text-[#5b6a52]">
+                      <span className="tabular-nums text-[var(--adm-muted,#5b6a52)]">
                         {aud(v.quote)} · {v.payments.length} {v.payments.length === 1 ? 'payment' : 'payments'} · {aud(paid)} paid
                       </span>
                     </li>
@@ -116,7 +116,7 @@ export function BudgetImport({ budget, prominent, onDone }: { budget: BudgetDoc;
               <strong>Savings:</strong> {imp.savings.length} deposits, {aud(saved)} put away
             </span>
           )}
-          <span className="text-[13px] text-[#5b6a52]">
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             Vendors already in your planner with the same name are updated, not doubled; budget lines for the same vendor or item are replaced.{budget.total ? '' : ` Your budget total is set to ${aud(imp.total)} (change it any time).`}
           </span>
           <div className="flex gap-2 flex-wrap">

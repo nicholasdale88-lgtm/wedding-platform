@@ -62,7 +62,7 @@ export function Dietary() {
   }, [data, chosen]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data || !view) return <div aria-busy="true" className="text-[#5b6a52]">Loading dietary needs…</div>;
+  if (!data || !view) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading dietary needs…</div>;
 
   const open = (g: Guest) => navigate(path(`guests?g=${g.id}`));
   const shown = view.focus ? [view.focus] : data.events;
@@ -112,7 +112,7 @@ export function Dietary() {
       {view.counts.size > 0 && (
         <div className="flex gap-2 flex-wrap">
           {[...view.counts.entries()].map(([label, n]) => (
-            <span key={label} className="py-[6px] px-3 rounded-full bg-[#efe7d3] text-[14px]">
+            <span key={label} className="py-[6px] px-3 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[14px]">
               {label} <strong className="font-semibold">{n}</strong>
             </span>
           ))}
@@ -127,7 +127,7 @@ export function Dietary() {
               <Eyebrow>{fmtWeekday(e.startsAt, tz)}</Eyebrow>
               <h2 className="m-0 mt-1 mb-2 font-display font-medium text-[26px]">{shortLabel(e.name)}</h2>
               {rows.map(({ g, p }) => (
-                <button key={p.id} type="button" onClick={() => open(g)} className="flex flex-col gap-1 py-3 border-0 border-t border-solid border-[#e2d7bc] bg-transparent text-left cursor-pointer text-[#33402f] hover:bg-[#f3ecd6]">
+                <button key={p.id} type="button" onClick={() => open(g)} className="flex flex-col gap-1 py-3 border-0 border-t border-solid border-[var(--adm-line,#e2d7bc)] bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#f3ecd6)]">
                   <span className="flex justify-between gap-3">
                     <span className="font-medium">{p.name}</span>
                     <span className="text-[13px] text-[#7a7466]">{p.table ? `Table ${p.table}` : ''}</span>
@@ -138,7 +138,7 @@ export function Dietary() {
                   </span>
                 </button>
               ))}
-              {!rows.length && <div className="py-3 border-t border-[#e2d7bc] text-[14px] text-[#5b6a52]">No dietary requirements from guests coming so far.</div>}
+              {!rows.length && <div className="py-3 border-t border-[var(--adm-line,#e2d7bc)] text-[14px] text-[var(--adm-muted,#5b6a52)]">No dietary requirements from guests coming so far.</div>}
             </section>
           );
         })}
@@ -146,14 +146,14 @@ export function Dietary() {
 
       <section className="flex flex-col">
         <h2 className="m-0 font-display font-medium text-[26px]">Messages from guests</h2>
-        <div className="mb-2 text-[14px] text-[#5b6a52]">Access needs and questions often turn up here.</div>
+        <div className="mb-2 text-[14px] text-[var(--adm-muted,#5b6a52)]">Access needs and questions often turn up here.</div>
         {view.notes.map(({ g, m }) => (
-          <button key={g.id} type="button" onClick={() => open(g)} className="grid grid-cols-1 sm:grid-cols-[160px_minmax(0,1fr)] gap-1 sm:gap-3 py-3 border-0 border-t border-solid border-[#e2d7bc] bg-transparent text-left cursor-pointer text-[#33402f] hover:bg-[#f3ecd6]">
+          <button key={g.id} type="button" onClick={() => open(g)} className="grid grid-cols-1 sm:grid-cols-[160px_minmax(0,1fr)] gap-1 sm:gap-3 py-3 border-0 border-t border-solid border-[var(--adm-line,#e2d7bc)] bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#f3ecd6)]">
             <span className="font-medium">{g.people[0]?.name}</span>
             <span className="italic text-[15px]">“{m}”</span>
           </button>
         ))}
-        {!view.notes.length && <div className="py-3 border-t border-[#e2d7bc] text-[14px] text-[#5b6a52]">No messages yet.</div>}
+        {!view.notes.length && <div className="py-3 border-t border-[var(--adm-line,#e2d7bc)] text-[14px] text-[var(--adm-muted,#5b6a52)]">No messages yet.</div>}
       </section>
     </div>
   );
@@ -210,19 +210,19 @@ function Meals({ event, guests, onSaved }: { event: EventInfo; guests: Guest[]; 
   return (
     <>
       {menus && <MenusPanel menus={menus} set={live.set} />}
-      <section aria-label={`Meals for ${where}`} className="flex flex-col gap-3 p-5 rounded-[14px] bg-[#efe7d3]">
+      <section aria-label={`Meals for ${where}`} className="flex flex-col gap-3 p-5 rounded-[14px] bg-[var(--adm-tint,#efe7d3)]">
         <div className="flex justify-between items-baseline gap-3 flex-wrap">
           <h2 className="m-0 font-display font-medium text-[26px]">Meals for {where}</h2>
-          <span className="text-[13px] text-[#5b6a52]">
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {done} of {rows.length} sorted
           </span>
         </div>
-        <p className="m-0 text-[14px] text-[#5b6a52]">
+        <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
           Give each person with a dietary need a menu that suits them, or change a course just for them. It shows on their night-before place card and in the
           caterer export. Everyone else has the set menu.
         </p>
         {toGive.length > 0 && (
-          <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[#fbf8f0] text-[14px]">
+          <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] text-[14px]">
             <span>
               {toGive.length} {toGive.length === 1 ? 'guest has a menu' : 'guests have menus'} that suit{toGive.length === 1 ? 's' : ''} everything they wrote.
             </span>
@@ -251,13 +251,13 @@ function Meals({ event, guests, onSaved }: { event: EventInfo; guests: Guest[]; 
             onSaved={onSaved}
           />
         ))}
-        <div className="flex justify-between gap-3 pt-3 border-t border-[#e2d7bc] text-[14px]">
+        <div className="flex justify-between gap-3 pt-3 border-t border-[var(--adm-line,#e2d7bc)] text-[14px]">
           <span>
             <strong className="font-semibold">{people.length - withDiet.length} {people.length - withDiet.length === 1 ? 'guest' : 'guests'}</strong> · no dietary requirements
           </span>
           <span>Set menu</span>
         </div>
-        {!withDiet.length && <div className="text-[14px] text-[#5b6a52]">No dietary requirements, so everyone is on the set menu. Nothing to do here.</div>}
+        {!withDiet.length && <div className="text-[14px] text-[var(--adm-muted,#5b6a52)]">No dietary requirements, so everyone is on the set menu. Nothing to do here.</div>}
       </section>
     </>
   );
@@ -318,7 +318,7 @@ function MealRow({
   };
   const menuCourse = (k: 'entree' | 'main' | 'dessert') => servedMeal({ ...c, [k]: '' }, menus)[k];
   const field = (k: 'entree' | 'main' | 'dessert', label: string) => (
-    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
       {label}
       <input
         value={c[k]}
@@ -331,7 +331,7 @@ function MealRow({
     </label>
   );
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-3 pt-3 border-t border-[#e2d7bc]">
+    <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-3 pt-3 border-t border-[var(--adm-line,#e2d7bc)]">
       <div className="flex flex-col gap-1">
         <span className="font-medium">
           {p.name} <span className="text-[13px] font-normal text-[#7a7466]">{p.table ? `· Table ${p.table}` : ''}</span>

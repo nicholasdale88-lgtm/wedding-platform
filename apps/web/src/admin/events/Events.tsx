@@ -70,7 +70,7 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
   };
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading your events…</div>;
+  if (!data) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your events…</div>;
   const tz = data.timezone;
   const shown = addOnly ? [] : only ? data.events.filter((e) => e.key === only) : data.events;
 
@@ -80,7 +80,7 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
       <header>
         <Eyebrow>Events</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">What you're celebrating</h1>
-        <p className="m-0 mt-2 text-[15px] text-[#5b6a52] max-w-[680px]">
+        <p className="m-0 mt-2 text-[15px] text-[var(--adm-muted,#5b6a52)] max-w-[680px]">
           Each event has its own date, place and RSVP. Guests only see the events they're invited to; choose who's invited in Guests. The invitation's design has two event
           sections, filled by your first two events in date order; every event gets its own RSVP, texts, seating and night-before guide.
         </p>
@@ -145,7 +145,7 @@ export function Events({ only, addOnly }: { only?: string; addOnly?: boolean } =
       />
       )}
       {!only && (
-        <p className="m-0 text-[13px] text-[#5b6a52]">
+        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">
           Your plan includes {EVENTS_INCLUDED[plan]} {EVENTS_INCLUDED[plan] === 1 ? 'event' : 'events'}; each extra one (welcome drinks, a recovery brunch…) is an add-on.
         </p>
       )}
@@ -171,10 +171,10 @@ function EventCard({ e, tz, onSave, onRemove }: { e: EventFull; tz: string; onSa
   };
 
   return (
-    <section aria-label={e.name} className="flex flex-col gap-4 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label={e.name} className="flex flex-col gap-4 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex justify-between items-baseline gap-3 flex-wrap">
         <h2 className="m-0 font-display font-medium text-[28px]">{e.name}</h2>
-        <span className="text-[14px] text-[#5b6a52]">
+        <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
           {fmtEvent(e.startsAt, tz)} · {e.invited} invited · {e.coming} coming
         </span>
       </div>
@@ -220,7 +220,7 @@ function EventCard({ e, tz, onSave, onRemove }: { e: EventFull; tz: string; onSa
                 className={`${inputCls} min-w-0 flex-[2]`}
               />
             )}
-            <button type="button" aria-label="Remove question" onClick={() => set({ questions: d.questions.filter((_, j) => j !== i) })} className="w-[38px] h-[42px] rounded-[10px] border border-[#d3c6a4] bg-transparent text-[18px] text-[#7a4a37] cursor-pointer">
+            <button type="button" aria-label="Remove question" onClick={() => set({ questions: d.questions.filter((_, j) => j !== i) })} className="w-[38px] h-[42px] rounded-[10px] border border-[var(--adm-line,#d3c6a4)] bg-transparent text-[18px] text-[#7a4a37] cursor-pointer">
               ×
             </button>
           </div>
@@ -229,7 +229,7 @@ function EventCard({ e, tz, onSave, onRemove }: { e: EventFull; tz: string; onSa
           <button
             type="button"
             onClick={() => set({ questions: [...d.questions, { key: keyOf('question', d.questions.map((q) => q.key)), label: '', type: 'choice', options: ['Yes', 'No'] }] })}
-            className="self-start py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer hover:bg-[#efe7d3]"
+            className="self-start py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]"
           >
             + Add a question
           </button>
@@ -289,7 +289,7 @@ function AddEvent({ tz, first, onAdd }: { tz: string; first?: string; onAdd: (na
             key={u[0]}
             type="button"
             onClick={() => pick(u)}
-            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${name === u[0] ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`}
+            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${name === u[0] ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]'}`}
           >
             {u[0]}
             {first && <span className="opacity-70"> · {u[1] > 0 ? 'day after' : 'day before'}</span>}

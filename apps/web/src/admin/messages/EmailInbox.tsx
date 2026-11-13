@@ -64,7 +64,7 @@ export function EmailInbox() {
 
   const shown = useMemo(() => (data?.emails ?? []).filter((e) => show === 'all' || show === 'archived' || show === 'sent' || e.kind === show), [data, show]);
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading email…</div>;
+  if (!data) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading email…</div>;
   if (!data.address) return <AddressSetup domain={settings?.domain ?? ''} onSaved={load} />;
 
   const canWrite = settings?.canWrite ?? false;
@@ -109,27 +109,27 @@ export function EmailInbox() {
             role="radio"
             aria-checked={show === k}
             onClick={() => setShow(k)}
-            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f]'}`}
+            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}
           >
             {label}
             {count(k) > 0 ? ` · ${count(k)}` : ''}
           </button>
         ))}
       </div>
-      <ul className="list-none m-0 p-0 flex flex-col rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <ul className="list-none m-0 p-0 flex flex-col rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         {shown.map((e) => {
           const isOpen = open === e.id;
           const who = e.sent ? `To ${e.guest ?? e.vendor ?? e.to ?? ''}` : (e.guest ?? e.vendor ?? (e.fromName || e.from));
           return (
             <li key={e.id} className="border-t border-[#ece3cd] first:border-t-0">
-              <button type="button" aria-expanded={isOpen} onClick={() => void expand(e)} className="w-full grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-3 px-4 bg-transparent border-0 text-left cursor-pointer hover:bg-[#f3ecd6]">
+              <button type="button" aria-expanded={isOpen} onClick={() => void expand(e)} className="w-full grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-3 px-4 bg-transparent border-0 text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
                 <span className="min-w-0">
                   <span className={`block truncate ${e.read ? '' : 'font-semibold'}`}>
                     {who}
-                    <span className="ml-2 py-[1px] px-2 rounded-full bg-[#efe7d3] text-[11px] font-normal align-middle">{e.vendor ? `Vendor · ${e.vendor}` : KIND_LABEL[e.kind]}</span>
+                    <span className="ml-2 py-[1px] px-2 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[11px] font-normal align-middle">{e.vendor ? `Vendor · ${e.vendor}` : KIND_LABEL[e.kind]}</span>
                     {e.filed && <span className="ml-1 py-[1px] px-2 rounded-full bg-[#dfe5cc] text-[11px] font-normal align-middle">Quote filed ✓</span>}
                   </span>
-                  <span className={`block truncate text-[14px] ${e.read ? 'text-[#5b6a52]' : 'text-[#33402f]'}`}>{e.subject || '(no subject)'}</span>
+                  <span className={`block truncate text-[14px] ${e.read ? 'text-[var(--adm-muted,#5b6a52)]' : 'text-[var(--adm-ink,#33402f)]'}`}>{e.subject || '(no subject)'}</span>
                   {!isOpen && <span className="block truncate text-[13px] text-[#7a7466]">{e.preview}</span>}
                 </span>
                 <span className="text-[12px] text-[#7a7466] whitespace-nowrap">
@@ -139,13 +139,13 @@ export function EmailInbox() {
               </button>
               {isOpen && (
                 <div className="flex flex-col gap-3 px-4 pb-4">
-                  <div className="text-[12px] text-[#5b6a52] break-words">{e.sent ? `From ${data.address} to ${e.to ?? ''}` : `From ${e.fromName ? `${e.fromName} <${e.from}>` : e.from}`}</div>
-                  <div className="p-3 rounded-[10px] bg-white border border-[#e2d7bc] text-[14px] whitespace-pre-wrap break-words max-h-[420px] overflow-y-auto">{body[e.id] ?? 'Loading…'}</div>
+                  <div className="text-[12px] text-[var(--adm-muted,#5b6a52)] break-words">{e.sent ? `From ${data.address} to ${e.to ?? ''}` : `From ${e.fromName ? `${e.fromName} <${e.from}>` : e.from}`}</div>
+                  <div className="p-3 rounded-[10px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[14px] whitespace-pre-wrap break-words max-h-[420px] overflow-y-auto">{body[e.id] ?? 'Loading…'}</div>
                   {e.files.length > 0 && (
                     <div className="flex flex-col gap-2">
                       {e.files.map((f) => (
                         <div key={f.id} className="flex items-center gap-3 flex-wrap text-[14px]">
-                          <a href={plannerApi.fileUrl(wid, f.id)} target="_blank" rel="noopener" className="!text-[#33402f]">
+                          <a href={plannerApi.fileUrl(wid, f.id)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)]">
                             📎 {f.name}
                           </a>
                           {vendors.length > 0 && canWrite && (
@@ -210,7 +210,7 @@ export function EmailInbox() {
                           <Pill kind="outline" onClick={() => void update(e, { archived: show !== 'archived' }, show === 'archived' ? 'Back in the inbox' : 'Archived')}>
                             {show === 'archived' ? 'Unarchive' : 'Archive'}
                           </Pill>
-                          <button type="button" onClick={() => void update(e, { read: false }, 'Marked unread')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]">
+                          <button type="button" onClick={() => void update(e, { read: false }, 'Marked unread')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-muted,#5b6a52)]">
                             Mark unread
                           </button>
                         </>
@@ -269,15 +269,15 @@ function YourAddress({ address, settings, canSend, onWrite, onSent }: { address:
   };
 
   return (
-    <section aria-label="Your wedding email" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
-      <span className="text-[13px] text-[#5b6a52]">Your wedding email</span>
+    <section aria-label="Your wedding email" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+      <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Your wedding email</span>
       <div className="flex items-center gap-3 flex-wrap">
         <strong className="font-display text-[24px] font-medium break-all">{address}</strong>
         <Pill size="sm" onClick={copy}>
           Copy
         </Pill>
       </div>
-      <p className="m-0 text-[14px] text-[#5b6a52]">Give it to guests and vendors. Everything sent to it comes in here, sorted for you, and vendors’ quotes are filed under them in Wedding planner → Vendors.</p>
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Give it to guests and vendors. Everything sent to it comes in here, sorted for you, and vendors’ quotes are filed under them in Wedding planner → Vendors.</p>
       {canSend && (
         <div className="flex gap-2 flex-wrap">
           <Pill kind="primary" onClick={onWrite}>
@@ -296,7 +296,7 @@ function YourAddress({ address, settings, canSend, onWrite, onSent }: { address:
         </p>
       )}
       {result && (
-        <div role="status" className="text-[13px] text-[#5b6a52] flex flex-col gap-1">
+        <div role="status" className="text-[13px] text-[var(--adm-muted,#5b6a52)] flex flex-col gap-1">
           {result.text && <span>{result.text}</span>}
           {result.without.length > 0 && (
             <span>
@@ -351,7 +351,7 @@ function Compose({ start, vendors, address, onClose, onSent }: { start: Draft; v
     }
   };
   const chip = (label: string, remove: () => void) => (
-    <span key={label} className="inline-flex items-center gap-1 py-[3px] pl-3 pr-1 rounded-full bg-[#efe7d3] text-[13px]">
+    <span key={label} className="inline-flex items-center gap-1 py-[3px] pl-3 pr-1 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[13px]">
       {label}
       <button type="button" aria-label={`Remove ${label}`} onClick={remove} className="w-6 h-6 rounded-full border-0 bg-transparent cursor-pointer">
         ×
@@ -360,14 +360,14 @@ function Compose({ start, vendors, address, onClose, onSent }: { start: Draft; v
   );
 
   return (
-    <form onSubmit={(e) => void submit(e)} aria-label={r ? 'Reply' : 'Write an email'} className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#c6b794] bg-white">
+    <form onSubmit={(e) => void submit(e)} aria-label={r ? 'Reply' : 'Write an email'} className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#c6b794)] bg-white">
       <div className="flex justify-between items-center gap-2">
         <strong className="font-display text-[20px] font-medium">{r ? `Reply to ${r.fromName || r.from}` : 'Write an email'}</strong>
-        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]">
+        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-muted,#5b6a52)]">
           Cancel
         </button>
       </div>
-      <span className="text-[13px] text-[#5b6a52]">From {address}. Their answers come back here.</span>
+      <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">From {address}. Their answers come back here.</span>
       <Label text="To (email addresses)">
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="name@example.com, another@example.com" className={inputCls} inputMode="email" />
       </Label>
@@ -429,9 +429,9 @@ function Copies({ settings, canWrite, onSaved }: { settings: InboxSettings; canW
     }
   };
   return (
-    <section aria-label="Send copies to my email" className="flex flex-col gap-2 p-5 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Send copies to my email" className="flex flex-col gap-2 p-5 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <strong className="font-display text-[20px] font-medium">Send copies to my email</strong>
-      <p className="m-0 text-[14px] text-[#5b6a52]">Read and reply from Outlook or Apple Mail: copies come to your email; your replies go out from your wedding address.</p>
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Read and reply from Outlook or Apple Mail: copies come to your email; your replies go out from your wedding address.</p>
       {settings.copies.map((p) => (
         <label key={p.id} className="flex items-center gap-2 text-[14px]">
           <input type="checkbox" checked={p.on} disabled={!canWrite} onChange={(e) => void toggle(p.id, e.target.checked)} />
@@ -450,15 +450,15 @@ function AddressSetup({ current = '', domain, onSaved, compact }: { current?: st
   const [open, setOpen] = useState(!compact);
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]">
+      <button type="button" onClick={() => setOpen(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-muted,#5b6a52)]">
         Use a different address
       </button>
     );
   }
   return (
-    <section aria-label="Email address" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Email address" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <strong className="font-display text-[22px] font-medium">Your event’s email</strong>
-      <p className="m-0 text-[14px] text-[#5b6a52]">Emails to your event’s own address come in here, sorted into guests, vendors and other. Quotes from your vendors are filed under them automatically.</p>
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Emails to your event’s own address come in here, sorted into guests, vendors and other. Quotes from your vendors are filed under them automatically.</p>
       <form
         className="flex gap-2 flex-wrap"
         onSubmit={async (e) => {
@@ -478,9 +478,9 @@ function AddressSetup({ current = '', domain, onSaved, compact }: { current?: st
         </Pill>
       </form>
       {domain ? (
-        <p className="m-0 text-[13px] text-[#5b6a52]">Any address ending in @{domain} works straight away, as long as no one else has it.</p>
+        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Any address ending in @{domain} works straight away, as long as no one else has it.</p>
       ) : (
-        <ol className="m-0 pl-5 text-[13px] text-[#5b6a52] flex flex-col gap-1">
+        <ol className="m-0 pl-5 text-[13px] text-[var(--adm-muted,#5b6a52)] flex flex-col gap-1">
           <li>In Cloudflare, open your domain → Email → Email Routing, and switch it on (free).</li>
           <li>Add a routing rule: this address → “Send to a Worker” → wedding-api.</li>
           <li>Using a Gmail address for the event? In Gmail → Settings → Forwarding, forward it to this address.</li>

@@ -70,30 +70,30 @@ export function Rehearsal() {
         }
       />
 
-      <section aria-label="Rehearsal checklist" className="flex flex-col gap-3 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <section aria-label="Rehearsal checklist" className="flex flex-col gap-3 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         <div className="flex justify-between items-baseline gap-3 flex-wrap">
           <H2>Rehearsal checklist</H2>
-          <span className="text-[13px] text-[#5b6a52]">{data.checks.length ? `${data.checks.length} to look at${reds ? `, ${reds} would go wrong on the day` : ''}` : 'Everything checks out'}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{data.checks.length ? `${data.checks.length} to look at${reds ? `, ${reds} would go wrong on the day` : ''}` : 'Everything checks out'}</span>
         </div>
         <ul className="m-0 p-0 list-none grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-2">
           {data.areas.map((a) => (
-            <li key={a.area} className="flex items-center gap-2 py-2 px-3 rounded-[12px] bg-white border border-[#ece3cc]">
+            <li key={a.area} className="flex items-center gap-2 py-2 px-3 rounded-[12px] bg-white border border-[var(--adm-line,#ece3cc)]">
               <span aria-hidden className="flex-none w-[12px] h-[12px] rounded-full" style={{ background: DOT[a.level] }} />
               <span className="flex-1 min-w-0 text-[14px] font-medium">{a.label}</span>
-              <span className="text-[12px] text-[#5b6a52]">{a.level === 'green' ? WORD.green : `${WORD[a.level]}: ${a.count}`}</span>
+              <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{a.level === 'green' ? WORD.green : `${WORD[a.level]}: ${a.count}`}</span>
             </li>
           ))}
         </ul>
         {data.checks.length > 0 && (
           <ol className="m-0 p-0 list-none flex flex-col">
             {data.checks.map((c) => (
-              <li key={c.key} className="grid grid-cols-[14px_minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[#ece3cc]">
+              <li key={c.key} className="grid grid-cols-[14px_minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[var(--adm-line,#ece3cc)]">
                 <span aria-label={c.level === 'red' ? 'Would go wrong' : 'Worth checking'} className="w-[12px] h-[12px] rounded-full" style={{ background: DOT[c.level] }} />
                 <span className="min-w-0">
                   <span className="block font-semibold">{c.title}</span>
-                  <span className="block text-[13px] text-[#5b6a52]">{c.detail}</span>
+                  <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">{c.detail}</span>
                 </span>
-                <Link to={fixTo(c.fix)} className="py-2 px-[14px] min-h-[40px] inline-flex items-center rounded-full border border-[#33402f] text-[13px] font-medium no-underline !text-[#33402f] whitespace-nowrap hover:bg-[#33402f] hover:!text-[#f3ecd6]">
+                <Link to={fixTo(c.fix)} className="py-2 px-[14px] min-h-[40px] inline-flex items-center rounded-full border border-[#33402f] text-[13px] font-medium no-underline !text-[var(--adm-ink,#33402f)] whitespace-nowrap hover:bg-[#33402f] hover:!text-[#f3ecd6]">
                   Fix it
                 </Link>
               </li>
@@ -123,7 +123,7 @@ export function Rehearsal() {
               role="tab"
               aria-selected={i === at}
               onClick={() => setAt(i)}
-              className={`flex-none py-2 px-3 min-h-[44px] rounded-full border text-[13px] cursor-pointer whitespace-nowrap ${i === at ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[#d3c6a4] bg-[#fbf8f0] text-[#33402f]'}`}
+              className={`flex-none py-2 px-3 min-h-[44px] rounded-full border text-[13px] cursor-pointer whitespace-nowrap ${i === at ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[var(--adm-ink,#33402f)]'}`}
             >
               {s.label}
               {s.checks.length > 0 && <span aria-label={`${s.checks.length} to check`} className="ml-[6px] inline-block w-[8px] h-[8px] rounded-full align-middle" style={{ background: s.checks.some((k) => data.checks.find((c) => c.key === k)?.level === 'red') ? DOT.red : DOT.amber }} />}
@@ -134,9 +134,9 @@ export function Rehearsal() {
 
       <section aria-label={step.label} className="flex flex-col gap-6">
         <header className="flex flex-col gap-1">
-          <span className="text-[12px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{step.past ? 'Already happened' : 'Coming up'}</span>
+          <span className="text-[12px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">{step.past ? 'Already happened' : 'Coming up'}</span>
           <h2 className="m-0 font-display font-medium text-[32px] leading-tight">{step.label}</h2>
-          <span className="text-[15px] text-[#5b6a52]">{when(step.at, tz)}</span>
+          <span className="text-[15px] text-[var(--adm-muted,#5b6a52)]">{when(step.at, tz)}</span>
         </header>
 
         {stepChecks.length > 0 && (
@@ -145,7 +145,7 @@ export function Rehearsal() {
             {stepChecks.map((c) => (
               <span key={c.key} className="text-[14px]">
                 {c.title}.{' '}
-                <Link to={fixTo(c.fix)} className="!text-[#33402f]">
+                <Link to={fixTo(c.fix)} className="!text-[var(--adm-ink,#33402f)]">
                   Fix it
                 </Link>
               </span>
@@ -155,7 +155,7 @@ export function Rehearsal() {
 
         <div role="tablist" aria-label="Which guest" className="flex gap-2 flex-wrap">
           {PERSONAS.map(([k, label]) => (
-            <button key={k} type="button" role="tab" aria-selected={who === k} onClick={() => setWho(k)} className={`py-2 px-4 min-h-[44px] rounded-full border text-[14px] cursor-pointer ${who === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[#c6b794] bg-white text-[#33402f]'}`}>
+            <button key={k} type="button" role="tab" aria-selected={who === k} onClick={() => setWho(k)} className={`py-2 px-4 min-h-[44px] rounded-full border text-[14px] cursor-pointer ${who === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[var(--adm-line,#c6b794)] bg-white text-[var(--adm-ink,#33402f)]'}`}>
               {label}
             </button>
           ))}
@@ -165,7 +165,7 @@ export function Rehearsal() {
           <div className="flex flex-col gap-6 min-w-0">
             <section aria-label="Messages that go" className="flex flex-col gap-3">
               <H2>What goes out</H2>
-              {step.messages.length === 0 && <p className="m-0 text-[14px] text-[#5b6a52]">Nothing is sent at this moment.</p>}
+              {step.messages.length === 0 && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Nothing is sent at this moment.</p>}
               {step.messages.map((m, i) => (
                 <MessageCard key={`${m.campaignId}:${i}`} m={m} tz={tz} who={who} />
               ))}
@@ -193,13 +193,13 @@ export function Rehearsal() {
             </section>
 
             {data.manual.length > 0 && (
-              <p className="m-0 text-[13px] text-[#5b6a52]">Sent only if you send them yourself: {data.manual.map((m) => m.name).join(', ')}.</p>
+              <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Sent only if you send them yourself: {data.manual.map((m) => m.name).join(', ')}.</p>
             )}
           </div>
 
           {guest && (
             <aside aria-label="Their page" className="flex flex-col gap-2 min-w-0">
-              <span className="text-[13px] text-[#5b6a52] text-center">
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] text-center">
                 {guest.page.kind === 'guide' ? 'Their night-before page' : guest.page.kind === 'photos' ? 'Their photo page' : 'Their invitation'}, as it looks then (a preview: replies aren’t saved)
               </span>
               <DevicePreview device="phone" src={guest.page.path} url={`${window.location.host}${guest.page.path.split('?')[0]}`} title={`${guest.name}: their page`} frameKey={guest.page.path} />
@@ -218,18 +218,18 @@ function MessageCard({ m, tz, who }: { m: RehearsalMessage; tz: string; who: Reh
     .map(([how, n]) => `${n} ${HOW[how] ?? how}`)
     .join(', ');
   return (
-    <article className="flex flex-col gap-2 p-4 rounded-[14px] border border-[#e2d7bc] bg-white">
+    <article className="flex flex-col gap-2 p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-white">
       <div className="flex justify-between items-baseline gap-3 flex-wrap">
         <strong className="text-[16px]">{m.name}</strong>
-        <span className="text-[13px] text-[#5b6a52]">{m.sendAt ? when(m.sendAt, tz) : 'As each guest is invited or replies'}</span>
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{m.sendAt ? when(m.sendAt, tz) : 'As each guest is invited or replies'}</span>
       </div>
-      <span className="text-[13px] text-[#5b6a52]">
+      <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
         {!m.enabled ? 'Switched off: it won’t go. ' : m.sent ? 'Already sent. ' : ''}
         {reach ? `Would reach ${reach}.` : 'Nobody to send it to as things stand.'}
         {m.quiet ? ' Due in your quiet hours, so it waits until the morning.' : ''}
       </span>
-      {g?.text && <span className="self-start max-w-[420px] py-2 px-3 rounded-[16px] rounded-bl-[4px] bg-[#f3ecd6] text-[14px] whitespace-pre-wrap break-words">{g.text}</span>}
-      {g && <span className="text-[13px] text-[#33402f]">{g.why}</span>}
+      {g?.text && <span className="self-start max-w-[420px] py-2 px-3 rounded-[16px] rounded-bl-[4px] bg-[var(--adm-tint,#f3ecd6)] text-[14px] whitespace-pre-wrap break-words">{g.text}</span>}
+      {g && <span className="text-[13px] text-[var(--adm-ink,#33402f)]">{g.why}</span>}
     </article>
   );
 }

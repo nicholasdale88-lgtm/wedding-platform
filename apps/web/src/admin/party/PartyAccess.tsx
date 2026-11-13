@@ -31,7 +31,7 @@ export function PartyAccess() {
   }, [wid]);
   useEffect(() => void load(), [load]);
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!d) return <div aria-busy="true" className="text-[#5b6a52]">Loading the wedding party…</div>;
+  if (!d) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the wedding party…</div>;
   const setup: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {}, signIn: false };
   const couple = `${d.names.p1} & ${d.names.p2}`;
   const linkOf = (token: string) => `${window.location.origin}/w/${d.slug}/party?g=${encodeURIComponent(token)}`;
@@ -55,12 +55,12 @@ export function PartyAccess() {
       {has('partySignIns') ? <PortalAccounts couple={couple} onChanged={() => void load()} /> : <Upgrade feature="partySignIns" compact />}
       <div>
         <H2>Private links</H2>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[720px]">
+        <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)] max-w-[720px]">
           Or no password at all: each person opens the portal with their own private link (unless “Sign-in needed” is on above). They see their part of the day, tick off their to-dos and packing list, and add their own. Send it by text from your phone, and tell them to
           save it to their home screen.
         </p>
       </div>
-      <div className="flex gap-3 flex-wrap text-[13px] text-[#5b6a52]">
+      <div className="flex gap-3 flex-wrap text-[13px] text-[var(--adm-muted,#5b6a52)]">
         <span className="py-1 px-3 rounded-full bg-[#eef1e4]">{on.length} can sign in</span>
         {d.members.length > on.length && <span className="py-1 px-3 rounded-full bg-[#f4e6d8]">{d.members.length - on.length} paused</span>}
       </div>
@@ -68,7 +68,7 @@ export function PartyAccess() {
       {setup.signIn && d.members.length > 0 && (
         <p className="m-0 p-3 rounded-[12px] bg-[#f4e6d8] text-[14px] text-[#7a4a37]">Sign-in is needed, so private links alone no longer open the page: send each member their sign-in invite above instead.</p>
       )}
-      <ul className="list-none m-0 p-0 flex flex-col rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <ul className="list-none m-0 p-0 flex flex-col rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         {d.members.map((m) => {
           const allowed = setup.access[m.personId] !== false;
           const link = m.token ? linkOf(m.token) : '';
@@ -77,7 +77,7 @@ export function PartyAccess() {
             <li key={m.personId} className="flex justify-between items-center gap-3 flex-wrap py-3 px-4 border-t border-[#ece3cd] first:border-t-0">
               <span className="min-w-0">
                 <span className="block font-medium">{m.name}</span>
-                <span className="block text-[12px] text-[#5b6a52]">
+                <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)]">
                   {m.role} · {sideLabel(m.side)}
                   {!m.phone && ' · no mobile on file'}
                 </span>
@@ -93,11 +93,11 @@ export function PartyAccess() {
                       Copy link
                     </Pill>
                     {m.phone && (
-                      <a href={`sms:${m.phone}?&body=${encodeURIComponent(msg)}`} className="py-[7px] px-[14px] rounded-full border border-[#5d6b47] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]">
+                      <a href={`sms:${m.phone}?&body=${encodeURIComponent(msg)}`} className="py-[7px] px-[14px] rounded-full border border-[#5d6b47] text-[13px] no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]">
                         Text it
                       </a>
                     )}
-                    <a href={`${link}`} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+                    <a href={`${link}`} target="_blank" rel="noopener" className="text-[13px] !text-[var(--adm-ink,#33402f)]">
                       See their page
                     </a>
                   </>

@@ -55,7 +55,7 @@ export function Photos() {
   }, [data]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading the album…</div>;
+  if (!data) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the album…</div>;
 
   const tz = overview?.wedding.timezone ?? 'Australia/Sydney';
   const slug = overview?.wedding.slug ?? 'wedding';
@@ -107,7 +107,7 @@ export function Photos() {
             {data.items.length} {data.items.length === 1 ? 'photo' : 'photos'}
             {people.length ? ` from ${people.length} ${people.length === 1 ? 'guest' : 'guests'}` : ''}
           </h1>
-          <div className="mt-1 text-[15px] text-[#5b6a52]">Guests add photos from their own link: the QR code on their night-before guide, and the text the morning after.</div>
+          <div className="mt-1 text-[15px] text-[var(--adm-muted,#5b6a52)]">Guests add photos from their own link: the QR code on their night-before guide, and the text the morning after.</div>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Pill onClick={() => void load()}>Refresh</Pill>
@@ -145,7 +145,7 @@ export function Photos() {
 
       {/* Tap ✓ on photos to choose some; what you can do with them stays in view at the bottom. */}
       {sel.size > 0 && (
-        <div className="sticky bottom-[calc(12px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
+        <div className="sticky bottom-[calc(12px+env(safe-area-inset-bottom))] min-[760px]:bottom-4 z-[12] flex items-center justify-between gap-3 flex-wrap py-3 px-4 rounded-[14px] border border-[var(--adm-line,#d3c6a4)] bg-[#fbf8f2] shadow-[0_8px_24px_rgba(51,64,47,.16)]">
           <span className="text-[14px] font-medium">{sel.size} chosen</span>
           <span className="flex gap-2 flex-wrap">
             <Pill kind="primary" disabled={zipping} onClick={() => void zip([...sel])}>
@@ -169,7 +169,7 @@ export function Photos() {
           const on = sel.has(p.id);
           return (
             <figure key={p.id} className="relative m-0 flex flex-col gap-1">
-              <a href={p.url} target="_blank" rel="noopener" className="block aspect-square overflow-hidden rounded-[10px] bg-[#efe7d3]">
+              <a href={p.url} target="_blank" rel="noopener" className="block aspect-square overflow-hidden rounded-[10px] bg-[var(--adm-tint,#efe7d3)]">
                 {p.type.startsWith('video/') && p.thumb ? (
                   <img src={p.thumb} alt={`Video by ${p.by}`} loading="lazy" className="w-full h-full object-cover" style={{ filter: isLook(p.look) ? LOOKS[p.look].css : undefined }} />
                 ) : p.type.startsWith('video/') ? (
@@ -188,7 +188,7 @@ export function Photos() {
                 ✓
               </button>
               {now - Date.parse(p.at) < DAY && <span className="absolute top-2 right-2 py-[2px] px-2 rounded-full bg-[#b39563] text-[#fbf8f2] text-[11px] font-semibold">New</span>}
-              <figcaption className="flex justify-between gap-2 text-[12px] text-[#5b6a52]">
+              <figcaption className="flex justify-between gap-2 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                 <span className="truncate">
                   {p.by} · {fmtWhen(p.at, tz)}
                 </span>
@@ -208,7 +208,7 @@ export function Photos() {
         })}
       </div>
       {!data.items.length && data.enabled && (
-        <div className="text-[15px] text-[#5b6a52]">No photos yet. The QR code is on every night-before guide and on the table cards you print from Wedding planner → The day → Cards & signs. The "share your photos" text goes out the morning after.</div>
+        <div className="text-[15px] text-[var(--adm-muted,#5b6a52)]">No photos yet. The QR code is on every night-before guide and on the table cards you print from Wedding planner → The day → Cards & signs. The "share your photos" text goes out the morning after.</div>
       )}
 
       {/* Set once: where photos are kept, the photo looks, the live wall, sharing the album, WhatsApp import. */}

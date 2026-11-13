@@ -127,7 +127,7 @@ export function Print() {
       <SignStudio palette={palette} vars={signVars} tables={tables.map((t) => t.name)} />
       <div>
         <H2>Cards and lists</H2>
-        <div className="text-[13px] text-[#5b6a52]">Signs and cards in your wedding’s fonts. Print at home, or choose “Save as PDF” to send to a printer.</div>
+        <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Signs and cards in your wedding’s fonts. Print at home, or choose “Save as PDF” to send to a printer.</div>
         {seating && seating.tables.length > 0 && (!seating.published || seating.published.changes > 0) && (
           <div role="note" className="mt-2 text-[13px] text-[#7a4a37]">
             {seating.published
@@ -140,9 +140,9 @@ export function Print() {
         {KINDS.filter(([k]) => k !== 'welcome' && k !== 'tables').map(([k, label, hint]) => {
           const ready = count[k] > 0;
           return (
-            <div key={k} className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+            <div key={k} className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
               <strong className="font-display text-[22px] font-medium">{label}</strong>
-              <span className="text-[13px] text-[#5b6a52] flex-1">{hint}</span>
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] flex-1">{hint}</span>
               <span className="text-[12px] text-[#7a7466]">
                 {k === 'tables'
                   ? `${tables.length} tables`
@@ -318,7 +318,7 @@ export function Print() {
                   <h3 className="pp-small mt-[7mm] mb-[2mm]">The wedding party</h3>
                   <div className="grid grid-cols-2 gap-x-[8mm]">
                     {party!.members.map((m) => (
-                      <div key={m.personId} className="flex justify-between gap-[3mm] border-b border-[#e2d7bc] py-[0.8mm]">
+                      <div key={m.personId} className="flex justify-between gap-[3mm] border-b border-[var(--adm-line,#e2d7bc)] py-[0.8mm]">
                         <span>{m.name}</span>
                         <span className="italic">{m.role}</span>
                       </div>
@@ -407,7 +407,7 @@ function PrintSheet({ onClose, children }: { onClose: () => void; children: Reac
       <div className="pp-bar sticky top-0 z-10 flex justify-between items-center gap-3 py-3 px-5 bg-[#33402f] text-[#f3ecd6]">
         <span className="text-[14px]">Preview. Print, or choose “Save as PDF” in the print dialog.</span>
         <span className="flex gap-2">
-          <button type="button" onClick={() => window.print()} className="py-2 px-4 rounded-full border-0 bg-[#f3ecd6] text-[#33402f] text-[14px] font-medium cursor-pointer">
+          <button type="button" onClick={() => window.print()} className="py-2 px-4 rounded-full border-0 bg-[var(--adm-tint,#f3ecd6)] text-[var(--adm-ink,#33402f)] text-[14px] font-medium cursor-pointer">
             Print
           </button>
           <button type="button" onClick={onClose} className="py-2 px-4 rounded-full border border-[#f3ecd6] bg-transparent text-[#f3ecd6] text-[14px] cursor-pointer">

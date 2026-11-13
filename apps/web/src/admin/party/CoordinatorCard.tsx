@@ -33,10 +33,10 @@ export function CoordinatorCard() {
     }
   };
   return (
-    <section aria-label="Your coordinator" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Your coordinator" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div>
         <H2>Your day-of coordinator</H2>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[720px]">
+        <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)] max-w-[720px]">
           One private link for whoever runs the day: the whole run sheet with what’s on now, every supplier and the wedding party a tap from a call, who holds what, the speeches, the photo list, and a log of issues they tick off.
         </p>
       </div>
@@ -51,10 +51,10 @@ export function CoordinatorCard() {
             <Pill kind="outline" onClick={() => void navigator.clipboard?.writeText(s.url).then(() => toast('Link copied'))}>
               Copy their link
             </Pill>
-            <a href={s.url} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+            <a href={s.url} target="_blank" rel="noopener" className="text-[13px] !text-[var(--adm-ink,#33402f)]">
               See their page
             </a>
-            <button type="button" onClick={() => window.confirm('Make a new link? The old one stops working.') && void set({ on: true, name, fresh: true }, 'New link made')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]">
+            <button type="button" onClick={() => window.confirm('Make a new link? The old one stops working.') && void set({ on: true, name, fresh: true }, 'New link made')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-muted,#5b6a52)]">
               New link
             </button>
             <button type="button" onClick={() => void set({ on: false }, 'Their link is off')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">

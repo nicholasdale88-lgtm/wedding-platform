@@ -10,7 +10,7 @@ import { useLiveDoc } from './useDocSave';
 
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: n % 1 ? 2 : 0 }).format(n || 0);
 const when = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No date yet');
-const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]';
+const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]';
 const newId = () => crypto.randomUUID().slice(0, 8);
 
 /**
@@ -26,7 +26,7 @@ export function Payments() {
   const [open, setOpen] = useState<string | null>(null);
   const error = vendorsDoc.error || budgetDoc.error;
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!vendorsDoc.doc || !budgetDoc.doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your payments…</div>;
+  if (!vendorsDoc.doc || !budgetDoc.doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your payments…</div>;
 
   const vendors = vendorsDoc.doc.data.list;
   const lines = budgetDoc.doc.data.lines;
@@ -70,8 +70,8 @@ export function Payments() {
           ['Still to pay', aud(total - paidSum), `${unpaid.length} ${unpaid.length === 1 ? 'payment' : 'payments'}`],
           ['Next due', next ? aud(next.amount) : '—', next ? `${next.who} · ${when(next.due)}` : 'Nothing owing'],
         ].map(([k, v, sub]) => (
-          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0">
-            <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">{k}</span>
+          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] min-w-0">
+            <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">{k}</span>
             <span className="font-display text-[30px] leading-none">{v}</span>
             <span className={`text-[12px] truncate ${k === 'Next due' && next?.due && next.due < today ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{sub}</span>
           </div>
@@ -83,7 +83,7 @@ export function Payments() {
       <section aria-label="Coming up" className={card}>
         <H2>Coming up</H2>
         {unpaid.length === 0 ? (
-          <p className="m-0 text-[14px] text-[#5b6a52]">{all.length ? 'Everything is paid ✓' : 'Book a vendor (or add budget lines with a quote) and its payments show here.'}</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">{all.length ? 'Everything is paid ✓' : 'Book a vendor (or add budget lines with a quote) and its payments show here.'}</p>
         ) : (
           groups
             .filter(([, ps]) => ps.length)
@@ -97,7 +97,7 @@ export function Payments() {
                   <div key={p.key} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center py-2 border-t border-[#ece3cd] text-[14px]">
                     <span className="min-w-0">
                       <span className="font-medium">{p.who}</span>
-                      <span className="text-[#5b6a52]"> · {p.label}</span>
+                      <span className="text-[var(--adm-muted,#5b6a52)]"> · {p.label}</span>
                       <span className="block text-[12px]" style={{ color: colour }}>
                         {when(p.due)}
                       </span>
@@ -117,7 +117,7 @@ export function Payments() {
         <section aria-label="By vendor" className={card}>
           <div className="flex justify-between items-baseline gap-2 flex-wrap">
             <H2>By vendor</H2>
-            <span className="text-[13px] text-[#5b6a52]">Open one to set its deposit and instalments.</span>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Open one to set its deposit and instalments.</span>
           </div>
           {booked.map((v) => (
             <VendorSchedule key={v.id} v={v} lines={lines} today={today} wedding={overview?.events[0] ? dateIn(overview.wedding.timezone, new Date(overview.events[0].startsAt)) : ''} open={open === v.id} onToggle={() => setOpen(open === v.id ? null : v.id)} edit={(fn) => editSchedule(v.id, fn)} />
@@ -133,11 +133,11 @@ export function Payments() {
           {paid.map((p) => (
             <div key={p.key} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center py-2 border-t border-[#ece3cd] text-[14px]">
               <span className="min-w-0">
-                {p.who} <span className="text-[#5b6a52]">· {p.label}</span>
+                {p.who} <span className="text-[var(--adm-muted,#5b6a52)]">· {p.label}</span>
                 {p.paidOn && <span className="block text-[12px] text-[#7a7466]">Paid {when(p.paidOn)}</span>}
               </span>
               <span className="tabular-nums">{aud(p.amount)}</span>
-              <button type="button" onClick={() => markPaid(p, false)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[12px] text-[#5b6a52]">
+              <button type="button" onClick={() => markPaid(p, false)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[12px] text-[var(--adm-muted,#5b6a52)]">
                 Not paid
               </button>
             </div>
@@ -184,36 +184,36 @@ export function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit 
     });
   return (
     <div className="flex flex-col border-t border-[#ece3cd] pt-2">
-      <button type="button" aria-expanded={open} onClick={onToggle} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-0 border-0 bg-transparent text-left cursor-pointer text-[#33402f]">
+      <button type="button" aria-expanded={open} onClick={onToggle} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center p-0 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)]">
         <span className="min-w-0 flex flex-col gap-1">
           <span className="text-[15px]">
             <span className="font-medium">{v.name}</span>
-            {v.category && <span className="text-[#5b6a52]"> · {v.category}</span>}
+            {v.category && <span className="text-[var(--adm-muted,#5b6a52)]"> · {v.category}</span>}
           </span>
           <span className="h-[6px] rounded-full bg-[#e9e2cc] overflow-hidden">
             <span className="block h-full bg-[#5d6b47]" style={{ width: `${pct}%` }} />
           </span>
-          <span className="text-[12px] text-[#5b6a52]">
+          <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">
             {aud(m.paid)} of {aud(m.total)} paid
             {m.next ? ` · next ${aud(m.next.amount)} ${m.next.due ? when(m.next.due) : '(no date)'}` : m.total ? ' · all paid ✓' : ''}
           </span>
         </span>
-        <span className="text-[13px] text-[#5b6a52]">{open ? 'Close' : `${m.schedule.length} ${m.schedule.length === 1 ? 'payment' : 'payments'} ›`}</span>
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{open ? 'Close' : `${m.schedule.length} ${m.schedule.length === 1 ? 'payment' : 'payments'} ›`}</span>
       </button>
       {open && (
         <div className="flex flex-col gap-2 pt-3">
           {!v.payments.length && <p className="m-0 text-[12px] text-[#7a7466]">Worked out from its {lineFor(v, lines) ? 'budget line' : 'quote'}. Change anything and it’s kept as this vendor’s schedule.</p>}
           {m.schedule.map((p, i) => (
             <div key={p.id} className="grid gap-2 grid-cols-2 md:grid-cols-[1.4fr_1fr_1fr_auto_auto] items-end">
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                 What
                 <input value={p.label} maxLength={60} onChange={(e) => set(i, { label: e.target.value })} className={inputCls} />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                 Amount
                 <MoneyInput aria-label="Amount" value={p.amount} onValue={(amount) => set(i, { amount })} className={`${inputCls} text-right tabular-nums`} />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                 Due
                 <input type="date" value={p.due} onChange={(e) => set(i, { due: e.target.value })} className={inputCls} />
               </label>
@@ -221,7 +221,7 @@ export function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit 
                 <input type="checkbox" checked={p.paid} onChange={() => set(i, { paid: !p.paid, paidOn: p.paid ? '' : today })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
                 Paid
               </label>
-              <button type="button" aria-label={`Remove ${p.label || 'payment'}`} onClick={() => edit((ps) => ps.filter((_, j) => j !== i))} className="w-9 h-9 mb-[2px] rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37] justify-self-end">
+              <button type="button" aria-label={`Remove ${p.label || 'payment'}`} onClick={() => edit((ps) => ps.filter((_, j) => j !== i))} className="w-9 h-9 mb-[2px] rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer text-[#7a4a37] justify-self-end">
                 ×
               </button>
             </div>
@@ -244,7 +244,7 @@ export function VendorSchedule({ v, lines, today, wedding, open, onToggle, edit 
           </div>
           {m.owing > 0 && (
             <div className="flex gap-2 flex-wrap items-center text-[13px]">
-              <span className="text-[#5b6a52]">Quick layouts:</span>
+              <span className="text-[var(--adm-muted,#5b6a52)]">Quick layouts:</span>
               {(() => {
                 const dep = commitmentOf(v).deposit || Math.round(m.total * 0.25);
                 return (
@@ -289,7 +289,7 @@ function Reminders({ wid }: { wid: string }) {
   return (
     <section aria-label="Reminders" className={card}>
       <H2>Payment reminders in your calendar</H2>
-      <p className="m-0 text-[14px] text-[#5b6a52]">
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
         Every payment goes into your phone’s calendar, with an alert at 9am three days before it’s due. It updates itself as you change a schedule or tick payments off, and it’s free. Payments due in the next fortnight also show in Overview → Needs you.
       </p>
       <CalendarCard />

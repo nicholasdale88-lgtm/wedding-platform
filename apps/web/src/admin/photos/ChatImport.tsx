@@ -96,14 +96,14 @@ export function ChatImport({ wid, events, event: fixed, onDone }: { wid: string;
     );
   }
   return (
-    <section aria-label="Add photos from a WhatsApp group" className="flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] text-[14px]">
+    <section aria-label="Add photos from a WhatsApp group" className="flex flex-col gap-3 p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-[14px]">
       <div className="flex justify-between items-start gap-3">
         <strong className="font-semibold text-[15px]">Add photos from a WhatsApp group</strong>
         <button type="button" aria-label="Close" onClick={() => setOpen(false)} disabled={busy} className="p-0 border-0 bg-transparent text-[20px] leading-none cursor-pointer">
           ×
         </button>
       </div>
-      <ol className="m-0 pl-5 flex flex-col gap-1 text-[#5b6a52]">
+      <ol className="m-0 pl-5 flex flex-col gap-1 text-[var(--adm-muted,#5b6a52)]">
         <li>In WhatsApp, open the group, tap its name, then <em>Export chat</em> and choose <em>Attach media</em>.</li>
         <li>Save the .zip it makes (to Files, Drive or email it to yourself).</li>
         <li>Pick that .zip below. Each photo is credited to whoever posted it. Importing again later only adds the new ones.</li>
@@ -112,7 +112,7 @@ export function ChatImport({ wid, events, event: fixed, onDone }: { wid: string;
         {!fixed && events.length > 1 && (
           <label className="flex items-center gap-2">
             Into the album for
-            <select value={event} onChange={(e) => setEvent(e.target.value)} disabled={busy} className="py-[6px] px-2 rounded-[8px] border border-[#d3c6a4] bg-white">
+            <select value={event} onChange={(e) => setEvent(e.target.value)} disabled={busy} className="py-[6px] px-2 rounded-[8px] border border-[var(--adm-line,#d3c6a4)] bg-white">
               {events.map((e) => (
                 <option key={e.key} value={e.key}>
                   {e.name}
@@ -125,10 +125,10 @@ export function ChatImport({ wid, events, event: fixed, onDone }: { wid: string;
       </div>
       {progress && (
         <div role="status" className="flex flex-col gap-1">
-          <div className="h-[6px] rounded-full bg-[#e2d7bc] overflow-hidden">
+          <div className="h-[6px] rounded-full bg-[var(--adm-line,#e2d7bc)] overflow-hidden">
             <div className="h-full bg-[var(--adm-accent,#5d6b47)] transition-[width]" style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }} />
           </div>
-          <span className="text-[13px] text-[#5b6a52]">
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {busy ? `Adding ${progress.done} of ${progress.total}…` : `Done: ${progress.added} added${progress.repeat ? `, ${progress.repeat} already there` : ''}${progress.failed ? `, ${progress.failed} could not be added` : ''}.`}
           </span>
         </div>

@@ -10,6 +10,12 @@ import { DEFAULT_LOOK, lookVars } from './AdminLook';
 import { confirmLeave, LeaveGuard } from './leave';
 import { TellUs } from './TellUs';
 import { Pill, useAutoRefresh, useMedia } from './ui';
+import { sealBadge } from '../sales/Stills';
+
+/** The sidebar and the phone's top bar: the admin's ink, lit softly from the top and deepening downwards. */
+const SIDE = 'radial-gradient(420px 260px at 20% -40px, rgba(255,240,225,.16), transparent 70%), linear-gradient(180deg, transparent, rgba(0,0,0,.22))';
+/** "Harriet Lane", "Theo Park" → "H & T". */
+const initialsOf = (a = '', b = '') => [a, b].map((n) => n.trim()[0] ?? '').filter(Boolean).join(' & ');
 
 /** Shared wedding summary: nav badges, sidebar footer and the Overview tab all read it. */
 interface AdminData {
@@ -200,7 +206,7 @@ function SideNav({ mob }: { mob: boolean }) {
       data-on={navKey(tab) === t.key ? '' : undefined}
       className={({ isActive }) =>
         `flex-none whitespace-nowrap flex items-center justify-between gap-[10px] rounded-[8px] text-left no-underline ${ring} ${mob ? 'py-2 px-3 text-[14px]' : 'py-[9px] px-3 text-[15px]'} ${
-          isActive || navKey(tab) === t.key ? 'bg-[#f3ecd6] !text-[var(--adm-ink,#33402f)]' : 'bg-transparent !text-[#f3ecd6] hover:!text-[#f3ecd6]'
+          isActive || navKey(tab) === t.key ? 'bg-[var(--adm-tint,#f3ecd6)] !text-[var(--adm-ink,#33402f)]' : 'bg-transparent !text-[#f3ecd6] hover:!text-[#f3ecd6]'
         }`
       }
     >
@@ -306,7 +312,7 @@ function BackBar() {
       onClick={(e) => {
         if (!confirmLeave()) e.preventDefault();
       }}
-      className="self-start inline-flex items-center gap-2 mb-4 py-[7px] pl-3 pr-4 min-h-[40px] rounded-full border border-[#d3c6a4] bg-[#fbf8f0] text-[14px] font-medium no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[#efe7d3]"
+      className="self-start inline-flex items-center gap-2 mb-4 py-[7px] pl-3 pr-4 min-h-[40px] rounded-full border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[14px] font-medium no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]"
     >
       <span aria-hidden>←</span>
       {where ? `${where.replace(/^the\s+/i, 'The ')} overview` : 'Overview'}
@@ -323,6 +329,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
     if (confirmLeave()) onSignOut();
   };
   const [more, setMore] = useState(false);
+  const seal = useMemo(() => sealBadge(o?.wedding.monogram || initialsOf(o?.wedding.name1, o?.wedding.name2)), [o?.wedding.monogram, o?.wedding.name1, o?.wedding.name2]);
   const sectionName = o?.events.find((e) => e.key === event)?.name ?? 'Account';
   const unread = o?.nav.messages ?? 0;
 
@@ -330,10 +337,11 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
     // Phones: one menu, at the top. A slim row with your names, Help (?), and Menu: it opens the sections
     // (Account, then the events) and the chosen section's pages. Nothing at the bottom, nothing twice.
     return (
-      <div style={looks(o, event)} className="adm min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300">
+      <div style={{ ...looks(o, event), backgroundImage: 'radial-gradient(1200px 420px at 70% -120px, var(--adm-tint,#f3ecd6), transparent 70%)' }} className="adm min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300">
         <LeaveGuard />
         {/* The only menu on a phone. */}
-        <header className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] transition-colors duration-300 px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 shadow-[0_2px_10px_rgba(0,0,0,.12)]">
+        <header style={{ backgroundImage: SIDE }} className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] transition-colors duration-300 px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 border-b border-[rgba(214,183,128,.45)] shadow-[0_6px_20px_rgba(30,10,20,.18)]">
+          <img aria-hidden alt="" src={seal} className="flex-none w-9 h-9 -my-1" />
           <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate flex-1">{name}</div>
           <button
             type="button"
@@ -366,12 +374,13 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
   }
 
   return (
-    <div style={looks(o, event)} className="adm grid min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300 grid-cols-[236px_minmax(0,1fr)]">
+    <div style={{ ...looks(o, event), backgroundImage: 'radial-gradient(1200px 420px at 70% -120px, var(--adm-tint,#f3ecd6), transparent 70%)' }} className="adm grid min-h-screen bg-[var(--adm-bg,#f6f0e2)] text-[14px] text-[var(--adm-ink,#33402f)] transition-colors duration-300 grid-cols-[236px_minmax(0,1fr)]">
       <LeaveGuard />
-      <aside className="bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 gap-[24px] pt-[30px] px-4 pb-[22px] h-screen transition-colors duration-300">
+      <aside style={{ backgroundImage: SIDE }} className="bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 gap-[24px] pt-[30px] px-4 pb-[22px] h-screen transition-colors duration-300 border-r border-[rgba(214,183,128,.4)] shadow-[6px_0_30px_rgba(30,10,20,.12)]">
         <div className="px-[10px]">
+          <img aria-hidden alt="" src={seal} className="block w-[52px] h-[52px] mb-2 -ml-1" />
           <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
-          <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#cfd8bb]">RSVP admin</div>
+          <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#d6b780]">RSVP admin</div>
         </div>
         <SideNav mob={false} />
         <div className="mt-auto flex flex-col gap-[14px] py-4 px-3 border-t border-[rgba(243,236,214,.18)]">
@@ -412,14 +421,14 @@ function FeedbackButton({ wid }: { wid: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className="fixed z-[11] right-4 bottom-[calc(16px+env(safe-area-inset-bottom))] py-[9px] px-4 rounded-full border border-[#c6b794] bg-[#fbf8f0] text-[#33402f] text-[13px] font-semibold shadow-[0_6px_18px_rgba(0,0,0,.14)] cursor-pointer print:hidden"
+        className="fixed z-[11] right-4 bottom-[calc(16px+env(safe-area-inset-bottom))] py-[9px] px-4 rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)] text-[var(--adm-ink,#33402f)] text-[13px] font-semibold shadow-[0_6px_18px_rgba(0,0,0,.14)] cursor-pointer print:hidden"
       >
         Feedback &amp; ideas
       </button>
       {open && (
         <div role="dialog" aria-modal="true" aria-label="Feedback and ideas" className="fixed inset-0 z-[40] flex items-end sm:items-center justify-center bg-[rgba(27,34,24,.45)] p-3" onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-          <div className="w-full max-w-[520px] max-h-[90vh] overflow-auto rounded-[18px] bg-[#fbf8f0] relative">
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="absolute top-2 right-3 border-0 bg-transparent text-[22px] leading-none cursor-pointer text-[#33402f]">
+          <div className="w-full max-w-[520px] max-h-[90vh] overflow-auto rounded-[18px] bg-[var(--adm-card,#fbf8f0)] relative">
+            <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="absolute top-2 right-3 border-0 bg-transparent text-[22px] leading-none cursor-pointer text-[var(--adm-ink,#33402f)]">
               ×
             </button>
             <TellUs wid={wid} page={tab} autoFocus />
@@ -519,7 +528,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       type="button"
       aria-current={on ? 'page' : undefined}
       onClick={() => to(where)}
-      className={`flex flex-col items-center justify-center gap-[6px] min-h-[84px] p-2 rounded-[14px] border text-center text-[13px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
+      className={`flex flex-col items-center justify-center gap-[6px] min-h-[84px] p-2 rounded-[14px] border text-center text-[13px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]'}`}
     >
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         {ICON[icon] ?? ICON.list}
@@ -527,7 +536,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       {label}
     </button>
   );
-  const heading = (text: string) => <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[#5b6a52]">{text}</span>;
+  const heading = (text: string) => <span className="text-[11px] font-semibold tracking-[.2em] uppercase text-[var(--adm-muted,#5b6a52)]">{text}</span>;
   const grid = 'grid grid-cols-3 gap-2';
   const rest = shown.tabs;
   return (
@@ -536,7 +545,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
       <div role="dialog" aria-modal="true" aria-label="Menu" className="relative max-h-[92vh] overflow-y-auto rounded-b-[22px] bg-[var(--adm-bg,#f6f0e2)] text-[var(--adm-ink,#33402f)] transition-colors duration-300 px-4 pt-[max(14px,env(safe-area-inset-top))] pb-5 flex flex-col gap-5 shadow-[0_12px_32px_rgba(51,64,47,.25)]">
         <div className="flex items-center justify-between">
           <span className="font-display text-[24px]">Menu</span>
-          <button type="button" aria-label="Close menu" onClick={onClose} className="w-10 h-10 rounded-full border border-[#c6b794] bg-[#fbf8f0] text-[20px] cursor-pointer">
+          <button type="button" aria-label="Close menu" onClick={onClose} className="w-10 h-10 rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)] text-[20px] cursor-pointer">
             ×
           </button>
         </div>
@@ -550,7 +559,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
                 type="button"
                 aria-pressed={on}
                 onClick={() => setPicked(g.key)}
-                className={`min-h-[52px] py-2 px-3 rounded-[14px] border text-center font-display text-[18px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}
+                className={`min-h-[52px] py-2 px-3 rounded-[14px] border text-center font-display text-[18px] leading-tight cursor-pointer text-[var(--adm-ink,#33402f)] ${on ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-soft,#cfd8bb)] font-semibold' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]'}`}
               >
                 {g.name}
               </button>
@@ -579,7 +588,7 @@ function MoreSheet({ onClose, onSignOut }: { onClose: () => void; onSignOut: () 
           {rest.length ? (
             <div className={grid}>{rest.map((t) => tile(`${shown.key}-${t.key}`, t.label, path(t.key, shown.key), t.key, here && navKey(tab) === t.key))}</div>
           ) : (
-            <p className="m-0 text-[14px] text-[#5b6a52]">Nothing here yet.</p>
+            <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Nothing here yet.</p>
           )}
         </div>
         <ProfileSwitch here={`w:${wid}`} tone="light" />

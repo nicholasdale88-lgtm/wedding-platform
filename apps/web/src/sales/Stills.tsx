@@ -264,13 +264,14 @@ function envelope(x: number, y: number, turn: number, e: Env): string {
 }
 
 /** The invitation card itself, peeking out from behind an envelope: deckled cotton paper, letterpress type. */
-function card(x: number, y: number, turn: number, w: number, h: number, ink: string): string {
+function card(x: number, y: number, turn: number, w: number, h: number, ink: string, names: string): string {
+  const [n1, n2] = names.split('&').map((t) => esc(t.trim()));
   const serif = `font-family='Georgia, "Times New Roman", serif'`;
   return `<g transform='translate(${x} ${y}) rotate(${turn})' filter='url(#lift)'>
     <g filter='url(#deckle)'><rect width='${w}' height='${h}' fill='#fbf7ef' filter='url(#paper)'/></g>
     <g ${serif} text-anchor='middle' fill='${ink}'>
       <text x='${w / 2}' y='${f1(h * 0.13)}' font-size='11' letter-spacing='4' fill-opacity='.75'>TOGETHER WITH THEIR FAMILIES</text>
-      <text x='${w / 2}' y='${f1(h * 0.3)}' font-size='44' font-style='italic'>Harriet <tspan font-size='30'>&amp;</tspan> Theo</text>
+      <text x='${w / 2}' y='${f1(h * 0.3)}' font-size='44' font-style='italic'>${n1} <tspan font-size='30'>&amp;</tspan> ${n2 ?? ''}</text>
       <text x='${w / 2}' y='${f1(h * 0.41)}' font-size='11' letter-spacing='4' fill-opacity='.75'>REQUEST THE PLEASURE OF YOUR COMPANY</text>
       <path d='M${w / 2 - 40} ${f1(h * 0.47)} H${w / 2 + 40}' stroke='${ink}' stroke-opacity='.35'/>
     </g>
@@ -319,12 +320,12 @@ export function flatLay(initials = 'H & T'): string {
  * One envelope, close up (a feature picture): the invitation card peeking out behind it, a ribbon, eucalyptus
  * and baby's breath tucked under a deep burgundy seal, a few fallen petals, and window light.
  */
-export function envelopeClose(paper = '#f7f2ea', wax = '#6e1a2b', initials = 'H & T'): string {
+export function envelopeClose(paper = '#f7f2ea', wax = '#6e1a2b', initials = 'H & T', names = 'Harriet & Theo'): string {
   const [s1, e1] = eucalyptus(-30, 860, 300, -38, 21, 1.1);
   return url(
     `${linen(900, 900)}
     <g filter='url(#soft)' opacity='.3' transform='translate(4 7)'>${s1}</g>${e1}
-    ${card(205, 120, 6, 520, 360, '#4a1f2b')}
+    ${card(205, 120, 6, 520, 360, '#4a1f2b', names)}
     ${envelope(150, 330, -5, { paper, wax, ribbon: '#d9b3ad', initials, k: 7, w: 600, h: 410, greens: true })}
     ${petal(760, 790, 26, 30)}${petal(812, 742, 20, -60)}${petal(700, 850, 17, 110)}
     ${windowShadow(990, -60, 1.25)}
@@ -332,4 +333,9 @@ export function envelopeClose(paper = '#f7f2ea', wax = '#6e1a2b', initials = 'H 
     900,
     900,
   );
+}
+
+/** A small wax seal alone with the initials (the admin's corner, by your names): champagne gold by default. */
+export function sealBadge(initials = 'H & T', wax = '#a8834a'): string {
+  return url(seal(56, 54, 40, wax, initials.replace(/\s*&\s*/, ' & '), 3), 120, 120);
 }

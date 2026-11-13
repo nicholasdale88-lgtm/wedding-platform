@@ -273,7 +273,7 @@ function SeatingPlan() {
   const seatRules = useSeatRules(s?.event.key);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!s) return <div aria-busy="true" className="text-[#5b6a52]">Loading the floor plan…</div>;
+  if (!s) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the floor plan…</div>;
   const stage: SeatStage = s.stage?.chosen ?? s.stage?.auto ?? 'draft';
   const who = whoPick ?? (stage === 'draft' || stage === 'replies' ? 'all' : 'yes');
 
@@ -780,7 +780,7 @@ function SeatingPlan() {
   const metres = roomMetres(aspect);
   const roomM = roomSizeM(aspect);
   const focusTable = focus ? tables.find((t) => t.id === focus) : undefined;
-  const toolRow = 'flex gap-2 flex-wrap items-center p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f2]';
+  const toolRow = 'flex gap-2 flex-wrap items-center p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[#fbf8f2]';
   /** A table's usual size in metres, shown greyed in its size box. */
   const usualSize = (t: SeatTable) => {
     const m = tableMetres({ ...t, size: null }, aspect);
@@ -795,7 +795,7 @@ function SeatingPlan() {
           <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">
             {seated} of {s.people.length} seated
           </h1>
-          <div className="mt-1 text-[14px] text-[#5b6a52]">
+          <div className="mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)]">
             {tables.length} {tables.length === 1 ? 'table' : 'tables'} · {seatCount} seats · {comingN} coming
             {pencilled ? <span className="text-[#5e5130]"> · {pencilled} pencilled in</span> : null}
             {comingUnseated ? <span className="text-[#7a4a37]"> · {comingUnseated} coming without a seat</span> : null}
@@ -836,7 +836,7 @@ function SeatingPlan() {
           <span className="flex-1 min-w-[220px] text-[14px]">
             <strong className="font-semibold">“{viewing.name}”</strong>, a suggestion from who knows who. {suggested.line}.
             {suggested.notes.length > 0 && <span className="block text-[12px] text-[#7a4a37] mt-1">{suggested.notes.join(' ')}</span>}
-            <span className="block text-[12px] text-[#5b6a52] mt-1">Your current plan hasn’t changed. Keep this one in Versions to compare later, make it current, or discard it.</span>
+            <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] mt-1">Your current plan hasn’t changed. Keep this one in Versions to compare later, make it current, or discard it.</span>
           </span>
           <Pill kind="primary" disabled={busy} onClick={() => makeCurrent(viewing.id, viewing.name)}>
             Make this current
@@ -850,7 +850,7 @@ function SeatingPlan() {
         </div>
       )}
       {viewing && suggested?.id !== viewing.id && (
-        <div role="status" className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-[#f3ecd9] border border-[#d3c6a4] print:hidden">
+        <div role="status" className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-[#f3ecd9] border border-[var(--adm-line,#d3c6a4)] print:hidden">
           <span className="flex-1 min-w-[200px] text-[14px]">
             Looking at the version <strong className="font-semibold">“{viewing.name}”</strong>. Nothing has changed: make it current to use it, or go back.
           </span>
@@ -913,7 +913,7 @@ function SeatingPlan() {
               <Pill onClick={redo} disabled={!future.length} aria-label="Redo">
                 ↷ Redo
               </Pill>
-              <div role="tablist" aria-label="Seating tools" className="inline-flex max-w-full overflow-x-auto [scrollbar-width:none] p-[3px] rounded-full border border-[#c6b794] bg-[#fbf8f2]">
+              <div role="tablist" aria-label="Seating tools" className="inline-flex max-w-full overflow-x-auto [scrollbar-width:none] p-[3px] rounded-full border border-[var(--adm-line,#c6b794)] bg-[#fbf8f2]">
                 {TOOLS.map(([k, label]) => (
                   <button
                     key={k}
@@ -929,7 +929,7 @@ function SeatingPlan() {
                       const row = tab.parentElement;
                       if (row && (tab.offsetLeft < row.scrollLeft || tab.offsetLeft + tab.offsetWidth > row.scrollLeft + row.clientWidth)) row.scrollLeft = tab.offsetLeft - 8;
                     }}
-                    className={`${mob ? 'min-h-[40px]' : ''} flex-none whitespace-nowrap py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}
+                    className={`${mob ? 'min-h-[40px]' : ''} flex-none whitespace-nowrap py-[6px] px-3 rounded-full border-0 text-[13px] font-semibold cursor-pointer ${tool === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[var(--adm-ink,#33402f)]'}`}
                   >
                     {label}
                   </button>
@@ -947,7 +947,7 @@ function SeatingPlan() {
                   Seating PDF
                 </Pill>
                 {printOpen && (
-                  <div role="dialog" aria-label="What to put in the PDF" className="absolute z-30 left-0 top-[calc(100%+6px)] w-[280px] p-4 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f2] shadow-[0_10px_30px_rgba(27,34,24,.18)] flex flex-col gap-2 text-[14px]">
+                  <div role="dialog" aria-label="What to put in the PDF" className="absolute z-30 left-0 top-[calc(100%+6px)] w-[280px] p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[#fbf8f2] shadow-[0_10px_30px_rgba(27,34,24,.18)] flex flex-col gap-2 text-[14px]">
                     <strong className="text-[15px]">For your caterer and venue</strong>
                     {(
                       [
@@ -973,7 +973,7 @@ function SeatingPlan() {
                     >
                       Make the PDF
                     </Pill>
-                    <span className="text-[12px] text-[#5b6a52]">Then choose Save as PDF (on iPhone: Print, then Share).</span>
+                    <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Then choose Save as PDF (on iPhone: Print, then Share).</span>
                   </div>
                 )}
               </span>
@@ -983,7 +983,7 @@ function SeatingPlan() {
           <Pill onClick={() => setZoom((z) => Math.max(1, round1(z - 0.25)))} disabled={zoom <= 1} aria-label="Zoom out">
             −
           </Pill>
-          <span className="text-[13px] text-[#5b6a52] w-[42px] text-center">{Math.round(zoom * 100)}%</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] w-[42px] text-center">{Math.round(zoom * 100)}%</span>
           <Pill onClick={() => setZoom((z) => Math.min(3, round1(z + 0.25)))} disabled={zoom >= 3} aria-label="Zoom in">
             +
           </Pill>
@@ -998,7 +998,7 @@ function SeatingPlan() {
               Suggest a plan from who knows who
             </Pill>
             <div role="radiogroup" aria-label="Who to seat" className="flex gap-2 flex-wrap items-center">
-              <span className="text-[13px] font-semibold text-[#33402f]">Who to seat:</span>
+              <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Who to seat:</span>
               {(
                 [
                   ['all', 'Everyone invited (concept plan)'],
@@ -1045,7 +1045,7 @@ function SeatingPlan() {
             )}
             {mob ? (
               <details className="w-full">
-                <summary className="cursor-pointer py-2 text-[14px] font-semibold text-[#33402f]">More table tools</summary>
+                <summary className="cursor-pointer py-2 text-[14px] font-semibold text-[var(--adm-ink,#33402f)]">More table tools</summary>
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Pill onClick={applyShapeToAll} disabled={!tables.length}>
                     Make all tables this type
@@ -1140,7 +1140,7 @@ function SeatingPlan() {
           </div>
         )}
       </div>
-      <div className="text-[14px] text-[#5b6a52] print:hidden">
+      <div className="text-[14px] text-[var(--adm-muted,#5b6a52)] print:hidden">
         {!editing
           ? 'Tap a table to see who sits where. To move tables or seat people, tap Edit seating.'
           : adding
@@ -1159,7 +1159,7 @@ function SeatingPlan() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-6 items-start">
-        <div className={`overflow-auto border border-[#d3c6a4] ${mob ? '-mx-4 rounded-none border-x-0' : 'rounded-[14px]'}`}>
+        <div className={`overflow-auto border border-[var(--adm-line,#d3c6a4)] ${mob ? '-mx-4 rounded-none border-x-0' : 'rounded-[14px]'}`}>
           {/* Phones: swipe the floor (or a table) to scroll the plan. Editing: drag the selected table, or hold any table or area to pick it up. */}
           <div
             ref={plan}
@@ -1203,14 +1203,14 @@ function SeatingPlan() {
               />
             ))}
             {!tables.length && !adding && (
-              <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[15px] text-[#5b6a52]">No tables yet. Choose a table type, then Set out tables (for the guests you expect) or + Add tables to place them yourself.</div>
+              <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-[15px] text-[var(--adm-muted,#5b6a52)]">No tables yet. Choose a table type, then Set out tables (for the guests you expect) or + Add tables to place them yourself.</div>
             )}
           </div>
         </div>
 
         <aside className="flex flex-col gap-5 print:hidden">
           {editing && selArea && sel?.kind === 'area' && (
-            <div className="flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]">
+            <div className="flex flex-col gap-3 p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)]">
               <Label text="Area name">
                 <input value={selArea.label} onChange={(e) => setArea(sel.i, { label: e.target.value }, false)} onFocus={checkpoint} className={inputCls} />
               </Label>
@@ -1242,14 +1242,14 @@ function SeatingPlan() {
           {/* Phones, moving tables: just a slim bar for the chosen table (the settings open from it), so nothing
               covers the room while you move things. */}
           {selTable && tool === 'tables' && (
-            <div role="region" aria-label="Chosen table" className={mob ? 'fixed inset-x-0 bottom-0 z-[17] flex items-center gap-2 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-[#fbf8f2] border-t border-[#d3c6a4] shadow-[0_-6px_18px_rgba(51,64,47,.14)]' : 'flex items-center gap-2 p-3 rounded-[14px] border border-[#e2d7bc]'}>
+            <div role="region" aria-label="Chosen table" className={mob ? 'fixed inset-x-0 bottom-0 z-[17] flex items-center gap-2 px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))] bg-[#fbf8f2] border-t border-[var(--adm-line,#d3c6a4)] shadow-[0_-6px_18px_rgba(51,64,47,.14)]' : 'flex items-center gap-2 p-3 rounded-[14px] border border-[var(--adm-line,#e2d7bc)]'}>
               <span className="flex-1 min-w-0 truncate font-display text-[19px]">
                 {/^\d+$/.test(selTable.name) ? `Table ${selTable.name}` : selTable.name} · {(byTable.get(selTable.id) ?? []).length}/{selTable.seats}
               </span>
               <Pill size="sm" onClick={() => setTool('setup')}>
                 Table settings
               </Pill>
-              <button type="button" aria-label="Close table" onClick={() => setSel(null)} className="w-10 h-10 flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer">
+              <button type="button" aria-label="Close table" onClick={() => setSel(null)} className="w-10 h-10 flex-none rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[20px] cursor-pointer">
                 ×
               </button>
             </div>
@@ -1258,15 +1258,15 @@ function SeatingPlan() {
             <div
               className={
                 mob
-                  ? 'fixed inset-x-0 bottom-0 pb-[calc(16px+env(safe-area-inset-bottom))] z-[17] max-h-[46vh] overflow-y-auto flex flex-col gap-3 p-4 rounded-t-[20px] border-t border-[#d3c6a4] bg-[#fbf8f2] shadow-[0_-8px_24px_rgba(51,64,47,.18)]'
-                  : 'flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc]'
+                  ? 'fixed inset-x-0 bottom-0 pb-[calc(16px+env(safe-area-inset-bottom))] z-[17] max-h-[46vh] overflow-y-auto flex flex-col gap-3 p-4 rounded-t-[20px] border-t border-[var(--adm-line,#d3c6a4)] bg-[#fbf8f2] shadow-[0_-8px_24px_rgba(51,64,47,.18)]'
+                  : 'flex flex-col gap-3 p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)]'
               }
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="font-display text-[22px]">
                   {/^\d+$/.test(selTable.name) ? `Table ${selTable.name}` : selTable.name} · {(byTable.get(selTable.id) ?? []).length} of {selTable.seats}
                 </span>
-                <button type="button" aria-label="Close table" onClick={() => setSel(null)} className={`${mob ? 'w-10 h-10' : 'w-8 h-8'} flex-none rounded-full border border-[#c6b794] bg-transparent text-[20px] cursor-pointer`}>
+                <button type="button" aria-label="Close table" onClick={() => setSel(null)} className={`${mob ? 'w-10 h-10' : 'w-8 h-8'} flex-none rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[20px] cursor-pointer`}>
                   ×
                 </button>
               </div>
@@ -1333,7 +1333,7 @@ function SeatingPlan() {
                 {/* Every chair, so each guest can be put in exactly the seat you want (empty chairs show while editing). */}
                 {(editing || byTable.get(selTable.id)?.length ? (chairMap.get(selTable.id) ?? []) : []).map((p, i) =>
                   !p ? (
-                    <div key={`empty${i}`} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-2 items-center py-[6px] border-t border-[#ece3cc] text-[14px]">
+                    <div key={`empty${i}`} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-2 items-center py-[6px] border-t border-[var(--adm-line,#ece3cc)] text-[14px]">
                       <span className="text-[12px] text-[#7a7466]">{i + 1}</span>
                       <span className="italic text-[#7a7466]">Empty seat</span>
                       {editing ? (
@@ -1351,7 +1351,7 @@ function SeatingPlan() {
                       )}
                     </div>
                   ) : (
-                  <div key={p.id} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-2 items-center py-[6px] border-t border-[#ece3cc] text-[14px]">
+                  <div key={p.id} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-2 items-center py-[6px] border-t border-[var(--adm-line,#ece3cc)] text-[14px]">
                     <span className={`text-[12px] ${i < selTable.seats ? 'text-[#7a7466]' : 'text-[#7a4a37] font-semibold'}`} title={i < selTable.seats ? `Seat ${i + 1}` : 'No chair: more people than seats'}>
                       {i < selTable.seats ? i + 1 : '!'}
                     </span>
@@ -1372,7 +1372,7 @@ function SeatingPlan() {
                         <UpDown name={p.name} at={i + 1} seats={selTable.seats} mob={mob} onMove={(k) => placeAt(p.id, selTable.id, k)} />
                         <ChairPick p={p} at={i + 1} layout={chairMap.get(selTable.id) ?? []} seats={selTable.seats} onPick={(k) => placeAt(p.id, selTable.id, k)} />
                         <MoveTo p={p} here={selTable.id} tables={tables} byTable={byTable} onMove={(ids, to) => seat(ids, to)} />
-                        <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className={`${mob ? 'w-10 h-10' : 'w-[30px] h-[30px]'} flex-none rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer`}>
+                        <button type="button" aria-label={`Unseat ${p.name}`} onClick={() => seat([p.id], null)} className={`${mob ? 'w-10 h-10' : 'w-[30px] h-[30px]'} flex-none rounded-full border border-[var(--adm-line,#d3c6a4)] bg-transparent cursor-pointer`}>
                           ×
                         </button>
                       </span>
@@ -1387,8 +1387,8 @@ function SeatingPlan() {
               </div>
               )}
               {editing && mob && unseated.length > 0 && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-[#e2d7bc]">
-                  <span className="text-[13px] text-[#5b6a52]">Tap a name to seat them here, or hold it and drag it onto any table</span>
+                <div className="flex flex-col gap-2 pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
+                  <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Tap a name to seat them here, or hold it and drag it onto any table</span>
                   <div className="flex gap-2 flex-wrap">
                     {unseated.flat().map((p) => (
                       <button
@@ -1398,7 +1398,7 @@ function SeatingPlan() {
                         onContextMenu={(e) => e.preventDefault()}
                         onClick={() => seat([p.id], selTable.id)}
                         style={{ boxShadow: p.party ? `inset 4px 0 0 ${groupColour(p.party)}` : undefined, WebkitTouchCallout: 'none' }}
-                        className="py-2 px-3 min-h-[40px] rounded-full border border-[#c6b794] bg-[#f6f0e2] text-[14px] cursor-pointer text-[#33402f] select-none"
+                        className="py-2 px-3 min-h-[40px] rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-bg,#f6f0e2)] text-[14px] cursor-pointer text-[var(--adm-ink,#33402f)] select-none"
                       >
                         {p.name}
                         <CoupleMark p={p} />
@@ -1440,7 +1440,7 @@ function SeatingPlan() {
             {who === 'all' && <span className="text-[12px] text-[#7a7466]">Seating everyone invited: guests still to reply show lighter, and anyone who says no comes off their table by themselves.</span>}
             <div className="flex justify-between items-baseline">
               <h2 className="m-0 font-display font-medium text-[24px]">Not seated</h2>
-              <span className="text-[13px] text-[#5b6a52]">{unseatedAll.length}</span>
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{unseatedAll.length}</span>
             </div>
             {groupNames.length > 0 && (
               <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} aria-label="Show group" className={`${inputCls} !py-[6px] !text-[13px]`}>
@@ -1452,9 +1452,9 @@ function SeatingPlan() {
                 ))}
               </select>
             )}
-            <div className="text-[13px] text-[#5b6a52]">{!editing ? 'Edit seating to seat them.' : target ? `Tap a name to seat them at table ${selTable!.name}, or drag names onto any table.` : 'Drag names onto a table, or tap a table first and then tap names.'}</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{!editing ? 'Edit seating to seat them.' : target ? `Tap a name to seat them at table ${selTable!.name}, or drag names onto any table.` : 'Drag names onto a table, or tap a table first and then tap names.'}</div>
             {unseated.map((group) => (
-              <div key={group[0]!.invitationId} className="flex flex-col gap-1 py-2 border-t border-[#ece3cc]">
+              <div key={group[0]!.invitationId} className="flex flex-col gap-1 py-2 border-t border-[var(--adm-line,#ece3cc)]">
                 <div className="flex justify-between gap-2 items-center">
                   <span className="text-[12px] text-[#7a7466]">{group[0]!.coming ? 'Coming' : 'Not replied yet (pencil in)'}</span>
                   {group.length > 1 && (
@@ -1465,7 +1465,7 @@ function SeatingPlan() {
                       onContextMenu={(e) => editing && e.preventDefault()}
                       onClick={() => (!editing ? toast('Tap Edit seating first') : target ? seat(group.map((p) => p.id), target) : toast('Tap a table first, or drag them onto one'))}
                       style={{ WebkitTouchCallout: 'none' }}
-                      className={`${mob ? 'min-h-[40px] px-3' : 'p-0'} border-0 bg-transparent text-[12px] underline cursor-pointer select-none text-[#33402f] ${editing && target ? '' : 'opacity-60'}`}
+                      className={`${mob ? 'min-h-[40px] px-3' : 'p-0'} border-0 bg-transparent text-[12px] underline cursor-pointer select-none text-[var(--adm-ink,#33402f)] ${editing && target ? '' : 'opacity-60'}`}
                     >
                       Seat together
                     </button>
@@ -1481,7 +1481,7 @@ function SeatingPlan() {
                       onClick={() => (!editing ? toast('Tap Edit seating first') : target ? seat([p.id], target) : toast(mob ? 'Tap a table first, or hold the name and drag it onto one' : 'Tap a table first, or drag the name onto one'))}
                       title={p.party || undefined}
                       style={{ boxShadow: p.party ? `inset 4px 0 0 ${groupColour(p.party)}` : undefined, WebkitTouchCallout: 'none' }}
-                      className={`${mob ? 'py-2 min-h-[40px]' : 'py-[5px]'} px-3 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[13px] ${editing ? 'cursor-grab' : 'cursor-pointer'} select-none hover:bg-[#efe7d3] text-[#33402f]`}
+                      className={`${mob ? 'py-2 min-h-[40px]' : 'py-[5px]'} px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-[#fbf8f2] text-[13px] ${editing ? 'cursor-grab' : 'cursor-pointer'} select-none hover:bg-[var(--adm-tint,#efe7d3)] text-[var(--adm-ink,#33402f)]`}
                     >
                       {p.name}
                       <CoupleMark p={p} />
@@ -1493,12 +1493,12 @@ function SeatingPlan() {
             ))}
             {!unseated.length && <div className="text-[14px] text-[#55633f]">{who === 'all' ? 'Everyone invited has a seat.' : 'Everyone who said yes has a seat.'}</div>}
             {waiting.length > 0 && (
-              <div className="flex flex-col gap-1 pt-3 mt-1 border-t border-[#e2d7bc]">
+              <div className="flex flex-col gap-1 pt-3 mt-1 border-t border-[var(--adm-line,#e2d7bc)]">
                 <span className="text-[13px] font-semibold text-[#5e5130]">Waiting for a reply ({waiting.length})</span>
                 <span className="text-[12px] text-[#7a7466]">They get a table once they say yes, or choose Everyone invited above to pencil them in now.</span>
                 <div className="flex gap-1 flex-wrap">
                   {waiting.map((p) => (
-                    <span key={p.id} className="py-[3px] px-2 rounded-full border border-dashed border-[#d3c6a4] text-[12px] text-[#7a7466]">
+                    <span key={p.id} className="py-[3px] px-2 rounded-full border border-dashed border-[var(--adm-line,#d3c6a4)] text-[12px] text-[#7a7466]">
                       {p.name}
                     </span>
                   ))}
@@ -1559,7 +1559,7 @@ function SeatingPlan() {
           <div
             data-drag-label
             aria-hidden
-            className={`fixed z-[90] pointer-events-none py-2 px-3 rounded-full text-[14px] whitespace-nowrap shadow-[0_6px_18px_rgba(51,64,47,.3)] ${guestDrag.ghost.over ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-[#fbf8f2] text-[#33402f] border border-[#c6b794]'}`}
+            className={`fixed z-[90] pointer-events-none py-2 px-3 rounded-full text-[14px] whitespace-nowrap shadow-[0_6px_18px_rgba(51,64,47,.3)] ${guestDrag.ghost.over ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-[#fbf8f2] text-[var(--adm-ink,#33402f)] border border-[var(--adm-line,#c6b794)]'}`}
             style={{ left: guestDrag.ghost.x, top: guestDrag.ghost.y, transform: 'translate(-50%, calc(-100% - 18px))' }}
           >
             {guestDrag.ghost.label}
@@ -1732,10 +1732,10 @@ function VersionsPanel({
   const [name, setName] = useState('');
   const suggested = versions.some((v) => v.name === suggest) ? `Version ${versions.length + 1}` : suggest;
   return (
-    <section aria-label="Seating versions" className="p-4 rounded-[14px] bg-white border border-[#e2d7bc] flex flex-col gap-3 print:hidden">
+    <section aria-label="Seating versions" className="p-4 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)] flex flex-col gap-3 print:hidden">
       <div>
         <h2 className="m-0 font-display font-medium text-[22px]">Versions</h2>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">
+        <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)]">
           {current
             ? current.changes
               ? `Current arrangement: “${current.name}”, with ${current.changes} saved ${current.changes === 1 ? 'change' : 'changes'} since. Save again to keep them as a version.`
@@ -1768,7 +1768,7 @@ function VersionsPanel({
                   <span className="font-semibold">{v.name}</span>
                   {isCurrent && <span className="ml-2 px-2 py-[2px] rounded-full bg-[#33402f] text-white text-[11px] align-middle">Current</span>}
                   {viewing === v.id && <span className="ml-2 px-2 py-[2px] rounded-full bg-[#f3ecd9] text-[#5e5130] text-[11px] align-middle">Looking at</span>}
-                  <span className="block text-[13px] text-[#5b6a52]">
+                  <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
                     {fmtWhen(v.at, tz)} · {v.tables} {v.tables === 1 ? 'table' : 'tables'} · {v.seated} seated
                   </span>
                 </span>
@@ -1937,7 +1937,7 @@ function TableSummary({ people }: { people: Person[] }) {
   const diets = people.filter((p) => p.diet.trim());
   if (!mains.length && !diets.length) return null;
   return (
-    <div className="flex flex-col gap-1 p-3 rounded-[12px] bg-[#f6f0e2] text-[13px]">
+    <div className="flex flex-col gap-1 p-3 rounded-[12px] bg-[var(--adm-bg,#f6f0e2)] text-[13px]">
       {mains.length > 0 && (
         <span>
           <strong className="font-semibold">Mains:</strong> {mains.map(([m, n]) => `${n} × ${m}`).join(' · ')}
@@ -2030,13 +2030,13 @@ function FindGuest({
       {hits.map((p) => {
         const at = seats[p.id];
         return (
-          <div key={p.id} className="flex justify-between items-center gap-2 py-[6px] px-3 rounded-[10px] bg-[#fbf8f2] border border-[#e2d7bc] text-[14px]">
+          <div key={p.id} className="flex justify-between items-center gap-2 py-[6px] px-3 rounded-[10px] bg-[#fbf8f2] border border-[var(--adm-line,#e2d7bc)] text-[14px]">
             <span className="min-w-0 truncate">
               {p.name}
               <span className="block text-[12px] text-[#7a7466]">{[at ? nameOf(at) : 'Not seated', p.coming ? '' : at ? 'pencilled in' : 'not replied yet'].filter(Boolean).join(' · ')}</span>
             </span>
             {at ? (
-              <button type="button" onClick={() => onShow(at)} className="flex-none py-[6px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer text-[#33402f]">
+              <button type="button" onClick={() => onShow(at)} className="flex-none py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[13px] cursor-pointer text-[var(--adm-ink,#33402f)]">
                 Show
               </button>
             ) : canSeat(p) && onSeat ? (
@@ -2151,7 +2151,7 @@ function SeatHere({
 
 /** Move someone one seat earlier or later at their table (swapping with whoever is there). */
 function UpDown({ name, at, seats, mob, onMove }: { name: string; at: number; seats: number; mob: boolean; onMove: (k: number) => void }) {
-  const btn = `${mob ? 'w-10 h-10' : 'w-[30px] h-[30px]'} flex-none rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer text-[13px] disabled:opacity-30`;
+  const btn = `${mob ? 'w-10 h-10' : 'w-[30px] h-[30px]'} flex-none rounded-full border border-[var(--adm-line,#d3c6a4)] bg-transparent cursor-pointer text-[13px] disabled:opacity-30`;
   return (
     <>
       <button type="button" aria-label={`Move ${name} up a seat`} disabled={at <= 1 || at > seats} onClick={() => onMove(at - 1)} className={btn}>
@@ -2236,7 +2236,7 @@ function TableFocus({
         disabled={!editing}
         onClick={() => setChair(on ? null : i + 1)}
         className={`flex-none flex flex-col items-center justify-center rounded-full border text-center leading-tight cursor-pointer disabled:cursor-default ${mob ? 'text-[10px]' : 'text-[11px]'} ${
-          on ? 'border-[#33402f] border-2 bg-[#33402f] text-[#f3ecd6]' : p ? `border-transparent ${isCouple(p) ? 'bg-[#a4566a]' : 'bg-[#5d6b47]'} text-white` : 'border-dashed border-[#c6b794] bg-white text-[#7a7466]'
+          on ? 'border-[#33402f] border-2 bg-[#33402f] text-[#f3ecd6]' : p ? `border-transparent ${isCouple(p) ? 'bg-[#a4566a]' : 'bg-[#5d6b47]'} text-white` : 'border-dashed border-[var(--adm-line,#c6b794)] bg-white text-[#7a7466]'
         }`}
         style={{ width: CH, height: CH, opacity: p && !p.coming ? 0.6 : undefined, ...style }}
       >
@@ -2249,7 +2249,7 @@ function TableFocus({
   const sideRow = (i: number, nameLeft: boolean) => {
     const p = layout[i];
     const name = (
-      <span className={`min-w-0 flex-1 truncate text-[14px] ${nameLeft ? 'text-right' : ''} ${p ? 'text-[#33402f]' : 'italic text-[#9a9384]'}`}>
+      <span className={`min-w-0 flex-1 truncate text-[14px] ${nameLeft ? 'text-right' : ''} ${p ? 'text-[var(--adm-ink,#33402f)]' : 'italic text-[#9a9384]'}`}>
         {p ? p.name : 'Empty'}
         {p && <CoupleMark p={p} />}
         {p?.diet ? <span className={`block text-[11px] truncate ${isSerious(p.diet) ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{p.diet}</span> : null}
@@ -2274,7 +2274,7 @@ function TableFocus({
             Back to the room
           </Pill>
         </div>
-        <span className="text-[13px] text-[#5b6a52]">{editing ? 'Tap a chair to choose who sits there. Taking someone’s seat swaps them.' : 'Who sits where at this table.'}</span>
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{editing ? 'Tap a chair to choose who sits there. Taking someone’s seat swaps them.' : 'Who sits where at this table.'}</span>
         {!editing && (
           <Pill size="sm" className="self-start" onClick={onEdit}>
             Change who sits where
@@ -2282,13 +2282,13 @@ function TableFocus({
         )}
         {/* The chair arrangement: how many seats, the table type, and which sides have chairs. */}
         {editing && (
-          <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-white text-[13px]">
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white text-[13px]">
             <span className="font-semibold">Chairs</span>
-            <button type="button" aria-label="One seat fewer" disabled={t.seats <= 1} onClick={() => onTable({ seats: t.seats - 1 })} className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent text-[18px] cursor-pointer disabled:opacity-30">
+            <button type="button" aria-label="One seat fewer" disabled={t.seats <= 1} onClick={() => onTable({ seats: t.seats - 1 })} className="w-9 h-9 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[18px] cursor-pointer disabled:opacity-30">
               −
             </button>
             <span aria-live="polite" className="w-8 text-center tabular-nums text-[15px]">{t.seats}</span>
-            <button type="button" aria-label="One seat more" disabled={t.seats >= 60} onClick={() => onTable({ seats: t.seats + 1 })} className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent text-[18px] cursor-pointer disabled:opacity-30">
+            <button type="button" aria-label="One seat more" disabled={t.seats >= 60} onClick={() => onTable({ seats: t.seats + 1 })} className="w-9 h-9 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[18px] cursor-pointer disabled:opacity-30">
               +
             </button>
             <select aria-label="Table type" value={shape} onChange={(e) => reshapeTo(e.target.value as TableShape)} className={`${inputCls} !py-2 !w-auto`}>
@@ -2312,7 +2312,7 @@ function TableFocus({
             <div className="flex-1 min-w-0 flex flex-col">{leftIdx.map((i) => sideRow(i, true))}</div>
             <div
               aria-hidden
-              className="flex-none flex items-center justify-center border border-[#c6b794] bg-[#f3ecd6] rounded-[10px] font-display text-[16px] text-[#33402f]"
+              className="flex-none flex items-center justify-center border border-[var(--adm-line,#c6b794)] bg-[var(--adm-tint,#f3ecd6)] rounded-[10px] font-display text-[16px] text-[var(--adm-ink,#33402f)]"
               style={{ width: mob ? 44 : 64, minHeight: Math.max(leftIdx.length, rightIdx.length, 1) * (CH + 10) }}
             >
               <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{label}</span>
@@ -2324,7 +2324,7 @@ function TableFocus({
             <div className="relative mx-auto" style={{ width: box, height: shape === 'oval' ? box * 0.8 : box }}>
               <div
                 aria-hidden
-                className="absolute flex items-center justify-center border border-[#c6b794] bg-[#f3ecd6] font-display text-[18px] text-[#33402f]"
+                className="absolute flex items-center justify-center border border-[var(--adm-line,#c6b794)] bg-[var(--adm-tint,#f3ecd6)] font-display text-[18px] text-[var(--adm-ink,#33402f)]"
                 style={{
                   left: box / 2 - (ring - CH / 2 - 6),
                   top: (shape === 'oval' ? box * 0.4 : box / 2) - (ring - CH / 2 - 6) * (shape === 'oval' ? 0.75 : 1),
@@ -2400,9 +2400,9 @@ function TableFocus({
             )}
           </div>
         )}
-        <ol aria-label="Seats" className="m-0 p-0 list-none flex flex-col border-t border-[#ece3cc]">
+        <ol aria-label="Seats" className="m-0 p-0 list-none flex flex-col border-t border-[var(--adm-line,#ece3cc)]">
           {layout.map((p, i) => (
-            <li key={p?.id ?? `e${i}`} className="flex items-center gap-2 py-[6px] border-b border-[#ece3cc] text-[14px]">
+            <li key={p?.id ?? `e${i}`} className="flex items-center gap-2 py-[6px] border-b border-[var(--adm-line,#ece3cc)] text-[14px]">
               <span className={`w-[52px] flex-none text-[12px] ${i < t.seats ? 'text-[#7a7466]' : 'text-[#7a4a37] font-semibold'}`}>{i < t.seats ? `Seat ${i + 1}` : 'No chair'}</span>
               <span className={`flex-1 min-w-0 ${p ? '' : 'italic text-[#7a7466]'}`}>
                 {p ? p.name : 'Empty'}

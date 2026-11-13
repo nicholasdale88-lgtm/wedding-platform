@@ -27,13 +27,13 @@ export function Help() {
   const card = (a: HelpArticle, startOpen = false) => {
     const isOpen = startOpen || open === a.id;
     return (
-      <article key={a.id} className="rounded-[14px] border border-[#e2d7bc] bg-white">
+      <article key={a.id} className="rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-white">
         <div className="flex items-center">
-          <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen && !startOpen ? null : a.id)} className="flex-1 flex justify-between items-center gap-3 p-4 border-0 bg-transparent text-left cursor-pointer text-[#33402f]">
+          <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen && !startOpen ? null : a.id)} className="flex-1 flex justify-between items-center gap-3 p-4 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)]">
             <span className="text-[16px] font-semibold">{a.title}</span>
             <span aria-hidden>{isOpen ? '▴' : '▾'}</span>
           </button>
-          <button type="button" onClick={() => setWatching([a])} aria-label={`Watch: ${a.title}`} className="flex-none mr-3 py-[6px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer text-[#33402f]">
+          <button type="button" onClick={() => setWatching([a])} aria-label={`Watch: ${a.title}`} className="flex-none mr-3 py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[13px] cursor-pointer text-[var(--adm-ink,#33402f)]">
             ▶ Watch
           </button>
         </div>
@@ -55,9 +55,9 @@ export function Help() {
   return (
     <div className="flex flex-col gap-6 max-w-[760px]">
       <header>
-        <div className="text-[12px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Account</div>
+        <div className="text-[12px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">Account</div>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Help</h1>
-        <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">How to do anything here, in a few steps.</p>
+        <p className="m-0 mt-1 text-[15px] text-[var(--adm-muted,#5b6a52)]">How to do anything here, in a few steps.</p>
       </header>
       <section aria-label="Video walkthroughs" className="flex items-center gap-4 flex-wrap p-4 rounded-[16px] bg-[#1d211b] text-[#fbf8f2]">
         <button type="button" onClick={() => setWatching(tour)} aria-label="Play the tour" className="flex-none w-14 h-14 rounded-full border-0 bg-[#e9c97c] text-[#1d211b] text-[20px] cursor-pointer">
@@ -76,11 +76,11 @@ export function Help() {
       </label>
       {q.trim().length >= 3 && (
         <section aria-label="Answers" className="flex flex-col gap-3">
-          {found.length ? found.map((a, i) => card(a, i === 0)) : <p className="m-0 text-[15px] text-[#5b6a52]">Nothing in the guides matches that yet. Try one or two words, like “seating”, “texts” or “budget”.</p>}
+          {found.length ? found.map((a, i) => card(a, i === 0)) : <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)]">Nothing in the guides matches that yet. Try one or two words, like “seating”, “texts” or “budget”.</p>}
           {first && (
-            <p className="m-0 text-[14px] text-[#5b6a52]">
+            <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
               Not it?{' '}
-              <Link to={`${path('planner', first)}?view=assistant`} className="!text-[#33402f]">
+              <Link to={`${path('planner', first)}?view=assistant`} className="!text-[var(--adm-ink,#33402f)]">
                 Ask the planning assistant
               </Link>
               : it knows these guides and your wedding’s details.
@@ -90,7 +90,7 @@ export function Help() {
       )}
       {GROUPS.map((g) => (
         <section key={g} aria-label={g} className="flex flex-col gap-2">
-          <h2 className="m-0 text-[13px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">{g}</h2>
+          <h2 className="m-0 text-[13px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">{g}</h2>
           {HELP.filter((a) => a.group === g).map((a) => card(a))}
         </section>
       ))}

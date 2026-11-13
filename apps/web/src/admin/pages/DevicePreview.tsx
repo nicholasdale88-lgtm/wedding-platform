@@ -103,7 +103,7 @@ export function DevicePreview({ src, url, device, title, frameKey, stay = false 
   const at = stay && !replay ? `${src}${src.includes('?') ? '&' : '?'}stay=1` : src;
   const frame = <iframe key={`${frameKey}#${replay}`} src={at} title={title} allow="autoplay; encrypted-media; fullscreen" className="block w-full flex-1 border-0 bg-white" />;
   const again = (
-    <button type="button" onClick={() => setReplay((n) => n + 1)} className="block mx-auto mt-2 py-[6px] px-[14px] rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer text-[#33402f]">
+    <button type="button" onClick={() => setReplay((n) => n + 1)} className="block mx-auto mt-2 py-[6px] px-[14px] rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[13px] cursor-pointer text-[var(--adm-ink,#33402f)]">
       ↺ Replay the envelope
     </button>
   );
@@ -181,7 +181,7 @@ export function DevicePicker({ device, onChange }: { device: Device; onChange: (
           role="radio"
           aria-checked={device === k}
           onClick={() => onChange(k)}
-          className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${device === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`}
+          className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${device === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]'}`}
         >
           {label}
         </button>

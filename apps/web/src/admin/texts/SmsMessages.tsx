@@ -41,7 +41,7 @@ export function SmsMessages() {
   useAutoRefresh(load);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading your messages…</div>;
+  if (!data) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your messages…</div>;
 
   const tz = data.timezone;
   // Only this event's messages (and those to every event) count here: the birthday's ride reminder isn't the wedding's.
@@ -97,7 +97,7 @@ export function SmsMessages() {
           <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">
             {auto.length} {auto.length === 1 ? 'text' : 'texts'} sending themselves
           </h1>
-          <div className="mt-1 text-[15px] text-[#5b6a52]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
+          <div className="mt-1 text-[15px] text-[var(--adm-muted,#5b6a52)]">{next ? `Next: ${next.c.name}, ${fmtWhen(next.at, tz)}` : 'Nothing scheduled right now.'}</div>
           {!data.live && (
             <div className="mt-1 text-[14px] text-[#7a4a37]">
               Texts won’t send by themselves until you choose how they go: free from your own phone or by email, or a texting number.{' '}
@@ -157,31 +157,31 @@ export function SmsMessages() {
         />
       )}
 
-      <section className="flex flex-col gap-2 p-5 rounded-[14px] bg-[#efe7d3]">
+      <section className="flex flex-col gap-2 p-5 rounded-[14px] bg-[var(--adm-tint,#efe7d3)]">
         <div className="flex justify-between items-baseline gap-3 flex-wrap">
           <h2 className="m-0 font-display font-medium text-[26px]">Texted replies</h2>
-          <span className="text-[13px] text-[#5b6a52]">{data.inbox.length ? `${data.inbox.length} received` : ''}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{data.inbox.length ? `${data.inbox.length} received` : ''}</span>
         </div>
-        <div className="text-[14px] text-[#5b6a52]">
+        <div className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
           YES and NO replies are recorded for you. Questions and messages from guests, texted or written on their page, are in{' '}
           <button
             type="button"
             onClick={() => go(path('messages', ALL_EVENTS))}
-            className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f] text-[14px]"
+            className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)] text-[14px]"
           >
             Account → Messages
           </button>
           , where you can reply.
         </div>
         {data.inbox.slice(0, 12).map((m) => (
-          <div key={m.id} className="grid grid-cols-[92px_minmax(0,1fr)] sm:grid-cols-[110px_160px_minmax(0,1fr)_auto] gap-x-3 gap-y-1 py-2 border-t border-[#e2d7bc] text-[14px] items-baseline">
+          <div key={m.id} className="grid grid-cols-[92px_minmax(0,1fr)] sm:grid-cols-[110px_160px_minmax(0,1fr)_auto] gap-x-3 gap-y-1 py-2 border-t border-[var(--adm-line,#e2d7bc)] text-[14px] items-baseline">
             <span className="text-[12px] text-[#7a7466]">{fmtWhen(m.at, tz)}</span>
             <strong className="font-semibold">{m.name}</strong>
             <span className="col-span-2 sm:col-span-1 italic">“{m.body}”</span>
             <span className="col-span-2 sm:col-span-1 text-[12px] text-[#55633f]">{m.action}</span>
           </div>
         ))}
-        {!data.inbox.length && <div className="text-[14px] text-[#5b6a52]">No replies yet. When a guest texts back YES or NO it is handled for you and shows up here.</div>}
+        {!data.inbox.length && <div className="text-[14px] text-[var(--adm-muted,#5b6a52)]">No replies yet. When a guest texts back YES or NO it is handled for you and shows up here.</div>}
       </section>
 
       {STAGES.map((stage) => {
@@ -210,18 +210,18 @@ export function SmsMessages() {
       })}
 
       <section className="flex flex-col gap-2">
-        <button type="button" onClick={() => setHistOpen((o) => !o)} className="self-start p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[#33402f]">
+        <button type="button" onClick={() => setHistOpen((o) => !o)} className="self-start p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[var(--adm-ink,#33402f)]">
           {histOpen ? 'Hide what has been sent' : `What has been sent (${data.history.reduce((n, h) => n + h.count, 0)})`}
         </button>
         {histOpen &&
           data.history.map((h, i) => (
-            <div key={i} className="grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-1 py-2 border-t border-[#ece3cc] text-[14px]">
+            <div key={i} className="grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-1 py-2 border-t border-[var(--adm-line,#ece3cc)] text-[14px]">
               <span className="text-[12px] text-[#7a7466]">{fmtWhen(h.at, tz)}</span>
               <span>
                 <strong className="font-semibold">{h.name}</strong> · {h.count} {h.count === 1 ? 'text' : 'texts'}
                 {h.failed ? <span className="text-[#7a4a37]"> · {h.failed} did not send</span> : null}
               </span>
-              <span className="col-span-2 text-[13px] text-[#5b6a52] truncate">{h.sample}</span>
+              <span className="col-span-2 text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{h.sample}</span>
             </div>
           ))}
       </section>
@@ -269,9 +269,9 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
   const [opened, setOpened] = useState(open);
   if (open && !opened) setOpened(true);
   return (
-    <div className="border-t border-[#e2d7bc]">
+    <div className="border-t border-[var(--adm-line,#e2d7bc)]">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-[14px]">
-        <button type="button" onClick={onOpen} aria-expanded={open} className="grid grid-cols-[86px_minmax(0,1fr)] sm:grid-cols-[110px_minmax(0,1fr)_70px] gap-3 items-center p-0 border-0 bg-transparent text-left text-[#33402f] cursor-pointer">
+        <button type="button" onClick={onOpen} aria-expanded={open} className="grid grid-cols-[86px_minmax(0,1fr)] sm:grid-cols-[110px_minmax(0,1fr)_70px] gap-3 items-center p-0 border-0 bg-transparent text-left text-[var(--adm-ink,#33402f)] cursor-pointer">
           <span className="flex flex-col">
             <span className="text-[15px] font-medium">{when}</span>
             <span className="text-[12px] text-[#7a7466]">{whenSub}</span>
@@ -280,12 +280,12 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
             <span className="font-display text-[22px] leading-tight">
               {c.name}
               {!eventOf(c) && data.events.length > 1 && (
-                <span className="ml-2 align-middle py-[2px] px-2 rounded-full bg-[#efe7d3] text-[11px] font-sans font-semibold tracking-[.06em] uppercase text-[#5b6a52]">All events</span>
+                <span className="ml-2 align-middle py-[2px] px-2 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[11px] font-sans font-semibold tracking-[.06em] uppercase text-[var(--adm-muted,#5b6a52)]">All events</span>
               )}
             </span>
-            <span className="text-[13px] text-[#5b6a52] truncate">{c.body || 'No wording yet'}</span>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{c.body || 'No wording yet'}</span>
           </span>
-          <span className="hidden sm:block text-[13px] text-[#5b6a52] text-right">
+          <span className="hidden sm:block text-[13px] text-[var(--adm-muted,#5b6a52)] text-right">
             {c.count} {c.count === 1 ? 'text' : 'texts'}
             {c.email && (c.email.count > 0 || c.email.sent > 0) && (
               <span className="block text-[12px]">
@@ -296,7 +296,7 @@ function CampaignRow({ c, data, open, onOpen, onToggle, onChanged }: { c: Campai
           </span>
         </button>
         {c.mode === 'manual' ? (
-          <span className="text-[12px] py-[3px] px-[9px] rounded-full bg-[#efe7d3] text-[#5e5130]">Manual</span>
+          <span className="text-[12px] py-[3px] px-[9px] rounded-full bg-[var(--adm-tint,#efe7d3)] text-[#5e5130]">Manual</span>
         ) : (
           <span className="flex items-center gap-2">
             {/* Off until the couple turns it on: nothing sends by itself before then. */}
@@ -454,7 +454,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
           <Pill onClick={() => void remove()}>Delete</Pill>
         </div>
       )}
-      {!c.custom && <div className="text-[14px] text-[#5b6a52]">Goes to: {c.audienceLabel}.</div>}
+      {!c.custom && <div className="text-[14px] text-[var(--adm-muted,#5b6a52)]">Goes to: {c.audienceLabel}.</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-4">
         <div className="flex flex-col gap-2">
@@ -485,11 +485,11 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
 
       {(c.mode === 'dates' || c.custom) && (
         <div className="flex gap-2 flex-wrap items-center">
-          <span className="text-[14px] text-[#5b6a52]">Sends on</span>
+          <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">Sends on</span>
           {dates.map((d, i) => (
             <span key={i} className="flex gap-1 items-center">
               <input type="datetime-local" value={d} onChange={(e) => setDates(dates.map((x, j) => (j === i ? e.target.value : x)))} aria-label={`Send date ${i + 1}`} className={`${inputCls} !py-[6px]`} />
-              <button type="button" aria-label="Remove date" onClick={() => setDates(dates.filter((_, j) => j !== i))} className="w-[30px] h-[30px] rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer">
+              <button type="button" aria-label="Remove date" onClick={() => setDates(dates.filter((_, j) => j !== i))} className="w-[30px] h-[30px] rounded-full border border-[var(--adm-line,#d3c6a4)] bg-transparent cursor-pointer">
                 ×
               </button>
             </span>
@@ -504,10 +504,10 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
       )}
 
       <div className="flex gap-3 flex-wrap items-center">
-        <button type="button" onClick={() => setShowWho((s) => !s)} className="p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[#33402f]">
+        <button type="button" onClick={() => setShowWho((s) => !s)} className="p-0 border-0 bg-transparent text-[14px] underline cursor-pointer text-[var(--adm-ink,#33402f)]">
           {est ? est.count : '…'} of {textable.length} guests · {showWho ? 'hide' : 'choose who'}
         </button>
-        {est && <span className="text-[13px] text-[#5b6a52]">About ${(est.costCents / 100).toFixed(2)}{est.quiet ? ' · quiet hours now, so it would wait for the morning' : ''}</span>}
+        {est && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">About ${(est.costCents / 100).toFixed(2)}{est.quiet ? ' · quiet hours now, so it would wait for the morning' : ''}</span>}
         <span className="flex-1" />
         <TestSend what="campaign" campaignId={c.id} body={body} channels />
         {dirty ? (
@@ -534,7 +534,7 @@ function Editor({ c, data, onChanged }: { c: Campaign; data: TextsData; onChange
                 aria-pressed={can && !off}
                 onClick={() => setExcluded(off ? excluded.filter((x) => x !== p.id) : [...excluded, p.id])}
                 title={!p.phone ? 'No mobile' : p.optOut ? 'Replied STOP' : off ? 'Left out' : 'Included'}
-                className={`py-[5px] px-3 rounded-full border text-[13px] ${!can ? 'opacity-50 line-through border-[#d3c6a4]' : off ? 'border-[#d3c6a4] bg-transparent text-[#7a7466]' : 'border-[#5d6b47] bg-[#dfe5cc] text-[#33402f]'} cursor-pointer`}
+                className={`py-[5px] px-3 rounded-full border text-[13px] ${!can ? 'opacity-50 line-through border-[var(--adm-line,#d3c6a4)]' : off ? 'border-[var(--adm-line,#d3c6a4)] bg-transparent text-[#7a7466]' : 'border-[#5d6b47] bg-[#dfe5cc] text-[var(--adm-ink,#33402f)]'} cursor-pointer`}
               >
                 {p.name}
               </button>
@@ -597,9 +597,9 @@ function LastCall({ data, event, onCancel, onAdded }: { data: TextsData; event: 
     }
   };
   return (
-    <section aria-label="Last call before RSVPs close" className="flex flex-col gap-3 p-5 rounded-[14px] bg-white border border-[#e2d7bc]">
+    <section aria-label="Last call before RSVPs close" className="flex flex-col gap-3 p-5 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)]">
       <H2>Last call before RSVPs close</H2>
-      <p className="m-0 text-[14px] text-[#5b6a52]">
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
         One text to everyone who still hasn&rsquo;t replied{event ? ` to ${event.name}` : ''}. Anyone who replies before then doesn&rsquo;t get it. You can change the wording after.
       </p>
       <div className="flex flex-wrap gap-3 items-end">
@@ -644,7 +644,7 @@ function NewMessage({ data, onCancel, onAdded }: { data: TextsData; onCancel: ()
     }
   };
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end p-5 rounded-[14px] border border-[#c6b794]">
+    <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end p-5 rounded-[14px] border border-[var(--adm-line,#c6b794)]">
       <Label text="Name">
         <input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Shuttle times" className={inputCls} />
       </Label>
@@ -687,7 +687,7 @@ function InvitesFrom({ data, onChanged }: { data: TextsData; onChanged: () => Pr
   };
   return (
     <div className="mt-2 flex items-center gap-2 flex-wrap text-[14px]">
-      <span className={open ? 'text-[#55633f]' : 'text-[#33402f]'}>{open ? 'Invitations are going out' : 'Invitations go out from'}</span>
+      <span className={open ? 'text-[#55633f]' : 'text-[var(--adm-ink,#33402f)]'}>{open ? 'Invitations are going out' : 'Invitations go out from'}</span>
       <input
         type="date"
         aria-label="Invitations go out from"
@@ -702,7 +702,7 @@ function InvitesFrom({ data, onChanged }: { data: TextsData; onChanged: () => Pr
       />
       <span className="text-[13px] text-[#7a7466]">{data.invitesFromCustom ? 'your date' : '8 months before the first event'}</span>
       {data.invitesFromCustom && (
-        <button type="button" onClick={() => void save(null)} className="p-0 border-0 bg-transparent text-[13px] underline cursor-pointer text-[#33402f]">
+        <button type="button" onClick={() => void save(null)} className="p-0 border-0 bg-transparent text-[13px] underline cursor-pointer text-[var(--adm-ink,#33402f)]">
           Use 8 months before
         </button>
       )}

@@ -34,7 +34,7 @@ const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 const SERVICES = Object.entries(VENDOR_SEARCH).filter(([k]) => k !== 'jewellery');
 /** A vendor's place on a request: their own private link, nothing sent yet. */
 const askOf = (vendorId: string): RfqVendor => ({ vendorId, key: newKey(), sentOn: '', openedOn: '', answeredOn: '', quoteId: '', remindedOn: '', negotiatedOn: '', followUps: 0, declinedOn: '', declinedWhy: '', scores: {} });
-const small = 'py-[6px] px-3 rounded-full border border-[#c6b794] bg-white text-[13px] cursor-pointer no-underline !text-[#33402f] hover:bg-[#efe7d3] whitespace-nowrap';
+const small = 'py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-white text-[13px] cursor-pointer no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)] whitespace-nowrap';
 
 type Save = (list: Vendor[], rfqs: Rfq[], done?: string) => Promise<boolean>;
 
@@ -104,12 +104,12 @@ export function QuoteRequests({
   };
 
   return (
-    <section aria-label={HEAD[mode][0]} className="flex flex-col gap-3 p-4 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label={HEAD[mode][0]} className="flex flex-col gap-3 p-4 rounded-[18px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       {/* Phones: the heading and words take the full width, the two buttons share a row under them. */}
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div className="w-full lg:w-auto lg:flex-1 min-w-0">
           <h2 className="m-0 font-display text-[26px] leading-tight font-medium">{HEAD[mode][0]}</h2>
-          <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">{HEAD[mode][1]}</p>
+          <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)]">{HEAD[mode][1]}</p>
         </div>
         {!making && mode === 'quotes' && (
           <div className="grid grid-cols-2 gap-2 w-full lg:w-auto lg:flex">
@@ -123,9 +123,9 @@ export function QuoteRequests({
         )}
       </div>
       {mode !== 'quotes' && !shownRfqs.length && (
-        <p className="m-0 p-3 rounded-[12px] bg-white border border-[#ece3cd] text-[14px] text-[#5b6a52]">
+        <p className="m-0 p-3 rounded-[12px] bg-white border border-[#ece3cd] text-[14px] text-[var(--adm-muted,#5b6a52)]">
           {mode === 'compare' ? 'No quotes in yet. ' : 'Nothing to book yet. '}
-          <button type="button" onClick={() => onStep(2)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+          <button type="button" onClick={() => onStep(2)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
             Get quotes (step 2)
           </button>
         </p>
@@ -141,8 +141,8 @@ export function QuoteRequests({
               <span aria-hidden className="flex-none w-7 h-7 rounded-full bg-[#33402f] text-[#fbf8f0] flex items-center justify-center text-[14px] font-semibold">
                 {i + 1}
               </span>
-              <span className="text-[13px] text-[#5b6a52]">
-                <strong className="block text-[14px] text-[#33402f]">{h}</strong>
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
+                <strong className="block text-[14px] text-[var(--adm-ink,#33402f)]">{h}</strong>
                 {t}
               </span>
             </li>
@@ -232,12 +232,12 @@ function NewRequest({
 
   if (service === null) {
     return (
-      <div className="flex flex-col gap-3 p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
+      <div className="flex flex-col gap-3 p-4 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)]">
         <strong className="text-[16px]">{manual ? 'What are the quotes for?' : 'What do you need quotes for?'}</strong>
-        {manual && <span className="text-[13px] text-[#5b6a52] -mt-2">For quotes you already have (by phone, email or a PDF). You’ll type each one in, then see them side by side.</span>}
+        {manual && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] -mt-2">For quotes you already have (by phone, email or a PDF). You’ll type each one in, then see them side by side.</span>}
         <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
           {[...SERVICES, ['', { label: 'Something else' }] as const].map(([k, v]) => (
-            <button key={k || 'other'} type="button" onClick={() => choose(k)} className="min-h-[52px] py-2 px-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] text-[14px] cursor-pointer text-[#33402f] hover:border-[#33402f]">
+            <button key={k || 'other'} type="button" onClick={() => choose(k)} className="min-h-[52px] py-2 px-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-[14px] cursor-pointer text-[var(--adm-ink,#33402f)] hover:border-[#33402f]">
               {v.label}
             </button>
           ))}
@@ -284,22 +284,22 @@ function NewRequest({
   };
 
   return (
-    <div className="flex flex-col gap-4 p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
+    <div className="flex flex-col gap-4 p-4 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)]">
       <div className="flex justify-between items-baseline gap-2 flex-wrap">
         <strong className="text-[18px]">{label} quotes</strong>
-        <button type="button" onClick={() => setService(null)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+        <button type="button" onClick={() => setService(null)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
           Change
         </button>
       </div>
 
       <div className="flex flex-col gap-2">
         <strong className="text-[14px]">{manual ? 'Whose quotes' : 'Who to ask'}</strong>
-        {!matching.length && <span className="text-[13px] text-[#5b6a52]">None of your vendors are {label.toLowerCase()} yet: add who you’d like a quote from.</span>}
+        {!matching.length && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">None of your vendors are {label.toLowerCase()} yet: add who you’d like a quote from.</span>}
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {[...matching, ...others].map((v) => {
             const on = picked.has(v.id);
             return (
-              <li key={v.id} className={`flex flex-col gap-2 p-3 rounded-[12px] border ${on ? 'border-[#8a9670] bg-[#f3f6ea]' : 'border-[#ece3cd] bg-[#fbf8f0]'}`}>
+              <li key={v.id} className={`flex flex-col gap-2 p-3 rounded-[12px] border ${on ? 'border-[#8a9670] bg-[#f3f6ea]' : 'border-[#ece3cd] bg-[var(--adm-card,#fbf8f0)]'}`}>
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={on} onChange={(e) => setPicked((p) => (e.target.checked ? new Set([...p, v.id]) : new Set([...p].filter((x) => x !== v.id))))} className="w-[20px] h-[20px] accent-[#5d6b47]" />
                   <span className="flex-1 min-w-0">
@@ -333,7 +333,7 @@ function NewRequest({
             }}
           />
         ) : (
-          <button type="button" onClick={() => setAdding(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]">
+          <button type="button" onClick={() => setAdding(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[var(--adm-ink,#33402f)]">
             {manual ? '+ Someone else' : '+ Ask someone else'}
           </button>
         )}
@@ -350,7 +350,7 @@ function NewRequest({
           ].map(([t, n]) => {
             const d = plusDays(today, n as number);
             return (
-              <button key={t} type="button" aria-pressed={due === d} onClick={() => setDue(d)} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${due === d ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}>
+              <button key={t} type="button" aria-pressed={due === d} onClick={() => setDue(d)} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${due === d ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}>
                 {t}
               </button>
             );
@@ -360,12 +360,12 @@ function NewRequest({
       </div>
       )}
 
-      <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd]">
+      <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] border border-[#ece3cd]">
         <div className="flex justify-between items-baseline gap-2">
           <strong className="text-[14px]">
             {manual ? 'What to compare' : 'What they’ll price'} ({lines.filter((l) => l.label.trim()).length})
           </strong>
-          <button type="button" aria-expanded={editLines} onClick={() => setEditLines(!editLines)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          <button type="button" aria-expanded={editLines} onClick={() => setEditLines(!editLines)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
             {editLines ? 'Done' : 'Change'}
           </button>
         </div>
@@ -378,7 +378,7 @@ function NewRequest({
               <div key={l.id} className="grid gap-2 grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center">
                 <input value={l.label} maxLength={160} aria-label={`Item ${i + 1}`} onChange={(e) => setLines(lines.map((x) => (x.id === l.id ? { ...x, label: e.target.value } : x)))} className={inputCls} />
                 <input value={l.detail} maxLength={400} placeholder="Details (optional)" aria-label={`Item ${i + 1} details`} onChange={(e) => setLines(lines.map((x) => (x.id === l.id ? { ...x, detail: e.target.value } : x)))} className={`${inputCls} col-span-2 sm:col-span-1 row-start-2 sm:row-start-auto`} />
-                <button type="button" aria-label={`Remove ${l.label || 'item'}`} onClick={() => setLines(lines.filter((x) => x.id !== l.id))} className="w-10 h-10 rounded-full border border-[#d3c6a4] bg-white cursor-pointer text-[18px] text-[#7a4a37]">
+                <button type="button" aria-label={`Remove ${l.label || 'item'}`} onClick={() => setLines(lines.filter((x) => x.id !== l.id))} className="w-10 h-10 rounded-full border border-[var(--adm-line,#d3c6a4)] bg-white cursor-pointer text-[18px] text-[#7a4a37]">
                   ×
                 </button>
               </div>
@@ -390,7 +390,7 @@ function NewRequest({
             )}
           </>
         ) : (
-          <span className="text-[13px] text-[#5b6a52]">
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {lines
               .map((l) => l.label.trim())
               .filter(Boolean)
@@ -400,10 +400,10 @@ function NewRequest({
       </div>
 
       {!manual && (
-      <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd]">
+      <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] border border-[#ece3cd]">
         <div className="flex justify-between items-baseline gap-2">
           <strong className="text-[14px]">The message</strong>
-          <button type="button" aria-expanded={editEmail} onClick={() => setEditEmail(!editEmail)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          <button type="button" aria-expanded={editEmail} onClick={() => setEditEmail(!editEmail)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
             {editEmail ? 'Done' : 'Change'}
           </button>
         </div>
@@ -415,10 +415,10 @@ function NewRequest({
             <Label text="Message">
               <textarea rows={10} value={message} maxLength={4000} onChange={(e) => setMessage(e.target.value)} className={inputCls} />
             </Label>
-            <span className="text-[12px] text-[#5b6a52]">Filled in for each vendor: {'{couple}'} {'{date}'} {'{venue}'} {'{guests}'} {'{due}'}, and {'{link}'}, their own page to price it.</span>
+            <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Filled in for each vendor: {'{couple}'} {'{date}'} {'{venue}'} {'{guests}'} {'{due}'}, and {'{link}'}, their own page to price it.</span>
           </>
         ) : (
-          <span className="text-[13px] text-[#5b6a52] line-clamp-2">{message.replace(/\{link\}/g, '[their link]').replace(/\s+/g, ' ')}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] line-clamp-2">{message.replace(/\{link\}/g, '[their link]').replace(/\s+/g, ' ')}</span>
         )}
       </div>
       )}
@@ -434,7 +434,7 @@ function NewRequest({
         </Pill>
         <Pill onClick={onCancel}>Cancel</Pill>
       </div>
-      <span className="text-[12px] text-[#5b6a52]">
+      <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">
         {manual
           ? 'Next, type in each vendor’s quote: one total or item by item, with their PDF if you have it. Nothing is sent to them.'
           : byEmail.length
@@ -459,7 +459,7 @@ function AddVendor({ category, nameOnly, onAdd, onCancel, existing = [], onPick 
     onAdd(Vendor.parse({ id: newId(), name: name.trim().slice(0, 120), category, status: nameOnly ? 'contacted' : 'requested', phone: phone.trim().slice(0, 40), email: email.trim().slice(0, 120) }));
   };
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-dashed border-[#c6b794] bg-[#fbf8f0]">
+    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-dashed border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)]">
       {existing.length > 0 && onPick && (
         <Label text="Someone already in your vendors">
           <select
@@ -481,7 +481,7 @@ function AddVendor({ category, nameOnly, onAdd, onCancel, existing = [], onPick 
           </select>
         </Label>
       )}
-      <span className="text-[13px] text-[#5b6a52]">{existing.length && onPick ? 'Or someone new:' : 'Someone new (they’re added to your vendors too):'}</span>
+      <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{existing.length && onPick ? 'Or someone new:' : 'Someone new (they’re added to your vendors too):'}</span>
       <div className="grid gap-2 sm:grid-cols-3">
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, e.g. Wildflower Studio" aria-label="New vendor name" className={inputCls} />
         <input value={email} type="email" onChange={(e) => setEmail(e.target.value)} placeholder={nameOnly ? 'Email (optional)' : 'Email'} aria-label="New vendor email" className={inputCls} />
@@ -513,7 +513,7 @@ function stateOf(rv: RfqVendor, manual?: boolean): StateOf {
   if (rv.sentOn) return { label: 'Sent', tone: 'wait', when: `${longDay(rv.sentOn)}${rv.remindedOn ? ` · reminded ${longDay(rv.remindedOn)}` : ''}` };
   return { label: 'Not sent yet', tone: 'muted', when: '' };
 }
-const TONE: Record<StateOf['tone'], string> = { muted: 'bg-[#efe7d3] text-[#5b6a52]', wait: 'bg-[#f4dfae] text-[#6b4f1d]', good: 'bg-[#dfe5cc] text-[#3d4a2f]', out: 'bg-[#eadbd5] text-[#7a4a37]' };
+const TONE: Record<StateOf['tone'], string> = { muted: 'bg-[var(--adm-tint,#efe7d3)] text-[var(--adm-muted,#5b6a52)]', wait: 'bg-[#f4dfae] text-[#6b4f1d]', good: 'bg-[#dfe5cc] text-[#3d4a2f]', out: 'bg-[#eadbd5] text-[#7a4a37]' };
 
 /** One request: who has it and where they're at, sending and reminding, and the comparison. */
 function RequestCard({
@@ -622,14 +622,14 @@ function RequestCard({
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 sm:p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
-      <button type="button" aria-expanded={open} onClick={onToggle} className="flex justify-between items-center gap-3 p-0 border-0 bg-transparent text-left cursor-pointer text-[#33402f]">
+    <div className="flex flex-col gap-3 p-3 sm:p-4 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)]">
+      <button type="button" aria-expanded={open} onClick={onToggle} className="flex justify-between items-center gap-3 p-0 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)]">
         <span className="min-w-0">
           <span className="block text-[17px] font-semibold">
             {rfq.title || 'Quote request'}
             {rfq.closed && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] bg-[#dfe5cc] text-[#3d4a2f] align-middle">Decided</span>}
           </span>
-          <span className="block text-[13px] text-[#5b6a52]">
+          <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {answered} of {rfq.vendors.length} quoted{declined ? ` · ${declined} can’t` : ''}
             {rfq.due && !rfq.closed ? <span className={late ? 'text-[#7a4a37] font-semibold' : ''}>{` · ${late ? 'were due' : 'due'} ${longDay(rfq.due)}`}</span> : ''}
           </span>
@@ -641,7 +641,7 @@ function RequestCard({
           {shown === 1 && (
             <>
           {!rfq.closed && !rfq.manual && (
-            <label className="flex items-start gap-3 p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] cursor-pointer text-[14px]">
+            <label className="flex items-start gap-3 p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] border border-[#ece3cd] cursor-pointer text-[14px]">
               <input
                 type="checkbox"
                 checked={!!rfq.autoFollow}
@@ -650,7 +650,7 @@ function RequestCard({
               />
               <span>
                 <strong className="font-semibold">Follow up automatically</strong>
-                <span className="block text-[13px] text-[#5b6a52]">
+                <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
                   Anyone who hasn’t quoted gets a friendly reminder by email: four days after it’s sent (sooner if your date is close), then the day after your date. Two at most.
                   {!siteEmail && ' Needs the site’s email set up: until then, use Remind by each name.'}
                 </span>
@@ -708,15 +708,15 @@ function RequestCard({
                 <li key={rv.vendorId} className="py-3 flex flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="flex-1 min-w-[160px]">
-                      <button type="button" onClick={() => onOpenVendor(v.id)} className="p-0 border-0 bg-transparent cursor-pointer text-[#33402f] text-[15px] font-medium text-left">
+                      <button type="button" onClick={() => onOpenVendor(v.id)} className="p-0 border-0 bg-transparent cursor-pointer text-[var(--adm-ink,#33402f)] text-[15px] font-medium text-left">
                         {v.name}
                       </button>
                       <span className="flex items-center gap-2 flex-wrap mt-[2px]">
                         <span className={`py-[1px] px-2 rounded-full text-[11px] font-semibold ${TONE[st.tone]}`}>{st.label}</span>
                         {q && <strong className="text-[14px]">{aud(q.amount)}</strong>}
-                        {q?.package && <span className="text-[11px] text-[#5b6a52]">one total</span>}
+                        {q?.package && <span className="text-[11px] text-[var(--adm-muted,#5b6a52)]">one total</span>}
                         {st.when && <span className="text-[12px] text-[#7a7466]">{st.when}</span>}
-                        {siteEmail && isEmail(v.email) && nextFollowUp(rfq, rv) && <span className="text-[12px] text-[#5b6a52]">· next reminder {longDay(nextFollowUp(rfq, rv) < today ? today : nextFollowUp(rfq, rv))}</span>}
+                        {siteEmail && isEmail(v.email) && nextFollowUp(rfq, rv) && <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">· next reminder {longDay(nextFollowUp(rfq, rv) < today ? today : nextFollowUp(rfq, rv))}</span>}
                       </span>
                     </span>
                     {!rfq.closed && (rfq.manual || q) && (
@@ -732,20 +732,20 @@ function RequestCard({
                     {!rfq.closed && (
                       <details className="relative">
                         <summary className={`${small} list-none [&::-webkit-details-marker]:hidden`}>{canEmail || !pending || rfq.manual ? 'More' : 'Send'} ▾</summary>
-                        <div className="absolute right-0 z-[5] mt-1 w-[230px] flex flex-col p-1 rounded-[12px] border border-[#e2d7bc] bg-white shadow-[0_8px_24px_rgba(51,64,47,.18)] text-[14px]">
+                        <div className="absolute right-0 z-[5] mt-1 w-[230px] flex flex-col p-1 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white shadow-[0_8px_24px_rgba(51,64,47,.18)] text-[14px]">
                           {pending && v.email && (
-                            <a href={mail} onClick={() => markSent(v.id)} className="py-2 px-3 rounded-[8px] no-underline !text-[#33402f] hover:bg-[#f3eee2]">
+                            <a href={mail} onClick={() => markSent(v.id)} className="py-2 px-3 rounded-[8px] no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[#f3eee2]">
                               Email from my email app
                             </a>
                           )}
                           {pending && v.phone && (
-                            <a href={sms} onClick={() => markSent(v.id)} className="py-2 px-3 rounded-[8px] no-underline !text-[#33402f] hover:bg-[#f3eee2]">
+                            <a href={sms} onClick={() => markSent(v.id)} className="py-2 px-3 rounded-[8px] no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[#f3eee2]">
                               Text them the link
                             </a>
                           )}
                           <button
                             type="button"
-                            className="py-2 px-3 rounded-[8px] border-0 bg-transparent text-left cursor-pointer text-[#33402f] hover:bg-[#f3eee2]"
+                            className="py-2 px-3 rounded-[8px] border-0 bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)] hover:bg-[#f3eee2]"
                             onClick={async () => {
                               try {
                                 await navigator.clipboard.writeText(linkOf(rv.key));
@@ -758,7 +758,7 @@ function RequestCard({
                           >
                             Copy their link
                           </button>
-                          <button type="button" className="py-2 px-3 rounded-[8px] border-0 bg-transparent text-left cursor-pointer text-[#33402f] hover:bg-[#f3eee2]" onClick={() => setEntering(v.id)}>
+                          <button type="button" className="py-2 px-3 rounded-[8px] border-0 bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)] hover:bg-[#f3eee2]" onClick={() => setEntering(v.id)}>
                             {q ? 'Change their quote' : rfq.manual ? 'Enter their quote' : 'Add a quote they sent me'}
                           </button>
                           <button
@@ -797,7 +797,7 @@ function RequestCard({
                 }}
               />
             ) : (
-              <button type="button" onClick={() => setAdding(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]">
+              <button type="button" onClick={() => setAdding(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[var(--adm-ink,#33402f)]">
                 + Ask someone else
               </button>
             ))}
@@ -820,14 +820,14 @@ function RequestCard({
                         Ask for a better price →
                       </Pill>
                     )}
-                    <button type="button" onClick={() => onStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+                    <button type="button" onClick={() => onStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
                       Happy with a price? Go to Lock in (step 4)
                     </button>
                   </div>
                 )}
               </>
             ) : (
-              <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">{rfq.manual ? 'Quotes appear here side by side as you enter them (step 1).' : 'Quotes appear here side by side as they come in. We’ll email you when each one lands.'}</p>
+              <p className="m-0 p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] text-[14px] text-[var(--adm-muted,#5b6a52)]">{rfq.manual ? 'Quotes appear here side by side as you enter them (step 1).' : 'Quotes appear here side by side as they come in. We’ll email you when each one lands.'}</p>
             ))}
 
           {shown === 2 && neg && !rfq.closed && cmp.cols.some((c) => c.q) && (
@@ -850,11 +850,11 @@ function RequestCard({
 
           <div className="flex gap-4 text-[13px] pt-1 flex-wrap">
             {rfq.closed ? (
-              <button type="button" onClick={() => void onChange({ ...rfq, closed: false }, undefined, 'Reopened: vendors can quote again')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+              <button type="button" onClick={() => void onChange({ ...rfq, closed: false }, undefined, 'Reopened: vendors can quote again')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                 Reopen
               </button>
             ) : (
-              <button type="button" onClick={() => void onChange({ ...rfq, closed: true }, undefined, 'Closed: vendors can no longer change their quotes')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+              <button type="button" onClick={() => void onChange({ ...rfq, closed: true }, undefined, 'Closed: vendors can no longer change their quotes')} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                 Close without booking
               </button>
             )}
@@ -906,7 +906,7 @@ function Negotiate({
   const fav = items.find((n) => n.vendorId === rfq.preferred)?.vendorId ?? items.find((n) => n.vendorId === t.topScore?.id)?.vendorId ?? items[0]?.vendorId ?? '';
   const [msgs, setMsgs] = useState<Record<string, string>>({});
   const [which, setWhich] = useState<'opener' | 'followUp' | 'counter'>('opener');
-  if (!items.length) return <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">Once a quote is in, this builds your plan to get a better price.</p>;
+  if (!items.length) return <p className="m-0 p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] text-[14px] text-[var(--adm-muted,#5b6a52)]">Once a quote is in, this builds your plan to get a better price.</p>;
   const plan = negotiationPlan(rfq, list, fav, weddingDate);
   const v = list.find((x) => x.id === fav);
   const n = items.find((x) => x.vendorId === fav)!;
@@ -958,7 +958,7 @@ function Negotiate({
               role="radio"
               aria-checked={x.vendorId === fav}
               onClick={() => onPrefer(x.vendorId)}
-              className={`py-2 px-3 rounded-full border text-[14px] cursor-pointer ${x.vendorId === fav ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+              className={`py-2 px-3 rounded-full border text-[14px] cursor-pointer ${x.vendorId === fav ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}
             >
               {x.name} · {aud(x.quote.amount)}
             </button>
@@ -979,14 +979,14 @@ function Negotiate({
               ['Aim for', aud(plan.target), 'a realistic result'],
               ['Your limit', aud(plan.limit), rfq.budget > 0 ? 'your budget' : 'their price now'],
             ].map(([k, val, sub]) => (
-              <div key={k} className={`flex flex-col p-2 rounded-[10px] ${k === 'Aim for' ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-white border border-[#e2d7bc]'}`}>
+              <div key={k} className={`flex flex-col p-2 rounded-[10px] ${k === 'Aim for' ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-white border border-[var(--adm-line,#e2d7bc)]'}`}>
                 <dt className="text-[11px] uppercase tracking-[.12em] opacity-80">{k}</dt>
                 <dd className="m-0 font-display text-[24px] leading-tight">{val}</dd>
                 {sub && <span className="text-[11px] opacity-75">{sub}</span>}
               </div>
             ))}
           </dl>
-          <p className="m-0 text-[14px] text-[#5b6a52]">
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
             {plan.rival
               ? `${plan.rival.name} is ${aud((plan.levelled ?? plan.price) - plan.rival.levelled)} cheaper like for like: that’s your strongest card. Ask ${plan.name} to get close to it, without naming who.`
               : `${plan.name} is already the best value. Aim for about 10% off, or for extras included at the same price.`}
@@ -997,7 +997,7 @@ function Negotiate({
             <ol className="m-0 pl-5 flex flex-col gap-2 text-[14px]">
               {plan.levers.map((l) => (
                 <li key={l.key}>
-                  <strong className="font-semibold">{l.title}.</strong> <span className="text-[#5b6a52]">{l.why}</span>
+                  <strong className="font-semibold">{l.title}.</strong> <span className="text-[var(--adm-muted,#5b6a52)]">{l.why}</span>
                   {l.say && <span className="block mt-1 pl-3 border-l-2 border-[#a9b98d] italic">“{l.say}”</span>}
                 </li>
               ))}
@@ -1025,7 +1025,7 @@ function Negotiate({
                   role="tab"
                   aria-selected={which === k}
                   onClick={() => setWhich(k)}
-                  className={`py-2 px-1 rounded-[10px] border text-[12px] sm:text-[13px] cursor-pointer leading-tight ${which === k ? 'bg-white border-[#33402f] font-semibold text-[#33402f]' : 'bg-transparent border-[#d3c6a4] text-[#5b6a52]'}`}
+                  className={`py-2 px-1 rounded-[10px] border text-[12px] sm:text-[13px] cursor-pointer leading-tight ${which === k ? 'bg-white border-[#33402f] font-semibold text-[var(--adm-ink,#33402f)]' : 'bg-transparent border-[var(--adm-line,#d3c6a4)] text-[var(--adm-muted,#5b6a52)]'}`}
                 >
                   {label}
                 </button>
@@ -1049,7 +1049,7 @@ function Negotiate({
       )}
 
       {items.length > 1 && (
-        <details className="p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[14px]">
+        <details className="p-3 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[14px]">
           <summary className="cursor-pointer font-semibold">The others: what to raise with each (keeps your options open)</summary>
           <div className="flex flex-col gap-3 mt-2">
             {items
@@ -1070,7 +1070,7 @@ function Negotiate({
                         ))}
                       </ul>
                     ) : (
-                      <span className="text-[#5b6a52]">Nothing stands out: ask if they’d include something extra.</span>
+                      <span className="text-[var(--adm-muted,#5b6a52)]">Nothing stands out: ask if they’d include something extra.</span>
                     )}
                     <textarea rows={6} value={body} maxLength={3000} aria-label={`Message to ${x.name}`} onChange={(e) => setMsgs({ ...msgs, [x.vendorId]: e.target.value })} className={`${inputCls} w-full`} />
                     {sendBits(body, ov, () => onAsked(x.vendorId))}
@@ -1081,9 +1081,9 @@ function Negotiate({
         </details>
       )}
 
-      <details className="p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] text-[14px]">
+      <details className="p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] border border-[#ece3cd] text-[14px]">
         <summary className="cursor-pointer font-semibold">How to negotiate nicely (and get more)</summary>
-        <ul className="m-0 mt-2 pl-5 flex flex-col gap-1 text-[#5b6a52]">
+        <ul className="m-0 mt-2 pl-5 flex flex-col gap-1 text-[var(--adm-muted,#5b6a52)]">
           {NEGOTIATION_TIPS.map((tip) => (
             <li key={tip}>{tip}</li>
           ))}
@@ -1123,17 +1123,17 @@ function LockIn({
     .filter((x) => x.c.q)
     .sort((a, b) => (a.t.levelled ?? Infinity) - (b.t.levelled ?? Infinity));
   const tick = (on: boolean) => (
-    <span aria-hidden className={`flex-none w-6 h-6 rounded-full flex items-center justify-center text-[13px] ${on ? 'bg-[#5d6b47] text-[#fbf8f0]' : 'border-2 border-[#c6b794]'}`}>
+    <span aria-hidden className={`flex-none w-6 h-6 rounded-full flex items-center justify-center text-[13px] ${on ? 'bg-[#5d6b47] text-[#fbf8f0]' : 'border-2 border-[var(--adm-line,#c6b794)]'}`}>
       {on ? '✓' : ''}
     </span>
   );
   if (!booked) {
-    if (rfq.closed) return <p className="m-0 p-3 rounded-[12px] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">Closed without booking. Reopen it below to carry on.</p>;
+    if (rfq.closed) return <p className="m-0 p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] text-[14px] text-[var(--adm-muted,#5b6a52)]">Closed without booking. Reopen it below to carry on.</p>;
     return (
       <div className="flex flex-col gap-3">
-        <div className="p-3 rounded-[12px] bg-[#fbf8f0] border border-[#ece3cd] text-[14px]">
+        <div className="p-3 rounded-[12px] bg-[var(--adm-card,#fbf8f0)] border border-[#ece3cd] text-[14px]">
           <strong className="block mb-1">Before you book, check:</strong>
-          <ul className="m-0 pl-5 flex flex-col gap-1 text-[#5b6a52]">
+          <ul className="m-0 pl-5 flex flex-col gap-1 text-[var(--adm-muted,#5b6a52)]">
             <li>What’s included matches what you asked for (and the date and times).</li>
             <li>The deposit, when the rest is due, and whether the deposit comes back if plans change.</li>
             <li>The cancellation terms, and what happens if they can’t make it.</li>
@@ -1146,7 +1146,7 @@ function LockIn({
               <li key={c.v.id} className="py-2 flex items-center gap-3 flex-wrap">
                 <span className="flex-1 min-w-[160px]">
                   <strong className="text-[15px]">{c.v.name}</strong>
-                  <span className="block text-[13px] text-[#5b6a52]">
+                  <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
                     {aud(c.q!.amount)}
                     {t.levelled !== null && t.levelled !== c.q!.amount ? ` · ${aud(t.levelled)} like for like` : ''}
                     {c.q!.deposit ? ` · deposit ${aud(c.q!.deposit)}` : ''}
@@ -1159,7 +1159,7 @@ function LockIn({
             ))}
           </ul>
         ) : (
-          <p className="m-0 text-[14px] text-[#5b6a52]">No quotes in yet.</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">No quotes in yet.</p>
         )}
       </div>
     );
@@ -1187,7 +1187,7 @@ function LockIn({
             {tick(false)}
             <span className="flex-1 text-[15px]">
               <strong>Let the others know</strong>
-              <span className="block text-[13px] text-[#5b6a52]">A kind thank-you keeps the door open.</span>
+              <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">A kind thank-you keeps the door open.</span>
               <ul className="m-0 mt-1 p-0 list-none flex flex-col gap-2">
                 {others.map(({ o }) => (
                   <li key={o!.id} className="flex items-center gap-2 flex-wrap text-[14px]">
@@ -1285,7 +1285,7 @@ function EnterQuote({ rfq, vendor, was, onSave, onCancel }: { rfq: Rfq; vendor: 
           [true, 'One total'],
           [false, 'Item by item'],
         ].map(([on, t]) => (
-          <button key={String(on)} type="button" role="radio" aria-checked={pkg === on} onClick={() => setPkg(on as boolean)} className={`py-2 rounded-[10px] border text-[14px] cursor-pointer ${pkg === on ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#d3c6a4] text-[#33402f]'}`}>
+          <button key={String(on)} type="button" role="radio" aria-checked={pkg === on} onClick={() => setPkg(on as boolean)} className={`py-2 rounded-[10px] border text-[14px] cursor-pointer ${pkg === on ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[var(--adm-line,#d3c6a4)] text-[var(--adm-ink,#33402f)]'}`}>
             {t}
           </button>
         ))}
@@ -1302,7 +1302,7 @@ function EnterQuote({ rfq, vendor, was, onSave, onCancel }: { rfq: Rfq; vendor: 
               <div key={l.id} className="grid grid-cols-[minmax(0,1fr)_120px] gap-2 items-center text-[14px]">
                 <span>{l.label}</span>
                 <input inputMode="decimal" disabled={out} aria-label={`${l.label} price`} value={out ? '' : (prices[l.id] ?? '')} placeholder={out ? 'Not included' : '$'} onChange={(e) => setPrices((p) => ({ ...p, [l.id]: e.target.value }))} className={`${inputCls} py-[6px] disabled:bg-[#f3eee2]`} />
-                <label className="col-start-2 flex items-center gap-1 text-[12px] text-[#5b6a52] -mt-1 cursor-pointer">
+                <label className="col-start-2 flex items-center gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] -mt-1 cursor-pointer">
                   <input type="checkbox" checked={out} onChange={(e) => setPrices((p) => ({ ...p, [l.id]: e.target.checked ? null : '' }))} className="accent-[#5d6b47]" />
                   Not included
                 </label>
@@ -1395,7 +1395,7 @@ function Comparison({ rfq, cmp, today, onBook, onChange }: { rfq: Rfq; cmp: Retu
     <div className="flex flex-col gap-3">
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <strong className="text-[16px]">Side by side</strong>
-        <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
+        <label className="flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)]">
           Your budget for this
           <input type="number" min={0} step={50} value={rfq.budget || ''} placeholder="optional" onChange={(e) => onChange({ ...rfq, budget: Math.max(0, Number(e.target.value) || 0) })} className={`${inputCls} w-[120px] py-[6px]`} />
         </label>
@@ -1407,7 +1407,7 @@ function Comparison({ rfq, cmp, today, onBook, onChange }: { rfq: Rfq; cmp: Retu
           const isTop = many && rated && top?.id === c.v.id;
           const runsOut = q.validUntil && !rfq.closed ? (q.validUntil < today ? 'ran out' : Date.parse(q.validUntil) - Date.parse(today) < 14 * 86_400_000 ? 'runs out soon' : '') : '';
           return (
-            <article key={c.v.id} className={`flex flex-col gap-2 p-3 rounded-[14px] border ${n === 0 && many ? 'border-[#8a9670] bg-[#f6f8ef]' : 'border-[#e2d7bc] bg-white'}`}>
+            <article key={c.v.id} className={`flex flex-col gap-2 p-3 rounded-[14px] border ${n === 0 && many ? 'border-[#8a9670] bg-[#f6f8ef]' : 'border-[var(--adm-line,#e2d7bc)] bg-white'}`}>
               <div className="flex justify-between items-start gap-2">
                 <strong className="text-[16px] min-w-0">{c.v.name}</strong>
                 <span className="flex gap-1 flex-wrap justify-end">
@@ -1420,7 +1420,7 @@ function Comparison({ rfq, cmp, today, onBook, onChange }: { rfq: Rfq; cmp: Retu
                 <span className="font-display text-[30px] leading-none">{aud(t.levelled ?? q.amount)}</span>
                 {many && a.vsBest !== null && a.vsBest > 0 && <span className="text-[13px] text-[#7a4a37]">+{aud(a.vsBest)} on the best</span>}
               </div>
-              <span className="text-[13px] text-[#5b6a52]">
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 {q.package
                   ? 'One price for everything you asked.'
                   : t.missing > 0
@@ -1436,14 +1436,14 @@ function Comparison({ rfq, cmp, today, onBook, onChange }: { rfq: Rfq; cmp: Retu
               </dl>
               {(q.includes || q.excludes || q.notes) && (
                 <details className="text-[13px]">
-                  <summary className="cursor-pointer text-[#33402f]">What’s in and out</summary>
-                  <div className="whitespace-pre-wrap pt-1 text-[#5b6a52]">{[q.includes && `✓ ${q.includes}`, q.excludes && `✗ ${q.excludes}`, q.notes].filter(Boolean).join('\n\n')}</div>
+                  <summary className="cursor-pointer text-[var(--adm-ink,#33402f)]">What’s in and out</summary>
+                  <div className="whitespace-pre-wrap pt-1 text-[var(--adm-muted,#5b6a52)]">{[q.includes && `✓ ${q.includes}`, q.excludes && `✗ ${q.excludes}`, q.notes].filter(Boolean).join('\n\n')}</div>
                 </details>
               )}
               <div className="flex flex-col gap-0 pt-1 border-t border-[#efe6d0]">
                 {TENDER_RATINGS.map((k) => (
                   <div key={k.key} className="flex items-center justify-between gap-2 text-[13px]" title={k.hint}>
-                    <span className="text-[#5b6a52]">{k.label}</span>
+                    <span className="text-[var(--adm-muted,#5b6a52)]">{k.label}</span>
                     <Stars value={c.rv.scores?.[k.key] ?? 0} label={`${k.label} for ${c.v.name}`} disabled={rfq.closed} onChange={(v) => rate(c.v.id, k.key, v)} />
                   </div>
                 ))}
@@ -1460,7 +1460,7 @@ function Comparison({ rfq, cmp, today, onBook, onChange }: { rfq: Rfq; cmp: Retu
                   </Pill>
                 )}
                 {q.fileId && (
-                  <a href={plannerApi.fileUrl(wid, q.fileId)} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+                  <a href={plannerApi.fileUrl(wid, q.fileId)} target="_blank" rel="noopener" className="text-[13px] !text-[var(--adm-ink,#33402f)]">
                     Their quote (file)
                   </a>
                 )}
@@ -1469,7 +1469,7 @@ function Comparison({ rfq, cmp, today, onBook, onChange }: { rfq: Rfq; cmp: Retu
           );
         })}
       </div>
-      {waitingOn.length > 0 && <span className="text-[13px] text-[#5b6a52]">Still waiting on {waitingOn.join(', ')}.</span>}
+      {waitingOn.length > 0 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Still waiting on {waitingOn.join(', ')}.</span>}
       {!rated && many && <span className="text-[12px] text-[#7a7466]">Rate each one with the stars: the order then weighs your feel for them with the price.</span>}
 
       <div className="flex gap-3 flex-wrap">
@@ -1494,9 +1494,9 @@ function LineTable({ cmp }: { cmp: ReturnType<typeof tenderAnalysis> }) {
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>
-            <th className="py-2 px-3 text-left font-semibold border-b border-[#d3c6a4] sticky left-0 bg-white">What</th>
+            <th className="py-2 px-3 text-left font-semibold border-b border-[var(--adm-line,#d3c6a4)] sticky left-0 bg-white">What</th>
             {cmp.cols.map((c) => (
-              <th key={c.v.id} className="py-2 px-3 text-right font-semibold border-b border-[#d3c6a4]">
+              <th key={c.v.id} className="py-2 px-3 text-right font-semibold border-b border-[var(--adm-line,#d3c6a4)]">
                 {c.v.name}
               </th>
             ))}

@@ -13,7 +13,7 @@ import { inputCls, Label } from '../ui';
 export const SAMPLE_DATE = '20.03.27';
 
 const radio = (on: boolean) =>
-  `flex flex-col items-center gap-1 p-[6px] rounded-[12px] border bg-white cursor-pointer text-[11px] leading-tight text-center text-[#33402f] ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[#e2d7bc] hover:border-[#b39563]'}`;
+  `flex flex-col items-center gap-1 p-[6px] rounded-[12px] border bg-white cursor-pointer text-[11px] leading-tight text-center text-[var(--adm-ink,#33402f)] ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#e2d7bc)] hover:border-[#b39563]'}`;
 
 export function SealPicker({
   inv,
@@ -50,13 +50,13 @@ export function SealPicker({
             <WaxSeal colour={colour} design={d} words={words()} px={64} still />
           </div>
         </div>
-        <span className="text-[13px] text-[#5b6a52] max-w-[260px]">
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] max-w-[260px]">
           {colour} seal · {SEAL_STYLE_INFO[style].label.toLowerCase()}
           {usesWords && words() ? ` · “${words()}”` : ''} · {paper ? ENVELOPE_PAPER_INFO[paper].label.toLowerCase() : 'your look’s own'} envelope. The preview beside follows once it saves.
         </span>
       </div>
 
-      <span className="text-[13px] font-semibold text-[#33402f]">Wax colour</span>
+      <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Wax colour</span>
       <div role="radiogroup" aria-label="Wax colour" className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(64px,1fr))]">
         {SEAL_COLOURS.map((c) => (
           <button key={c} type="button" role="radio" aria-checked={colour === c} aria-label={c} title={c} onClick={() => setInv({ seal: c })} className={radio(colour === c)}>
@@ -68,7 +68,7 @@ export function SealPicker({
         ))}
       </div>
 
-      <span className="text-[13px] font-semibold text-[#33402f]">Seal design</span>
+      <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Seal design</span>
       <div role="radiogroup" aria-label="Seal design" className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(92px,1fr))]">
         {SEAL_STYLES.map((s) => (
           <button key={s} type="button" role="radio" aria-checked={style === s} title={SEAL_STYLE_INFO[s].hint} onClick={() => setD({ style: s })} className={radio(style === s)}>
@@ -112,7 +112,7 @@ export function SealPicker({
           : 'This design has no words: just the pressed motif.'}
       </span>
 
-      <span className="text-[13px] font-semibold text-[#33402f]">Envelope colour</span>
+      <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Envelope colour</span>
       <div role="radiogroup" aria-label="Envelope colour" className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(76px,1fr))]">
         <button type="button" role="radio" aria-checked={!paper} onClick={() => setInv({ envelope: { ...inv.envelope, paper: undefined } })} className={radio(!paper)}>
           <span className="block w-[44px] h-[30px] rounded-[4px] border border-black/10" style={{ background: look.e1 ?? '#e6dcc4' }} />

@@ -24,12 +24,12 @@ import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivit
  * marketing sees promotions, support sees couples and feedback, and so on.
  */
 
-const INK = '#33402f';
+const INK = '#3a2532';
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
-const input = 'w-full py-[9px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px] sm:text-[15px] text-[#33402f]';
-const btn = 'py-[9px] px-4 rounded-[10px] border border-[#d5d8cf] bg-white text-[14px] font-medium cursor-pointer text-[#1b2218] hover:bg-[#f3f4ef] disabled:opacity-60';
-const primary = 'py-[9px] px-4 rounded-[10px] border-0 bg-[#1b2218] text-[#f3ecd6] text-[14px] font-semibold cursor-pointer hover:bg-[#2c3828] disabled:opacity-60';
-const card = 'flex flex-col gap-3 p-5 rounded-[14px] border border-[#e4e6df] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)]';
+const input = 'w-full py-[9px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px] sm:text-[15px] text-[#3a2532]';
+const btn = 'py-[9px] px-4 rounded-[10px] border border-[#e3cfc6] bg-white text-[14px] font-medium cursor-pointer text-[#2a1c26] hover:bg-[#fbf5f0] disabled:opacity-60';
+const primary = 'py-[9px] px-4 rounded-[10px] border-0 bg-[#2a1c26] text-[#f3ecd6] text-[14px] font-semibold cursor-pointer hover:bg-[#2a1c26] disabled:opacity-60';
+const card = 'flex flex-col gap-3 p-5 rounded-[14px] border border-[#ecdcd2] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)]';
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-AU', { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 const PLAN_NAME: Record<string, string> = { free: 'Basic, not paid yet', basic: 'Basic', essentials: 'Essentials', complete: 'Deluxe', trial: 'Founders (everything)' };
@@ -100,7 +100,7 @@ function Portal() {
     window.scrollTo({ top: 0 });
   };
 
-  if (who === 'loading') return <div className="fixed inset-0 bg-[#f3f4ef]" aria-busy="true" />;
+  if (who === 'loading') return <div className="fixed inset-0 bg-[#fbf5f0]" aria-busy="true" />;
   // Signed out: the one sign-in, right here; the company's account lands straight in the portal.
   if (who === 'out')
     return (
@@ -116,7 +116,7 @@ function Portal() {
     );
   if (who !== 'yes')
     return (
-      <main className="min-h-screen bg-[#f3f4ef] flex items-center justify-center p-6 text-center" style={{ color: INK, fontFamily: sans }}>
+      <main className="min-h-screen bg-[#fbf5f0] flex items-center justify-center p-6 text-center" style={{ color: INK, fontFamily: sans }}>
         <div className="flex flex-col gap-3 max-w-[420px]">
           <h1 className="m-0 text-[28px] font-semibold">
             Company portal
@@ -138,7 +138,7 @@ function Portal() {
       type="button"
       aria-current={shown === k ? 'page' : undefined}
       onClick={() => go(k)}
-      className={`flex items-center gap-3 w-full py-[9px] px-3 rounded-[10px] border-0 text-left text-[14px] cursor-pointer ${shown === k ? 'bg-[rgba(230,207,158,.14)] text-[#fbf8f2] font-semibold shadow-[inset_3px_0_0_#e6cf9e]' : 'bg-transparent text-[#c9c4b2] hover:bg-[rgba(255,255,255,.05)] hover:text-[#fbf8f2]'}`}
+      className={`flex items-center gap-3 w-full py-[9px] px-3 rounded-[10px] border-0 text-left text-[14px] cursor-pointer ${shown === k ? 'bg-[rgba(230,207,158,.14)] text-[#fbf8f2] font-semibold shadow-[inset_3px_0_0_#e6cf9e]' : 'bg-transparent text-[#d9c3c6] hover:bg-[rgba(255,255,255,.05)] hover:text-[#fbf8f2]'}`}
     >
       <span aria-hidden className="w-5 text-center opacity-90">
         {ICON[k]}
@@ -148,11 +148,11 @@ function Portal() {
   );
   return (
     <RoleCtx.Provider value={{ role, perms }}>
-      <div className="min-h-screen bg-[#f3f4ef] md:grid md:grid-cols-[248px_minmax(0,1fr)]" style={{ color: '#1b2218', fontFamily: sans }}>
+      <div className="min-h-screen bg-[#fbf5f0] md:grid md:grid-cols-[248px_minmax(0,1fr)]" style={{ color: '#2a1c26', fontFamily: sans, backgroundImage: 'radial-gradient(1200px 420px at 70% -120px, #f6e6e0, transparent 70%)' }}>
         {/* Wide screens: a dark sidebar. Phones: a dark bar with the sections in a scrolling row. */}
-        <aside className="hidden md:flex flex-col gap-1 sticky top-0 h-screen p-4 text-[#f3ecd6]" style={{ background: 'linear-gradient(180deg, #1b2218, #232c1f)' }}>
+        <aside className="hidden md:flex flex-col gap-1 sticky top-0 h-screen p-4 text-[#f3ecd6]" style={{ background: 'radial-gradient(420px 260px at 20% -40px, rgba(255,240,225,.14), transparent 70%), linear-gradient(180deg, #3d2634, #2a1c26)', borderRight: '1px solid rgba(214,183,128,.4)' }}>
           <div className="flex items-center gap-3 px-1 pb-4 mb-2 border-b border-[rgba(243,236,214,.12)]">
-            <span className="rounded-[12px] p-[5px] bg-[#f6f0e2]">
+            <span className="rounded-[12px] p-[5px] bg-[#fbf2ec]">
               <LogoMark size={30} />
             </span>
             <span className="flex flex-col leading-tight">
@@ -164,15 +164,15 @@ function Portal() {
             {tabs.map(([k, text]) => navItem(k, text))}
           </nav>
           <div className="pt-3 border-t border-[rgba(243,236,214,.12)] flex flex-col gap-2">
-            {role && <span className="text-[12px] text-[#c9c4b2]">Signed in as {roleLabel || role}</span>}
+            {role && <span className="text-[12px] text-[#d9c3c6]">Signed in as {roleLabel || role}</span>}
             <ProfileSwitch here="company" />
           </div>
         </aside>
         <div className="min-w-0">
-          <header className="md:hidden sticky top-0 z-10 text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))]" style={{ background: '#1b2218' }}>
+          <header className="md:hidden sticky top-0 z-10 text-[#f3ecd6] px-4 pt-[max(10px,env(safe-area-inset-top))]" style={{ background: '#2a1c26' }}>
             <div className="flex items-center justify-between gap-3">
               <span className="flex items-center gap-2">
-                <span className="rounded-[10px] p-[3px] bg-[#f6f0e2]">
+                <span className="rounded-[10px] p-[3px] bg-[#fbf2ec]">
                   <LogoMark size={24} />
                 </span>
                 <strong className="text-[15px] font-semibold">Company</strong>
@@ -186,18 +186,18 @@ function Portal() {
                   type="button"
                   aria-current={shown === k ? 'page' : undefined}
                   onClick={() => go(k)}
-                  className={`flex-none py-[10px] px-3 border-0 border-b-[3px] bg-transparent text-[14px] cursor-pointer ${shown === k ? 'border-b-[#e6cf9e] text-[#fbf8f2] font-semibold' : 'border-b-transparent text-[#c9c4b2]'}`}
+                  className={`flex-none py-[10px] px-3 border-0 border-b-[3px] bg-transparent text-[14px] cursor-pointer ${shown === k ? 'border-b-[#e6cf9e] text-[#fbf8f2] font-semibold' : 'border-b-transparent text-[#d9c3c6]'}`}
                 >
                   {text}
                 </button>
               ))}
             </nav>
           </header>
-          <div className="hidden md:flex items-center justify-between gap-3 px-8 py-4 border-b border-[#e4e6df] bg-white">
-            <span className="text-[13px] text-[#5f6a58]">
-              Company <span aria-hidden>›</span> <strong className="text-[#1b2218] font-semibold">{label}</strong>
+          <div className="hidden md:flex items-center justify-between gap-3 px-8 py-4 border-b border-[#ecdcd2] bg-white">
+            <span className="text-[13px] text-[#6e6068]">
+              Company <span aria-hidden>›</span> <strong className="text-[#2a1c26] font-semibold">{label}</strong>
             </span>
-            <a href="/" target="_blank" rel="noopener" className="text-[13px] !text-[#5f6a58]">
+            <a href="/" target="_blank" rel="noopener" className="text-[13px] !text-[#6e6068]">
               View the front page ↗
             </a>
           </div>
@@ -215,7 +215,7 @@ function Portal() {
           </main>
         </div>
         {note && (
-          <div role="status" className="fixed z-20 inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] mx-auto max-w-[460px] py-3 px-4 rounded-[12px] bg-[#1b2218] text-[#f3ecd6] text-[15px] text-center shadow-[0_8px_24px_rgba(0,0,0,.25)]">
+          <div role="status" className="fixed z-20 inset-x-4 bottom-[max(16px,env(safe-area-inset-bottom))] mx-auto max-w-[460px] py-3 px-4 rounded-[12px] bg-[#2a1c26] text-[#f3ecd6] text-[15px] text-center shadow-[0_8px_24px_rgba(0,0,0,.25)]">
             {note}
           </div>
         )}
@@ -245,16 +245,16 @@ const Problem = ({ text }: { text: string }) => (
 const H = ({ children, sub }: { children: ReactNode; sub?: string }) => (
   <div>
     <h2 className="m-0 text-[19px] font-semibold leading-tight tracking-[-.01em]">{children}</h2>
-    {sub && <p className="m-0 mt-1 text-[14px] text-[#5f6a58]">{sub}</p>}
+    {sub && <p className="m-0 mt-1 text-[14px] text-[#6e6068]">{sub}</p>}
   </div>
 );
 
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="flex flex-col gap-1 p-4 rounded-[14px] border border-[#e4e6df] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)] border-t-[3px] border-t-[#c8a46a]">
-      <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[#5f6a58]">{label}</span>
-      <span className="text-[30px] leading-none font-semibold tracking-[-.02em] text-[#1b2218]">{value}</span>
-      {sub && <span className="text-[12px] text-[#5b6a52]">{sub}</span>}
+    <div className="flex flex-col gap-1 p-4 rounded-[14px] border border-[#ecdcd2] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)] border-t-[3px] border-t-[#c8a46a]">
+      <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[#6e6068]">{label}</span>
+      <span className="text-[30px] leading-none font-semibold tracking-[-.02em] text-[#2a1c26]">{value}</span>
+      {sub && <span className="text-[12px] text-[#6e6068]">{sub}</span>}
     </div>
   );
 }
@@ -265,7 +265,7 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
   const { data: s, error } = useLoad(companyApi.stats);
   const fb = useLoad(useCallback(() => (seeFeedback ? companyApi.feedback() : Promise.resolve({ feedback: [] as CompanyFeedback[], counts: {} as Record<string, number> })), [seeFeedback]));
   if (error) return <Problem text={error} />;
-  if (!s) return <p className="text-[#5b6a52]">Loading…</p>;
+  if (!s) return <p className="text-[#6e6068]">Loading…</p>;
   const max = Math.max(1, ...s.signups.weekly.map((w) => w.n));
   const paidPlans = (s.plans.essentials ?? 0) + (s.plans.complete ?? 0);
   const fresh = fb.data?.counts.new ?? 0;
@@ -289,16 +289,16 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
         <H>To do</H>
         {todo.length ? (
           todo.map((t) => (
-            <button key={t.to} type="button" onClick={() => onGo(t.to)} className="flex items-center justify-between gap-3 p-3 rounded-[12px] border border-[#ecd9ae] bg-[#fbf3e1] text-left cursor-pointer text-[#33402f]">
+            <button key={t.to} type="button" onClick={() => onGo(t.to)} className="flex items-center justify-between gap-3 p-3 rounded-[12px] border border-[#ecd9ae] bg-[#fbf3e1] text-left cursor-pointer text-[#3a2532]">
               <span>
                 <strong className="block text-[16px]">{t.text}</strong>
-                <span className="text-[14px] text-[#5b6a52]">{t.sub}</span>
+                <span className="text-[14px] text-[#6e6068]">{t.sub}</span>
               </span>
               <span aria-hidden>→</span>
             </button>
           ))
         ) : (
-          <p className="m-0 text-[15px] text-[#5b6a52]">All done: no plan requests or new feedback waiting.</p>
+          <p className="m-0 text-[15px] text-[#6e6068]">All done: no plan requests or new feedback waiting.</p>
         )}
       </section>
       <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -314,14 +314,14 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
             const h = (w.n / max) * 110;
             return (
               <g key={w.weekOf}>
-                <rect x={i * 30 + 4} y={120 - h} width={22} height={Math.max(h, 1)} rx={4} fill={i === s.signups.weekly.length - 1 ? '#a9b98d' : INK} />
+                <rect x={i * 30 + 4} y={120 - h} width={22} height={Math.max(h, 1)} rx={4} fill={i === s.signups.weekly.length - 1 ? '#c99aa6' : INK} />
                 {w.n > 0 && (
                   <text x={i * 30 + 15} y={116 - h} textAnchor="middle" fontSize="10" fill={INK}>
                     {w.n}
                   </text>
                 )}
                 {i % 3 === 0 && (
-                  <text x={i * 30 + 15} y={136} textAnchor="middle" fontSize="9" fill="#5b6a52">
+                  <text x={i * 30 + 15} y={136} textAnchor="middle" fontSize="9" fill="#6e6068">
                     {new Date(w.weekOf).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
                   </text>
                 )}
@@ -351,16 +351,16 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
         <div className={card}>
           <H>Across the app</H>
           <dl className="m-0 grid grid-cols-2 gap-2 text-[14px]">
-            <dt className="text-[#5b6a52]">Vendors listed</dt>
+            <dt className="text-[#6e6068]">Vendors listed</dt>
             <dd className="m-0 font-semibold">{s.directory.listings}</dd>
-            <dt className="text-[#5b6a52]">Enquiries to vendors</dt>
+            <dt className="text-[#6e6068]">Enquiries to vendors</dt>
             <dd className="m-0 font-semibold">{s.directory.enquiries}</dd>
-            <dt className="text-[#5b6a52]">Quote requests</dt>
+            <dt className="text-[#6e6068]">Quote requests</dt>
             <dd className="m-0 font-semibold">{s.quoteRequests}</dd>
-            <dt className="text-[#5b6a52]">Said yes to news</dt>
+            <dt className="text-[#6e6068]">Said yes to news</dt>
             <dd className="m-0 font-semibold">{s.optIns}</dd>
           </dl>
-          <button type="button" onClick={() => onGo('promote')} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]">
+          <button type="button" onClick={() => onGo('promote')} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#3a2532]">
             Where sign-ups came from →
           </button>
         </div>
@@ -387,15 +387,15 @@ function Weddings({ onNote }: { onNote: (s: string) => void }) {
       <div className="flex gap-2 flex-wrap items-center">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" aria-label="Search weddings" className={`${input} max-w-[360px]`} />
         <label className="flex items-center gap-2 text-[14px] cursor-pointer">
-          <input type="checkbox" checked={onlyRequests} onChange={(e) => setOnlyRequests(e.target.checked)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+          <input type="checkbox" checked={onlyRequests} onChange={(e) => setOnlyRequests(e.target.checked)} className="w-[18px] h-[18px] accent-[#7a3b4f]" />
           Plan requests only
         </label>
       </div>
       {error && <Problem text={error} />}
       {!list ? (
-        <p className="text-[#5b6a52]">Loading…</p>
+        <p className="text-[#6e6068]">Loading…</p>
       ) : !list.length ? (
-        <p className="text-[#5b6a52]">No weddings found.</p>
+        <p className="text-[#6e6068]">No weddings found.</p>
       ) : (
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {list.map((w) => (
@@ -434,20 +434,20 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
     }
   };
   return (
-    <li className={`flex flex-col gap-2 p-3 rounded-[14px] border ${w.requested ? 'border-[#ecd9ae] bg-[#fbf3e1]' : 'border-[#e4e6df] bg-white'}`}>
+    <li className={`flex flex-col gap-2 p-3 rounded-[14px] border ${w.requested ? 'border-[#ecd9ae] bg-[#fbf3e1]' : 'border-[#ecdcd2] bg-white'}`}>
       <div className="flex justify-between items-baseline gap-2 flex-wrap">
         <strong className="text-[16px]">{w.names}</strong>
-        <span className="text-[13px] text-[#5b6a52]">
+        <span className="text-[13px] text-[#6e6068]">
           {PLAN_NAME[w.plan] ?? w.plan}
           {w.extraEvents ? ` + ${w.extraEvents} extra ${w.extraEvents === 1 ? 'event' : 'events'}` : ''}
         </span>
       </div>
-      <span className="text-[13px] text-[#5b6a52] break-words">
+      <span className="text-[13px] text-[#6e6068] break-words">
         {[w.day && `Day ${day(w.day)}`, `${w.guests} guests`, `joined ${day(w.createdAt)}`, w.paidCents > 0 && `paid ${money(w.paidCents)}`, w.ref && `from ${w.ref}`].filter(Boolean).join(' · ')}
         {w.email && (
           <>
             {' · '}
-            <a href={`mailto:${w.email}`} className="!text-[#33402f]">
+            <a href={`mailto:${w.email}`} className="!text-[#3a2532]">
               {w.email}
             </a>
           </>
@@ -472,7 +472,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
         </button>
           </>
         )}
-        <a href={`/w/${encodeURIComponent(w.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+        <a href={`/w/${encodeURIComponent(w.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#3a2532]">
           Their page
         </a>
         {can('money') && w.paidCents > 0 && <Refund w={w} onDone={onSaved} />}
@@ -532,7 +532,7 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
         {price ? ` · ${money(price)}` : ''}
       </span>
       <div className={step}>
-        <span className={num} style={{ background: sent ? '#a9b98d' : '#ecd9ae' }}>{sent ? '✓' : '1'}</span>
+        <span className={num} style={{ background: sent ? '#c99aa6' : '#ecd9ae' }}>{sent ? '✓' : '1'}</span>
         <span className="flex-1 min-w-[160px] text-[14px]">{sent ? `Payment link sent ${day(sent)}` : 'Send the payment link'}</span>
         <button type="button" className={sent ? btn : primary} disabled={!!busy} onClick={() => void sendLink()}>
           {busy === 'link' ? 'Sending…' : sent ? 'Send again' : 'Email it'}
@@ -541,7 +541,7 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
       {byHand && (
         <p className="m-0 text-[13px] text-[#6b4f1d] break-words">
           Email isn’t set up, so send it yourself:{' '}
-          <a href={`mailto:${byHand.email}?subject=${encodeURIComponent('Your payment link')}&body=${encodeURIComponent(byHand.link)}`} className="!text-[#33402f]">
+          <a href={`mailto:${byHand.email}?subject=${encodeURIComponent('Your payment link')}&body=${encodeURIComponent(byHand.link)}`} className="!text-[#3a2532]">
             email {byHand.email}
           </a>{' '}
           with {byHand.link}
@@ -563,7 +563,7 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
         )}
       </div>
       {can('money') && (
-        <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5b6a52]" disabled={!!busy} onClick={() => void notNow()}>
+        <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]" disabled={!!busy} onClick={() => void notNow()}>
           Not now: clear the request
         </button>
       )}
@@ -596,7 +596,7 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
   const [show, setShow] = useState<CompanyFeedback['status']>('new');
   const [mine, setMine] = useState(false);
   if (error) return <Problem text={error} />;
-  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  if (!data) return <p className="text-[#6e6068]">Loading…</p>;
   const meId = team.data?.me.id ?? '';
   const list = data.feedback.filter((f) => f.status === show && (!mine || f.assignee === meId));
   return (
@@ -604,17 +604,17 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
       <H sub="From Help → Tell us. Plan it with a short note (“Seating: bigger rooms”) and every couple sees it under “Coming from your feedback”.">Feedback and updates</H>
       <div className="flex gap-1 flex-wrap" role="tablist" aria-label="Feedback by status">
         {FB_STATUS.map(([k, label]) => (
-          <button key={k} type="button" role="tab" aria-selected={show === k} onClick={() => setShow(k)} className={`py-[7px] px-4 rounded-full border text-[14px] cursor-pointer ${show === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[#c6b794] bg-white text-[#33402f]'}`}>
+          <button key={k} type="button" role="tab" aria-selected={show === k} onClick={() => setShow(k)} className={`py-[7px] px-4 rounded-full border text-[14px] cursor-pointer ${show === k ? 'border-[#3a2532] bg-[#3a2532] text-[#fbf8f2]' : 'border-[#c6b794] bg-white text-[#3a2532]'}`}>
             {label} {data.counts[k] ?? 0}
           </button>
         ))}
         <label className="flex items-center gap-2 text-[14px] cursor-pointer ml-auto">
-          <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+          <input type="checkbox" checked={mine} onChange={(e) => setMine(e.target.checked)} className="w-[18px] h-[18px] accent-[#7a3b4f]" />
           Only mine
         </label>
       </div>
       {!list.length ? (
-        <p className="text-[#5b6a52]">{show === 'new' ? 'Nothing new. Couples send feedback from the Feedback & ideas button on every page (or Help → Tell us); their first earns them 100 free text credits.' : 'None here.'}</p>
+        <p className="text-[#6e6068]">{show === 'new' ? 'Nothing new. Couples send feedback from the Feedback & ideas button on every page (or Help → Tell us); their first earns them 100 free text credits.' : 'None here.'}</p>
       ) : (
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {list.map((f) => (
@@ -650,13 +650,13 @@ function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { i
   const save = (status: CompanyFeedback['status']) =>
     update({ status, note, ...(status === 'in_progress' && !f.assignee && meId ? { assignee: meId } : {}) }, `Moved to ${FB_STATUS.find(([k]) => k === status)![1].toLowerCase()}`);
   return (
-    <li className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#e4e6df] bg-white">
-      <span className="text-[13px] text-[#5b6a52]">
+    <li className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#ecdcd2] bg-white">
+      <span className="text-[13px] text-[#6e6068]">
         {[FB_KIND[f.kind] ?? f.kind, f.names, day(f.createdAt)].filter(Boolean).join(' · ')}
         {f.email && (
           <>
             {' · '}
-            <a href={`mailto:${f.email}`} className="!text-[#33402f]">
+            <a href={`mailto:${f.email}`} className="!text-[#3a2532]">
               {f.email}
             </a>
           </>
@@ -758,35 +758,35 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
         <H sub="Couples type these when they pay (Upgrade → Have a promo code?). 100% off switches the plan on without a card: good for friends, influencers and giveaways.">Promo codes</H>
         {promos.error && <Problem text={promos.error} />}
         {codes?.map((c, i) => (
-          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] bg-white border border-[#ece3cd]">
+          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] bg-white border border-[#f1e2da]">
             <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
                 Code
                 <input value={c.code} maxLength={24} onChange={(e) => set(i, { code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '') })} className={`${input} uppercase`} />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
                 % off
                 <input type="number" min={0} max={100} value={c.percentOff} onChange={(e) => set(i, { percentOff: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} className={input} />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
                 Or $ off
                 <input type="number" min={0} value={c.amountOffCents / 100 || ''} placeholder="0" onChange={(e) => set(i, { amountOffCents: Math.max(0, Math.round((Number(e.target.value) || 0) * 100)) })} className={input} />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
                 Last day
                 <input type="date" value={c.expires} onChange={(e) => set(i, { expires: e.target.value })} className={input} />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+              <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
                 Uses allowed (0 = any)
                 <input type="number" min={0} value={c.maxUses} onChange={(e) => set(i, { maxUses: Math.max(0, Number(e.target.value) || 0) })} className={input} />
               </label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] col-span-2 sm:col-span-3">
+              <label className="flex flex-col gap-1 text-[12px] text-[#6e6068] col-span-2 sm:col-span-3">
                 Note (for you)
                 <input value={c.note} maxLength={120} placeholder="e.g. Launch week, Instagram" onChange={(e) => set(i, { note: e.target.value })} className={input} />
               </label>
             </div>
             <div className="flex gap-3 flex-wrap items-center text-[14px]">
-              <span className="text-[#5b6a52]">For:</span>
+              <span className="text-[#6e6068]">For:</span>
               {(
                 [
                   ['essentials', 'Essentials'],
@@ -800,15 +800,15 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
                     const cur = c.plans.length ? c.plans : [...all];
                     const next = e.target.checked ? [...new Set([...cur, k])] : cur.filter((x) => x !== k);
                     set(i, { plans: next.length === all.length ? [] : next });
-                  }} className="accent-[#5d6b47]" />
+                  }} className="accent-[#7a3b4f]" />
                   {label}
                 </label>
               ))}
               <label className="flex items-center gap-1 cursor-pointer ml-auto">
-                <input type="checkbox" checked={c.on} onChange={(e) => set(i, { on: e.target.checked })} className="accent-[#5d6b47]" />
+                <input type="checkbox" checked={c.on} onChange={(e) => set(i, { on: e.target.checked })} className="accent-[#7a3b4f]" />
                 On
               </label>
-              <span className="text-[#5b6a52]">Used {c.used}{c.maxUses ? ` of ${c.maxUses}` : ''}</span>
+              <span className="text-[#6e6068]">Used {c.used}{c.maxUses ? ` of ${c.maxUses}` : ''}</span>
               <button type="button" onClick={() => setCodes(codes!.filter((_, j) => j !== i))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#7a4a37]">
                 Remove
               </button>
@@ -839,11 +839,11 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
       <section className={card} aria-label="Campaign links">
         <H sub="Add ?ref= to any link you share: sign-ups that came through it are counted here. Each wedding’s “Made with” link counts as that wedding.">Campaign links and where sign-ups came from</H>
         <div className="flex gap-2 flex-wrap items-end">
-          <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
             Where you’ll post it
             <input value={source} onChange={(e) => setSource(e.target.value)} placeholder="instagram, tiktok, expo-2026…" className={`${input} w-[220px]`} />
           </label>
-          <code className="py-[9px] px-3 rounded-[10px] bg-white border border-[#ece3cd] text-[13px] break-all">{link}</code>
+          <code className="py-[9px] px-3 rounded-[10px] bg-white border border-[#f1e2da] text-[13px] break-all">{link}</code>
           <button type="button" className={btn} onClick={() => void copy(link, 'Link')}>
             Copy link
           </button>
@@ -851,7 +851,7 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
         {stats.data && (
           <table className="w-full border-collapse text-[14px]">
             <thead>
-              <tr className="text-left text-[12px] uppercase tracking-[.1em] text-[#5b6a52]">
+              <tr className="text-left text-[12px] uppercase tracking-[.1em] text-[#6e6068]">
                 <th className="py-2 font-semibold">Source</th>
                 <th className="py-2 font-semibold text-right">Sign-ups</th>
                 <th className="py-2 font-semibold text-right">Paying</th>
@@ -859,7 +859,7 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
             </thead>
             <tbody>
               {stats.data.referrals.map((r) => (
-                <tr key={r.ref} className="border-t border-[#ece3cd]">
+                <tr key={r.ref} className="border-t border-[#f1e2da]">
                   <td className="py-2 break-all">{r.ref}</td>
                   <td className="py-2 text-right">{r.n}</td>
                   <td className="py-2 text-right">{r.paid}</td>
@@ -867,7 +867,7 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
               ))}
               {!stats.data.referrals.length && (
                 <tr>
-                  <td colSpan={3} className="py-2 text-[#5b6a52]">
+                  <td colSpan={3} className="py-2 text-[#6e6068]">
                     No referred sign-ups yet.
                   </td>
                 </tr>
@@ -881,18 +881,18 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
         <H sub={`Captions with your campaign link${live ? ` and code ${live.code}` : ''} filled in. Change the source above for each place you post.`}>Ready to post</H>
         <div className="grid gap-3 md:grid-cols-2">
           {posts.map(([title, text]) => (
-            <div key={title} className="flex flex-col gap-2 p-3 rounded-[12px] bg-white border border-[#ece3cd]">
+            <div key={title} className="flex flex-col gap-2 p-3 rounded-[12px] bg-white border border-[#f1e2da]">
               <strong className="text-[15px]">{title}</strong>
-              <p className="m-0 text-[14px] whitespace-pre-wrap text-[#5b6a52]">{text}</p>
+              <p className="m-0 text-[14px] whitespace-pre-wrap text-[#6e6068]">{text}</p>
               <button type="button" className={`${btn} self-start`} onClick={() => void copy(text, title)}>
                 Copy
               </button>
             </div>
           ))}
         </div>
-        <span className="text-[13px] text-[#5b6a52]">
-          Share images: <a href="/og.png" target="_blank" rel="noopener" className="!text-[#33402f]">the app</a> ·{' '}
-          <a href="/og-invite.png" target="_blank" rel="noopener" className="!text-[#33402f]">an invitation</a> · the <a href="/demo" target="_blank" rel="noopener" className="!text-[#33402f]">sample invitation</a> (screen-record it opening for Reels).
+        <span className="text-[13px] text-[#6e6068]">
+          Share images: <a href="/og.png" target="_blank" rel="noopener" className="!text-[#3a2532]">the app</a> ·{' '}
+          <a href="/og-invite.png" target="_blank" rel="noopener" className="!text-[#3a2532]">an invitation</a> · the <a href="/demo" target="_blank" rel="noopener" className="!text-[#3a2532]">sample invitation</a> (screen-record it opening for Reels).
         </span>
       </section>
 
@@ -925,13 +925,13 @@ function BannerCard({ s, onSaved }: { s: CompanySettings; onSaved: (s: CompanySe
     <section className={card} aria-label="Front-page banner">
       <H sub="A line across the top of the front page: a launch offer, a giveaway, news.">Front-page banner</H>
       <label className="flex items-center gap-2 text-[14px] cursor-pointer">
-        <input type="checkbox" checked={b.on} onChange={(e) => setB({ ...b, on: e.target.checked })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+        <input type="checkbox" checked={b.on} onChange={(e) => setB({ ...b, on: e.target.checked })} className="w-[18px] h-[18px] accent-[#7a3b4f]" />
         Show it
       </label>
       <input value={b.text} maxLength={160} placeholder="e.g. Launch week: 20% off with code YES20" onChange={(e) => setB({ ...b, text: e.target.value })} className={input} aria-label="Banner text" />
       <input value={b.link} maxLength={300} placeholder="Link (optional): /#pricing or https://…" onChange={(e) => setB({ ...b, link: e.target.value })} className={input} aria-label="Banner link" />
       {b.on && b.text && (
-        <div className="px-4 py-2 rounded-[10px] text-center text-[14px] bg-[#33402f] text-[#fbf8f2]" aria-label="Preview">
+        <div className="px-4 py-2 rounded-[10px] text-center text-[14px] bg-[#3a2532] text-[#fbf8f2]" aria-label="Preview">
           {b.text}
         </div>
       )}
@@ -960,18 +960,18 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
       <H sub="Vendors who listed themselves in the directory. Each gets a partner code: their couples get 10% off, and you see how many used it. Hide anything that shouldn’t be there.">Vendor directory</H>
       {error && <Problem text={error} />}
       {!data ? (
-        <p className="text-[#5b6a52]">Loading…</p>
+        <p className="text-[#6e6068]">Loading…</p>
       ) : !data.listings.length ? (
-        <p className="text-[#5b6a52]">No vendors have listed yet. Share {window.location.origin}/vendors/join with vendors you know.</p>
+        <p className="text-[#6e6068]">No vendors have listed yet. Share {window.location.origin}/vendors/join with vendors you know.</p>
       ) : (
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {data.listings.map((l) => (
-            <li key={l.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-[14px] border ${l.hidden ? 'border-[#e8d6cf] bg-[#f6ece8]' : 'border-[#e4e6df] bg-white'}`}>
+            <li key={l.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-[14px] border ${l.hidden ? 'border-[#e8d6cf] bg-[#f6ece8]' : 'border-[#ecdcd2] bg-white'}`}>
               <span className="flex-1 min-w-[200px]">
                 <strong className="block text-[15px]">{l.name}</strong>
-                <span className="text-[13px] text-[#5b6a52]">
+                <span className="text-[13px] text-[#6e6068]">
                   {[l.category, l.region, `${l.enquiries} enquiries`, `listed ${day(l.created_at)}`].join(' · ')} ·{' '}
-                  <a href={`mailto:${l.email}`} className="!text-[#33402f]">
+                  <a href={`mailto:${l.email}`} className="!text-[#3a2532]">
                     {l.email}
                   </a>
                 </span>
@@ -994,7 +994,7 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
                   Make their code
                 </button>
               )}
-              <a href={`/vendors/${encodeURIComponent(l.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+              <a href={`/vendors/${encodeURIComponent(l.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#3a2532]">
                 View
               </a>
               <button type="button" className={btn} onClick={() => void toggle(l)}>
@@ -1017,7 +1017,7 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
     if (data) setS(data);
   }, [data]);
   if (error) return <Problem text={error} />;
-  if (!s) return <p className="text-[#5b6a52]">Loading…</p>;
+  if (!s) return <p className="text-[#6e6068]">Loading…</p>;
   const save = async () => {
     setBusy(true);
     setProblem('');
@@ -1050,7 +1050,7 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
         <H sub="When a couple asks for a plan, Couples → Email it sends the matching link. Make one per plan in Stripe (Payment Links) or your bank; they start with https://.">Payment links</H>
         <div className="grid gap-3 sm:grid-cols-3">
           {LINKS.map(([k, label]) => (
-            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
               {label}
               <input value={s.paymentLinks[k]} placeholder="https://buy.stripe.com/…" onChange={(e) => setS({ ...s, paymentLinks: { ...s.paymentLinks, [k]: e.target.value.trim() } })} className={input} />
             </label>
@@ -1061,16 +1061,16 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
         <H sub="Shown at the foot of the front page. Leave any blank to hide it.">Social accounts</H>
         <div className="grid gap-3 sm:grid-cols-2">
           {SOCIAL.map(([k, label, ph]) => (
-            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
               {label}
               <input value={s.social[k]} placeholder={ph} onChange={(e) => setS({ ...s, social: { ...s.social, [k]: e.target.value.trim() } })} className={input} />
             </label>
           ))}
-          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
             Support email
             <input type="email" value={s.supportEmail} placeholder="hello@…" onChange={(e) => setS({ ...s, supportEmail: e.target.value.trim() })} className={input} />
           </label>
-          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
             Google review link (asked of every couple after feedback, never rewarded)
             <input value={s.googleReview ?? ''} placeholder="https://g.page/r/…/review" onChange={(e) => setS({ ...s, googleReview: e.target.value.trim() })} className={input} />
           </label>
@@ -1079,7 +1079,7 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
       <section className={card} aria-label="Made with">
         <H sub="Free-plan invitations carry a small “Made with The Yes List · make your own” at the bottom, linking here with the wedding counted as the referrer. Paid plans (Essentials, Deluxe, Founders) never show it.">On guest pages</H>
         <label className="flex items-center gap-2 text-[15px] cursor-pointer">
-          <input type="checkbox" checked={s.madeWith} onChange={(e) => setS({ ...s, madeWith: e.target.checked })} className="w-[20px] h-[20px] accent-[#5d6b47]" />
+          <input type="checkbox" checked={s.madeWith} onChange={(e) => setS({ ...s, madeWith: e.target.checked })} className="w-[20px] h-[20px] accent-[#7a3b4f]" />
           Show “Made with The Yes List” on Free-plan invitations
         </label>
       </section>
@@ -1156,17 +1156,17 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
     }
   };
   if (error) return <Problem text={error} />;
-  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  if (!data) return <p className="text-[#6e6068]">Loading…</p>;
   return (
     <>
       <section className={card} aria-label="Invite someone">
         <H sub="They get a link (a week, once) to set up their sign-in. Each role sees only its part of the portal.">Invite someone</H>
         <div className="flex gap-2 flex-wrap items-end">
-          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52] flex-1 min-w-[220px]">
+          <label className="flex flex-col gap-1 text-[13px] text-[#6e6068] flex-1 min-w-[220px]">
             Email
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value.trim())} placeholder="name@…" className={input} />
           </label>
-          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
             Role
             <select value={role} onChange={(e) => setRole(e.target.value)} className={`${input} w-auto`}>
               {options.map((r) => (
@@ -1180,7 +1180,7 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
             {busy ? 'Inviting…' : 'Invite'}
           </button>
         </div>
-        <p className="m-0 text-[14px] text-[#5b6a52]">{options.find((r) => r.key === role)?.does ?? ''}</p>
+        <p className="m-0 text-[14px] text-[#6e6068]">{options.find((r) => r.key === role)?.does ?? ''}</p>
         {link && (
           <p className="m-0 text-[14px] break-all">
             Email isn’t set up, so send them this link yourself: <strong>{link}</strong>
@@ -1192,10 +1192,10 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
         <H>The team</H>
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {data.staff.map((m: CompanyStaff) => (
-            <li key={m.id} className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-white border border-[#ece3cd]">
+            <li key={m.id} className="flex flex-wrap items-center gap-3 p-3 rounded-[12px] bg-white border border-[#f1e2da]">
               <span className="flex-1 min-w-[200px]">
                 <strong className="block text-[15px]">{m.name}</strong>
-                <span className="text-[13px] text-[#5b6a52]">
+                <span className="text-[13px] text-[#6e6068]">
                   {m.email}
                   {m.lastIn ? ` · last in ${day(m.lastIn)}` : ' · not signed in yet'}
                 </span>
@@ -1223,7 +1223,7 @@ function Team({ onNote }: { onNote: (s: string) => void }) {
         </ul>
         {data.invites.length > 0 && (
           <>
-            <h3 className="m-0 text-[13px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Invited, not joined yet</h3>
+            <h3 className="m-0 text-[13px] font-semibold tracking-[.14em] uppercase text-[#6e6068]">Invited, not joined yet</h3>
             <ul className="m-0 p-0 list-none flex flex-col gap-2">
               {data.invites.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-3 text-[14px]">
@@ -1277,7 +1277,7 @@ function Traffic() {
   const { data, error } = useLoad(companyApi.traffic);
   const [open, setOpen] = useState('');
   if (error) return <Problem text={error} />;
-  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  if (!data) return <p className="text-[#6e6068]">Loading…</p>;
   const sum = (k: keyof CompanyTraffic['days'][number], n = 30) => data.days.slice(-n).reduce((a, d) => a + Number(d[k]), 0);
   const today = data.days[data.days.length - 1];
   const tiles: [string, string, string][] = [
@@ -1294,9 +1294,9 @@ function Traffic() {
       <div className="grid gap-3 grid-cols-2 md:grid-cols-5">
         {tiles.map(([label, big, small]) => (
           <div key={label} className={card}>
-            <span className="text-[12px] font-semibold uppercase tracking-[.08em] text-[#5b6a52]">{label}</span>
+            <span className="text-[12px] font-semibold uppercase tracking-[.08em] text-[#6e6068]">{label}</span>
             <span className="text-[30px] font-semibold leading-none tabular-nums">{big}</span>
-            <span className="text-[13px] text-[#5b6a52]">{small}</span>
+            <span className="text-[13px] text-[#6e6068]">{small}</span>
           </div>
         ))}
       </div>
@@ -1305,11 +1305,11 @@ function Traffic() {
         <div className="flex items-end gap-[3px] h-[140px]" role="img" aria-label={`Visitors a day for 30 days, most ${top}`}>
           {data.days.map((d) => (
             <div key={d.day} className="flex-1 flex flex-col justify-end h-full" title={`${day(d.day)}: ${d.visitors} visitors, ${d.views} views, ${d.logins} sign-ins, ${d.errors} errors`}>
-              <div className="rounded-t-[3px] bg-[#5d6b47]" style={{ height: `${Math.max(d.visitors ? 4 : 0, (d.visitors / top) * 100)}%` }} />
+              <div className="rounded-t-[3px] bg-[#7a3b4f]" style={{ height: `${Math.max(d.visitors ? 4 : 0, (d.visitors / top) * 100)}%` }} />
             </div>
           ))}
         </div>
-        <div className="flex justify-between text-[12px] text-[#5b6a52]">
+        <div className="flex justify-between text-[12px] text-[#6e6068]">
           <span>{day(data.days[0]?.day ?? '')}</span>
           <span>Today</span>
         </div>
@@ -1318,11 +1318,11 @@ function Traffic() {
         <div className={card}>
           <strong className="text-[15px]">Pages opened (30 days)</strong>
           {!data.pages.length ? (
-            <p className="m-0 text-[#5b6a52]">Nothing counted yet.</p>
+            <p className="m-0 text-[#6e6068]">Nothing counted yet.</p>
           ) : (
             <ul className="m-0 p-0 list-none flex flex-col">
               {data.pages.map((p) => (
-                <li key={p.page} className="flex justify-between py-2 border-b border-[#ece3cd] text-[14px]">
+                <li key={p.page} className="flex justify-between py-2 border-b border-[#f1e2da] text-[14px]">
                   <span>{PAGE_NAME[p.page] ?? p.page}</span>
                   <span className="tabular-nums font-semibold">{p.views}</span>
                 </li>
@@ -1334,9 +1334,9 @@ function Traffic() {
           <strong className="text-[15px]">Sign-ins and new couples, by day</strong>
           <ul className="m-0 p-0 list-none flex flex-col max-h-[320px] overflow-y-auto">
             {[...data.days].reverse().filter((d) => d.logins || d.failedLogins || d.newCouples).map((d) => (
-              <li key={d.day} className="flex justify-between gap-3 py-2 border-b border-[#ece3cd] text-[14px]">
+              <li key={d.day} className="flex justify-between gap-3 py-2 border-b border-[#f1e2da] text-[14px]">
                 <span>{day(d.day)}</span>
-                <span className="text-[#5b6a52]">
+                <span className="text-[#6e6068]">
                   {d.logins} sign-ins{d.failedLogins ? ` · ${d.failedLogins} wrong passcode` : ''}
                   {d.newCouples ? ` · ${d.newCouples} new ${d.newCouples === 1 ? 'couple' : 'couples'}` : ''}
                 </span>
@@ -1348,16 +1348,16 @@ function Traffic() {
       <div className={card}>
         <strong className="text-[15px]">Trial bookings (last 30 days)</strong>
         {!data.trials?.length ? (
-          <p className="m-0 text-[#5b6a52]">No trial bookings yet.</p>
+          <p className="m-0 text-[#6e6068]">No trial bookings yet.</p>
         ) : (
           <ul className="m-0 p-0 list-none flex flex-col">
             {data.trials.map((t) => (
-              <li key={`${t.at}|${t.email}`} className="py-2 border-b border-[#ece3cd] text-[14px] flex flex-wrap gap-x-3 gap-y-1">
+              <li key={`${t.at}|${t.email}`} className="py-2 border-b border-[#f1e2da] text-[14px] flex flex-wrap gap-x-3 gap-y-1">
                 <strong>{[t.name1, t.name2].filter(Boolean).join(' & ')}</strong>
-                <a href={`mailto:${t.email}`} className="text-[#33402f]">
+                <a href={`mailto:${t.email}`} className="text-[#3a2532]">
                   {t.email}
                 </a>
-                <span className="text-[#5b6a52]">
+                <span className="text-[#6e6068]">
                   {t.weddingDate ? `wedding ${t.weddingDate} · ` : ''}
                   {new Date(t.at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                   {t.news ? ' · said yes to news' : ''}
@@ -1370,22 +1370,22 @@ function Traffic() {
       <div className={card}>
         <strong className="text-[15px]">Errors (latest first, the same one counted together)</strong>
         {!data.errors.length ? (
-          <p className="m-0 text-[#5b6a52]">No errors in the last 30 days.</p>
+          <p className="m-0 text-[#6e6068]">No errors in the last 30 days.</p>
         ) : (
           <ul className="m-0 p-0 list-none flex flex-col">
             {data.errors.map((e) => {
               const k = `${e.source}|${e.message}`;
               return (
-                <li key={k} className="py-2 border-b border-[#ece3cd] text-[14px] flex flex-col gap-1">
+                <li key={k} className="py-2 border-b border-[#f1e2da] text-[14px] flex flex-col gap-1">
                   <button type="button" onClick={() => setOpen(open === k ? '' : k)} className="p-0 border-0 bg-transparent text-left cursor-pointer flex flex-wrap gap-x-3 gap-y-1 items-baseline">
-                    <span className={`px-2 py-[1px] rounded-full text-[11px] font-semibold uppercase ${e.source === 'server' ? 'bg-[#f3e0da] text-[#7a3b2c]' : 'bg-[#e6ecdc] text-[#3f4f39]'}`}>{e.source === 'server' ? 'Server' : 'Browser'}</span>
+                    <span className={`px-2 py-[1px] rounded-full text-[11px] font-semibold uppercase ${e.source === 'server' ? 'bg-[#f3e0da] text-[#7a3b2c]' : 'bg-[#e6ecdc] text-[#5e2c3c]'}`}>{e.source === 'server' ? 'Server' : 'Browser'}</span>
                     <strong className="flex-1 min-w-[200px] break-words">{e.message}</strong>
-                    <span className="text-[#5b6a52]">
+                    <span className="text-[#6e6068]">
                       {e.n}× · last {new Date(e.last).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
                       {e.path ? ` · ${PAGE_NAME[e.path] ?? e.path}` : ''}
                     </span>
                   </button>
-                  {open === k && e.detail && <pre className="m-0 p-3 rounded-[8px] bg-[#f6f4ee] text-[12px] whitespace-pre-wrap break-words max-h-[260px] overflow-auto">{e.detail}</pre>}
+                  {open === k && e.detail && <pre className="m-0 p-3 rounded-[8px] bg-[#fdf8f4] text-[12px] whitespace-pre-wrap break-words max-h-[260px] overflow-auto">{e.detail}</pre>}
                 </li>
               );
             })}
@@ -1400,17 +1400,17 @@ function Traffic() {
 function Activity() {
   const { data, error } = useLoad(companyApi.activity);
   if (error) return <Problem text={error} />;
-  if (!data) return <p className="text-[#5b6a52]">Loading…</p>;
+  if (!data) return <p className="text-[#6e6068]">Loading…</p>;
   return (
     <section className="flex flex-col gap-3">
       <H sub="Every change in the portal, with who made it. Card payments show as Card payment.">Activity</H>
       {!data.activity.length ? (
-        <p className="text-[#5b6a52]">Nothing yet.</p>
+        <p className="text-[#6e6068]">Nothing yet.</p>
       ) : (
         <ul className="m-0 p-0 list-none flex flex-col gap-1">
           {data.activity.map((a: CompanyActivity) => (
-            <li key={a.id} className="flex flex-wrap gap-x-3 py-2 border-b border-[#ece3cd] text-[14px]">
-              <span className="w-[130px] flex-none text-[#5b6a52]">{new Date(a.at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>
+            <li key={a.id} className="flex flex-wrap gap-x-3 py-2 border-b border-[#f1e2da] text-[14px]">
+              <span className="w-[130px] flex-none text-[#6e6068]">{new Date(a.at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>
               <strong className="flex-none">{a.who || 'Someone'}</strong>
               <span className="flex-1 min-w-[180px]">
                 {ACTION[a.action] ?? a.action}
@@ -1448,12 +1448,12 @@ function JoinTeam() {
     }
   };
   return (
-    <main className="min-h-screen bg-[#f3f4ef] flex items-center justify-center p-6" style={{ color: INK, fontFamily: sans }}>
+    <main className="min-h-screen bg-[#fbf5f0] flex items-center justify-center p-6" style={{ color: INK, fontFamily: sans }}>
       <div className="flex flex-col gap-3 w-full max-w-[420px]">
         <h1 className="m-0 text-[28px] font-semibold text-center">
           Join the team
         </h1>
-        {!inv && !error && <p className="text-center text-[#5b6a52]">Loading…</p>}
+        {!inv && !error && <p className="text-center text-[#6e6068]">Loading…</p>}
         {inv && (
           <form
             className={card}
@@ -1508,7 +1508,7 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
     if (data) setTax(data.tax);
   }, [data]);
   if (error) return <Problem text={error} />;
-  if (!data || !tax) return <p className="text-[#5b6a52]">Loading…</p>;
+  if (!data || !tax) return <p className="text-[#6e6068]">Loading…</p>;
   const t = data.total;
   const near = !data.tax.gstRegistered && data.last12Cents >= 6_000_000;
   const saveTax = async () => {
@@ -1572,7 +1572,7 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
         <div className="overflow-x-auto">
           <table className="w-full text-[14px] border-collapse">
             <thead>
-              <tr className="text-left text-[#5f6a58]">
+              <tr className="text-left text-[#6e6068]">
                 {['Quarter', 'Sales', 'Card fees', data.tax.gstRegistered ? 'GST to pay' : '', 'Expenses', 'Profit', 'Put aside']
                   .filter(Boolean)
                   .map((h) => (
@@ -1584,7 +1584,7 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
             </thead>
             <tbody>
               {data.quarters.map((q) => (
-                <tr key={q.q} className="border-t border-[#e4e6df]">
+                <tr key={q.q} className="border-t border-[#ecdcd2]">
                   <td className="py-2 pr-3">{QUARTER[q.q]}</td>
                   <td className="py-2 pr-3">{money(q.gross)}</td>
                   <td className="py-2 pr-3">{money(q.fees)}</td>
@@ -1622,13 +1622,13 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
         {data.expenses.length > 0 && (
           <ul className="m-0 p-0 list-none flex flex-col">
             {data.expenses.map((e) => (
-              <li key={e.id} className="flex flex-wrap items-center gap-3 py-2 border-t border-[#e4e6df] text-[14px]">
-                <span className="w-[90px] text-[#5f6a58]">{day(e.date)}</span>
+              <li key={e.id} className="flex flex-wrap items-center gap-3 py-2 border-t border-[#ecdcd2] text-[14px]">
+                <span className="w-[90px] text-[#6e6068]">{day(e.date)}</span>
                 <span className="flex-1 min-w-[160px]">
-                  {e.what} <span className="text-[#5f6a58]">· {EXPENSE_KIND[e.kind]}</span>
+                  {e.what} <span className="text-[#6e6068]">· {EXPENSE_KIND[e.kind]}</span>
                 </span>
                 <strong>{money(e.cents)}</strong>
-                <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => void companyApi.removeExpense(e.id).then(reload, (er: Error) => setProblem(er.message))}>
+                <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]" onClick={() => void companyApi.removeExpense(e.id).then(reload, (er: Error) => setProblem(er.message))}>
                   Remove
                 </button>
               </li>
@@ -1639,11 +1639,11 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
       <section className={card} aria-label="Tax settings">
         <H sub="Not registered for GST: no GST is in your prices. Registered: 1/11 of each sale from that day is GST to pay.">Tax settings</H>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
             ABN
             <input value={tax.abn} maxLength={20} onChange={(e) => setTax({ ...tax, abn: e.target.value })} placeholder="11 digits" className={input} />
           </label>
-          <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
             Put aside for income tax (% of profit)
             <input type="number" min={0} max={60} value={tax.setAsidePct} onChange={(e) => setTax({ ...tax, setAsidePct: Math.max(0, Math.min(60, Number(e.target.value) || 0)) })} className={input} />
           </label>
@@ -1652,12 +1652,12 @@ function Money({ onNote }: { onNote: (s: string) => void }) {
             Registered for GST
           </label>
           {tax.gstRegistered && (
-            <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+            <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
               Registered from
               <input type="date" value={tax.gstFrom} onChange={(e) => setTax({ ...tax, gstFrom: e.target.value })} className={input} />
             </label>
           )}
-          <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+          <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
             Card fee (% + cents per payment)
             <span className="flex gap-2">
               <input type="number" min={0} max={10} step="0.1" value={tax.feePct} onChange={(e) => setTax({ ...tax, feePct: Number(e.target.value) || 0 })} aria-label="Card fee percent" className={input} />
@@ -1702,10 +1702,10 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
     <>
       <section className={card} aria-label="Are we making money">
         <H sub="From real payments this month, card fees, your running costs and one-off expenses.">Are we making money?</H>
-        <div className="flex flex-col gap-1 p-4 rounded-[12px] bg-[#1b2218] text-[#f3ecd6]">
+        <div className="flex flex-col gap-1 p-4 rounded-[12px] bg-[#2a1c26] text-[#f3ecd6]">
           <span className="text-[12px] tracking-[.14em] uppercase text-[#e6cf9e]">Move to your tax savings account</span>
           <span className="text-[28px] font-semibold">{money(Math.max(0, Math.round((now.profit * tax.setAsidePct) / 100)))} this month</span>
-          <span className="text-[13px] text-[#c9c4b2]">
+          <span className="text-[13px] text-[#d9c3c6]">
             {tax.setAsidePct}% of this month’s profit for income tax{tax.gstRegistered ? ', plus the GST shown by quarter below' : ''}. This financial year so far: {money(Math.max(0, data.total.setAside + data.total.gstOwed))}. Change the % in Tax settings; your accountant can tell you the right one.
           </span>
         </div>
@@ -1716,7 +1716,7 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
           <Tile label="Break-even" value={`${breakEven} a month`} sub={`At ${money(Math.round(each))} kept per sale`} />
         </div>
         <svg viewBox="0 0 360 120" className="w-full h-[140px]" role="img" aria-label={`Profit by month: ${months.map((m) => `${m.month} ${money(m.profit)}`).join(', ')}`}>
-          <line x1="0" x2="360" y1="60" y2="60" stroke="#d5d8cf" />
+          <line x1="0" x2="360" y1="60" y2="60" stroke="#e3cfc6" />
           {months.map((m, i) => {
             const h = (Math.abs(m.profit) / max) * 52;
             const up = m.profit >= 0;
@@ -1724,7 +1724,7 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
               <g key={m.month}>
                 <rect x={i * 30 + 4} y={up ? 60 - h : 60} width={22} height={Math.max(h, 1)} rx={3} fill={up ? '#2f6b3a' : '#9a3b2a'} />
                 {i % 2 === 0 && (
-                  <text x={i * 30 + 15} y={118} textAnchor="middle" fontSize="9" fill="#5f6a58">
+                  <text x={i * 30 + 15} y={118} textAnchor="middle" fontSize="9" fill="#6e6068">
                     {new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString('en-AU', { month: 'short', timeZone: 'UTC' })}
                   </text>
                 )}
@@ -1795,7 +1795,7 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
               ['sales', 'Weddings a month'],
             ] as const
           ).map(([k, label]) => (
-            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+            <label key={k} className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
               {label}
               <input type="number" min={0} value={w[k]} onChange={(e) => setW({ ...w, [k]: Math.max(0, Number(e.target.value) || 0) })} className={input} />
             </label>
@@ -1834,11 +1834,11 @@ function Bots({ onNote }: { onNote: (s: string) => void }) {
       <H sub="Give Grok (or any assistant) its own key and role. It sees and does only what that role allows, every action is in Activity under its name, and you can switch it off at once. Bots are never owners.">Bots</H>
       {error && <Problem text={error} />}
       <div className="flex gap-2 flex-wrap items-end">
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           Name
           <input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} className={`${input} w-[180px]`} />
         </label>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           Role
           <select value={role} onChange={(e) => setRole(e.target.value)} className={`${input} w-auto`}>
             {options.map((r) => (
@@ -1866,9 +1866,9 @@ function Bots({ onNote }: { onNote: (s: string) => void }) {
       {data && data.bots.length > 0 && (
         <ul className="m-0 p-0 list-none flex flex-col">
           {data.bots.map((b) => (
-            <li key={b.id} className="flex flex-wrap items-center gap-3 py-2 border-t border-[#e4e6df] text-[14px]">
+            <li key={b.id} className="flex flex-wrap items-center gap-3 py-2 border-t border-[#ecdcd2] text-[14px]">
               <strong className="flex-1 min-w-[140px]">{b.name}</strong>
-              <span className="text-[#5f6a58]">
+              <span className="text-[#6e6068]">
                 {b.revoked ? 'Switched off' : `${b.roleName ?? b.role} · ${b.lastUsedAt ? `last used ${day(b.lastUsedAt)}` : 'not used yet'}`}
               </span>
               {!b.revoked && (
@@ -1917,7 +1917,7 @@ function Assistant({ title, sub, tasks }: { title: string; sub: string; tasks: [
       </div>
       {problem && <Problem text={problem} />}
       {text && (
-        <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f3f4ef] border border-[#e4e6df]">
+        <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf5f0] border border-[#ecdcd2]">
           <p className="m-0 text-[15px] whitespace-pre-wrap">{text}</p>
           <button type="button" className={`${btn} self-start`} onClick={() => void navigator.clipboard?.writeText(text).catch(() => undefined)}>
             Copy
@@ -1964,7 +1964,7 @@ function DraftReply({ id }: { id: string }) {
         <button type="button" className={`${btn} self-start`} onClick={() => setOpen(true)}>
           Reply
         </button>
-        {note && <span className="text-[13px] text-[#5f6a58]">{note}</span>}
+        {note && <span className="text-[13px] text-[#6e6068]">{note}</span>}
       </span>
     );
   return (
@@ -1977,7 +1977,7 @@ function DraftReply({ id }: { id: string }) {
         <button type="button" className={btn} disabled={!!busy} onClick={() => void draft()}>
           {busy === 'draft' ? 'Drafting…' : 'Draft it for me'}
         </button>
-        <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => setOpen(false)}>
+        <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]" onClick={() => setOpen(false)}>
           Cancel
         </button>
       </div>
@@ -2088,11 +2088,11 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
         const on = states.every(Boolean);
         const copy = s.copy === 'redirect' ? data.redirectUri : s.copy === 'hook' ? data.stripeHook : '';
         return (
-          <div key={s.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e4e6df]">
+          <div key={s.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#ecdcd2]">
             <button type="button" aria-expanded={open === s.id} onClick={() => setOpen(open === s.id ? '' : s.id)} className="flex items-center justify-between gap-3 p-0 border-0 bg-transparent text-left cursor-pointer">
               <span>
                 <strong className="block text-[15px]">{s.name}</strong>
-                <span className="text-[13px] text-[#5f6a58]">{s.does}</span>
+                <span className="text-[13px] text-[#6e6068]">{s.does}</span>
               </span>
               <span className={`flex-none py-[3px] px-2 rounded-full text-[12px] font-semibold ${on ? 'bg-[#dfe7cf] text-[#2f6b3a]' : 'bg-[#f3e6c6] text-[#6b4f1d]'}`}>{on ? 'Connected' : 'Not set up'}</span>
             </button>
@@ -2108,14 +2108,14 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
                 </a>
                 {copy && (
                   <span className="text-[13px]">
-                    {s.copy === 'hook' ? 'Webhook address' : 'Return address'}: <code className="break-all select-all bg-[#f3f4ef] px-1 rounded">{copy}</code>
+                    {s.copy === 'hook' ? 'Webhook address' : 'Return address'}: <code className="break-all select-all bg-[#fbf5f0] px-1 rounded">{copy}</code>
                   </span>
                 )}
                 {s.keys.map(([k, label, secret], i) => (
-                  <label key={k} className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+                  <label key={k} className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
                     {label}
                     {states[i] === 'deploy' ? (
-                      <span className="text-[14px] text-[#1b2218]">Set in GitHub</span>
+                      <span className="text-[14px] text-[#2a1c26]">Set in GitHub</span>
                     ) : (
                       <input
                         type={secret ? 'password' : 'text'}
@@ -2171,7 +2171,7 @@ function TodoList({ onGo }: { onGo: (t: Tab) => void }) {
         <H sub="What’s left to set up and launch. Tick things off as you go; everyone on the team sees the same list.">To-do list</H>
         <span className="text-[14px] font-semibold">{left.length ? `${left.length} to do` : 'All done ✓'}</span>
       </div>
-      <div className="h-[8px] rounded-full bg-[#e4e6df] overflow-hidden">
+      <div className="h-[8px] rounded-full bg-[#ecdcd2] overflow-hidden">
         <div className="h-full bg-[#2f6b3a]" style={{ width: `${data.items.length ? ((data.items.length - left.length) / data.items.length) * 100 : 0}%` }} />
       </div>
       {groups.map((g) => {
@@ -2179,9 +2179,9 @@ function TodoList({ onGo }: { onGo: (t: Tab) => void }) {
         if (!items.length) return null;
         return (
           <div key={g} className="flex flex-col">
-            <h3 className="m-0 mb-1 text-[12px] font-semibold tracking-[.14em] uppercase text-[#5f6a58]">{g}</h3>
+            <h3 className="m-0 mb-1 text-[12px] font-semibold tracking-[.14em] uppercase text-[#6e6068]">{g}</h3>
             {items.map((i) => (
-              <div key={i.id} className="flex items-start gap-3 py-2 border-t border-[#e4e6df]">
+              <div key={i.id} className="flex items-start gap-3 py-2 border-t border-[#ecdcd2]">
                 <input
                   type="checkbox"
                   checked={i.done}
@@ -2190,9 +2190,9 @@ function TodoList({ onGo }: { onGo: (t: Tab) => void }) {
                   onChange={() => void save(data.items.map((x) => (x.id === i.id ? { ...x, done: !x.done } : x)))}
                   className="mt-[3px] w-[18px] h-[18px] accent-[#2f6b3a] flex-none"
                 />
-                <span className={`flex-1 min-w-0 text-[15px] ${i.done ? 'line-through text-[#8a917f]' : ''}`}>
+                <span className={`flex-1 min-w-0 text-[15px] ${i.done ? 'line-through text-[#9a8790]' : ''}`}>
                   {i.text}
-                  {i.done && i.doneBy && <span className="block text-[12px] no-underline text-[#8a917f]">Done by {i.doneBy}</span>}
+                  {i.done && i.doneBy && <span className="block text-[12px] no-underline text-[#9a8790]">Done by {i.doneBy}</span>}
                 </span>
                 {i.link &&
                   (i.link.startsWith('#') ? (
@@ -2205,7 +2205,7 @@ function TodoList({ onGo }: { onGo: (t: Tab) => void }) {
                     </a>
                   ))}
                 {data.canEdit && i.group === 'Added' && (
-                  <button type="button" aria-label={`Remove ${i.text}`} className="p-0 border-0 bg-transparent cursor-pointer text-[#8a917f]" onClick={() => void save(data.items.filter((x) => x.id !== i.id))}>
+                  <button type="button" aria-label={`Remove ${i.text}`} className="p-0 border-0 bg-transparent cursor-pointer text-[#9a8790]" onClick={() => void save(data.items.filter((x) => x.id !== i.id))}>
                     ✕
                   </button>
                 )}
@@ -2230,7 +2230,7 @@ function TodoList({ onGo }: { onGo: (t: Tab) => void }) {
           </button>
         </form>
       )}
-      <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => setShowDone((x) => !x)}>
+      <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]" onClick={() => setShowDone((x) => !x)}>
         {showDone ? 'Hide done' : `Show done (${data.items.length - left.length})`}
       </button>
       {problem && <Problem text={problem} />}
@@ -2273,29 +2273,29 @@ function Targets({ data, tax, setTax, onSave, running, each }: { data: CompanyMo
     <section className={card} aria-label="Sales targets">
       <H sub="Your profit goal a month (after running costs, before tax), and how fast to get there. The weddings needed come from your prices and running costs.">Sales targets</H>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           Profit goal a month ($)
           <input type="number" min={0} step={100} value={goal / 100} onChange={(e) => setTax({ ...tax, targetProfitCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
         </label>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           Reached after (months)
           <input type="number" min={1} max={24} value={steps} onChange={(e) => setTax({ ...tax, targetMonths: Math.max(1, Math.min(24, Number(e.target.value) || 1)) })} className={input} />
         </label>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           Starting
           <input type="month" value={from} onChange={(e) => setTax({ ...tax, targetFrom: e.target.value })} className={input} />
         </label>
       </div>
       {k >= 0 && (
-        <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f3f4ef]">
+        <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#fbf5f0]">
           <div className="flex justify-between gap-3 flex-wrap text-[15px]">
             <strong>{label(thisMonth)}: {money(now?.profit ?? 0)} of {money(target)}</strong>
             <span className={pace >= target ? 'text-[#2f6b3a] font-semibold' : 'text-[#9a3b2a] font-semibold'}>{pace >= target ? 'On pace' : `On pace for ${money(pace)}`}</span>
           </div>
-          <div className="h-[10px] rounded-full bg-[#e4e6df] overflow-hidden">
+          <div className="h-[10px] rounded-full bg-[#ecdcd2] overflow-hidden">
             <div className="h-full" style={{ width: `${pct}%`, background: pct >= 100 ? '#2f6b3a' : '#c8a46a' }} />
           </div>
-          <span className="text-[13px] text-[#5f6a58]">
+          <span className="text-[13px] text-[#6e6068]">
             {now?.sales ?? 0} weddings sold this month · {needFor(target)} needed · {Math.max(0, needFor(target) - (now?.sales ?? 0))} to go
           </span>
         </div>
@@ -2303,7 +2303,7 @@ function Targets({ data, tax, setTax, onSave, running, each }: { data: CompanyMo
       <div className="overflow-x-auto">
         <table className="w-full text-[14px] border-collapse">
           <thead>
-            <tr className="text-left text-[#5f6a58]">
+            <tr className="text-left text-[#6e6068]">
               <th className="py-2 pr-3 font-semibold">Month</th>
               <th className="py-2 pr-3 font-semibold">Profit target</th>
               <th className="py-2 pr-3 font-semibold">Weddings needed</th>
@@ -2312,7 +2312,7 @@ function Targets({ data, tax, setTax, onSave, running, each }: { data: CompanyMo
           </thead>
           <tbody>
             {plan.map((p) => (
-              <tr key={p.ym} className={`border-t border-[#e4e6df] ${p.ym === thisMonth ? 'font-semibold' : ''}`}>
+              <tr key={p.ym} className={`border-t border-[#ecdcd2] ${p.ym === thisMonth ? 'font-semibold' : ''}`}>
                 <td className="py-2 pr-3">{label(p.ym)}</td>
                 <td className="py-2 pr-3">{money(p.profit)}</td>
                 <td className="py-2 pr-3">{p.weddings}</td>
@@ -2322,7 +2322,7 @@ function Targets({ data, tax, setTax, onSave, running, each }: { data: CompanyMo
           </tbody>
         </table>
       </div>
-      <p className="m-0 text-[13px] text-[#5f6a58]">
+      <p className="m-0 text-[13px] text-[#6e6068]">
         At {money(Math.round(each))} kept per sale and {money(running)} running costs a month, {money(goal)} a month means about {needFor(goal)} paying weddings a month, roughly {Math.ceil(needFor(goal) / 4.3)} a week.
       </p>
       <button type="button" className={`${primary} self-start`} onClick={onSave}>
@@ -2351,14 +2351,14 @@ function Goal({ data, tax, setTax, onSave, running, each }: { data: CompanyMoney
           <strong>
             {label}: {money(goal)}
           </strong>
-          <span className="text-[#5f6a58]">
+          <span className="text-[#6e6068]">
             {money(Math.max(0, soFar))} so far · {Math.round(pct)}%
           </span>
         </div>
-        <div className="h-[10px] rounded-full bg-[#e4e6df] overflow-hidden">
+        <div className="h-[10px] rounded-full bg-[#ecdcd2] overflow-hidden">
           <div className="h-full" style={{ width: `${pct}%`, background: pct >= 100 ? '#2f6b3a' : '#c8a46a' }} />
         </div>
-        <span className="text-[13px] text-[#5f6a58]">
+        <span className="text-[13px] text-[#6e6068]">
           From here: {money(Math.round(perMonth(goal)))} profit a month, about {weddings(goal)} paying weddings a month ({Math.ceil(weddings(goal) / 4.3)} a week)
         </span>
       </div>
@@ -2370,22 +2370,22 @@ function Goal({ data, tax, setTax, onSave, running, each }: { data: CompanyMoney
         The big goal{by ? `: by ${by.toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}` : ''}
       </H>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           At least ($)
           <input type="number" min={0} step={1000} value={tax.goalCents / 100} onChange={(e) => setTax({ ...tax, goalCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
         </label>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           Ideally ($)
           <input type="number" min={0} step={1000} value={tax.stretchCents / 100} onChange={(e) => setTax({ ...tax, stretchCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
         </label>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58]">
+        <label className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
           By
           <input type="date" value={tax.goalBy} onChange={(e) => setTax({ ...tax, goalBy: e.target.value })} className={input} />
         </label>
       </div>
       {row('At least', tax.goalCents)}
       {tax.stretchCents > tax.goalCents && row('Ideally', tax.stretchCents)}
-      <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58] max-w-[280px]">
+      <label className="flex flex-col gap-1 text-[13px] text-[#6e6068] max-w-[280px]">
         Then, a year ($)
         <input type="number" min={0} step={5000} value={tax.longTermCents / 100} onChange={(e) => setTax({ ...tax, longTermCents: Math.round((Number(e.target.value) || 0) * 100) })} className={input} />
       </label>
@@ -2394,7 +2394,7 @@ function Goal({ data, tax, setTax, onSave, running, each }: { data: CompanyMoney
           <strong>{money(tax.longTermCents)} a year</strong> means about {money(Math.round(tax.longTermCents / 12))} profit a month: about {each > 0 ? Math.ceil((tax.longTermCents / 12 + running) / each) : 0} paying weddings a month ({each > 0 ? Math.ceil((tax.longTermCents / 12 + running) / each / 4.3) : 0} a week).
         </p>
       )}
-      <p className="m-0 text-[13px] text-[#5f6a58]">
+      <p className="m-0 text-[13px] text-[#6e6068]">
         {Math.round(monthsLeft)} months to go. Every paying wedding leaves about {money(Math.round(each))}; the Grok sales bot, partner codes and the ads plan are how the weekly number gets reached.
       </p>
       <button type="button" className={`${primary} self-start`} onClick={onSave}>
@@ -2429,13 +2429,13 @@ function Roles({ onNote }: { onNote: (s: string) => void }) {
     <section className={card} aria-label="Roles">
       <H sub="Besides Owner, Manager, Support, Developer and Marketing: make your own, e.g. “Bookkeeper” (Money and Activity) or “Partner manager” (Promote and Vendors). Only owners ever manage the team.">Your own roles</H>
       {roles.map((r, i) => (
-        <div key={r.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e4e6df]">
+        <div key={r.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#ecdcd2]">
           <div className="flex gap-2 flex-wrap items-end">
-            <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58] flex-1 min-w-[160px]">
+            <label className="flex flex-col gap-1 text-[13px] text-[#6e6068] flex-1 min-w-[160px]">
               Name
               <input value={r.name} maxLength={40} onChange={(e) => set(i, { name: e.target.value })} className={input} />
             </label>
-            <label className="flex flex-col gap-1 text-[13px] text-[#5f6a58] flex-[2] min-w-[200px]">
+            <label className="flex flex-col gap-1 text-[13px] text-[#6e6068] flex-[2] min-w-[200px]">
               What it’s for
               <input value={r.does} maxLength={200} onChange={(e) => set(i, { does: e.target.value })} placeholder="e.g. Keeps the books and the tax savings" className={input} />
             </label>
@@ -2456,7 +2456,7 @@ function Roles({ onNote }: { onNote: (s: string) => void }) {
               </label>
             ))}
           </div>
-          {!!r.people && <span className="text-[12px] text-[#5f6a58]">{r.people} on the team have this role.</span>}
+          {!!r.people && <span className="text-[12px] text-[#6e6068]">{r.people} on the team have this role.</span>}
         </div>
       ))}
       <div className="flex gap-2 flex-wrap">
@@ -2482,7 +2482,7 @@ function Refund({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) => voi
   const [problem, setProblem] = useState('');
   if (!open)
     return (
-      <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#5f6a58]" onClick={() => setOpen(true)}>
+      <button type="button" className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]" onClick={() => setOpen(true)}>
         Refund
       </button>
     );
@@ -2545,7 +2545,7 @@ function Goals({ onGo }: { onGo: (t: Tab) => void }) {
           {money(Math.max(0, g.profitSoFar))} of {money(n)}
         </strong>
       </div>
-      <div className="h-[10px] rounded-full bg-[#e4e6df] overflow-hidden">
+      <div className="h-[10px] rounded-full bg-[#ecdcd2] overflow-hidden">
         <div className="h-full" style={{ width: `${pct(n)}%`, background: colour }} />
       </div>
     </div>
@@ -2572,9 +2572,9 @@ function Goals({ onGo }: { onGo: (t: Tab) => void }) {
       {data.people.length > 0 && (
         <ul className="m-0 p-0 list-none flex flex-col">
           {data.people.map((p) => (
-            <li key={p.userId} className="flex justify-between gap-3 flex-wrap py-2 border-t border-[#e4e6df] text-[14px]">
+            <li key={p.userId} className="flex justify-between gap-3 flex-wrap py-2 border-t border-[#ecdcd2] text-[14px]">
               <strong>{p.name}</strong>
-              <span className="text-[#5f6a58]">
+              <span className="text-[#6e6068]">
                 {p.weddings ? `${p.weddings} paying weddings a week` : ''}
                 {p.weddings && p.work ? ' · ' : ''}
                 {p.work}
@@ -2619,16 +2619,16 @@ function PeopleTargets({ onNote }: { onNote: (s: string) => void }) {
       {rows.map((r, i) => {
         const m = nameOf(r.userId);
         return (
-          <div key={r.userId} className="grid gap-2 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,2fr)] items-end py-2 border-t border-[#e4e6df]">
+          <div key={r.userId} className="grid gap-2 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,2fr)] items-end py-2 border-t border-[#ecdcd2]">
             <span className="text-[14px]">
               <strong className="block">{m?.name ?? 'Someone'}</strong>
-              <span className="text-[12px] text-[#5f6a58]">{m?.roleName ?? m?.role}</span>
+              <span className="text-[12px] text-[#6e6068]">{m?.roleName ?? m?.role}</span>
             </span>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5f6a58]">
+            <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
               Weddings a week
               <input type="number" min={0} value={r.weddings} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, weddings: Math.max(0, Number(e.target.value) || 0) } : x)))} className={input} />
             </label>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5f6a58]">
+            <label className="flex flex-col gap-1 text-[12px] text-[#6e6068]">
               The work a week
               <input value={r.work} maxLength={200} onChange={(e) => setRows(rows.map((x, j) => (j === i ? { ...x, work: e.target.value } : x)))} placeholder="e.g. 100 partner emails, 5 partners signed" className={input} />
             </label>
@@ -2712,7 +2712,7 @@ function InviteVendors({ onNote }: { onNote: (s: string) => void }) {
         </button>
       </div>
       <details>
-        <summary className="cursor-pointer text-[13px] text-[#5f6a58]">Paste a list</summary>
+        <summary className="cursor-pointer text-[13px] text-[#6e6068]">Paste a list</summary>
         <textarea value={paste} rows={4} onChange={(e) => setPaste(e.target.value)} placeholder="Business, email, category, region, contact (one per line)" aria-label="Paste a list" className={`${input} mt-2`} />
         <button type="button" className={`${btn} mt-2`} onClick={addPasted}>
           Add them
@@ -2720,7 +2720,7 @@ function InviteVendors({ onNote }: { onNote: (s: string) => void }) {
       </details>
       <div className="flex gap-1 flex-wrap" role="tablist" aria-label="Vendors by status">
         {(['new', 'invited', 'joined', 'stopped'] as const).map((s) => (
-          <button key={s} type="button" role="tab" aria-selected={show === s} onClick={() => (setShow(s), setPicked([]))} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === s ? 'border-[#1b2218] bg-[#1b2218] text-[#f3ecd6]' : 'border-[#d5d8cf] bg-white text-[#1b2218]'}`}>
+          <button key={s} type="button" role="tab" aria-selected={show === s} onClick={() => (setShow(s), setPicked([]))} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === s ? 'border-[#2a1c26] bg-[#2a1c26] text-[#f3ecd6]' : 'border-[#e3cfc6] bg-white text-[#2a1c26]'}`}>
             {s === 'new' ? 'To invite' : s === 'invited' ? 'Invited' : s === 'joined' ? 'Joined' : 'Opted out'} {counts(s)}
           </button>
         ))}
@@ -2728,13 +2728,13 @@ function InviteVendors({ onNote }: { onNote: (s: string) => void }) {
       {list.length > 0 && (
         <ul className="m-0 p-0 list-none flex flex-col">
           {list.map((p) => (
-            <li key={p.id} className="flex items-center gap-3 py-2 border-t border-[#e4e6df] text-[14px]">
+            <li key={p.id} className="flex items-center gap-3 py-2 border-t border-[#ecdcd2] text-[14px]">
               {show === 'new' && (
                 <input type="checkbox" aria-label={`Invite ${p.business}`} checked={picked.includes(p.id)} onChange={(e) => setPicked(e.target.checked ? [...picked, p.id] : picked.filter((x) => x !== p.id))} />
               )}
               <span className="flex-1 min-w-0">
-                <strong>{p.business}</strong> <span className="text-[#5f6a58]">· {[p.category, p.region, p.email].filter(Boolean).join(' · ')}</span>
-                {p.invitedAt && <span className="block text-[12px] text-[#5f6a58]">Invited {day(p.invitedAt)}</span>}
+                <strong>{p.business}</strong> <span className="text-[#6e6068]">· {[p.category, p.region, p.email].filter(Boolean).join(' · ')}</span>
+                {p.invitedAt && <span className="block text-[12px] text-[#6e6068]">Invited {day(p.invitedAt)}</span>}
               </span>
             </li>
           ))}

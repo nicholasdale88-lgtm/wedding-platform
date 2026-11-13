@@ -11,7 +11,7 @@ import { OwnPhoneQueue, SendVia } from './OwnPhone';
 export function SmsTab() {
   const { event, overview } = useAdmin();
   const inEvent = event !== ALL_EVENTS && !!overview?.events.some((e) => e.key === event);
-  if (!overview) return <div aria-busy="true" className="text-[#5b6a52]">Loading…</div>;
+  if (!overview) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading…</div>;
   return inEvent ? (
     <div className="flex flex-col gap-6">
       <OwnPhoneQueue />

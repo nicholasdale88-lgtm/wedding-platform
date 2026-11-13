@@ -28,9 +28,9 @@ export function ShotList() {
       .then(setParty)
       .catch(() => setParty(null));
   }, [wid]);
-  if (!event) return <p className="text-[#5b6a52]">Add your wedding as an event first.</p>;
+  if (!event) return <p className="text-[var(--adm-muted,#5b6a52)]">Add your wedding as an event first.</p>;
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
-  if (!live.doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading the photo list…</div>;
+  if (!live.doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the photo list…</div>;
   const shots = live.doc.data.shots;
   const p = progressOf(shots);
   const setup: Partial<PartySetup> = party?.setup?.data ?? {};
@@ -59,7 +59,7 @@ export function ShotList() {
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
           <H2>Photo list</H2>
-          <div className="text-[13px] text-[#5b6a52]">The shots you want, and who to gather for each. Groups run smallest to largest so people can go as they’re done.</div>
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">The shots you want, and who to gather for each. Groups run smallest to largest so people can go as they’re done.</div>
         </div>
         <span className="flex items-center gap-3">
           {shots.length > 0 && <Ring done={p.done} total={p.total} size={52} />}
@@ -67,22 +67,22 @@ export function ShotList() {
         </span>
       </div>
       {!shots.length ? (
-        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[#c6b794] bg-[#fbf8f0]">
+        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)]">
           <strong className="font-display text-[22px] font-medium">Start with the usual list</strong>
-          <p className="m-0 text-[14px] text-[#5b6a52]">About 20 shots made from your names and your wedding party: the moments, then family and party groups. Change anything.</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">About 20 shots made from your names and your wedding party: the moments, then family and party groups. Change anything.</p>
           <Pill kind="primary" onClick={start}>
             Make the list
           </Pill>
         </div>
       ) : (
-        <ol className="list-none m-0 p-0 flex flex-col rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] print:border-0">
+        <ol className="list-none m-0 p-0 flex flex-col rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] print:border-0">
           {shots.map((s, i) => (
             <li key={s.id} className="grid grid-cols-[28px_24px_minmax(0,1fr)_auto] gap-2 items-start py-2 px-3 border-t border-[#ece3cd] first:border-t-0">
               <span className="text-[13px] text-[#7a7466] pt-[2px]">{i + 1}</span>
               <input type="checkbox" checked={s.done} aria-label={s.shot} onChange={() => set(s.id, { done: !s.done }, true)} className="mt-[3px] w-[18px] h-[18px] accent-[#5d6b47]" />
               <span className="flex flex-col gap-1 min-w-0">
                 <input aria-label="Shot" value={s.shot} maxLength={160} onChange={(e) => set(s.id, { shot: e.target.value })} className={`bg-transparent border-0 p-0 text-[15px] font-medium ${s.done ? 'line-through text-[#7a7466]' : ''}`} />
-                <input aria-label="Who" placeholder="Who to gather" value={s.who} maxLength={300} onChange={(e) => set(s.id, { who: e.target.value })} className="bg-transparent border-0 p-0 text-[13px] text-[#5b6a52]" />
+                <input aria-label="Who" placeholder="Who to gather" value={s.who} maxLength={300} onChange={(e) => set(s.id, { who: e.target.value })} className="bg-transparent border-0 p-0 text-[13px] text-[var(--adm-muted,#5b6a52)]" />
               </span>
               <button type="button" aria-label={`Remove ${s.shot}`} onClick={() => live.set({ shots: shots.filter((x) => x.id !== s.id) }, true)} className="p-0 border-0 bg-transparent cursor-pointer text-[#7a7466] text-[18px] print:hidden">
                 ×

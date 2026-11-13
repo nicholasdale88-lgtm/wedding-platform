@@ -104,7 +104,7 @@ export function AdminRoot() {
       />
     );
   }
-  if (state.kind === 'loading') return <div className="min-h-screen bg-[#f6f0e2]" aria-busy="true" />;
+  if (state.kind === 'loading') return <div className="min-h-screen bg-[var(--adm-bg,#f6f0e2)]" aria-busy="true" />;
   if (state.kind === 'signed-out') return <Login onSignedIn={(me) => setState({ kind: 'signed-in', me })} />;
   if (state.kind === 'error') {
     return (
@@ -273,7 +273,7 @@ function Places({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
       <div>
         <Eyebrow>Signed in as {me.user.email}</Eyebrow>
         <h1 className="mt-[6px] mb-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Where to{first ? `, ${first}` : ''}?</h1>
-        <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">One sign-in for everything. Switch any time from the top of each page.</p>
+        <p className="m-0 mt-1 text-[15px] text-[var(--adm-muted,#5b6a52)]">One sign-in for everything. Switch any time from the top of each page.</p>
       </div>
       <ul className="list-none m-0 p-0 flex flex-col gap-3">
         {places.map((p) => (
@@ -281,11 +281,11 @@ function Places({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
             <Link
               to={p.to}
               onClick={() => rememberPlace(p.key)}
-              className="flex justify-between items-center gap-4 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] no-underline !text-[#33402f] hover:border-[#33402f]"
+              className="flex justify-between items-center gap-4 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] no-underline !text-[var(--adm-ink,#33402f)] hover:border-[#33402f]"
             >
               <span className="flex flex-col min-w-0">
                 <span className={p.kind === 'wedding' ? 'font-script text-[30px] leading-[1.15]' : 'font-display text-[26px] leading-[1.15]'}>{p.title}</span>
-                <span className="text-[14px] text-[#5b6a52]">{p.detail}</span>
+                <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">{p.detail}</span>
               </span>
               <span aria-hidden className="text-[22px]">
                 →
@@ -293,7 +293,7 @@ function Places({ me, onSignOut }: { me: Me; onSignOut: () => void }) {
             </Link>
           </li>
         ))}
-        {!places.length && <li className="p-4 rounded-[16px] border border-[#e2d7bc] text-[#5b6a52]">Nothing on this account yet. Start a wedding from the front page, or ask whoever invited you for a new link.</li>}
+        {!places.length && <li className="p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] text-[var(--adm-muted,#5b6a52)]">Nothing on this account yet. Start a wedding from the front page, or ask whoever invited you for a new link.</li>}
       </ul>
       <Pill onClick={onSignOut} className="self-start">
         Sign out

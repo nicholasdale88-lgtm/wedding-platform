@@ -14,7 +14,7 @@ export function Ring({ done, total, size = 64, label }: { done: number; total: n
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2d7bc" strokeWidth={6} />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={share === 1 ? '#5d6b47' : '#b39563'} strokeWidth={6} strokeLinecap="round" strokeDasharray={`${c * share} ${c}`} className="transition-[stroke-dasharray] duration-500" />
       </svg>
-      <span className="absolute text-[13px] font-semibold tabular-nums text-[#33402f]">{total ? `${Math.round(share * 100)}%` : '–'}</span>
+      <span className="absolute text-[13px] font-semibold tabular-nums text-[var(--adm-ink,#33402f)]">{total ? `${Math.round(share * 100)}%` : '–'}</span>
     </span>
   );
 }
@@ -84,7 +84,7 @@ export function PhasedChecklist({
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="self-end flex items-center gap-2 text-[13px] text-[#5b6a52] cursor-pointer">
+      <label className="self-end flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)] cursor-pointer">
         <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} className="accent-[#5d6b47]" />
         Hide what’s done
       </label>
@@ -95,14 +95,14 @@ export function PhasedChecklist({
         const isOpen = open.has(p);
         const shown = hideDone ? inPhase.filter(({ it }) => !it.done) : inPhase;
         return (
-          <section key={p} aria-label={labels[p]} className={`rounded-[14px] border ${p === now ? 'border-[#b39563] bg-[#fbf6ea]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}>
+          <section key={p} aria-label={labels[p]} className={`rounded-[14px] border ${p === now ? 'border-[#b39563] bg-[#fbf6ea]' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]'}`}>
             <button type="button" aria-expanded={isOpen} onClick={() => toggleOpen(p)} className="w-full flex items-center justify-between gap-3 py-3 px-4 bg-transparent border-0 cursor-pointer text-left">
               <span className="flex items-center gap-2">
                 <span aria-hidden className={`inline-block transition-transform text-[#7a7466] ${isOpen ? 'rotate-90' : ''}`}>›</span>
                 <span className="font-display text-[20px] font-medium">{labels[p]}</span>
                 {p === now && <span className="py-[2px] px-2 rounded-full bg-[#b39563] text-white text-[11px] font-semibold tracking-[.08em] uppercase">Now</span>}
               </span>
-              <span className={`text-[13px] tabular-nums ${inPhase.length && done === inPhase.length ? 'text-[#5d6b47] font-semibold' : 'text-[#5b6a52]'}`}>
+              <span className={`text-[13px] tabular-nums ${inPhase.length && done === inPhase.length ? 'text-[#5d6b47] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
                 {inPhase.length ? (done === inPhase.length ? 'All done ✓' : `${done} of ${inPhase.length}`) : ''}
               </span>
             </button>
@@ -118,16 +118,16 @@ export function PhasedChecklist({
                         aria-label={it.text}
                         className="mt-[2px] w-5 h-5 accent-[#5d6b47] flex-none cursor-pointer"
                       />
-                      <button type="button" onClick={() => setDetail(detail === i ? null : i)} className={`flex-1 min-w-0 text-left p-0 border-0 bg-transparent cursor-pointer text-[15px] leading-snug ${it.done ? 'line-through text-[#7a7466]' : 'text-[#33402f]'}`}>
-                        {it.time && <span className="text-[13px] font-semibold text-[#5b6a52] mr-2 tabular-nums">{it.time}</span>}
+                      <button type="button" onClick={() => setDetail(detail === i ? null : i)} className={`flex-1 min-w-0 text-left p-0 border-0 bg-transparent cursor-pointer text-[15px] leading-snug ${it.done ? 'line-through text-[#7a7466]' : 'text-[var(--adm-ink,#33402f)]'}`}>
+                        {it.time && <span className="text-[13px] font-semibold text-[var(--adm-muted,#5b6a52)] mr-2 tabular-nums">{it.time}</span>}
                         {it.text}
                         {it.note && detail !== i && <span aria-hidden className="ml-1 text-[#b39563]">ⓘ</span>}
-                        {nameOf(it.helper) && <span className="ml-2 inline-block py-[1px] px-2 rounded-full bg-[#efe6d3] text-[12px] text-[#5b6a52] no-underline align-middle">→ {nameOf(it.helper)}</span>}
+                        {nameOf(it.helper) && <span className="ml-2 inline-block py-[1px] px-2 rounded-full bg-[#efe6d3] text-[12px] text-[var(--adm-muted,#5b6a52)] no-underline align-middle">→ {nameOf(it.helper)}</span>}
                       </button>
                     </div>
                     {detail === i && (
                       <div className="flex flex-col gap-2 mt-2 ml-8">
-                        {it.note && <p className="m-0 text-[13px] text-[#5b6a52]">{it.note}</p>}
+                        {it.note && <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">{it.note}</p>}
                         <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-2">
                           <input aria-label="What" value={it.text} maxLength={200} onChange={(e) => patch(i, { text: e.target.value })} className={`${inputCls} !py-2`} />
                           <input aria-label="Time" placeholder="Time" value={it.time} maxLength={20} onChange={(e) => patch(i, { time: e.target.value })} className={`${inputCls} !py-2`} />
@@ -181,9 +181,9 @@ export function PhasedChecklist({
                           </div>
                         )}
                         {it.helper && people.find((p) => p.id === it.helper) && (
-                          <p className="m-0 text-[13px] text-[#5b6a52]">
+                          <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">
                             It’s on {nameOf(it.helper)}’s own list and calendar.{' '}
-                            <button type="button" onClick={() => void share(people.find((p) => p.id === it.helper)!, it.text)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+                            <button type="button" onClick={() => void share(people.find((p) => p.id === it.helper)!, it.text)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
                               Send them their link
                             </button>
                           </p>

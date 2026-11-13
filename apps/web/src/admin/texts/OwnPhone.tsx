@@ -29,15 +29,15 @@ export function SendVia() {
     }
   };
   return (
-    <section aria-label="How your messages are sent" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] max-w-[1000px]">
+    <section aria-label="How your messages are sent" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] max-w-[1000px]">
       <strong className="font-display text-[24px] font-medium">How your messages are sent</strong>
       <div role="radiogroup" aria-label="How your messages are sent" className="flex flex-col gap-2">
         {CHOICES.map(([v, label, detail]) => (
-          <label key={v} className={`flex gap-3 items-start p-3 rounded-[12px] border cursor-pointer ${d.via === v ? 'border-[#33402f] bg-white' : 'border-[#e2d7bc]'}`}>
+          <label key={v} className={`flex gap-3 items-start p-3 rounded-[12px] border cursor-pointer ${d.via === v ? 'border-[#33402f] bg-white' : 'border-[var(--adm-line,#e2d7bc)]'}`}>
             <input type="radio" name="send-via" checked={d.via === v} onChange={() => void pick(v)} className="mt-1" />
             <span className="flex flex-col">
               <span className="text-[16px] font-medium">{label}</span>
-              <span className="text-[13px] text-[#5b6a52]">{detail}</span>
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{detail}</span>
             </span>
           </label>
         ))}
@@ -69,9 +69,9 @@ function OwnNumber({ d, onChanged }: { d: OwnPhoneData; onChanged: () => Promise
   };
   const shown = (n?: string) => (n ? n.replace(/^\+61/, '0').replace(/^(\d{4})(\d{3})(\d{3})$/, '$1 $2 $3') : '');
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-white">
+    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white">
       <span className="text-[16px] font-medium">Send from my own number (automatic)</span>
-      <span className="text-[13px] text-[#5b6a52]">
+      <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
         Every automatic text goes out with your own mobile as the sender, through the texting service (the usual few cents a text, nothing extra). Replies come to your phone, not here: RSVPs still come in through each guest’s link, and you can record a texted reply on the guest’s page in one tap.
       </span>
       {own.status === 'active' ? (
@@ -101,7 +101,7 @@ function OwnNumber({ d, onChanged }: { d: OwnPhoneData; onChanged: () => Promise
         >
           {own.status === 'expired' && <span className="text-[13px] text-[#8a5a45] w-full">The last link expired. Send a new one.</span>}
           {own.status === 'lost' && <span className="text-[13px] text-[#8a5a45] w-full">{shown(own.number)} stopped working as a sender, so texts went back to your own phone. Set it up again below.</span>}
-          <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" placeholder="04xx xxx xxx" aria-label="Your mobile" className="py-[8px] px-3 rounded-[10px] border border-[#d3c6a4] text-[15px]" />
+          <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" placeholder="04xx xxx xxx" aria-label="Your mobile" className="py-[8px] px-3 rounded-[10px] border border-[var(--adm-line,#d3c6a4)] text-[15px]" />
           <Pill type="submit" kind="primary">
             Text me the confirmation link
           </Pill>
@@ -139,7 +139,7 @@ export function OwnPhoneQueue() {
   };
   const summary = d.batches.map((b) => `${b.count} × ${b.message}`).join(', ');
   return (
-    <section aria-label="Ready to send from your phone" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#c6b794] bg-[#fbf8f2]">
+    <section aria-label="Ready to send from your phone" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#c6b794)] bg-[#fbf8f2]">
       <div className="flex justify-between items-baseline gap-3 flex-wrap">
         <h2 className="m-0 font-display font-medium text-[26px]">
           {d.ready.length} {d.ready.length === 1 ? 'message' : 'messages'} ready to send from your phone
@@ -148,16 +148,16 @@ export function OwnPhoneQueue() {
           {open ? 'Close' : 'Start sending'}
         </Pill>
       </div>
-      <p className="m-0 text-[14px] text-[#5b6a52]">
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
         {summary}. Free, from your own number, one guest at a time. Their RSVP comes in through their link as usual; if they text you back instead, record their reply in their page (Guests → tap them).
       </p>
       {open && (
-        <div className="flex flex-col gap-2 p-4 rounded-[12px] bg-[#f3ecd6]">
+        <div className="flex flex-col gap-2 p-4 rounded-[12px] bg-[var(--adm-tint,#f3ecd6)]">
           <span className="text-[12px] text-[#7a7466]">
             {m.message} · {d.ready.length} to go
           </span>
           <strong className="font-display text-[22px] font-medium">{m.name}</strong>
-          <span className="text-[13px] text-[#5b6a52] whitespace-pre-wrap break-words">{m.body}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] whitespace-pre-wrap break-words">{m.body}</span>
           <div className="flex gap-2 flex-wrap">
             <a href={smsHref(m.phone, m.body)} className="py-[9px] px-5 rounded-full no-underline text-[15px] font-medium bg-[#33402f] !text-[#fbf8f2]">
               Open Messages

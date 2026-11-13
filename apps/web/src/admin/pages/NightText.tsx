@@ -28,7 +28,7 @@ export function NightText({ eventKey, data, onChanged: load }: { eventKey: strin
   const toast = useToast();
   const ev = overview?.events.find((e) => e.key === eventKey);
 
-  if (!ev) return <div aria-busy="true" className="text-[#5b6a52]">Loading the night-before text…</div>;
+  if (!ev) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the night-before text…</div>;
   const tz = data.timezone;
   const mine = data.campaigns.filter((c) => eventOf(c) === eventKey && isNightBefore(c));
   const slot = data.events.findIndex((e) => e.key === eventKey);
@@ -50,7 +50,7 @@ export function NightText({ eventKey, data, onChanged: load }: { eventKey: strin
 
   return (
     <div className="flex flex-col gap-5">
-      <p className="m-0 text-[15px] text-[#5b6a52] max-w-[680px]">
+      <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)] max-w-[680px]">
         Everyone who has said yes to {ev.name} gets this the evening before, with their own guide link (times, parking, their table and meal). Anyone who replies yes later is
         included automatically.
       </p>
@@ -110,7 +110,7 @@ function NightCard({ c, tz, startsAt, onChanged, sender }: { c: Campaign; tz: st
   const sent = c.slots.some((s) => s.status === 'sent');
 
   return (
-    <section aria-label={c.name} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px] gap-6 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label={c.name} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px] gap-6 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex flex-col gap-3 min-w-0">
         <div className="flex justify-between items-center gap-3 flex-wrap">
           <h3 className="m-0 font-display font-medium text-[24px]">{c.name}</h3>
@@ -121,15 +121,15 @@ function NightCard({ c, tz, startsAt, onChanged, sender }: { c: Campaign; tz: st
         </div>
         <textarea aria-label="Message" rows={6} value={body} onChange={(e) => setBody(e.target.value)} className={`${inputCls} resize-y`} />
         <div className="flex gap-3 items-end flex-wrap">
-          <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">
             Sends
             <input type="datetime-local" value={when} onChange={(e) => e.target.value && setWhen(e.target.value)} className={inputCls} />
           </label>
-          <button type="button" onClick={() => setWhen(eveningBefore(startsAt, tz))} className="mb-[10px] p-0 border-0 bg-transparent text-[13px] underline cursor-pointer text-[#5b6a52]">
+          <button type="button" onClick={() => setWhen(eveningBefore(startsAt, tz))} className="mb-[10px] p-0 border-0 bg-transparent text-[13px] underline cursor-pointer text-[var(--adm-muted,#5b6a52)]">
             The evening before, 5:00pm
           </button>
         </div>
-        <div className="text-[13px] text-[#5b6a52]">
+        <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
           {sent ? 'Already sent. ' : next ? `Scheduled for ${fmtWhen(next, tz)}. ` : 'No send time yet. '}
           {est ? `${est.count} ${est.count === 1 ? 'guest' : 'guests'} coming so far · ${est.parts} ${est.parts === 1 ? 'credit' : 'credits'} each` : ''}
         </div>
@@ -155,7 +155,7 @@ function NightCard({ c, tz, startsAt, onChanged, sender }: { c: Campaign; tz: st
         </div>
       </div>
       <div aria-label="How it arrives" className="flex flex-col gap-2">
-        <span className="text-[12px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">How it arrives</span>
+        <span className="text-[12px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">How it arrives</span>
         <SmsPhone sender={sender} to="a guest" text={est?.sample ?? body} parts={est && est.count ? Math.round(est.parts / est.count) : null} />
         <span className="text-[12px] text-[#7a7466]">{est?.sample ? 'With a real guest’s details. Nothing is sent.' : 'Placeholders fill in for each guest.'}</span>
       </div>

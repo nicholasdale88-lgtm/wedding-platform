@@ -12,7 +12,7 @@ import { BLOCK_LABEL, blankDesign, BORDERS, drawSign, FONTS, fontsFor, imagesToP
  * or save a print-ready PDF to your linked Google Drive, Dropbox or OneDrive (Photos → Linked storage).
  */
 const WHERE: Record<string, string> = { gdrive: 'Google Drive', dropbox: 'Dropbox', onedrive: 'OneDrive' };
-const label = 'flex flex-col gap-1 text-[12px] text-[#5b6a52]';
+const label = 'flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]';
 
 export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: SignVars; tables: string[] }) {
   const { wid } = useAdmin();
@@ -53,7 +53,7 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
   });
 
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
-  if (!data) return <div aria-busy="true" className="text-[#5b6a52]">Loading your signs…</div>;
+  if (!data) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your signs…</div>;
 
   const put = (next: SignDesign) => live.update((d) => ({ ...d, designs: { ...d.designs, [sel]: next } }));
   const setLook = (p: Partial<SignLook>) => put({ ...design, look: { ...design.look, ...p } });
@@ -109,7 +109,7 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
     <section aria-label="Signs" className="flex flex-col gap-4">
       <div>
         <H2>Signs</H2>
-        <div className="text-[13px] text-[#5b6a52]">Start from one of these, or make your own. Change any word, font, colour or size; it’s kept as you go.</div>
+        <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Start from one of these, or make your own. Change any word, font, colour or size; it’s kept as you go.</div>
       </div>
       <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="Sign">
         {[...TEMPLATES.map((t) => [t.id, t.name] as const), ...data.own.map((o) => [o.id, o.name] as const)].map(([k, n]) => (
@@ -122,12 +122,12 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
               setSel(k);
               setPage(0);
             }}
-            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${sel === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}${data.designs[k] ? ' font-semibold' : ''}`}
+            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${sel === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}${data.designs[k] ? ' font-semibold' : ''}`}
           >
             {n}
           </button>
         ))}
-        <button type="button" onClick={addOwn} className="py-[6px] px-3 rounded-full border border-dashed border-[#c6b794] bg-transparent text-[13px] cursor-pointer">
+        <button type="button" onClick={addOwn} className="py-[6px] px-3 rounded-full border border-dashed border-[var(--adm-line,#c6b794)] bg-transparent text-[13px] cursor-pointer">
           + Your own sign
         </button>
       </div>
@@ -137,11 +137,11 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
           <canvas ref={canvas} aria-label={`${name} preview`} className="shadow-[0_8px_28px_rgba(51,64,47,.22)] bg-white max-w-full" />
           {pages.length > 1 && (
             <div className="flex items-center gap-3 text-[13px]">
-              <button type="button" disabled={at === 0} onClick={() => setPage(at - 1)} className="py-1 px-3 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-40">
+              <button type="button" disabled={at === 0} onClick={() => setPage(at - 1)} className="py-1 px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-40">
                 ‹
               </button>
               Table {pages[at]?.table} · {at + 1} of {pages.length}
-              <button type="button" disabled={at === pages.length - 1} onClick={() => setPage(at + 1)} className="py-1 px-3 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-40">
+              <button type="button" disabled={at === pages.length - 1} onClick={() => setPage(at + 1)} className="py-1 px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-40">
                 ›
               </button>
             </div>
@@ -156,9 +156,9 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
           </div>
           {saved.length > 0 && (
             <div className="w-full flex flex-col gap-1 text-[13px]">
-              <span className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">Saved copies</span>
+              <span className="text-[12px] font-semibold tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">Saved copies</span>
               {saved.slice(0, 5).map((s) => (
-                <a key={s.id} href={plannerApi.fileUrl(wid, s.id)} target="_blank" rel="noopener" className="!text-[#33402f] truncate">
+                <a key={s.id} href={plannerApi.fileUrl(wid, s.id)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)] truncate">
                   {s.name} · {new Date(s.at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
                   {s.where ? ` · ${WHERE[s.where] ?? s.where}` : ''}
                 </a>
@@ -174,8 +174,8 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
               <input value={own.name} maxLength={80} onChange={(e) => live.update((d) => ({ ...d, own: d.own.map((o) => (o.id === sel ? { ...o, name: e.target.value } : o)) }))} className={inputCls} />
             </label>
           )}
-          <fieldset className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] m-0">
-            <legend className="px-1 text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">Look</legend>
+          <fieldset className="flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] m-0">
+            <legend className="px-1 text-[12px] font-semibold tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">Look</legend>
             <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
               <label className={label}>
                 Paper
@@ -237,7 +237,7 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
                 </select>
               </label>
             </div>
-            <div className="flex gap-4 flex-wrap items-center text-[13px] text-[#5b6a52]">
+            <div className="flex gap-4 flex-wrap items-center text-[13px] text-[var(--adm-muted,#5b6a52)]">
               {(
                 [
                   ['paper', 'Paper'],
@@ -246,36 +246,36 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
                 ] as const
               ).map(([k, l]) => (
                 <label key={k} className="flex items-center gap-2">
-                  <input type="color" aria-label={`${l} colour`} value={pal[k]} onChange={(e) => setLook(k === 'paper' ? { paper: e.target.value } : k === 'ink' ? { ink: e.target.value } : { accent: e.target.value })} className="w-9 h-9 p-0 border border-[#d3c6a4] rounded-[8px] bg-transparent cursor-pointer" />
+                  <input type="color" aria-label={`${l} colour`} value={pal[k]} onChange={(e) => setLook(k === 'paper' ? { paper: e.target.value } : k === 'ink' ? { ink: e.target.value } : { accent: e.target.value })} className="w-9 h-9 p-0 border border-[var(--adm-line,#d3c6a4)] rounded-[8px] bg-transparent cursor-pointer" />
                   {l}
                 </label>
               ))}
               {(design.look.paper || design.look.ink || design.look.accent) && (
-                <button type="button" onClick={() => setLook({ paper: '', ink: '', accent: '' })} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+                <button type="button" onClick={() => setLook({ paper: '', ink: '', accent: '' })} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
                   Use my invitation’s colours
                 </button>
               )}
             </div>
           </fieldset>
 
-          <fieldset className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] m-0">
-            <legend className="px-1 text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">Words, top to bottom</legend>
+          <fieldset className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] m-0">
+            <legend className="px-1 text-[12px] font-semibold tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">Words, top to bottom</legend>
             <p className="m-0 text-[12px] text-[#7a7466]">
               Filled in for you: {'{name1}'} {'{name2}'} {'{couple}'} {'{date}'} {'{venue}'} {'{website}'} {'{photos}'} (the photo QR link)
               {tpl?.perTable ? ' {table}' : ''} {'{timeline}'}
             </p>
             {design.blocks.map((x, i) => (
               <div key={x.id} className="flex flex-col gap-2 py-2 border-t border-[#ece3cd]">
-                <div className="flex items-center gap-2 text-[12px] text-[#5b6a52]">
-                  <strong className="font-semibold text-[#33402f]">{BLOCK_LABEL[x.kind]}</strong>
+                <div className="flex items-center gap-2 text-[12px] text-[var(--adm-muted,#5b6a52)]">
+                  <strong className="font-semibold text-[var(--adm-ink,#33402f)]">{BLOCK_LABEL[x.kind]}</strong>
                   <span className="flex-1" />
-                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="w-7 h-7 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-30">
+                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="w-7 h-7 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-30">
                     ↑
                   </button>
-                  <button type="button" aria-label="Move down" disabled={i === design.blocks.length - 1} onClick={() => move(i, 1)} className="w-7 h-7 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-30">
+                  <button type="button" aria-label="Move down" disabled={i === design.blocks.length - 1} onClick={() => move(i, 1)} className="w-7 h-7 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-30">
                     ↓
                   </button>
-                  <button type="button" aria-label={`Remove ${BLOCK_LABEL[x.kind]}`} onClick={() => put({ ...design, blocks: design.blocks.filter((_, j) => j !== i) })} className="w-7 h-7 rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37]">
+                  <button type="button" aria-label={`Remove ${BLOCK_LABEL[x.kind]}`} onClick={() => put({ ...design, blocks: design.blocks.filter((_, j) => j !== i) })} className="w-7 h-7 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer text-[#7a4a37]">
                     ×
                   </button>
                 </div>
@@ -286,7 +286,7 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
                   <input value={x.text} maxLength={300} placeholder={x.kind === 'qr' ? 'A link, e.g. {website}' : ''} onChange={(e) => setBlock(i, { text: e.target.value })} className={inputCls} />
                 )}
                 {x.kind !== 'space' && (
-                  <div className="flex gap-3 flex-wrap items-center text-[12px] text-[#5b6a52]">
+                  <div className="flex gap-3 flex-wrap items-center text-[12px] text-[var(--adm-muted,#5b6a52)]">
                     <label className="flex items-center gap-2 flex-1 min-w-[160px]">
                       Size
                       <input type="range" min={0.3} max={x.kind === 'heading' ? 2.5 : 4} step={0.05} value={x.size} onChange={(e) => setBlock(i, { size: Number(e.target.value) })} className="flex-1 accent-[#5d6b47]" />
@@ -326,7 +326,7 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
           </fieldset>
           <div className="flex gap-4 flex-wrap text-[13px]">
             {tpl && data.designs[sel] && (
-              <button type="button" onClick={() => live.update((d) => ({ ...d, designs: Object.fromEntries(Object.entries(d.designs).filter(([k]) => k !== sel)) }), true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+              <button type="button" onClick={() => live.update((d) => ({ ...d, designs: Object.fromEntries(Object.entries(d.designs).filter(([k]) => k !== sel)) }), true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                 Start this sign again
               </button>
             )}
@@ -381,7 +381,7 @@ function PrintImages({ urls, mm, onClose }: { urls: string[]; mm: [number, numbe
           {urls.length} {urls.length === 1 ? 'page' : 'pages'}, {mm[0]} × {mm[1]} mm. Print, or choose “Save as PDF”.
         </span>
         <span className="flex gap-2">
-          <button type="button" onClick={() => window.print()} className="py-2 px-4 rounded-full border-0 bg-[#f3ecd6] text-[#33402f] text-[14px] font-medium cursor-pointer">
+          <button type="button" onClick={() => window.print()} className="py-2 px-4 rounded-full border-0 bg-[var(--adm-tint,#f3ecd6)] text-[var(--adm-ink,#33402f)] text-[14px] font-medium cursor-pointer">
             Print
           </button>
           <button type="button" onClick={onClose} className="py-2 px-4 rounded-full border border-[#f3ecd6] bg-transparent text-[#f3ecd6] text-[14px] cursor-pointer">

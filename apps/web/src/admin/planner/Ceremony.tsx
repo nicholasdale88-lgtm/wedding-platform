@@ -27,8 +27,8 @@ import { useLiveDoc } from './useDocSave';
 type P = 'p1' | 'p2';
 const newId = () => crypto.randomUUID().slice(0, 10);
 const nice = (d: string) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }) : '');
-const card = 'flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]';
-const small = 'text-[13px] text-[#5b6a52]';
+const card = 'flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]';
+const small = 'text-[13px] text-[var(--adm-muted,#5b6a52)]';
 const tick = 'w-[20px] h-[20px] accent-[#5d6b47] flex-none';
 
 type People = Awaited<ReturnType<typeof plannerApi.ceremonyPeople>>;
@@ -54,7 +54,7 @@ export function Ceremony() {
       .catch(() => setPeople(null));
   }, [wid]);
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
-  if (!live.doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading the ceremony…</div>;
+  if (!live.doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the ceremony…</div>;
 
   const doc = live.doc.data;
   const first = (n: string | undefined, fallback: string) => n?.trim().split(/\s+/)[0] || fallback;
@@ -136,7 +136,7 @@ function Attach({ file, label, onFiled }: { file: CeremonyFile | null; label: st
     <span className="flex flex-col gap-1">
       <span className="flex items-center gap-2 flex-wrap">
         {file && (
-          <a href={plannerApi.fileUrl(wid, file.id)} target="_blank" rel="noopener" className="text-[14px] !text-[#33402f] underline break-all">
+          <a href={plannerApi.fileUrl(wid, file.id)} target="_blank" rel="noopener" className="text-[14px] !text-[var(--adm-ink,#33402f)] underline break-all">
             {file.name}
           </a>
         )}
@@ -363,13 +363,13 @@ function Paperwork({ p, names, weddingDay, today, onChange, update }: { p: Paper
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="m-0 py-3 px-4 rounded-[12px] bg-[#f3ecd6] text-[14px] text-[#3d4a2f]">This is a guide to the usual steps for marrying in Australia. Your celebrant confirms exactly what you need, and checks your documents in person.</p>
+      <p className="m-0 py-3 px-4 rounded-[12px] bg-[var(--adm-tint,#f3ecd6)] text-[14px] text-[#3d4a2f]">This is a guide to the usual steps for marrying in Australia. Your celebrant confirms exactly what you need, and checks your documents in person.</p>
 
       <section aria-label="Notice of Intended Marriage" className={card}>
         <H2>1. Notice of Intended Marriage</H2>
         <p className={`m-0 ${small}`}>
           The form that tells your celebrant you plan to marry. It must reach them at least one month, and no more than 18 months, before the wedding.{' '}
-          <a href={NOIM_FORM_URL} target="_blank" rel="noopener" className="!text-[#33402f] underline">
+          <a href={NOIM_FORM_URL} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)] underline">
             The form
           </a>
         </p>
@@ -377,12 +377,12 @@ function Paperwork({ p, names, weddingDay, today, onChange, update }: { p: Paper
           <p className={`m-0 ${small}`}>Add your wedding’s date (in your events) to see your dates.</p>
         ) : (
           <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
-            <div className="p-3 rounded-[12px] border border-[#e2d7bc]">
-              <span className="block text-[12px] font-semibold tracking-[.1em] uppercase text-[#5b6a52]">Earliest</span>
+            <div className="p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)]">
+              <span className="block text-[12px] font-semibold tracking-[.1em] uppercase text-[var(--adm-muted,#5b6a52)]">Earliest</span>
               <span className="text-[16px]">{nice(noim.earliest)}</span>
             </div>
-            <div className={`p-3 rounded-[12px] border ${noim.state === 'late' || noim.state === 'closing' ? 'border-[#a5533c]' : 'border-[#e2d7bc]'}`}>
-              <span className="block text-[12px] font-semibold tracking-[.1em] uppercase text-[#5b6a52]">Last day</span>
+            <div className={`p-3 rounded-[12px] border ${noim.state === 'late' || noim.state === 'closing' ? 'border-[#a5533c]' : 'border-[var(--adm-line,#e2d7bc)]'}`}>
+              <span className="block text-[12px] font-semibold tracking-[.1em] uppercase text-[var(--adm-muted,#5b6a52)]">Last day</span>
               <span className="text-[16px]">{nice(noim.latest)}</span>
             </div>
           </div>
@@ -475,7 +475,7 @@ function Paperwork({ p, names, weddingDay, today, onChange, update }: { p: Paper
           </span>
         </label>
         {bdm ? (
-          <a href={bdm.url} target="_blank" rel="noopener" className="self-start text-[14px] !text-[#33402f] underline">
+          <a href={bdm.url} target="_blank" rel="noopener" className="self-start text-[14px] !text-[var(--adm-ink,#33402f)] underline">
             {bdm.name}
           </a>
         ) : (
@@ -504,10 +504,10 @@ function Rows<T extends { id: string }>({ title, items, add, render, onChange, e
         <div key={it.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-start py-2 border-t border-[#ece3cd] first-of-type:border-t-0">
           <div className="flex flex-col gap-2 min-w-0">{render(it, (patch) => onChange(items.map((x) => (x.id === it.id ? { ...x, ...patch } : x))))}</div>
           <span className="flex gap-1 items-center">
-            <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="w-8 h-8 border-0 bg-transparent cursor-pointer text-[#5b6a52] disabled:opacity-30">
+            <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)} className="w-8 h-8 border-0 bg-transparent cursor-pointer text-[var(--adm-muted,#5b6a52)] disabled:opacity-30">
               ↑
             </button>
-            <button type="button" aria-label="Move down" disabled={i === items.length - 1} onClick={() => move(i, 1)} className="w-8 h-8 border-0 bg-transparent cursor-pointer text-[#5b6a52] disabled:opacity-30">
+            <button type="button" aria-label="Move down" disabled={i === items.length - 1} onClick={() => move(i, 1)} className="w-8 h-8 border-0 bg-transparent cursor-pointer text-[var(--adm-muted,#5b6a52)] disabled:opacity-30">
               ↓
             </button>
             <button type="button" aria-label="Remove" onClick={() => onChange(items.filter((x) => x.id !== it.id), true)} className="w-8 h-8 border-0 bg-transparent cursor-pointer text-[#7a7466] text-[18px]">

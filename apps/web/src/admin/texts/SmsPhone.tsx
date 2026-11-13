@@ -24,14 +24,14 @@ export function SmsPhone({ sender, to, text, parts }: { sender: string; to: stri
   const ios = kind === 'iphone';
   return (
     <div className="flex flex-col items-center gap-2">
-      <div role="radiogroup" aria-label="Phone" className="flex gap-1 p-1 rounded-full bg-[#efe7d3] text-[12px]">
+      <div role="radiogroup" aria-label="Phone" className="flex gap-1 p-1 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[12px]">
         {(
           [
             ['iphone', 'iPhone'],
             ['android', 'Android'],
           ] as const
         ).map(([k, label]) => (
-          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`py-1 px-3 rounded-full border-0 cursor-pointer ${kind === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[#33402f]'}`}>
+          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`py-1 px-3 rounded-full border-0 cursor-pointer ${kind === k ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-transparent text-[var(--adm-ink,#33402f)]'}`}>
             {label}
           </button>
         ))}

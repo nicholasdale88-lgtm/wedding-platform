@@ -36,14 +36,14 @@ export function TellUs({ wid, page = 'help', autoFocus = false }: { wid: string;
     }
   };
   return (
-    <section aria-label="Tell us" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Tell us" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <h2 className="m-0 font-display font-medium text-[24px] leading-tight">Tell us</h2>
-      <p className="m-0 text-[15px] text-[#5b6a52]">
+      <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)]">
         An idea, something that’s wrong, or something you love: it goes straight to the people who make the app. Your first feedback earns 100 free text credits, whatever you tell us.
       </p>
       <div className="flex gap-2 flex-wrap" role="radiogroup" aria-label="What is it?">
         {KINDS.map(([k, label]) => (
-          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`py-[7px] px-4 rounded-full border text-[14px] cursor-pointer ${kind === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[#c6b794] bg-white text-[#33402f]'}`}>
+          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`py-[7px] px-4 rounded-full border text-[14px] cursor-pointer ${kind === k ? 'border-[#33402f] bg-[#33402f] text-[#fbf8f2]' : 'border-[var(--adm-line,#c6b794)] bg-white text-[var(--adm-ink,#33402f)]'}`}>
             {label}
           </button>
         ))}
@@ -71,12 +71,12 @@ export function TellUs({ wid, page = 'help', autoFocus = false }: { wid: string;
       )}
       {updates.length > 0 && (
         <div className="flex flex-col gap-1">
-          <h3 className="m-0 text-[13px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">Coming from your feedback</h3>
+          <h3 className="m-0 text-[13px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">Coming from your feedback</h3>
           <ul className="m-0 pl-5 text-[15px] leading-[1.5]">
             {updates.map((u) => (
               <li key={u.text}>
                 {u.text}
-                {u.done && <span className="text-[#5b6a52]"> · done</span>}
+                {u.done && <span className="text-[var(--adm-muted,#5b6a52)]"> · done</span>}
               </li>
             ))}
           </ul>

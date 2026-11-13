@@ -77,8 +77,8 @@ export function Wording({ n, prefix, texts, filled = {}, onChange }: { n: number
           </label>
         )}
       </div>
-      {!found && <div aria-busy="true" className="text-[13px] text-[#5b6a52]">Reading the page…</div>}
-      {found && (onlyMine || needle) && !sections.some(([, ss]) => ss.some(matches)) && <div className="text-[14px] text-[#5b6a52]">{onlyMine && !needle ? 'Nothing changed yet: everything reads as the design wrote it.' : 'No wording matches that.'}</div>}
+      {!found && <div aria-busy="true" className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Reading the page…</div>}
+      {found && (onlyMine || needle) && !sections.some(([, ss]) => ss.some(matches)) && <div className="text-[14px] text-[var(--adm-muted,#5b6a52)]">{onlyMine && !needle ? 'Nothing changed yet: everything reads as the design wrote it.' : 'No wording matches that.'}</div>}
       <div className="flex flex-col gap-2">
         {sections.map(([name, ss]) => {
           const shown = ss.filter(matches);
@@ -91,7 +91,7 @@ export function Wording({ n, prefix, texts, filled = {}, onChange }: { n: number
                   {name}
                   <span className="ml-2 font-sans text-[12px] text-[#7a7466]">{mine ? `${mine} changed` : ''}</span>
                 </span>
-                <span aria-hidden className="transition-transform text-[#5b6a52]">
+                <span aria-hidden className="transition-transform text-[var(--adm-muted,#5b6a52)]">
                   ›
                 </span>
               </summary>
@@ -150,7 +150,7 @@ function SentenceRow({
         >
           {s.pieces.map((p, i) =>
             'fill' in p ? (
-              <span key={`f${i}`} className="py-[1px] px-2 rounded-full bg-[#e7e0cb] text-[12px] text-[#5b6a52] whitespace-nowrap">
+              <span key={`f${i}`} className="py-[1px] px-2 rounded-full bg-[#e7e0cb] text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">
                 {fillName(p.fill)}
               </span>
             ) : (
@@ -194,13 +194,13 @@ function SentenceRow({
         <div className="flex flex-wrap items-center gap-[6px]">
           {s.pieces.map((p, i) =>
             'fill' in p ? (
-              <span key={`f${i}`} className="py-[3px] px-2 rounded-full bg-[#e7e0cb] text-[12px] text-[#5b6a52]" title="Filled in for each guest">
+              <span key={`f${i}`} className="py-[3px] px-2 rounded-full bg-[#e7e0cb] text-[12px] text-[var(--adm-muted,#5b6a52)]" title="Filled in for each guest">
                 {fillName(p.fill)}
               </span>
             ) : editable.includes(p.key) ? (
               box(p.key, false)
             ) : (
-              <span key={p.key} className="text-[15px] text-[#5b6a52]">
+              <span key={p.key} className="text-[15px] text-[var(--adm-muted,#5b6a52)]">
                 {val(p.key).trim()}
               </span>
             ),

@@ -172,7 +172,7 @@ export function GuestPages() {
   const asEvents = !sample && pv.startsWith('ev:') ? pv.slice(3) : '';
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data || !doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your pages…</div>;
+  if (!data || !doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your pages…</div>;
 
   const setParam = (k: string, v: string) =>
     setParams(
@@ -250,7 +250,7 @@ export function GuestPages() {
       {/* While editing in place the card isn't reloaded after saves: it's sent each change instead. */}
       <DevicePreview device={device} src={previewUrl} url={shareUrl.replace(/^https?:\/\//, '')} title="Guest page preview" frameKey={editingCard ? previewUrl : `${previewUrl}#${previewKey}`} stay={!editingCard && previewKey > 0} />
       <div className="flex gap-2 flex-wrap justify-center">
-        <a href={previewUrl} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-[#c6b794] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]">
+        <a href={previewUrl} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-[var(--adm-line,#c6b794)] text-[13px] no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]">
           Open full screen
         </a>
         <Pill kind="dashed" onClick={() => void navigator.clipboard?.writeText(shareUrl).then(() => toast('Link copied'))} disabled={!sample && page !== 'invitation'}>
@@ -268,7 +268,7 @@ export function GuestPages() {
           <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">{ev ? `Set up ${ev.name}` : 'Your invitation'}</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <span role="status" aria-live="polite" className="text-[13px] text-[#5b6a52]">
+          <span role="status" aria-live="polite" className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {page === 'details' ? 'Event details save with the Save button' : status === 'saving' ? 'Saving…' : status === 'waiting' ? 'Unsaved changes' : status === 'error' ? 'Not saved. Check your connection.' : 'All changes saved'}
           </span>
           <Pill onClick={() => setSharing((x) => !x)}>Share a preview</Pill>
@@ -339,10 +339,10 @@ export function GuestPages() {
             Preview <span aria-hidden>↗</span>
           </button>
           {previewOpen && (
-            <div role="dialog" aria-modal="true" aria-label="Preview" className="fixed inset-0 z-[40] flex flex-col bg-[#f6f0e2] pt-[max(12px,env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)]">
-              <div className="flex items-center justify-between gap-3 px-4 pb-2 border-b border-[#e2d7bc]">
+            <div role="dialog" aria-modal="true" aria-label="Preview" className="fixed inset-0 z-[40] flex flex-col bg-[var(--adm-bg,#f6f0e2)] pt-[max(12px,env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)]">
+              <div className="flex items-center justify-between gap-3 px-4 pb-2 border-b border-[var(--adm-line,#e2d7bc)]">
                 <span className="font-display text-[22px]">Preview</span>
-                <button type="button" aria-label="Close preview" onClick={() => setPreviewOpen(false)} className="w-10 h-10 rounded-full border border-[#c6b794] bg-[#fbf8f2] text-[20px] cursor-pointer">
+                <button type="button" aria-label="Close preview" onClick={() => setPreviewOpen(false)} className="w-10 h-10 rounded-full border border-[var(--adm-line,#c6b794)] bg-[#fbf8f2] text-[20px] cursor-pointer">
                   ×
                 </button>
               </div>
@@ -370,7 +370,7 @@ function MusicCheck({ src }: { src: string }) {
     };
   }, [src]);
   const say = {
-    checking: ['Checking the music plays…', 'text-[#5b6a52]'],
+    checking: ['Checking the music plays…', 'text-[var(--adm-muted,#5b6a52)]'],
     ok: ['✓ The music plays: guests hear it when they open the envelope (and the ♪ button turns it off).', 'text-[#3d4a2f] font-semibold'],
     blocked: ['This song can’t play on your invitation: its owner doesn’t allow it on other websites (or it’s been taken down). Try another upload of the same song (search YouTube for the song’s name with “audio” or “lyrics”), or use a link to an MP3.', 'text-[#7a4a37]'],
     missing: ['That YouTube video doesn’t exist or is private. Check the link.', 'text-[#7a4a37]'],
@@ -478,7 +478,7 @@ function InvitationEditor({
                   role="radio"
                   aria-checked={(inv.scene ?? 'auto') === k}
                   onClick={() => setInv({ scene: k })}
-                  className={`flex flex-col items-start text-left py-2 px-3 rounded-[12px] border cursor-pointer ${(inv.scene ?? 'auto') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+                  className={`flex flex-col items-start text-left py-2 px-3 rounded-[12px] border cursor-pointer ${(inv.scene ?? 'auto') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}
                 >
                   <span className="text-[14px] font-semibold">{SCENE_INFO[k].label}</span>
                   <span className="text-[12px] opacity-80">{SCENE_INFO[k].hint}</span>
@@ -496,7 +496,7 @@ function InvitationEditor({
                   role="radio"
                   aria-checked={(inv.motion ?? 'auto') === k}
                   onClick={() => setInv({ motion: k })}
-                  className={`py-[7px] px-3 rounded-full border text-[13px] cursor-pointer ${(inv.motion ?? 'auto') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+                  className={`py-[7px] px-3 rounded-full border text-[13px] cursor-pointer ${(inv.motion ?? 'auto') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}
                 >
                   {MOTION_LABEL[k]}
                 </button>
@@ -561,8 +561,8 @@ function InvitationEditor({
           >
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">A photo of the two of you behind your names, or behind the whole invitation. The words stay easy to read.</span>
             <div className="flex flex-wrap items-center gap-3">
-              {set(inv.images?.backdrop) && <img src={inv.images!.backdrop!} alt="Your photo" className="w-[72px] h-[96px] object-cover rounded-[8px] border border-[#e2d7bc]" />}
-              <label className="py-[9px] px-4 rounded-full border border-[#c6b794] bg-white text-[14px] font-semibold cursor-pointer">
+              {set(inv.images?.backdrop) && <img src={inv.images!.backdrop!} alt="Your photo" className="w-[72px] h-[96px] object-cover rounded-[8px] border border-[var(--adm-line,#e2d7bc)]" />}
+              <label className="py-[9px] px-4 rounded-full border border-[var(--adm-line,#c6b794)] bg-white text-[14px] font-semibold cursor-pointer">
                 {set(inv.images?.backdrop) ? 'Change photo' : 'Choose a photo'}
                 <input
                   type="file"
@@ -580,7 +580,7 @@ function InvitationEditor({
                 />
               </label>
               {set(inv.images?.backdrop) && (
-                <button type="button" onClick={() => setInv({ images: { ...inv.images, backdrop: '' }, backdrop: { ...inv.backdrop, where: 'none' } })} className="py-[9px] px-4 rounded-full border border-[#c6b794] bg-transparent text-[14px] cursor-pointer">
+                <button type="button" onClick={() => setInv({ images: { ...inv.images, backdrop: '' }, backdrop: { ...inv.backdrop, where: 'none' } })} className="py-[9px] px-4 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[14px] cursor-pointer">
                   Remove
                 </button>
               )}
@@ -599,7 +599,7 @@ function InvitationEditor({
                   role="radio"
                   aria-checked={(inv.backdrop?.where ?? 'none') === k}
                   onClick={() => setInv({ backdrop: { veil: 0.25, ...inv.backdrop, where: k } })}
-                  className={`py-[7px] px-3 rounded-full border text-[13px] cursor-pointer ${(inv.backdrop?.where ?? 'none') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+                  className={`py-[7px] px-3 rounded-full border text-[13px] cursor-pointer ${(inv.backdrop?.where ?? 'none') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}
                 >
                   {l}
                 </button>
@@ -874,17 +874,17 @@ function SharePreview({ data, onChange }: { data: PagesData; onChange: (d: Pages
   };
   const copy = (url: string) => void navigator.clipboard?.writeText(url).then(() => toast('Link copied'));
   return (
-    <section aria-label="Share a preview" className="flex flex-col gap-3 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Share a preview" className="flex flex-col gap-3 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div>
         <h2 className="m-0 font-display font-medium text-[24px]">Share a preview</h2>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[640px]">
+        <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)] max-w-[640px]">
           Send these to family or friends for their opinion. They see the pages exactly as guests will, with a stand-in guest. No texts are sent and nothing they tap is saved.
         </p>
       </div>
       {links.map((l) => (
-        <div key={l.url} className="flex gap-2 items-center flex-wrap py-2 border-t border-[#ece3cc]">
+        <div key={l.url} className="flex gap-2 items-center flex-wrap py-2 border-t border-[var(--adm-line,#ece3cc)]">
           <span className="font-medium min-w-[220px]">{l.label}</span>
-          <a href={l.url} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+          <a href={l.url} target="_blank" rel="noopener" className="text-[13px] !text-[var(--adm-ink,#33402f)]">
             Open
           </a>
           <Pill kind="dashed" onClick={() => copy(l.url)}>
@@ -894,7 +894,7 @@ function SharePreview({ data, onChange }: { data: PagesData; onChange: (d: Pages
             href={`https://wa.me/?text=${encodeURIComponent(`What do you think? ${l.url}`)}`}
             target="_blank"
             rel="noopener"
-            className="py-[7px] px-[14px] rounded-full border border-[#c6b794] text-[13px] no-underline !text-[#33402f] hover:bg-[#efe7d3]"
+            className="py-[7px] px-[14px] rounded-full border border-[var(--adm-line,#c6b794)] text-[13px] no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]"
           >
             WhatsApp
           </a>

@@ -443,7 +443,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
           </Label>
           {/* Already on the list: bring their number in from the phone's contacts (Android's picker; iPhone's AutoFill Contact). */}
           <div className="col-start-1 -mt-1 flex flex-col gap-1">
-            <button type="button" onClick={() => void numberFromContacts()} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+            <button type="button" onClick={() => void numberFromContacts()} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
               {phone ? 'Use a number from my contacts' : 'Add their number from my contacts'}
             </button>
             {tip && (
@@ -486,7 +486,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         {g.phone && (g.channel ?? '') !== 'email' && (g.channel ?? '') !== 'phone' && (
           <span className="-mt-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
             Texts use text credits ({TEXT_CREDIT_ALL_IN}c each, all-in).{' '}
-            <a href={`/admin/${encodeURIComponent(wid)}/settings?view=texting`} className="underline text-[#33402f]">
+            <a href={`/admin/${encodeURIComponent(wid)}/settings?view=texting`} className="underline text-[var(--adm-ink,#33402f)]">
               Buy text credits
             </a>
           </span>

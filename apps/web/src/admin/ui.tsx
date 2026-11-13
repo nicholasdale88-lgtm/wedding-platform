@@ -12,7 +12,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 const INK = 'text-[var(--adm-ink,#33402f)]';
 
 export const Eyebrow = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
-  <div className={`text-[11px] font-semibold tracking-[.22em] uppercase text-[var(--adm-muted,#5b6a52)] ${className}`}>{children}</div>
+  <div className={`text-[11px] font-semibold tracking-[.22em] uppercase text-[var(--adm-gold,var(--adm-muted,#5b6a52))] ${className}`}>{children}</div>
 );
 
 export const H2 = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
@@ -25,7 +25,8 @@ export function PageHeader({ eyebrow, title, sub, actions }: { eyebrow?: ReactNo
     <header className="flex justify-between items-end gap-4 flex-wrap">
       <div className="flex flex-col gap-[10px] min-w-0">
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-        <h1 className={`m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08] [text-wrap:balance] ${INK}`}>{title}</h1>
+        <h1 className={`m-0 font-display font-medium text-[clamp(32px,8vw,44px)] leading-[1.06] [text-wrap:balance] ${INK}`}>{title}</h1>
+        <span aria-hidden className="flex items-center gap-2 text-[var(--adm-gold,#b9a07a)]"><span className="w-10 h-px bg-current" /><span className="w-[5px] h-[5px] rotate-45 bg-current" /><span className="w-10 h-px bg-current" /></span>
         {sub && <p className="m-0 max-w-[620px] text-[15px] text-[var(--adm-muted,#5b6a52)]">{sub}</p>}
       </div>
       {actions && <div className="flex gap-2 flex-wrap items-center">{actions}</div>}

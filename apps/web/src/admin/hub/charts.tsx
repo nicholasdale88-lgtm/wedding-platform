@@ -6,12 +6,12 @@ import type { ReactNode } from 'react';
 
 export const C = {
   accent: 'var(--adm-accent,#5d6b47)',
-  gold: '#b9a07a',
-  sand: '#e6dcc4',
+  gold: 'var(--adm-gold,#b9a07a)',
+  sand: 'var(--adm-line,#e6dcc4)',
   late: '#a4553c',
   sky: '#7d93b5',
   ink: 'var(--adm-ink,#33402f)',
-  muted: '#5b6a52',
+  muted: 'var(--adm-muted,#5b6a52)',
 };
 
 export type Slice = { label: string; value: number; colour: string };
@@ -50,7 +50,7 @@ export function Donut({ slices, centre, sub, label, size = 132 }: { slices: Slic
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
           <span className="font-display text-[30px] leading-none">{centre}</span>
-          {sub && <span className="mt-1 text-[11px] text-[#5b6a52]">{sub}</span>}
+          {sub && <span className="mt-1 text-[11px] text-[var(--adm-muted,#5b6a52)]">{sub}</span>}
         </div>
       </div>
       <Legend items={slices.map((s) => ({ label: s.label, value: String(s.value), colour: s.colour }))} />
@@ -64,7 +64,7 @@ export function Legend({ items }: { items: { label: string; value: string; colou
       {items.map((i) => (
         <li key={i.label} className="flex items-center gap-2">
           <span aria-hidden className="w-[10px] h-[10px] rounded-[3px] flex-none" style={{ background: i.colour }} />
-          <span className="text-[#5b6a52]">{i.label}</span>
+          <span className="text-[var(--adm-muted,#5b6a52)]">{i.label}</span>
           <span className="font-semibold tabular-nums">{i.value}</span>
         </li>
       ))}
@@ -83,7 +83,7 @@ export function Columns({ cols, label, money = false, height = 140 }: { cols: { 
           const sum = c.parts.reduce((a, p) => a + p.value, 0);
           return (
             <div key={c.label} className="flex-1 min-w-0 h-full flex flex-col justify-end items-center gap-1">
-              {sum > 0 && <span className="text-[11px] tabular-nums text-[#5b6a52] whitespace-nowrap">{fmt(sum)}</span>}
+              {sum > 0 && <span className="text-[11px] tabular-nums text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{fmt(sum)}</span>}
               <div className="w-full max-w-[38px] flex flex-col-reverse rounded-t-[5px] overflow-hidden" style={{ height: `${(sum / max) * 82}%`, minHeight: sum ? 3 : 0 }}>
                 {c.parts.map((p, i) => (p.value > 0 ? <div key={i} style={{ height: `${(p.value / sum) * 100}%`, background: p.colour }} /> : null))}
               </div>
@@ -91,9 +91,9 @@ export function Columns({ cols, label, money = false, height = 140 }: { cols: { 
           );
         })}
       </div>
-      <div className="flex gap-[6px] border-t border-[#c6b794] pt-1">
+      <div className="flex gap-[6px] border-t border-[var(--adm-line,#c6b794)] pt-1">
         {cols.map((c) => (
-          <span key={c.label} className={`flex-1 min-w-0 text-center text-[11px] truncate ${c.note ? 'text-[#a4553c] font-semibold' : 'text-[#5b6a52]'}`}>
+          <span key={c.label} className={`flex-1 min-w-0 text-center text-[11px] truncate ${c.note ? 'text-[#a4553c] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
             {c.label}
           </span>
         ))}
@@ -110,10 +110,10 @@ export function Rows({ rows, label }: { rows: { label: string; parts: { value: n
       {rows.map((r) => (
         <li key={r.label} className="grid grid-cols-[minmax(0,110px)_minmax(0,1fr)_auto] gap-3 items-center text-[13px]">
           <span className="truncate">{r.label}</span>
-          <span className="flex h-[12px] rounded-full overflow-hidden bg-[#efe7d3]" aria-hidden>
+          <span className="flex h-[12px] rounded-full overflow-hidden bg-[var(--adm-tint,#efe7d3)]" aria-hidden>
             {r.parts.map((p, i) => (p.value > 0 ? <span key={i} style={{ width: `${(p.value / max) * 100}%`, background: p.colour }} /> : null))}
           </span>
-          <span className="tabular-nums text-[#5b6a52] whitespace-nowrap">{r.right}</span>
+          <span className="tabular-nums text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{r.right}</span>
         </li>
       ))}
     </ul>
@@ -122,7 +122,7 @@ export function Rows({ rows, label }: { rows: { label: string; parts: { value: n
 
 /** A running total over time (replies coming in), with the goal as a dashed line. */
 export function Climb({ points, goal, label, height = 120 }: { points: { day: string; total: number }[]; goal: number; label: string; height?: number }) {
-  if (points.length < 2) return <p className="m-0 text-[13px] text-[#5b6a52]">The chart starts once replies come in on two different days.</p>;
+  if (points.length < 2) return <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">The chart starts once replies come in on two different days.</p>;
   const w = 300;
   const top = Math.max(goal, points[points.length - 1]!.total, 1);
   const x = (i: number) => (i / (points.length - 1)) * w;
@@ -137,7 +137,7 @@ export function Climb({ points, goal, label, height = 120 }: { points: { day: st
         <path d={`${line} L${w},${height} L0,${height} Z`} style={{ fill: C.accent }} opacity="0.14" />
         <path d={line} fill="none" style={{ stroke: C.accent }} strokeWidth="2" vectorEffect="non-scaling-stroke" />
       </svg>
-      <figcaption className="flex justify-between text-[11px] text-[#5b6a52]">
+      <figcaption className="flex justify-between text-[11px] text-[var(--adm-muted,#5b6a52)]">
         <span>{day(points[0]!.day)}</span>
         <span>
           {last.total} of {goal} · dashed line: everyone
@@ -153,7 +153,7 @@ export function Meter({ parts, total, label }: { parts: { value: number; colour:
   const sum = parts.reduce((a, p) => a + p.value, 0);
   const scale = Math.max(total, sum, 1);
   return (
-    <div role="img" aria-label={`${label}: ${parts.map((p) => `${p.label} ${Math.round(p.value)}`).join(', ')} of ${Math.round(total)}`} className="flex h-[12px] rounded-full overflow-hidden bg-[#efe7d3]">
+    <div role="img" aria-label={`${label}: ${parts.map((p) => `${p.label} ${Math.round(p.value)}`).join(', ')} of ${Math.round(total)}`} className="flex h-[12px] rounded-full overflow-hidden bg-[var(--adm-tint,#efe7d3)]">
       {parts.map((p) => (p.value > 0 ? <span key={p.label} style={{ width: `${(p.value / scale) * 100}%`, background: p.colour }} /> : null))}
     </div>
   );

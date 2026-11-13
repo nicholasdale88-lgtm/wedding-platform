@@ -31,12 +31,12 @@ export function SystemCheck() {
     }
   }, [wid]);
   useEffect(() => void run(), [run]);
-  const mark = { ok: ['✓', 'bg-[#e7eedb] text-[#2f3d24]'], warn: ['!', 'bg-[#f6e3c9] text-[#6b4e12]'], off: ['–', 'bg-[#efe9da] text-[#5b6a52]'] } as const;
+  const mark = { ok: ['✓', 'bg-[#e7eedb] text-[#2f3d24]'], warn: ['!', 'bg-[#f6e3c9] text-[#6b4e12]'], off: ['–', 'bg-[#efe9da] text-[var(--adm-muted,#5b6a52)]'] } as const;
   const bad = items?.filter((i) => i.state === 'warn').length ?? 0;
   return (
     <section className="flex flex-col gap-4 max-w-[720px]">
       <div className="flex justify-between items-center gap-3 flex-wrap">
-        <p className="m-0 text-[15px] text-[#5b6a52]">
+        <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)]">
           {!items ? (problem ? 'The check couldn’t finish.' : 'Checking each service…') : bad ? `${bad} ${bad === 1 ? 'thing needs' : 'things need'} attention.` : 'Everything that’s set up is working.'}
         </p>
         <Pill kind="outline" disabled={busy} onClick={() => void run()}>
@@ -49,7 +49,7 @@ export function SystemCheck() {
         </p>
       )}
       {digest && (
-        <label className="flex items-start gap-3 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] cursor-pointer">
+        <label className="flex items-start gap-3 p-4 rounded-[14px] bg-[var(--adm-card,#fbf8f0)] border border-[var(--adm-line,#e2d7bc)] cursor-pointer">
           <input
             type="checkbox"
             checked={digest.on}
@@ -58,7 +58,7 @@ export function SystemCheck() {
           />
           <span className="flex flex-col gap-1">
             <strong className="text-[15px] font-semibold">A daily summary by email</strong>
-            <span className="text-[14px] text-[#5b6a52]">
+            <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
               About 6pm, only when there’s news: who replied, messages waiting for you, and payments due this week.{!digest.email && ' (It starts once email is switched on for the site.)'}
             </span>
           </span>
@@ -71,7 +71,7 @@ export function SystemCheck() {
       )}
       <ul className="list-none m-0 p-0 flex flex-col gap-2">
         {items?.map((i) => (
-          <li key={i.key} className="flex gap-3 p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
+          <li key={i.key} className="flex gap-3 p-4 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)]">
             <span aria-hidden className={`flex-none w-8 h-8 rounded-full flex items-center justify-center text-[15px] font-semibold ${mark[i.state][1]}`}>
               {mark[i.state][0]}
             </span>
@@ -80,8 +80,8 @@ export function SystemCheck() {
                 {i.name}
                 <span className="sr-only">: {i.state === 'ok' ? 'working' : i.state === 'warn' ? 'needs attention' : 'not set up'}</span>
               </strong>
-              <span className="text-[14px] text-[#33402f]">{i.detail}</span>
-              {i.fix && <span className="text-[13px] text-[#5b6a52]">{i.fix}</span>}
+              <span className="text-[14px] text-[var(--adm-ink,#33402f)]">{i.detail}</span>
+              {i.fix && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{i.fix}</span>}
             </span>
           </li>
         ))}

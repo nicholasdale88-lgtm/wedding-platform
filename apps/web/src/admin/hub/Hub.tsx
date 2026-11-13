@@ -147,7 +147,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
                   { label: 'Later', value: Math.max(0, openN - t.overdue - t.due30), colour: C.sand },
                 ]}
               />
-              <p className="m-0 text-[13px] text-[#5b6a52]">
+              <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 {t.byStatus.doing} in progress · {t.due7} due in the next 7 days
               </p>
               <Columns label="Open tasks by month due" cols={taskCols} height={110} />
@@ -161,17 +161,17 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
           {t.total ? (
             <>
               <Rows label="Tasks by person" rows={who} />
-              <p className="m-0 text-[12px] text-[#5b6a52]">Green done · blue in progress · red overdue · gold to do.</p>
+              <p className="m-0 text-[12px] text-[var(--adm-muted,#5b6a52)]">Green done · blue in progress · red overdue · gold to do.</p>
               {t.next.length > 0 && (
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52] mb-1">Next up</span>
+                  <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)] mb-1">Next up</span>
                   {t.next.slice(0, 5).map((x) => (
-                    <div key={x.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-[7px] border-t border-[#ece3cc] text-[13px]">
+                    <div key={x.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-[7px] border-t border-[var(--adm-line,#ece3cc)] text-[13px]">
                       <span className="min-w-0 truncate">
                         {x.text}
                         {x.status === 'doing' && <span className="ml-2 py-[1px] px-[7px] rounded-full bg-[#dde7f3] text-[#2f3d5c] text-[11px]">In progress</span>}
                       </span>
-                      <span className={`whitespace-nowrap ${x.due && x.due < todayIso ? 'text-[#a4553c] font-semibold' : 'text-[#5b6a52]'}`}>
+                      <span className={`whitespace-nowrap ${x.due && x.due < todayIso ? 'text-[#a4553c] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
                         {x.who} · {shortDay(x.due)}
                       </span>
                     </div>
@@ -188,7 +188,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
           {done ? (
             <Columns label="Tasks done per week, last 12 weeks" cols={weekCols} height={110} />
           ) : (
-            <p className="m-0 text-[14px] text-[#5b6a52]">Tick tasks off and your weekly pace shows here.</p>
+            <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Tick tasks off and your weekly pace shows here.</p>
           )}
         </Card>
 
@@ -205,7 +205,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
                 {overduePay.length > 0 && <span className="text-[#a4553c] font-semibold">{overduePay.length} overdue</span>}
               </div>
               <Columns label="Payments by month" money cols={payCols} height={130} />
-              <p className="m-0 text-[12px] text-[#5b6a52]">Green paid · gold due · red overdue.</p>
+              <p className="m-0 text-[12px] text-[var(--adm-muted,#5b6a52)]">Green paid · gold due · red overdue.</p>
             </>
           ) : (
             <Starter text="Book a vendor or add budget lines with amounts, and their payments line up here by month." go={() => planner('payments')} />
@@ -224,7 +224,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
                     { label: 'Committed, not paid', value: Math.max(0, committed - paid), colour: C.gold },
                   ]}
                 />
-                <span className="text-[13px] text-[#5b6a52]">
+                <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
                   {aud(paid)} paid · {aud(committed)} committed{d.budget.total ? ` · ${aud(d.budget.total)} budget` : ''}
                   {d.budget.total > 0 && committed > d.budget.total && <strong className="text-[#a4553c]"> · {aud(committed - d.budget.total)} over</strong>}
                 </span>
@@ -260,12 +260,13 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
 /** A strip of headline figures, each opening the page it's about (the dashboard's top row). */
 export function Kpis({ label, items }: { label: string; items: { label: string; value: ReactNode; sub: string; go: () => void; warn?: boolean }[] }) {
   return (
-    <section aria-label={label} className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-[16px] overflow-hidden border border-[#e2d7bc] bg-[#e2d7bc]">
+    <section aria-label={label} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {items.map((k) => (
-        <button key={k.label} type="button" onClick={k.go} className="flex flex-col gap-1 p-4 border-0 bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6] min-w-0">
-          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{k.label}</span>
-          <span className={`font-display text-[30px] leading-none truncate ${k.warn ? 'text-[#a4553c]' : ''}`}>{k.value}</span>
-          <span className={`text-[12px] truncate ${k.warn ? 'text-[#a4553c] font-semibold' : 'text-[#5b6a52]'}`}>{k.sub}</span>
+        <button key={k.label} type="button" onClick={k.go} className="relative overflow-hidden flex flex-col gap-[6px] p-4 sm:p-5 rounded-[20px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer shadow-[0_12px_30px_rgba(60,30,40,.07)] transition-transform hover:-translate-y-[2px] hover:shadow-[0_18px_40px_rgba(60,30,40,.11)] min-w-0">
+          <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--adm-gold,#b9a07a)] opacity-70" />
+          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-gold,var(--adm-muted,#5b6a52))]">{k.label}</span>
+          <span className={`font-display text-[38px] leading-none truncate ${k.warn ? 'text-[#a4553c]' : ''}`}>{k.value}</span>
+          <span className={`text-[12px] truncate ${k.warn ? 'text-[#a4553c] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>{k.sub}</span>
         </button>
       ))}
     </section>
@@ -301,16 +302,16 @@ function useFolded(key: string): [boolean, (v: boolean) => void] {
 export function Card({ title, action, children }: { title: string; action?: [string, () => void]; children: ReactNode }) {
   const [folded, setFolded] = useFolded(title);
   return (
-    <section aria-label={title} className={`flex flex-col ${folded ? 'gap-0 py-3' : 'gap-4 py-5'} px-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0 self-start w-full`}>
+    <section aria-label={title} className={`flex flex-col ${folded ? 'gap-0 py-3' : 'gap-4 py-5 sm:py-6'} px-5 sm:px-6 rounded-[24px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] shadow-[0_16px_40px_rgba(60,30,40,.07)] min-w-0 self-start w-full`}>
       <div className="flex justify-between items-center gap-3">
-        <h2 className="m-0 min-w-0 font-display font-medium text-[24px]">
+        <h2 className="m-0 min-w-0 font-display font-medium text-[26px]">
           <button
             type="button"
             aria-expanded={!folded}
             onClick={() => setFolded(!folded)}
             className="flex items-center gap-2 p-0 border-0 bg-transparent text-left cursor-pointer min-w-0 max-w-full font-[inherit] text-[length:inherit] text-[var(--adm-ink,#33402f)]"
           >
-            <span aria-hidden className={`flex-none inline-flex items-center justify-center w-7 h-7 rounded-full border border-[#d9cdb0] text-[12px] font-sans transition-transform ${folded ? '-rotate-90' : ''}`}>
+            <span aria-hidden className={`flex-none inline-flex items-center justify-center w-7 h-7 rounded-full border border-[var(--adm-line,#d9cdb0)] text-[12px] font-sans transition-transform ${folded ? '-rotate-90' : ''}`}>
               ▾
             </span>
             <span className="truncate">{title}</span>
@@ -329,9 +330,9 @@ export function Card({ title, action, children }: { title: string; action?: [str
 
 export function Tile({ label, value, sub, go, warn }: { label: string; value: ReactNode; sub?: string; go: () => void; warn?: boolean }) {
   return (
-    <button type="button" onClick={go} className="flex flex-col gap-[2px] p-3 rounded-[12px] border border-[#ece3cc] bg-[#f6f0e2] text-left cursor-pointer hover:bg-[#efe7d3] min-w-0">
+    <button type="button" onClick={go} className="flex flex-col gap-[3px] p-[14px] rounded-[16px] border border-[var(--adm-line,#ece3cc)] bg-[var(--adm-bg,#f6f0e2)] text-left cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)] min-w-0">
       <span className={`font-display text-[26px] leading-none ${warn ? 'text-[#a4553c]' : ''}`}>{value}</span>
-      <span className="text-[12px] text-[#5b6a52] truncate">{label}</span>
+      <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] truncate">{label}</span>
       {sub && <span className="text-[11px] text-[#a4553c] font-semibold">{sub}</span>}
     </button>
   );
@@ -340,7 +341,7 @@ export function Tile({ label, value, sub, go, warn }: { label: string; value: Re
 function Starter({ text, go }: { text: string; go: () => void }) {
   return (
     <div className="flex flex-col items-start gap-3">
-      <p className="m-0 text-[14px] text-[#5b6a52]">{text}</p>
+      <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">{text}</p>
       <button type="button" onClick={go} className="py-2 px-[14px] rounded-full border border-[var(--adm-ink,#33402f)] bg-transparent text-[13px] font-medium cursor-pointer">
         Open
       </button>

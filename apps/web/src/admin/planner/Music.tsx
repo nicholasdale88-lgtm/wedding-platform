@@ -33,7 +33,7 @@ export function Music() {
   useEffect(() => void load(), [load]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!songs) return <div aria-busy="true" className="text-[#5b6a52]">Loading songs…</div>;
+  if (!songs) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading songs…</div>;
   const act = async (fn: () => Promise<{ songs: SongRow[] }>, done?: string) => {
     try {
       setSongs((await fn()).songs);
@@ -59,7 +59,7 @@ export function Music() {
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
           <H2>Music</H2>
-          <div className="text-[13px] text-[#5b6a52]">Guests request songs from “Message us” on their invitation. Decide what the DJ plays.</div>
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Guests request songs from “Message us” on their invitation. Decide what the DJ plays.</div>
         </div>
         <Pill kind="primary" disabled={!songs.length} onClick={download}>
           Download for the DJ
@@ -67,7 +67,7 @@ export function Music() {
       </div>
 
       <form
-        className="flex gap-2 flex-wrap items-end p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]"
+        className="flex gap-2 flex-wrap items-end p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]"
         onSubmit={(e) => {
           e.preventDefault();
           if (!add.title.trim()) return;
@@ -75,15 +75,15 @@ export function Music() {
           setAdd({ ...add, title: '', artist: '' });
         }}
       >
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] flex-1 min-w-[160px]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] flex-1 min-w-[160px]">
           Song
           <input value={add.title} onChange={(e) => setAdd({ ...add, title: e.target.value })} placeholder="e.g. your first dance" className={inputCls} />
         </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] flex-1 min-w-[140px]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] flex-1 min-w-[140px]">
           Artist
           <input value={add.artist} onChange={(e) => setAdd({ ...add, artist: e.target.value })} className={inputCls} />
         </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
           List
           <select value={add.status} onChange={(e) => setAdd({ ...add, status: e.target.value as 'must' | 'maybe' | 'no' })} className={inputCls}>
             <option value="must">Must play</option>
@@ -101,21 +101,21 @@ export function Music() {
         if (!list.length) return null;
         return (
           <section key={st} aria-label={label} className="flex flex-col gap-1">
-            <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52] pb-1">
+            <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)] pb-1">
               {label} · {list.length}
             </div>
             {list.map((s) => (
-              <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-2 px-3 rounded-[12px] border border-[#e2d7bc]" style={{ background: COLOUR[s.status] }}>
+              <div key={s.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-2 px-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)]" style={{ background: COLOUR[s.status] }}>
                 <span className="min-w-0">
                   <span className="block font-medium truncate">
                     {s.title}
-                    {s.artist && <span className="font-normal text-[#5b6a52]"> · {s.artist}</span>}
+                    {s.artist && <span className="font-normal text-[var(--adm-muted,#5b6a52)]"> · {s.artist}</span>}
                   </span>
-                  <span className="block text-[12px] text-[#5b6a52] truncate">{[s.by === 'You' ? 'Your pick' : `Asked for by ${s.by}`, s.note].filter(Boolean).join(' · ')}</span>
+                  <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] truncate">{[s.by === 'You' ? 'Your pick' : `Asked for by ${s.by}`, s.note].filter(Boolean).join(' · ')}</span>
                 </span>
                 <span className="flex gap-1 flex-wrap justify-end">
                   {STATUS.filter(([k]) => k !== 'new' && k !== s.status).map(([k, l]) => (
-                    <button key={k} type="button" onClick={() => void act(() => songsApi.mark(wid, s.id, k))} className="py-[3px] px-2 rounded-full border border-[#c6b794] bg-white text-[12px] cursor-pointer">
+                    <button key={k} type="button" onClick={() => void act(() => songsApi.mark(wid, s.id, k))} className="py-[3px] px-2 rounded-full border border-[var(--adm-line,#c6b794)] bg-white text-[12px] cursor-pointer">
                       {l}
                     </button>
                   ))}
@@ -128,7 +128,7 @@ export function Music() {
           </section>
         );
       })}
-      {!songs.length && <p className="m-0 text-[14px] text-[#5b6a52]">No songs yet. Add your must-plays (first dance, entrance, last song), and guests' requests will show up here.</p>}
+      {!songs.length && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">No songs yet. Add your must-plays (first dance, entrance, last song), and guests' requests will show up here.</p>}
     </div>
   );
 }

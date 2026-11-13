@@ -117,7 +117,7 @@ export function Messages() {
             role="radio"
             aria-checked={filter === k}
             onClick={() => setFilter(k)}
-            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${filter === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f]'}`}
+            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${filter === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}
           >
             {label}
           </button>
@@ -129,7 +129,7 @@ export function Messages() {
           type="button"
           onClick={() => setOpen(t.invitationId)}
           aria-current={open === t.invitationId ? 'true' : undefined}
-          className={`grid grid-cols-[38px_minmax(0,1fr)_auto] gap-3 items-center py-3 px-2 border-0 border-t border-solid border-[#e2d7bc] text-left cursor-pointer ${open === t.invitationId ? 'bg-[#efe7d3]' : 'bg-transparent hover:bg-[#f3ecd6]'}`}
+          className={`grid grid-cols-[38px_minmax(0,1fr)_auto] gap-3 items-center py-3 px-2 border-0 border-t border-solid border-[var(--adm-line,#e2d7bc)] text-left cursor-pointer ${open === t.invitationId ? 'bg-[var(--adm-tint,#efe7d3)]' : 'bg-transparent hover:bg-[var(--adm-tint,#f3ecd6)]'}`}
         >
           <span aria-hidden className="w-[38px] h-[38px] rounded-full bg-[#33402f] text-[#f3ecd6] flex items-center justify-center font-display text-[18px]">
             {t.name.charAt(0)}
@@ -139,13 +139,13 @@ export function Messages() {
             {!inEvent && eventsOf(t).length > 0 && (
               <span className="flex gap-1 flex-wrap my-[2px]">
                 {eventsOf(t).map((k) => (
-                  <span key={k} className="py-[1px] px-[7px] rounded-full bg-[#efe7d3] text-[11px] text-[#5b6a52]">
+                  <span key={k} className="py-[1px] px-[7px] rounded-full bg-[var(--adm-tint,#efe7d3)] text-[11px] text-[var(--adm-muted,#5b6a52)]">
                     {eventNames.get(k) ?? k}
                   </span>
                 ))}
               </span>
             )}
-            <span className="block truncate text-[13px] text-[#5b6a52]">
+            <span className="block truncate text-[13px] text-[var(--adm-muted,#5b6a52)]">
               {t.last.from === 'couple' ? 'You: ' : ''}
               {t.last.body}
             </span>
@@ -157,7 +157,7 @@ export function Messages() {
         </button>
       ))}
       {!shown.length && (
-        <div className="py-6 border-t border-[#e2d7bc] text-[14px] text-[#5b6a52]">
+        <div className="py-6 border-t border-[var(--adm-line,#e2d7bc)] text-[14px] text-[var(--adm-muted,#5b6a52)]">
           {threads.length ? 'Nothing here with this filter.' : 'No messages yet. When guests write to you from their invitation or night-before page, or leave a note with their RSVP, it shows up here.'}
         </div>
       )}
@@ -169,7 +169,7 @@ export function Messages() {
       <header>
         <Eyebrow>{inEvent ? eventName : 'Account'} · Messages{unread ? ` · ${unread} unread` : ''}</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Messages from guests</h1>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">
+        <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)]">
           {inEvent ? `From guests invited to ${eventName}. Email and the message board are in Account → Messages.` : 'Every event’s messages in one place; each shows which event the guest is invited to.'}
         </p>
       </header>
@@ -180,7 +180,7 @@ export function Messages() {
           {open ? (
             <Chat key={open} inv={open} tz={tz} onChanged={() => void Promise.all([load(), reloadNav()])} />
           ) : (
-            <div className="p-8 rounded-[16px] border border-dashed border-[#c6b794] text-[#5b6a52]">Choose a conversation to read and reply.</div>
+            <div className="p-8 rounded-[16px] border border-dashed border-[var(--adm-line,#c6b794)] text-[var(--adm-muted,#5b6a52)]">Choose a conversation to read and reply.</div>
           )}
         </div>
       ) : open ? (
@@ -258,16 +258,16 @@ function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () =
     }
   };
 
-  if (!c) return <div aria-busy="true" className="text-[#5b6a52]">Opening…</div>;
+  if (!c) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Opening…</div>;
   return (
-    <section aria-label={`Conversation with ${c.name}`} className="flex flex-col rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-h-[420px]">
-      <div className="py-3 px-4 border-b border-[#e2d7bc] font-display text-[22px]">{c.name}</div>
+    <section aria-label={`Conversation with ${c.name}`} className="flex flex-col rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] min-h-[420px]">
+      <div className="py-3 px-4 border-b border-[var(--adm-line,#e2d7bc)] font-display text-[22px]">{c.name}</div>
       <div className="flex-1 flex flex-col gap-2 p-4 overflow-y-auto max-h-[60vh]">
         {c.messages.map((m) => (
           <div key={m.id} className={`flex flex-col max-w-[80%] ${m.from === 'couple' ? 'self-end items-end' : 'self-start items-start'}`}>
             <div
               className={`py-2 px-3 rounded-[18px] whitespace-pre-wrap break-words text-[15px] leading-[1.35] ${
-                m.from === 'couple' ? 'bg-[#33402f] text-[#f3ecd6] rounded-br-[6px]' : 'bg-white text-[#33402f] rounded-bl-[6px] shadow-[0_1px_2px_rgba(0,0,0,.08)]'
+                m.from === 'couple' ? 'bg-[#33402f] text-[#f3ecd6] rounded-br-[6px]' : 'bg-white text-[var(--adm-ink,#33402f)] rounded-bl-[6px] shadow-[0_1px_2px_rgba(0,0,0,.08)]'
               }`}
             >
               {m.body}
@@ -277,10 +277,10 @@ function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () =
             </span>
           </div>
         ))}
-        {!c.messages.length && <div className="text-[14px] text-[#5b6a52]">No messages yet. Write the first one.</div>}
+        {!c.messages.length && <div className="text-[14px] text-[var(--adm-muted,#5b6a52)]">No messages yet. Write the first one.</div>}
         <div ref={end} />
       </div>
-      <div className="flex flex-col gap-2 p-3 border-t border-[#e2d7bc]">
+      <div className="flex flex-col gap-2 p-3 border-t border-[var(--adm-line,#e2d7bc)]">
         <textarea
           aria-label="Your reply"
           rows={2}

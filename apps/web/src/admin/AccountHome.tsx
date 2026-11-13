@@ -51,10 +51,10 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
         sub={`${o.daysToGo !== null ? `${o.daysToGo} days to go. ` : ''}Set things up here once; each event has its own section for its guests, texts and day.`}
       />
 
-      <section aria-label="Setting up" className="flex flex-col gap-2 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <section aria-label="Setting up" className="flex flex-col gap-2 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         <div className="flex justify-between items-baseline gap-3 flex-wrap">
           <H2>Setting up</H2>
-          <span className="text-[13px] text-[#5b6a52]">
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {done} of {steps.length} done
           </span>
         </div>
@@ -63,16 +63,16 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
         </div>
         <ol className="m-0 p-0 list-none flex flex-col">
           {steps.map((s, i) => (
-            <li key={s.title} className="grid grid-cols-[28px_minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[#ece3cc]">
+            <li key={s.title} className="grid grid-cols-[28px_minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[var(--adm-line,#ece3cc)]">
               <span
                 aria-label={s.done ? 'Done' : 'To do'}
-                className={`w-[24px] h-[24px] rounded-full flex items-center justify-center text-[13px] font-semibold ${s.done ? 'bg-[var(--adm-accent,#5d6b47)] text-[#f3ecd6]' : 'border-[1.5px] border-[#c6b794] text-[#5b6a52]'}`}
+                className={`w-[24px] h-[24px] rounded-full flex items-center justify-center text-[13px] font-semibold ${s.done ? 'bg-[var(--adm-accent,#5d6b47)] text-[#f3ecd6]' : 'border-[1.5px] border-[var(--adm-line,#c6b794)] text-[var(--adm-muted,#5b6a52)]'}`}
               >
                 {s.done ? '✓' : i + 1}
               </span>
               <span className="min-w-0">
                 <span className={`block font-semibold ${s.done ? 'opacity-60' : ''}`}>{s.title}</span>
-                <span className="block text-[13px] text-[#5b6a52]">{s.detail}</span>
+                <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">{s.detail}</span>
               </span>
               <Pill size="sm" kind={s.done ? 'secondary' : 'outline'} onClick={s.go}>
                 {s.done ? 'Change' : 'Set up'}
@@ -109,11 +109,11 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
                 key={e.key}
                 type="button"
                 onClick={() => to('overview', e.key)}
-                className="flex flex-col gap-2 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6]"
+                className="flex flex-col gap-2 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]"
               >
-                <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{fmtEvent(e.startsAt, o.wedding.timezone)}</span>
+                <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">{fmtEvent(e.startsAt, o.wedding.timezone)}</span>
                 <span className="font-display text-[26px] leading-tight">{e.name}</span>
-                <span className="text-[14px] text-[#5b6a52]">
+                <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
                   {e.coming} coming{p ? ` · ${p.awaiting} still to reply` : ''}
                 </span>
                 <span className="text-[13px] font-medium underline">Open {e.name}</span>
@@ -129,10 +129,10 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
 
 function Status({ label, value, sub, go }: { label: string; value: string; sub: string; go: () => void }) {
   return (
-    <button type="button" onClick={go} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6] min-w-0">
-      <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">{label}</span>
+    <button type="button" onClick={go} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)] min-w-0">
+      <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">{label}</span>
       <span className="font-display text-[24px] leading-tight truncate">{value}</span>
-      <span className="text-[13px] text-[#5b6a52] truncate">{sub}</span>
+      <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{sub}</span>
     </button>
   );
 }
@@ -140,21 +140,21 @@ function Status({ label, value, sub, go }: { label: string; value: string; sub: 
 /** What needs doing, across every area, each opening the place to do it. */
 export function NeedsYou({ o, to }: { o: Overview; to: To }) {
   return (
-    <section className="flex flex-col gap-1 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0" aria-label="Needs you">
+    <section className="flex flex-col gap-1 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] min-w-0" aria-label="Needs you">
       <div className="flex justify-between items-baseline gap-3 mb-[6px]">
         <H2>Needs you</H2>
         {o.needsYou.length > 0 && (
-          <span className="text-[13px] text-[#5b6a52]">
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {o.needsYou.length} {o.needsYou.length === 1 ? 'thing' : 'things'} to do
           </span>
         )}
       </div>
       {o.needsYou.map((t) => (
-        <div key={t.kind} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-center py-[13px] border-t border-[#ece3cc]">
+        <div key={t.kind} className="grid grid-cols-[22px_minmax(0,1fr)_auto] gap-3 items-center py-[13px] border-t border-[var(--adm-line,#ece3cc)]">
           <span className="w-[18px] h-[18px] rounded-full border-[1.5px] border-[#8a5a45]" />
           <span className="min-w-0">
             <span className="block font-semibold">{t.title}</span>
-            <span className="block text-[13px] text-[#5b6a52] mt-[2px]">{t.detail}</span>
+            <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)] mt-[2px]">{t.detail}</span>
           </span>
           <button
             onClick={() => to(t.link, t.event)}
@@ -164,7 +164,7 @@ export function NeedsYou({ o, to }: { o: Overview; to: To }) {
           </button>
         </div>
       ))}
-      {o.needsYou.length === 0 && <div className="py-4 border-t border-[#ece3cc] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>}
+      {o.needsYou.length === 0 && <div className="py-4 border-t border-[var(--adm-line,#ece3cc)] font-display text-[22px] italic">All caught up. Everything else is running by itself.</div>}
     </section>
   );
 }
@@ -172,10 +172,10 @@ export function NeedsYou({ o, to }: { o: Overview; to: To }) {
 /** The D-Day rehearsal, one tap from each Overview: the whole wedding as a dry run, nothing sent. */
 export function RehearseCard({ to }: { to: To }) {
   return (
-    <button type="button" onClick={() => to('rehearsal', ALL_EVENTS)} className="flex flex-col gap-1 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:bg-[#f3ecd6]">
-      <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Will it all work on the day?</span>
+    <button type="button" onClick={() => to('rehearsal', ALL_EVENTS)} className="flex flex-col gap-1 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
+      <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">Will it all work on the day?</span>
       <span className="font-display text-[26px] leading-tight">Rehearse your wedding day</span>
-      <span className="text-[14px] text-[#5b6a52]">Run the whole thing with your real guests: every text, each guest’s page and anything that would go wrong, from the invitations to the morning after. Nothing is sent.</span>
+      <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">Run the whole thing with your real guests: every text, each guest’s page and anything that would go wrong, from the invitations to the morning after. Nothing is sent.</span>
       <span className="text-[13px] font-medium underline">Start the rehearsal</span>
     </button>
   );
@@ -219,7 +219,7 @@ function ExpectedGuests({ o }: { o: Overview }) {
     }
   };
   return (
-    <section aria-label="How many guests" className="flex flex-wrap items-end gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="How many guests" className="flex flex-wrap items-end gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <label className="flex flex-col gap-1 text-[14px] font-semibold">
         About how many guests?
         <input type="number" inputMode="numeric" min={0} max={3000} value={n} onChange={(e) => setN(e.target.value)} placeholder="e.g. 120" className={`${inputCls} w-[140px]`} />
@@ -227,7 +227,7 @@ function ExpectedGuests({ o }: { o: Overview }) {
       <Pill kind="outline" disabled={busy || Number(n || 0) === (o.expectedGuests ?? 0)} onClick={() => void save()}>
         {busy ? 'Saving…' : 'Save'}
       </Pill>
-      <span className="flex-1 min-w-[200px] text-[13px] text-[#5b6a52]">
+      <span className="flex-1 min-w-[200px] text-[13px] text-[var(--adm-muted,#5b6a52)]">
         {o.expectedGuests ? `${coming} of about ${o.expectedGuests} have said yes so far. ` : ''}A guess is fine: seating sets out tables for it, and the budget works per guest with it until you set your own.
       </span>
     </section>

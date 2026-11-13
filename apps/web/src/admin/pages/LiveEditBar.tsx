@@ -195,9 +195,9 @@ export function LiveEditBar({
           Done editing
         </Pill>
       </div>
-      <p className="m-0 text-[13px] text-[#5b6a52]">Tap any words on the card to change them, or drop a photo onto its photo. Words you’ve written stay yours: only what you change here changes.</p>
+      <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Tap any words on the card to change them, or drop a photo onto its photo. Words you’ve written stay yours: only what you change here changes.</p>
 
-      <label className="flex items-center gap-3 text-[13px] text-[#33402f]">
+      <label className="flex items-center gap-3 text-[13px] text-[var(--adm-ink,#33402f)]">
         Names size
         <input
           type="range"
@@ -230,7 +230,7 @@ export function LiveEditBar({
       </div>
 
       <div className="flex flex-col gap-1">
-        <span className="text-[13px] font-semibold text-[#33402f]">Sections: drag to reorder, switch off what you don’t need</span>
+        <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Sections: drag to reorder, switch off what you don’t need</span>
         <ol ref={list} aria-label="Sections" className="m-0 p-0 list-none flex flex-col gap-1">
           {order.map((s, i) => {
             const on = !inv.hidden?.[s];
@@ -240,7 +240,7 @@ export function LiveEditBar({
             return (
               <li
                 key={s}
-                className={`flex items-center gap-2 py-1 px-2 rounded-[10px] border bg-white ${lifted ? 'opacity-60 border-[#b39563]' : target ? 'border-[#33402f]' : 'border-[#e2d7bc]'}`}
+                className={`flex items-center gap-2 py-1 px-2 rounded-[10px] border bg-white ${lifted ? 'opacity-60 border-[#b39563]' : target ? 'border-[#33402f]' : 'border-[var(--adm-line,#e2d7bc)]'}`}
               >
                 <button
                   type="button"
@@ -254,10 +254,10 @@ export function LiveEditBar({
                   ⠿
                 </button>
                 <span className={`flex-1 text-[14px] ${on ? '' : 'line-through opacity-60'}`}>{sectionName(s)}</span>
-                <button type="button" aria-label={`Move ${sectionName(s)} up`} disabled={i === 0} onClick={() => reorder(i, i - 1)} className="w-8 h-8 rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer disabled:opacity-40">
+                <button type="button" aria-label={`Move ${sectionName(s)} up`} disabled={i === 0} onClick={() => reorder(i, i - 1)} className="w-8 h-8 rounded-full border border-[var(--adm-line,#d3c6a4)] bg-transparent cursor-pointer disabled:opacity-40">
                   ↑
                 </button>
-                <button type="button" aria-label={`Move ${sectionName(s)} down`} disabled={i === order.length - 1} onClick={() => reorder(i, i + 1)} className="w-8 h-8 rounded-full border border-[#d3c6a4] bg-transparent cursor-pointer disabled:opacity-40">
+                <button type="button" aria-label={`Move ${sectionName(s)} down`} disabled={i === order.length - 1} onClick={() => reorder(i, i + 1)} className="w-8 h-8 rounded-full border border-[var(--adm-line,#d3c6a4)] bg-transparent cursor-pointer disabled:opacity-40">
                   ↓
                 </button>
                 <input

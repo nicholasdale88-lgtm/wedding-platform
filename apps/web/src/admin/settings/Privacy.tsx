@@ -26,12 +26,12 @@ export function Privacy() {
     }
   };
   return (
-    <section aria-label="Privacy" className="flex flex-col gap-2 p-4 rounded-[14px] border border-[#e2d7bc] bg-white max-w-[640px]">
+    <section aria-label="Privacy" className="flex flex-col gap-2 p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-white max-w-[640px]">
       <label className="flex items-start gap-3 cursor-pointer">
         <input type="checkbox" checked={on} disabled={busy} onChange={() => void flip()} className="mt-[3px] w-[18px] h-[18px] accent-[#5d6b47]" />
         <span className="flex flex-col gap-1">
           <strong className="text-[15px] font-semibold">Keep our wedding private</strong>
-          <span className="text-[14px] text-[#5b6a52]">
+          <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
             Your invitation, save the date, photo page and calendar open only with each guest’s own link. Anyone else who finds the address sees “This invitation is private”. Table QR codes still work for photos.
           </span>
         </span>

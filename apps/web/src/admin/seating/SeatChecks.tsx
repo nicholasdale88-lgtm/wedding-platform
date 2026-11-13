@@ -90,7 +90,7 @@ export function SeatChecks({
   const problems = useMemo(() => seatProblems(data.people, tables, seats, rules), [data.people, tables, seats, rules]);
 
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex justify-between items-baseline gap-2">
         <h2 className="m-0 font-display font-medium text-[22px]">Rules and checks</h2>
         <span className={`text-[13px] ${problems.length ? 'text-[#7a4a37] font-semibold' : 'text-[#3d4a2f]'}`}>{problems.length ? `${problems.length} to look at` : 'All good ✓'}</span>
@@ -100,12 +100,12 @@ export function SeatChecks({
           • {p}
         </div>
       ))}
-      <button type="button" onClick={() => setOpen((x) => !x)} aria-expanded={open} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+      <button type="button" onClick={() => setOpen((x) => !x)} aria-expanded={open} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
         {open ? 'Hide the rules' : `The rules (${SEAT_PRESETS.filter((x) => rules.presets[x.key]).length} on${rules.pairs.length ? `, ${rules.pairs.length} of your own` : ''})`}
       </button>
       {open && (
         <div className="flex flex-col gap-3">
-          <p className="m-0 text-[13px] text-[#5b6a52]">Auto-seat follows these, and anything that breaks one shows above.</p>
+          <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Auto-seat follows these, and anything that breaks one shows above.</p>
           <fieldset className="flex flex-col gap-2 m-0 p-0 border-0" disabled={!loaded}>
             <select
               aria-label="The two sides"
@@ -134,7 +134,7 @@ export function SeatChecks({
               </label>
             ))}
           </fieldset>
-          <div className="flex flex-col gap-2 pt-2 border-t border-[#e2d7bc]">
+          <div className="flex flex-col gap-2 pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
             <span className="text-[13px] font-semibold">Your own rules</span>
             {rules.pairs.map((r, i) => (
               <div key={`${r.a}-${r.b}-${i}`} className="flex justify-between gap-2 text-[13px]">

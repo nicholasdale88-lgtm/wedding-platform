@@ -52,12 +52,12 @@ export function Speeches({ event, names, party = false }: { event: string; names
         <div className="flex justify-between items-end gap-3">
           <div>
             <H2>{party ? 'Speeches and toasts' : 'Speeches'}</H2>
-            <div className="text-[13px] text-[#5b6a52]">In speaking order{d.speeches.length ? ` · about ${total} minutes in all` : ''}. The MC sees this on their page.</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">In speaking order{d.speeches.length ? ` · about ${total} minutes in all` : ''}. The MC sees this on their page.</div>
           </div>
         </div>
         <ol className="list-none m-0 p-0 flex flex-col gap-2">
           {d.speeches.map((s, i) => (
-            <li key={s.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+            <li key={s.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
               <div className="flex items-center gap-2">
                 <span className="w-6 text-[13px] font-semibold text-[#7a7466]">{i + 1}</span>
                 <input aria-label="Who" list="party-names" value={s.who} maxLength={80} onChange={(e) => setSpeech(s.id, { who: e.target.value })} className={`${inputCls} flex-1 min-w-0 !py-2 font-medium`} />
@@ -70,7 +70,7 @@ export function Speeches({ event, names, party = false }: { event: string; names
                   {s.status}
                 </button>
               </div>
-              <div className="flex items-center gap-3 flex-wrap pl-8 text-[13px] text-[#5b6a52]">
+              <div className="flex items-center gap-3 flex-wrap pl-8 text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 <label className="flex items-center gap-1">
                   <input type="number" min={1} max={20} aria-label="Minutes" value={s.minutes} onChange={(e) => setSpeech(s.id, { minutes: Math.max(1, Math.min(20, Number(e.target.value) || 1)) })} className={`${inputCls} !py-1 w-[64px]`} />
                   minutes
@@ -80,10 +80,10 @@ export function Speeches({ event, names, party = false }: { event: string; names
                   Microphone
                 </label>
                 <span className="flex-1" />
-                <button type="button" aria-label="Earlier" disabled={!i} onClick={() => move(i, -1)} className="w-8 h-8 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-40">
+                <button type="button" aria-label="Earlier" disabled={!i} onClick={() => move(i, -1)} className="w-8 h-8 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-40">
                   ↑
                 </button>
-                <button type="button" aria-label="Later" disabled={i === d.speeches.length - 1} onClick={() => move(i, 1)} className="w-8 h-8 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-40">
+                <button type="button" aria-label="Later" disabled={i === d.speeches.length - 1} onClick={() => move(i, 1)} className="w-8 h-8 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-40">
                   ↓
                 </button>
                 <button type="button" aria-label={`Remove ${s.who}`} onClick={() => live.set({ ...d, speeches: d.speeches.filter((x) => x.id !== s.id) }, true)} className="p-0 border-0 bg-transparent cursor-pointer text-[#7a4a37] text-[18px]">
@@ -114,7 +114,7 @@ export function Speeches({ event, names, party = false }: { event: string; names
         <div className="flex justify-between items-end gap-3 flex-wrap">
           <div>
             <H2>Who holds what</H2>
-            <div className="text-[13px] text-[#5b6a52]">The precious things, and who has them on the day.</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">The precious things, and who has them on the day.</div>
           </div>
           {!d.holds.length && (
             <Pill kind="dashed" onClick={() => live.set({ ...d, holds: (party ? PARTY_HOLDS : HOLD_TEMPLATE).map((h) => ({ ...h, id: newId() })) }, true)}>
@@ -122,7 +122,7 @@ export function Speeches({ event, names, party = false }: { event: string; names
             </Pill>
           )}
         </div>
-        <ul className="list-none m-0 p-0 flex flex-col rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <ul className="list-none m-0 p-0 flex flex-col rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
           {d.holds.map((h) => (
             <li key={h.id} className="grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] gap-2 items-center py-2 px-3 border-t border-[#ece3cd] first:border-t-0">
               <input aria-label="What" value={h.what} maxLength={120} onChange={(e) => live.set({ ...d, holds: d.holds.map((x) => (x.id === h.id ? { ...x, what: e.target.value } : x)) })} className="bg-transparent border-0 p-0 text-[15px] min-w-0" />

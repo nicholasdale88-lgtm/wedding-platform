@@ -42,7 +42,7 @@ export function Gifts() {
   const matches = useMemo(() => (needle && !form.invitationId ? guests.filter((g) => g.label.toLowerCase().includes(needle)).slice(0, 5) : []), [guests, needle, form.invitationId]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading gifts…</div>;
+  if (!doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading gifts…</div>;
   const list = doc.data.list;
   const save = async (next: Gift[], done?: string) => {
     const before = doc;
@@ -71,8 +71,8 @@ export function Gifts() {
           ['Thank-yous to write', String(owing.length)],
           ['Wishing well', aud(cash)],
         ].map(([k, v]) => (
-          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-            <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">{k}</span>
+          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+            <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">{k}</span>
             <span className="font-display text-[28px] leading-none">{v}</span>
           </div>
         ))}
@@ -80,7 +80,7 @@ export function Gifts() {
 
       <form
         aria-label="Add a gift"
-        className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]"
+        className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]"
         onSubmit={(e) => {
           e.preventDefault();
           if (!form.from.trim()) return;
@@ -105,24 +105,24 @@ export function Gifts() {
       >
         <H2>Add a gift</H2>
         <div className="grid gap-2 sm:grid-cols-[1.3fr_1.3fr_.7fr_auto] items-end">
-          <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] relative">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] relative">
             From
             <input value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value, invitationId: '' })} placeholder="A guest’s name" className={inputCls} />
             {matches.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-10 mt-1 flex flex-col rounded-[10px] border border-[#e2d7bc] bg-white shadow-[0_8px_20px_rgba(0,0,0,.12)]">
+              <div className="absolute top-full left-0 right-0 z-10 mt-1 flex flex-col rounded-[10px] border border-[var(--adm-line,#e2d7bc)] bg-white shadow-[0_8px_20px_rgba(0,0,0,.12)]">
                 {matches.map((g) => (
-                  <button key={g.id} type="button" onClick={() => setForm({ ...form, from: g.label, invitationId: g.id })} className="text-left py-2 px-3 border-0 bg-transparent text-[14px] cursor-pointer hover:bg-[#efe7d3]">
+                  <button key={g.id} type="button" onClick={() => setForm({ ...form, from: g.label, invitationId: g.id })} className="text-left py-2 px-3 border-0 bg-transparent text-[14px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">
                     {g.label}
                   </button>
                 ))}
               </div>
             )}
           </label>
-          <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
             Gift
             <input value={form.gift} onChange={(e) => setForm({ ...form, gift: e.target.value })} placeholder="e.g. Wishing well, Dinner set" className={inputCls} />
           </label>
-          <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
             Amount (if money)
             <input inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="$0" className={inputCls} />
           </label>
@@ -148,7 +148,7 @@ export function Gifts() {
                 role="radio"
                 aria-checked={show === k}
                 onClick={() => setShow(k)}
-                className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+                className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
               >
                 {label}
               </button>
@@ -158,7 +158,7 @@ export function Gifts() {
         {shown.map((g) => (
           <GiftRow key={g.id} g={g} open={open === g.id} onToggle={() => setOpen(open === g.id ? null : g.id)} onChange={(p, done) => patch(g.id, p, done)} onRemove={() => window.confirm('Remove this gift?') && void save(list.filter((x) => x.id !== g.id), 'Removed')} />
         ))}
-        {!shown.length && <p className="m-0 text-[14px] text-[#5b6a52]">{list.length ? 'All thanked ✓' : 'No gifts logged yet. Add them as you open them.'}</p>}
+        {!shown.length && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">{list.length ? 'All thanked ✓' : 'No gifts logged yet. Add them as you open them.'}</p>}
         {list.length > 0 && guests.length > 0 && (
           <span className="text-[12px] text-[#7a7466]">
             {guests.length - fromGuests.size} of {guests.length} invitations haven’t a gift logged (that’s fine: it helps spot anyone you meant to thank).
@@ -190,20 +190,20 @@ function GiftRow({ g, open, onToggle, onChange, onRemove }: { g: Gift; open: boo
     }
   };
   return (
-    <article className="rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <article className="rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex items-center gap-3 py-3 px-4">
         <input type="checkbox" checked={g.thanked} aria-label={`Thanked ${g.from}`} onChange={() => onChange({ thanked: !g.thanked }, g.thanked ? undefined : `Thanked ${g.from} ✓`)} className="w-[18px] h-[18px] flex-none accent-[#5d6b47]" />
         <button type="button" onClick={onToggle} aria-expanded={open} className="flex-1 min-w-0 flex justify-between items-center gap-3 p-0 border-0 bg-transparent text-left cursor-pointer">
           <span className="min-w-0">
             <span className={`block font-medium truncate ${g.thanked ? 'line-through text-[#7a7466]' : ''}`}>{g.from}</span>
-            <span className="block text-[13px] text-[#5b6a52] truncate">{[g.gift, g.amount ? aud(g.amount) : ''].filter(Boolean).join(' · ') || 'A gift'}</span>
+            <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{[g.gift, g.amount ? aud(g.amount) : ''].filter(Boolean).join(' · ') || 'A gift'}</span>
           </span>
           <span className="text-[12px] text-[#7a7466] flex-none">{g.note ? 'Note written' : ''}</span>
         </button>
       </div>
       {open && (
         <div className="flex flex-col gap-2 px-4 pb-4">
-          <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
             Thank-you note
             <textarea rows={5} defaultValue={g.note} key={g.note} onBlur={(e) => e.target.value !== g.note && onChange({ note: e.target.value })} className={`${inputCls} resize-y`} />
           </label>
@@ -213,7 +213,7 @@ function GiftRow({ g, open, onToggle, onChange, onRemove }: { g: Gift; open: boo
               {busy ? 'Writing…' : g.note ? 'Draft it again' : 'Draft a note for me'}
             </Pill>
             {g.note && (
-              <button type="button" onClick={() => void navigator.clipboard?.writeText(g.note)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+              <button type="button" onClick={() => void navigator.clipboard?.writeText(g.note)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                 Copy
               </button>
             )}

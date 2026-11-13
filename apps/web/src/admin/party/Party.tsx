@@ -27,7 +27,7 @@ export const partyViewLabel = (v: PartyView, sides: { p1: string; p2: string }) 
 export type SideName = (s: 'p1' | 'p2') => string;
 
 const chip = (on: boolean) =>
-  `py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${on ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794] text-[#33402f] hover:bg-[#efe7d3]'}`;
+  `py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${on ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]'}`;
 const BLANK: PartyItem = { time: '', until: '', title: '', detail: '', place: '', who: ['party'] };
 /** "9:30am" → minutes, for sorting (unknown times keep their place). */
 const minutes = (t: string) => {
@@ -68,7 +68,7 @@ export function Party() {
   useEffect(() => void load(), [load]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!d) return <div aria-busy="true" className="text-[#5b6a52]">Loading the wedding party…</div>;
+  if (!d) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading the wedding party…</div>;
   const sides: PartySetup = d.setup?.data ?? { p1: 'Bride', p2: 'Groom', showOnInvite: false, access: {}, signIn: false };
   const sideName: SideName = (k) => sides[k] || (k === 'p1' ? 'Bride' : 'Groom');
   const go = (v: PartyView) => {
@@ -86,7 +86,7 @@ export function Party() {
       <header>
         <Eyebrow>{section} · Wedding party</Eyebrow>
         <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">{title}</h1>
-        <p className="m-0 mt-1 text-[15px] text-[#5b6a52]">
+        <p className="m-0 mt-1 text-[15px] text-[var(--adm-muted,#5b6a52)]">
           {view === 'p1' || view === 'p2' ? `${d.names[view]}’s side. ` : ''}
           {INTRO[view]}
         </p>
@@ -247,7 +247,7 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
         <div className="flex justify-between items-end gap-3 flex-wrap">
           <div>
             <H2>The party's run sheet</H2>
-            <div className="text-[13px] text-[#5b6a52]">More detail than the guests' timeline. Choose who each line is for.</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">More detail than the guests' timeline. Choose who each line is for.</div>
           </div>
           <div className="flex gap-2 flex-wrap">
             {!sheet.items.length && (
@@ -271,11 +271,11 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
             </Pill>
           </div>
         </div>
-        <label className="flex flex-col gap-1 text-[13px] text-[#5b6a52]">
+        <label className="flex flex-col gap-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">
           A note at the top (dress, where to meet, who to call)
           <textarea rows={2} value={sheet.note} maxLength={1500} onChange={(e) => edit({ ...sheet, note: e.target.value })} className={`${inputCls} resize-y`} />
         </label>
-        <div className="flex gap-2 flex-wrap items-center text-[13px] text-[#5b6a52]">
+        <div className="flex gap-2 flex-wrap items-center text-[13px] text-[var(--adm-muted,#5b6a52)]">
           <span>Bring in times from:</span>
           {(
             [
@@ -290,7 +290,7 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
           ))}
         </div>
         {sheet.items.length > 0 && (
-          <label className="flex items-center gap-2 flex-wrap text-[13px] text-[#5b6a52]">
+          <label className="flex items-center gap-2 flex-wrap text-[13px] text-[var(--adm-muted,#5b6a52)]">
             See it as
             <select value={asWho} onChange={(e) => setAsWho(e.target.value)} className={`${inputCls} !py-[6px] !text-[13px] w-auto`}>
               <option value="">(editing: every line)</option>
@@ -312,17 +312,17 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
           </label>
         )}
         {asWho ? (
-          <ol aria-label={`The run sheet as ${asWho} sees it`} className="m-0 p-4 list-none flex flex-col gap-3 rounded-[14px] border border-dashed border-[#c6b794] bg-white">
+          <ol aria-label={`The run sheet as ${asWho} sees it`} className="m-0 p-4 list-none flex flex-col gap-3 rounded-[14px] border border-dashed border-[var(--adm-line,#c6b794)] bg-white">
             {itemsFor(sheet.items, asWho).map((it, i) => (
               <li key={i} className="grid grid-cols-[92px_minmax(0,1fr)] gap-3">
-                <span className="text-[14px] font-semibold tabular-nums text-[#5b6a52]">
+                <span className="text-[14px] font-semibold tabular-nums text-[var(--adm-muted,#5b6a52)]">
                   {it.time}
                   {it.until ? `–${it.until}` : ''}
                 </span>
                 <span className="flex flex-col">
                   <span className="text-[15px]">{it.title}</span>
                   {it.place && <span className="text-[13px] text-[#7a7466]">{it.place}</span>}
-                  {it.detail && <span className="text-[13px] text-[#5b6a52]">{it.detail}</span>}
+                  {it.detail && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{it.detail}</span>}
                 </span>
               </li>
             ))}
@@ -332,8 +332,8 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
         ) : (
           sheet.items.map((it, i) =>
             !open.has(i) && it.title.trim() ? (
-              <button key={i} type="button" onClick={() => toggle(i)} aria-label={`Change: ${it.title}`} className="grid grid-cols-[92px_minmax(0,1fr)_auto] max-[520px]:grid-cols-[72px_minmax(0,1fr)] items-baseline gap-3 py-[10px] px-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:border-[#b39563] text-[#33402f]">
-                <span className="text-[14px] font-semibold tabular-nums text-[#5b6a52]">
+              <button key={i} type="button" onClick={() => toggle(i)} aria-label={`Change: ${it.title}`} className="grid grid-cols-[92px_minmax(0,1fr)_auto] max-[520px]:grid-cols-[72px_minmax(0,1fr)] items-baseline gap-3 py-[10px] px-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:border-[#b39563] text-[var(--adm-ink,#33402f)]">
+                <span className="text-[14px] font-semibold tabular-nums text-[var(--adm-muted,#5b6a52)]">
                   {it.time || '–'}
                   {it.until ? `–${it.until}` : ''}
                 </span>
@@ -343,14 +343,14 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
                 </span>
                 <span className="flex gap-1 flex-wrap justify-end max-[520px]:col-span-2 max-[520px]:justify-start">
                   {it.who.map((w) => (
-                    <span key={w} className="py-[1px] px-2 rounded-full bg-[#efe6d3] text-[11px] text-[#5b6a52]">
+                    <span key={w} className="py-[1px] px-2 rounded-full bg-[#efe6d3] text-[11px] text-[var(--adm-muted,#5b6a52)]">
                       {audiences.find(([k]) => k === w)?.[1] ?? w}
                     </span>
                   ))}
                 </span>
               </button>
             ) : (
-          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#b39563] bg-[#fbf8f0]">
+          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#b39563] bg-[var(--adm-card,#fbf8f0)]">
             <div className="grid grid-cols-[90px_90px_minmax(0,1fr)] gap-2 max-[520px]:grid-cols-2">
               <input aria-label="Time" placeholder="9:30am" value={it.time} onChange={(e) => setItem(i, { time: e.target.value })} className={inputCls} />
               <input aria-label="Until" placeholder="until" value={it.until} onChange={(e) => setItem(i, { until: e.target.value })} className={inputCls} />
@@ -361,7 +361,7 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
             <div className="flex justify-between items-center gap-2 flex-wrap">
               {whoChips(it.who, (next) => setItem(i, { who: next }), "Who it's for")}
               <div className="flex gap-1">
-                <button type="button" aria-label="Move up" disabled={!i} onClick={() => edit({ ...sheet, items: sheet.items.map((x, j) => (j === i - 1 ? sheet.items[i]! : j === i ? sheet.items[i - 1]! : x)) })} className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-40">
+                <button type="button" aria-label="Move up" disabled={!i} onClick={() => edit({ ...sheet, items: sheet.items.map((x, j) => (j === i - 1 ? sheet.items[i]! : j === i ? sheet.items[i - 1]! : x)) })} className="w-9 h-9 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-40">
                   ↑
                 </button>
                 <button
@@ -369,7 +369,7 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
                   aria-label="Move down"
                   disabled={i === sheet.items.length - 1}
                   onClick={() => edit({ ...sheet, items: sheet.items.map((x, j) => (j === i + 1 ? sheet.items[i]! : j === i ? sheet.items[i + 1]! : x)) })}
-                  className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent cursor-pointer disabled:opacity-40"
+                  className="w-9 h-9 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer disabled:opacity-40"
                 >
                   ↓
                 </button>
@@ -380,7 +380,7 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
                     edit({ ...sheet, items: sheet.items.filter((_, j) => j !== i) });
                     setOpen(new Set());
                   }}
-                  className="w-9 h-9 rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37]"
+                  className="w-9 h-9 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer text-[#7a4a37]"
                 >
                   ×
                 </button>
@@ -413,7 +413,7 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
         <div className="flex justify-between items-end gap-3 flex-wrap">
           <div>
             <H2>What to pack</H2>
-            <div className="text-[13px] text-[#5b6a52]">Each person sees their own list (everyone's things, their side's and their role's) and ticks it off on their phone.</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Each person sees their own list (everyone's things, their side's and their role's) and ticks it off on their phone.</div>
           </div>
           <div className="flex gap-2 flex-wrap">
             {!sheet.packing.length && (
@@ -427,10 +427,10 @@ function RunSheet({ d, setD, reload, sideName }: { d: PartyData; setD: (d: Party
           </div>
         </div>
         {sheet.packing.map((p, i) => (
-          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+          <div key={i} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
             <div className="flex gap-2">
               <input aria-label="Thing to bring" value={p.text} placeholder="e.g. Phone charger" onChange={(e) => setPack(i, { text: e.target.value })} className={`${inputCls} flex-1 min-w-0`} />
-              <button type="button" aria-label="Remove" onClick={() => edit({ ...sheet, packing: sheet.packing.filter((_, j) => j !== i) })} className="w-9 h-9 flex-none rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[#7a4a37]">
+              <button type="button" aria-label="Remove" onClick={() => edit({ ...sheet, packing: sheet.packing.filter((_, j) => j !== i) })} className="w-9 h-9 flex-none rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer text-[#7a4a37]">
                 ×
               </button>
             </div>
@@ -482,15 +482,15 @@ export function Members({ d, onChange, sideName, only }: { d: PartyData; onChang
           const ms = d.members.filter((m) => m.side === col.key);
           const roles = d.roles.filter((r) => r.side === col.key).map((r) => r.role);
           return (
-            <div key={col.key || 'help'} className={`flex flex-col gap-2 p-4 rounded-[16px] border ${col.key ? 'border-[#c6b794] bg-[#fbf8f0]' : 'border-[#e2d7bc] bg-[#f6f0e2]'}`}>
+            <div key={col.key || 'help'} className={`flex flex-col gap-2 p-4 rounded-[16px] border ${col.key ? 'border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)]' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-bg,#f6f0e2)]'}`}>
               <div>
                 <div className="font-display text-[24px] leading-tight">{col.title}</div>
-                <div className="text-[12px] tracking-[.12em] uppercase text-[#5b6a52]">
+                <div className="text-[12px] tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">
                   {col.sub} · {ms.length} {ms.length === 1 ? 'person' : 'people'}
                 </div>
               </div>
               {ms.map((m) => (
-                <div key={m.personId} className="flex flex-col gap-1 p-2 rounded-[10px] bg-white border border-[#e2d7bc]">
+                <div key={m.personId} className="flex flex-col gap-1 p-2 rounded-[10px] bg-white border border-[var(--adm-line,#e2d7bc)]">
                   <span className="font-medium truncate">{m.name}</span>
                   <select
                     aria-label={`${m.name}'s role`}
@@ -514,7 +514,7 @@ export function Members({ d, onChange, sideName, only }: { d: PartyData; onChang
                   </select>
                   <span className="flex gap-3 text-[12px]">
                     {m.token && (
-                      <a href={`/w/${d.slug}/party?g=${encodeURIComponent(m.token)}`} target="_blank" rel="noopener" className="!text-[#33402f]">
+                      <a href={`/w/${d.slug}/party?g=${encodeURIComponent(m.token)}`} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)]">
                         Their page
                       </a>
                     )}
@@ -568,7 +568,7 @@ export function SideNames({ d, onSaved }: { d: PartyData; onSaved: (s: { data: P
     }
   };
   return (
-    <div className="flex items-center gap-2 flex-wrap text-[13px] text-[#5b6a52]">
+    <div className="flex items-center gap-2 flex-wrap text-[13px] text-[var(--adm-muted,#5b6a52)]">
       The two sides are called
       <input aria-label={`${d.names.p1}'s side is called`} defaultValue={cur.p1} maxLength={30} onBlur={(e) => void save({ ...cur, p1: e.target.value.trim() || 'Bride' })} className={`${inputCls} !py-[5px] w-[110px]`} />
       <span>({d.names.p1}) and</span>
@@ -607,7 +607,7 @@ function AddToSide({
   const found = needle ? people.filter((p) => p.name.toLowerCase().includes(needle)).slice(0, 6) : [];
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="self-start mt-1 py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer hover:bg-[#efe7d3]">
+      <button type="button" onClick={() => setOpen(true)} className="self-start mt-1 py-[6px] px-3 rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">
         + {label}
       </button>
     );
@@ -622,7 +622,7 @@ function AddToSide({
             </option>
           ))}
         </select>
-        <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="w-9 h-9 flex-none rounded-full border border-[#c6b794] bg-transparent cursor-pointer">
+        <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="w-9 h-9 flex-none rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer">
           ×
         </button>
       </div>
@@ -635,14 +635,14 @@ function AddToSide({
             onAdd(p, role);
             setQ('');
           }}
-          className="text-left py-[6px] px-3 rounded-[8px] border border-[#e2d7bc] bg-white text-[14px] cursor-pointer hover:bg-[#efe7d3]"
+          className="text-left py-[6px] px-3 rounded-[8px] border border-[var(--adm-line,#e2d7bc)] bg-white text-[14px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]"
         >
           + {p.name}
         </button>
       ))}
       {needle && !loading && (
-        <div className="flex flex-col gap-2 p-2 rounded-[10px] border border-dashed border-[#c6b794]">
-          <span className="text-[12px] text-[#5b6a52]">{found.length ? 'Someone else?' : 'Not on your guest list yet.'} Add “{q.trim()}” as a new guest:</span>
+        <div className="flex flex-col gap-2 p-2 rounded-[10px] border border-dashed border-[var(--adm-line,#c6b794)]">
+          <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{found.length ? 'Someone else?' : 'Not on your guest list yet.'} Add “{q.trim()}” as a new guest:</span>
           <input value={mobile} onChange={(e) => setMobile(e.target.value)} inputMode="tel" placeholder="Their mobile (optional, for their texts and sign-in)" aria-label="Their mobile" className={`${inputCls} !py-[6px] !text-[14px]`} />
           <Pill
             kind="outline"

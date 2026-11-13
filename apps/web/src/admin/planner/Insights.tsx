@@ -9,7 +9,7 @@ import { H2 } from '../ui';
 const DAY = 86_400_000;
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
-const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]';
+const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]';
 
 /** A row of bars: label, the bar, the figure. */
 function Bars({ rows, max }: { rows: { label: string; value: number; note?: string; colour?: string }[]; max?: number }) {
@@ -18,11 +18,11 @@ function Bars({ rows, max }: { rows: { label: string; value: number; note?: stri
     <div className="flex flex-col gap-2">
       {rows.map((r) => (
         <div key={r.label} className="grid grid-cols-[minmax(0,140px)_minmax(0,1fr)_auto] gap-3 items-center text-[13px]">
-          <span className="truncate text-[#33402f]">{r.label}</span>
+          <span className="truncate text-[var(--adm-ink,#33402f)]">{r.label}</span>
           <span className="h-[10px] rounded-full bg-[#e9e2cc] overflow-hidden">
             <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${Math.min(100, (r.value / top) * 100)}%`, background: r.colour ?? '#5d6b47' }} />
           </span>
-          <span className="tabular-nums text-[#5b6a52] whitespace-nowrap">{r.note ?? r.value}</span>
+          <span className="tabular-nums text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{r.note ?? r.value}</span>
         </div>
       ))}
     </div>
@@ -44,7 +44,7 @@ function Chase({ rows, tz }: { rows: InsightsData['chase']; tz: string | undefin
       <ul className="list-none m-0 p-0 flex flex-col max-h-[260px] overflow-y-auto">
         {rs.map((r) => (
           <li key={r.id} className="flex justify-between gap-3 py-[5px] border-t border-[#ece3cd] text-[14px]">
-            <Link to={path(`guests?g=${r.id}`)} className="truncate !text-[#33402f]">
+            <Link to={path(`guests?g=${r.id}`)} className="truncate !text-[var(--adm-ink,#33402f)]">
               {r.name}
             </Link>
             <span className="text-[12px] text-[#7a7466] whitespace-nowrap">
@@ -127,7 +127,7 @@ export function Insights() {
     plannerApi.doc<Gifts>(wid, 'gifts').then((r) => setGifts(r.data), () => undefined);
   }, [wid]);
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!data || !plan || !budget || !vendors) return <div aria-busy="true" className="text-[#5b6a52]">Working out the numbers…</div>;
+  if (!data || !plan || !budget || !vendors) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Working out the numbers…</div>;
 
   const tz = overview?.wedding.timezone;
   const today = dateIn(tz);
@@ -190,8 +190,8 @@ export function Insights() {
           ['Expected guests', String(forecast), first ? `${first.people} said yes so far` : ''],
           ['Plan done', `${pct(done, plan.tasks.length)}%`, plan.tasks.length ? (onTrack ? 'On track ✓' : `${expected - done} behind where you’d expect`) : 'Start the checklist'],
         ].map(([k, v, sub]) => (
-          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-            <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">{k}</span>
+          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+            <span className="text-[11px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">{k}</span>
             <span className="font-display text-[34px] leading-none">{v}</span>
             <span className={`text-[12px] ${k === 'Plan done' && !onTrack && plan.tasks.length ? 'text-[#7a4a37] font-semibold' : 'text-[#7a7466]'}`}>{sub}</span>
           </div>
@@ -220,7 +220,7 @@ export function Insights() {
             Expected guests assumes the {first?.awaiting ?? 0} still to reply answer like those who have ({Math.round(rate * 100)}% yes).
           </p>
           {waitingAtClose !== null && (
-            <p className={`m-0 text-[13px] ${waitingAtClose > 0 ? 'text-[#7a4a37]' : 'text-[#5b6a52]'}`}>
+            <p className={`m-0 text-[13px] ${waitingAtClose > 0 ? 'text-[#7a4a37]' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
               {recent ? `${recent} ${recent === 1 ? 'reply' : 'replies'} in the last fortnight. At that pace` : 'No replies in the last fortnight. At that pace'},{' '}
               {waitingAtClose > 0 ? (
                 <>
@@ -248,7 +248,7 @@ export function Insights() {
           {data.catering.diets.length ? <Bars rows={data.catering.diets.map(([k, v]) => ({ label: k, value: v, colour: '#b39563' }))} /> : <p className="m-0 text-[13px] text-[#7a7466]">No dietary needs yet.</p>}
           {data.catering.mains.length > 0 && (
             <>
-              <div className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52]">Their mains</div>
+              <div className="text-[12px] font-semibold tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">Their mains</div>
               <Bars rows={data.catering.mains.map(([k, v]) => ({ label: k, value: v, colour: k === 'Not set yet' ? '#a5533c' : '#8a9670' }))} />
             </>
           )}
@@ -264,7 +264,7 @@ export function Insights() {
               <span>
                 {data.seating.tables} tables · {data.seating.seats} seats
               </span>
-              <span className={data.seating.seats < forecast ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}>
+              <span className={data.seating.seats < forecast ? 'text-[#7a4a37] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}>
                 {data.seating.seats >= forecast ? `${data.seating.seats - forecast} spare for the ${forecast} expected` : `${forecast - data.seating.seats} more seats needed for the ${forecast} expected`}
               </span>
             </div>
@@ -288,7 +288,7 @@ export function Insights() {
                 return (
                   <li key={`${x.what}${x.when}`} className="flex justify-between gap-3">
                     <span className="truncate">{x.what}</span>
-                    <span className={`whitespace-nowrap tabular-nums ${d < 0 ? 'text-[#7a4a37] font-semibold' : d < 30 ? 'text-[#8a6d2f] font-semibold' : 'text-[#5b6a52]'}`}>
+                    <span className={`whitespace-nowrap tabular-nums ${d < 0 ? 'text-[#7a4a37] font-semibold' : d < 30 ? 'text-[#8a6d2f] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
                       {d < 0 ? `${-d} days ago` : d === 0 ? 'today' : `in ${d} days`}
                     </span>
                   </li>
@@ -296,7 +296,7 @@ export function Insights() {
               })}
           </ul>
           {data.shuttles.runs > 0 && (
-            <div className="text-[13px] text-[#5b6a52] pt-2 border-t border-[#e2d7bc]">
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)] pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
               Shuttles: {data.shuttles.booked} of {data.shuttles.capacity} seats booked on {data.shuttles.runs} {data.shuttles.runs === 1 ? 'run' : 'runs'}
             </div>
           )}
@@ -312,7 +312,7 @@ export function Insights() {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-[14px] min-w-[520px]">
               <thead>
-                <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[#5b6a52]">
+                <tr className="text-left text-[11px] tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">
                   <th className="py-1 font-semibold">Message</th>
                   <th className="py-1 font-semibold text-right">Sent</th>
                   <th className="py-1 font-semibold text-right">Arrived</th>
@@ -358,7 +358,7 @@ export function Insights() {
       {budget.lines.length > 0 && committed > 0 && (
         <section aria-label="Your split against typical couples" className={card}>
           <H2>Your split against typical couples</H2>
-          <p className="m-0 text-[13px] text-[#5b6a52]">Each category’s share of what you’ve committed (the bar), and what Australian couples usually spend on it (the mark).</p>
+          <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Each category’s share of what you’ve committed (the bar), and what Australian couples usually spend on it (the mark).</p>
           <div className="flex flex-col gap-2">
             {BUDGET_SPLIT.map(({ category, share }) => {
               const mine = budget.lines.filter((l) => l.category === category).reduce((a, l) => a + (l.quote || l.estimate), 0) / committed;
@@ -370,7 +370,7 @@ export function Insights() {
                     <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, (mine / 0.5) * 100)}%`, background: over ? '#a5533c' : '#8a9670' }} />
                     <span aria-hidden className="absolute -top-[3px] -bottom-[3px] w-[2px] bg-[#33402f]" style={{ left: `${Math.min(100, (share / 0.5) * 100)}%` }} />
                   </span>
-                  <span className="tabular-nums text-[#5b6a52] whitespace-nowrap">
+                  <span className="tabular-nums text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">
                     {Math.round(mine * 100)}% <span className="text-[#7a7466]">· usually {Math.round(share * 100)}%</span>
                   </span>
                 </div>
@@ -403,7 +403,7 @@ export function Insights() {
             </div>
           </div>
           {Math.abs(drift - 1) >= 0.03 && unquoted > 0 && (
-            <p className={`m-0 text-[13px] ${budget.total && landing > budget.total ? 'text-[#7a4a37]' : 'text-[#5b6a52]'}`}>
+            <p className={`m-0 text-[13px] ${budget.total && landing > budget.total ? 'text-[#7a4a37]' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
               Your quotes have come in {Math.round(Math.abs(drift - 1) * 100)}% {drift > 1 ? 'over' : 'under'} your estimates. If the {aud(unquoted)} still on estimates does the same, you’ll land
               near <strong className="font-semibold">{aud(landing)}</strong>
               {budget.total ? (landing > budget.total ? `, ${aud(landing - budget.total)} over budget.` : `, ${aud(budget.total - landing)} under budget.`) : '.'}
@@ -419,8 +419,8 @@ export function Insights() {
             <p className="m-0 text-[14px] text-[#7a7466]">Nothing with a due date yet. Add due dates in Budget to see what’s coming each month.</p>
           )}
           {committed > paid && monthsLeft > 0 && (
-            <p className="m-0 text-[13px] text-[#5b6a52] pt-2 border-t border-[#e2d7bc]">
-              To have it all paid by the day, put aside about <strong className="font-semibold text-[#33402f]">{aud((committed - paid) / monthsLeft)}</strong> a month for the next {monthsLeft}{' '}
+            <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)] pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
+              To have it all paid by the day, put aside about <strong className="font-semibold text-[var(--adm-ink,#33402f)]">{aud((committed - paid) / monthsLeft)}</strong> a month for the next {monthsLeft}{' '}
               {monthsLeft === 1 ? 'month' : 'months'} ({aud(committed - paid)} still to pay).
             </p>
           )}
@@ -438,12 +438,12 @@ export function Insights() {
               { label: 'Everything', value: plan.tasks.length, colour: '#c6b794' },
             ]}
           />
-          <div className="text-[13px] text-[#5b6a52]">
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             Still to do: {n1} {owner('p1')} · {n2} {owner('p2')} · not decided {plan.tasks.filter((t) => !t.done && !t.owner).length}
           </div>
           {busy.length > 0 && (
             <>
-              <div className="text-[12px] font-semibold tracking-[.12em] uppercase text-[#5b6a52] pt-2 border-t border-[#e2d7bc]">Busy months ahead</div>
+              <div className="text-[12px] font-semibold tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)] pt-2 border-t border-[var(--adm-line,#e2d7bc)]">Busy months ahead</div>
               <Bars
                 rows={busy.map(([k, n]) => ({
                   label: k === 'overdue' ? 'Overdue' : new Date(`${k}-01T00:00`).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' }),
@@ -466,7 +466,7 @@ export function Insights() {
               { label: 'Contract signed', value: booked.filter((v) => v.contractSigned).length, colour: '#33402f' },
             ]}
           />
-          <div className="text-[13px] text-[#5b6a52]">{quotes} quotes filed</div>
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{quotes} quotes filed</div>
         </section>
         {gifts.list.length > 0 && (
           <section aria-label="Gifts" className={card}>

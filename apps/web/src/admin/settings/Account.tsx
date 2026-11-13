@@ -55,7 +55,7 @@ export function YourDetails() {
   };
   return (
     <div className="flex flex-col gap-6 max-w-[720px]">
-      <p className="m-0 text-[15px] text-[#5b6a52]">Your own details, as the person whose account this is. Your guests never see them.</p>
+      <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)]">Your own details, as the person whose account this is. Your guests never see them.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Label text="First name">
           <input value={val('firstName', p.firstName)} autoComplete="given-name" maxLength={60} onChange={(e) => set({ firstName: e.target.value })} className={inputCls} />
@@ -97,7 +97,7 @@ export function YourDetails() {
         <input type="checkbox" checked={optIn} onChange={(e) => set({ marketingOptIn: e.target.checked })} className="mt-1 w-[20px] h-[20px] accent-[#5d6b47]" />
         <span>
           Send me wedding-planning tips and news by email
-          <span className="block text-[13px] text-[#5b6a52]">
+          <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {p.marketing.optIn && p.marketing.at ? `You said yes on ${fmtWhen(p.marketing.at, 'Australia/Sydney')}. ` : ''}Change your mind any time; you can always unsubscribe.
           </span>
         </span>
@@ -126,17 +126,17 @@ export function PlanAndBilling() {
   }, [wid]);
   return (
     <div className="flex flex-col gap-4 max-w-[720px]">
-      <section aria-label="Your plan" className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <section aria-label="Your plan" className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         <span className="flex flex-col gap-1">
-          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[#5b6a52]">Your plan</span>
+          <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">Your plan</span>
           <span className="font-display text-[28px] leading-tight">{info.name}</span>
         </span>
-        <span className="text-[14px] text-[#5b6a52] max-w-[420px]">
+        <span className="text-[14px] text-[var(--adm-muted,#5b6a52)] max-w-[420px]">
           {!paid ? `Not paid yet: ${info.price} once to go live.` : plan === 'complete' ? 'Everything is included.' : `${info.price}, paid once. Text credits are bought separately.`}
         </span>
       </section>
       {main && !main.me ? (
-        <p className="m-0 text-[14px] text-[#5b6a52]">The plan and payments are looked after by {main.name}, the main account. Ask them to change it.</p>
+        <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">The plan and payments are looked after by {main.name}, the main account. Ask them to change it.</p>
       ) : (
         <>
           <GoLive compact />
@@ -224,14 +224,14 @@ export function TheWedding() {
         {m?.members.map((x) => {
           const you = x.id === m.you.id;
           return (
-            <div key={x.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[#e2d7bc]">
+            <div key={x.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-[var(--adm-line,#e2d7bc)]">
               <span className="min-w-0">
                 <span className="block font-semibold truncate">
                   {x.name || x.email || 'Someone'}
                   {you ? ' (you)' : ''}
-                  {x.id === m.main && <span className="ml-2 align-middle py-[2px] px-2 rounded-full bg-[#efe7d3] text-[11px] font-sans font-semibold text-[#5b6a52]">Main account (payments)</span>}
+                  {x.id === m.main && <span className="ml-2 align-middle py-[2px] px-2 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[11px] font-sans font-semibold text-[var(--adm-muted,#5b6a52)]">Main account (payments)</span>}
                 </span>
-                <span className="block text-[13px] text-[#5b6a52] truncate">
+                <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">
                   {[x.relation ? RELATION_LABEL[x.relation as MemberRelation] : '', x.email && x.name ? x.email : '', ROLE[x.role].what, x.lastLoginAt ? `last in ${fmtWhen(x.lastLoginAt, 'Australia/Sydney')}` : ''].filter(Boolean).join(' · ')}
                 </span>
                 {owner && (
@@ -281,10 +281,10 @@ export function TheWedding() {
           );
         })}
         {m?.invites.map((i) => (
-          <div key={i.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-dashed border-[#d3c6a4]">
+          <div key={i.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 items-center py-3 border-t border-dashed border-[var(--adm-line,#d3c6a4)]">
             <span className="min-w-0">
               <span className="block font-semibold truncate">{i.email}</span>
-              <span className="block text-[13px] text-[#5b6a52]">
+              <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 Invited{i.relation ? ` · ${RELATION_LABEL[i.relation as MemberRelation]}` : ''} · {ROLE[i.role].label} · link works until {fmtWhen(i.expiresAt, 'Australia/Sydney')}
               </span>
             </span>
@@ -296,9 +296,9 @@ export function TheWedding() {
       </section>
 
       {owner && (
-        <section aria-label="Invite someone" className="flex flex-col gap-3 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <section aria-label="Invite someone" className="flex flex-col gap-3 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
           <H2>Add your partner or a helper</H2>
-          <p className="m-0 text-[14px] text-[#5b6a52]">They get a link to set their own passcode (or, if they already have an account, to add this wedding to it). It works once, for 14 days.</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">They get a link to set their own passcode (or, if they already have an account, to add this wedding to it). It works once, for 14 days.</p>
           <form
             className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_190px_180px_auto] gap-3 items-end"
             onSubmit={(e) => {
@@ -333,8 +333,8 @@ export function TheWedding() {
             </Pill>
           </form>
           {link && (
-            <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f6f0e2] border border-[#e2d7bc]">
-              <span className="text-[13px] text-[#5b6a52]">Send them this link (shown once):</span>
+            <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-[var(--adm-bg,#f6f0e2)] border border-[var(--adm-line,#e2d7bc)]">
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Send them this link (shown once):</span>
               <code className="text-[13px] break-all">{link}</code>
               <span className="flex gap-2 flex-wrap">
                 <Pill size="sm" kind="primary" onClick={() => void share()}>

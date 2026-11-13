@@ -6,7 +6,7 @@ import { LogoMark } from '../sales/Art';
 
 /** Pill input, verbatim from the design's passcode field. */
 const pill =
-  'w-full py-3 px-4 border border-[#d3c6a4] rounded-full bg-[#fbf8f2] text-[16px] text-center placeholder:text-[#5b6a52]/70';
+  'w-full py-3 px-4 border border-[var(--adm-line,#d3c6a4)] rounded-full bg-[#fbf8f2] text-[16px] text-center placeholder:text-[var(--adm-muted,#5b6a52)]/70';
 
 /**
  * Sign-in screen: design/RSVP Admin.dc.html passcode screen (DESIGN_LOCK).
@@ -17,19 +17,19 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
   const co = tone === 'company';
   // Signed out (or never signed in): a way back to The Yes List's front page.
   const home = co ? null : (
-    <a href="/" className="absolute top-[max(16px,env(safe-area-inset-top))] left-4 inline-flex items-center gap-2 py-2 px-3 rounded-full no-underline text-[14px] text-[#33402f] hover:bg-[#ece3cd]">
+    <a href="/" className="absolute top-[max(16px,env(safe-area-inset-top))] left-4 inline-flex items-center gap-2 py-2 px-3 rounded-full no-underline text-[14px] text-[var(--adm-ink,#33402f)] hover:bg-[#ece3cd]">
       <span aria-hidden>←</span>
       <LogoMark size={22} />
       The Yes List
     </a>
   );
-  const screen = co ? 'fixed inset-0 z-50 flex items-center justify-center p-6 text-[#f3ecd6]' : 'fixed inset-0 z-50 bg-[#f6f0e2] flex items-center justify-center p-6';
+  const screen = co ? 'fixed inset-0 z-50 flex items-center justify-center p-6 text-[#f3ecd6]' : 'fixed inset-0 z-50 bg-[var(--adm-bg,#f6f0e2)] flex items-center justify-center p-6';
   const screenStyle = co ? { background: 'radial-gradient(120% 90% at 80% 10%, #3f4f39 0%, #263021 55%, #1b2218 100%)', fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" } : undefined;
   const field = co ? 'w-full py-3 px-4 border border-[rgba(243,236,214,.3)] rounded-[12px] bg-[rgba(255,255,255,.06)] text-[16px] text-[#fbf8f2] placeholder:text-[#c9c4b2]' : pill;
   const go = co
     ? 'w-full py-3 px-[18px] rounded-[12px] border-0 bg-[#e6cf9e] text-[#1b2218] text-[15px] font-semibold cursor-pointer hover:bg-[#f1dcaa] disabled:opacity-70 disabled:cursor-wait'
     : 'w-full py-3 px-[18px] rounded-full border border-[#5d6b47] bg-[#5d6b47] text-[#fbf8f2] text-[15px] font-medium cursor-pointer hover:bg-[#46543a] disabled:opacity-70 disabled:cursor-wait';
-  const linkCls = co ? 'p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#e6cf9e]' : 'p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#33402f]';
+  const linkCls = co ? 'p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[#e6cf9e]' : 'p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[var(--adm-ink,#33402f)]';
   const last = readLast();
   const [email, setEmail] = useState(last?.email ?? '');
   const [passcode, setPasscode] = useState('');
@@ -81,14 +81,14 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
         {home}
         <form onSubmit={askReset} noValidate className="w-[min(380px,100%)] flex flex-col items-center gap-[14px] text-center">
           <h1 className="m-0 font-display font-medium text-[32px] leading-[1.15]">Forgot your passcode?</h1>
-          <p className="m-0 text-[14px] text-[#5b6a52]">We’ll email you a link to set a new one.</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">We’ll email you a link to set a new one.</p>
           <label className="sr-only" htmlFor="forgot-email">Email</label>
           <input id="forgot-email" type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" className={`mt-[10px] ${field}`} />
           <div role="alert" aria-live="polite" className="min-h-[18px] text-[13px] text-[#8a5a45]">
             {error}
           </div>
           {sent ? (
-            <p role="status" className="m-0 text-[14px] text-[#33402f]">{sent}</p>
+            <p role="status" className="m-0 text-[14px] text-[var(--adm-ink,#33402f)]">{sent}</p>
           ) : (
             <button type="submit" disabled={busy} className={go}>
               {busy ? 'Sending…' : 'Email me a link'}
@@ -111,7 +111,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
       <form onSubmit={submit} noValidate className="w-[min(380px,100%)] flex flex-col items-center gap-[14px] text-center">
         {co ? (
           <>
-            <span className="rounded-[18px] p-2 bg-[#f6f0e2]">
+            <span className="rounded-[18px] p-2 bg-[var(--adm-bg,#f6f0e2)]">
               <LogoMark size={44} />
             </span>
             <h1 className="m-0 text-[28px] font-semibold tracking-[-.01em]">Company portal</h1>
@@ -120,7 +120,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
         ) : (
           <>
             <h1 className="m-0 font-script font-normal text-[40px] leading-[1.15]">{last?.name || 'Welcome back'}</h1>
-            <p className="m-0 text-[11px] font-semibold tracking-[.24em] uppercase text-[#5b6a52]">RSVP admin · private</p>
+            <p className="m-0 text-[11px] font-semibold tracking-[.24em] uppercase text-[var(--adm-muted,#5b6a52)]">RSVP admin · private</p>
           </>
         )}
         <label className="sr-only" htmlFor="email">Email</label>
@@ -161,7 +161,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
           Forgot your passcode?
         </button>
         {!co && (
-          <a href="/" className="text-[14px] !text-[#5b6a52]">
+          <a href="/" className="text-[14px] !text-[var(--adm-muted,#5b6a52)]">
             New here? Start your wedding
           </a>
         )}

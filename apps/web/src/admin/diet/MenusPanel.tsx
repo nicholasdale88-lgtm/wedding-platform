@@ -34,7 +34,7 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
   const courses = (m: Menu, onPatch: (p: Partial<Menu>) => void, who: string) => (
     <div className="grid gap-2 sm:grid-cols-3">
       {COURSES.map(([k, label]) => (
-        <label key={k} className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        <label key={k} className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
           {label}
           <input aria-label={`${who}: ${label}`} value={m[k]} maxLength={200} onChange={(e) => onPatch({ [k]: e.target.value } as Partial<Menu>)} className={`${inputCls} !py-2 !text-[14px]`} />
         </label>
@@ -61,15 +61,15 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
   const unused = STARTERS.filter(([n]) => !menus.special.some((m) => m.name.toLowerCase() === n.toLowerCase()));
 
   return (
-    <section aria-label="Menus" className="flex flex-col gap-4 p-5 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Menus" className="flex flex-col gap-4 p-5 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div>
         <h2 className="m-0 font-display font-medium text-[26px]">Menus</h2>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">Everyone has the set menu, except guests you give a special one. Add the caterer’s menus as files to keep them with the plan.</p>
+        <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)]">Everyone has the set menu, except guests you give a special one. Add the caterer’s menus as files to keep them with the plan.</p>
       </div>
-      <div className="flex flex-col gap-2 p-4 rounded-[12px] bg-white border border-[#e2d7bc]">
+      <div className="flex flex-col gap-2 p-4 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)]">
         <strong className="font-semibold">Set menu</strong>
         {courses(menus.set, (p) => set({ ...menus, set: { ...menus.set, ...p, name: 'Set menu' } }), 'Set menu')}
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
           The set menu is already (if the caterer says so)
           <input
             aria-label="Set menu: safe for"
@@ -83,13 +83,13 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
         {safeChips(menus.set)}
       </div>
       {menus.special.map((m) => (
-        <div key={m.id} className="flex flex-col gap-2 p-4 rounded-[12px] bg-white border border-[#e2d7bc]">
+        <div key={m.id} className="flex flex-col gap-2 p-4 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)]">
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] items-end">
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+            <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
               Menu
               <input aria-label="Menu name" value={m.name} maxLength={80} onChange={(e) => setSpecial(m.id, { name: e.target.value })} className={`${inputCls} !py-2 font-semibold`} />
             </label>
-            <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+            <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
               Suits guests who wrote
               <input aria-label={`${m.name}: suits`} placeholder="e.g. vegan, plant based" value={m.suits} maxLength={200} onChange={(e) => setSpecial(m.id, { suits: e.target.value })} className={`${inputCls} !py-2`} />
             </label>
@@ -106,16 +106,16 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
           + A special menu
         </Pill>
         {unused.slice(0, 4).map(([name, suits]) => (
-          <button key={name} type="button" onClick={() => set({ ...menus, special: [...menus.special, { ...BLANK_MENU, id: newId(), name, suits }] }, true)} className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[13px] cursor-pointer hover:bg-[#efe7d3]">
+          <button key={name} type="button" onClick={() => set({ ...menus, special: [...menus.special, { ...BLANK_MENU, id: newId(), name, suits }] }, true)} className="py-[5px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[13px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">
             + {name}
           </button>
         ))}
       </div>
-      <div className="flex flex-col gap-2 pt-3 border-t border-[#e2d7bc]">
+      <div className="flex flex-col gap-2 pt-3 border-t border-[var(--adm-line,#e2d7bc)]">
         <strong className="font-semibold text-[15px]">The caterer’s menus</strong>
         {menus.files.map((f) => (
           <div key={f.id} className="flex justify-between items-center gap-3 text-[14px]">
-            <a href={plannerApi.fileUrl(wid, f.id)} target="_blank" rel="noopener" className="!text-[#33402f] truncate">
+            <a href={plannerApi.fileUrl(wid, f.id)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)] truncate">
               {f.name}
             </a>
             <button type="button" onClick={() => set({ ...menus, files: menus.files.filter((x) => x.id !== f.id) }, true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">

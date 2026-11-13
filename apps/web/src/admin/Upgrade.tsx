@@ -128,9 +128,9 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   };
   const upgradeNote = !addon && (plan === 'essentials' || basicPaid) && card ? ` You've paid for ${PLAN_INFO[plan].name}, so it's ${price} more.` : '';
   return (
-    <section aria-label="Upgrade" className={`flex flex-col gap-2 ${compact ? 'p-4' : 'p-6'} rounded-[16px] border border-[#d3c6a4] bg-[#fbf8f0]`}>
+    <section aria-label="Upgrade" className={`flex flex-col gap-2 ${compact ? 'p-4' : 'p-6'} rounded-[16px] border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)]`}>
       <strong className={compact ? 'text-[15px]' : 'text-[18px]'}>{addon ? `${FEATURE_LABEL[feature]} is an add-on` : `${FEATURE_LABEL[feature]} comes with ${info.name}`}</strong>
-      <span className="text-[14px] text-[#5b6a52]">
+      <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
         {addon ? `Each extra event is ${info.price}, paid once.` : `${info.name} is ${info.price}, paid once for your whole wedding.${upgradeNote}`}{' '}
         {thanks
           ? 'Thank you! It switches on within a minute.'
@@ -159,14 +159,14 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
                 placeholder="Promo code"
                 aria-label="Promo code"
                 maxLength={24}
-                className="py-[6px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[15px] w-[160px] uppercase"
+                className="py-[6px] px-3 rounded-[10px] border border-[var(--adm-line,#d3c6a4)] bg-white text-[15px] w-[160px] uppercase"
               />
               <Pill size="sm" onClick={() => void applyCode()}>
                 Apply
               </Pill>
             </span>
           ) : (
-            <button type="button" onClick={() => setCodeOpen(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+            <button type="button" onClick={() => setCodeOpen(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
               Have a promo code?
             </button>
           )}
@@ -262,9 +262,9 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
     ['complete', PLAN_INFO.complete, 'Everything: photos by QR, wedding party sign-ins, backups, two events'],
   ] as const;
   return (
-    <section aria-label="Go live" className={`flex flex-col gap-3 ${compact ? 'p-4' : 'p-5'} rounded-[16px] border border-[#33402f] bg-[#fbf8f0]`}>
+    <section aria-label="Go live" className={`flex flex-col gap-3 ${compact ? 'p-4' : 'p-5'} rounded-[16px] border border-[#33402f] bg-[var(--adm-card,#fbf8f0)]`}>
       <strong className="text-[17px]">Your invitations aren’t live yet</strong>
-      <span className="text-[14px] text-[#5b6a52]">Set everything up and preview it as much as you like. Choose a plan, paid once, when you’re ready for guests to open their invitations. No subscription.</span>
+      <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">Set everything up and preview it as much as you like. Choose a plan, paid once, when you’re ready for guests to open their invitations. No subscription.</span>
       <TextsNotIncluded ok={textsOk} onOk={setTextsOk} />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {plans.map(([k, info, what]) => (
@@ -274,12 +274,12 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
             disabled={!!busy || !textsOk}
             title={textsOk ? undefined : 'Tick the box above first'}
             onClick={() => void choose(k)}
-            className="flex flex-col gap-1 p-3 rounded-[12px] border border-[#c6b794] bg-white text-left cursor-pointer disabled:opacity-60 hover:border-[#33402f]"
+            className="flex flex-col gap-1 p-3 rounded-[12px] border border-[var(--adm-line,#c6b794)] bg-white text-left cursor-pointer disabled:opacity-60 hover:border-[#33402f]"
           >
             <span className="font-semibold">
               {info.name} · {info.price}
             </span>
-            <span className="text-[12px] text-[#5b6a52]">{what}</span>
+            <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{what}</span>
             <span className="text-[12px] underline">{busy === k ? 'Opening…' : card ? `Pay $${PRICE_CENTS[k === 'basic' ? 'free' : k] / 100}` : 'Ask for a payment link'}</span>
           </button>
         ))}
@@ -304,7 +304,7 @@ export function TextsNotIncluded({ ok, onOk }: { ok: boolean; onOk: (ok: boolean
         </strong>{' '}
         with every text (invitation, reminders, thank-yous) and the back-and-forth when guests text you back. You’ll see the total before you pay for any.
       </span>
-      <label className="flex items-start gap-3 pt-1 text-[15px] font-semibold text-[#33402f] cursor-pointer">
+      <label className="flex items-start gap-3 pt-1 text-[15px] font-semibold text-[var(--adm-ink,#33402f)] cursor-pointer">
         <input type="checkbox" checked={ok} onChange={(e) => onOk(e.target.checked)} className="mt-[2px] w-[22px] h-[22px] flex-none accent-[#33402f]" />I understand text messages aren’t included in my plan.
       </label>
     </div>

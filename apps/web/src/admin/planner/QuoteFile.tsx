@@ -74,28 +74,28 @@ export function QuoteFile({ fileId, fileName, onFiled, onRead }: { fileId: strin
           setOver(false);
           void take(e.dataTransfer.files[0]);
         }}
-        className={`flex items-center gap-3 p-3 rounded-[12px] border-2 border-dashed cursor-pointer text-[14px] ${over ? 'border-[#5d6b47] bg-[#eef1e4]' : fileId ? 'border-[#a9b98d] bg-[#f3f6ea]' : 'border-[#c6b794] bg-[#fbf8f0]'}`}
+        className={`flex items-center gap-3 p-3 rounded-[12px] border-2 border-dashed cursor-pointer text-[14px] ${over ? 'border-[#5d6b47] bg-[#eef1e4]' : fileId ? 'border-[#a9b98d] bg-[#f3f6ea]' : 'border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)]'}`}
       >
         <span aria-hidden className="text-[22px] leading-none">{fileId ? '📎' : '⤓'}</span>
         <span className="flex-1 min-w-0">
           {busy ? (
-            <span role="status" className="italic text-[#5b6a52]">{busy}</span>
+            <span role="status" className="italic text-[var(--adm-muted,#5b6a52)]">{busy}</span>
           ) : fileId ? (
             <>
               <strong className="font-semibold block truncate">{fileName || 'Quote attached'}</strong>
-              <span className="text-[12px] text-[#5b6a52]">Attached. Tap to choose another.</span>
+              <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Attached. Tap to choose another.</span>
             </>
           ) : (
             <>
               <strong className="font-semibold block">Attach the quote</strong>
-              <span className="text-[12px] text-[#5b6a52]">
+              <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">
                 Drop the PDF here, or tap to choose one or take a photo.{reads && onRead ? ' The numbers are read out for you to check.' : ''}
               </span>
             </>
           )}
         </span>
         {fileId && !busy && (
-          <a href={plannerApi.fileUrl(wid, fileId)} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} className="text-[13px] !text-[#33402f]">
+          <a href={plannerApi.fileUrl(wid, fileId)} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} className="text-[13px] !text-[var(--adm-ink,#33402f)]">
             Open
           </a>
         )}

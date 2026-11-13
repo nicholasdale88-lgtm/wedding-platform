@@ -52,7 +52,7 @@ export function SmsSetup() {
   };
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!s) return <div aria-busy="true" className="text-[#5b6a52]">Loading setup…</div>;
+  if (!s) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading setup…</div>;
 
   const val = <K extends keyof SettingsPut>(k: K) => (draft[k] ?? s[k as keyof SettingsData]) as NonNullable<SettingsPut[K]>;
   const edit = (patch: SettingsPut) => setDraft((d) => ({ ...d, ...patch, ...(patch.replies ? { replies: { ...d.replies, ...patch.replies } } : {}) }));
@@ -61,7 +61,7 @@ export function SmsSetup() {
 
   return (
     <div className="flex flex-col gap-7 max-w-[1000px]">
-      <p className="m-0 max-w-[640px] text-[15px] text-[#5b6a52]">
+      <p className="m-0 max-w-[640px] text-[15px] text-[var(--adm-muted,#5b6a52)]">
         Automatic texts, sent for you through {s.provider}, an Australian provider. Guests can text YES or NO straight back.
       </p>
 
@@ -70,7 +70,7 @@ export function SmsSetup() {
       <section className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[14px]" style={{ background: s.paused ? '#f1e1d6' : '#dfe5cc' }}>
         <div>
           <div className="font-display text-[24px]">{!s.live ? 'Not set up yet' : s.paused ? 'All texts are paused' : 'Texts are live'}</div>
-          <div className="text-[14px] text-[#5b6a52]">
+          <div className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
             {!s.live ? 'Only for automatic texts from a texting number. Sending free from your own phone or by email? You can skip this.' : s.paused ? 'Nothing goes out until you resume. Replies still arrive.' : `Sending from ${s.sender}, ${hourLabel(s.quietStart)} to ${hourLabel(s.quietEnd)} your time.`}
           </div>
         </div>
@@ -138,14 +138,14 @@ export function SmsSetup() {
           <Label text="Price per text, in cents incl. GST">
             <input type="number" step="0.01" min="0" value={val('rateX100') / 100} onChange={(e) => edit({ rateX100: Math.round(Number(e.target.value) * 100) })} className={inputCls} />
           </Label>
-          <p className="m-0 text-[13px] text-[#5b6a52]">
+          <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {s.provider === 'Texto'
               ? 'Texto charges about 3¢ per text part (less in bigger packs; credits last 12 months), plus about $15 a month for the dedicated number guests text back to. Both are counted below.'
               : 'Mobile Message charges 1.6¢ + GST (1.76¢) per text if you buy credits within 30 days of signing up; credits never expire. After that the standard rate is 4¢ + GST. New accounts get 50 free texts for testing.'}
           </p>
           <div className="flex flex-col">
             {s.plan.map((p) => (
-              <div key={p.name} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 py-2 border-t border-[#ece3cc] text-[14px]">
+              <div key={p.name} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 py-2 border-t border-[var(--adm-line,#ece3cc)] text-[14px]">
                 <span>{p.name}</span>
                 <span className="text-right">{money(p.costCents)}</span>
                 <span className="col-span-2 text-[12px] text-[#7a7466]">{p.detail}{p.auto || p.fixed ? '' : ' · sent by hand'}</span>
@@ -159,7 +159,7 @@ export function SmsSetup() {
         </Rollup>
 
         <Rollup step={4} title="Automatic replies" now={`When they reply YES: “${s.replies.yes.slice(0, 60)}${s.replies.yes.length > 60 ? '…' : ''}”`}>
-          <p className="m-0 text-[14px] text-[#5b6a52]">Sent when a guest texts back. {'{first}'}, {'{event}'} and {'{link}'} are filled in for each guest. STOP always unsubscribes them, whatever you write here.</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Sent when a guest texts back. {'{first}'}, {'{event}'} and {'{link}'} are filled in for each guest. STOP always unsubscribes them, whatever you write here.</p>
           {(
             [
               ['yes', 'When they reply YES'],
@@ -207,11 +207,11 @@ export function Backup() {
   };
   return (
     <section className="flex flex-col gap-4 max-w-[640px]">
-      <div className="flex flex-col gap-2 p-4 rounded-[14px] bg-white border border-[#e2d7bc]">
+      <div className="flex flex-col gap-2 p-4 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)]">
         <strong className="text-[16px] font-semibold">Daily backup</strong>
         {b?.linked ? (
           <>
-            <p className="m-0 text-[14px] text-[#5b6a52]">
+            <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
               {b.auto ? `Every day, a full backup goes to the Backups folder in your ${b.linked}.` : `Daily backups to your ${b.linked} are off.`}{' '}
               {b.last ? `Last backup: ${fmtWhen(b.last, tz)}${b.where ? ` to ${b.where}` : ''}.` : 'The first one goes within the next hour.'}
             </p>
@@ -226,17 +226,17 @@ export function Backup() {
             </div>
           </>
         ) : (
-          <p className="m-0 text-[14px] text-[#5b6a52]">
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
             Link your Google Drive, Dropbox or OneDrive (under{' '}
-            <a href={path('photos')} className="!text-[#33402f]">
+            <a href={path('photos')} className="!text-[var(--adm-ink,#33402f)]">
               Photos → Where photos are saved
             </a>
             ) and a full backup goes there every day, filed in a Backups folder.
           </p>
         )}
       </div>
-      <p className="m-0 text-[15px] text-[#5b6a52]">Or download everything about your wedding as one file now: guests, replies, messages, seating, the planner and wording. Keep it somewhere safe.</p>
-      <a href={settingsApi.backupUrl(wid)} download className="self-start py-[10px] px-[18px] rounded-full border border-[#c6b794] text-[14px] font-medium no-underline !text-[#33402f] hover:bg-[#efe7d3]">
+      <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)]">Or download everything about your wedding as one file now: guests, replies, messages, seating, the planner and wording. Keep it somewhere safe.</p>
+      <a href={settingsApi.backupUrl(wid)} download className="self-start py-[10px] px-[18px] rounded-full border border-[var(--adm-line,#c6b794)] text-[14px] font-medium no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]">
         Download backup
       </a>
     </section>
@@ -341,7 +341,7 @@ function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
     }
   };
   return (
-    <section aria-label="Text credits" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[#d9cdb0] bg-[#fbf7ee]">
+    <section aria-label="Text credits" className="flex flex-col gap-3 p-5 rounded-[14px] border border-[var(--adm-line,#d9cdb0)] bg-[#fbf7ee]">
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <h2 className="m-0 font-display text-[22px] font-normal">Text credits</h2>
         <span className="text-[15px]">
@@ -369,9 +369,9 @@ function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
           </div>
         </div>
       ) : (
-        <p className="m-0 text-[14px] text-[#5b6a52]">Buying texts isn’t available on this site yet. Send free from your own phone or by email meanwhile.</p>
+        <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Buying texts isn’t available on this site yet. Send free from your own phone or by email meanwhile.</p>
       )}
-      <p className="m-0 text-[13px] text-[#5b6a52]">
+      <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">
         One credit per text of up to 160 characters (a longer one, with a link, usually uses 2). Credits never expire. When they run out, automatic texts stop until you buy more: nothing is ever charged without you choosing to.
       </p>
     </section>

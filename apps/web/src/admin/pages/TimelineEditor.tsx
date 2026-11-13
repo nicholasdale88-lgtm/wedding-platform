@@ -161,7 +161,7 @@ export function TimelineEditor({
       )}
       <div className="flex gap-4 flex-wrap items-center">
         {main ? (
-          <span className="text-[13px] text-[#5b6a52]">{saved ? 'Your own timeline.' : "The design's moments: change any of them and they become your own."}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{saved ? 'Your own timeline.' : "The design's moments: change any of them and they become your own."}</span>
         ) : (
           <label className="flex items-center gap-2 text-[14px] cursor-pointer">
             <input type="checkbox" role="switch" checked={!!own} onChange={() => set(own ? [] : fromDesign())} className="w-[18px] h-[18px] accent-[#5d6b47]" />
@@ -176,7 +176,7 @@ export function TimelineEditor({
               role="radio"
               aria-checked={clock === c}
               onClick={() => setClock(c)}
-              className={`py-[5px] px-3 rounded-full border cursor-pointer ${clock === c ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+              className={`py-[5px] px-3 rounded-full border cursor-pointer ${clock === c ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
             >
               {c === '12h' ? '2:00pm' : '14:00'}
             </button>
@@ -236,7 +236,7 @@ export function TimelineEditor({
             <button
               type="button"
               onClick={() => window.confirm('Put back the design’s timeline? Your moments will be replaced.') && set(main ? [] : fromDesign())}
-              className="py-[7px] px-[14px] rounded-full border-0 bg-transparent text-[13px] underline cursor-pointer text-[#5b6a52]"
+              className="py-[7px] px-[14px] rounded-full border-0 bg-transparent text-[13px] underline cursor-pointer text-[var(--adm-muted,#5b6a52)]"
             >
               Start again from the design
             </button>
@@ -270,7 +270,7 @@ function MomentCard({
   // A time that isn't a clock time ("Late", "Sunset") is kept as written; "Use a clock" switches to the picker.
   const [freeTime, setFreeTime] = useState(() => !!r.time.trim() && !toPicker(r.time));
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex gap-2 items-end flex-wrap">
         <Label text="Time" className="w-[130px]">
           {freeTime ? (
@@ -282,11 +282,11 @@ function MomentCard({
         <Label text="Until (optional)" className="w-[130px]">
           <input type="time" aria-label="Until" value={toPicker(r.until)} onChange={(e) => onEdit({ until: fromPicker(e.target.value, clock) })} className={inputCls} />
         </Label>
-        <button type="button" onClick={() => setFreeTime((x) => !x)} className="mb-[10px] p-0 border-0 bg-transparent text-[12px] underline cursor-pointer text-[#5b6a52]">
+        <button type="button" onClick={() => setFreeTime((x) => !x)} className="mb-[10px] p-0 border-0 bg-transparent text-[12px] underline cursor-pointer text-[var(--adm-muted,#5b6a52)]">
           {freeTime ? 'Use a clock' : 'Write the time instead'}
         </button>
         {r.until && (
-          <button type="button" onClick={() => onEdit({ until: '' })} className="mb-[10px] p-0 border-0 bg-transparent text-[12px] underline cursor-pointer text-[#5b6a52]">
+          <button type="button" onClick={() => onEdit({ until: '' })} className="mb-[10px] p-0 border-0 bg-transparent text-[12px] underline cursor-pointer text-[var(--adm-muted,#5b6a52)]">
             No end time
           </button>
         )}
@@ -304,7 +304,7 @@ function MomentCard({
             title={ICON_NAME[k]}
             aria-label={ICON_NAME[k]}
             onClick={() => onEdit({ icon: k })}
-            className={`w-[38px] h-[38px] rounded-full border flex items-center justify-center cursor-pointer ${r.icon === k ? 'border-[#33402f] bg-white shadow-[0_0_0_3px_#e4ead6]' : 'border-[#d3c6a4] bg-transparent'}`}
+            className={`w-[38px] h-[38px] rounded-full border flex items-center justify-center cursor-pointer ${r.icon === k ? 'border-[#33402f] bg-white shadow-[0_0_0_3px_#e4ead6]' : 'border-[var(--adm-line,#d3c6a4)] bg-transparent'}`}
           >
             {k === 'end' ? <span className="w-[9px] h-[9px] bg-[#33402f] rotate-45" /> : <TimelineIconSvg icon={k} size={20} />}
           </button>
@@ -342,7 +342,7 @@ function RowBtn({ label, onClick, disabled, danger, children }: { label: string;
       title={label}
       onClick={onClick}
       disabled={disabled}
-      className={`w-[38px] h-[36px] rounded-[10px] border border-[#d3c6a4] bg-transparent text-[16px] cursor-pointer hover:bg-[#efe7d3] disabled:opacity-35 disabled:cursor-default ${danger ? 'text-[#7a4a37]' : 'text-[#33402f]'}`}
+      className={`w-[38px] h-[36px] rounded-[10px] border border-[var(--adm-line,#d3c6a4)] bg-transparent text-[16px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)] disabled:opacity-35 disabled:cursor-default ${danger ? 'text-[#7a4a37]' : 'text-[var(--adm-ink,#33402f)]'}`}
     >
       {children}
     </button>
@@ -351,7 +351,7 @@ function RowBtn({ label, onClick, disabled, danger, children }: { label: string;
 
 function AddBtn({ onClick, children }: { onClick: () => void; children: string }) {
   return (
-    <button type="button" onClick={onClick} className="py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer hover:bg-[#efe7d3]">
+    <button type="button" onClick={onClick} className="py-[7px] px-[14px] rounded-full border border-dashed border-[#8a9670] bg-transparent text-[13px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">
       {children}
     </button>
   );

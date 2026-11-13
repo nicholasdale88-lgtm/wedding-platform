@@ -21,7 +21,7 @@ const ERRORS: Record<string, string> = {
 
 function Steps({ p, redirect }: { p: PhotoLink['provider']; redirect: string }) {
   const uri = (
-    <code className="py-[1px] px-1 rounded bg-white border border-[#e2d7bc] text-[12px] break-all select-all">{redirect}</code>
+    <code className="py-[1px] px-1 rounded bg-white border border-[var(--adm-line,#e2d7bc)] text-[12px] break-all select-all">{redirect}</code>
   );
   const secrets = (a: string, b: string) => (
     <>
@@ -51,7 +51,7 @@ function Steps({ p, redirect }: { p: PhotoLink['provider']; redirect: string }) 
             <>Copy the client ID and secret. {secrets('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET')} (One setup covers Google Drive and Google Photos.)</>,
           ];
   return (
-    <ol className="m-0 pl-5 flex flex-col gap-[6px] text-[13px] text-[#5b6a52]">
+    <ol className="m-0 pl-5 flex flex-col gap-[6px] text-[13px] text-[var(--adm-muted,#5b6a52)]">
       {list.map((x, i) => (
         <li key={i}>{x}</li>
       ))}
@@ -276,7 +276,7 @@ function Folders({ filed, onSetUp }: { filed: boolean; onSetUp: () => Promise<vo
         {row('Backups', 1, 'one a day')}
       </ul>
       {!filed && (
-        <span className="flex items-center gap-3 flex-wrap text-[13px] text-[#5b6a52]">
+        <span className="flex items-center gap-3 flex-wrap text-[13px] text-[var(--adm-muted,#5b6a52)]">
           Linked before folders were filed this way: photos already copied stay where they are.
           <Pill
             size="sm"

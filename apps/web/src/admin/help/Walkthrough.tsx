@@ -417,13 +417,13 @@ function Phone({ place, view, step, still, shot, playing, pace = 1 }: { place: s
   const tapping = !!plan && !!shot?.tap && t >= plan.tap && t < plan.tap + 900;
   const shown = !!plan && t >= plan.then;
   return (
-    <div aria-hidden className="justify-self-center w-[min(260px,62vw)] max-[560px]:w-[200px] aspect-[9/17] rounded-[32px] border-[7px] border-[#0d0f0c] bg-[#f6f0e2] shadow-[0_18px_40px_rgba(0,0,0,.5)] overflow-hidden flex flex-col text-[#33402f]">
+    <div aria-hidden className="justify-self-center w-[min(260px,62vw)] max-[560px]:w-[200px] aspect-[9/17] rounded-[32px] border-[7px] border-[#0d0f0c] bg-[var(--adm-bg,#f6f0e2)] shadow-[0_18px_40px_rgba(0,0,0,.5)] overflow-hidden flex flex-col text-[var(--adm-ink,#33402f)]">
       <div className="h-5 flex justify-center items-center flex-none">
         <span className="w-14 h-[6px] rounded-full bg-[#0d0f0c]" />
       </div>
       <div className="flex gap-1 px-2 pt-2 overflow-hidden flex-none">
         {menu.map((m) => (
-          <span key={m} className={`relative flex-none py-[3px] px-2 rounded-full text-[9px] font-semibold ${m === top ? 'bg-[#33402f] text-[#fbf8f2]' : 'bg-[#e9e2cc] text-[#5b6a52]'}`}>
+          <span key={m} className={`relative flex-none py-[3px] px-2 rounded-full text-[9px] font-semibold ${m === top ? 'bg-[#33402f] text-[#fbf8f2]' : 'bg-[#e9e2cc] text-[var(--adm-muted,#5b6a52)]'}`}>
             {m}
             {m === top && step < 0 && !still && <span className="wt-tap absolute -inset-1 rounded-full border-2 border-[#e9c97c]" />}
           </span>
@@ -438,14 +438,14 @@ function Phone({ place, view, step, still, shot, playing, pace = 1 }: { place: s
         <span className="text-[13px] font-display font-medium leading-tight">{at[1] ?? top}</span>
         {!shot ? (
           [0, 1, 2].map((i) => (
-            <span key={i} className="h-[20px] rounded-[7px] bg-white border border-[#e2d7bc]">
+            <span key={i} className="h-[20px] rounded-[7px] bg-white border border-[var(--adm-line,#e2d7bc)]">
               <span className="block mt-[7px] ml-2 h-[5px] rounded-full bg-[#d9cfb6]" style={{ width: `${40 + i * 15}%` }} />
             </span>
           ))
         ) : (
           <>
             {shot.rows?.map((r) => (
-              <span key={r} className="py-[5px] px-2 rounded-[7px] bg-white border border-[#e2d7bc] text-[9px] leading-snug">
+              <span key={r} className="py-[5px] px-2 rounded-[7px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[9px] leading-snug">
                 {r}
               </span>
             ))}
@@ -454,8 +454,8 @@ function Phone({ place, view, step, still, shot, playing, pace = 1 }: { place: s
               const active = !!plan && t >= plan.fields[i]! && t < plan.fields[i]! + 1300;
               return (
                 <span key={label} className="flex flex-col gap-[2px]">
-                  <span className="text-[8px] text-[#5b6a52]">{label}</span>
-                  <span className={`min-h-[20px] py-[4px] px-2 rounded-[6px] bg-white border text-[9px] ${active ? 'border-[#b39563] shadow-[0_0_0_2px_rgba(233,201,124,.45)]' : 'border-[#d3c6a4]'}`}>
+                  <span className="text-[8px] text-[var(--adm-muted,#5b6a52)]">{label}</span>
+                  <span className={`min-h-[20px] py-[4px] px-2 rounded-[6px] bg-white border text-[9px] ${active ? 'border-[#b39563] shadow-[0_0_0_2px_rgba(233,201,124,.45)]' : 'border-[var(--adm-line,#d3c6a4)]'}`}>
                     {now}
                     {active && !still && <span className="wt-caret">|</span>}
                   </span>

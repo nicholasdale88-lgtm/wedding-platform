@@ -57,7 +57,7 @@ const LINERS: [Env['liner'] & string, string][] = [
 const pick = <T,>(xs: readonly T[]) => xs[Math.floor(Math.random() * xs.length)]!;
 
 const chip = (on: boolean) =>
-  `flex flex-col gap-1 p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[#e2d7bc] hover:border-[#b39563]'}`;
+  `flex flex-col gap-1 p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#e2d7bc)] hover:border-[#b39563]'}`;
 
 interface Pending {
   what: string;
@@ -145,13 +145,13 @@ export function DesignBuilder({
 
   const p = paletteOf(theme);
   const colour = (k: 'paper' | 'ink' | 'accent' | 'soft' | 'envelope', label: string) => (
-    <label key={k} className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
+    <label key={k} className="flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)]">
       <input
         type="color"
         aria-label={label}
         value={isHex(custom[k]) ? custom[k] : p[k]}
         onChange={(e) => setInv({ custom: { ...custom, [k]: e.target.value } })}
-        className="w-9 h-9 p-0 border border-[#d3c6a4] rounded-[8px] bg-transparent cursor-pointer"
+        className="w-9 h-9 p-0 border border-[var(--adm-line,#d3c6a4)] rounded-[8px] bg-transparent cursor-pointer"
       />
       {label}
     </label>
@@ -166,7 +166,7 @@ export function DesignBuilder({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <div className="flex justify-between items-center gap-3 flex-wrap">
-          <span className="text-[13px] font-semibold text-[#33402f]">Start from{started ? `: ${started.name}` : '…'}</span>
+          <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Start from{started ? `: ${started.name}` : '…'}</span>
           <Pill kind="dashed" onClick={surprise}>
             Surprise me
           </Pill>
@@ -197,7 +197,7 @@ export function DesignBuilder({
       {pending && (
         <div role="alertdialog" aria-label="Replace your wording?" className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#b39563] bg-[#fbf3e1]">
           <strong className="text-[15px]">Replace your wording?</strong>
-          <span className="text-[14px] text-[#5b6a52]">
+          <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
             You’ve written {pending.replacesOwn.length === 1 ? 'one of these sentences' : `${pending.replacesOwn.length} of these sentences`} yourself. Use {pending.what} for those too, or keep yours and change only the rest?
           </span>
           <div className="flex gap-2 flex-wrap">
@@ -219,20 +219,20 @@ export function DesignBuilder({
             type="button"
             aria-pressed={step === i}
             onClick={() => setStep(i)}
-            className={`px-3 py-[5px] rounded-full border text-[12px] cursor-pointer ${step === i ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#d3c6a4] text-[#33402f] hover:border-[#b39563]'}`}
+            className={`px-3 py-[5px] rounded-full border text-[12px] cursor-pointer ${step === i ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[var(--adm-line,#d3c6a4)] text-[var(--adm-ink,#33402f)] hover:border-[#b39563]'}`}
           >
             {i + 1} {s}
           </button>
         ))}
       </nav>
 
-      <div className="flex flex-col gap-3 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <div className="flex flex-col gap-3 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         {step === 0 && (
           <>
-            <span className="text-[13px] text-[#5b6a52]">Any template’s colours, or your own. More looks are under the Theme list below.</span>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Any template’s colours, or your own. More looks are under the Theme list below.</span>
             <div role="radiogroup" aria-label="Look" className="flex gap-2 flex-wrap">
               {TEMPLATES.map((t) => (
-                <button key={t.name} type="button" role="radio" aria-checked={theme === t.name} title={t.style} onClick={() => lookOf(t)} className={`flex items-center gap-2 py-[5px] px-3 rounded-full border text-[12px] cursor-pointer ${theme === t.name ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[#d3c6a4]'} bg-white`}>
+                <button key={t.name} type="button" role="radio" aria-checked={theme === t.name} title={t.style} onClick={() => lookOf(t)} className={`flex items-center gap-2 py-[5px] px-3 rounded-full border text-[12px] cursor-pointer ${theme === t.name ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#d3c6a4)]'} bg-white`}>
                   <span aria-hidden className="flex">
                     {[t.palette.paper, t.palette.soft, t.palette.accent, t.palette.ink].map((c) => (
                       <span key={c} className="w-3 h-3 rounded-full -ml-1 first:ml-0 border border-white" style={{ background: c }} />
@@ -242,7 +242,7 @@ export function DesignBuilder({
                 </button>
               ))}
             </div>
-            <span className="text-[13px] font-semibold text-[#33402f]">Or your own colours</span>
+            <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Or your own colours</span>
             <div className="flex gap-4 flex-wrap">
               {colour('paper', 'Paper')}
               {colour('ink', 'Ink')}
@@ -262,7 +262,7 @@ export function DesignBuilder({
                 role="radio"
                 aria-checked={(custom.names ?? 'script') === k}
                 onClick={() => setInv({ custom: { ...custom, names: k } })}
-                className={`flex flex-col items-center py-[6px] px-3 rounded-[12px] border cursor-pointer ${(custom.names ?? 'script') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
+                className={`flex flex-col items-center py-[6px] px-3 rounded-[12px] border cursor-pointer ${(custom.names ?? 'script') === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[var(--adm-line,#c6b794)]'}`}
               >
                 <span style={{ fontFamily: NAMES_STYLES[k].font, fontSize: k === 'caps' ? 14 : 22, letterSpacing: k === 'caps' ? '.2em' : undefined, textTransform: k === 'caps' ? 'uppercase' : undefined }}>A &amp; B</span>
                 <span className="text-[11px] opacity-80">{NAMES_STYLES[k].label}</span>
@@ -276,14 +276,14 @@ export function DesignBuilder({
           <>
             <div role="radiogroup" aria-label="Envelope from a template" className="flex gap-2 flex-wrap">
               {TEMPLATES.map((t) => (
-                <button key={t.name} type="button" role="radio" aria-checked={sameEnvelope(t)} onClick={() => envelopeOf(t)} className={`flex items-center gap-2 py-[5px] px-3 rounded-full border text-[12px] cursor-pointer bg-white ${sameEnvelope(t) ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[#d3c6a4]'}`}>
+                <button key={t.name} type="button" role="radio" aria-checked={sameEnvelope(t)} onClick={() => envelopeOf(t)} className={`flex items-center gap-2 py-[5px] px-3 rounded-full border text-[12px] cursor-pointer bg-white ${sameEnvelope(t) ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#d3c6a4)]'}`}>
                   <span aria-hidden className="w-3 h-3 rounded-full" style={{ background: sealSwatch(t.envelope.seal) }} />
                   {t.name}: {LINERS.find(([k]) => k === t.envelope.liner)?.[1].toLowerCase()}
                   {t.envelope.ribbon !== 'none' ? `, ${t.envelope.ribbon === 'silk' ? 'silk ribbon' : 'twine'}` : ''}
                 </button>
               ))}
             </div>
-            <span className="text-[13px] font-semibold text-[#33402f]">Or your own</span>
+            <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Or your own</span>
             <SealPicker inv={inv} theme={theme} initials={initials} setInv={setInv} />
             <Grid>
               <Label text="Envelope liner">
@@ -328,7 +328,7 @@ export function DesignBuilder({
                     {OPENING_INFO[o].label}
                     {opening === o ? ' ✓' : ''}
                   </span>
-                  <span className="text-[12px] text-[#5b6a52]">{OPENING_INFO[o].hint}</span>
+                  <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{OPENING_INFO[o].hint}</span>
                 </button>
               ))}
             </div>
@@ -338,7 +338,7 @@ export function DesignBuilder({
 
         {step === 4 && (
           <>
-            <span className="text-[13px] text-[#5b6a52]">Sets the main lines: above your names, the RSVP, the thank-you and the night-before sign-off. Every other word stays as it is, and words you’ve written yourself are only replaced if you say so.</span>
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Sets the main lines: above your names, the RSVP, the thank-you and the night-before sign-off. Every other word stays as it is, and words you’ve written yourself are only replaced if you say so.</span>
             <div role="radiogroup" aria-label="Wording tone" className="grid gap-2 grid-cols-1 sm:grid-cols-2">
               {TONES.map((t) => (
                 <button key={t.id} type="button" role="radio" aria-checked={toneNow === t.id} onClick={() => toneWords(t.id)} className={`${chip(toneNow === t.id)} bg-white`}>
@@ -346,12 +346,12 @@ export function DesignBuilder({
                     {t.label} <span className="font-normal text-[#7a7466]">· {t.feel}</span>
                     {toneNow === t.id ? ' ✓' : ''}
                   </span>
-                  <span className="text-[12px] italic text-[#5b6a52]">“{t.words.invite} …” · “{t.words.rsvp}” · “{t.words.thanksYes}”</span>
+                  <span className="text-[12px] italic text-[var(--adm-muted,#5b6a52)]">“{t.words.invite} …” · “{t.words.rsvp}” · “{t.words.thanksYes}”</span>
                 </button>
               ))}
               <button type="button" role="radio" aria-checked={!toneNow} onClick={() => toneWords('')} className={`${chip(!toneNow)} bg-white`}>
                 <span className="text-[13px] font-medium">The design’s own wording</span>
-                <span className="text-[12px] text-[#5b6a52]">Back to the words every invitation starts with.</span>
+                <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Back to the words every invitation starts with.</span>
               </button>
             </div>
             <span className="text-[12px] text-[#7a7466]">Or write your own: every sentence is under “Every word guests read” below.</span>
@@ -363,11 +363,11 @@ export function DesignBuilder({
             <div role="radiogroup" aria-label="Sections" className="flex gap-2 flex-wrap">
               <button type="button" role="radio" aria-checked={!short && !shortSome} onClick={() => setInv({ hidden: sectionsPatch(inv, false) })} className={`${chip(!short && !shortSome)} bg-white`}>
                 <span className="text-[13px] font-medium">Everything</span>
-                <span className="text-[12px] text-[#5b6a52]">Every part of the invitation</span>
+                <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">Every part of the invitation</span>
               </button>
               <button type="button" role="radio" aria-checked={short} onClick={() => setInv({ hidden: sectionsPatch(inv, true) })} className={`${chip(short)} bg-white`}>
                 <span className="text-[13px] font-medium">Short and sweet</span>
-                <span className="text-[12px] text-[#5b6a52]">No countdown, places to stay or questions</span>
+                <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">No countdown, places to stay or questions</span>
               </button>
             </div>
             <span className="text-[12px] text-[#7a7466]">Or choose part by part under “Which parts guests see” below.</span>

@@ -39,7 +39,7 @@ export function IdeasBoard() {
   const [busy, setBusy] = useState(0);
   const file = useRef<HTMLInputElement>(null);
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
-  if (!live.doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your ideas…</div>;
+  if (!live.doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your ideas…</div>;
   const d = live.doc.data;
   const shown = d.pins.filter((p) => cat === 'All' || (cat === 'Loved' ? p.love : p.cat === cat));
   const setPin = (id: string, p: Partial<Pin>, now = false) => live.set({ ...d, pins: d.pins.map((x) => (x.id === id ? { ...x, ...p } : x)) }, now);
@@ -69,7 +69,7 @@ export function IdeasBoard() {
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
           <H2>Ideas</H2>
-          <div className="text-[13px] text-[#5b6a52]">The looks you love, in one place to show your florist, stylist, cake maker and hairdresser.</div>
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">The looks you love, in one place to show your florist, stylist, cake maker and hairdresser.</div>
         </div>
         <Pill kind="primary" disabled={busy > 0} onClick={() => file.current?.click()}>
           {busy ? `Adding ${busy}…` : 'Add photos'}
@@ -88,7 +88,7 @@ export function IdeasBoard() {
         />
       </div>
 
-      <section aria-label="Your colours" className="flex items-center gap-3 flex-wrap p-3 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <section aria-label="Your colours" className="flex items-center gap-3 flex-wrap p-3 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         <strong className="text-[14px] font-semibold">Your colours</strong>
         {palette.map((c, i) => (
           <label key={i} className="relative">
@@ -102,11 +102,11 @@ export function IdeasBoard() {
           </label>
         ))}
         {palette.length < 8 && (
-          <button type="button" onClick={() => live.set({ ...d, palette: [...palette, '#ffffff'] }, true)} className="w-10 h-10 rounded-full border border-dashed border-[#c6b794] bg-transparent cursor-pointer text-[18px]">
+          <button type="button" onClick={() => live.set({ ...d, palette: [...palette, '#ffffff'] }, true)} className="w-10 h-10 rounded-full border border-dashed border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer text-[18px]">
             +
           </button>
         )}
-        <button type="button" onClick={() => void navigator.clipboard?.writeText(palette.join(', ')).then(() => toast('Colours copied'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+        <button type="button" onClick={() => void navigator.clipboard?.writeText(palette.join(', ')).then(() => toast('Colours copied'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
           Copy for a vendor
         </button>
         {!d.palette.length && <span className="text-[12px] text-[#7a7466]">From your invitation’s theme until you change them.</span>}
@@ -123,7 +123,7 @@ export function IdeasBoard() {
               role="radio"
               aria-checked={cat === k}
               onClick={() => setCat(k)}
-              className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${cat === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+              className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${cat === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
             >
               {k === 'Loved' ? '♥ Loved' : k} · {n}
             </button>
@@ -134,7 +134,7 @@ export function IdeasBoard() {
       {shown.length ? (
         <div className="columns-2 sm:columns-3 lg:columns-4 gap-3 [column-fill:_balance]">
           {shown.map((p) => (
-            <figure key={p.id} className="m-0 mb-3 break-inside-avoid flex flex-col gap-1 p-2 rounded-[14px] border border-[#e2d7bc] bg-white">
+            <figure key={p.id} className="m-0 mb-3 break-inside-avoid flex flex-col gap-1 p-2 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-white">
               {p.fileId && <img src={plannerApi.fileUrl(wid, p.fileId)} alt={p.note || p.cat} loading="lazy" className="w-full rounded-[10px]" />}
               <div className="flex items-center gap-1">
                 <button type="button" aria-pressed={p.love} aria-label={p.love ? 'Loved' : 'Love it'} onClick={() => setPin(p.id, { love: !p.love }, true)} className={`p-0 border-0 bg-transparent cursor-pointer text-[18px] ${p.love ? 'text-[#a5533c]' : 'text-[#c6b794]'}`}>
@@ -149,14 +149,14 @@ export function IdeasBoard() {
                   ×
                 </button>
               </div>
-              <input aria-label="Note" placeholder="Why you love it" value={p.note} maxLength={300} onChange={(e) => setPin(p.id, { note: e.target.value })} className="bg-transparent border-0 p-0 text-[13px] text-[#5b6a52]" />
+              <input aria-label="Note" placeholder="Why you love it" value={p.note} maxLength={300} onChange={(e) => setPin(p.id, { note: e.target.value })} className="bg-transparent border-0 p-0 text-[13px] text-[var(--adm-muted,#5b6a52)]" />
             </figure>
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[#c6b794] bg-[#fbf8f0]">
+        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)]">
           <strong className="font-display text-[22px] font-medium">{d.pins.length ? 'Nothing here yet' : 'Start your board'}</strong>
-          <p className="m-0 text-[14px] text-[#5b6a52]">Add screenshots and photos of what you love: bouquets, dresses, table settings, cakes. They’re made small and kept with your planning files.</p>
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Add screenshots and photos of what you love: bouquets, dresses, table settings, cakes. They’re made small and kept with your planning files.</p>
         </div>
       )}
     </div>

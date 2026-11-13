@@ -7,7 +7,7 @@ import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
 import { Members, SideNames, type PartyView, type SideName } from './Party';
 
-const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]';
+const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]';
 const EMPTY: PartySide = { tasks: [], glam: { finish: '', hairArtists: 1, makeupArtists: 1, people: [] }, people: {}, party: { title: '', date: '', place: '', organiser: '', budget: 0, notes: '' }, attire: { how: '', what: '', colour: '', where: '', each: 0, orderBy: '', returnBy: '', notes: '' } };
 const longDate = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
@@ -44,7 +44,7 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
               <div className="flex justify-between items-start gap-3">
                 <div className="min-w-0">
                   <div className="font-display text-[28px] leading-tight">{sideName(side)}’s side</div>
-                  <div className="text-[12px] tracking-[.12em] uppercase text-[#5b6a52]">
+                  <div className="text-[12px] tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)]">
                     {d.names[side]} · {people.length} {people.length === 1 ? 'person' : 'people'}
                   </div>
                 </div>
@@ -52,18 +52,18 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
               </div>
               <div className="flex gap-1 flex-wrap">
                 {people.map((m) => (
-                  <span key={m.personId} className="py-1 px-3 rounded-full bg-white border border-[#e2d7bc] text-[13px]">
+                  <span key={m.personId} className="py-1 px-3 rounded-full bg-white border border-[var(--adm-line,#e2d7bc)] text-[13px]">
                     {m.name.split(' ')[0]} <span className="text-[#7a7466]">· {m.role}</span>
                   </span>
                 ))}
                 {!people.length && <span className="text-[13px] text-[#7a7466]">No one yet.</span>}
               </div>
               <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-[14px]">
-                <dt className="text-[#5b6a52]">Next</dt>
+                <dt className="text-[var(--adm-muted,#5b6a52)]">Next</dt>
                 <dd className={`m-0 ${next?.due && next.due < today ? 'text-[#7a4a37]' : ''}`}>{next ? `${next.text}${next.due ? ` · ${longDate(next.due)}` : ''}` : tp.total ? 'All done ✓' : '—'}</dd>
-                <dt className="text-[#5b6a52]">Outfits</dt>
+                <dt className="text-[var(--adm-muted,#5b6a52)]">Outfits</dt>
                 <dd className="m-0">{people.length ? `${ready} of ${people.length} ready${doc.attire.what ? ` · ${doc.attire.what}` : ''}` : '—'}</dd>
-                <dt className="text-[#5b6a52]">{title}</dt>
+                <dt className="text-[var(--adm-muted,#5b6a52)]">{title}</dt>
                 <dd className="m-0">{doc.party.date ? `${longDate(doc.party.date)}${doc.party.place ? ` · ${doc.party.place}` : ''}` : 'Not planned yet'}</dd>
               </dl>
               <Pill kind="primary" className="self-start" onClick={() => go(side)}>
@@ -81,13 +81,13 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
           <div className="flex justify-between items-start gap-3">
             <div>
               <H2>The run sheet</H2>
-              <div className="text-[13px] text-[#5b6a52]">{items.length ? `${items.length} moments, each for everyone, one side or one role.` : 'Not started.'}</div>
+              <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{items.length ? `${items.length} moments, each for everyone, one side or one role.` : 'Not started.'}</div>
             </div>
           </div>
           <ol className="list-none m-0 p-0 flex flex-col">
             {items.slice(0, 4).map((it, i) => (
               <li key={i} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3 py-1 text-[14px]">
-                <span className="font-semibold tabular-nums text-[#5b6a52]">{it.time}</span>
+                <span className="font-semibold tabular-nums text-[var(--adm-muted,#5b6a52)]">{it.time}</span>
                 <span className="truncate">{it.title}</span>
               </li>
             ))}
@@ -98,8 +98,8 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
         </section>
         <section aria-label="Our to-dos" className={card}>
           <H2>Our to-dos</H2>
-          <p className="m-0 text-[14px] text-[#5b6a52]">Everything you two have to do, from now to the day after, is in one checklist: each thing says whose it is, and you can hand any of it to a helper.</p>
-          <Link to={`${path('planner', d.event ?? undefined)}?view=checklist`} className="self-start py-[7px] px-4 rounded-full border border-[#33402f] text-[14px] no-underline !text-[#33402f]">
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Everything you two have to do, from now to the day after, is in one checklist: each thing says whose it is, and you can hand any of it to a helper.</p>
+          <Link to={`${path('planner', d.event ?? undefined)}?view=checklist`} className="self-start py-[7px] px-4 rounded-full border border-[#33402f] text-[14px] no-underline !text-[var(--adm-ink,#33402f)]">
             Open the checklist
           </Link>
         </section>
@@ -108,7 +108,7 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
       <Members d={d} sideName={sideName} only="" onChange={(members) => setD({ ...d, members })} />
       {!helpers.length && <p className="-mt-4 m-0 text-[13px] text-[#7a7466]">The MC, ushers, readers and the celebrant go here.</p>}
 
-      <section aria-label="Settings" className="flex flex-col gap-2 pt-2 border-t border-[#e2d7bc]">
+      <section aria-label="Settings" className="flex flex-col gap-2 pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
         <SideNames d={d} onSaved={(setup) => setD({ ...d, setup })} />
       </section>
     </div>
@@ -172,13 +172,13 @@ function Jobs({ d, sides, setSides, today }: { d: PartyData; sides: Sides; setSi
     <section aria-label="Jobs for the wedding party" className={card}>
       <div>
         <H2>Jobs for the wedding party</H2>
-        <div className="text-[13px] text-[#5b6a52]">Give bridesmaids and groomsmen their jobs. Each one shows on that person&rsquo;s own page, and they tick it off.</div>
+        <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Give bridesmaids and groomsmen their jobs. Each one shows on that person&rsquo;s own page, and they tick it off.</div>
       </div>
       {people.length ? (
         <>
           <div className="flex gap-[6px] flex-wrap" aria-label="Usual jobs">
             {USUAL_JOBS.map((j) => (
-              <button key={j} type="button" onClick={() => setText(j)} className="py-[4px] px-3 rounded-full border border-[#d3c6a4] bg-white text-[12px] cursor-pointer text-[#33402f]">
+              <button key={j} type="button" onClick={() => setText(j)} className="py-[4px] px-3 rounded-full border border-[var(--adm-line,#d3c6a4)] bg-white text-[12px] cursor-pointer text-[var(--adm-ink,#33402f)]">
                 {j}
               </button>
             ))}
@@ -214,13 +214,13 @@ function Jobs({ d, sides, setSides, today }: { d: PartyData; sides: Sides; setSi
             </Pill>
           </form>
           {jobs.length > 0 && (
-            <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#ece3cd] rounded-[12px] border border-[#e2d7bc] bg-white">
+            <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#ece3cd] rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white">
               {jobs.map(({ t, side, m }) => (
                 <li key={t.id} className="flex items-center gap-3 py-2 px-3 text-[14px]">
                   <input type="checkbox" checked={t.done} onChange={(e) => tick(side, t.id, e.target.checked)} aria-label={`${t.text} done`} className="w-[16px] h-[16px] accent-[#5d6b47]" />
                   <span className={`flex-1 min-w-0 ${t.done ? 'line-through text-[#7a7466]' : ''}`}>
                     {t.text}
-                    <span className="text-[#5b6a52]">
+                    <span className="text-[var(--adm-muted,#5b6a52)]">
                       {' '}
                       · {m.name.split(' ')[0]} ({m.role}){t.due ? ` · by ${new Date(`${t.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
                     </span>

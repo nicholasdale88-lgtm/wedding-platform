@@ -68,7 +68,7 @@ export function CirclesInput({ value, onChange, options = [], id = 'guest-circle
       {value.length > 0 && (
         <div className="flex gap-[6px] flex-wrap">
           {value.map((c) => (
-            <span key={c} className="inline-flex items-center gap-1 py-[3px] pl-[10px] pr-[4px] rounded-full bg-[#eef0e4] border border-[#c9cfb4] text-[13px] text-[#33402f]">
+            <span key={c} className="inline-flex items-center gap-1 py-[3px] pl-[10px] pr-[4px] rounded-full bg-[#eef0e4] border border-[#c9cfb4] text-[13px] text-[var(--adm-ink,#33402f)]">
               {c}
               <button type="button" aria-label={`Remove ${c}`} onClick={() => onChange(value.filter((x) => x !== c))} className="w-[22px] h-[22px] rounded-full border-0 bg-transparent cursor-pointer text-[#7a4a37]">
                 ×
@@ -126,7 +126,7 @@ export function TieChips({ g }: { g: Pick<Guest, 'side' | 'relation' | 'circles'
       {chips.map((c, i) => (
         <span
           key={`${c}-${i}`}
-          className={`py-[1px] px-[7px] rounded-full text-[11px] border ${i < (g.side ? 1 : 0) + (g.relation ? 1 : 0) ? 'border-[#d3c6a4] bg-[#f6f0e0] text-[#5b6a52]' : c === KNOWS_NO_ONE ? 'border-[#e0c3b4] bg-[#fbeee6] text-[#7a4a37]' : 'border-[#c9cfb4] bg-[#eef0e4] text-[#33402f]'}`}
+          className={`py-[1px] px-[7px] rounded-full text-[11px] border ${i < (g.side ? 1 : 0) + (g.relation ? 1 : 0) ? 'border-[var(--adm-line,#d3c6a4)] bg-[#f6f0e0] text-[var(--adm-muted,#5b6a52)]' : c === KNOWS_NO_ONE ? 'border-[#e0c3b4] bg-[#fbeee6] text-[#7a4a37]' : 'border-[#c9cfb4] bg-[#eef0e4] text-[var(--adm-ink,#33402f)]'}`}
         >
           {c}
         </span>
@@ -161,11 +161,11 @@ export function BulkTies({ count, options, busy, onApply, onAll, onDone }: { cou
     <section aria-label="Set for the ticked guests" className="flex flex-col gap-2 p-3 rounded-[14px] border border-[var(--adm-ink,#33402f)] bg-[var(--adm-card,#fbf8f2)]">
       <div className="flex gap-2 items-center flex-wrap text-[14px]">
         <strong className="font-semibold">{count ? `${count} ticked` : 'Tap guests to tick them'}</strong>
-        <button type="button" onClick={onAll} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+        <button type="button" onClick={onAll} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
           Tick everyone shown
         </button>
         <span className="flex-1" />
-        <button type="button" onClick={onDone} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[13px]">
+        <button type="button" onClick={onDone} className="py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer text-[13px]">
           Done
         </button>
       </div>

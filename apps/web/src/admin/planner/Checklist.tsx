@@ -52,7 +52,7 @@ export function Checklist() {
   useEffect(() => void load(), [load]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your checklist…</div>;
+  if (!doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your checklist…</div>;
   const day = overview?.events[0]?.startsAt ? Date.parse(overview.events[0].startsAt) : null;
   const dueDate = (t: PlanTask) => (day === null ? null : new Date(day - t.before * DAY));
   const fmt = (d: Date | null) => (d ? d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
@@ -117,7 +117,7 @@ export function Checklist() {
   const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n || 0);
   const addForm = (
     <form
-      className="flex gap-2 flex-wrap items-end p-4 rounded-[16px] border border-dashed border-[#c6b794]"
+      className="flex gap-2 flex-wrap items-end p-4 rounded-[16px] border border-dashed border-[var(--adm-line,#c6b794)]"
       onSubmit={(e) => {
         e.preventDefault();
         if (!adding.text.trim()) return;
@@ -128,11 +128,11 @@ export function Checklist() {
         setAdding({ text: '', when: '' });
       }}
     >
-      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] flex-1 min-w-[200px]">
+      <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] flex-1 min-w-[200px]">
         Add your own
         <input value={adding.text} maxLength={200} placeholder="e.g. Book the dress fitting" onChange={(e) => setAdding({ ...adding, text: e.target.value })} className={inputCls} />
       </label>
-      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+      <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
         By
         <input type="date" value={adding.when} onChange={(e) => setAdding({ ...adding, when: e.target.value })} className={inputCls} />
       </label>
@@ -144,16 +144,16 @@ export function Checklist() {
 
   if (!tasks.length) {
     return (
-      <section className="flex flex-col gap-3 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <section className="flex flex-col gap-3 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         <H2>Your planning checklist</H2>
-        <p className="m-0 text-[15px] text-[#5b6a52]">
+        <p className="m-0 text-[15px] text-[var(--adm-muted,#5b6a52)]">
           Start with the usual Australian wedding plan: {PLAN_TEMPLATE.length} things, each due a set time before your day{day ? ` (${fmt(new Date(day))})` : ''}, including the Notice of
           Intended Marriage deadlines. Change, add or remove anything.
         </p>
         <Pill kind="primary" className="self-start" onClick={() => void save(PLAN_TEMPLATE.map((t) => ({ ...t, id: newId(), done: false, note: '', owner: '' as const, helper: '', status: 'todo' as const, doneOn: '' })), 'Checklist ready')}>
           Start the checklist
         </Pill>
-        <span className="text-[13px] text-[#5b6a52]">Or start with your own:</span>
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Or start with your own:</span>
         {addForm}
       </section>
     );
@@ -164,13 +164,13 @@ export function Checklist() {
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
           <H2>Checklist</H2>
-          <div className="text-[13px] text-[#5b6a52]">
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {tasks.length - left.length} of {tasks.length} done
             {overdue.length ? <span className="text-[#7a4a37] font-semibold"> · {overdue.length} overdue</span> : null}
           </div>
           {pays.length > 0 && (
-            <div className="text-[13px] text-[#5b6a52]">
-              Vendor payments: <strong className="font-semibold text-[#33402f]">{aud(paidSum)}</strong> paid · <strong className={`font-semibold ${owingSum ? 'text-[#7a4a37]' : 'text-[#33402f]'}`}>{aud(owingSum)}</strong> outstanding
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
+              Vendor payments: <strong className="font-semibold text-[var(--adm-ink,#33402f)]">{aud(paidSum)}</strong> paid · <strong className={`font-semibold ${owingSum ? 'text-[#7a4a37]' : 'text-[var(--adm-ink,#33402f)]'}`}>{aud(owingSum)}</strong> outstanding
             </div>
           )}
         </div>
@@ -187,7 +187,7 @@ export function Checklist() {
               role="radio"
               aria-checked={show === k}
               onClick={() => setShow(k)}
-              className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+              className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${show === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
             >
               {label}
             </button>
@@ -215,7 +215,7 @@ export function Checklist() {
             role="radio"
             aria-checked={whose === k}
             onClick={() => setWhose(k)}
-            className={`py-[5px] px-3 rounded-full border cursor-pointer ${whose === k ? 'bg-[#5d6b47] text-white border-[#5d6b47]' : 'bg-transparent border-[#c6b794]'}`}
+            className={`py-[5px] px-3 rounded-full border cursor-pointer ${whose === k ? 'bg-[#5d6b47] text-white border-[#5d6b47]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
           >
             {label}
           </button>
@@ -241,7 +241,7 @@ export function Checklist() {
             role="radio"
             aria-checked={view === k}
             onClick={() => setView(k)}
-            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${view === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+            className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${view === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
           >
             {label}
           </button>
@@ -260,14 +260,14 @@ export function Checklist() {
       )}
 
       {view === 'list' && groups.map(([label, ts, as]) => (
-        <section key={label} aria-label={label} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-          <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52] pb-1">{label}</div>
+        <section key={label} aria-label={label} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+          <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)] pb-1">{label}</div>
           {as.map((a) => {
             const late = !a.done && !!a.due && a.due < today;
             return (
-              <div key={a.key} className="flex items-start gap-3 py-2 border-t border-[#e2d7bc] first:border-t-0">
+              <div key={a.key} className="flex items-start gap-3 py-2 border-t border-[var(--adm-line,#e2d7bc)] first:border-t-0">
                 {a.kind === 'quote' ? (
-                  <span aria-hidden className="mt-[3px] w-[18px] h-[18px] flex-none rounded-full border border-dashed border-[#c6b794]" />
+                  <span aria-hidden className="mt-[3px] w-[18px] h-[18px] flex-none rounded-full border border-dashed border-[var(--adm-line,#c6b794)]" />
                 ) : (
                   <input type="checkbox" checked={a.done} aria-label={a.text} onChange={() => tickVendor(a)} className="mt-[3px] w-[18px] h-[18px] flex-none accent-[#5d6b47]" />
                 )}
@@ -290,7 +290,7 @@ export function Checklist() {
             const late = !t.done && !!due && due.getTime() < now;
             const soon = !t.done && !!due && !late && due.getTime() - now < 21 * DAY;
             return (
-              <div key={t.id} className="flex items-start gap-3 py-2 border-t border-[#e2d7bc] first:border-t-0">
+              <div key={t.id} className="flex items-start gap-3 py-2 border-t border-[var(--adm-line,#e2d7bc)] first:border-t-0">
                 <input
                   type="checkbox"
                   checked={t.done}
@@ -302,17 +302,17 @@ export function Checklist() {
                 <div className="flex-1 min-w-0 flex flex-col gap-[6px]">
                   <div className={`text-[16px] leading-[1.35] ${t.done ? 'line-through text-[#7a7466]' : ''}`}>
                     {t.legal && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#f1e1d6] text-[#7a4a37] text-[11px] font-semibold align-middle">Legal</span>}
-                    {custom(t) && <span className="mr-2 py-[1px] px-2 rounded-full bg-[#efe7d3] text-[#5b6a52] text-[11px] font-semibold align-middle">Yours</span>}
+                    {custom(t) && <span className="mr-2 py-[1px] px-2 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[var(--adm-muted,#5b6a52)] text-[11px] font-semibold align-middle">Yours</span>}
                     {t.text}
                   </div>
-                  {t.note && <div className="text-[13px] text-[#5b6a52]">{t.note}</div>}
+                  {t.note && <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{t.note}</div>}
                   <div className="flex items-center gap-2 flex-wrap">
                 <StatusPill status={statusOf(t)} onChange={(s) => setTask(t.id, (x) => withStatus(x, s, todayIs))} />
                 <select
                   aria-label={`Who: ${nameOf(assigneeOf(t))}`}
                   value={assigneeOf(t)}
                   onChange={(e) => setTask(t.id, (x) => assign(x, e.target.value), e.target.value ? `Given to ${nameOf(e.target.value)}` : undefined)}
-                  className={`flex-none max-w-[160px] py-[4px] px-2 rounded-full border text-[13px] cursor-pointer ${assigneeOf(t) ? 'bg-[#efe7d3] border-[#e2d7bc] text-[#33402f]' : 'bg-transparent border-dashed border-[#c6b794] text-[#7a7466]'}`}
+                  className={`flex-none max-w-[160px] py-[4px] px-2 rounded-full border text-[13px] cursor-pointer ${assigneeOf(t) ? 'bg-[var(--adm-tint,#efe7d3)] border-[var(--adm-line,#e2d7bc)] text-[var(--adm-ink,#33402f)]' : 'bg-transparent border-dashed border-[var(--adm-line,#c6b794)] text-[#7a7466]'}`}
                 >
                   <option value="">Who?</option>
                   <option value="p1">{n1}</option>
@@ -391,10 +391,10 @@ function People({ tasks, ids, nameOf, due, late, onStatus }: { tasks: PlanTask[]
           const done = ts.filter((t) => statusOf(t) === 'done').length;
           const overdue = ts.filter(late).length;
           return (
-            <section key={id || 'none'} aria-label={nameOf(id)} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0">
+            <section key={id || 'none'} aria-label={nameOf(id)} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] min-w-0">
               <div className="flex justify-between items-baseline gap-2">
                 <strong className="text-[15px] font-semibold">{nameOf(id)}</strong>
-                <span className={`text-[12px] ${overdue ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}`}>
+                <span className={`text-[12px] ${overdue ? 'text-[#7a4a37] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
                   {done} of {ts.length} done{overdue ? ` · ${overdue} overdue` : ''}
                 </span>
               </div>
@@ -430,24 +430,24 @@ function Helpers({ helpers, slug, counts, onChange }: { helpers: Helper[]; slug:
     }
   };
   return (
-    <section aria-label="People helping" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="People helping" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <H2>People helping</H2>
-      <p className="m-0 text-[13px] text-[#5b6a52]">Give tasks to family and friends. Each gets a private link to their own list: what’s theirs, by date, and a tap to mark it doing or done.</p>
+      <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Give tasks to family and friends. Each gets a private link to their own list: what’s theirs, by date, and a tap to mark it doing or done.</p>
       {helpers.map((h) => (
         <div key={h.id} className="flex items-center gap-3 flex-wrap py-2 border-t border-[#ece3cd] text-[14px]">
           <span className="flex-1 min-w-[140px]">
             <span className="font-medium">{h.name}</span>
             <span className="text-[#7a7466]"> · {counts(h.id)} to do</span>
           </span>
-          <button type="button" onClick={() => void copy(h)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+          <button type="button" onClick={() => void copy(h)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
             Copy their link
           </button>
           {h.mobile && (
-            <a href={`sms:${h.mobile.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(`Here’s your list of wedding jobs: ${link(h)}`)}`} className="text-[13px] !text-[#33402f]">
+            <a href={`sms:${h.mobile.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(`Here’s your list of wedding jobs: ${link(h)}`)}`} className="text-[13px] !text-[var(--adm-ink,#33402f)]">
               Text it to them
             </a>
           )}
-          <a href={link(h)} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+          <a href={link(h)} target="_blank" rel="noopener" className="text-[13px] !text-[var(--adm-ink,#33402f)]">
             Open
           </a>
           <button type="button" aria-label={`Remove ${h.name}`} onClick={() => onChange(helpers.filter((x) => x.id !== h.id), `${h.name} removed; their tasks are unassigned`)} className="p-0 border-0 bg-transparent cursor-pointer text-[#7a7466]">
@@ -466,11 +466,11 @@ function Helpers({ helpers, slug, counts, onChange }: { helpers: Helper[]; slug:
           setMobile('');
         }}
       >
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] flex-1 min-w-[150px]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] flex-1 min-w-[150px]">
           Name
           <input value={name} maxLength={80} onChange={(e) => setName(e.target.value)} className={inputCls} />
         </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
           Mobile (optional)
           <input value={mobile} maxLength={20} inputMode="tel" onChange={(e) => setMobile(e.target.value)} className={inputCls} />
         </label>

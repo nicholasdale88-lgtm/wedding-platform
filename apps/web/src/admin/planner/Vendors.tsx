@@ -104,7 +104,7 @@ export function Vendors() {
   useEffect(() => void load(), [load]);
 
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your vendors…</div>;
+  if (!doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your vendors…</div>;
   const list = doc.data.list;
 
   /** Each change is saved straight away (the list is small and changes are deliberate). */
@@ -164,8 +164,8 @@ export function Vendors() {
           ['Committed', aud(committed)],
           ['Still to pay', aud(committed - paid)],
         ].map(([k, v]) => (
-          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
-            <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">{k}</span>
+          <div key={k} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+            <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">{k}</span>
             <span className="font-display text-[28px] leading-none">{v}</span>
           </div>
         ))}
@@ -184,9 +184,9 @@ export function Vendors() {
                   type="button"
                   aria-current={here ? 'step' : undefined}
                   onClick={() => goStep(n)}
-                  className={`w-full h-full flex flex-col items-center gap-1 py-2 px-1 rounded-[12px] border cursor-pointer text-center leading-tight ${here ? 'border-[#33402f] bg-[#f3f6ea] text-[#33402f]' : 'border-[#e2d7bc] bg-[#fbf8f0] text-[#5b6a52]'}`}
+                  className={`w-full h-full flex flex-col items-center gap-1 py-2 px-1 rounded-[12px] border cursor-pointer text-center leading-tight ${here ? 'border-[#33402f] bg-[#f3f6ea] text-[var(--adm-ink,#33402f)]' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-[var(--adm-muted,#5b6a52)]'}`}
                 >
-                  <span aria-hidden className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] font-semibold ${done ? 'bg-[#5d6b47] text-[#fbf8f0]' : n === atStep ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-[#efe7d3] text-[#7a7466]'}`}>
+                  <span aria-hidden className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] font-semibold ${done ? 'bg-[#5d6b47] text-[#fbf8f0]' : n === atStep ? 'bg-[#33402f] text-[#fbf8f0]' : 'bg-[var(--adm-tint,#efe7d3)] text-[#7a7466]'}`}>
                     {done ? '✓' : n}
                   </span>
                   <span className={`text-[11px] sm:text-[14px] ${here ? 'font-semibold' : ''}`}>{label}</span>
@@ -196,8 +196,8 @@ export function Vendors() {
             );
           })}
         </ol>
-        <p className="m-0 mt-2 text-[14px] text-[#5b6a52]">
-          <strong className="text-[#33402f]">
+        <p className="m-0 mt-2 text-[14px] text-[var(--adm-muted,#5b6a52)]">
+          <strong className="text-[var(--adm-ink,#33402f)]">
             Step {shown}: {STEP_INFO[shown - 1]![0]}.
           </strong>{' '}
           {STEP_INFO[shown - 1]![2]}
@@ -235,9 +235,9 @@ export function Vendors() {
               </Pill>
             </span>
           </div>
-          <p className="m-0 text-[13px] text-[#5b6a52]">
+          <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">
             Their name, what they do and an email or mobile is all a quote request needs. Looking for ideas?{' '}
-            <a href="/vendors" target="_blank" rel="noopener" className="!text-[#33402f]">
+            <a href="/vendors" target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)]">
               Browse the vendor directory
             </a>
             .
@@ -249,7 +249,7 @@ export function Vendors() {
               if (!vs.length) return null;
               return (
                 <div key={st} className="flex flex-col gap-2">
-                  <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[#5b6a52]">
+                  <div className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">
                     {STATUS_LABEL[st]} · {vs.length}
                   </div>
                   {vs.map((v) => (
@@ -265,7 +265,7 @@ export function Vendors() {
                 </div>
               );
             })}
-          {!list.length && <p className="m-0 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] text-[14px] text-[#5b6a52]">No vendors yet. Tap + Add a vendor for each one you’re thinking of.</p>}
+          {!list.length && <p className="m-0 p-4 rounded-[14px] bg-[var(--adm-card,#fbf8f0)] border border-[var(--adm-line,#e2d7bc)] text-[14px] text-[var(--adm-muted,#5b6a52)]">No vendors yet. Tap + Add a vendor for each one you’re thinking of.</p>}
           {list.length > 0 && (
             <Pill kind="primary" className="self-start" onClick={() => goStep(2)}>
               Next: get quotes →
@@ -350,16 +350,16 @@ function LockedIn({
   const caterers = booked.filter((v) => v.shareSeating || /cater|venue/i.test(`${v.category} ${v.name}`));
   if (!booked.length)
     return (
-      <p className="m-0 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] text-[14px] text-[#5b6a52]">
+      <p className="m-0 p-4 rounded-[14px] bg-[var(--adm-card,#fbf8f0)] border border-[var(--adm-line,#e2d7bc)] text-[14px] text-[var(--adm-muted,#5b6a52)]">
         Nobody booked yet. Book from your quotes above, or{' '}
-        <button type="button" onClick={() => onStep(1)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+        <button type="button" onClick={() => onStep(1)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
           mark a vendor as booked (step 1)
         </button>
         .
       </p>
     );
   const tick = (on: boolean) => (
-    <span aria-hidden className={`flex-none w-6 h-6 rounded-full flex items-center justify-center text-[13px] ${on ? 'bg-[#5d6b47] text-[#fbf8f0]' : 'border-2 border-[#c6b794]'}`}>
+    <span aria-hidden className={`flex-none w-6 h-6 rounded-full flex items-center justify-center text-[13px] ${on ? 'bg-[#5d6b47] text-[#fbf8f0]' : 'border-2 border-[var(--adm-line,#c6b794)]'}`}>
       {on ? '✓' : ''}
     </span>
   );
@@ -374,7 +374,7 @@ function LockedIn({
         <strong>
           Vendor meals on the day: {meals} {meals === 1 ? 'meal' : 'meals'}
         </strong>
-        <span className="text-[#5b6a52]">
+        <span className="text-[var(--adm-muted,#5b6a52)]">
           {meals
             ? `${booked.filter((v) => v.meals).map((v) => `${v.name} ${v.meals}`).join(', ')}. `
             : 'Add how many of each vendor’s team need a meal (below). '}
@@ -391,13 +391,13 @@ function LockedIn({
         const steps = [fit.linked.length > 0, depositDone, scheduled, !!v.contractSigned, v.meals > 0 || !!v.arrival];
         const done = steps.filter(Boolean).length;
         return (
-          <article key={v.id} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+          <article key={v.id} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
             <div className="flex justify-between items-baseline gap-2 flex-wrap">
               <span>
                 <strong className="text-[17px]">{v.name}</strong>
-                {v.category && <span className="text-[13px] text-[#5b6a52]"> · {v.category}</span>}
+                {v.category && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]"> · {v.category}</span>}
               </span>
-              <span className="text-[13px] text-[#5b6a52]">
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 {aud(m.total)} · {aud(m.paid)} paid · {done} of 5 done
               </span>
             </div>
@@ -414,7 +414,7 @@ function LockedIn({
                 <span className="flex-1 text-[15px]">
                   <strong>Deposit</strong>
                   {scheduled ? (
-                    <span className="block text-[13px] text-[#5b6a52]">{depositDone ? 'Paid ✓ (in the schedule below).' : 'Tick it paid in the schedule below.'}</span>
+                    <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">{depositDone ? 'Paid ✓ (in the schedule below).' : 'Tick it paid in the schedule below.'}</span>
                   ) : (
                     <label className="flex items-center gap-2 mt-1 text-[14px] cursor-pointer">
                       <input type="checkbox" checked={v.depositPaid} onChange={(e) => onPatch(v.id, { depositPaid: e.target.checked }, e.target.checked ? `${v.name}: deposit paid ✓` : undefined)} className="w-[18px] h-[18px] accent-[#5d6b47]" />
@@ -427,7 +427,7 @@ function LockedIn({
                 {tick(scheduled)}
                 <span className="flex-1 min-w-0 text-[15px]">
                   <strong>Payment schedule</strong>
-                  <span className="block text-[13px] text-[#5b6a52]">
+                  <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
                     {scheduled ? 'Set: each payment is in Money → Payments and the budget, with a nudge before it’s due.' : 'Enter each payment (the deposit, instalments, the balance), or tap a quick layout such as deposit + 3 monthly.'}
                   </span>
                   <VendorSchedule
@@ -445,7 +445,7 @@ function LockedIn({
                 {tick(!!v.contractSigned)}
                 <span className="flex-1 min-w-0 text-[15px]">
                   <strong>Contract</strong>
-                  <span className="block text-[13px] text-[#5b6a52] mb-1">When it was signed, the file, and what happens if anyone cancels.</span>
+                  <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)] mb-1">When it was signed, the file, and what happens if anyone cancels.</span>
                   <Contract v={v} onChange={(p) => onPatch(v.id, p)} />
                 </span>
               </li>
@@ -454,11 +454,11 @@ function LockedIn({
                 <span className="flex-1 text-[15px]">
                   <strong>On the day</strong>
                   <span className="grid gap-2 grid-cols-2 mt-1 max-w-[420px]">
-                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Meals for their team
                       <input type="number" min={0} max={50} value={v.meals} onChange={(e) => onPatch(v.id, { meals: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })} className={inputCls} />
                     </label>
-                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Arriving at
                       <input defaultValue={v.arrival} placeholder="e.g. 11:00am" onBlur={(e) => e.target.value !== v.arrival && onPatch(v.id, { arrival: e.target.value.slice(0, 20) })} className={inputCls} />
                     </label>
@@ -467,7 +467,7 @@ function LockedIn({
               </li>
             </ol>
             <TheirPage v={v} onChange={(p, msg) => onPatch(v.id, p, msg)} />
-            <button type="button" onClick={() => onOpen(v.id)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+            <button type="button" onClick={() => onOpen(v.id)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
               Their details and notes
             </button>
           </article>
@@ -517,9 +517,9 @@ function Manage({
   const booked = list.filter((v) => v.status === 'booked').sort((a, b) => (a.arrival || '99').localeCompare(b.arrival || '99') || a.name.localeCompare(b.name));
   if (!booked.length)
     return (
-      <p className="m-0 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] text-[14px] text-[#5b6a52]">
+      <p className="m-0 p-4 rounded-[14px] bg-[var(--adm-card,#fbf8f0)] border border-[var(--adm-line,#e2d7bc)] text-[14px] text-[var(--adm-muted,#5b6a52)]">
         Once you’ve booked vendors, they’re all here to keep on track until the day.{' '}
-        <button type="button" onClick={() => onStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+        <button type="button" onClick={() => onStep(4)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
           Lock in (step 4)
         </button>
       </p>
@@ -580,7 +580,7 @@ function Manage({
     ...(checkInDue ? booked.filter((v) => !v.confirmedOn).map((v): Item => ({ key: `confirm:${v.id}`, vendorId: v.id, text: `Final check-in with ${v.name}`, tone: 'soon', action: { label: 'Write it', run: () => open(v.id, 'checkin') } })) : []),
     ...(after ? booked.filter((v) => !v.wrapped).map((v): Item => ({ key: `wrap:${v.id}`, vendorId: v.id, text: `Wrap up with ${v.name}: final balance, anything hired back, a thank-you or review`, tone: 'todo', action: { label: 'All done', run: () => onPatch(v.id, { wrapped: true }, `${v.name}: wrapped up ✓`) } })) : []),
   ];
-  const TONE = { late: 'border-[#d9a99a] bg-[#f6e2db]', soon: 'border-[#ecd9ae] bg-[#fbf3e1]', todo: 'border-[#e2d7bc] bg-white' } as const;
+  const TONE = { late: 'border-[#d9a99a] bg-[#f6e2db]', soon: 'border-[#ecd9ae] bg-[#fbf3e1]', todo: 'border-[var(--adm-line,#e2d7bc)] bg-white' } as const;
   const needs = new Set(items.map((i) => i.vendorId));
   const shownVendors = filter === 'attention' ? booked.filter((v) => needs.has(v.id)) : booked;
 
@@ -607,9 +607,9 @@ function Manage({
           [`${allTasks.filter((x) => x.t.done).length}/${allTasks.length}`, 'tasks done'],
           [`${confirmed}/${booked.length}`, 'confirmed the details'],
         ].map(([n, label]) => (
-          <div key={label} className="flex flex-col gap-1 p-3 rounded-[14px] border border-[#e2d7bc] bg-white">
+          <div key={label} className="flex flex-col gap-1 p-3 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-white">
             <span className="font-display text-[26px] leading-none">{n}</span>
-            <span className="text-[12px] text-[#5b6a52]">{label}</span>
+            <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{label}</span>
           </div>
         ))}
       </div>
@@ -629,7 +629,7 @@ function Manage({
             </Pill>
           </div>
         ))}
-        {items.length > 12 && <span className="text-[13px] text-[#5b6a52]">And {items.length - 12} more below, by vendor.</span>}
+        {items.length > 12 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">And {items.length - 12} more below, by vendor.</span>}
       </div>
 
       <div className="flex justify-between items-end gap-3 flex-wrap">
@@ -640,7 +640,7 @@ function Manage({
               ['attention', `Need you (${needs.size})`],
             ] as const
           ).map(([k, label]) => (
-            <button key={k} type="button" role="radio" aria-checked={filter === k} onClick={() => setFilter(k)} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${filter === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}>
+            <button key={k} type="button" role="radio" aria-checked={filter === k} onClick={() => setFilter(k)} className={`py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${filter === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}>
               {label}
             </button>
           ))}
@@ -673,22 +673,22 @@ function Manage({
           const isOpen = openId === v.id;
           const mine = items.filter((i) => i.vendorId === v.id).length;
           return (
-            <li key={v.id} id={`manage-${v.id}`} className={`flex flex-col gap-2 p-4 rounded-[16px] border scroll-mt-4 ${isOpen ? 'border-[#8a9670] bg-[#f6f8ef]' : 'border-[#e2d7bc] bg-[#fbf8f0]'}`}>
-              <button type="button" aria-expanded={isOpen} onClick={() => (isOpen ? setOpenId(null) : open(v.id, 'tasks'))} className="flex justify-between items-baseline gap-2 flex-wrap p-0 border-0 bg-transparent text-left cursor-pointer text-[#33402f]">
+            <li key={v.id} id={`manage-${v.id}`} className={`flex flex-col gap-2 p-4 rounded-[16px] border scroll-mt-4 ${isOpen ? 'border-[#8a9670] bg-[#f6f8ef]' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]'}`}>
+              <button type="button" aria-expanded={isOpen} onClick={() => (isOpen ? setOpenId(null) : open(v.id, 'tasks'))} className="flex justify-between items-baseline gap-2 flex-wrap p-0 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-ink,#33402f)]">
                 <span>
                   <strong className="text-[16px]">{v.name}</strong>
-                  {v.category && <span className="text-[13px] text-[#5b6a52]"> · {v.category}</span>}
+                  {v.category && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]"> · {v.category}</span>}
                   {mine > 0 && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] font-semibold bg-[#f4dfae] text-[#6b4f1d]">{mine} to do</span>}
                   {v.confirmedOn && <span className="ml-2 py-[1px] px-2 rounded-full text-[11px] font-semibold bg-[#dfe5cc] text-[#3d4a2f]">Confirmed</span>}
                 </span>
-                <span className="text-[13px] text-[#5b6a52]">
+                <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
                   {v.arrival ? `Arrives ${v.arrival}` : 'Arrival not set'} {isOpen ? '▴' : '▾'}
                 </span>
               </button>
               <span className="h-[6px] rounded-full bg-[#e9e2cc] overflow-hidden">
                 <span className="block h-full bg-[#5d6b47]" style={{ width: `${pct}%` }} />
               </span>
-              <span className="text-[13px] text-[#5b6a52]">
+              <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 {aud(m.paid)} of {aud(m.total)} paid
                 {m.next ? ` · next ${aud(m.next.amount)} ${m.next.due ? shortDate(m.next.due) : '(no date)'}` : m.total ? ' · all paid ✓' : ''} · contract {v.contractSigned ? '✓' : 'not signed'} · {tasks.filter((t) => t.done).length}/{tasks.length} tasks
                 {v.meals ? ` · ${v.meals} team ${v.meals === 1 ? 'meal' : 'meals'}` : ''}
@@ -696,24 +696,24 @@ function Manage({
               </span>
               <div className="flex gap-2 flex-wrap text-[13px]">
                 {v.phone && (
-                  <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} onClick={() => addNote(v, 'call', 'Called')} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-white no-underline !text-[#33402f]">
+                  <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} onClick={() => addNote(v, 'call', 'Called')} className="py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-white no-underline !text-[var(--adm-ink,#33402f)]">
                     Call
                   </a>
                 )}
                 {v.phone && (
-                  <a href={`sms:${v.phone.replace(/[^\d+]/g, '')}`} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-white no-underline !text-[#33402f]">
+                  <a href={`sms:${v.phone.replace(/[^\d+]/g, '')}`} className="py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-white no-underline !text-[var(--adm-ink,#33402f)]">
                     Text
                   </a>
                 )}
                 {v.email && (
-                  <a href={`mailto:${encodeURIComponent(v.email)}`} className="py-[6px] px-3 rounded-full border border-[#c6b794] bg-white no-underline !text-[#33402f]">
+                  <a href={`mailto:${encodeURIComponent(v.email)}`} className="py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-white no-underline !text-[var(--adm-ink,#33402f)]">
                     Email
                   </a>
                 )}
               </div>
 
               {isOpen && (
-                <div className="flex flex-col gap-3 pt-2 border-t border-[#e2d7bc]">
+                <div className="flex flex-col gap-3 pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
                   <div role="tablist" aria-label={`${v.name}`} className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
                     {(
                       [
@@ -724,7 +724,7 @@ function Manage({
                         ['checkin', 'Check-in'],
                       ] as const
                     ).map(([k, label]) => (
-                      <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`flex-none py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${tab === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}>
+                      <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`flex-none py-[6px] px-3 rounded-full border text-[13px] cursor-pointer ${tab === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}>
                         {label}
                       </button>
                     ))}
@@ -749,11 +749,11 @@ function Manage({
                   )}
                   <div className="flex gap-4 flex-wrap text-[13px]">
                     <TheirPage v={v} onChange={(p, msg) => onPatch(v.id, p, msg)} />
-                    <button type="button" onClick={() => onOpen(v.id)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+                    <button type="button" onClick={() => onOpen(v.id)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                       Their details
                     </button>
                     {after && !v.wrapped && (
-                      <button type="button" onClick={() => onPatch(v.id, { wrapped: true }, `${v.name}: wrapped up ✓`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+                      <button type="button" onClick={() => onPatch(v.id, { wrapped: true }, `${v.name}: wrapped up ✓`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                         Mark wrapped up
                       </button>
                     )}
@@ -772,7 +772,7 @@ function Manage({
 function MoneyLine({ budgetTotal, committed, paid }: { budgetTotal: number; committed: number; paid: number }) {
   const left = budgetTotal - committed;
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-[14px] bg-white border border-[#e2d7bc] text-[14px]">
+    <div className="flex flex-col gap-2 p-3 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[14px]">
       <div className="flex justify-between gap-2 flex-wrap">
         <span>
           <strong>{aud(committed)}</strong> committed to vendors{budgetTotal ? ` of your ${aud(budgetTotal)} budget` : ''} · <strong>{aud(paid)}</strong> paid · <strong>{aud(committed - paid)}</strong> to pay
@@ -795,7 +795,7 @@ function BudgetRow({ v, fit, lines, onLink }: { v: Vendor; fit: ReturnType<typeo
   if (fit.linked.length) {
     const names = fit.linked.map((i) => lines[i]!.item || lines[i]!.category).join(' and ');
     return (
-      <span className="block text-[13px] text-[#5b6a52]">
+      <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)]">
         On your budget as {names}
         {fit.budgeted ? `: budgeted ${aud(fit.budgeted)}, booked ${aud(fit.committed)}` : ''}
         {fit.diff !== null && <strong className={fit.diff > 0 ? 'text-[#7a4a37]' : 'text-[#3d4a2f]'}>{fit.diff === 0 ? ' · right on budget' : ` · ${aud(Math.abs(fit.diff))} ${fit.diff > 0 ? 'over' : 'under'}`}</strong>}
@@ -807,7 +807,7 @@ function BudgetRow({ v, fit, lines, onLink }: { v: Vendor; fit: ReturnType<typeo
   const s = fit.suggest >= 0 ? lines[fit.suggest] : undefined;
   return (
     <span className="flex flex-col gap-2 mt-1">
-      <span className="text-[13px] text-[#5b6a52]">
+      <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
         Not on your budget yet: put {v.name} on a line so the budget shows what’s committed and paid.
       </span>
       <span className="flex gap-2 flex-wrap items-center">
@@ -857,7 +857,7 @@ function Tasks({ v, today, weddingDay, onSet }: { v: Vendor; today: string; wedd
           </Pill>
         </div>
       )}
-      {tasks.length === 0 && <span className="text-[13px] text-[#5b6a52]">No tasks yet.</span>}
+      {tasks.length === 0 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">No tasks yet.</span>}
       <ul className="m-0 p-0 list-none flex flex-col">
         {tasks.map((t) => (
           <li key={t.id} className="flex items-center gap-2 py-2 border-b border-[#efe6d0] text-[14px] flex-wrap">
@@ -868,9 +868,9 @@ function Tasks({ v, today, weddingDay, onSet }: { v: Vendor; today: string; wedd
               value={t.due}
               aria-label={`${t.text}: by when`}
               onChange={(e) => set(t.id, { due: e.target.value })}
-              className={`py-[4px] px-2 rounded-[8px] border text-[13px] ${!t.done && t.due && t.due < today ? 'border-[#c98f78] bg-[#f6e2db]' : 'border-[#d3c6a4] bg-white'}`}
+              className={`py-[4px] px-2 rounded-[8px] border text-[13px] ${!t.done && t.due && t.due < today ? 'border-[#c98f78] bg-[#f6e2db]' : 'border-[var(--adm-line,#d3c6a4)] bg-white'}`}
             />
-            <button type="button" aria-label={`Remove ${t.text}`} onClick={() => onSet((v.tasks ?? []).filter((x) => x.id !== t.id))} className="w-8 h-8 rounded-full border border-[#d3c6a4] bg-white cursor-pointer text-[#7a4a37]">
+            <button type="button" aria-label={`Remove ${t.text}`} onClick={() => onSet((v.tasks ?? []).filter((x) => x.id !== t.id))} className="w-8 h-8 rounded-full border border-[var(--adm-line,#d3c6a4)] bg-white cursor-pointer text-[#7a4a37]">
               ×
             </button>
           </li>
@@ -904,7 +904,7 @@ function Notes({ v, onAdd, onRemove }: { v: Vendor; onAdd: (kind: VendorNote['ki
     <div className="flex flex-col gap-2">
       <div className="flex gap-1 flex-wrap" role="radiogroup" aria-label="What kind">
         {(Object.keys(LABEL) as VendorNote['kind'][]).map((k) => (
-          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`py-[4px] px-3 rounded-full border text-[12px] cursor-pointer ${kind === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}>
+          <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`py-[4px] px-3 rounded-full border text-[12px] cursor-pointer ${kind === k ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-white border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}>
             {LABEL[k]}
           </button>
         ))}
@@ -934,7 +934,7 @@ function Notes({ v, onAdd, onRemove }: { v: Vendor; onAdd: (kind: VendorNote['ki
             </button>
           </li>
         ))}
-        {!(v.log ?? []).length && <li className="text-[13px] text-[#5b6a52]">Nothing noted yet. Calls you make from here are noted for you.</li>}
+        {!(v.log ?? []).length && <li className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Nothing noted yet. Calls you make from here are noted for you.</li>}
       </ul>
     </div>
   );
@@ -947,7 +947,7 @@ function Files({ v }: { v: Vendor }) {
     ...v.quotes.filter((q) => q.fileId).map((q) => ({ id: q.fileId, name: q.fileName || 'Quote', what: `Quote ${q.amount ? aud(q.amount) : ''}${q.id === v.accepted ? ' (accepted)' : ''}` })),
     ...(v.contractFileId ? [{ id: v.contractFileId, name: v.contractFileName || 'Contract', what: `Contract${v.contractSigned ? `, signed ${shortDate(v.contractSigned)}` : ''}` }] : []),
   ];
-  if (!files.length) return <span className="text-[13px] text-[#5b6a52]">No files yet. Quotes keep the PDF they came with; add the contract in Lock in (step 4).</span>;
+  if (!files.length) return <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">No files yet. Quotes keep the PDF they came with; add the contract in Lock in (step 4).</span>;
   return (
     <ul className="m-0 p-0 list-none flex flex-col gap-2">
       {files.map((f) => (
@@ -957,7 +957,7 @@ function Files({ v }: { v: Vendor }) {
             <span className="block truncate">{f.name}</span>
             <span className="text-[12px] text-[#7a7466]">{f.what}</span>
           </span>
-          <a href={plannerApi.fileUrl(wid, f.id)} target="_blank" rel="noopener" className="text-[13px] !text-[#33402f]">
+          <a href={plannerApi.fileUrl(wid, f.id)} target="_blank" rel="noopener" className="text-[13px] !text-[var(--adm-ink,#33402f)]">
             Open
           </a>
         </li>
@@ -1004,10 +1004,10 @@ function CheckIn({ v, ctx, onArrival, onDone, onClose }: { v: Vendor; ctx: Check
     };
   }, [wid, v.id]);
   const text = edited ?? checkInText(v, ctx, link);
-  const small = 'py-[6px] px-3 rounded-full border border-[#c6b794] bg-white text-[13px] cursor-pointer no-underline !text-[#33402f]';
+  const small = 'py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-white text-[13px] cursor-pointer no-underline !text-[var(--adm-ink,#33402f)]';
   return (
     <div className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#8a9670] bg-white">
-      <label className="flex items-center gap-2 text-[13px] text-[#5b6a52] flex-wrap">
+      <label className="flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)] flex-wrap">
         Arriving at
         <input defaultValue={v.arrival} placeholder="e.g. 11:00am" onBlur={(e) => e.target.value !== v.arrival && onArrival(e.target.value.slice(0, 20))} className={`${inputCls} max-w-[150px] py-[6px]`} />
       </label>
@@ -1047,7 +1047,7 @@ function CheckIn({ v, ctx, onArrival, onDone, onClose }: { v: Vendor; ctx: Check
         >
           They confirmed ✓
         </Pill>
-        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+        <button type="button" onClick={onClose} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
           Close
         </button>
       </div>
@@ -1059,7 +1059,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
   const { wid } = useAdmin();
   // Text fields save when you leave them; choices save straight away.
   const field = (k: 'name' | 'category' | 'contact' | 'phone' | 'email' | 'website' | 'address' | 'arrival' | 'notes', label: string, long = false) => (
-    <label key={k} className={`flex flex-col gap-1 text-[12px] text-[#5b6a52] ${long ? 'sm:col-span-2' : ''}`}>
+    <label key={k} className={`flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] ${long ? 'sm:col-span-2' : ''}`}>
       {label}
       {long ? (
         <textarea rows={3} defaultValue={v[k]} onBlur={(e) => e.target.value !== v[k] && onChange({ [k]: e.target.value })} className={`${inputCls} resize-y`} />
@@ -1073,11 +1073,11 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
   const accept = (q: Quote) =>
     onChange({ accepted: q.id, quote: q.amount, deposit: q.deposit, status: 'booked' }, `${v.name} booked at ${aud(q.amount)}`);
   return (
-    <article id={`vendor-${v.id}`} className="rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0] scroll-mt-4">
+    <article id={`vendor-${v.id}`} className="rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] scroll-mt-4">
       <button type="button" onClick={onToggle} aria-expanded={open} className="w-full flex justify-between items-center gap-3 py-3 px-4 border-0 bg-transparent text-left cursor-pointer">
         <span className="min-w-0">
           <span className="block font-medium truncate">{v.name}</span>
-          <span className="block text-[13px] text-[#5b6a52] truncate">
+          <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">
             {[
               v.category,
               v.km !== null ? `${v.km} km from the venue` : '',
@@ -1104,7 +1104,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
                 role="radio"
                 aria-checked={v.status === s}
                 onClick={() => onChange({ status: s })}
-                className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${v.status === s ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+                className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${v.status === s ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
               >
                 {STATUS_LABEL[s]}
               </button>
@@ -1116,17 +1116,17 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
             <div className="flex justify-between items-baseline gap-2 flex-wrap">
               <strong className="text-[14px] font-semibold">Quotes</strong>
               {!adding && (
-                <button type="button" onClick={() => setAdding(true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+                <button type="button" onClick={() => setAdding(true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
                   + Add a quote (type it in, or upload it)
                 </button>
               )}
             </div>
             {v.quotes.map((q) => (
-              <div key={q.id} className={`flex flex-col gap-1 p-3 rounded-[10px] border ${q.id === v.accepted ? 'border-[#5d6b47] bg-[#eef1e4]' : 'border-[#e2d7bc] bg-white'}`}>
+              <div key={q.id} className={`flex flex-col gap-1 p-3 rounded-[10px] border ${q.id === v.accepted ? 'border-[#5d6b47] bg-[#eef1e4]' : 'border-[var(--adm-line,#e2d7bc)] bg-white'}`}>
                 <div className="flex justify-between items-baseline gap-2 flex-wrap">
                   <span className="font-display text-[22px] leading-none">
                     {aud(q.amount)}
-                    {q.deposit ? <span className="ml-2 font-sans text-[13px] text-[#5b6a52]">deposit {aud(q.deposit)}</span> : null}
+                    {q.deposit ? <span className="ml-2 font-sans text-[13px] text-[var(--adm-muted,#5b6a52)]">deposit {aud(q.deposit)}</span> : null}
                   </span>
                   <span className="text-[12px] text-[#7a7466]">
                     {[q.date ? `Given ${shortDate(q.date)}` : '', q.validUntil ? `Valid until ${shortDate(q.validUntil)}` : ''].filter(Boolean).join(' · ')}
@@ -1134,10 +1134,10 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
                 </div>
                 {q.includes && <div className="text-[13px]"><strong className="font-semibold">Includes:</strong> {q.includes}</div>}
                 {q.excludes && <div className="text-[13px]"><strong className="font-semibold">Not included:</strong> {q.excludes}</div>}
-                {q.notes && <div className="text-[13px] text-[#5b6a52]">{q.notes}</div>}
+                {q.notes && <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{q.notes}</div>}
                 <div className="flex gap-3 flex-wrap text-[13px] mt-1">
                   {q.fileId && (
-                    <a href={plannerApi.fileUrl(wid, q.fileId)} target="_blank" rel="noopener" className="!text-[#33402f]">
+                    <a href={plannerApi.fileUrl(wid, q.fileId)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)]">
                       Open {q.fileName || 'the quote'}
                     </a>
                   )}
@@ -1179,7 +1179,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
             {field('website', 'Website')}
             {field('address', 'Address', true)}
             {v.payments.length ? (
-              <p className="m-0 sm:col-span-2 text-[13px] text-[#5b6a52]">
+              <p className="m-0 sm:col-span-2 text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 {v.payments.length} {v.payments.length === 1 ? 'payment' : 'payments'}: {aud(moneyOf(v).paid)} of {aud(moneyOf(v).total)} paid. Change the schedule in Wedding planner → Payments.
               </p>
             ) : (
@@ -1188,7 +1188,7 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
                   <input type="checkbox" checked={v.depositPaid} onChange={() => onChange({ depositPaid: !v.depositPaid })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
                   Deposit paid{c.deposit ? ` (${aud(c.deposit)})` : ''}
                 </label>
-                <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                   Balance due (instalments: Payments)
                   <input type="date" value={v.balanceDue} onChange={(e) => onChange({ balanceDue: e.target.value })} className={inputCls} />
                 </label>
@@ -1200,17 +1200,17 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
           <Contract v={v} onChange={onChange} />
           <div className="flex gap-4 flex-wrap text-[13px]">
             {v.phone && (
-              <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} className="!text-[#33402f]">
+              <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} className="!text-[var(--adm-ink,#33402f)]">
                 Call
               </a>
             )}
             {v.email && (
-              <a href={`mailto:${v.email}`} className="!text-[#33402f]">
+              <a href={`mailto:${v.email}`} className="!text-[var(--adm-ink,#33402f)]">
                 Email
               </a>
             )}
             {v.website && (
-              <a href={safeUrl(v.website)} target="_blank" rel="noopener noreferrer" className="!text-[#33402f]">
+              <a href={safeUrl(v.website)} target="_blank" rel="noopener noreferrer" className="!text-[var(--adm-ink,#33402f)]">
                 Website
               </a>
             )}
@@ -1229,7 +1229,7 @@ function QuoteForm({ onSave, onCancel }: { onSave: (q: Quote) => void; onCancel:
   const { overview } = useAdmin();
   const [q, setQ] = useState<Quote>({ ...BLANK_QUOTE, id: newId(), date: dateIn(overview?.wedding.timezone) });
   const num = (k: 'amount' | 'deposit', label: string) => (
-    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
       {label}
       <MoneyInput value={q[k]} placeholder="0" onValue={(n) => setQ((cur) => ({ ...cur, [k]: n }))} className={`${inputCls} tabular-nums`} />
     </label>
@@ -1256,24 +1256,24 @@ function QuoteForm({ onSave, onCancel }: { onSave: (q: Quote) => void; onCancel:
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         {num('amount', 'Total (AUD)')}
         {num('deposit', 'Deposit (AUD)')}
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
           Given
           <input type="date" value={q.date} onChange={(e) => setQ({ ...q, date: e.target.value })} className={inputCls} />
         </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
           Valid until
           <input type="date" value={q.validUntil} onChange={(e) => setQ({ ...q, validUntil: e.target.value })} className={inputCls} />
         </label>
       </div>
-      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+      <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
         What's included
         <textarea rows={2} value={q.includes} onChange={(e) => setQ({ ...q, includes: e.target.value })} className={`${inputCls} resize-y`} />
       </label>
-      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+      <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
         Not included / costs extra
         <textarea rows={2} value={q.excludes} onChange={(e) => setQ({ ...q, excludes: e.target.value })} className={`${inputCls} resize-y`} />
       </label>
-      <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+      <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
         Notes
         <textarea rows={2} value={q.notes} onChange={(e) => setQ({ ...q, notes: e.target.value })} className={`${inputCls} resize-y`} />
       </label>
@@ -1319,7 +1319,7 @@ function Compare({ list }: { list: Vendor[] }) {
   };
 
   return (
-    <section aria-label="Compare quotes" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Compare quotes" className="flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <H2>Compare quotes</H2>
       <div className="flex gap-2 flex-wrap">
         {cats.map((c) => (
@@ -1332,7 +1332,7 @@ function Compare({ list }: { list: Vendor[] }) {
               setPicked(new Set());
               setAnswer('');
             }}
-            className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${c === current ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[#c6b794]'}`}
+            className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${c === current ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-transparent border-[var(--adm-line,#c6b794)]'}`}
           >
             {c} · {withQuotes.filter((v) => (v.category.trim() || 'Other') === c).length}
           </button>
@@ -1341,7 +1341,7 @@ function Compare({ list }: { list: Vendor[] }) {
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-[14px] min-w-[620px]">
           <thead>
-            <tr className="text-left text-[12px] uppercase tracking-[.1em] text-[#5b6a52]">
+            <tr className="text-left text-[12px] uppercase tracking-[.1em] text-[var(--adm-muted,#5b6a52)]">
               <th className="py-2 pr-2 font-semibold w-[28px]" aria-label="Compare" />
               <th className="py-2 pr-3 font-semibold">Vendor</th>
               <th className="py-2 pr-3 font-semibold text-right">Price</th>
@@ -1357,7 +1357,7 @@ function Compare({ list }: { list: Vendor[] }) {
               const price = q?.amount || v.quote;
               const on = !picked.size || picked.has(v.id);
               return (
-                <tr key={v.id} className="border-t border-[#e2d7bc] align-top">
+                <tr key={v.id} className="border-t border-[var(--adm-line,#e2d7bc)] align-top">
                   <td className="py-2 pr-2">
                     <input
                       type="checkbox"
@@ -1402,7 +1402,7 @@ function Compare({ list }: { list: Vendor[] }) {
           {problem}
         </p>
       )}
-      {answer && <div className="p-4 rounded-[12px] bg-white border border-[#e2d7bc] whitespace-pre-wrap text-[15px] leading-[1.5]">{answer}</div>}
+      {answer && <div className="p-4 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)] whitespace-pre-wrap text-[15px] leading-[1.5]">{answer}</div>}
     </section>
   );
 }
@@ -1413,17 +1413,17 @@ function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) =
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   return (
-    <details className="rounded-[12px] border border-[#e2d7bc] bg-white" open={!!(v.contractSigned || v.contractFileId)}>
+    <details className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white" open={!!(v.contractSigned || v.contractFileId)}>
       <summary className="cursor-pointer py-2 px-3 text-[14px] font-medium">
         Contract{v.contractSigned ? ` · signed ${shortDate(v.contractSigned)}` : v.status === 'booked' ? ' · not signed yet' : ''}
         {v.contractFileId ? ' · file kept' : ''}
       </summary>
       <div className="grid gap-3 sm:grid-cols-2 px-3 pb-3">
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
           Signed on
           <input type="date" value={v.contractSigned} onChange={(e) => onChange({ contractSigned: e.target.value })} className={inputCls} />
         </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] sm:col-span-2">
+        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] sm:col-span-2">
           If anyone cancels or postpones
           <textarea rows={2} value={v.cancellation} maxLength={600} placeholder="e.g. Deposit kept; 50% due if cancelled within 90 days; one free date change" onChange={(e) => onChange({ cancellation: e.target.value })} className={`${inputCls} resize-y`} />
         </label>
@@ -1434,7 +1434,7 @@ function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) =
         <span className="flex items-center gap-3 text-[14px] flex-wrap">
           {v.contractFileId ? (
             <>
-              <a href={plannerApi.fileUrl(wid, v.contractFileId)} target="_blank" rel="noopener" className="!text-[#33402f]">
+              <a href={plannerApi.fileUrl(wid, v.contractFileId)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)]">
                 📎 {v.contractFileName || 'Contract'}
               </a>
               <button type="button" onClick={() => onChange({ contractFileId: '', contractFileName: '' })} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">
@@ -1442,7 +1442,7 @@ function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) =
               </button>
             </>
           ) : (
-            <label className={`py-[6px] px-3 rounded-full border border-[#c6b794] text-[13px] cursor-pointer ${busy ? 'opacity-60' : ''}`}>
+            <label className={`py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] text-[13px] cursor-pointer ${busy ? 'opacity-60' : ''}`}>
               {busy ? 'Uploading…' : 'Keep the contract (PDF or photo)'}
               <input
                 type="file"
@@ -1492,12 +1492,12 @@ function QuoteTracker({ list, onPatch, onOpen }: { list: Vendor[]; onPatch: (id:
   const toDecide = shown.filter((x) => x.q.stage === 'in');
   const took = shown.map((x) => x.q.took).filter((n): n is number => n !== null);
   if (!list.length) return null;
-  const btn = 'py-[3px] px-[10px] rounded-full border border-[#c6b794] bg-white text-[12px] cursor-pointer text-[#33402f] hover:bg-[#efe7d3]';
+  const btn = 'py-[3px] px-[10px] rounded-full border border-[var(--adm-line,#c6b794)] bg-white text-[12px] cursor-pointer text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]';
   return (
-    <section aria-label="Quote tracker" className="flex flex-col gap-3 p-4 rounded-[18px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Quote tracker" className="flex flex-col gap-3 p-4 rounded-[18px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex justify-between items-baseline gap-3 flex-wrap">
         <H2>Quote tracker</H2>
-        <span className="text-[13px] text-[#5b6a52]">
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
           {pricing.length} pricing
           {chase.length ? <strong className="text-[#7a4a37] font-semibold"> · {chase.length} to chase</strong> : null} · {toDecide.length} quotes in to decide
           {took.length ? ` · quotes take ${Math.round(took.reduce((a, n) => a + n, 0) / took.length)} days on average` : ''}
@@ -1506,7 +1506,7 @@ function QuoteTracker({ list, onPatch, onOpen }: { list: Vendor[]; onPatch: (id:
       {cats.length > 1 && (
         <div className="flex gap-[6px] flex-wrap" role="group" aria-label="What they do">
           {['', ...cats].map((c) => (
-            <button key={c || 'all'} type="button" aria-pressed={cat === c} onClick={() => setCat(c)} className={`py-[4px] px-3 rounded-full border text-[12px] cursor-pointer ${cat === c ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#d3c6a4] text-[#33402f]'}`}>
+            <button key={c || 'all'} type="button" aria-pressed={cat === c} onClick={() => setCat(c)} className={`py-[4px] px-3 rounded-full border text-[12px] cursor-pointer ${cat === c ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[var(--adm-line,#d3c6a4)] text-[var(--adm-ink,#33402f)]'}`}>
               {c || 'Everyone'}
               {c && <span className="opacity-70"> · {list.filter((v) => (v.category.trim() || 'Other') === c).length}</span>}
             </button>
@@ -1518,32 +1518,32 @@ function QuoteTracker({ list, onPatch, onOpen }: { list: Vendor[]; onPatch: (id:
           const col = shown.filter((x) => x.q.stage === stage).sort((a, b) => Number(b.q.chase) - Number(a.q.chase) || (b.q.waiting ?? 0) - (a.q.waiting ?? 0));
           return (
             <div key={stage} className="flex-1 min-w-[210px] flex flex-col gap-2">
-              <div className="flex justify-between items-center py-1 px-2 rounded-[8px] text-[12px] font-semibold tracking-[.08em] uppercase text-[#33402f]" style={{ background: STAGE_COLOUR[stage] }}>
+              <div className="flex justify-between items-center py-1 px-2 rounded-[8px] text-[12px] font-semibold tracking-[.08em] uppercase text-[var(--adm-ink,#33402f)]" style={{ background: STAGE_COLOUR[stage] }}>
                 <span>{label}</span>
                 <span>{col.length}</span>
               </div>
               {col.map(({ v, q }) => (
                 <div key={v.id} className={`flex flex-col gap-[6px] p-3 rounded-[12px] bg-white border text-[13px] ${q.chase ? 'border-[#c98f78]' : 'border-[#ece3cd]'}`}>
-                  <button type="button" onClick={() => onOpen(v.id)} className="p-0 border-0 bg-transparent text-left cursor-pointer text-[14px] font-medium text-[#33402f]">
+                  <button type="button" onClick={() => onOpen(v.id)} className="p-0 border-0 bg-transparent text-left cursor-pointer text-[14px] font-medium text-[var(--adm-ink,#33402f)]">
                     {v.name}
                     {v.category && <span className="font-normal text-[#7a7466]"> · {v.category}</span>}
                   </button>
                   {stage === 'pricing' && (
                     <>
-                      <span className={q.chase ? 'text-[#7a4a37] font-semibold' : 'text-[#5b6a52]'}>
+                      <span className={q.chase ? 'text-[#7a4a37] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}>
                         {q.waiting !== null ? `Asked ${q.waiting === 0 ? 'today' : `${q.waiting} ${q.waiting === 1 ? 'day' : 'days'} ago`}` : 'Asked'}
                         {q.chase ? ' · time to chase' : q.chaseOn ? ` · chase ${shortDate(q.chaseOn)}` : ''}
                         {v.chasedOn ? ` · last chased ${shortDate(v.chasedOn)}` : ''}
                       </span>
-                      <label className="flex items-center gap-2 text-[12px] text-[#5b6a52]">
+                      <label className="flex items-center gap-2 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                         Quote by
-                        <input type="date" value={v.quoteBy} onChange={(e) => onPatch(v.id, { quoteBy: e.target.value })} className="py-[2px] px-2 border border-[#d3c6a4] rounded-[8px] bg-[#fbf8f2] text-[12px]" />
+                        <input type="date" value={v.quoteBy} onChange={(e) => onPatch(v.id, { quoteBy: e.target.value })} className="py-[2px] px-2 border border-[var(--adm-line,#d3c6a4)] rounded-[8px] bg-[#fbf8f2] text-[12px]" />
                       </label>
                     </>
                   )}
                   {(stage === 'in' || stage === 'booked') && (
-                    <span className="text-[#5b6a52]">
-                      {q.amount ? <strong className="font-semibold text-[#33402f]">{aud(stage === 'booked' ? commitmentOf(v).amount || q.amount : q.amount)}</strong> : 'No amount yet'}
+                    <span className="text-[var(--adm-muted,#5b6a52)]">
+                      {q.amount ? <strong className="font-semibold text-[var(--adm-ink,#33402f)]">{aud(stage === 'booked' ? commitmentOf(v).amount || q.amount : q.amount)}</strong> : 'No amount yet'}
                       {stage === 'in' && v.quotes.length > 1 ? ` · lowest of ${v.quotes.length}` : ''}
                       {q.took !== null ? ` · came in ${q.took} ${q.took === 1 ? 'day' : 'days'} after asking` : ''}
                       {q.expires ? <span className={q.expires < today ? ' text-[#7a4a37] font-semibold' : ''}>{` · ${q.expires < today ? 'ran out' : 'good to'} ${shortDate(q.expires)}`}</span> : ''}
@@ -1645,9 +1645,9 @@ function TheirPage({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>, 
   const couple = overview ? `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}` : 'us';
   const msg = (u: string) => `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''}, here are all the details for ${couple}'s wedding, kept up to date (times, guest numbers, dietary needs, who to call on the day): ${u}`;
   return (
-    <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[13px]">
-      <span className="flex-1 min-w-[200px] text-[#5b6a52]">Their page: the day, the timeline, guest numbers and dietary needs, their payments and who to call, always up to date.</span>
-      <label className="basis-full flex items-start gap-2 cursor-pointer text-[13px] text-[#33402f]">
+    <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[13px]">
+      <span className="flex-1 min-w-[200px] text-[var(--adm-muted,#5b6a52)]">Their page: the day, the timeline, guest numbers and dietary needs, their payments and who to call, always up to date.</span>
+      <label className="basis-full flex items-start gap-2 cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
         <input
           type="checkbox"
           checked={!!v.shareSeating}
@@ -1659,12 +1659,12 @@ function TheirPage({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>, 
         </span>
       </label>
       {v.email && (
-        <button type="button" onClick={async () => { const u = await get(); if (u) window.location.href = `mailto:${encodeURIComponent(v.email)}?subject=${encodeURIComponent(`${couple}'s wedding: your details`)}&body=${encodeURIComponent(msg(u))}`; }} className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[12px] cursor-pointer text-[#33402f]">
+        <button type="button" onClick={async () => { const u = await get(); if (u) window.location.href = `mailto:${encodeURIComponent(v.email)}?subject=${encodeURIComponent(`${couple}'s wedding: your details`)}&body=${encodeURIComponent(msg(u))}`; }} className="py-[5px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[12px] cursor-pointer text-[var(--adm-ink,#33402f)]">
           Email it
         </button>
       )}
       {v.phone && (
-        <button type="button" onClick={async () => { const u = await get(); if (u) window.location.href = `sms:${v.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(msg(u))}`; }} className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[12px] cursor-pointer text-[#33402f]">
+        <button type="button" onClick={async () => { const u = await get(); if (u) window.location.href = `sms:${v.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(msg(u))}`; }} className="py-[5px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[12px] cursor-pointer text-[var(--adm-ink,#33402f)]">
           Text it
         </button>
       )}
@@ -1680,12 +1680,12 @@ function TheirPage({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>, 
             window.prompt('Copy this link', u);
           }
         }}
-        className="py-[5px] px-3 rounded-full border border-[#c6b794] bg-transparent text-[12px] cursor-pointer text-[#33402f]"
+        className="py-[5px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[12px] cursor-pointer text-[var(--adm-ink,#33402f)]"
       >
         Copy link
       </button>
       {url && (
-        <a href={url} target="_blank" rel="noopener" className="!text-[#33402f] text-[12px]">
+        <a href={url} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)] text-[12px]">
           Open it
         </a>
       )}

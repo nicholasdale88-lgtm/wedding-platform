@@ -31,7 +31,7 @@ export function TestSend({ what, campaignId, body, subject, channels = false, la
     <span className="inline-flex flex-col gap-2 max-w-full">
       <span className="inline-flex gap-2 items-center flex-wrap">
         {channels && (
-          <select aria-label="Test by" value={channel ?? ''} onChange={(e) => setChannel((e.target.value || undefined) as TestSendIn['channel'])} className="py-[6px] px-2 rounded-[10px] border border-[#d3c6a4] bg-transparent text-[13px]">
+          <select aria-label="Test by" value={channel ?? ''} onChange={(e) => setChannel((e.target.value || undefined) as TestSendIn['channel'])} className="py-[6px] px-2 rounded-[10px] border border-[var(--adm-line,#d3c6a4)] bg-transparent text-[13px]">
             <option value="">The way it goes</option>
             <option value="text">Text to my mobile</option>
             <option value="phone">From my own phone</option>
@@ -43,7 +43,7 @@ export function TestSend({ what, campaignId, body, subject, channels = false, la
         </Pill>
       </span>
       {res && (
-        <span role="status" className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f3ecd6] text-[13px] text-[#33402f]">
+        <span role="status" className="flex flex-col gap-2 p-3 rounded-[12px] bg-[var(--adm-tint,#f3ecd6)] text-[13px] text-[var(--adm-ink,#33402f)]">
           <span>
             {res.message} <span className="text-[#7a7466]">(Filled in as {res.sample}.)</span>
           </span>
@@ -58,10 +58,10 @@ export function TestSend({ what, campaignId, body, subject, channels = false, la
             ) : (
               <span className="flex flex-col gap-1">
                 <strong>{res.preview.subject}</strong>
-                <iframe title="Email preview" sandbox="" srcDoc={res.preview.html ?? res.preview.text} className="w-full max-w-[560px] h-[360px] rounded-[10px] border border-[#e2d7bc] bg-white" />
+                <iframe title="Email preview" sandbox="" srcDoc={res.preview.html ?? res.preview.text} className="w-full max-w-[560px] h-[360px] rounded-[10px] border border-[var(--adm-line,#e2d7bc)] bg-white" />
               </span>
             ))}
-          <button type="button" onClick={() => setRes(null)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[12px] text-[#5b6a52]">
+          <button type="button" onClick={() => setRes(null)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[12px] text-[var(--adm-muted,#5b6a52)]">
             Close
           </button>
         </span>

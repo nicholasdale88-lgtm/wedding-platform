@@ -12,7 +12,7 @@ import { Members, type PartyView, type SideName } from './Party';
 
 const newId = () => crypto.randomUUID().slice(0, 10);
 const BLANK_PERSON: SidePerson = { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '', packed: [], pack: [] };
-const card = 'flex flex-col gap-3 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]';
+const card = 'flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]';
 const shortDate = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '');
 
 /**
@@ -27,7 +27,7 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
   const [open, setOpen] = useState<string | null>(null);
   const [task, setTask] = useState({ text: '', person: '', due: '' });
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
-  if (!live.doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading {sideName(side).toLowerCase()}’s side…</div>;
+  if (!live.doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading {sideName(side).toLowerCase()}’s side…</div>;
   const doc = live.doc.data;
   const set = (p: Partial<PartySide>, now = false) => live.set({ ...doc, ...p }, now);
   const people = d.members.filter((m) => m.side === side);
@@ -52,14 +52,14 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
           <Ring done={tp.done} total={tp.total} size={58} />
           <span>
             <span className="block font-display text-[20px] leading-tight">To-dos</span>
-            <span className="block text-[12px] text-[#5b6a52]">{tp.total ? `${tp.total - tp.done} to go` : 'None yet'}</span>
+            <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)]">{tp.total ? `${tp.total - tp.done} to go` : 'None yet'}</span>
           </span>
         </div>
         <div className={`${card} !flex-row items-center`}>
           <Ring done={ready} total={people.length} size={58} />
           <span>
             <span className="block font-display text-[20px] leading-tight">Outfits ready</span>
-            <span className="block text-[12px] text-[#5b6a52]">
+            <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)]">
               {ready} of {people.length} collected
             </span>
           </span>
@@ -68,7 +68,7 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
           <Ring done={thanked} total={people.length} size={58} />
           <span>
             <span className="block font-display text-[20px] leading-tight">Thank-you gifts</span>
-            <span className="block text-[12px] text-[#5b6a52]">
+            <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)]">
               {thanked} of {people.length} given
             </span>
           </span>
@@ -80,37 +80,37 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
       {people.length > 0 && (
         <section aria-label="Each person" className="flex flex-col gap-2">
           <H2>Each person</H2>
-          <div className="text-[13px] text-[#5b6a52] -mt-1">What they wear, their size and fitting, and their thank-you gift. Tap a name to fill it in.</div>
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)] -mt-1">What they wear, their size and fitting, and their thank-you gift. Tap a name to fill it in.</div>
           {people.map((m) => {
             const p = personOf(m.personId);
             const isOpen = open === m.personId;
             const chips = [p.size && `Size ${p.size}`, p.fitting && `Fitting ${shortDate(p.fitting)}`, p.collected && 'Collected ✓', p.paid && 'Paid ✓', p.given && 'Gift given ✓'].filter(Boolean) as string[];
             return (
-              <div key={m.personId} className="rounded-[14px] border border-[#e2d7bc] bg-white">
+              <div key={m.personId} className="rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-white">
                 <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : m.personId)} className="w-full flex justify-between items-center gap-3 py-3 px-4 bg-transparent border-0 cursor-pointer text-left">
                   <span className="min-w-0">
                     <span className="block font-medium truncate">{m.name}</span>
-                    <span className="block text-[12px] text-[#5b6a52]">{m.role}</span>
+                    <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)]">{m.role}</span>
                   </span>
                   <span className="flex gap-1 flex-wrap justify-end">
-                    {chips.length ? chips.map((c) => <span key={c} className="py-[2px] px-2 rounded-full bg-[#efe7d3] text-[12px]">{c}</span>) : <span className="text-[12px] text-[#7a7466]">Add details</span>}
+                    {chips.length ? chips.map((c) => <span key={c} className="py-[2px] px-2 rounded-full bg-[var(--adm-tint,#efe7d3)] text-[12px]">{c}</span>) : <span className="text-[12px] text-[#7a7466]">Add details</span>}
                   </span>
                 </button>
                 {isOpen && (
                   <div className="grid gap-2 px-4 pb-4 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Wearing
                       <input value={p.outfit} maxLength={120} placeholder={doc.attire.what || (side === 'p1' ? 'e.g. Sage satin dress' : 'e.g. Navy suit')} onChange={(e) => setPerson(m.personId, { outfit: e.target.value })} className={inputCls} />
                     </label>
-                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Size or measurements
                       <input value={p.size} maxLength={40} onChange={(e) => setPerson(m.personId, { size: e.target.value })} className={inputCls} />
                     </label>
-                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Fitting
                       <input type="date" value={p.fitting} onChange={(e) => setPerson(m.personId, { fitting: e.target.value }, true)} className={inputCls} />
                     </label>
-                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Thank-you gift
                       <input value={p.gift} maxLength={120} onChange={(e) => setPerson(m.personId, { gift: e.target.value })} className={inputCls} />
                     </label>
@@ -128,7 +128,7 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
                         </label>
                       ))}
                     </div>
-                    <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52] sm:col-span-2">
+                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] sm:col-span-2">
                       Notes
                       <textarea rows={2} value={p.notes} maxLength={500} onChange={(e) => setPerson(m.personId, { notes: e.target.value })} className={`${inputCls} resize-y`} />
                     </label>
@@ -158,28 +158,28 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
             {doc.attire.how !== 'own' && (
               <>
                 <input aria-label="From" placeholder={doc.attire.how === 'hire' ? 'Hire company' : 'Shop'} value={doc.attire.where} maxLength={160} onChange={(e) => set({ attire: { ...doc.attire, where: e.target.value } })} className={inputCls} />
-                <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
+                <label className="flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)]">
                   About $
                   <MoneyInput aria-label={doc.attire.how === 'hire' ? 'Hire cost each' : 'Cost each'} placeholder="each" value={doc.attire.each} onValue={(n) => set({ attire: { ...doc.attire, each: n } })} className={`${inputCls} w-full`} />
                   each
                 </label>
-                <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                   {doc.attire.how === 'hire' ? 'Pick up by' : 'Order by'}
                   <input type="date" value={doc.attire.orderBy} onChange={(e) => set({ attire: { ...doc.attire, orderBy: e.target.value } }, true)} className={inputCls} />
                 </label>
                 {doc.attire.how === 'hire' && (
-                  <label className="flex flex-col gap-1 text-[12px] text-[#5b6a52]">
+                  <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                     Return by
                     <input type="date" value={doc.attire.returnBy} onChange={(e) => set({ attire: { ...doc.attire, returnBy: e.target.value } }, true)} className={inputCls} />
                   </label>
                 )}
               </>
             )}
-            {doc.attire.how === 'own' && <p className="m-0 text-[13px] text-[#5b6a52] sm:col-span-2">Give them the look and colour; each person’s size and fitting stay with them above.</p>}
+            {doc.attire.how === 'own' && <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)] sm:col-span-2">Give them the look and colour; each person’s size and fitting stay with them above.</p>}
           </div>
           )}
           {doc.attire.orderBy && doc.attire.how !== 'own' && doc.attire.orderBy < today && ready < people.length && <p className="m-0 text-[13px] text-[#7a4a37]">The {doc.attire.how === 'hire' ? 'pick-up' : 'order-by'} date has passed and not everyone has their outfit.</p>}
-          {doc.attire.how === 'hire' && doc.attire.returnBy && <p className="m-0 text-[13px] text-[#5b6a52]">Hired outfits go back by {new Date(`${doc.attire.returnBy}T12:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}: put someone in charge of returning them.</p>}
+          {doc.attire.how === 'hire' && doc.attire.returnBy && <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Hired outfits go back by {new Date(`${doc.attire.returnBy}T12:00:00Z`).toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}: put someone in charge of returning them.</p>}
         </section>
 
         <section aria-label={partyTitle} className={card}>
@@ -189,7 +189,7 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
             <input type="date" aria-label="Date" value={doc.party.date} onChange={(e) => set({ party: { ...doc.party, date: e.target.value } }, true)} className={inputCls} />
             <input aria-label="Where" placeholder="Where" value={doc.party.place} maxLength={200} onChange={(e) => set({ party: { ...doc.party, place: e.target.value } })} className={inputCls} />
             <input aria-label="Organised by" placeholder={side === 'p1' ? 'Organised by (the maid of honour?)' : 'Organised by (the best man?)'} value={doc.party.organiser} maxLength={80} onChange={(e) => set({ party: { ...doc.party, organiser: e.target.value } })} className={inputCls} />
-            <label className="flex items-center gap-2 text-[13px] text-[#5b6a52] sm:col-span-2">
+            <label className="flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)] sm:col-span-2">
               Budget $
               <MoneyInput aria-label="Budget" value={doc.party.budget} onValue={(n) => set({ party: { ...doc.party, budget: n } })} className={`${inputCls} w-[120px]`} />
               {doc.party.budget > 0 && people.length > 0 && <span>≈ ${Math.round(doc.party.budget / people.length)} a head for the {people.length} of them</span>}
@@ -205,7 +205,7 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
         <div className="flex justify-between items-end gap-3 flex-wrap">
           <div>
             <H2>To-dos</H2>
-            <div className="text-[13px] text-[#5b6a52]">For the whole side or one person, with a date if it has one.</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">For the whole side or one person, with a date if it has one.</div>
           </div>
           {(() => {
             // The usual to-dos they don't have yet (by their words), so a list can be started or topped up.
@@ -219,13 +219,13 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
             );
           })()}
         </div>
-        <ul className="list-none m-0 p-0 flex flex-col rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <ul className="list-none m-0 p-0 flex flex-col rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
           {tasks.map((t) => {
             const late = !t.done && t.due && t.due < today;
             return (
               <li key={t.id} className="flex items-center gap-3 py-2 px-4 border-t border-[#ece3cd] first:border-t-0 flex-wrap">
                 <input type="checkbox" checked={t.done} onChange={() => setTask_(t.id, { done: !t.done })} aria-label={t.text} className="w-5 h-5 accent-[#5d6b47] flex-none cursor-pointer" />
-                <input aria-label="To-do" value={t.text} maxLength={200} onChange={(e) => setTask_(t.id, { text: e.target.value }, false)} className={`flex-1 min-w-[160px] bg-transparent border-0 p-0 text-[15px] ${t.done ? 'line-through text-[#7a7466]' : 'text-[#33402f]'}`} />
+                <input aria-label="To-do" value={t.text} maxLength={200} onChange={(e) => setTask_(t.id, { text: e.target.value }, false)} className={`flex-1 min-w-[160px] bg-transparent border-0 p-0 text-[15px] ${t.done ? 'line-through text-[#7a7466]' : 'text-[var(--adm-ink,#33402f)]'}`} />
                 <select aria-label="Who" value={t.person} onChange={(e) => setTask_(t.id, { person: e.target.value })} className={`${inputCls} !py-[5px] !text-[13px] max-w-[160px]`}>
                   <option value="">Everyone</option>
                   {people.map((m) => (
@@ -272,7 +272,7 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
         <div className="flex justify-between items-end gap-3 flex-wrap">
           <div>
             <H2>Their day</H2>
-            <div className="text-[13px] text-[#5b6a52]">What {sideName(side).toLowerCase()}’s side sees on their own page, from the run sheet.</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">What {sideName(side).toLowerCase()}’s side sees on their own page, from the run sheet.</div>
           </div>
           <Pill kind="outline" onClick={() => go('runsheet')}>
             Edit the run sheet
@@ -282,10 +282,10 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
           <ol className="list-none m-0 p-0 flex flex-col">
             {day.map((it, i) => (
               <li key={i} className="grid grid-cols-[84px_minmax(0,1fr)] gap-3 py-2 border-t border-[#ece3cd] first:border-t-0">
-                <span className="text-[14px] font-semibold tabular-nums text-[#5b6a52]">{it.time}</span>
+                <span className="text-[14px] font-semibold tabular-nums text-[var(--adm-muted,#5b6a52)]">{it.time}</span>
                 <span>
                   <span className="block font-medium">{it.title}</span>
-                  {it.place && <span className="block text-[13px] italic text-[#5b6a52]">{it.place}</span>}
+                  {it.place && <span className="block text-[13px] italic text-[var(--adm-muted,#5b6a52)]">{it.place}</span>}
                 </span>
               </li>
             ))}

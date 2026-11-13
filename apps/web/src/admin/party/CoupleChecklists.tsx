@@ -29,9 +29,9 @@ export function CoupleChecklists({ d, sideName }: { d: PartyData; sideName: Side
   useUnsavedChanges(live.pending);
   const helpers = useHelpers();
   const [who, setWho] = useState<Who>('p1');
-  if (!scope) return <p className="text-[#5b6a52]">Add your wedding as an event first.</p>;
+  if (!scope) return <p className="text-[var(--adm-muted,#5b6a52)]">Add your wedding as an event first.</p>;
   if (live.error) return <p role="alert" className="text-[#7a4a37]">{live.error}</p>;
-  if (!live.doc) return <div aria-busy="true" className="text-[#5b6a52]">Loading your checklists…</div>;
+  if (!live.doc) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading your checklists…</div>;
   const data = live.doc.data;
   const ev = d.events.find((e) => e.key === d.event);
   const now = phaseNow(ev ? daysUntil(ev.startsAt, overview?.wedding.timezone) : null);
@@ -50,12 +50,12 @@ export function CoupleChecklists({ d, sideName }: { d: PartyData; sideName: Side
               type="button"
               aria-pressed={who === w}
               onClick={() => setWho(w)}
-              className={`flex items-center gap-3 p-3 rounded-[16px] border text-left cursor-pointer ${who === w ? 'border-[#33402f] bg-[#fbf8f0] shadow-[0_0_0_1px_#33402f]' : 'border-[#e2d7bc] bg-[#fbf8f0] hover:border-[#b39563]'}`}
+              className={`flex items-center gap-3 p-3 rounded-[16px] border text-left cursor-pointer ${who === w ? 'border-[#33402f] bg-[var(--adm-card,#fbf8f0)] shadow-[0_0_0_1px_#33402f]' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] hover:border-[#b39563]'}`}
             >
               <Ring done={p.done} total={p.total} size={56} label={`${label(w)}: ${p.done} of ${p.total} done`} />
               <span className="min-w-0">
                 <span className="block font-display text-[19px] leading-tight truncate">{w === 'both' ? 'Together' : d.names[w]}</span>
-                <span className="block text-[12px] text-[#5b6a52]">{p.total ? `${p.total - p.done} to go` : 'Not started'}</span>
+                <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)]">{p.total ? `${p.total - p.done} to go` : 'Not started'}</span>
               </span>
             </button>
           );
@@ -63,9 +63,9 @@ export function CoupleChecklists({ d, sideName }: { d: PartyData; sideName: Side
       </div>
 
       {!list.length ? (
-        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[#c6b794] bg-[#fbf8f0]">
+        <div className="flex flex-col items-start gap-2 p-5 rounded-[16px] border border-dashed border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)]">
           <strong className="font-display text-[22px] font-medium">{who === 'both' ? 'Your shared list' : `${d.names[who]}’s list`}</strong>
-          <p className="m-0 text-[14px] text-[#5b6a52]">
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
             Start with {CHECK_TEMPLATE[who].length} things most couples need, from the final fittings to the name change, then make it your own.
           </p>
           <Pill kind="primary" onClick={() => live.set({ ...data, [who]: CHECK_TEMPLATE[who].map((x) => ({ ...x })) }, true)}>
@@ -75,9 +75,9 @@ export function CoupleChecklists({ d, sideName }: { d: PartyData; sideName: Side
       ) : (
         <>
           {extra.length > 0 && (
-            <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[#f3ecd6] text-[13px] text-[#5b6a52]">
+            <div className="flex justify-between items-center gap-3 flex-wrap py-2 px-4 rounded-[12px] bg-[var(--adm-tint,#f3ecd6)] text-[13px] text-[var(--adm-muted,#5b6a52)]">
               <span>{extra.length} suggested {extra.length === 1 ? 'item isn’t' : 'items aren’t'} on this list yet.</span>
-              <button type="button" onClick={() => live.set({ ...data, [who]: [...list, ...extra.map((x) => ({ ...x }))] }, true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f] font-medium">
+              <button type="button" onClick={() => live.set({ ...data, [who]: [...list, ...extra.map((x) => ({ ...x }))] }, true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)] font-medium">
                 Add them
               </button>
             </div>
@@ -144,7 +144,7 @@ function HandOver({ d, side, items, startsAt, onHanded, sideName }: { d: PartyDa
     }
   };
   return (
-    <details className="rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <details className="rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <summary className="cursor-pointer py-3 px-4 text-[15px] font-semibold">Hand some of these to {sideName(side).toLowerCase()}’s side ({people.map((p) => p.name.split(' ')[0]).join(', ')})</summary>
       <ul className="m-0 p-0 list-none flex flex-col divide-y divide-[#ece3cd]">
         {open.map(({ x, i }) => (

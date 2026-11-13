@@ -27,10 +27,10 @@ export function StageBar({ stage, data, next, busy, onChoose }: { stage: SeatSta
             : 'Guests can see the plan.'
     : '';
   return (
-    <section aria-label="Seating stage" className="flex flex-col gap-2 p-3 rounded-[14px] bg-white border border-[#e2d7bc] print:hidden">
+    <section aria-label="Seating stage" className="flex flex-col gap-2 p-3 rounded-[14px] bg-white border border-[var(--adm-line,#e2d7bc)] print:hidden">
       <ol className="m-0 p-0 list-none flex flex-wrap gap-x-2 gap-y-1 text-[13px]">
         {SEAT_STAGES.map((x, i) => (
-          <li key={x.key} aria-current={i === at ? 'step' : undefined} className={i === at ? 'font-semibold text-[#33402f]' : i < at ? 'text-[#55633f]' : 'text-[#7a7466]'}>
+          <li key={x.key} aria-current={i === at ? 'step' : undefined} className={i === at ? 'font-semibold text-[var(--adm-ink,#33402f)]' : i < at ? 'text-[#55633f]' : 'text-[#7a7466]'}>
             {i < at ? '✓ ' : ''}
             {x.label}
             {i < SEAT_STAGES.length - 1 && <span className="ml-2 text-[#c6b794]">→</span>}
@@ -48,8 +48,8 @@ export function StageBar({ stage, data, next, busy, onChoose }: { stage: SeatSta
       </div>
       {/* What the stage means, and choosing it by hand: a tap away, so the room comes sooner. */}
       <details className="text-[13px]">
-        <summary className="cursor-pointer text-[#5b6a52]">About this stage</summary>
-        <p className="m-0 mt-2 text-[14px] text-[#33402f]">
+        <summary className="cursor-pointer text-[var(--adm-muted,#5b6a52)]">About this stage</summary>
+        <p className="m-0 mt-2 text-[14px] text-[var(--adm-ink,#33402f)]">
           {SEAT_STAGES[at]?.hint} <span className="text-[#7a7466]">{why}</span>
         </p>
         <select
@@ -57,7 +57,7 @@ export function StageBar({ stage, data, next, busy, onChoose }: { stage: SeatSta
           value={st?.chosen ?? ''}
           disabled={busy}
           onChange={(e) => onChoose((e.target.value || null) as SeatStage | null)}
-          className="mt-2 max-w-full min-w-0 py-[6px] px-2 rounded-[10px] border border-[#d3c6a4] bg-[#fbf8f2] text-[13px] text-[#33402f]"
+          className="mt-2 max-w-full min-w-0 py-[6px] px-2 rounded-[10px] border border-[var(--adm-line,#d3c6a4)] bg-[#fbf8f2] text-[13px] text-[var(--adm-ink,#33402f)]"
         >
           <option value="">Stage: worked out for me ({SEAT_STAGES.find((x) => x.key === st?.auto)?.label ?? 'Concept plan'})</option>
           {SEAT_STAGES.map((x) => (
@@ -87,7 +87,7 @@ export function SinceSave({ data, busy, onFill, onSeen, onShow }: { data: Seatin
         {xs.map((n, i) => (
           <span key={`${n}-${i}`}>
             {i ? ', ' : ''}
-            <button type="button" onClick={() => onShow(n)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+            <button type="button" onClick={() => onShow(n)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
               {n}
             </button>
           </span>
@@ -95,7 +95,7 @@ export function SinceSave({ data, busy, onFill, onSeen, onShow }: { data: Seatin
       </div>
     ) : null;
   return (
-    <section role="status" aria-label="Since your last save" className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f3ecd9] border border-[#d3c6a4] print:hidden">
+    <section role="status" aria-label="Since your last save" className="flex flex-col gap-2 p-3 rounded-[12px] bg-[#f3ecd9] border border-[var(--adm-line,#d3c6a4)] print:hidden">
       <div className="text-[14px]">
         <strong className="font-semibold">Since your last save:</strong> {line}. Nothing on the plan has been moved.
       </div>

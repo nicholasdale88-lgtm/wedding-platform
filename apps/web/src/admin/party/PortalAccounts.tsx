@@ -28,7 +28,7 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
   }, [wid]);
   useEffect(() => void load(), [load]);
   if (error) return <p role="alert" className="text-[#7a4a37]">{error}</p>;
-  if (!d) return <div aria-busy="true" className="text-[#5b6a52]">Loading sign-ins…</div>;
+  if (!d) return <div aria-busy="true" className="text-[var(--adm-muted,#5b6a52)]">Loading sign-ins…</div>;
 
   const run = async (fn: () => Promise<unknown>, done: string) => {
     try {
@@ -73,7 +73,7 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
     <section aria-label="Portal sign-ins" className="flex flex-col gap-3">
       <div>
         <H2>Portal sign-ins</H2>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52] max-w-[720px]">
+        <p className="m-0 mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)] max-w-[720px]">
           Give each member their own sign-in to the wedding party portal (email and password), and choose what they can see and do. Lost passwords: send them a reset link, or they can have one texted to the mobile on their invitation.
         </p>
         <span className="mt-2 inline-block">
@@ -89,7 +89,7 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
           Sign-in needed (private links alone won’t open it)
         </label>
       </div>
-      <ul className="list-none m-0 p-0 flex flex-col rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0]">
+      <ul className="list-none m-0 p-0 flex flex-col rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         {d.members.map((m) => {
           const a = m.account;
           const status = !a ? 'No sign-in yet' : a.status === 'active' ? `Signed up · ${a.email}${a.lastLogin ? ` · last in ${when(a.lastLogin)}` : ''}` : `Invited${a.inviteExpires ? ` (link good to ${when(a.inviteExpires)})` : ''}`;
@@ -122,15 +122,15 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
                 </span>
               </div>
               {msg && (
-                <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-white border border-[#e2d7bc] text-[13px]">
+                <div className="flex flex-col gap-2 p-3 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[13px]">
                   {shared!.emailed && <span className="font-semibold text-[#3d4a2f]">✓ Emailed to {shared!.emailed}. You can also share the link yourself:</span>}
-                  <span className="break-all select-all text-[#33402f]">{shared!.link}</span>
+                  <span className="break-all select-all text-[var(--adm-ink,#33402f)]">{shared!.link}</span>
                   <span className="flex gap-3 flex-wrap">
-                    <button type="button" onClick={() => void navigator.clipboard?.writeText(msg).then(() => toast('Copied, with a note for them'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+                    <button type="button" onClick={() => void navigator.clipboard?.writeText(msg).then(() => toast('Copied, with a note for them'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                       Copy with a note
                     </button>
                     {shared!.phone && (
-                      <a href={`sms:${shared!.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(msg)}`} className="!text-[#33402f]">
+                      <a href={`sms:${shared!.phone.replace(/[^\d+]/g, '')}?&body=${encodeURIComponent(msg)}`} className="!text-[var(--adm-ink,#33402f)]">
                         Text it from your phone
                       </a>
                     )}
@@ -141,15 +141,15 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
                 </div>
               )}
               {isOpen && (
-                <div className="flex flex-col gap-3 p-3 rounded-[12px] bg-white border border-[#e2d7bc]">
-                  <div className="flex gap-2 flex-wrap items-center text-[12px] text-[#5b6a52]">
+                <div className="flex flex-col gap-3 p-3 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)]">
+                  <div className="flex gap-2 flex-wrap items-center text-[12px] text-[var(--adm-muted,#5b6a52)]">
                     Start from:
                     {(Object.keys(PERM_PRESETS) as (keyof typeof PERM_PRESETS)[]).map((k) => (
                       <button
                         key={k}
                         type="button"
                         onClick={() => setPerms(m, Object.fromEntries(PARTY_PERMS.map((p) => [p, PERM_PRESETS[k].perms.includes(p)])) as Record<PartyPerm, boolean>)}
-                        className="py-[3px] px-3 rounded-full border border-[#c6b794] bg-transparent cursor-pointer text-[12px] text-[#33402f]"
+                        className="py-[3px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent cursor-pointer text-[12px] text-[var(--adm-ink,#33402f)]"
                       >
                         {PERM_PRESETS[k].label}
                       </button>
@@ -169,7 +169,7 @@ export function PortalAccounts({ couple, onChanged }: { couple: string; onChange
                   {a && (
                     <div className="flex gap-4 flex-wrap text-[13px] pt-1 border-t border-[#ece3cd]">
                       {a.status === 'active' && (
-                        <button type="button" onClick={() => void run(() => partyAccountsApi.signOut(wid, m.personId), `${first} is signed out everywhere`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#33402f]">
+                        <button type="button" onClick={() => void run(() => partyAccountsApi.signOut(wid, m.personId), `${first} is signed out everywhere`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">
                           Sign out everywhere
                         </button>
                       )}
@@ -200,7 +200,7 @@ function InviteButton({ m, onInvite, label, quiet }: { m: PortalMember; onInvite
   const [email, setEmail] = useState(m.account?.email ?? '');
   if (!asking)
     return quiet ? (
-      <button type="button" onClick={() => setAsking(true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+      <button type="button" onClick={() => setAsking(true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
         {label}
       </button>
     ) : (

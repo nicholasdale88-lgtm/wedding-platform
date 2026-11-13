@@ -78,11 +78,11 @@ export function LooksPanel() {
   const toggle = (list: string[], k: string) => (list.includes(k) ? list.filter((x) => x !== k) : [...list, k]);
 
   return (
-    <section aria-label="Frames and looks" className="flex flex-col gap-3 p-4 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
+    <section aria-label="Frames and looks" className="flex flex-col gap-3 p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div>
           <strong className="font-semibold text-[15px]">Frames and looks</strong>
-          <p className="m-0 mt-1 text-[13px] text-[#5b6a52]">
+          <p className="m-0 mt-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">
             Guests choose a frame and a look (golden hour, film, black and white…) for each photo or video. {shown.length} frames for {info.title} and {onLooks.length} looks on offer.
           </p>
         </div>
@@ -101,7 +101,7 @@ export function LooksPanel() {
                   role="radio"
                   aria-checked={at === i}
                   onClick={() => setAt(i)}
-                  className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${at === i ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#c6b794] text-[#33402f]'}`}
+                  className={`py-[5px] px-3 rounded-full border text-[13px] cursor-pointer ${at === i ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[var(--adm-line,#c6b794)] text-[var(--adm-ink,#33402f)]'}`}
                 >
                   {e.name}
                 </button>
@@ -112,7 +112,7 @@ export function LooksPanel() {
             {frames.map((f) => {
               const on = shown.includes(f);
               return (
-                <label key={f} className={`flex flex-col gap-1 p-2 rounded-[12px] border cursor-pointer ${on ? 'border-[#5d6b47] bg-white' : 'border-[#e2d7bc] opacity-60'}`}>
+                <label key={f} className={`flex flex-col gap-1 p-2 rounded-[12px] border cursor-pointer ${on ? 'border-[#5d6b47] bg-white' : 'border-[var(--adm-line,#e2d7bc)] opacity-60'}`}>
                   <FramePreview img={img} k={f} info={info} />
                   <span className="flex items-center gap-2 text-[13px]">
                     <input type="checkbox" checked={on} onChange={() => (on && shown.length === 1 ? toast('Keep at least one frame (guests can always choose none)') : void save({ ...all, frames: toggle(onFrames, f) }))} className="accent-[#5d6b47]" />
@@ -126,7 +126,7 @@ export function LooksPanel() {
             {LOOK_KEYS.filter((k) => k !== 'original').map((k) => {
               const on = onLooks.includes(k);
               return (
-                <label key={k} className={`flex flex-col gap-1 p-1 rounded-[10px] border cursor-pointer ${on ? 'border-[#5d6b47] bg-white' : 'border-[#e2d7bc] opacity-60'}`}>
+                <label key={k} className={`flex flex-col gap-1 p-1 rounded-[10px] border cursor-pointer ${on ? 'border-[#5d6b47] bg-white' : 'border-[var(--adm-line,#e2d7bc)] opacity-60'}`}>
                   <img src={SAMPLE} alt="" className="w-full aspect-square object-cover rounded-[8px]" style={{ filter: LOOKS[k].css }} />
                   <span className="flex items-center gap-1 text-[12px]">
                     <input type="checkbox" checked={on} onChange={() => void save({ ...all, looks: toggle(onLooks, k) })} className="accent-[#5d6b47]" />
@@ -138,7 +138,7 @@ export function LooksPanel() {
           </div>
           <label className="flex items-center gap-2 text-[14px]">
             Guests start on
-            <select value={def} onChange={(e) => void save({ ...all, def: e.target.value })} className="py-[6px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[14px]">
+            <select value={def} onChange={(e) => void save({ ...all, def: e.target.value })} className="py-[6px] px-3 rounded-[10px] border border-[var(--adm-line,#d3c6a4)] bg-white text-[14px]">
               {(['original', ...onLooks] as LookKey[]).map((k) => (
                 <option key={k} value={k}>
                   {LOOKS[k].label}

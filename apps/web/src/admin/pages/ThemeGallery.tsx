@@ -13,20 +13,20 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
   // A mood shows its themes (the one you've chosen always stays in view).
   const shown = THEME_NAMES.filter((n) => mood === 'All' || MOOD_OF[n] === mood || n === theme);
   const colour = (k: 'paper' | 'ink' | 'accent' | 'soft' | 'envelope', label: string) => (
-    <label className="flex items-center gap-2 text-[13px] text-[#5b6a52]">
+    <label className="flex items-center gap-2 text-[13px] text-[var(--adm-muted,#5b6a52)]">
       <input
         type="color"
         aria-label={label}
         value={isHex(custom[k]) ? custom[k] : p[k]}
         onChange={(e) => onCustom({ ...custom, [k]: e.target.value })}
-        className="w-9 h-9 p-0 border border-[#d3c6a4] rounded-[8px] bg-transparent cursor-pointer"
+        className="w-9 h-9 p-0 border border-[var(--adm-line,#d3c6a4)] rounded-[8px] bg-transparent cursor-pointer"
       />
       {label}
     </label>
   );
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-[13px] font-semibold text-[#33402f]">Theme</span>
+      <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Theme</span>
       <div role="group" aria-label="Moods" className="flex gap-[6px] flex-wrap">
         {['All', ...MOODS].map((m) => (
           <button
@@ -34,7 +34,7 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
             type="button"
             aria-pressed={mood === m}
             onClick={() => setMood(m)}
-            className={`px-3 py-[5px] rounded-full border text-[12px] cursor-pointer ${mood === m ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[#d3c6a4] text-[#33402f] hover:border-[#b39563]'}`}
+            className={`px-3 py-[5px] rounded-full border text-[12px] cursor-pointer ${mood === m ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[var(--adm-line,#d3c6a4)] text-[var(--adm-ink,#33402f)] hover:border-[#b39563]'}`}
           >
             {m}
             {m !== 'All' && <span className="opacity-70"> · {THEME_NAMES.filter((n) => MOOD_OF[n] === m).length}</span>}
@@ -52,7 +52,7 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
               role="radio"
               aria-checked={on}
               onClick={() => onTheme(name)}
-              className={`flex flex-col gap-1 p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[#e2d7bc] hover:border-[#b39563]'}`}
+              className={`flex flex-col gap-1 p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#e2d7bc)] hover:border-[#b39563]'}`}
               style={{ background: t.b1 ?? '#fff' }}
             >
               {/* A tiny invitation in the theme: the names in its ink, a gold rule, its soft tint. */}
@@ -71,8 +71,8 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
           );
         })}
       </div>
-      <span className="text-[13px] font-semibold text-[#33402f] pt-1">Look</span>
-      <span className="-mt-2 text-[12px] text-[#5b6a52]">The shape and style of the whole invitation. Your design comes with {LOOK_LABEL[lookOf(theme, custom)].name}; any look works with any colours.</span>
+      <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)] pt-1">Look</span>
+      <span className="-mt-2 text-[12px] text-[var(--adm-muted,#5b6a52)]">The shape and style of the whole invitation. Your design comes with {LOOK_LABEL[lookOf(theme, custom)].name}; any look works with any colours.</span>
       <div role="radiogroup" aria-label="Look" className="grid gap-2 grid-cols-2 sm:grid-cols-3">
         {LOOKS.map((k) => {
           const on = lookOf(theme, custom) === k;
@@ -83,20 +83,20 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
               role="radio"
               aria-checked={on}
               onClick={() => onCustom({ ...custom, look: k })}
-              className={`flex flex-col gap-[2px] p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f] bg-white' : 'border-[#e2d7bc] bg-[#fbf8f0] hover:border-[#b39563]'}`}
+              className={`flex flex-col gap-[2px] p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f] bg-white' : 'border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] hover:border-[#b39563]'}`}
             >
-              <span className="text-[14px] font-semibold text-[#33402f]">{LOOK_LABEL[k].name}</span>
-              <span className="text-[11px] text-[#5b6a52] leading-snug">{LOOK_LABEL[k].about}</span>
+              <span className="text-[14px] font-semibold text-[var(--adm-ink,#33402f)]">{LOOK_LABEL[k].name}</span>
+              <span className="text-[11px] text-[var(--adm-muted,#5b6a52)] leading-snug">{LOOK_LABEL[k].about}</span>
             </button>
           );
         })}
       </div>
       {!own ? (
-        <button type="button" onClick={() => setOwn(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#33402f]">
+        <button type="button" onClick={() => setOwn(true)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
           Make it yours: your own colours and names style
         </button>
       ) : (
-        <div className="flex flex-col gap-3 p-3 rounded-[12px] border border-[#e2d7bc] bg-[#fbf8f0]">
+        <div className="flex flex-col gap-3 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
           <div className="flex gap-4 flex-wrap">
             {colour('paper', 'Paper')}
             {colour('ink', 'Ink')}
@@ -112,7 +112,7 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
                 role="radio"
                 aria-checked={custom.names === k}
                 onClick={() => onCustom({ ...custom, names: k })}
-                className={`flex flex-col items-center gap-0 py-[6px] px-3 rounded-[12px] border cursor-pointer ${custom.names === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
+                className={`flex flex-col items-center gap-0 py-[6px] px-3 rounded-[12px] border cursor-pointer ${custom.names === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[var(--adm-line,#c6b794)]'}`}
               >
                 <span style={{ fontFamily: NAMES_STYLES[k].font, fontSize: k === 'caps' ? 14 : 22, letterSpacing: k === 'caps' ? '.2em' : undefined, textTransform: k === 'caps' ? 'uppercase' : undefined }}>A &amp; B</span>
                 <span className="text-[11px] opacity-80">{NAMES_STYLES[k].label}</span>
