@@ -293,7 +293,7 @@ describe('Overview', () => {
   it('every other page has a way back to its overview', async () => {
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/texts');
-    const back = await screen.findByRole('link', { name: /overview$/i });
+    const back = await screen.findByRole('link', { name: 'The wedding overview' });
     expect(back).toHaveAttribute('href', '/admin/w1/wedding/overview');
   });
 
@@ -305,7 +305,7 @@ describe('Overview', () => {
     expect(screen.getByRole('button', { name: /Coming\s*2\s*guests coming/ })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Replies' })).toHaveTextContent('67%');
     // The overview is the main page: no way "back" from it.
-    expect(screen.queryByRole('link', { name: /← .*overview/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'The wedding overview' })).toBeNull();
     const needs = screen.getByRole('region', { name: 'Needs you' });
     expect(within(needs).getByText('2 things to do')).toBeInTheDocument();
     expect(within(needs).getByText('1 invitation has no mobile')).toBeInTheDocument();
