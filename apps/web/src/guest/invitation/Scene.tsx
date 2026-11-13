@@ -1516,8 +1516,9 @@ export function SceneOverlay({
             bottom: `${bottom}%`,
             width: size,
             height: size * 1.25,
-            borderRadius: '42% 42% 34% 34%',
-            background: `radial-gradient(circle at 50% 62%, #fff7d6 0%, ${light(c.accent, 0.35)} 32%, ${c.accent} 62%, ${dark(c.accent, 0.35)} 100%)`,
+            borderRadius: '46% 46% 40% 40% / 50% 50% 44% 44%',
+            // A ribbed paper lantern: wire ribs across glowing paper, brighter round the flame, darker caps.
+            background: `linear-gradient(to bottom, ${dark(c.accent, 0.55)} 0 7%, transparent 7% 93%, ${dark(c.accent, 0.55)} 93%), repeating-linear-gradient(to bottom, rgba(90,50,10,.0) 0 9%, rgba(90,50,10,.28) 9% 10.2%), linear-gradient(to right, rgba(80,40,0,.35), rgba(80,40,0,0) 28%, rgba(80,40,0,0) 72%, rgba(80,40,0,.35)), radial-gradient(ellipse 55% 50% at 50% 60%, #fffbe8 0%, #ffe7a8 30%, ${light(c.accent, 0.25)} 62%, ${c.accent} 100%)`,
             boxShadow: `0 0 ${f1(size * 0.9)}px ${f1(size * 0.3)}px ${light(c.accent, 0.2)}88`,
             transform: open && !still ? `translate(${f1((rnd(i, 7) - 0.5) * 120)}px, -${f1(110 + rnd(i, 8) * 40)}vh) scale(.55)` : 'none',
             transition: still ? 'opacity .4s ease' : `transform ${f1(2.6 + rnd(i, 9) * 1.2)}s cubic-bezier(.45,0,.4,1) ${f1(rnd(i, 10) * 0.6)}s`,
