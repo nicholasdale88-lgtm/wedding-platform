@@ -28,7 +28,7 @@ describe('opening scenes', () => {
   });
 
   it('draws every scene with its art, the guest’s name and “Tap to open”, lets the tap through, and leaves once open', () => {
-    for (const kind of ['doors', 'barn', 'book', 'gates', 'beach', 'bow', 'curtain', 'lanterns', 'vellum', 'photo'] as const) {
+    for (const kind of ['doors', 'barn', 'book', 'gates', 'beach', 'bow', 'curtain', 'lanterns', 'vellum', 'photo', 'letter'] as const) {
       const { container, rerender, unmount } = render(<SceneOverlay kind={kind} phase={0} colours={colours} initials="H & T" guestName="Emma & Tom" />);
       const root = container.querySelector(`[data-scene="${kind}"]`) as HTMLElement;
       expect(root).toBeTruthy();

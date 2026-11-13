@@ -75,11 +75,10 @@ export const SIGNATURE: Record<string, Palette & { style: string; mood: string; 
   'Barn & Eucalyptus': { paper: '#f6f0e4', ink: '#3d3a2c', accent: '#a07b4f', soft: '#cdd6c0', envelope: '#8a6a4a', style: 'Rustic: barn doors roll apart', mood: 'Garden & rustic', scene: 'barn' },
   'Garden Gate': { paper: '#f9f7f0', ink: '#2f3a2c', accent: '#b39563', soft: '#dbe5cf', envelope: '#2f3632', style: 'Garden party: iron gates open onto the garden', mood: 'Garden & rustic', scene: 'gates' },
   Shoreline: { paper: '#fbf8f1', ink: '#234a5e', accent: '#d9b46a', soft: '#cfe6ec', envelope: '#e9dcc2', style: 'Beach: a wave washes over the sand', mood: 'Coastal & bright', scene: 'beach' },
-  'Satin Bow': { paper: '#f7f9fb', ink: '#2f3f5c', accent: '#aeb8c6', soft: '#d6e2ef', envelope: '#e3ebf4', style: 'Classic: a satin bow and pearl untie', mood: 'Classic', scene: 'bow' },
-  'Vellum & Gold': { paper: '#fbf8f1', ink: '#3b3426', accent: '#bf9b5a', soft: '#ece4d4', envelope: '#efe6d3', style: 'Fine stationery: frosted vellum sheets lift to a gilt card', mood: 'Classic', scene: 'vellum' },
+  'Satin Bow': { paper: '#fbf6f3', ink: '#4a1f2b', accent: '#c9a27a', soft: '#f1e3df', envelope: '#7a1f2e', style: 'Classic: a burgundy satin bow and pearl untie', mood: 'Classic', scene: 'bow' },
+  'Wisteria Season': { paper: '#fbf8f3', ink: '#353b5c', accent: '#c2a46a', soft: '#d3dfee', envelope: '#7d5f9e', style: 'Regency romance: a folded letter under wisteria, sealed in wax', mood: 'Romantic', scene: 'letter' },
   'Our Photograph': { paper: '#faf8f4', ink: '#2b2b2b', accent: '#a88a5c', soft: '#e6e0d6', envelope: '#e9e4da', style: 'Your own photo develops, then the invitation is drawn in', mood: 'Modern', scene: 'photo' },
-  'Opening Night': { paper: '#f7f3e8', ink: '#173a2e', accent: '#c6a35c', soft: '#cfe0d4', envelope: '#1f4a3a', style: 'Black tie: velvet curtains draw apart', mood: 'Moody & luxe', scene: 'curtain' },
-  'Curtain Call': { paper: '#fbf5ee', ink: '#3d1418', accent: '#d2a85a', soft: '#efd6cf', envelope: '#8e1b26', style: 'For theatre lovers: red velvet curtains part, footlights up, and the show begins', mood: 'Moody & luxe', scene: 'curtain' },
+  'Opening Night': { paper: '#fbf5ee', ink: '#3d1418', accent: '#d2a85a', soft: '#efd6cf', envelope: '#8e1b26', style: 'For theatre lovers: red velvet curtains part, footlights up, and the show begins', mood: 'Moody & luxe', scene: 'curtain' },
 };
 export const SIGNATURE_NAMES = Object.keys(SIGNATURE);
 /** The scene a wedding opens with: theirs if chosen, otherwise the design's own (none for most). */

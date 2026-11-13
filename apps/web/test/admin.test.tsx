@@ -290,6 +290,21 @@ describe('Overview', () => {
     expect(screen.getByRole('region', { name: 'Budget' })).toHaveTextContent('$5,000 paid · $12,000 committed · $30,000 budget');
   });
 
+  it('overview cards minimise and expand (remembered); the figures and Needs you always stay open', async () => {
+    localStorage.clear();
+    mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
+    renderAt('/admin/w1/wedding/overview');
+    const latest = await screen.findByRole('region', { name: 'Latest replies' });
+    expect(within(latest).getByText('Casey Lund')).toBeInTheDocument();
+    await userEvent.click(within(latest).getByRole('button', { name: /Latest replies/, expanded: true }));
+    expect(within(latest).queryByText('Casey Lund')).toBeNull();
+    expect(localStorage.getItem('wp.overview.fold.Latest replies')).toBe('1');
+    // The major items have no minimise button.
+    expect(within(screen.getByRole('region', { name: 'Needs you' })).queryByRole('button', { expanded: true })).toBeNull();
+    await userEvent.click(within(latest).getByRole('button', { name: /Latest replies/, expanded: false }));
+    expect(within(latest).getByText('Casey Lund')).toBeInTheDocument();
+  });
+
   it('every other page has a way back to its overview', async () => {
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/texts');

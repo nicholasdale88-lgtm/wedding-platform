@@ -204,7 +204,7 @@ function bowArt(c: string): string {
     `<defs>
       <linearGradient id='lg' x1='0' y1='-1' x2='.35' y2='.7'><stop offset='0' stop-color='${light(c, 0.35)}'/><stop offset='.22' stop-color='${dark(c, 0.06)}'/><stop offset='.34' stop-color='${light(c, 0.62)}'/><stop offset='.42' stop-color='${light(c, 0.12)}'/><stop offset='.62' stop-color='${c}'/><stop offset='.74' stop-color='${light(c, 0.38)}'/><stop offset='.86' stop-color='${dark(c, 0.1)}'/><stop offset='1' stop-color='${dark(c, 0.32)}'/></linearGradient>
       <filter id='soft2' x='-10%' y='-30%' width='120%' height='160%'><feGaussianBlur stdDeviation='3'/></filter>
-      <filter id='satTex' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='2 .3' numOctaves='1' seed='5' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .22 -.08' result='w'/><feComposite in='w' in2='SourceAlpha' operator='in' result='w2'/><feMerge><feMergeNode in='SourceGraphic'/><feMergeNode in='w2'/></feMerge></filter>
+      <filter id='satTex' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='2.4 .35' numOctaves='1' seed='5' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .1 -.045' result='w'/><feComposite in='w' in2='SourceAlpha' operator='in' result='w2'/><feMerge><feMergeNode in='SourceGraphic'/><feMergeNode in='w2'/></feMerge></filter>
       <radialGradient id='ins' cx='.3' cy='.55' r='.8'><stop offset='0' stop-color='${dark(c, 0.45)}'/><stop offset='.7' stop-color='${dark(c, 0.2)}'/><stop offset='1' stop-color='${c}'/></radialGradient>
       <linearGradient id='tg' x1='0' y1='0' x2='1' y2='.3'><stop offset='0' stop-color='${dark(c, 0.25)}'/><stop offset='.35' stop-color='${light(c, 0.45)}'/><stop offset='.65' stop-color='${c}'/><stop offset='1' stop-color='${dark(c, 0.3)}'/></linearGradient>
       <radialGradient id='kg' cx='.4' cy='.3' r='.75'><stop offset='0' stop-color='${light(c, 0.55)}'/><stop offset='.6' stop-color='${c}'/><stop offset='1' stop-color='${dark(c, 0.35)}'/></radialGradient>
@@ -226,7 +226,7 @@ function bowArt(c: string): string {
 
 /** Heavy silk paper: a fine weave, a soft moire (watered silk) and a broad sheen. No pattern to fight the bow. */
 function satinPaper(c: SceneColours): string {
-  const base = light(c.soft, 0.38);
+  const base = mix(light(c.soft, 0.38), c.paper, 0.35);
   return svgUrl(
     `<defs>${GRAIN('g', 1.6, 0.035)}
       <filter id='moire' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.004 .045' numOctaves='3' seed='12' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1.6 0 0 0 -.62'/></filter>
@@ -1100,6 +1100,88 @@ function vellumCardArt(c: SceneColours, initials: string): string {
   );
 }
 
+// ------------------------------------------------------------------------------------------------ a Regency letter
+
+/** Powder-blue watered silk, darker at the edges, for the letter to lie on. */
+function letterGround(c: SceneColours): string {
+  return svgUrl(
+    `<defs>
+      <filter id='lm' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.004 .05' numOctaves='3' seed='14' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1.5 0 0 0 -.6'/></filter>
+      <radialGradient id='lg2' cx='.5' cy='.45' r='.75'><stop offset='0' stop-color='${light(c.soft, 0.35)}'/><stop offset='.6' stop-color='${c.soft}'/><stop offset='1' stop-color='${mix(c.soft, c.ink, 0.35)}'/></radialGradient>
+    </defs>
+    <rect width='500' height='1000' fill='url(#lg2)'/>
+    <rect width='500' height='1000' filter='url(#lm)' opacity='.45'/>
+    <rect x='22' y='22' width='456' height='956' fill='none' stroke='${c.accent}' stroke-opacity='.55' stroke-width='1.4'/>
+    <rect x='30' y='30' width='440' height='940' fill='none' stroke='${c.accent}' stroke-opacity='.35' stroke-width='.7'/>`,
+    500,
+    1000,
+  );
+}
+
+/** Laid writing paper (one panel of the folded letter); `ink` adds lines of handwriting. */
+function letterPaper(c: SceneColours, part: 'top' | 'mid' | 'bottom'): string {
+  const shade = part === 'top' ? `<linearGradient id='ps' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.25'/><stop offset='1' stop-color='#000' stop-opacity='.12'/></linearGradient>` : part === 'bottom' ? `<linearGradient id='ps' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#000' stop-opacity='.1'/><stop offset='1' stop-color='#fff' stop-opacity='.15'/></linearGradient>` : `<linearGradient id='ps' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.2'/><stop offset='1' stop-color='#000' stop-opacity='.06'/></linearGradient>`;
+  return svgUrl(
+    `<defs>
+      <filter id='laid2' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.02 1' numOctaves='2' seed='6'/><feColorMatrix type='matrix' values='0 0 0 0 .45  0 0 0 0 .38  0 0 0 0 .3  0 0 0 .14 -.04'/></filter>
+      ${shade}
+    </defs>
+    <rect width='360' height='240' fill='${mix('#fbf6ec', c.paper, 0.4)}'/>
+    <rect width='360' height='240' filter='url(#laid2)'/>
+    <rect width='360' height='240' fill='url(#ps)'/>`,
+    360,
+    240,
+    'none',
+  );
+}
+
+/**
+ * Wisteria hanging from above: a twisting woody vine, pinnate leaves, and long racemes of small pea-flowers,
+ * deep violet at the top fading to pale lilac at the tip, each floret lit and shaded.
+ */
+function wisteriaArt(c: SceneColours): string {
+  const deep = mix(c.envelope, '#5b3f8c', 0.5);
+  const pale = light(mix(c.envelope, '#c9b6e4', 0.6), 0.35);
+  // A raceme: a tapering cone of pea-flowers, widest at the top, each floret two soft petals turned its own way.
+  const raceme = (x0: number, len: number, k: number) => {
+    let out = '';
+    const rows = Math.round(len / 6.5);
+    for (let i = rows - 1; i >= 0; i--) {
+      const t = i / rows;
+      const y = 36 + t * len;
+      const x = x0 + Math.sin(t * 2.2 + k) * 7 * t;
+      const spread = 15 * (1 - t * 0.78);
+      const r = 8.5 * (1 - t * 0.6);
+      const col = mix(deep, pale, Math.min(1, t * 1.15));
+      const per = t < 0.85 ? 3 : 2;
+      for (let j = 0; j < per; j++) {
+        const u = per === 1 ? 0 : j / (per - 1) - 0.5;
+        const fx = x + u * spread * 1.6 + (rnd(i * 7 + j + k * 50, 1) - 0.5) * 5;
+        const fy = y + (rnd(i * 7 + j + k * 50, 2) - 0.5) * 5;
+        const turn = u * 70 + (rnd(i + j, 3) - 0.5) * 50;
+        const tone = mix(col, j % 2 ? '#ffffff' : '#3a2a5a', 0.08 + rnd(i + j + k, 4) * 0.08);
+        out += `<g transform='translate(${f1(fx)} ${f1(fy)}) rotate(${f1(turn)})'><path d='M0 ${f1(-r)} C${f1(r * 0.9)} ${f1(-r * 0.9)} ${f1(r)} ${f1(r * 0.3)} 0 ${f1(r * 0.55)} C${f1(-r)} ${f1(r * 0.3)} ${f1(-r * 0.9)} ${f1(-r * 0.9)} 0 ${f1(-r)}Z' fill='${tone}'/><path d='M0 ${f1(-r * 0.2)} C${f1(r * 0.45)} ${f1(-r * 0.1)} ${f1(r * 0.4)} ${f1(r * 0.45)} 0 ${f1(r * 0.6)} C${f1(-r * 0.4)} ${f1(r * 0.45)} ${f1(-r * 0.45)} ${f1(-r * 0.1)} 0 ${f1(-r * 0.2)}Z' fill='${dark(tone, 0.22)}' fill-opacity='.7'/><ellipse cx='${f1(-r * 0.3)}' cy='${f1(-r * 0.45)}' rx='${f1(r * 0.28)}' ry='${f1(r * 0.18)}' fill='#fff' fill-opacity='.4'/></g>`;
+      }
+    }
+    return out;
+  };
+  const leaf = (x: number, y: number, a: number, k: number) =>
+    `<g transform='translate(${x} ${y}) rotate(${a})'><path d='M0 0 L0 70' stroke='#6f8452' stroke-width='1.2'/>${[10, 22, 34, 46, 58].map((d, i) => `<ellipse cx='${i % 2 ? 7 : -7}' cy='${d}' rx='6.5' ry='11' transform='rotate(${i % 2 ? -35 : 35} ${i % 2 ? 7 : -7} ${d})' fill='${['#93a86e', '#7f985c', '#a6b884'][(i + k) % 3]}'/>`).join('')}<ellipse cy='72' rx='5' ry='9' fill='#93a86e'/></g>`;
+  return svgUrl(
+    `<defs><filter id='wl' x='-10%' y='-5%' width='120%' height='115%'><feDropShadow dx='3' dy='7' stdDeviation='4' flood-color='#2a2440' flood-opacity='.35'/></filter></defs>
+    <g filter='url(#wl)'>
+      <path d='M-10 26 C60 10 120 44 190 22 S300 30 330 18' fill='none' stroke='#6b5443' stroke-width='9' stroke-linecap='round'/>
+      <path d='M-10 26 C60 10 120 44 190 22 S300 30 330 18' fill='none' stroke='#8c7360' stroke-width='3' stroke-linecap='round'/>
+      ${leaf(40, 20, -30, 1)}${leaf(150, 30, 20, 2)}${leaf(250, 22, -15, 3)}
+      ${raceme(40, 250, 1)}${raceme(105, 330, 2)}${raceme(170, 220, 3)}${raceme(232, 300, 4)}${raceme(292, 190, 5)}
+      ${leaf(110, 26, 40, 4)}${leaf(200, 26, -45, 5)}
+    </g>`,
+    320,
+    420,
+    'xMidYMin meet',
+  );
+}
+
 // ------------------------------------------------------------------------------------------------ their photograph
 
 /**
@@ -1126,7 +1208,7 @@ function photoMountArt(c: SceneColours): string {
 /** A scene's pictures, each a CSS background image (drawn once). */
 export function sceneArt(kind: Exclude<Scene, 'auto' | 'none'>, c: SceneColours, initials: string): Record<string, string> {
   if (kind === 'doors') return { door: doorArt(c), door2: doorArt(c, true), seal: sealArt(mix(c.soft, c.accent, 0.35), initials) };
-  if (kind === 'bow') return { paper: satinPaper(c), bow: bowArt(mix(c.soft, c.ink, 0.18)) };
+  if (kind === 'bow') return { paper: satinPaper(c), bow: bowArt(c.envelope) };
   if (kind === 'curtain') return { left: curtainArt(c, 1), right: curtainArt(c, -1), pelmet: pelmetArt(c, initials), stage: stageArt(c) };
   if (kind === 'barn') return { field: fieldArt(c), left: barnArt(c), right: barnArt(c, true), wreath: wreathArt(c, initials), lights: festoonArt() };
   if (kind === 'book') return { cover: bookArt(c, initials), page: pageArt(c) };
@@ -1134,12 +1216,13 @@ export function sceneArt(kind: Exclude<Scene, 'auto' | 'none'>, c: SceneColours,
   if (kind === 'beach') return { beach: beachArt(c, initials) };
   if (kind === 'vellum') return { card: vellumCardArt(c, initials), s0: vellumArt(c, 0), s1: vellumArt(c, 1), s2: vellumArt(c, 2) };
   if (kind === 'photo') return { mount: photoMountArt(c) };
+  if (kind === 'letter') return { ground: letterGround(c), top: letterPaper(c, 'top'), mid: letterPaper(c, 'mid'), bottom: letterPaper(c, 'bottom'), wisteria: wisteriaArt(c), seal: sealArt(c.envelope, initials) };
   return { night: nightArt(c) };
 }
 
 const LAYER: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' };
 /** Scenes on light paper (the name sits in the ink colour on a light scrim). */
-const light3: string[] = ['bow', 'book', 'beach'];
+const light3: string[] = ['bow', 'book', 'beach', 'letter'];
 
 /** Specks of light drifting up through an opening (each its own path and pace, the same every time). */
 function Motes({ colour, from = 0.5, n = 16 }: { colour: string; from?: number; n?: number }) {
@@ -1259,7 +1342,7 @@ export function SceneOverlay({
       </div>
     );
   } else if (kind === 'bow') {
-    const ribbon = mix(c.soft, c.ink, 0.18);
+    const ribbon = c.envelope;
     body = (
       <div style={{ ...LAYER, backgroundImage: art.paper, backgroundSize: 'cover', transform: open && !still ? 'translateY(-104%)' : 'none', transition: t(1.5, 1.05) }}>
         <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 58, marginLeft: -29, background: satin(ribbon), boxShadow: '0 0 14px rgba(0,0,0,.18)', transform: open && !still ? 'translateY(115%)' : 'none', opacity: open && !still ? 0 : 1, transition: still ? 'opacity .4s ease' : `transform 1.1s ${ease} .45s, opacity .5s ease 1s` }} />
@@ -1435,6 +1518,59 @@ export function SceneOverlay({
         <div style={sheet(0)} />
       </div>
     );
+  } else if (kind === 'letter') {
+    // A letter folded in three, lying on silk under wisteria. The seal breaks, the top fold lifts back, the
+    // bottom fold drops away, and the letter rises towards the guest as the wisteria lifts.
+    const go = open && !still;
+    const W = 'min(80cqw,48cqh,430px)';
+    const fold = (which: 'top' | 'bottom'): CSSProperties => ({
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      [which]: 0,
+      height: '34%',
+      backgroundImage: art[which],
+      backgroundSize: '100% 100%',
+      transformOrigin: which === 'top' ? 'top center' : 'bottom center',
+      transform: go ? `rotateX(${which === 'top' ? 172 : -172}deg)` : 'rotateX(0deg)',
+      transition: still ? 'opacity .4s ease' : `transform 1.25s cubic-bezier(.55,0,.25,1) ${which === 'top' ? 0.45 : 0.7}s`,
+      backfaceVisibility: 'hidden',
+      boxShadow: which === 'top' ? '0 6px 12px rgba(40,30,60,.18)' : '0 -6px 12px rgba(40,30,60,.14)',
+      zIndex: 2,
+    });
+    const sealHalf = (which: 'top' | 'bottom'): CSSProperties => ({
+      position: 'absolute',
+      left: '50%',
+      top: '34%',
+      width: 'min(24cqw,108px)',
+      aspectRatio: '1',
+      backgroundImage: art.seal,
+      backgroundSize: 'contain',
+      backgroundRepeat: 'no-repeat',
+      clipPath: which === 'top' ? 'inset(0 0 50% 0)' : 'inset(50% 0 0 0)',
+      transform: go ? `translate(-50%,-50%) translate(${which === 'top' ? -10 : 12}px, ${which === 'top' ? -30 : 40}px) rotate(${which === 'top' ? -14 : 12}deg)` : `translate(-50%,-50%) scale(${p === 1 ? 1.06 : 1})`,
+      opacity: go ? 0 : 1,
+      transition: 'transform .6s cubic-bezier(.4,0,.7,.2) .1s, opacity .4s ease .35s',
+      zIndex: 3,
+    });
+    body = (
+      <div style={{ ...LAYER, backgroundImage: art.ground, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+        <div style={{ position: 'absolute', left: '50%', top: '50%', width: W, aspectRatio: '360 / 520', transform: `translate(-50%,-48%) scale(${go ? 1.06 : 1})`, transition: 'transform 2.2s cubic-bezier(.3,0,.2,1) .4s', perspective: '1400px', filter: 'drop-shadow(0 26px 34px rgba(40,30,60,.28))' }}>
+          <div style={{ position: 'absolute', inset: 0, backgroundImage: art.mid, backgroundSize: '100% 100%' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '34%', height: '32%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 'min(9cqw,44px)', color: c.ink, opacity: go ? 0 : 1, transition: 'opacity .4s ease .3s', zIndex: 1 }}>
+            <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 'clamp(16px,7.4cqw,36px)', lineHeight: 1.1 }}>{guestName || 'For you'}</span>
+          </div>
+          <div style={fold('top')} />
+          <div style={fold('bottom')} />
+          <div style={sealHalf('top')} />
+          <div style={sealHalf('bottom')} />
+        </div>
+        {/* Wisteria from above, either side, lifting away as the letter opens. */}
+        <div style={{ position: 'absolute', top: '-2%', left: '-8%', width: '62%', aspectRatio: '320 / 420', backgroundImage: art.wisteria, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', transform: go ? 'translateY(-60%)' : 'none', transition: t(1.8, 0.6), animation: go || still ? undefined : 'ylBob 5s ease-in-out infinite', zIndex: 4 }} />
+        <div style={{ position: 'absolute', top: '-4%', right: '-8%', width: '58%', aspectRatio: '320 / 420', backgroundImage: art.wisteria, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', transform: go ? 'scaleX(-1) translateY(-60%)' : 'scaleX(-1)', transition: t(1.8, 0.7), zIndex: 4 }} />
+        {go && <Motes colour="#fff6e6" from={0.8} n={12} />}
+      </div>
+    );
   } else if (kind === 'photo') {
     // Their photograph, pale as if just printed, develops into full colour as the guest taps; then it is drawn
     // up and away like a print from its sleeve, and the invitation is there beneath it.
@@ -1590,7 +1726,8 @@ export function SceneOverlay({
           transition: 'opacity .5s ease',
         }}
       >
-        {guestName && <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 'clamp(16px,8cqw,40px)', lineHeight: 1.1 }}>{guestName}</span>}
+        {/* (The letter has their name written on it already.) */}
+        {guestName && kind !== 'letter' && <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 'clamp(16px,8cqw,40px)', lineHeight: 1.1 }}>{guestName}</span>}
         <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(12px,4.8cqw,19px)', letterSpacing: '.06em', animation: still ? undefined : 'ylHint 2.4s ease-in-out infinite' }}>Tap to open</span>
       </div>
     </div>

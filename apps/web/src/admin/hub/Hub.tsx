@@ -272,18 +272,57 @@ export function Kpis({ label, items }: { label: string; items: { label: string; 
   );
 }
 
+/** Whether a card is minimised, remembered on this device (so the overview stays the way you left it). */
+function useFolded(key: string): [boolean, (v: boolean) => void] {
+  const id = `wp.overview.fold.${key}`;
+  const [folded, setFolded] = useState(() => {
+    try {
+      return localStorage.getItem(id) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const set = (v: boolean) => {
+    setFolded(v);
+    try {
+      if (v) localStorage.setItem(id, '1');
+      else localStorage.removeItem(id);
+    } catch {
+      /* this visit only */
+    }
+  };
+  return [folded, set];
+}
+
+/**
+ * A dashboard card. It can be minimised to its title (and expanded again) with the chevron; the headline
+ * figures, quick actions and Needs you aren't cards, so they always stay open.
+ */
 export function Card({ title, action, children }: { title: string; action?: [string, () => void]; children: ReactNode }) {
+  const [folded, setFolded] = useFolded(title);
   return (
-    <section aria-label={title} className="flex flex-col gap-4 p-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0">
-      <div className="flex justify-between items-baseline gap-3">
-        <h2 className="m-0 font-display font-medium text-[24px]">{title}</h2>
-        {action && (
+    <section aria-label={title} className={`flex flex-col ${folded ? 'gap-0 py-3' : 'gap-4 py-5'} px-5 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] min-w-0 self-start w-full`}>
+      <div className="flex justify-between items-center gap-3">
+        <h2 className="m-0 min-w-0 font-display font-medium text-[24px]">
+          <button
+            type="button"
+            aria-expanded={!folded}
+            onClick={() => setFolded(!folded)}
+            className="flex items-center gap-2 p-0 border-0 bg-transparent text-left cursor-pointer min-w-0 max-w-full font-[inherit] text-[length:inherit] text-[var(--adm-ink,#33402f)]"
+          >
+            <span aria-hidden className={`flex-none inline-flex items-center justify-center w-7 h-7 rounded-full border border-[#d9cdb0] text-[12px] font-sans transition-transform ${folded ? '-rotate-90' : ''}`}>
+              ▾
+            </span>
+            <span className="truncate">{title}</span>
+          </button>
+        </h2>
+        {action && !folded && (
           <button type="button" onClick={action[1]} className="p-0 border-0 bg-transparent text-[13px] font-medium underline cursor-pointer text-[var(--adm-ink,#33402f)] whitespace-nowrap">
             {action[0]}
           </button>
         )}
       </div>
-      {children}
+      {!folded && children}
     </section>
   );
 }
