@@ -335,6 +335,34 @@ export function envelopeClose(paper = '#f7f2ea', wax = '#6e1a2b', initials = 'H 
   );
 }
 
+/**
+ * A tabletop of warm ivory paper with greenery round the edges and an empty middle (a section's backdrop):
+ * eucalyptus and baby's breath in the corners, a few petals, and window light.
+ */
+export function tableTop(w = 1400, h = 1000): string {
+  const props: [string, string][] = [
+    eucalyptus(-40, 150, 380, 18, 31, 1.1),
+    eucalyptus(-60, h - 120, 340, -28, 33),
+    eucalyptus(w + 40, 230, 380, 166, 35, 1.1),
+    eucalyptus(w + 50, h - 90, 330, 205, 37),
+    babysBreath(110, 70, 20, 41),
+    babysBreath(70, h - 260, -30, 43),
+    babysBreath(w - 120, 110, 160, 45),
+    babysBreath(w - 90, h - 230, 200, 47),
+    babysBreath(260, h - 40, -70, 49),
+  ];
+  return url(
+    `<rect width='${w}' height='${h}' fill='#f5ede3' filter='url(#paper)'/>
+    ${props.map((p) => `<g filter='url(#soft)' opacity='.26' transform='translate(5 9)'>${p[0]}</g>`).join('')}
+    ${props.map((p) => p[1]).join('')}
+    ${petal(230, 240, 20, 40)}${petal(w - 260, h - 200, 22, -30)}${petal(w - 210, h - 150, 16, 80)}${petal(180, h - 300, 15, 150)}
+    ${windowShadow(w + 80, -60, 1.4)}
+    <rect width='${w}' height='${h}' fill='url(#key)' opacity='.7'/>`,
+    w,
+    h,
+  );
+}
+
 /** A small wax seal alone with the initials (the admin's corner, by your names): champagne gold by default. */
 export function sealBadge(initials = 'H & T', wax = '#a8834a'): string {
   return url(seal(56, 54, 40, wax, initials.replace(/\s*&\s*/, ' & '), 3), 120, 120);

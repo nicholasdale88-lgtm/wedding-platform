@@ -22,6 +22,7 @@ import { envelopeClose, flatLay } from './Stills';
 import { HeroInvite } from './HeroInvite';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
+import { PaperVsPhone } from './PaperVsPhone';
 
 /**
  * The front page (/). Calm on purpose: one idea a section, few words, lots of room. The hero is the real
@@ -368,6 +369,9 @@ export function SalesPage() {
             </div>
           </div>
         </section>
+
+        {/* The same invitation on paper and on a phone, side by side, and what each is like to live with. */}
+        <PaperVsPhone ink={INK} soft={SOFT} gold={GOLD} serif={serif} script={script} fromPrice={fromPrice} />
 
         {/* The envelope and its seal, close up: what every guest opens first. */}
         <section aria-labelledby="scenes" className="py-16 md:py-20 px-4 overflow-hidden" style={{ background: `linear-gradient(180deg, ${BLUSH} 0%, ${PAPER} 100%)` }}>
