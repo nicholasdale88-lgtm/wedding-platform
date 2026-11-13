@@ -65,8 +65,7 @@ export function promoPrice(cents: number, promo: Promo | undefined, what: (typeo
   return { ok: true, cents: cents - off, off };
 }
 
-/** A referral or campaign source as kept on a sign-up: letters, numbers, dots, dashes, underscores. */
-export const cleanRef = (s: string | null | undefined) => (s ?? '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 60);
+// cleanRef (a referral or campaign source) lives in ./text, so the front page needn't load these schemas.
 
 /** What a couple tells us (Help → Tell us), and what we do about it (the company portal's Feedback). */
 export const FEEDBACK_KINDS = ['idea', 'problem', 'love'] as const;

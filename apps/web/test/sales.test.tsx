@@ -76,9 +76,10 @@ describe('front page', () => {
     expect(within(list).getByText(/Free, as often as you like/)).toBeInTheDocument();
   });
 
-  it('shows the Signature designs opening, each leading to its sample', () => {
+  it('shows the Signature designs opening, each leading to its sample', async () => {
     page();
-    const row = screen.getByRole('list', { name: 'Signature designs' });
+    // The showcase loads just after the page (its artwork is large).
+    const row = await screen.findByRole('list', { name: 'Signature designs' });
     const links = within(row).getAllByRole('link');
     expect(links.length).toBe(4);
     expect(links[0]).toHaveAttribute('href', '/demo?theme=Rosewood%20Doors');

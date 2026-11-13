@@ -57,36 +57,6 @@ const GRAIN = (id: string, freq = 0.9, alpha = 0.08) => `
 
 // ------------------------------------------------------------------------------------------------ flowers
 
-/** One petal pointing up from its base: broad, with a ruffled tip (three soft scallops). */
-const petal = (l: number, w: number) =>
-  `M0 0 C${f1(-w)} ${f1(-l * 0.25)} ${f1(-w * 1.05)} ${f1(-l * 0.82)} ${f1(-w * 0.55)} ${f1(-l * 0.96)} Q${f1(-w * 0.32)} ${f1(-l * 1.04)} ${f1(-w * 0.16)} ${f1(-l * 0.93)} Q0 ${f1(-l * 1.03)} ${f1(w * 0.16)} ${f1(-l * 0.93)} Q${f1(w * 0.32)} ${f1(-l * 1.04)} ${f1(w * 0.55)} ${f1(-l * 0.96)} C${f1(w * 1.05)} ${f1(-l * 0.82)} ${f1(w)} ${f1(-l * 0.25)} 0 0Z`;
-/** A petal's fine veins, fanning from its base. */
-const veins = (l: number, w: number) =>
-  [-0.5, -0.22, 0, 0.22, 0.5].map((k) => `<path d='M0 ${f1(-l * 0.08)} Q${f1(w * k * 0.6)} ${f1(-l * 0.5)} ${f1(w * k)} ${f1(-l * 0.86)}' fill='none' stroke='#fff' stroke-opacity='.22' stroke-width='.9'/>`).join('');
-/** A full bloom: rings of petals, each ring a little higher (more opaque), and a centre of stamens. */
-function bloom(cx: number, cy: number, r: number, turn = 0): string {
-  const rings = [
-    { n: 9, l: r, w: r * 0.42, o: 0.32 },
-    { n: 8, l: r * 0.8, w: r * 0.38, o: 0.34 },
-    { n: 7, l: r * 0.6, w: r * 0.32, o: 0.36 },
-    { n: 6, l: r * 0.4, w: r * 0.24, o: 0.4 },
-  ];
-  let out = '';
-  rings.forEach((ring, k) => {
-    for (let i = 0; i < ring.n; i++) {
-      const a = turn + (i * 360) / ring.n + k * 17;
-      const at = `translate(${f1(cx)} ${f1(cy)}) rotate(${f1(a)}) translate(0 ${f1(-r * 0.04)})`;
-      out += `<path d='${petal(ring.l, ring.w)}' fill='#fff' fill-opacity='${ring.o}' transform='${at}'/>`;
-      if (k < 2 && r > 40) out += `<g transform='${at}'>${veins(ring.l, ring.w)}</g>`;
-    }
-  });
-  for (let i = 0; i < 14; i++) {
-    const a = (i * 137.5 * Math.PI) / 180;
-    const d = r * 0.16 * Math.sqrt((i + 1) / 14);
-    out += `<circle cx='${f1(cx + Math.cos(a) * d)}' cy='${f1(cy + Math.sin(a) * d)}' r='${f1(r * 0.035)}' fill='#fff' fill-opacity='.7'/>`;
-  }
-  return out;
-}
 
 // ------------------------------------------------------------------------------------------------ doors
 
@@ -218,7 +188,10 @@ function bowArt(c: string): string {
   const loop = (flip: number) => `<g transform='scale(${flip} 1)'>
       <path d='M0 -6 C30 -84 168 -126 196 -54 C212 -12 182 40 124 36 C74 32 32 16 0 6Z' fill='url(#lg)'/>
       <path d='M16 -4 C52 -52 146 -84 168 -46 C178 -24 158 6 116 6 C76 6 44 4 16 -4Z' fill='url(#ins)'/>
-      <path d='M20 -14 C60 -76 160 -108 186 -56' fill='none' stroke='${light(c, 0.75)}' stroke-opacity='.85' stroke-width='4' stroke-linecap='round'/>
+      <path d='M20 -14 C60 -76 160 -108 186 -56' fill='none' stroke='${light(c, 0.8)}' stroke-opacity='.55' stroke-width='2' stroke-linecap='round'/>
+      <path d='M8 -2 C50 -30 110 -40 150 -30' fill='none' stroke='${dark(c, 0.3)}' stroke-opacity='.35' stroke-width='1.6' stroke-linecap='round'/>
+      <path d='M10 2 C54 -8 100 -6 132 14' fill='none' stroke='${dark(c, 0.3)}' stroke-opacity='.28' stroke-width='1.4' stroke-linecap='round'/>
+      <path d='M30 -30 C70 -70 130 -86 166 -66' fill='none' stroke='#fff' stroke-opacity='.35' stroke-width='6' stroke-linecap='round' filter='url(#soft2)'/>
       <path d='M118 34 C150 34 186 18 194 -18' fill='none' stroke='${dark(c, 0.35)}' stroke-opacity='.5' stroke-width='3' stroke-linecap='round'/>
       <path d='M0 -6 L26 -2 L0 6Z' fill='${dark(c, 0.4)}' fill-opacity='.55'/>
     </g>`;
@@ -229,37 +202,40 @@ function bowArt(c: string): string {
     </g>`;
   return svgUrl(
     `<defs>
-      <linearGradient id='lg' x1='0' y1='-1' x2='.35' y2='.7'><stop offset='0' stop-color='${light(c, 0.6)}'/><stop offset='.3' stop-color='${light(c, 0.15)}'/><stop offset='.55' stop-color='${light(c, 0.45)}'/><stop offset='.8' stop-color='${c}'/><stop offset='1' stop-color='${dark(c, 0.3)}'/></linearGradient>
+      <linearGradient id='lg' x1='0' y1='-1' x2='.35' y2='.7'><stop offset='0' stop-color='${light(c, 0.35)}'/><stop offset='.22' stop-color='${dark(c, 0.06)}'/><stop offset='.34' stop-color='${light(c, 0.62)}'/><stop offset='.42' stop-color='${light(c, 0.12)}'/><stop offset='.62' stop-color='${c}'/><stop offset='.74' stop-color='${light(c, 0.38)}'/><stop offset='.86' stop-color='${dark(c, 0.1)}'/><stop offset='1' stop-color='${dark(c, 0.32)}'/></linearGradient>
+      <filter id='soft2' x='-10%' y='-30%' width='120%' height='160%'><feGaussianBlur stdDeviation='3'/></filter>
+      <filter id='satTex' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='2 .3' numOctaves='1' seed='5' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .22 -.08' result='w'/><feComposite in='w' in2='SourceAlpha' operator='in' result='w2'/><feMerge><feMergeNode in='SourceGraphic'/><feMergeNode in='w2'/></feMerge></filter>
       <radialGradient id='ins' cx='.3' cy='.55' r='.8'><stop offset='0' stop-color='${dark(c, 0.45)}'/><stop offset='.7' stop-color='${dark(c, 0.2)}'/><stop offset='1' stop-color='${c}'/></radialGradient>
       <linearGradient id='tg' x1='0' y1='0' x2='1' y2='.3'><stop offset='0' stop-color='${dark(c, 0.25)}'/><stop offset='.35' stop-color='${light(c, 0.45)}'/><stop offset='.65' stop-color='${c}'/><stop offset='1' stop-color='${dark(c, 0.3)}'/></linearGradient>
       <radialGradient id='kg' cx='.4' cy='.3' r='.75'><stop offset='0' stop-color='${light(c, 0.55)}'/><stop offset='.6' stop-color='${c}'/><stop offset='1' stop-color='${dark(c, 0.35)}'/></radialGradient>
       <radialGradient id='pearl' cx='.36' cy='.32' r='.75'><stop offset='0' stop-color='#ffffff'/><stop offset='.45' stop-color='#f3efe8'/><stop offset='.85' stop-color='#c9c2b6'/><stop offset='1' stop-color='#a69f93'/></radialGradient>
       <filter id='bs' x='-30%' y='-30%' width='160%' height='160%'><feDropShadow dx='0' dy='10' stdDeviation='9' flood-color='#000' flood-opacity='.3'/></filter>
     </defs>
-    <g transform='translate(220 150)' filter='url(#bs)'>
+    <g transform='translate(220 150)' filter='url(#bs)'><g filter='url(#satTex)'>
       ${tail(-1)}${tail(1)}${loop(-1)}${loop(1)}
       <path d='M-28 -24 C-10 -32 10 -32 28 -24 C34 -6 34 10 26 26 C8 32 -8 32 -26 26 C-34 10 -34 -6 -28 -24Z' fill='url(#kg)'/>
       <path d='M-20 -18 C-6 -24 6 -24 20 -18' fill='none' stroke='${light(c, 0.7)}' stroke-opacity='.7' stroke-width='2'/>
       <circle cx='0' cy='0' r='16' fill='url(#pearl)'/>
       <ellipse cx='-5' cy='-6' rx='5' ry='3.4' fill='#fff' fill-opacity='.95'/>
-    </g>`,
+    </g></g>`,
     440,
     400,
     'xMidYMid meet',
   );
 }
 
-/** Satin paper with a faint pressed damask. */
+/** Heavy silk paper: a fine weave, a soft moire (watered silk) and a broad sheen. No pattern to fight the bow. */
 function satinPaper(c: SceneColours): string {
-  const base = light(c.soft, 0.35);
-  let damask = '';
-  for (let y = 0; y < 5; y++) for (let x = 0; x < 3; x++) damask += bloom(x * 220 + (y % 2) * 110, y * 240 + 60, 46, y * 11);
+  const base = light(c.soft, 0.38);
   return svgUrl(
-    `<defs>${RELIEF('d', 3, 0.9)}${GRAIN('g', 1.1, 0.05)}
-      <linearGradient id='sheen' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.35'/><stop offset='.4' stop-color='#fff' stop-opacity='0'/><stop offset='.62' stop-color='#fff' stop-opacity='.22'/><stop offset='1' stop-color='#000' stop-opacity='.08'/></linearGradient>
+    `<defs>${GRAIN('g', 1.6, 0.035)}
+      <filter id='moire' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.004 .045' numOctaves='3' seed='12' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  1.6 0 0 0 -.62'/></filter>
+      <filter id='weave' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='1.8 .25' numOctaves='1' seed='4' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .18 -.07'/></filter>
+      <linearGradient id='sheen' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.4'/><stop offset='.35' stop-color='#fff' stop-opacity='0'/><stop offset='.58' stop-color='#fff' stop-opacity='.24'/><stop offset='.7' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.1'/></linearGradient>
     </defs>
     <rect width='500' height='1000' fill='${base}'/>
-    <g filter='url(#d)'>${damask}</g>
+    <rect width='500' height='1000' filter='url(#moire)' opacity='.5'/>
+    <rect width='500' height='1000' filter='url(#weave)'/>
     <rect width='500' height='1000' fill='url(#sheen)'/>
     <rect width='500' height='1000' filter='url(#g)'/>`,
     500,

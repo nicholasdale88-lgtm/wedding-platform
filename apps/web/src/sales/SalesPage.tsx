@@ -1,6 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
   allows,
@@ -16,12 +16,10 @@ import {
   textCreditsForGuests,
   type Feature,
 } from '@wp/shared';
-import { api } from '../lib/api';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { TextThread } from './TextThread';
-import { SceneShowcase } from './SceneShowcase';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 
@@ -60,6 +58,9 @@ const TEXTS_LINE = 'Automatic text invitations and reminders (text credits extra
 /** Texts are never part of a plan: the most they cost a guest's mobile, all-in (13 credits at 8c, every text sent). */
 const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN);
 /** How sending invitations works, start to finish, with the one cost that isn't in a plan (text credits). */
+/** The opening scenes are big (their artwork is drawn in code): they load after the page has shown. */
+const SceneShowcase = lazy(() => import('./SceneShowcase').then((m) => ({ default: m.SceneShowcase })));
+
 const SEND_STEPS: { title: string; text: string; extra?: string }[] = [
   { title: 'Add your guests', text: 'Bring them in from your phone’s contacts or a spreadsheet, or type them in. Each household gets its own private invitation link.' },
   { title: 'Make the invitation yours', text: 'Choose a design and the opening, then your words, photos and music. Preview it exactly as a guest will see it.' },
@@ -257,10 +258,12 @@ export function SalesPage() {
                 Opened like a gift.
               </h2>
               <p className="m-0 text-[18px] leading-[1.55] max-w-[600px]" style={{ color: SOFT }}>
-                Regency doors that swing open, a fairytale storybook, rustic barn doors, garden gates, a wave across the sand. Every one drawn by us, in your colours, with your initials.
+                Lacquered doors in gold leaf, sheets of vellum lifting away, velvet curtains on a lit stage, a satin bow, a barn hung with eucalyptus, your own photograph. Every one drawn by us, in your colours, with your initials.
               </p>
             </div>
-            <SceneShowcase />
+            <Suspense fallback={<div aria-hidden className="min-h-[clamp(360px,62vw,560px)]" />}>
+              <SceneShowcase />
+            </Suspense>
             <div className="flex justify-center">
               <Link to="/designs" className="py-3 px-6 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
                 See every design
@@ -628,6 +631,8 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
     if (f.passcode.length < 8) return setProblem('Use at least 8 characters for your passcode.');
     setBusy(true);
     try {
+      // The full app's client (60 KB+) loads only when someone signs up, not with the front page.
+      const { api } = await import('../lib/api');
       const r = await api.signup({ ...f, guests: Math.max(0, Math.min(3000, Math.round(Number(f.guests) || 0))), plan, ref: savedRef() });
       // Their own invitation first (with their names), then "Make it yours" takes them into the admin.
       const slug = r.weddings.find((x) => x.id === r.weddingId)?.slug;
