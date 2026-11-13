@@ -87,18 +87,6 @@ function bloom(cx: number, cy: number, r: number, turn = 0): string {
   }
   return out;
 }
-/** A bud: three closed petals. */
-const bud = (cx: number, cy: number, r: number, a: number) =>
-  [-22, 22, 0].map((d, i) => `<path d='${petal(r, r * 0.42)}' fill='#fff' fill-opacity='${0.35 + i * 0.1}' transform='translate(${f1(cx)} ${f1(cy)}) rotate(${a + d})'/>`).join('');
-/** A leaf with a raised vein. */
-const leaf = (x: number, y: number, l: number, a: number) =>
-  `<g transform='translate(${f1(x)} ${f1(y)}) rotate(${f1(a)})'><path d='M0 0 Q${f1(l * 0.32)} ${f1(-l * 0.5)} 0 ${f1(-l)} Q${f1(-l * 0.32)} ${f1(-l * 0.5)} 0 0Z' fill='#fff' fill-opacity='.38'/><path d='M0 0 L0 ${f1(-l * 0.92)}' stroke='#fff' stroke-opacity='.4' stroke-width='2'/>${[0.25, 0.42, 0.58, 0.74]
-    .map((t) => `<path d='M0 ${f1(-l * t)} L${f1(l * 0.13)} ${f1(-l * (t + 0.1))} M0 ${f1(-l * t)} L${f1(-l * 0.13)} ${f1(-l * (t + 0.1))}' stroke='#fff' stroke-opacity='.25' stroke-width='1'/>`)
-    .join('')}</g>`;
-/** A stem with leaves along it. */
-function vine(d: string, leaves: [number, number, number, number][]) {
-  return `<path d='${d}' fill='none' stroke='#fff' stroke-opacity='.42' stroke-width='5' stroke-linecap='round'/>${leaves.map(([x, y, l, a]) => leaf(x, y, l, a)).join('')}`;
-}
 
 // ------------------------------------------------------------------------------------------------ doors
 
@@ -116,34 +104,6 @@ function doorArt(c: SceneColours, mirror = false): string {
     <path d='M50 942 V250 A100 100 0 0 1 250 250 V942 Z' fill='none' stroke='#fff' stroke-opacity='.55' stroke-width='7'/>
     <path d='M64 928 V252 A86 86 0 0 1 236 252 V928 Z' fill='none' stroke='#fff' stroke-opacity='.7' stroke-width='2'/>
     <path d='M50 960 H250' stroke='#fff' stroke-opacity='.45' stroke-width='4'/>
-    ${vine('M150 915 C118 840 186 780 146 690 S104 560 150 470', [
-      [130, 860, 52, -60],
-      [172, 800, 48, 55],
-      [122, 720, 44, -70],
-      [166, 640, 46, 40],
-      [126, 575, 40, -50],
-    ])}
-    ${vine('M92 915 C86 860 72 830 84 780', [
-      [88, 880, 34, -40],
-      [76, 820, 30, 30],
-    ])}
-    ${vine('M210 915 C220 870 236 840 224 790', [
-      [218, 880, 32, 45],
-      [232, 830, 30, -20],
-    ])}
-    ${bloom(150, 380, 84, 8)}
-    ${bloom(94, 690, 44, 30)}
-    ${bloom(210, 735, 38, 12)}
-    ${bud(198, 230, 26, 30)}
-    ${bud(104, 238, 23, -35)}
-    ${leaf(214, 450, 52, 120)}
-    ${leaf(86, 450, 50, -125)}
-    ${leaf(222, 310, 42, 70)}
-    ${leaf(78, 312, 40, -70)}
-    ${([[120, 520], [185, 560], [100, 610], [205, 655], [140, 770]] as [number, number][]).map(([x, y]) => `<circle cx='${x}' cy='${y}' r='4' fill='#fff' fill-opacity='.5'/><circle cx='${x + 7}' cy='${y - 5}' r='3' fill='#fff' fill-opacity='.45'/><circle cx='${x - 6}' cy='${y - 6}' r='2.6' fill='#fff' fill-opacity='.45'/>`).join('')}
-    ${bloom(150, 112, 30, 0)}
-    ${leaf(196, 116, 34, 95)}
-    ${leaf(104, 116, 34, -95)}
     ${Array.from({ length: 9 }, (_, i) => `<path d='M${f1(70 + i * 20)} 960 l10 -12 l10 12' fill='none' stroke='#fff' stroke-opacity='.4' stroke-width='2'/>`).join('')}`;
   // The brass keyhole plate, by the seam.
   const plate = `<g transform='translate(${mirror ? 34 : 266} 640)'>
@@ -169,6 +129,7 @@ function doorArt(c: SceneColours, mirror = false): string {
     <g transform='${flip}' fill='none' stroke='url(#gilt)'>
       <path d='M57 935 V251 A93 93 0 0 1 243 251 V935 Z' stroke-width='1.6' stroke-opacity='.9'/>
       <rect x='35' y='37' width='230' height='926' rx='2.5' stroke-width='1' stroke-opacity='.75'/>
+      ${giltBotanical()}
     </g>
     ${plate}
     <rect width='300' height='1000' filter='url(#g)'/>
@@ -178,6 +139,33 @@ function doorArt(c: SceneColours, mirror = false): string {
     300,
     1000,
   );
+}
+
+/**
+ * Fine gilt line work for the door's arch: one climbing stem with paired leaves, tendrils, small open
+ * blossoms and a crowning flower, all drawn as hairlines (no relief), so it reads as gold leaf on lacquer.
+ */
+function giltBotanical(): string {
+  const leafAt = (x: number, y: number, len: number, a: number) =>
+    `<g transform='translate(${x} ${y}) rotate(${a})'><path d='M0 0 Q${f1(len * 0.38)} ${f1(-len * 0.2)} ${len} 0 Q${f1(len * 0.38)} ${f1(len * 0.2)} 0 0Z' fill='#fff' fill-opacity='.04' stroke-width='1.1'/><path d='M2 0 H${f1(len * 0.82)}' stroke-width='.6' stroke-opacity='.7'/></g>`;
+  const blossom = (x: number, y: number, r: number, turn = 0) =>
+    `<g transform='translate(${x} ${y}) rotate(${turn})'>${[0, 72, 144, 216, 288].map((k) => `<ellipse cx='0' cy='${f1(-r * 0.55)}' rx='${f1(r * 0.32)}' ry='${f1(r * 0.55)}' transform='rotate(${k})' stroke-width='1'/>`).join('')}<circle r='${f1(r * 0.16)}' fill='url(#gilt)' stroke='none'/>${[0, 72, 144, 216, 288].map((k) => `<path d='M0 0 L0 ${f1(-r * 0.32)}' transform='rotate(${k + 36})' stroke-width='.5' stroke-opacity='.8'/>`).join('')}</g>`;
+  const curl = (x: number, y: number, k: number) => `<path d='M${x} ${y} c${8 * k} -6 ${14 * k} -2 ${12 * k} 6 c${-2 * k} 6 ${-9 * k} 6 ${-9 * k} 1' stroke-width='.8'/>`;
+  return `
+    <path d='M150 918 C128 860 170 812 150 752 C132 700 168 650 150 592 C134 540 166 488 150 432 C138 392 158 352 150 318' stroke-width='1.5'/>
+    ${leafAt(150, 860, 34, -38)}${leafAt(150, 846, 30, 210)}
+    ${leafAt(152, 770, 32, -30)}${leafAt(148, 742, 30, 204)}
+    ${leafAt(152, 668, 30, -34)}${leafAt(148, 640, 28, 206)}
+    ${leafAt(152, 560, 28, -30)}${leafAt(148, 532, 26, 208)}
+    ${leafAt(152, 462, 24, -36)}${leafAt(148, 436, 22, 210)}
+    ${curl(156, 806, 1)}${curl(144, 702, -1)}${curl(157, 606, 1)}${curl(143, 500, -1)}
+    <path d='M150 640 C176 628 196 600 196 572' stroke-width='1'/>${blossom(196, 560, 22, 10)}
+    <path d='M150 742 C122 734 104 712 102 688' stroke-width='1'/>${blossom(102, 676, 20, -12)}
+    <path d='M150 532 C126 520 112 498 112 474' stroke-width='1'/>${blossom(112, 462, 16, 20)}
+    <path d='M150 846 C176 842 192 826 196 806' stroke-width='1'/>${blossom(198, 796, 14, 4)}
+    ${blossom(150, 300, 30, 0)}
+    ${leafAt(150, 318, 26, -150)}${leafAt(150, 318, 26, -30)}
+    <path d='M96 930 Q150 900 204 930' stroke-width='.8' stroke-opacity='.8'/>`;
 }
 
 /** A wax seal pressed with their initials: an uneven rim with drips, a beaded ring, a sprig either side, and a gloss. */
@@ -661,6 +649,89 @@ function beachArt(c: SceneColours, initials: string): string {
   );
 }
 
+// ------------------------------------------------------------------------------------------------ vellum
+
+/** A sheet of vellum: frosted, with a torn (deckled) edge and something printed faintly on it. */
+function vellumArt(c: SceneColours, k: number): string {
+  // The deckled edge: a ragged outline, the same every time.
+  const edge = Array.from({ length: 64 }, (_, i) => {
+    const side = Math.floor(i / 16);
+    const t = (i % 16) / 16;
+    const j = (rnd(i + k * 70, 31) - 0.5) * 5;
+    if (side === 0) return `${f1(8 + t * 284)},${f1(8 + j)}`;
+    if (side === 1) return `${f1(292 + j)},${f1(8 + t * 584)}`;
+    if (side === 2) return `${f1(292 - t * 284)},${f1(592 + j)}`;
+    return `${f1(8 + j)},${f1(592 - t * 584)}`;
+  }).join(' ');
+  const ink = mix(c.accent, c.ink, 0.25);
+  const print = [
+    // The top sheet: a fine botanical sprig in the corner and the guest's name.
+    `<g fill='none' stroke='${ink}' stroke-opacity='.5' stroke-width='1'>
+      <path d='M232 70 C214 92 214 120 228 146'/><path d='M232 70 C252 86 262 108 258 132'/>
+      ${[0, 1, 2, 3].map((n) => `<ellipse cx='${226 + n * 6}' cy='${92 + n * 14}' rx='9' ry='3.6' transform='rotate(${-40 + n * 22} ${226 + n * 6} ${92 + n * 14})'/>`).join('')}
+    </g>
+    <path d='M120 470 H180' stroke='${ink}' stroke-opacity='.35' stroke-width='.8'/><circle cx='150' cy='470' r='2' fill='${ink}' fill-opacity='.4'/>`,
+    // The middle sheet: a ring of tiny dots around a blank centre.
+    `<g fill='${ink}' fill-opacity='.35'>${Array.from({ length: 60 }, (_, i) => `<circle cx='${f1(150 + Math.cos((i / 60) * Math.PI * 2) * 96)}' cy='${f1(300 + Math.sin((i / 60) * Math.PI * 2) * 96)}' r='1.3'/>`).join('')}</g>`,
+    // The last sheet: a fine oval frame with a leaf at its crown.
+    `<g fill='none' stroke='${ink}' stroke-opacity='.3'><ellipse cx='150' cy='300' rx='118' ry='176' stroke-width='.9'/><ellipse cx='150' cy='300' rx='112' ry='170' stroke-width='.5'/><path d='M150 118 q-10 -14 0 -26 q10 12 0 26z' stroke-width='.9'/></g>`,
+  ][k] ?? '';
+  return svgUrl(
+    `<defs>
+      <linearGradient id='vs' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.5'/><stop offset='.5' stop-color='#fff' stop-opacity='.3'/><stop offset='1' stop-color='${light(c.soft, 0.4)}' stop-opacity='.42'/></linearGradient>
+      <clipPath id='ve'><polygon points='${edge}'/></clipPath>
+    </defs>
+    <g clip-path='url(#ve)'>
+      <rect width='300' height='600' fill='url(#vs)'/>
+      ${print}
+    </g>
+    <polygon points='${edge}' fill='none' stroke='#fff' stroke-opacity='.8' stroke-width='1.2'/>`,
+    300,
+    600,
+    'xMidYMid meet',
+  );
+}
+
+/** The card under the vellum: heavy cotton paper with a gilt border and their initials in gold. */
+function vellumCardArt(c: SceneColours, initials: string): string {
+  const gold = c.accent;
+  return svgUrl(
+    `<defs>${GRAIN('cg', 0.85, 0.04)}
+      <linearGradient id='gl' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='${light(gold, 0.5)}'/><stop offset='.4' stop-color='${gold}'/><stop offset='.6' stop-color='${light(gold, 0.35)}'/><stop offset='1' stop-color='${dark(gold, 0.3)}'/></linearGradient>
+    </defs>
+    <rect width='300' height='600' fill='${light(c.paper, 0.3)}'/>
+    <rect width='300' height='600' filter='url(#cg)'/>
+    <rect x='18' y='18' width='264' height='564' fill='none' stroke='url(#gl)' stroke-width='1.4'/>
+    <rect x='24' y='24' width='252' height='552' fill='none' stroke='url(#gl)' stroke-width='.6'/>
+    <text x='150' y='318' text-anchor='middle' font-family='Georgia, serif' font-style='italic' font-size='58' fill='url(#gl)'>${initials.replace(/&/g, '&amp;').replace(/</g, '')}</text>
+    <path d='M108 344 H192' stroke='url(#gl)' stroke-width='1'/>`,
+    300,
+    600,
+    'xMidYMid meet',
+  );
+}
+
+// ------------------------------------------------------------------------------------------------ their photograph
+
+/**
+ * The mount for their photograph: a linen table and a print with a soft white border. With no photo yet,
+ * the print holds their initials, so the opening still looks finished.
+ */
+function photoMountArt(c: SceneColours): string {
+  const linen = mix(c.ink, '#1b1a18', 0.55);
+  return svgUrl(
+    `<defs>
+      <filter id='ln' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.9 .06' numOctaves='2' seed='4'/><feColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .1 -.02'/></filter>
+      <radialGradient id='lt' cx='.35' cy='.25' r='.9'><stop offset='0' stop-color='#fff' stop-opacity='.12'/><stop offset='1' stop-color='#000' stop-opacity='.35'/></radialGradient>
+    </defs>
+    <rect width='300' height='600' fill='${linen}'/>
+    <rect width='300' height='600' filter='url(#ln)'/>
+    <rect width='300' height='600' fill='url(#lt)'/>`,
+    300,
+    600,
+  );
+}
+
 // ------------------------------------------------------------------------------------------------ the scene
 
 /** A scene's pictures, each a CSS background image (drawn once). */
@@ -672,6 +743,8 @@ export function sceneArt(kind: Exclude<Scene, 'auto' | 'none'>, c: SceneColours,
   if (kind === 'book') return { cover: bookArt(c, initials), page: pageArt(c) };
   if (kind === 'gates') return { garden: gardenArt(c), left: gateArt(c, initials), right: gateArt(c, initials, true) };
   if (kind === 'beach') return { beach: beachArt(c, initials) };
+  if (kind === 'vellum') return { card: vellumCardArt(c, initials), s0: vellumArt(c, 0), s1: vellumArt(c, 1), s2: vellumArt(c, 2) };
+  if (kind === 'photo') return { mount: photoMountArt(c) };
   return { night: nightArt(c) };
 }
 
@@ -708,7 +781,24 @@ function Motes({ colour, from = 0.5, n = 16 }: { colour: string; from?: number; 
   );
 }
 
-export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, contained = false }: { kind: Exclude<Scene, 'auto' | 'none'>; phase: number; colours: SceneColours; initials: string; guestName: string; contained?: boolean }) {
+export function SceneOverlay({
+  kind,
+  phase: p,
+  colours: c,
+  initials,
+  guestName,
+  photo,
+  contained = false,
+}: {
+  kind: Exclude<Scene, 'auto' | 'none'>;
+  phase: number;
+  colours: SceneColours;
+  initials: string;
+  guestName: string;
+  /** Their photograph (the photo scene; Setup → Extras → Photo). */
+  photo?: string;
+  contained?: boolean;
+}) {
   const still = useMemo(() => prefersLessMotion(), []);
   // Drawn once for these colours (the page re-renders as it opens; new pictures would be decoded again).
   const art = useMemo(() => sceneArt(kind, c, initials), [kind, c.paper, c.ink, c.accent, c.soft, c.envelope, initials]);
@@ -909,6 +999,79 @@ export function SceneOverlay({ kind, phase: p, colours: c, initials, guestName, 
         <div style={{ ...LAYER, backgroundImage: art.garden, backgroundSize: 'cover', backgroundPosition: 'center', transform: open && !still ? 'scale(1.3)' : 'scale(1)', transition: t(2.6, 0.5) }} />
         <div style={gate('left')} />
         <div style={gate('right')} />
+      </div>
+    );
+  } else if (kind === 'vellum') {
+    // Three sheets of vellum over a gilt card: each lifts from its top corner in turn, light catching it as it goes.
+    const sheet = (k: number): CSSProperties => ({
+      position: 'absolute',
+      left: '50%',
+      top: '47%',
+      width: 'min(78cqw,46cqh,420px)',
+      aspectRatio: '300 / 600',
+      transform: open && !still ? `translate(-50%,-50%) translate(${-30 - k * 6}cqw, -16cqh) rotate(${-24 - k * 6}deg)` : `translate(-50%,-50%) rotate(${(k - 1) * 1.2}deg)`,
+      transformOrigin: '0% 0%',
+      opacity: open && !still ? 0 : 1,
+      backgroundImage: art[`s${k}`],
+      backgroundSize: 'contain',
+      backgroundRepeat: 'no-repeat',
+      filter: 'drop-shadow(0 10px 18px rgba(0,0,0,.12))',
+      transition: still ? 'opacity .4s ease' : `transform 1.3s cubic-bezier(.5,0,.25,1) ${0.15 + (2 - k) * 0.32}s, opacity .6s ease ${0.8 + (2 - k) * 0.32}s`,
+      willChange: 'transform',
+    });
+    body = (
+      <div style={{ ...LAYER, background: `radial-gradient(ellipse at 40% 30%, ${mix(c.soft, c.paper, 0.3)}, ${mix(c.soft, c.ink, 0.22)} 62%, ${mix(c.soft, c.ink, 0.45)})` }}>
+        <div style={{ position: 'absolute', left: '50%', top: '47%', width: 'min(78cqw,46cqh,420px)', aspectRatio: '300 / 600', transform: `translate(-50%,-50%) scale(${open && !still ? 1.04 : 1})`, transition: 'transform 2.2s cubic-bezier(.3,0,.2,1) .2s', backgroundImage: art.card, backgroundSize: 'contain', backgroundRepeat: 'no-repeat', filter: 'drop-shadow(0 18px 30px rgba(0,0,0,.18))' }} />
+        {/* A soft band of light that sweeps across as the sheets lift. */}
+        <div style={{ ...LAYER, background: 'linear-gradient(115deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.55) 50%, rgba(255,255,255,0) 65%)', backgroundSize: '250% 100%', backgroundPosition: open && !still ? '0% 0' : '100% 0', transition: 'background-position 2s ease .15s' }} />
+        <div style={sheet(2)} />
+        <div style={sheet(1)} />
+        <div style={sheet(0)} />
+      </div>
+    );
+  } else if (kind === 'photo') {
+    // Their photograph, pale as if just printed, develops into full colour as the guest taps; then it is drawn
+    // up and away like a print from its sleeve, and the invitation is there beneath it.
+    const src = photo && /^(https:\/\/|\/|data:image\/(jpeg|png|webp);base64,)/.test(photo) ? photo : '';
+    const developed = open && !still;
+    body = (
+      <div style={LAYER}>
+        <div style={{ ...LAYER, backgroundImage: art.mount, backgroundSize: 'cover', opacity: developed ? 0 : 1, transition: still ? 'opacity .4s ease' : 'opacity .3s ease 1.55s' }} />
+        <div
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '46%',
+            width: developed ? '100cqw' : 'min(78cqw,420px)',
+            height: developed ? '100cqh' : 'min(98cqw,58cqh)',
+            transform: developed ? 'translate(-50%,-46%) rotate(0deg) translateY(-104%)' : `translate(-50%,-50%) rotate(-2.2deg) scale(${p === 1 ? 1.02 : 1})`,
+            padding: developed ? 0 : 'min(3.4cqw,16px) min(3.4cqw,16px) min(13cqw,64px)',
+            background: '#f7f4ee',
+            boxShadow: '0 22px 50px rgba(0,0,0,.45), 0 3px 8px rgba(0,0,0,.3)',
+            transition: still ? 'opacity .4s ease' : 'width .8s cubic-bezier(.5,0,.2,1) .85s, height .8s cubic-bezier(.5,0,.2,1) .85s, padding .8s ease .85s, transform .75s cubic-bezier(.6,0,.3,1) 1.65s',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundImage: src ? `url("${src.replace(/["\\\n\r]/g, '')}")` : `linear-gradient(160deg, ${light(c.soft, 0.25)}, ${mix(c.soft, c.accent, 0.35)})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: dark(c.accent, 0.2),
+              fontFamily: "'Pinyon Script', cursive",
+              fontSize: 'clamp(28px,14cqw,64px)',
+              // Undeveloped: milky and soft; it clears to full colour after the tap.
+              filter: developed ? 'none' : 'grayscale(.8) sepia(.3) brightness(1.6) contrast(.45) blur(1.5px)',
+              transition: 'filter 1.2s ease .1s',
+            }}
+          >
+            {!src && initials}
+          </div>
+        </div>
       </div>
     );
   } else if (kind === 'beach') {

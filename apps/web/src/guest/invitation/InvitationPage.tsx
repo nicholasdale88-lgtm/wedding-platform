@@ -108,6 +108,7 @@ function Loaded({ slug, data: saved, preview, welcome = false, editing = false }
           colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
           initials={`${data.wedding.name1.trim()[0] ?? ''} & ${data.wedding.name2.trim()[0] ?? ''}`}
           guestName={guestName}
+          photo={data.content.images?.backdrop}
         />
       )}
       {scene === 'none' && <EnvelopeExtras

@@ -443,7 +443,7 @@ export const MOTION_LABEL: Record<Motion, string> = {
  * Opening scenes: the whole screen is a scene the guest opens with a tap, in place of the envelope (our own
  * artwork: guest/invitation/Scene.tsx). 'auto' is the design's own (the Signature designs have one).
  */
-export const SCENES = ['auto', 'none', 'doors', 'barn', 'book', 'gates', 'beach', 'bow', 'curtain', 'lanterns'] as const;
+export const SCENES = ['auto', 'none', 'doors', 'barn', 'book', 'gates', 'beach', 'bow', 'curtain', 'lanterns', 'vellum', 'photo'] as const;
 export type Scene = (typeof SCENES)[number];
 export const SCENE_INFO: Record<Scene, { label: string; hint: string }> = {
   auto: { label: 'The design’s own', hint: 'The scene that comes with the design (the envelope when it has none)' },
@@ -456,6 +456,8 @@ export const SCENE_INFO: Record<Scene, { label: string; hint: string }> = {
   gates: { label: 'Garden gates', hint: 'Iron garden gates swing open onto a sunny garden' },
   beach: { label: 'Beach', hint: 'A wave washes over your initials in the sand' },
   lanterns: { label: 'Evening lanterns', hint: 'Lanterns rise over a garden at night (for an evening wedding)' },
+  vellum: { label: 'Vellum & gold', hint: 'Sheets of frosted vellum lift away one by one to a gilt card' },
+  photo: { label: 'Your photograph', hint: 'Your photo develops from pale to full colour, then lifts away to the invitation (uses the photo in Extras → Photo)' },
 };
 
 export const OPENINGS = ['classic', 'crack', 'stamp', 'gatefold', 'slide', 'letterpress', 'ribbon', 'petals', 'confetti', 'golddust', 'stars'] as const;

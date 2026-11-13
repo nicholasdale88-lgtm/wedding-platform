@@ -80,6 +80,7 @@ export function SampleInvitation({ theme }: { theme?: string } = {}) {
           colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: th.e1 ?? '#e6dcc4' }}
           initials="H & T"
           guestName={SAMPLE.guests}
+          photo={data.content.images?.backdrop}
         />
       )}
     </>

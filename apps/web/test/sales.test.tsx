@@ -80,9 +80,9 @@ describe('front page', () => {
     page();
     const row = screen.getByRole('list', { name: 'Signature designs' });
     const links = within(row).getAllByRole('link');
-    expect(links.length).toBe(3);
+    expect(links.length).toBe(4);
     expect(links[0]).toHaveAttribute('href', '/demo?theme=Rosewood%20Doors');
-    expect(row.querySelectorAll('[data-scene]').length).toBe(3);
+    expect(row.querySelectorAll('[data-scene]').length).toBe(4);
   });
 
   it('shows how sending works, step by step, with text credits bought separately', () => {
