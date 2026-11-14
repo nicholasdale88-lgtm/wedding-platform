@@ -846,7 +846,8 @@ export interface InsightsData {
   /** Each message: sent, arrived, failed, and guests who replied within three days of it. */
   byMessage: { name: string; sent: number; delivered: number; failed: number; replied: number }[];
   catering: { people: number; withNeeds: number; diets: [string, number][]; mains: [string, number][] };
-  seating: { tables: number; seats: number; seated: number };
+  /** seated of people: guests who can be seated (as the Seating page counts them); seats: chairs at the tables. */
+  seating: { tables: number; seats: number; seated: number; people: number };
   shuttles: { runs: number; capacity: number; booked: number };
   rsvpClose: string;
   /** Still to reply to the wedding: when they opened it (null: not yet), whether they can be texted, the last text. */
