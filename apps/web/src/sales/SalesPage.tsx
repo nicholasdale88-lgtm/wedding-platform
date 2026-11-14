@@ -218,12 +218,11 @@ const VS_USUAL: { what: string; usual: string; ours: string }[] = [
 ];
 
 const FAQ: [string, string][] = [
-  ['Is it a subscription?', 'No. Set everything up first, then pay once for your wedding when you’re ready to send your invitations. Nothing renews.'],
+  ['Is it a subscription?', 'No. Set everything up first, then pay once for your wedding when you’re ready to send your invitations. Nothing renews. Move to a bigger plan any time: everything stays, and you only pay the difference.'],
   [
     'Are text messages included?',
     `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (GST included, no other fees), and you see the total before you pay.`,
   ],
-  ['Can we move to a bigger plan later?', 'Yes. Everything you’ve set up stays, and you only pay the difference.'],
   [
     'Where are our photos kept?',
     'In your own Google Drive, Dropbox or OneDrive. You connect it once, and guests’ photos, videos and your daily backups go straight into a folder there: yours to keep for good, with no storage limit from us. A wedding usually needs 1 to 3 GB free in that account.',
