@@ -25,6 +25,10 @@ export const CONNECTION_KEYS = [
   'AWS_SES_REGION',
   'MM_USER',
   'MM_PASS',
+  'META_ADS_TOKEN',
+  'META_AD_ACCOUNT_ID',
+  'META_PAGE_ID',
+  'META_IG_USER_ID',
 ] as const;
 
 /** Settings picked from a list, not secrets: their values are shown in the portal, and only these values are kept. */

@@ -1,3 +1,4 @@
+import type { AdDraft, AdsSettings, AdsState } from '@wp/shared';
 import type { CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
@@ -1103,7 +1104,16 @@ export interface CompanyMoney {
 export interface CompanyTodo { id: string; text: string; link: string; group: string; done: boolean; doneAt: string; doneBy: string }
 export interface CompanyActivity { id: string; action: string; target: string; detail: string; at: string; who: string; names: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
+/** The Ads bot (Promote → Ads). */
+export type CompanyAds = AdsState & { images: { id: string; file: string; label: string }[]; connected: boolean; missing: string[]; canSpend: boolean };
 export const companyApi = {
+  /** The Ads bot: drafts, approval (owners and managers only), pause, stop, caps, check now. */
+  ads: () => request<CompanyAds>('/a/company/ads'),
+  saveAdDraft: (d: AdDraft) => send<{ ok: true }>('POST', '/a/company/ads/drafts', d),
+  removeAdDraft: (id: string) => send<{ ok: true }>('DELETE', `/a/company/ads/drafts/${encodeURIComponent(id)}`),
+  adAction: (id: string, what: 'approve' | 'pause' | 'resume') => send<{ ok: true }>('POST', `/a/company/ads/${encodeURIComponent(id)}/${what}`, {}),
+  adsAll: (what: 'stop-all' | 'start-all' | 'run') => send<{ ok: true; changed?: string[] }>('POST', `/a/company/ads/${what}`, {}),
+  saveAdsSettings: (s: AdsSettings) => send<{ ok: true }>('PUT', '/a/company/ads/settings', s),
   stats: () => request<CompanyStats>('/a/company/stats'),
   /** The portal's own Help, only the guides this person's role can use (staff only). */
   help: () => request<CompanyHelpPack>('/a/company/help'),

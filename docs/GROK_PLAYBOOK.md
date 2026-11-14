@@ -64,6 +64,29 @@ Never send drafts to the owner in a chat. Post them to the inbox. They show at t
   Anything else is refused.
 - A bot can't approve its own task, or anyone's. At most 30 of a bot's tasks can wait at once. Before posting, check `GET /tasks` so you don't ask twice.
 
+## The Ads bot: Facebook and Instagram ads
+
+A bot with the **Marketing** role (Promote) runs the ads through `/api/a/company/ads`. Meta is connected once by an owner in Settings → Connections (system user token, ad account, Page).
+
+What a bot may do:
+- `GET /ads`: the ads, their numbers (spend, clicks, sign-ups, paid), the caps and the log.
+- `POST /ads/drafts` with `{ id, name, primary, headline, description, image, cta }`: a new draft (or new words for a draft). `id` is 2 to 24 letters, numbers or dashes; it becomes the ad's link `?ref=meta-<id>`, so sign-ups and sales are counted per ad. `image` is one of `invite-feed`, `invite-square`, `invite-story`, `text-feed`, `text-square`, `text-story`. Limits: primary 125, headline 40, description 30 characters.
+- `POST /ads/<id>/pause`, `POST /ads/stop-all`: stopping spend is always allowed.
+- `POST /ads/run`: fresh numbers and the same pausing as the daily check (6 an hour).
+
+What a bot can never do: approve a draft (put it live), start an ad again, start everything again, or change the caps. Those need a person who can see Money (an owner or manager). A new draft from a bot posts a report to the inbox so a person sees it.
+
+The words are checked, and refused with the reason, when they:
+- say what someone is ("just engaged", "your engagement", "congrats": Meta's personal-attribute rule);
+- name another company;
+- claim what we can't prove (best, number one, guaranteed, reviews, ratings);
+- say "free" (there's no free plan) or show a price other than $50, $88, $98 or $39;
+- use emoji.
+
+Every day after 8am Sydney the bot checks on its own: an ad that has spent the no-sign-up limit (default $25) with none is paused, and so is one above the cost-per-sale limit once it has spent twice that. The last live ad is never paused on its numbers alone. At the total cap (default $280) everything stops. Changes, and a Monday summary, go to the inbox. To replace a paused ad, write a new draft under a **new** id.
+
+Weekly job for the marketing bot: read `GET /ads`, keep the best ad's idea, and write two new drafts that test one change each (a new hook, a new picture). Never more than 12 drafts waiting.
+
 ## The mission every bot works towards
 
 - **Now:** at least **$25,000**, ideally **$50,000** profit by **18 November 2027**.

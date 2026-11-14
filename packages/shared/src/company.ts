@@ -230,7 +230,7 @@ export const LAUNCH_TODOS: TodoItem[] = [
   t('costs', 'Money', 'Enter the running costs (Grok, Claude, domain…) in Money & tax', '#money'),
   t('codes', 'Marketing', 'Make the launch code YES20 and partner codes (Promote)', '#promote'),
   t('socials', 'Marketing', 'Free accounts: Instagram, TikTok, Facebook page, Pinterest, Google Business Profile, Search Console'),
-  t('meta', 'Marketing', 'Meta Business Suite: upload the 10 ad images from docs/marketing/ads and set up the $10/day test', 'https://business.facebook.com'),
+  t('meta', 'Marketing', 'Ads: in Meta Business make the ad account (with a spending limit) and a system user token, paste them in Connections, then approve drafts in Promote → Ads', '#settings'),
   t('videos', 'Marketing', 'Film the 6 short videos (docs/marketing/VIDEO_SCRIPTS.md)'),
   t('partners', 'Marketing', 'Put your ABN and name in the partner emails and send the first 5 (docs/marketing/PARTNER_KIT.md)'),
   t('grok', 'Marketing', 'Make Grok bot keys (Team → Bots) and schedule its jobs (docs/GROK_PLAYBOOK.md)', '#team'),

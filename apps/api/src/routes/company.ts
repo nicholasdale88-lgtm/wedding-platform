@@ -11,6 +11,7 @@ import { mainAccountOf } from './accounts';
 import { customRoles, jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv } from './auth';
 import { applyPurchase } from './billing';
 import { CONNECTION_CHOICES, CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
+import { adsRoutes } from './ads';
 import { PLANS } from './signup';
 import { recordError, recordHit, traffic } from '../lib/stats';
 
@@ -962,6 +963,8 @@ export function companyRoutes() {
     return new Response(csv, { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="opted-in-${dateIn('Australia/Sydney')}.csv"`, 'cache-control': 'no-store' } });
   });
 
+  // The Ads bot (Promote → Ads): drafts, approval, the daily check (routes/ads.ts).
+  app.route('/ads', adsRoutes());
   return app;
 }
 

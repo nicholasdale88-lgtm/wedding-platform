@@ -22,6 +22,7 @@ import { runBackups } from './lib/backup';
 import { runDigests } from './lib/digest';
 import { runQuoteFollowUps } from './lib/quoteRequests';
 import { applyConnections } from './lib/connections';
+import { runAdsDaily } from './routes/ads';
 import { companyRoutes, feedbackRoutes, siteRoutes, staffJoinRoutes } from './routes/company';
 import { rfqRoutes } from './routes/rfq';
 import { planRoutes, signupRoutes } from './routes/signup';
@@ -162,8 +163,10 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   const quoteFollowUps = await runQuoteFollowUps(env).catch((e) => ({ error: String(e) }));
   // The same messages by email, for guests who get email (free; today's allowance, the rest tomorrow).
   const emails = await runEmailCampaigns(env, d).catch((e) => ({ error: String(e) }));
+  // The Ads bot's daily check (once a Sydney day, after 8am; only when Meta is connected and an ad has run).
+  const ads = await runAdsDaily(env).catch((e) => `error: ${String(e)}`);
   await purgeExpired(env.DB, d.now()).catch(() => undefined);
-  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups, digests, quoteFollowUps, emails }));
+  console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups, digests, quoteFollowUps, emails, ads }));
   return { swept, ...report };
 }
 

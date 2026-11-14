@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CompanyHelp } from './CompanyHelp';
+import { AdsBot } from './Ads';
 import { Inbox } from './Inbox';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
@@ -823,6 +824,7 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
 
   return (
     <>
+      <AdsBot onNote={onNote} />
       <Assistant
         title="Write with the assistant"
         sub="Posts for Instagram, Facebook and TikTok, or a first email to a celebrant or planner. Check every draft before it goes out."
@@ -2173,6 +2175,24 @@ const SERVICES: { id: string; name: string; does: string; open: string; openLabe
     keys: [
       ['MM_USER', 'API username', false],
       ['MM_PASS', 'API password', true],
+    ],
+  },
+  {
+    id: 'meta',
+    name: 'Facebook and Instagram ads (Meta)',
+    does: 'Optional: the Ads bot in Promote → Ads puts approved ads live and pauses the ones that don’t bring sign-ups.',
+    open: 'https://business.facebook.com/settings',
+    openLabel: 'Open Meta Business settings',
+    steps: [
+      'Make the ad account (Accounts → Ad accounts), add the card, and set an account spending limit: Meta never spends past it.',
+      'Users → System users: add one (Admin), give it the ad account and the Facebook Page, then Generate token with ads_management and pages_read_engagement. Choose a token that never expires.',
+      'Copy the token, the ad account number (the digits after act_) and the Page number (Page → About → Page ID). The Instagram account number is optional (Accounts → Instagram accounts).',
+    ],
+    keys: [
+      ['META_ADS_TOKEN', 'System user token', true],
+      ['META_AD_ACCOUNT_ID', 'Ad account number', false],
+      ['META_PAGE_ID', 'Facebook Page number', false],
+      ['META_IG_USER_ID', 'Instagram account number (optional)', false],
     ],
   },
 ];

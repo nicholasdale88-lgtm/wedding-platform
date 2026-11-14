@@ -58,6 +58,11 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   /** Signing secret (whsec_…) of the Stripe webhook pointed at /api/hooks/stripe: it switches plans on once paid. */
   STRIPE_WEBHOOK_SECRET?: string;
+  /** The Ads bot (Promote → Ads): a Meta system user token with ads_management, the ad account (act_…), the Facebook Page and, optionally, the Instagram account. Pasted in Connections. */
+  META_ADS_TOKEN?: string;
+  META_AD_ACCOUNT_ID?: string;
+  META_PAGE_ID?: string;
+  META_IG_USER_ID?: string;
   /** Workers AI, for the planning assistant (bound by the deploy only when the account allows it). */
   AI?: {
     run(model: string, input: unknown): Promise<unknown>;
