@@ -29,7 +29,7 @@ function HeaderSeal({ o, px, path }: { o: Overview | null; px: number; path: (ta
       <WaxSeal colour={s.colour} design={s.design} words={words} px={px} still />
     </span>
   );
-  const look = 'block flex-none rounded-full transition-[transform,filter] duration-200 [filter:drop-shadow(0_3px_5px_rgba(0,0,0,.35))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6b780]';
+  const look = 'block flex-none rounded-full transition-[transform,filter] duration-200 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,.45))_drop-shadow(0_4px_6px_rgba(0,0,0,.25))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6b780]';
   if (!first) return <span aria-hidden className={look}>{seal}</span>;
   return (
     <Link
@@ -369,7 +369,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         <LeaveGuard />
         {/* The only menu on a phone. */}
         <header style={{ backgroundImage: SIDE }} className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] transition-colors duration-300 px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 border-b border-[rgba(214,183,128,.45)] shadow-[0_6px_20px_rgba(30,10,20,.18)]">
-          <HeaderSeal o={o} px={36} path={path} />
+          <HeaderSeal o={o} px={44} path={path} />
           <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate flex-1">{name}</div>
           <button
             type="button"
@@ -407,7 +407,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
       <aside style={{ backgroundImage: SIDE }} className="bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 gap-[24px] pt-[30px] px-4 pb-[22px] h-screen transition-colors duration-300 border-r border-[rgba(214,183,128,.4)] shadow-[6px_0_30px_rgba(30,10,20,.12)]">
         <div className="px-[10px]">
           <div className="mb-3 w-fit">
-            <HeaderSeal o={o} px={54} path={path} />
+            <HeaderSeal o={o} px={60} path={path} />
           </div>
           <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
           <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#d6b780]">RSVP admin</div>

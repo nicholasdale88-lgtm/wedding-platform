@@ -193,7 +193,7 @@ function Wreath() {
 const HEART = 'M50 68 C 44 62, 32 55, 32 45 C 32 38, 37 33, 43 33 C 46.5 33, 49 35, 50 38 C 51 35, 53.5 33, 57 33 C 63 33, 68 38, 68 45 C 68 55, 56 62, 50 68 Z';
 
 /** Words on the seal; "&" set smaller, as on the design's seal. */
-function Words({ words, letters, size, ink }: { words: string; letters: SealLetters; size: string; ink: string }) {
+function Words({ words, letters, size, ink, k = 1 }: { words: string; letters: SealLetters; size: string; ink: string; k?: number }) {
   const parts = words.split('&');
   return (
     <div
@@ -215,12 +215,12 @@ function Words({ words, letters, size, ink }: { words: string; letters: SealLett
         backgroundClip: 'text',
         WebkitTextFillColor: 'transparent',
         color: 'transparent',
-        filter: 'drop-shadow(-1px -1px 0 rgba(255,255,255,.3)) drop-shadow(1px 1px 1px rgba(0,0,0,.5))',
+        filter: `drop-shadow(${-k}px ${-k}px 0 rgba(255,255,255,.3)) drop-shadow(${k}px ${k}px ${k}px rgba(0,0,0,.5))`,
       })}
     >
       {parts.map((p, i) => (
         <span key={i}>
-          {i > 0 && <span style={{ fontSize: '.7em', margin: '0 3px' }}>&amp;</span>}
+          {i > 0 && <span style={{ fontSize: '.7em', margin: `0 ${(3 * k).toFixed(1)}px` }}>&amp;</span>}
           {p.trim()}
         </span>
       ))}
@@ -247,12 +247,16 @@ export function WaxSeal({
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const w = WAX[colour] ?? WAX.Sandstone;
   const style = design?.style ?? 'classic';
-  const letters = design?.letters ?? 'script';
+  // Drawn small (a swatch, the header): the light and shade shrink with it so it stays crisp, and the letters
+  // are clear capitals, a little larger (a fine script can't be read at that size).
+  const k = px ? Math.min(1, px / 110) : 1;
+  const small = !!px && px < 64;
+  const letters = small ? 'serif' : (design?.letters ?? 'script');
   const [hi, mid, lo] = w.body;
   const [i1, i2, i3] = w.inner;
   const len = Math.max(1, words.replace(/\s/g, '').length);
   const scale = (style === 'single' ? 1.7 : style === 'date' ? 0.62 : style === 'wreath' ? 0.78 : 1) * Math.min(1, (style === 'date' ? 8 : 3.4) / Math.max(style === 'date' ? 8 : 3, len));
-  const size = px ? `${(px * 0.22 * scale).toFixed(1)}px` : `calc(clamp(20px,5.4vmin,34px) * ${scale.toFixed(3)})`;
+  const size = px ? `${(px * (small ? 0.27 : 0.22) * scale).toFixed(1)}px` : `calc(clamp(20px,5.4vmin,34px) * ${scale.toFixed(3)})`;
   const rings = style === 'classic' || style === 'single' || style === 'heart';
   const fill = `url(#wx${id})`;
   return (
@@ -268,7 +272,7 @@ export function WaxSeal({
           height: '92%',
           borderRadius: '48% 52% 46% 54% / 53% 47% 55% 45%',
           background: `radial-gradient(circle at 32% 28%, ${hi} 0%, ${mid} 45%, ${lo} 100%)`,
-          boxShadow: 'inset -3px -4px 7px rgba(0,0,0,.28),inset 2px 2px 5px rgba(255,255,255,.22)',
+          boxShadow: `inset ${-3 * k}px ${-4 * k}px ${7 * k}px rgba(0,0,0,.28),inset ${2 * k}px ${2 * k}px ${5 * k}px rgba(255,255,255,.22)`,
         })}
       />
       <div style={abs({ inset: '15%', borderRadius: '50%', background: `radial-gradient(circle, ${i1} 0%, ${i2} 70%, ${i3} 100%)` })} />
@@ -288,7 +292,7 @@ export function WaxSeal({
       )}
       {/* The wax's gloss. */}
       <div style={abs({ left: '16%', top: '11%', width: '30%', height: '15%', borderRadius: '50%', transform: 'rotate(-28deg)', background: `radial-gradient(closest-side, rgba(255,255,255,${w.metal ? 0.7 : 0.45}), rgba(255,255,255,0))` })} />
-      <div style={abs({ inset: '15%', borderRadius: '50%', boxShadow: 'inset 3px 4px 7px rgba(0,0,0,.45),inset -2px -2px 4px rgba(255,255,255,.28),0 0 0 2px rgba(255,255,255,.12),0 0 0 4px rgba(0,0,0,.12)' })} />
+      <div style={abs({ inset: '15%', borderRadius: '50%', boxShadow: `inset ${3 * k}px ${4 * k}px ${7 * k}px rgba(0,0,0,.45),inset ${-2 * k}px ${-2 * k}px ${4 * k}px rgba(255,255,255,.28),0 0 0 ${2 * k}px rgba(255,255,255,.12),0 0 0 ${4 * k}px rgba(0,0,0,.12)` })} />
       {rings && (
         <>
           <div
@@ -331,7 +335,7 @@ export function WaxSeal({
           </Raised>
         </svg>
       )}
-      {words && style !== 'floral' && style !== 'heart' && <Words words={words} letters={letters} size={size} ink={w.ink} />}
+      {words && style !== 'floral' && style !== 'heart' && <Words words={words} letters={letters} size={size} ink={w.ink} k={k} />}
       {/* A slow gleam across the face (transform only; none for those who ask for less motion). */}
       {!still && (
         <div style={abs({ left: '4%', top: '4%', width: '92%', height: '92%', borderRadius: '50%', overflow: 'hidden' })}>
