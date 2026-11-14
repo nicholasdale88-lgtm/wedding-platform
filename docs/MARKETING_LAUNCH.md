@@ -1,6 +1,6 @@
 # The Yes List: launch campaign on a small budget
 
-The aim for the first 90 days is to get the first 100 paying weddings. That should cost almost nothing in ads: spend time, not money, until we know what turns a visitor into a paying couple.
+The aim for the first 90 days is to get the first 100 paying weddings. That should cost almost nothing in ads: spend time, not money, until we know what turns a visitor into a paying couple. For what to change on the technical side (email, storage, hosting) as weddings grow, see [GROWTH_PLAN.md](GROWTH_PLAN.md).
 
 ## The numbers that decide whether ads pay
 

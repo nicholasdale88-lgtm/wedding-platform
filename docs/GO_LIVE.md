@@ -35,7 +35,7 @@ Everything here is yours to do: it needs your identity, your card or your passwo
 1. Sign up at resend.com: **free for 3,000 emails a month (100 a day)**.
 2. Add and verify your domain (Resend shows the DNS records; add them in Cloudflare).
 3. Add GitHub secrets `RESEND_API_KEY` and `EMAIL_FROM` (e.g. `The Yes List <hello@your-domain>`), and the variable `INBOX_DOMAIN` (your domain).
-4. Later, when more than about 100 emails go a day: Resend Pro is about **US$20 a month**.
+4. Later, when more than about 100 emails go a day: Resend Pro is about **US$20 a month**. For each stage beyond that, including when to move to Amazon SES, see [GROWTH_PLAN.md](GROWTH_PLAN.md) → Email.
 
 ## 5. Text messages: Mobile Message
 
