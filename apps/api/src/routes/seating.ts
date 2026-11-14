@@ -103,15 +103,18 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     const tableIds = new Set((tables!.results as { id: string }[]).map((t) => t.id));
     const p = plan!.results[0] as { aspect: string; image_key: string | null; current_version: string | null } | undefined;
     type Row = { id: string; invitationId: string; idx: number; name: string; diet: string; tableId: string | null; chair: number | null; party: string; side: string; relation: string; circles: string; role: string; invited: number; attending: number | null; count: number | null };
-    const guestRows = people!.results as Row[];
-    // The couple are always in the seating (they aren't on their own guest list): two people, coming.
+    // Each event is its own: the wedding party and its roles are the wedding's (the first event), so another
+    // event (a birthday) has no roles, no head-table rule from them, and no couple added to its seating.
+    const isWedding = ev.id === events[0]?.id;
+    const guestRows = (people!.results as Row[]).map((x) => (isWedding ? x : { ...x, role: '' }));
+    // The couple are always in the wedding's seating (they aren't on their own guest list): two people, coming.
     const theirSeats = coupleSeats!.results as { id: string; tableId: string | null; chair: number | null }[];
     const couple: Row[] = [w.name1, w.name2].map((name, idx) => {
       const id = COUPLE_IDS[idx]!;
       const s = theirSeats.find((x) => x.id === id);
       return { id, invitationId: 'couple', idx, name: (name ?? '').trim() || (idx ? 'Partner two' : 'Partner one'), diet: '', tableId: s?.tableId ?? null, chair: s?.chair ?? null, party: 'The couple', side: idx ? 'p2' : 'p1', relation: '', circles: '', role: '', invited: 1, attending: 1, count: 2 };
     });
-    const rows = [...couple, ...guestRows];
+    const rows = [...(isWedding ? couple : []), ...guestRows];
     // A yes is for the first N people on the invitation (N = the reply's count, as the overview counts them):
     // the others on it aren't coming, so they get no seat and are never shown to guests.
     const beyondCount = (x: Row) => x.attending === 1 && x.idx >= Math.max(1, x.count ?? 1);
@@ -147,7 +150,7 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     const asPerson = (x: Row) => ({ id: x.id, invitationId: x.invitationId, name: x.name, party: x.party, side: x.side ?? '', relation: x.relation ?? '', circles: splitCircles(x.circles), role: x.role, diet: x.diet, meal: (({ e, m, d }) => ({ e, m, d }))(served(x.id)), tableId: seatOf(x), chair: seatOf(x) ? (x.chair ?? null) : null, coming: x.attending === 1 });
     const list = guestRows.filter(seatable).map(asPerson);
     /** The couple: always in the seating, without being on their own guest list. */
-    const coupleList = couple.map(asPerson);
+    const coupleList = isWedding ? couple.map(asPerson) : [];
 
     // Where the plan is in its life, and what changed since it was last saved.
     const doc = (kind: string) => (docs!.results as { kind: string; data: string }[]).find((d) => d.kind === kind)?.data;

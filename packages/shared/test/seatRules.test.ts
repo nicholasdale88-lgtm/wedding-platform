@@ -65,6 +65,21 @@ describe('seating rules', () => {
     expect(together(plain.seats, ['ann', 'bob', 'kit'])).toBe(true);
   });
 
+  it('the head table is the bridal party unless chosen: parents and partners sit at guest tables', () => {
+    const people = [person('ann', 'g1', '', 'Bridesmaid'), person('pat', 'g2', '', 'Parent of the bride'), person('pam', 'g2'), person('cat', 'g3')];
+    const tables = [table('t1', 6), table('head', 6, 'head', 'Head table')];
+    const r = autoSeat(people, tables, {}, rules());
+    expect(r.seats.ann).toBe('head');
+    expect(r.seats.pat).not.toBe('head'); // a parent, with the rest of their invitation
+    expect(together(r.seats, ['pat', 'pam'])).toBe(true);
+    expect(seatProblems(people, tables, r.seats, rules())).toEqual([]);
+    // Chosen: the parents of the bride at the head table too.
+    const chosen = rules({ headRoles: ['Bridesmaid', 'Parent of the bride'] });
+    const r2 = autoSeat(people, tables, {}, chosen);
+    expect([r2.seats.ann, r2.seats.pat]).toEqual(['head', 'head']);
+    expect(r2.seats.pam).not.toBe('head');
+  });
+
   it('groups stay at their tables, so nobody is the only one they know', () => {
     const people = [
       ...['a1', 'a2', 'a3'].map((id, i) => person(id, `ga${i}`, 'Uni friends')),

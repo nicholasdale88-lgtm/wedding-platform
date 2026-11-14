@@ -1,6 +1,6 @@
 import { isFamily, isWork, KNOWS_NO_ONE } from './guestTies';
 import type { SeatRules } from './planner';
-import { circlesOf, DEFAULT_PRESETS, isHeadTable, tableLabel, tableNeighbours, type RulePerson, type RuleTable } from './seatRules';
+import { circlesOf, DEFAULT_PRESETS, headTableRole, isHeadTable, tableLabel, tableNeighbours, type RulePerson, type RuleTable } from './seatRules';
 
 /**
  * "Suggest a plan from who knows who": a whole new arrangement (never the current plan), worked out from
@@ -98,11 +98,12 @@ export function suggestSeating(people: RulePerson[], tablesIn: RuleTable[], rule
   };
   // People invited together sit together, except the wedding party: they go to the head table (when there is
   // one) and the rest of their invitation still sits together at a guest table.
+  const atHead = headTableRole(rules);
   const partyApart = pre.head && tablesIn.some(isHeadTable);
   if (pre.invite) {
     const firstOf = new Map<string, string>();
     for (const p of coming) {
-      if (partyApart && p.role?.trim()) continue;
+      if (partyApart && atHead(p)) continue;
       const f = firstOf.get(p.invitationId);
       if (f) join(f, p.id);
       else firstOf.set(p.invitationId, p.id);
@@ -137,7 +138,7 @@ export function suggestSeating(people: RulePerson[], tablesIn: RuleTable[], rule
     const circles: string[] = [];
     for (const c of ps.flatMap(circlesFor)) if (!circles.some((x) => lc(x) === lc(c))) circles.push(c);
     const family = relation === 'family_immediate' ? 2 : relation === 'family_extended' ? 1 : 0;
-    return { key: [...ids].sort(byText)[0]!, ids: [...ids].sort(byText), size: ids.length, party: ps.some((p) => !!p.role?.trim()), side, relation, circles, family };
+    return { key: [...ids].sort(byText)[0]!, ids: [...ids].sort(byText), size: ids.length, party: ps.some(atHead), side, relation, circles, family };
   });
   units.sort((a, b) => byText(a.key, b.key));
 

@@ -1,5 +1,6 @@
 import { isFamily, isWork, KNOWS_NO_ONE } from './guestTies';
 import type { SeatPresets, SeatRules } from './planner';
+import { HEAD_ROLES } from './planner';
 
 /**
  * Seating rules, checked and followed. The admin's Checks panel lists what breaks a rule; Auto-seat
@@ -29,7 +30,7 @@ type Seats = Record<string, string | null | undefined>;
 export const SEAT_PRESETS: { key: keyof SeatPresets; label: string; hint: string }[] = [
   { key: 'invite', label: 'People invited together sit together', hint: 'Couples, families and plus-ones stay at one table (the wedding party sits at the head table, and the rest of their invitation still together).' },
   { key: 'groups', label: 'Keep each group at the same tables', hint: 'Uses each guest’s group (e.g. “Uni friends”), so nobody is the only one they know.' },
-  { key: 'head', label: 'Wedding party at the head table', hint: 'Anyone with a wedding-party role, when a table is a head table.' },
+  { key: 'head', label: 'Wedding party at the head table', hint: 'The roles chosen below, when a table is a head table.' },
   { key: 'fill', label: 'Fill each table before starting another', hint: 'Fewer half-empty tables.' },
   { key: 'circles', label: 'Keep circles together', hint: 'People who share a circle (e.g. “Uni crew”) sit at the same or neighbouring tables.' },
   { key: 'family', label: 'Family near the head table', hint: 'Immediate family closest, then extended family (Suggest a plan).' },
@@ -48,7 +49,11 @@ const presetsOf = (r: SeatRules | null | undefined): SeatPresets => ({ ...DEFAUL
 export const tableLabel = (t: Pick<RuleTable, 'name'> | undefined) => (!t ? '' : /^\d+$/.test(t.name) ? `Table ${t.name}` : t.name);
 /** A head table: the shape, or a table named "Head table" / "Bridal table". */
 export const isHeadTable = (t: RuleTable) => t.shape === 'head' || /\b(head|bridal)\b/i.test(t.name);
-const inParty = (p: RulePerson) => !!p.role?.trim();
+/** At the head table: someone whose wedding party role is one chosen for it (HEAD_ROLES unless changed). */
+export const headTableRole = (rules?: SeatRules | null) => {
+  const roles = new Set((rules?.headRoles ?? HEAD_ROLES).map((r) => r.trim().toLowerCase()));
+  return (p: { role?: string }) => !!p.role?.trim() && roles.has(p.role.trim().toLowerCase());
+};
 /** The circles someone is in, for seating: their own circles, and their group when "groups" is on. */
 export const circlesOf = (p: Pick<RulePerson, 'circles' | 'party'>, groups = true) => {
   const out = (p.circles ?? []).filter((c) => c && c !== KNOWS_NO_ONE);
@@ -91,6 +96,7 @@ const names = (ps: RulePerson[]) => {
 /** What breaks a rule in this seating, in words, worst first (too many people at a table). */
 export function seatProblems(people: RulePerson[], tables: RuleTable[], seats: Seats, rules?: SeatRules | null): string[] {
   const pre = presetsOf(rules);
+  const inParty = headTableRole(rules);
   const coming = people.filter((p) => p.coming);
   const byId = new Map(people.map((p) => [p.id, p]));
   const table = new Map(tables.map((t) => [t.id, t]));
@@ -190,6 +196,7 @@ export function seatProblems(people: RulePerson[], tables: RuleTable[], seats: S
  */
 export function autoSeat(people: RulePerson[], tables: RuleTable[], seats: Seats, rules?: SeatRules | null): { seats: Record<string, string | null>; seated: number; left: number; notes: string[] } {
   const pre = presetsOf(rules);
+  const inParty = headTableRole(rules);
   const next: Record<string, string | null> = {};
   for (const p of people) next[p.id] = seats[p.id] ?? null;
   const coming = people.filter((p) => p.coming);

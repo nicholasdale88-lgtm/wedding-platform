@@ -1790,8 +1790,15 @@ export const SeatRules = z.object({
   pairs: z.array(z.object({ a: z.string().max(40), b: z.string().max(40), kind: z.enum(['apart', 'together']) })).max(200).default([]),
   /** The two sides: mixed at tables, kept together, or no preference (''). */
   sides: z.enum(['', 'mix', 'keep']).default(''),
+  /** Which wedding party roles sit at the head table (unset: HEAD_ROLES, the bridal party). */
+  headRoles: z.array(z.string().max(60)).max(40).optional(),
 });
 export type SeatRules = z.infer<typeof SeatRules>;
+/**
+ * Who sits at the head table unless the couple choose otherwise: the bridal party. Partners, parents,
+ * grandparents and everyone else in the wedding party sit at guest tables (each can be ticked on).
+ */
+export const HEAD_ROLES = ['Maid of honour', 'Bridesmaid', 'Best man', 'Groomsman'];
 
 
 // ---------------------------------------------------------------- signage

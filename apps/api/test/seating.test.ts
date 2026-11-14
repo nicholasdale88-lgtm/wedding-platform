@@ -117,6 +117,14 @@ describe('seating API', () => {
     expect((await get('?event=wedding')).people.find((p) => p.id === seated.id)!.tableId).toBe(seated.tableId); // still there
   });
 
+  it('the birthday is its own event: no wedding party roles and no couple in its seating', async () => {
+    const wed = (await (await call(`/a/w/${wid}/seating?event=wedding`)).json()) as { couple?: unknown[] };
+    const b = (await (await call(`/a/w/${wid}/seating?event=30th`)).json()) as { couple?: unknown[]; people: { role?: string }[] };
+    expect(wed.couple?.length).toBe(2);
+    expect(b.couple ?? []).toEqual([]);
+    expect(b.people.filter((p) => p.role)).toEqual([]);
+  });
+
   it('seating follows replies: declining (by the guest or the couple) or being un-invited frees the seat', async () => {
     const seatedInv = await t.db
       .prepare(

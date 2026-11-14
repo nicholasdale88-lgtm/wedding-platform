@@ -1,4 +1,4 @@
-import { KNOWS_NO_ONE, NO_RULES, SEAT_PRESETS, SIDE_PREFS, seatProblems, SeatRules as SeatRulesSchema, type SeatRules } from '@wp/shared';
+import { HEAD_ROLES, KNOWS_NO_ONE, NO_RULES, PARTY_ROLES, SEAT_PRESETS, SIDE_PREFS, seatProblems, SeatRules as SeatRulesSchema, type SeatRules } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, plannerApi, type SeatingData, type SeatTable } from '../../lib/api';
 import { useDocSave } from '../planner/useDocSave';
@@ -133,6 +133,30 @@ export function SeatChecks({
                 </span>
               </label>
             ))}
+            {/* Who the head table is for: the bridal party unless chosen (partners and parents sit at guest tables). */}
+            {rules.presets.head && (
+              <div role="group" aria-label="Who sits at the head table" className="flex flex-col gap-2 pl-6">
+                <span className="text-[13px] font-semibold">Who sits at the head table</span>
+                <span className="text-[12px] text-[#7a7466]">Their partners and the rest of their invitation sit together at a guest table.</span>
+                <div className="flex flex-wrap gap-2">
+                  {PARTY_ROLES.map(({ role }) => {
+                    const chosen = rules.headRoles ?? HEAD_ROLES;
+                    const on = chosen.some((r) => r.toLowerCase() === role.toLowerCase());
+                    return (
+                      <button
+                        key={role}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => void save({ ...rules, headRoles: on ? chosen.filter((r) => r.toLowerCase() !== role.toLowerCase()) : [...chosen, role] })}
+                        className={`py-[5px] px-3 rounded-full border text-[12px] cursor-pointer ${on ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794] text-[#33402f]'}`}
+                      >
+                        {role}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </fieldset>
           <div className="flex flex-col gap-2 pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
             <span className="text-[13px] font-semibold">Your own rules</span>
