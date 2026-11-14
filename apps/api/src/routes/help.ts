@@ -1,4 +1,4 @@
-import { HELP_VOICE, HELP_VOICE_BACKUP, helpSayLine, speakable } from '@wp/shared';
+import { companyHelpAllowed, companyHelpSayLine, HELP_VOICE, HELP_VOICE_BACKUP, helpSayLine, speakable } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { allow } from '../lib/rateLimit';
 import { requireUser, type AdminEnv } from './auth';
@@ -65,10 +65,13 @@ export function helpRoutes() {
   app.get('/voice', async (c) => {
     const id = c.req.query('id') ?? '';
     const step = Number(c.req.query('step') ?? 'x');
-    const line = helpSayLine(id, step);
+    const user = c.get('user');
+    // The company portal's guides are for staff whose role opens that part of the portal, and nobody else.
+    const company = id.startsWith('co-');
+    if (company && !(user.staff && companyHelpAllowed(id, user.perms))) return err(c, 404, 'unknown', 'There’s no such walkthrough step.');
+    const line = company ? companyHelpSayLine(id, step) : helpSayLine(id, step);
     if (line === null) return err(c, 404, 'unknown', 'There’s no such walkthrough step.');
     // Signed-in couples, planners and helpers (anyone on a wedding), and the company's own staff.
-    const user = c.get('user');
     if (!user.staff) {
       const member = await c.env.DB.prepare(`SELECT 1 AS ok FROM membership WHERE user_id = ? LIMIT 1`).bind(user.id).first();
       if (!member) return err(c, 403, 'forbidden', 'Walkthrough voices are for signed-in couples.');

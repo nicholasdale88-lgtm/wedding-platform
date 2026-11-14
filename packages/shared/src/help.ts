@@ -3,11 +3,13 @@
  * needed), and given to the planning assistant so it can answer "how do I…" questions from the same words.
  * `go` is where in the admin it happens: a tab, with a planner view or a page's view after "?".
  */
+/** The company portal's Help sections (companyHelp.ts). */
+export type CompanyHelpGroup = 'Start here' | 'Couples and support' | 'Growth' | 'Money' | 'Team and bots';
 export interface HelpArticle {
   id: string;
   title: string;
   /** Section heading in the help page. */
-  group: 'Getting started' | 'Guests and replies' | 'Planning' | 'On the day' | 'Your account';
+  group: 'Getting started' | 'Guests and replies' | 'Planning' | 'On the day' | 'Your account' | CompanyHelpGroup;
   steps: string[];
   /** Other words people use for it. */
   also: string;
@@ -505,11 +507,11 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
 /** Words that say nothing about what someone wants to do. */
 const FILLER = new Set(['how', 'what', 'where', 'when', 'who', 'why', 'can', 'are', 'our', 'the', 'and', 'for', 'you', 'your', 'with', 'does', 'did', 'get', 'want', 'need', 'from', 'this', 'that', 'there', 'into', 'have', 'has', 'all', 'any', 'out']);
 
-/** The help articles that best match a question, best first (empty when nothing fits). */
-export function searchHelp(q: string, limit = 3): HelpArticle[] {
+/** The help articles that best match a question, best first (empty when nothing fits); the couples' guides unless another list is given. */
+export function searchHelp(q: string, limit = 3, list: HelpArticle[] = HELP): HelpArticle[] {
   const words = (q.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter((w) => !FILLER.has(w));
   if (!words.length) return [];
-  const scored = HELP.map((a) => {
+  const scored = list.map((a) => {
     const title = a.title.toLowerCase();
     const body = `${a.also} ${a.steps.join(' ')}`.toLowerCase();
     let score = 0;

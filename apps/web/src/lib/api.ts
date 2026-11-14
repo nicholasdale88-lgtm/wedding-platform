@@ -1,4 +1,4 @@
-import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
+import type { CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
@@ -1102,6 +1102,8 @@ export interface CompanyActivity { id: string; action: string; target: string; d
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
 export const companyApi = {
   stats: () => request<CompanyStats>('/a/company/stats'),
+  /** The portal's own Help, only the guides this person's role can use (staff only). */
+  help: () => request<CompanyHelpPack>('/a/company/help'),
   weddings: (q: string, requests = false) => request<{ weddings: CompanyWedding[] }>(`/a/company/weddings?q=${encodeURIComponent(q)}${requests ? '&requests=1' : ''}`),
   setPlan: (slug: string, body: { plan?: 'free' | 'basic' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),
   listings: () => request<{ listings: CompanyListing[] }>('/a/company/listings'),

@@ -1,8 +1,27 @@
-import { HELP_PLACES, HELP_SCENES, helpSayLine, helpVoiceUrl, speakable, videoEmbed, type HelpArticle, type HelpScene } from '@wp/shared';
+import { HELP_PLACES, HELP_SCENES, helpSayLine, helpSayVersion, speakable, videoEmbed, type HelpArticle, type HelpScene } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 const SPEEDS = [0.9, 1, 1.25] as const;
+
+/**
+ * What a walkthrough plays from: each guide's scenes, its spoken lines, and the menu names on the phone.
+ * Couples' Help uses the built-in set; the company portal passes its own (loaded for staff only).
+ */
+export interface HelpPack {
+  scenes: Record<string, HelpScene[]>;
+  say: (id: string, step: number) => string | null;
+  places: Record<string, string>;
+  /** The two other menu items shown beside the lit-up one on the phone. */
+  menu?: [string, string];
+}
+const COUPLES: HelpPack = { scenes: HELP_SCENES, say: helpSayLine, places: HELP_PLACES };
+
+/** Where the recorded voice for one part of a guide comes from (null: no line for it). */
+const voiceUrl = (pack: HelpPack, id: string, step: number) => {
+  const line = pack.say(id, step);
+  return line === null ? null : `/api/a/help/voice?id=${encodeURIComponent(id)}&step=${step}&v=${helpSayVersion(speakable(line))}`;
+};
 const remembered = (key: string, fallback: string) => {
   try {
     return localStorage.getItem(key) ?? fallback;
@@ -28,7 +47,7 @@ const remember = (key: string, value: string) => {
  * natural voice (not switched on, or it fails): the device's best voice reads the same words, and with no
  * voice at all it plays on by itself. At the end: Take me there. Several guides in a row make the tour.
  */
-export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[]; where: (a: HelpArticle) => string; onClose: () => void }) {
+export function Walkthrough({ guides, where, onClose, pack = COUPLES }: { guides: HelpArticle[]; where: (a: HelpArticle) => string; onClose: () => void; pack?: HelpPack }) {
   const scenes = guides.flatMap((a) => [{ a, step: -1 }, ...a.steps.map((_, step) => ({ a, step }))]);
   const [at, setAt] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -58,11 +77,11 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
   const done = at >= scenes.length;
   const scene = scenes[Math.min(at, scenes.length - 1)]!;
   const text = scene.step < 0 ? scene.a.title : scene.a.steps[scene.step]!;
-  const said = speakable(helpSayLine(scene.a.id, scene.step) ?? text);
-  const url = helpVoiceUrl(scene.a.id, scene.step);
+  const said = speakable(pack.say(scene.a.id, scene.step) ?? text);
+  const url = voiceUrl(pack, scene.a.id, scene.step);
   const recorded = guides.length === 1 ? videoEmbed(guides[0]!.video) : null;
   const still = typeof window !== 'undefined' && (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false);
-  const shot = scene.step >= 0 ? HELP_SCENES[scene.a.id]?.[scene.step] : undefined;
+  const shot = scene.step >= 0 ? pack.scenes[scene.a.id]?.[scene.step] : undefined;
   const hasSpeech = typeof speechSynthesis !== 'undefined';
   const mode: 'natural' | 'device' | 'quiet' = !voice || recorded || done ? 'quiet' : natural && url && deviceFor !== at ? 'natural' : hasSpeech ? 'device' : 'quiet';
   // The phone's animation, stretched to the length of the voice (never rushed).
@@ -205,7 +224,7 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
   useEffect(() => {
     if (mode !== 'natural') return;
     const next = scenes[at + 1];
-    const src = next && helpVoiceUrl(next.a.id, next.step);
+    const src = next && voiceUrl(pack, next.a.id, next.step);
     if (src) load(src).catch(() => undefined);
   }, [at, mode]); // eslint-disable-line
 
@@ -244,7 +263,7 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
   };
 
   const last = guides[guides.length - 1]!;
-  const place = HELP_PLACES[scene.a.go.tab] ?? 'Menu';
+  const place = pack.places[scene.a.go.tab] ?? 'Menu';
   const view = /view=(\w+)/.exec(scene.a.go.query ?? '')?.[1];
   return (
     <div role="dialog" aria-modal="true" aria-label={`Walkthrough: ${guides.length > 1 ? 'the tour' : last.title}`} className="fixed inset-0 z-[80] flex items-center justify-center bg-[rgba(20,24,18,.72)] p-3 max-[560px]:p-0">
@@ -275,7 +294,7 @@ export function Walkthrough({ guides, where, onClose }: { guides: HelpArticle[];
               ))}
             </div>
             <div className="flex-1 grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] max-[560px]:grid-cols-1 gap-6 items-center px-6 py-6 min-h-[340px]">
-              <Phone key={at} place={place} view={view} step={scene.step} still={still} shot={done ? undefined : shot} playing={playing} pace={pace} />
+              <Phone key={at} menuWith={pack.menu} place={place} view={view} step={scene.step} still={still} shot={done ? undefined : shot} playing={playing} pace={pace} />
               <div aria-live="polite" className="flex flex-col gap-3 max-[560px]:text-center">
                 {done ? (
                   <>
@@ -397,7 +416,7 @@ function playOut(shot: HelpScene, pace = 1) {
  * The phone: the admin's menu with the right place lit up, the page's own tab, and the step played out on
  * the page itself: its rows, the fields being typed into, the button pressed, then what happens.
  */
-function Phone({ place, view, step, still, shot, playing, pace = 1 }: { place: string; view?: string; step: number; still: boolean; shot?: HelpScene; playing: boolean; pace?: number }) {
+function Phone({ place, view, step, still, shot, playing, pace = 1, menuWith = ['Guest list', 'Texts'] }: { place: string; view?: string; step: number; still: boolean; shot?: HelpScene; playing: boolean; pace?: number; menuWith?: [string, string] }) {
   const [t, setT] = useState(still ? 1e9 : 0);
   useEffect(() => {
     if (still || !playing) return;
@@ -407,7 +426,7 @@ function Phone({ place, view, step, still, shot, playing, pace = 1 }: { place: s
   }, [playing, still]); // eslint-disable-line
   const at = shot?.at ?? [place, ...(view ? [view[0]!.toUpperCase() + view.slice(1)] : [])];
   const top = at[0]!;
-  const menu = [...new Set(['Overview', top, top === 'Guest list' ? 'Texts' : 'Guest list'])].slice(0, 3);
+  const menu = [...new Set(['Overview', top, top === menuWith[0] ? menuWith[1] : menuWith[0]])].slice(0, 3);
   const plan = shot ? playOut(shot, pace) : null;
   const typed = (i: number, value: string) => {
     if (!plan) return value;

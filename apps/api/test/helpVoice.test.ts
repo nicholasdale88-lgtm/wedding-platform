@@ -72,6 +72,39 @@ describe('help voice', () => {
     expect(run).not.toHaveBeenCalled();
   });
 
+  it('keeps the company portal’s guides private: staff only, and only the parts their role opens', async () => {
+    const help = () => app.request('/api/a/company/help', { headers: { cookie } }, env, ctx);
+    // A couple: no company help, and no company narration (it isn't even admitted to exist).
+    expect((await help()).status).toBe(403);
+    expect((await voice('id=co-bestuse&step=0')).status).toBe(404);
+    expect((await voice('id=co-money&step=0')).status).toBe(404);
+    expect(run).not.toHaveBeenCalled();
+
+    // Support staff: their guides (couples, feedback, vendors), never Money, Team or Settings.
+    await t.db.prepare(`INSERT INTO staff (user_id, role, created_at) SELECT id, 'support', '2026-11-01' FROM user WHERE email = 'owner@example.com'`).run();
+    const res = await help();
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toBe('private, no-store');
+    const pack = (await res.json()) as { articles: { id: string; go: { tab: string } }[]; say: Record<string, unknown>; scenes: Record<string, unknown>; tour: string[] };
+    const ids = pack.articles.map((a) => a.id);
+    expect(ids).toContain('co-requests');
+    expect(ids).toContain('co-feedback');
+    expect(ids).not.toContain('co-money');
+    expect(ids).not.toContain('co-connections');
+    expect(ids).not.toContain('co-bots');
+    expect(Object.keys(pack.say).sort()).toEqual([...ids].sort());
+    expect(Object.keys(pack.scenes).sort()).toEqual([...ids].sort());
+    for (const id of pack.tour) expect(ids).toContain(id);
+    expect((await voice('id=co-requests&step=0')).status).toBe(200);
+    expect((await voice('id=co-money&step=0')).status).toBe(404);
+
+    // An owner sees every guide.
+    await t.db.prepare(`UPDATE staff SET role = 'owner'`).run();
+    const all = (await (await help()).json()) as { articles: { id: string }[] };
+    expect(all.articles.map((a) => a.id)).toContain('co-money');
+    expect((await voice('id=co-money&step=-1')).status).toBe(200);
+  });
+
   it('says so when the AI is off or fails, so the walkthrough uses the device voice', async () => {
     delete env.AI;
     expect((await voice('id=start&step=0')).status).toBe(503);

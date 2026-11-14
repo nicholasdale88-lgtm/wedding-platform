@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { CompanyHelp } from './CompanyHelp';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
@@ -44,7 +45,8 @@ const TABS = [
   ['traffic', 'Traffic & errors', 'activity'],
   ['activity', 'Activity', 'activity'],
   ['settings', 'Settings', 'settings'],
-] as const satisfies readonly (readonly [string, string, StaffPerm])[];
+  ['help', 'Help', null],
+] as const satisfies readonly (readonly [string, string, StaffPerm | null])[];
 type Tab = (typeof TABS)[number][0];
 
 /** The signed-in person's company role, for every tab. */
@@ -77,6 +79,14 @@ function Portal() {
   const [roleLabel, setRoleLabel] = useState('');
   const [tab, setTab] = useState<Tab>(() => (TABS.find(([k]) => `#${k}` === window.location.hash)?.[0] ?? 'overview'));
   const [note, setNote] = useState('');
+  // Help remembers the page it was opened from, to show that page's guides first.
+  const [helpFrom, setHelpFrom] = useState<Tab | undefined>();
+  // A link to /company#<tab> (Help's "Take me there" in a walkthrough) opens that tab.
+  const loc = useLocation();
+  useEffect(() => {
+    const k = TABS.find(([t]) => `#${t}` === loc.hash)?.[0];
+    if (k) setTab(k);
+  }, [loc.key, loc.hash]);
   useEffect(() => {
     document.title = 'Company portal';
     api.me().then(
@@ -129,7 +139,7 @@ function Portal() {
       </main>
     );
 
-  const tabs = TABS.filter(([, , perm]) => perms.includes(perm));
+  const tabs = TABS.filter(([, , perm]) => perm === null || perms.includes(perm));
   const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
   const label = tabs.find(([k]) => k === shown)?.[1] ?? '';
   const navItem = (k: Tab, text: string) => (
@@ -197,9 +207,16 @@ function Portal() {
             <span className="text-[13px] text-[#6e6068]">
               Company <span aria-hidden>›</span> <strong className="text-[#2a1c26] font-semibold">{label}</strong>
             </span>
-            <a href="/" target="_blank" rel="noopener" className="text-[13px] !text-[#6e6068]">
-              View the front page ↗
-            </a>
+            <span className="flex items-center gap-4">
+              {shown !== 'help' && (
+                <button type="button" onClick={() => (setHelpFrom(shown), go('help'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]">
+                  ? Help with this page
+                </button>
+              )}
+              <a href="/" target="_blank" rel="noopener" className="text-[13px] !text-[#6e6068]">
+                View the front page ↗
+              </a>
+            </span>
           </div>
           <main className="max-w-[1160px] px-4 md:px-8 py-6 pb-24 flex flex-col gap-4">
             {shown === 'overview' && <Overview onGo={go} />}
@@ -212,6 +229,7 @@ function Portal() {
             {shown === 'traffic' && <Traffic />}
             {shown === 'activity' && <Activity />}
             {shown === 'settings' && <Settings onNote={setNote} />}
+            {shown === 'help' && <CompanyHelp from={helpFrom} fromLabel={TABS.find(([k]) => k === helpFrom)?.[1]} onGo={(t) => go(TABS.find(([k]) => k === t)?.[0] ?? 'overview')} />}
           </main>
         </div>
         {note && (
@@ -225,7 +243,7 @@ function Portal() {
 }
 
 /** A small symbol for each section in the sidebar. */
-const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', traffic: '↗', activity: '≡', settings: '⚙' };
+const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', traffic: '↗', activity: '≡', settings: '⚙', help: '?' };
 
 /** Loads something once (and again on reload()), with an error if it fails. */
 function useLoad<T>(fn: () => Promise<T>) {

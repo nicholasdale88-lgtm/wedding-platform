@@ -1,4 +1,4 @@
-import { FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { companyHelpFor, FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -76,6 +76,15 @@ export function companyRoutes() {
   app.use('*', jsonWritesOnly, requireUser, async (c, next) => {
     if (!c.get('user').staff) return err(c, 403, 'forbidden', 'This is for the company only.');
     await next();
+  });
+
+  /**
+   * The portal's own Help: only the guides for the parts of the portal this person's role opens. Served here,
+   * to signed-in staff, so the business's how-tos are never in the public website's code.
+   */
+  app.get('/help', (c) => {
+    c.header('Cache-Control', 'private, no-store');
+    return c.json(companyHelpFor(c.get('user').perms));
   });
 
   app.get('/stats', can('overview'), async (c) => {
