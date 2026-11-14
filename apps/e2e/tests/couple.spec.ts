@@ -123,7 +123,8 @@ test('seating: Move tables drags a table (and never opens it); in Change seat al
   await page.getByRole('button', { name: /^Done adding/ }).last().click();
   const table = page.getByRole('button', { name: /^Table 1, / });
   await expect(table).toBeVisible();
-  await table.scrollIntoViewIfNeeded();
+  // In the middle of the screen, clear of anything floating (the Feedback button, the bottom bar).
+  await table.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'center' }));
   // Wait for the plan to settle (the floating Done button goes, the page may shift) before putting a finger on it.
   let before = (await table.boundingBox())!;
   for (let i = 0; i < 20; i++) {
@@ -135,6 +136,12 @@ test('seating: Move tables drags a table (and never opens it); in Change seat al
   // Drag it across the room: a real finger (touch events) on the phone, the mouse on a computer.
   const x0 = before.x + before.width / 2;
   const y0 = before.y + before.height / 2;
+  // The finger lands on the table itself, not on something over it (says what's in the way if not).
+  const under = await page.evaluate(([x, y]) => {
+    const el = document.elementFromPoint(x!, y!);
+    return el?.closest('[data-table-id]') ? 'the table' : `${el?.tagName ?? 'nothing'} ${(el as HTMLElement | null)?.className?.toString().slice(0, 80) ?? ''} "${el?.textContent?.trim().slice(0, 40) ?? ''}"`;
+  }, [x0, y0]);
+  expect(under).toBe('the table');
   const dx = box.width * 0.3;
   if (test.info().project.name === 'iphone') {
     const cdp = await page.context().newCDPSession(page);

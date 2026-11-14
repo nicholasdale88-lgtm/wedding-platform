@@ -1,3 +1,4 @@
+import { countGuests } from '@wp/shared';
 import { ApiError, type EventFull, type EventInfo, type Guest, type GuestDetail, type GuestPatch, type Overview, type RsvpPut, type SeatingData, type SeatTable } from '../lib/api';
 
 /**
@@ -114,7 +115,9 @@ function overview(focus: string | null = null): Overview {
     yesInv: coming.length,
     noInv: guests.filter((g) => g.rsvp.wedding?.attending === false).length,
     seatsHeld: guests.reduce((a, g) => a + g.seatsHeld, 0),
-    events: [{ key: 'wedding', name: 'The wedding', startsAt: DAY, venue: 'Larkwood Estate', coming: coming.reduce((a, g) => a + g.people.length, 0) }],
+    // Counted as the real app counts them (shared/counts): coming + can't come + still to reply = everyone.
+    guests: countGuests(guests, 'wedding'),
+    events: [{ key: 'wedding', name: 'The wedding', startsAt: DAY, venue: 'Larkwood Estate', coming: countGuests(guests, 'wedding').coming }],
     diet: { people: people.filter((p) => p.diet).length, serious: people.filter((p) => /allerg|anaphyl/i.test(p.diet)).length, mealsSet: 0 },
     daysToGo: Math.max(0, Math.round((Date.parse(DAY) - Date.now()) / 86_400_000)),
     needsYou: [{ kind: 'awaiting', title: `${guests.filter((g) => !g.repliedAt).length} invitations still to reply`, detail: 'A gentle reminder goes out by itself two weeks before replies close.', cta: 'See who', link: 'guests?filter=awaiting' }],
