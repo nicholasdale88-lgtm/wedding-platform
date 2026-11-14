@@ -252,7 +252,8 @@ describe('launch scale: every feature pushed hard', () => {
           yes: inv.filter((g) => g.rsvp[key]?.attending === true).length,
           no: inv.filter((g) => g.rsvp[key]?.attending === false).length,
           awaiting: inv.filter((g) => pending(g, key)).length,
-          coming: people.length,
+          // Coming: the replies' headcount, as every page counts it (shared/counts).
+          coming: inv.reduce((s, g) => s + (att(g, key) ? Math.max(1, g.rsvp[key]?.count ?? 1) : 0), 0),
           diet: c ? people.filter((p) => p.diet.trim()).length : 0,
         };
       }),

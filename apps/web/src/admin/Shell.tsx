@@ -164,7 +164,8 @@ function badge(key: TabKey, o: Overview | null, group: string): string {
   const ev = o.perEvent?.find((e) => e.key === group);
   switch (key) {
     case 'guests':
-      return String(ev ? ev.invited : o.nav.guests);
+      // Guests, as the guest list counts them (places on invitations).
+      return String(ev ? (ev.guests ?? ev.invited) : o.nav.guests);
     case 'messages':
       return o.nav.messages ? String(o.nav.messages) : '';
     case 'texts':

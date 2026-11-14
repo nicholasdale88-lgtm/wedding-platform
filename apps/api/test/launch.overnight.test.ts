@@ -198,7 +198,8 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
       const inv = w.invs.filter((g) => g.invited.includes(k));
       const yes = inv.filter((g) => g.rsvp[k]?.attending === true).length;
       const no = inv.filter((g) => g.rsvp[k]?.attending === false).length;
-      const coming = inv.reduce((s, g) => s + comingPeople(g, k).length, 0);
+      // Coming: the replies' headcount, as every page counts it (shared/counts).
+      const coming = inv.reduce((s, g) => s + (g.rsvp[k]?.attending === true ? Math.max(1, g.rsvp[k]!.count ?? 1) : 0), 0);
       expect(ov.perEvent.find((e) => e.key === k), `${w.tag} ${k}`).toMatchObject({ invited: inv.length, yes, no, awaiting: inv.length - yes - no, coming });
     }
   };

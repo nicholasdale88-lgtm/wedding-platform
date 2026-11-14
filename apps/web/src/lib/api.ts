@@ -1,4 +1,4 @@
-import type { AdDraft, AdsSettings, AdsState } from '@wp/shared';
+import type { AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
 import type { CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
@@ -150,6 +150,8 @@ export interface Overview {
   yesInv: number;
   noInv: number;
   seatsHeld: number;
+  /** Guests for the event in view (or the first): coming + can't come + still to reply = guests invited. */
+  guests?: GuestCounts | null;
   events: { key: string; name: string; startsAt: string; venue: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
   daysToGo: number | null;
@@ -161,7 +163,7 @@ export interface Overview {
   partySides?: { p1: string; p2: string };
   /** The event these figures are about (the admin's event switcher), or null for all. */
   focus?: string | null;
-  perEvent?: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
+  perEvent?: { key: string; name: string; startsAt: string; invited: number; guests?: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
 }
 
 export interface GuestPatch {

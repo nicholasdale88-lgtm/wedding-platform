@@ -322,10 +322,14 @@ describe('Overview', () => {
   it("an event's overview: replies, its figures, Needs you and latest replies", async () => {
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/overview');
-    expect(await screen.findByRole('heading', { name: '2 of 3 invitations answered' })).toBeInTheDocument();
+    // Counted in guests, as the guest list counts them (coming + can't come + still to reply = everyone).
+    expect(await screen.findByRole('heading', { name: '3 of 4 guests have replied' })).toBeInTheDocument();
+    expect(screen.getByText('4 guests on 3 invitations')).toBeInTheDocument();
     expect(screen.getByText('138 days to the wedding')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Coming\s*2\s*guests coming/ })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Replies' })).toHaveTextContent('67%');
+    expect(screen.getByRole('button', { name: /Coming\s*2\s*guests/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Still to reply\s*1\s*guests/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Can’t come\s*1\s*guests/ })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Replies' })).toHaveTextContent('75%');
     // The overview is the main page: no way "back" from it.
     expect(screen.queryByRole('link', { name: 'The wedding overview' })).toBeNull();
     const needs = screen.getByRole('region', { name: 'Needs you' });
@@ -342,7 +346,7 @@ describe('Overview', () => {
     for (const t of ['Your names and the date', 'Your guests', 'Texting', 'Add your partner or a helper', 'Keep it private']) expect(within(setup).getByText(t)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Your plan/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Backups/ })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: /invitations answered/ })).toBeNull(); // figures are in each event
+    expect(screen.queryByRole('heading', { name: /guests have replied/ })).toBeNull(); // figures are in each event
     await userEvent.click(within(screen.getByRole('region', { name: 'Your events' })).getByRole('button', { name: /Recovery brunch/ }));
     expect(location).toBe('/admin/w1/brunch/overview');
   });

@@ -1,5 +1,6 @@
 export * from './phone';
 export * from './names';
+export * from './counts';
 export * from './tokens';
 export * from './time';
 export * from './sms';

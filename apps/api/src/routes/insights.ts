@@ -29,8 +29,8 @@ export function insightsRoutes() {
                 COUNT(*) AS invited,
                 SUM(r.attending = 1) AS yes,
                 SUM(r.attending = 0) AS no,
-                SUM(CASE WHEN r.attending = 1 THEN r.count ELSE 0 END) AS people,
-                SUM((SELECT COUNT(*) FROM person p WHERE p.invitation_id = i.id AND p.deleted_at IS NULL)) AS seats
+                SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END) AS people,
+                SUM(MAX(1, i.seats_held)) AS seats
            FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL AND i.wedding_id = ?
            LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id
           GROUP BY ie.event_id`,
@@ -128,7 +128,8 @@ export function insightsRoutes() {
         failed: n(r.failed),
         replied: n(r.replied),
       })),
-      catering: { people: coming.length, withNeeds: coming.filter((p) => p.diet.trim()).length, diets: [...dietCounts.entries()].sort((a, b) => b[1] - a[1]), mains: [...mains.entries()].sort((a, b) => b[1] - a[1]) },
+      // Coming: the replies' headcount (as every page counts it); the dietary figures are from the named people.
+      catering: { people: firstEv ? n(stats.get(firstEv.id)?.people) : coming.length, withNeeds: coming.filter((p) => p.diet.trim()).length, diets: [...dietCounts.entries()].sort((a, b) => b[1] - a[1]), mains: [...mains.entries()].sort((a, b) => b[1] - a[1]) },
       // Guests who can be seated (invited, no "no") and how many of them have a seat at a table that still
       // exists: not the couple, removed guests or seats left on deleted tables.
       seating: {

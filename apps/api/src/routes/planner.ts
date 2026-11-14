@@ -432,9 +432,9 @@ export function plannerRoutes() {
     const { results: events } = await db
       .prepare(
         `SELECT e.key, e.name, e.starts_at, e.venue,
-                (SELECT COUNT(*) FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL WHERE ie.event_id = e.id) AS invited,
-                (SELECT COUNT(*) FROM rsvp r WHERE r.event_id = e.id AND r.attending = 1) AS yes,
-                (SELECT COALESCE(SUM(r.count), 0) FROM rsvp r WHERE r.event_id = e.id AND r.attending = 1) AS coming
+                (SELECT COALESCE(SUM(MAX(1, i.seats_held)), 0) FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL WHERE ie.event_id = e.id) AS invited,
+                (SELECT COUNT(*) FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL WHERE r.event_id = e.id AND r.attending = 1) AS yes,
+                (SELECT COALESCE(SUM(MAX(1, COALESCE(r.count, 1))), 0) FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL WHERE r.event_id = e.id AND r.attending = 1) AS coming
            FROM event e WHERE e.wedding_id = ? AND e.deleted_at IS NULL ORDER BY e.sort`,
       )
       .bind(wid(c))
@@ -446,7 +446,7 @@ export function plannerRoutes() {
     const paid = budget.lines.reduce((a, l) => a + l.paid, 0);
     const facts = [
       `Today: ${dateIn(w?.timezone)}. Couple: ${w?.name1} and ${w?.name2}. Timezone ${w?.timezone}.`,
-      ...events.map((e) => `Event "${e.name}" on ${e.starts_at.slice(0, 16).replace('T', ' ')}${e.venue ? ` at ${e.venue}` : ''}: ${e.invited} invitations, ${e.yes} replied yes (${e.coming} people coming).`),
+      ...events.map((e) => `Event "${e.name}" on ${e.starts_at.slice(0, 16).replace('T', ' ')}${e.venue ? ` at ${e.venue}` : ''}: ${e.invited} guests invited, ${e.yes} invitations replied yes (${e.coming} guests coming).`),
       budget.total ? `Budget: $${budget.total} total, $${spend} committed, $${paid} paid.` : 'No budget entered yet.',
       ...budget.lines.filter((l) => (l.quote || l.estimate) > l.paid && l.due).slice(0, 8).map((l) => `Owing: ${l.item || l.category} $${(l.quote || l.estimate) - l.paid} due ${l.due}.`),
       vendors.length ? `Vendors: ${vendors.map((v) => `${v.name} (${v.category || 'vendor'}, ${v.status})`).join('; ')}.` : 'No vendors recorded yet.',
@@ -731,7 +731,7 @@ async function partyExtras(db: D1Database, weddingId: string, perms: Record<Part
   if (perms.guests && first) {
     const g = await db
       .prepare(
-        `SELECT COUNT(*) AS invited, SUM(CASE WHEN r.attending = 1 THEN r.count ELSE 0 END) AS coming, SUM(CASE WHEN r.attending IS NULL THEN 1 ELSE 0 END) AS waiting
+        `SELECT SUM(MAX(1, i.seats_held)) AS invited, SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END) AS coming, SUM(CASE WHEN r.attending IS NULL THEN MAX(1, i.seats_held) ELSE 0 END) AS waiting
            FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id WHERE ie.event_id = ?`,
       )
       .bind(first.id)

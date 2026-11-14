@@ -17,7 +17,7 @@ export async function digestFor(env: Env, weddingId: string, since: string, now 
   if (!w) return null;
   const { results: replies } = await db
     .prepare(
-      `SELECT r.attending, r.count, e.name AS event, e.sort,
+      `SELECT r.attending, r.count, r.invitation_id AS inv, e.name AS event, e.sort,
               (SELECT p.name FROM person p WHERE p.invitation_id = r.invitation_id AND p.deleted_at IS NULL ORDER BY p.idx LIMIT 1) AS who
          FROM rsvp r JOIN event e ON e.id = r.event_id AND e.deleted_at IS NULL
          JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL
@@ -25,7 +25,7 @@ export async function digestFor(env: Env, weddingId: string, since: string, now 
         ORDER BY r.updated_at`,
     )
     .bind(weddingId, since)
-    .all<{ attending: number; count: number; event: string; sort: number; who: string | null }>();
+    .all<{ attending: number; count: number; inv: string; event: string; sort: number; who: string | null }>();
   const waiting = await db
     .prepare(
       `SELECT (SELECT COUNT(*) FROM sms_in WHERE wedding_id = ?1 AND action = 'Needs you' AND handled = 0) +
@@ -44,7 +44,11 @@ export async function digestFor(env: Env, weddingId: string, since: string, now 
     const no = replies.filter((r) => r.attending === 0);
     const names = (xs: typeof replies) => [...new Set(xs.map((r) => r.who?.split(' ')[0] ?? 'A guest'))];
     const list = (xs: string[]) => (xs.length > 6 ? `${xs.slice(0, 6).join(', ')} and ${xs.length - 6} more` : xs.join(', '));
-    if (yes.length) lines.push(`Yes from ${list(names(yes))} (${yes.reduce((s, r) => s + r.count, 0)} coming).`);
+    // How many are coming: each yes once (an invitation answering yes to two events is still the same people),
+    // at the largest number it said, as every page counts it.
+    const heads = new Map<string, number>();
+    for (const r of yes) heads.set(r.inv, Math.max(heads.get(r.inv) ?? 0, Math.max(1, r.count || 1)));
+    if (yes.length) lines.push(`Yes from ${list(names(yes))} (${[...heads.values()].reduce((s, n) => s + n, 0)} coming).`);
     if (no.length) lines.push(`Can't make it: ${list(names(no))}.`);
   }
   if (waiting?.n) lines.push(`${waiting.n} ${waiting.n === 1 ? 'message is' : 'messages are'} waiting for you.`);

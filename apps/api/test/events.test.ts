@@ -37,7 +37,8 @@ describe('events API', () => {
   });
 
   it('adds an event with a plain key, inviting everyone already on the list', async () => {
-    const guests = (await t.db.prepare(`SELECT COUNT(*) AS n FROM invitation WHERE deleted_at IS NULL`).first<{ n: number }>())!.n;
+    // Invited: guests, the places held on invitations (as the guest list counts them).
+    const guests = (await t.db.prepare(`SELECT COALESCE(SUM(MAX(1, seats_held)), 0) AS n FROM invitation WHERE deleted_at IS NULL`).first<{ n: number }>())!.n;
     const res = await call('', { method: 'POST', body: JSON.stringify({ name: 'Recovery brunch', startsAt: '2027-11-19T00:00:00.000Z', hasSeating: false, inviteEveryone: true }) });
     expect(res.status).toBe(201);
     const brunch = (await list()).find((e) => e.name === 'Recovery brunch')!;

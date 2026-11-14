@@ -712,7 +712,12 @@ function SeatingPlan() {
     ], [s.event.key]);
 
   const seated = s.people.filter((p) => seats[p.id]).length;
-  const comingN = s.people.filter((p) => p.coming).length;
+  // Guests coming, as every page counts them (the replies' numbers), apart from the two of you; and any
+  // coming who aren't named yet (a reply for 3 on an invitation naming 2): they need a name to be seated.
+  const comingGuests = s.people.filter((p) => p.coming && !isCouple(p)).length;
+  const coupleHere = s.people.some((p) => isCouple(p));
+  const headcount = overview?.perEvent?.find((e) => e.key === s.event.key)?.coming;
+  const unnamed = headcount !== undefined ? Math.max(0, headcount - comingGuests) : 0;
   const comingUnseated = s.people.filter((p) => p.coming && !seats[p.id]).length;
   const pencilled = s.people.filter((p) => !p.coming && seats[p.id]).length;
   const over = tables.filter((t) => (byTable.get(t.id)?.length ?? 0) > t.seats);
@@ -801,7 +806,8 @@ function SeatingPlan() {
             {seated} of {s.people.length} seated
           </h1>
           <div className="mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)]">
-            {tables.length} {tables.length === 1 ? 'table' : 'tables'} · {seatCount} seats · {comingN} coming
+            {tables.length} {tables.length === 1 ? 'table' : 'tables'} · {seatCount} seats · {comingGuests} {comingGuests === 1 ? 'guest' : 'guests'} coming{coupleHere ? ' + the two of you' : ''}
+            {unnamed ? <span className="text-[#7a4a37]"> · {unnamed} coming not named yet (add their names in the guest list to seat them)</span> : null}
             {pencilled ? <span className="text-[#5e5130]"> · {pencilled} pencilled in</span> : null}
             {comingUnseated ? <span className="text-[#7a4a37]"> · {comingUnseated} coming without a seat</span> : null}
             {over.length ? <span className="text-[#7a4a37]"> · table {over.map((t) => t.name).join(', ')} over capacity</span> : null}

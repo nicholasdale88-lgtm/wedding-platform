@@ -1,4 +1,4 @@
-import { isSerious, localParts } from '@wp/shared';
+import { comingCount, countGuests, isSerious, localParts } from '@wp/shared';
 import type { AdminEvent, AdminGuest, AdminPerson, WeddingData } from './data';
 
 /**
@@ -199,9 +199,12 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
     yesInv,
     noInv: replied - yesInv,
     seatsHeld: G.reduce((n, g) => n + g.seatsHeld, 0),
+    // Guests (places on invitations) for the event in view, or the first: coming, can't come and still to reply
+    // add up to the guests invited, the guest list's number (shared/counts).
+    guests: first ? countGuests(d.guests, first.key) : null,
     events: d.events.map((e) => ({
       key: e.key, name: e.name, startsAt: e.startsAt, venue: e.venue,
-      coming: G.reduce((n, g) => n + (attends(g, e.key) ? Math.max(1, g.rsvp[e.key]?.count ?? 1) : 0), 0),
+      coming: G.reduce((n, g) => n + comingCount(g, e.key), 0),
     })),
     diet: { people: dietPeople.length, serious: dietPeople.filter((p) => isSerious(p.diet)).length, mealsSet },
     daysToGo: first ? daysBetween(now, new Date(first.startsAt), d.wedding.timezone) : null,
@@ -216,10 +219,13 @@ export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Ove
       return {
         key: e.key, name: e.name, startsAt: e.startsAt, hasSeating: e.hasSeating, catered: e.catered,
         invited: inv.length,
+        // Guests invited: the places those invitations hold (the guest list's number).
+        guests: inv.reduce((n, g) => n + Math.max(1, g.seatsHeld || 1), 0),
         yes: inv.filter((g) => g.rsvp[e.key]?.attending === true).length,
         no: inv.filter((g) => g.rsvp[e.key]?.attending === false).length,
         awaiting: inv.filter((g) => (g.rsvp[e.key]?.attending ?? null) === null).length,
-        coming: people.length,
+        // Coming: the same headcount everywhere (the replies' numbers), not just the people named.
+        coming: inv.reduce((n, g) => n + comingCount(g, e.key), 0),
         diet: e.catered ? people.filter((p) => p.diet.trim()).length : 0,
         seated: people.filter((p) => p.tables[e.key]).length,
       };

@@ -37,10 +37,13 @@ export function Overview() {
   const all = o.focus ? '' : 'show=all&';
 
   const ev = firstEvent;
+  // Counted in guests, as the guest list counts them: coming + can't come + still to reply = everyone invited.
+  const n = o.guests ?? { guests: o.seatsHeld, coming: ev?.coming ?? 0, cantCome: 0, awaiting: 0, invitations: o.total, invitationsYes: o.yesInv, invitationsNo: o.noInv, invitationsAwaiting: o.awaiting, children: 0 };
+  const inv = (k: number) => `${k} ${k === 1 ? 'invitation' : 'invitations'}`;
   const figures = [
-    { label: 'Coming', value: ev ? ev.coming : o.yesInv, sub: ev ? 'guests coming' : 'invitations said yes', go: () => to(ev ? `guests?filter=attending:${ev.key}` : 'guests?show=all', ev?.key ?? home) },
-    { label: 'Awaiting', value: o.awaiting, sub: 'invitations to reply', go: () => to(`guests?${all}filter=awaiting`, home), warn: false },
-    { label: 'Declined', value: o.noInv, sub: 'invitations said no', go: () => to(`guests?${all}filter=declined`, home) },
+    { label: 'Coming', value: n.coming, sub: `guests · ${inv(n.invitationsYes)} said yes`, go: () => to(ev ? `guests?filter=attending:${ev.key}` : 'guests?show=all', ev?.key ?? home) },
+    { label: 'Still to reply', value: n.awaiting, sub: `guests · ${inv(n.invitationsAwaiting)}`, go: () => to(`guests?${all}filter=awaiting`, home), warn: false },
+    { label: 'Can’t come', value: n.cantCome, sub: `guests · ${inv(n.invitationsNo)} said no`, go: () => to(`guests?${all}filter=declined`, home) },
     { label: 'Dietary', value: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, go: () => to('dietary', o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home), warn: o.diet.serious > 0 && o.diet.mealsSet < o.diet.people },
   ];
   const isWedding = o.focus === o.events[0]?.key;
@@ -71,10 +74,14 @@ export function Overview() {
             {first2}
           </div>
           <h1 className="m-0 font-display font-medium italic text-[clamp(20px,4vw,26px)] leading-[1.15] [text-wrap:balance] text-[var(--adm-muted,#5b6a52)]">
-            {o.replied} of {o.total} invitations answered
+            {n.guests - n.awaiting} of {n.guests} guests have replied
           </h1>
+          <span className="text-[14px] text-[var(--adm-muted,#5b6a52)] -mt-2">
+            {n.guests} guests on {inv(n.invitations)}
+            {n.children ? ` · ${n.children} ${n.children === 1 ? 'child' : 'children'}` : ''}
+          </span>
           <div aria-hidden className="h-[6px] max-w-[320px] rounded-full bg-[var(--adm-line,#e2d7bc)] overflow-hidden">
-            <div className="h-full rounded-full" style={{ width: `${o.total ? Math.round((o.replied / o.total) * 100) : 0}%`, background: 'linear-gradient(90deg, var(--adm-accent,#5d6b47), var(--adm-gold,#b9a07a))' }} />
+            <div className="h-full rounded-full" style={{ width: `${n.guests ? Math.round(((n.guests - n.awaiting) / n.guests) * 100) : 0}%`, background: 'linear-gradient(90deg, var(--adm-accent,#5d6b47), var(--adm-gold,#b9a07a))' }} />
           </div>
         </div>
       </header>
@@ -87,13 +94,13 @@ export function Overview() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card title="Replies" action={['Guest list', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
           <Donut
-            label="Invitations"
-            centre={`${o.total ? Math.round((o.replied / o.total) * 100) : 0}%`}
-            sub="answered"
+            label="Guests"
+            centre={`${n.guests ? Math.round(((n.guests - n.awaiting) / n.guests) * 100) : 0}%`}
+            sub="replied"
             slices={[
-              { label: 'Coming', value: o.yesInv, colour: C.accent },
-              { label: 'Declined', value: o.noInv, colour: C.gold },
-              { label: 'Awaiting', value: o.awaiting, colour: C.sand },
+              { label: 'Coming', value: n.coming, colour: C.accent },
+              { label: 'Can’t come', value: n.cantCome, colour: C.gold },
+              { label: 'Still to reply', value: n.awaiting, colour: C.sand },
             ]}
           />
         </Card>
