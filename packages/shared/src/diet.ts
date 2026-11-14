@@ -25,7 +25,8 @@ const CATEGORIES: [string, RegExp][] = [
   ['Nut allergy', /\bnuts?\b|peanut|tree.?nut/i],
   ['Seafood', /seafood|shellfish|prawn|crustacean|\bfish\b/i],
   ['Egg', /\beggs?\b/i],
-  ['Halal or kosher', /halal|kosher/i],
+  ['Halal', /halal/i],
+  ['Kosher', /kosher/i],
   ['Pregnant', /pregnan/i],
 ];
 /**

@@ -18,6 +18,8 @@ const STARTERS: [string, string][] = [
   ['Gluten free', 'gluten, coeliac, celiac'],
   ['Dairy free', 'dairy, lactose'],
   ['Nut free', 'nut free, peanut free'],
+  ['Halal', 'halal'],
+  ['Kosher', 'kosher'],
   ['Kids', 'kid, child'],
 ];
 

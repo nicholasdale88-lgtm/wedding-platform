@@ -2010,7 +2010,7 @@ export function servedMeal(choice: MealChoice | undefined, menus: Menus | undefi
   return { menu: menu?.name || (own ? 'Their own' : 'Set menu'), menuId: menu?.id ?? '', entree: course('entree'), main: course('main'), dessert: course('dessert') };
 }
 
-const needWord = (n: string) => (n === 'Nut allergy' ? 'nut free' : n === 'Seafood' ? 'seafood free' : n === 'Egg' ? 'egg free' : n === 'Halal or kosher' ? 'halal or kosher' : n.toLowerCase());
+const needWord = (n: string) => (n === 'Nut allergy' ? 'nut free' : n === 'Seafood' ? 'seafood free' : n === 'Egg' ? 'egg free' : n.toLowerCase());
 
 /**
  * Anything to check: a need their meal isn't marked safe for ("The set menu isn't marked nut free: check
