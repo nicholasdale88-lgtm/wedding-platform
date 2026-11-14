@@ -289,10 +289,10 @@ describe('launch scale: every feature pushed hard', () => {
       groupWant.set(k, e);
     }
     expect(Object.fromEntries(ins.groups.map((x) => [x.group, { invited: x.invited, yes: x.yes, no: x.no }]))).toEqual(Object.fromEntries(groupWant));
-    // Catering in Insights counts everyone on an invitation that said yes to the first event (not the reply's count).
+    // Catering in Insights: coming is the replies' headcount for the first event, as every page counts it.
     const weddingYes = snap.filter((g) => g.rsvp.wedding?.attending === true);
     expect(ins.catering).toMatchObject({
-      people: weddingYes.reduce((n, g) => n + g.people.length, 0),
+      people: weddingYes.reduce((n, g) => n + Math.max(1, g.rsvp.wedding?.count ?? 1), 0),
       withNeeds: weddingYes.flatMap((g) => g.people).filter((p) => p.diet.trim()).length,
     });
     expect(ins.opened.invitations).toBe(300);

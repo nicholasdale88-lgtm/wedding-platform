@@ -406,7 +406,7 @@ describe('planner: wedding party', () => {
     const r = (await (await call('/ask', { method: 'POST', body: JSON.stringify({ question: 'What next?' }) })).json()) as { answer: string };
     expect(r.answer).toBe('Book your celebrant and lodge the NOI.');
     const system = seen.input!.messages[0]!.content;
-    expect(system).toMatch(/invitations, \d+ replied yes/); // real numbers from this wedding
+    expect(system).toMatch(/\d+ guests invited, \d+ invitations replied yes \(\d+ guests coming\)/); // real numbers from this wedding
     expect(seen.input!.messages.at(-1)).toEqual({ role: 'user', content: 'What next?' });
   });
 

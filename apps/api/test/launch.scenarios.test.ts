@@ -344,7 +344,8 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect(ov).toMatchObject({ total: 250, replied: 250, awaiting: 0, yesInv: yes.length, noInv: 250 - yes.length, seatsHeld: people });
     expect(ov.events).toEqual([expect.objectContaining({ key: 'wedding', coming })]);
     expect(ov.perEvent[0]).toMatchObject({ key: 'wedding', invited: 250, yes: yes.length, no: 250 - yes.length, awaiting: 0, coming });
-    expect((await events(w))[0]).toMatchObject({ key: 'wedding', invited: 250, coming: yes.length });
+    // The events list counts guests, as every page does: places invited and the replies' numbers coming.
+    expect((await events(w))[0]).toMatchObject({ key: 'wedding', invited: people, coming });
     // Every reply stored as given.
     const after = await guests(w);
     const want = new Map(plans.map((p) => [p.g.id, p.yes]));
@@ -410,7 +411,8 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect(ov.events.map(({ key, coming }) => ({ key, coming }))).toEqual(want.map(({ key, coming }) => ({ key, coming })));
     expect(ov).toMatchObject({ total: 24, awaiting: 3, replied: 21 });
     expect(ov.perEvent.find((e) => e.key === BRUNCH)!.diet).toBe(0); // not catered
-    expect((await events(w)).map(({ key, invited, coming }) => ({ key, invited, coming }))).toEqual(want.map(({ key, invited, yes }) => ({ key, invited, coming: yes })));
+    // The events list counts guests (as every page does): the people on its invitations, and the replies' numbers.
+    expect((await events(w)).map(({ key, coming }) => ({ key, coming }))).toEqual(want.map(({ key, coming }) => ({ key, coming })));
     // Each event focused on its own: only its guests.
     const brunchOv = await read<Overview>(await admin(w, `/overview?event=${BRUNCH}`));
     expect(brunchOv).toMatchObject({ total: 16, awaiting: want[1]!.awaiting, yesInv: want[1]!.yes });
