@@ -1,4 +1,4 @@
-import { allPayments, BUDGET_SPLIT, moneyOf, withSchedules, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
+import { allPayments, BUDGET_SPLIT, hasContract, moneyOf, withSchedules, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
@@ -463,7 +463,7 @@ export function Insights() {
               { label: 'Shortlisted', value: vendors.list.length, colour: '#c6b794' },
               { label: 'Quoted', value: vendors.list.filter((v) => v.quotes.length || v.quote).length, colour: '#b39563' },
               { label: 'Booked', value: booked.length, colour: '#5d6b47' },
-              { label: 'Contract signed', value: booked.filter((v) => v.contractSigned).length, colour: '#33402f' },
+              { label: 'Contract kept', value: booked.filter((v) => hasContract(v)).length, colour: '#33402f' },
             ]}
           />
           <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{quotes} quotes filed</div>

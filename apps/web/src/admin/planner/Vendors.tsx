@@ -1,5 +1,5 @@
-import { allPayments, budgetFit, commitmentOf, dateIn, lineFor, linkToBudget, suggestedTasks, vendorKind, VENDOR_PAGE_NOTE, vendorShares, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { allPayments, budgetFit, commitmentOf, dateIn, lineFor, linkToBudget, suggestedTasks, hasContract, vendorKind, VENDOR_PAGE_NOTE, vendorShares, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
 import { QuoteFile } from './QuoteFile';
@@ -67,6 +67,9 @@ export function Vendors() {
   const { wid, overview } = useAdmin();
   const toast = useToast();
   const [doc, setDoc] = useState<{ data: VendorsDoc; version: number } | null>(null);
+  // The list as last changed (even before a re-render), so quick changes in a row build on each other.
+  const latest = useRef(doc);
+  latest.current = doc;
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
   // The budget: a booked vendor's payment schedule starts from its budget line, and Lock in puts each booked
   // vendor on their line (what you budgeted against what you've committed).
@@ -110,7 +113,8 @@ export function Vendors() {
   /** Each change is saved straight away (the list is small and changes are deliberate). */
   const save = async (next: Vendor[], done?: string, rfqs = doc.data.rfqs) => {
     const before = doc;
-    setDoc({ ...doc, data: { list: next, rfqs } });
+    latest.current = { ...doc, data: { list: next, rfqs } };
+    setDoc(latest.current);
     try {
       const r = await saveDoc({ list: next, rfqs });
       setDoc((d) => (d ? { ...d, version: r.version } : r)); // keep what's on screen: a later change may be on its way
@@ -124,7 +128,7 @@ export function Vendors() {
       return false;
     }
   };
-  const patch = (id: string, p: Partial<Vendor>, done?: string) => void save(list.map((x) => (x.id === id ? { ...x, ...p } : x)), done);
+  const patch = (id: string, p: Partial<Vendor>, done?: string) => void save((latest.current?.data.list ?? list).map((x) => (x.id === id ? { ...x, ...p } : x)), done);
   const booked = list.filter((v) => v.status === 'booked');
   const committed = booked.reduce((a, v) => a + moneyOf(v).total, 0);
   const paid = booked.reduce((a, v) => a + moneyOf(v).paid, 0);
@@ -133,7 +137,7 @@ export function Vendors() {
   const quotesIn = list.some((v) => v.quotes.length > 0);
   const openWithQuotes = doc.data.rfqs.some((r) => !r.closed && r.vendors.some((rv) => rv.answeredOn || rv.quoteId));
   // Booked ones with the deposit paid and the contract signed are locked in: then it's managing them (step 5).
-  const lockedIn = booked.length > 0 && booked.every((v) => (v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid) && !!v.contractSigned);
+  const lockedIn = booked.length > 0 && booked.every((v) => (v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid) && hasContract(v));
   const atStep: 1 | 2 | 3 | 4 | 5 = !list.length ? 1 : booked.length && !openWithQuotes ? (lockedIn ? 5 : 4) : quotesIn ? 3 : 2;
   const shown = step ?? atStep;
   const goStep = (n: 1 | 2 | 3 | 4 | 5) => {
@@ -388,7 +392,7 @@ function LockedIn({
         const fit = fits[vi]!;
         const depositDone = v.payments.length ? v.payments.some((p) => p.paid) : v.depositPaid;
         const scheduled = v.payments.length > 0;
-        const steps = [fit.linked.length > 0, depositDone, scheduled, !!v.contractSigned, v.meals > 0 || !!v.arrival];
+        const steps = [fit.linked.length > 0, depositDone, scheduled, hasContract(v), v.meals > 0 || !!v.arrival];
         const done = steps.filter(Boolean).length;
         return (
           <article key={v.id} className="flex flex-col gap-3 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
@@ -442,10 +446,10 @@ function LockedIn({
                 </span>
               </li>
               <li className="flex gap-3 items-start">
-                {tick(!!v.contractSigned)}
+                {tick(hasContract(v))}
                 <span className="flex-1 min-w-0 text-[15px]">
                   <strong>Contract</strong>
-                  <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)] mb-1">When it was signed, the file, and what happens if anyone cancels.</span>
+                  <span className="block text-[13px] text-[var(--adm-muted,#5b6a52)] mb-1">Most vendors send their own to sign. Keep the signed copy here: upload it, or paste a link.</span>
                   <Contract v={v} onChange={(p) => onPatch(v.id, p)} />
                 </span>
               </li>
@@ -453,11 +457,12 @@ function LockedIn({
                 {tick(v.meals > 0 || !!v.arrival)}
                 <span className="flex-1 text-[15px]">
                   <strong>On the day</strong>
-                  <span className="grid gap-2 grid-cols-2 mt-1 max-w-[420px]">
-                    <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
+                  <span className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
+                    {/* Not a label: a tap on its words would press the minus button. */}
+                    <span className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Meals for their team
-                      <input type="number" min={0} max={50} value={v.meals} onChange={(e) => onPatch(v.id, { meals: Math.max(0, Math.min(50, Number(e.target.value) || 0)) })} className={inputCls} />
-                    </label>
+                      <MealsStepper value={v.meals} name={v.name} onSave={(meals) => onPatch(v.id, { meals }, `${v.name}: ${meals} team ${meals === 1 ? 'meal' : 'meals'}`)} />
+                    </span>
                     <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
                       Arriving at
                       <input defaultValue={v.arrival} placeholder="e.g. 11:00am" onBlur={(e) => e.target.value !== v.arrival && onPatch(v.id, { arrival: e.target.value.slice(0, 20) })} className={inputCls} />
@@ -575,7 +580,7 @@ function Manage({
           action: { label: 'Done', run: () => setTasks(v, (v.tasks ?? []).map((x) => (x.id === t.id ? { ...x, done: true } : x)), `${t.text} ✓`) },
         }),
       ),
-    ...booked.filter((v) => !v.contractSigned).map((v): Item => ({ key: `contract:${v.id}`, vendorId: v.id, text: `Sign ${v.name}’s contract`, tone: 'todo', action: { label: 'Lock in', run: () => onStep(4) } })),
+    ...booked.filter((v) => !hasContract(v)).map((v): Item => ({ key: `contract:${v.id}`, vendorId: v.id, text: `Keep ${v.name}’s signed contract`, tone: 'todo', action: { label: 'Upload it', run: () => onStep(4) } })),
     ...(toGo !== null && toGo <= 60 && !after ? booked.filter((v) => !v.arrival).map((v): Item => ({ key: `arrive:${v.id}`, vendorId: v.id, text: `When does ${v.name} arrive on the day?`, tone: 'todo', action: { label: 'Add it', run: () => open(v.id, 'checkin') } })) : []),
     // A note a vendor left when confirming on their own page (the past week).
     ...booked.flatMap((v): Item[] => {
@@ -695,7 +700,7 @@ function Manage({
               </span>
               <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
                 {aud(m.paid)} of {aud(m.total)} paid
-                {m.next ? ` · next ${aud(m.next.amount)} ${m.next.due ? shortDate(m.next.due) : '(no date)'}` : m.total ? ' · all paid ✓' : ''} · contract {v.contractSigned ? '✓' : 'not signed'} · {tasks.filter((t) => t.done).length}/{tasks.length} tasks
+                {m.next ? ` · next ${aud(m.next.amount)} ${m.next.due ? shortDate(m.next.due) : '(no date)'}` : m.total ? ' · all paid ✓' : ''} · contract {hasContract(v) ? '✓' : 'not kept yet'} · {tasks.filter((t) => t.done).length}/{tasks.length} tasks
                 {v.meals ? ` · ${v.meals} team ${v.meals === 1 ? 'meal' : 'meals'}` : ''}
                 {fit.diff !== null ? <span className={fit.diff > 0 ? 'text-[#7a4a37]' : 'text-[#3d4a2f]'}>{` · ${aud(Math.abs(fit.diff))} ${fit.diff > 0 ? 'over' : 'under'} budget`}</span> : !fit.linked.length ? ' · not on your budget yet (Lock in)' : ''}
               </span>
@@ -1412,69 +1417,177 @@ function Compare({ list }: { list: Vendor[] }) {
   );
 }
 
-/** The contract: signed when, what happens if anyone cancels, whether the deposit comes back, the file. */
+/**
+ * Meals for a vendor's team: tap minus or plus, or type a number. Typing saves once you leave the box (or
+ * press Enter), so clearing it to type a new number never snaps back to 0.
+ */
+function MealsStepper({ value, name, onSave }: { value: number; name: string; onSave: (n: number) => void }) {
+  const [text, setText] = useState(String(value));
+  useEffect(() => setText(String(value)), [value]);
+  const commit = (n: number) => {
+    const m = Math.max(0, Math.min(50, Math.round(n)));
+    setText(String(m));
+    if (m !== value) onSave(m);
+  };
+  const btn = 'flex-none w-11 h-11 rounded-full border border-[var(--adm-line,#c6b794)] bg-white text-[20px] leading-none cursor-pointer text-[var(--adm-ink,#33402f)] disabled:opacity-40';
+  return (
+    <span className="flex items-center gap-2">
+      <button type="button" aria-label={`One fewer meal for ${name}`} disabled={value <= 0} onClick={() => commit(value - 1)} className={btn}>
+        −
+      </button>
+      <input
+        inputMode="numeric"
+        pattern="[0-9]*"
+        aria-label={`Meals for ${name}’s team`}
+        value={text}
+        onChange={(e) => setText(e.target.value.replace(/\D/g, '').slice(0, 2))}
+        onBlur={() => commit(Number(text) || 0)}
+        onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+        className={`${inputCls} w-[56px] text-center`}
+      />
+      <button type="button" aria-label={`One more meal for ${name}`} disabled={value >= 50} onClick={() => commit(value + 1)} className={btn}>
+        +
+      </button>
+    </span>
+  );
+}
+
+const MAX_UPLOAD = 1.5 * 1024 * 1024;
+
+/** A phone photo too big to keep, made smaller (longest side 2000px, JPEG); anything else unchanged. */
+async function shrinkPhoto(f: File): Promise<File> {
+  if (f.size <= MAX_UPLOAD || !/^image\/(jpeg|png|webp)$/.test(f.type)) return f;
+  try {
+    const img = await createImageBitmap(f);
+    const k = Math.min(1, 2000 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * k);
+    c.height = Math.round(img.height * k);
+    c.getContext('2d')?.drawImage(img, 0, 0, c.width, c.height);
+    for (const q of [0.82, 0.7, 0.55]) {
+      const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, 'image/jpeg', q));
+      if (blob && blob.size <= MAX_UPLOAD) return new File([blob], f.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+    }
+  } catch {
+    // Can't read it here: the size check below explains.
+  }
+  return f;
+}
+
+/**
+ * The contract. Vendors send their own to sign, so this just keeps it: upload the signed copy (a PDF or a
+ * photo of it), or paste a link to where it lives (a signing site or a shared drive). Either one ticks it
+ * off. The date, the cancellation terms and whether the deposit comes back sit under More.
+ */
 function Contract({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>) => void }) {
   const { wid } = useAdmin();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [link, setLink] = useState(v.contractLink ?? '');
+  const today = dateIn(useAdmin().overview?.wedding.timezone);
+  const upload = async (f: File) => {
+    const file = await shrinkPhoto(f);
+    if (file.size > MAX_UPLOAD) return toast('That file is over 1.5 MB. Paste a link to it instead (from the email, the signing site or your drive).');
+    setBusy(true);
+    try {
+      const r = await plannerApi.uploadFile(wid, file);
+      onChange({ contractFileId: r.id, contractFileName: r.name, contractSigned: v.contractSigned || today });
+      toast(`${v.name}’s contract kept ✓`);
+    } catch (err) {
+      toast((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const saveLink = () => {
+    const u = link.trim();
+    if (u && !/^https?:\/\/\S+$/i.test(u)) return toast('Paste the whole link, starting with https://');
+    onChange({ contractLink: u, contractSigned: u ? v.contractSigned || today : v.contractSigned });
+    setLinking(false);
+    if (u) toast('Link kept ✓');
+  };
+  const pill = 'min-h-[36px] py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-white text-[13px] cursor-pointer text-[var(--adm-ink,#33402f)] inline-flex items-center';
   return (
-    <details className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white" open={!!(v.contractSigned || v.contractFileId)}>
-      <summary className="cursor-pointer py-2 px-3 text-[14px] font-medium">
-        Contract{v.contractSigned ? ` · signed ${shortDate(v.contractSigned)}` : v.status === 'booked' ? ' · not signed yet' : ''}
-        {v.contractFileId ? ' · file kept' : ''}
-      </summary>
-      <div className="grid gap-3 sm:grid-cols-2 px-3 pb-3">
-        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
-          Signed on
-          <input type="date" value={v.contractSigned} onChange={(e) => onChange({ contractSigned: e.target.value })} className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] sm:col-span-2">
-          If anyone cancels or postpones
-          <textarea rows={2} value={v.cancellation} maxLength={600} placeholder="e.g. Deposit kept; 50% due if cancelled within 90 days; one free date change" onChange={(e) => onChange({ cancellation: e.target.value })} className={`${inputCls} resize-y`} />
-        </label>
-        <label className="flex items-center gap-2 text-[14px] cursor-pointer">
-          <input type="checkbox" checked={v.depositRefundable} onChange={() => onChange({ depositRefundable: !v.depositRefundable })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
-          The deposit is refundable
-        </label>
-        <span className="flex items-center gap-3 text-[14px] flex-wrap">
-          {v.contractFileId ? (
-            <>
-              <a href={plannerApi.fileUrl(wid, v.contractFileId)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)]">
-                📎 {v.contractFileName || 'Contract'}
-              </a>
-              <button type="button" onClick={() => onChange({ contractFileId: '', contractFileName: '' })} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">
-                Remove
-              </button>
-            </>
-          ) : (
-            <label className={`py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] text-[13px] cursor-pointer ${busy ? 'opacity-60' : ''}`}>
-              {busy ? 'Uploading…' : 'Keep the contract (PDF or photo)'}
-              <input
-                type="file"
-                accept="application/pdf,image/jpeg,image/png,image/webp,image/heic"
-                className="hidden"
-                disabled={busy}
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  e.target.value = '';
-                  if (!f) return;
-                  if (f.size > 1.5 * 1024 * 1024) return toast('That file is over 1.5 MB. Try a smaller PDF or a photo.');
-                  setBusy(true);
-                  try {
-                    const r = await plannerApi.uploadFile(wid, f);
-                    onChange({ contractFileId: r.id, contractFileName: r.name });
-                  } catch (err) {
-                    toast((err as Error).message);
-                  } finally {
-                    setBusy(false);
-                  }
-                }}
-              />
-            </label>
-          )}
-        </span>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2 flex-wrap text-[14px]">
+        {v.contractFileId && (
+          <>
+            <a href={plannerApi.fileUrl(wid, v.contractFileId)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)] font-medium">
+              {v.contractFileName || 'Contract'}
+            </a>
+            <button type="button" onClick={() => onChange({ contractFileId: '', contractFileName: '' })} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#7a4a37]">
+              Remove
+            </button>
+          </>
+        )}
+        {v.contractLink && !linking && (
+          <>
+            <a href={v.contractLink} target="_blank" rel="noopener noreferrer" className="!text-[var(--adm-ink,#33402f)] font-medium">
+              Open the contract
+            </a>
+            <button type="button" onClick={() => setLinking(true)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-muted,#5b6a52)]">
+              Change link
+            </button>
+          </>
+        )}
+        {!v.contractFileId && (
+          <label className={`${pill} ${busy ? 'opacity-60' : ''}`}>
+            {busy ? 'Uploading…' : 'Upload their contract'}
+            <input
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                if (f) void upload(f);
+              }}
+            />
+          </label>
+        )}
+        {!v.contractLink && !linking && (
+          <button type="button" onClick={() => setLinking(true)} className={pill}>
+            Paste a link instead
+          </button>
+        )}
       </div>
-    </details>
+      {linking && (
+        <form
+          className="flex gap-2 items-center flex-wrap"
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveLink();
+          }}
+        >
+          <input type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://… (the signing site, email or drive)" aria-label="Link to the contract" maxLength={500} className={`${inputCls} flex-1 min-w-[200px]`} />
+          <button type="submit" className={pill}>
+            Save
+          </button>
+          <button type="button" onClick={() => setLinking(false)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-muted,#5b6a52)]">
+            Cancel
+          </button>
+        </form>
+      )}
+      <details className="text-[13px]">
+        <summary className="cursor-pointer text-[var(--adm-muted,#5b6a52)] py-1">More: date signed, cancellation terms</summary>
+        <div className="grid gap-3 sm:grid-cols-2 pt-2">
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
+            Signed on
+            <input type="date" value={v.contractSigned} onChange={(e) => onChange({ contractSigned: e.target.value })} className={inputCls} />
+          </label>
+          <label className="flex items-center gap-2 text-[14px] cursor-pointer self-end pb-2">
+            <input type="checkbox" checked={v.depositRefundable} onChange={() => onChange({ depositRefundable: !v.depositRefundable })} className="w-[18px] h-[18px] accent-[#5d6b47]" />
+            The deposit is refundable
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] sm:col-span-2">
+            If anyone cancels or postpones
+            <textarea rows={2} value={v.cancellation} maxLength={600} placeholder="e.g. Deposit kept; 50% due if cancelled within 90 days; one free date change" onChange={(e) => onChange({ cancellation: e.target.value })} className={`${inputCls} resize-y`} />
+          </label>
+        </div>
+      </details>
+    </div>
   );
 }
 
