@@ -433,6 +433,7 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower $2,800 · Best value', 'Petal Co $3,150 · 1 item left out'], tap: 'Ask for a better price', then: 'Aim for $2,750: your plan and message' },
     { at: ['Wedding planner', 'Vendors'], rows: ['Budget: Florist $3,000 · booked $2,750', 'Deposit $700 · today', 'Instalments 1–3 · monthly'], tap: 'Deposit + 3 monthly', then: '4 payments, in the budget and your calendar ✓' },
     { at: ['Wedding planner', 'Vendors'], rows: ['Pay Petal Co $700 · due Fri', 'Send delivery times · by 4 Nov', 'Final check-in with Petal Co'], tap: 'Mark paid', then: 'Managed to the day ✓' },
+    { at: ['Their page'], rows: ['Songs · Must play 12', 'Dietary · Vegan 3 · Coeliac 1', 'Arriving 4:30pm'], tap: 'Confirm the details', then: 'Confirmed on their page ✓' },
   ],
   checklist: [
     { at: ['Wedding planner', 'Checklist'], rows: ['Book the venue · 12 months', 'Notice of Intended Marriage ⚠ by 14 Feb', 'Send invitations · 3 months'], then: 'Counted back from your date' },

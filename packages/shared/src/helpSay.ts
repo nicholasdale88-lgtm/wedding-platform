@@ -112,13 +112,14 @@ export const HELP_SAY: Record<string, HelpSay> = {
     outro: 'That’s it — your dream team, all in one place.',
   },
   quotes: {
-    intro: 'Here’s how to go from first quote to fully booked, in five easy steps.',
+    intro: 'Here’s how to go from first quote to fully booked, in six easy steps.',
     steps: [
       'Step one. In Vendors, tap Add a vendor for everyone you’re thinking about. A name, what they do, and an email or mobile is plenty.',
       'Step two. Tap Get quotes, choose what for, and send. Each vendor prices it on their own link, and slow ones get a friendly reminder.',
       'Step three. Compare them, best value first, like for like. Tap Ask for a better price, and you’ll get a plan, and a message ready to send.',
       'Step four. Lock in your favourite. Put them on the budget, set up their payments, like a deposit and three monthly, and sign the contract.',
       'Step five. Manage them. Payments due, tasks, notes, and a final check-in three weeks out. It’s all in one spot.',
+      'Step six. Send each one their own page. The DJ gets the song list, the caterer the dietary needs. They add it to their calendar, and confirm.',
     ],
     outro: 'That’s it — booked, budgeted, and sorted.',
   },
