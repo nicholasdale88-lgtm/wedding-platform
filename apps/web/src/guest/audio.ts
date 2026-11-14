@@ -1,3 +1,5 @@
+import { MUSIC_BOX, musicBox } from './musicBox';
+
 /** Music on guests' pages: an MP3 (preferred) or a YouTube link, started from a tap (browsers allow no autoplay). */
 
 export interface Player {
@@ -10,6 +12,7 @@ export interface Player {
 
 /** A player for a link, or null when there is none. `loop` keeps it going (the night-before page). */
 export function playerFor(src: string, loop = false): Player | null {
+  if (src === MUSIC_BOX) return musicBox();
   const yt = youTubeId(src);
   if (yt) return youTubeAudio(yt, loop);
   if (!src || typeof Audio === 'undefined') return null;

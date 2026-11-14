@@ -1,11 +1,13 @@
 import generic from '../../../../seed/texts.generic.json';
 import type { InvitePayload } from '../guest/invitation/api';
+import { MUSIC_BOX } from '../guest/musicBox';
 
 /**
  * The sample wedding behind /demo and the phone on the front page: the real invitation a guest sees, fed with
  * made-up details (no server, nothing saved). The wording is the starting wording every new wedding gets,
- * with its [placeholders] filled in for this couple (where to stay included, with made-up businesses). Sections
- * that would still show placeholders (registry, questions) are switched off, the way a couple can switch them off.
+ * with its [placeholders] filled in for this couple (where to stay included, with made-up businesses), their own
+ * questions answered, our own music, and a dietary need already noted (Tom, vegetarian) so the reply shows where it
+ * goes. The registry, which would still show a placeholder, is switched off, the way a couple can switch it off.
  */
 export const SAMPLE = {
   couple: 'Harriet & Theo',
@@ -61,7 +63,21 @@ export const SAMPLE_INVITE: InvitePayload = {
     rsvpBy: 'Kindly reply by 1 February',
     seal: 'Sandstone',
     envelope: { liner: 'eucalyptus' },
-    hidden: { '09 Gift Registry': true, '11 FAQ': true },
+    hidden: { '09 Gift Registry': true },
+    // Our own music-box waltz (composed for us), starting when the envelope is opened.
+    audioUrl: MUSIC_BOX,
+    // The questions guests ask, answered the way a couple would for this wedding.
+    lists: {
+      '11 FAQ#1': [
+        { q: 'When should I arrive?', a: ['Please arrive from 1:30pm. The ceremony starts at 2:00pm sharp, among the vines at Larkwood Estate.', 'Ushers will meet you in the car park and walk you down.'] },
+        { q: 'What should I wear?', a: ['Garden formal: suits, cocktail or midi dresses.', 'The ceremony is on the lawn, so block heels or flats are kinder than stilettos.'] },
+        { q: 'Can I tell you about my dietary needs?', a: ['Yes, please. When you reply, there’s a box for each guest: vegetarian, vegan, gluten free, allergies, anything at all.', 'It goes straight to our caterer, so every meal reaches the right plate.'] },
+        { q: 'Can I bring a guest or my children?', a: ['Only the guests named on your invitation can reply. Your reply form shows how many seats are held for you.', 'Questions about a plus-one? Message us from your invitation.'] },
+        { q: 'Where do I park?', a: ['There’s free parking at Larkwood Estate, right beside the ceremony lawn.'] },
+        { q: 'What if it rains?', a: ['The ceremony moves into the barrel room, a few steps away. We’ll let you know by text on the morning.'] },
+        { q: 'How do I get home?', a: ['Dancing finishes at 11:00pm. Please book your ride home before the day: taxis are hard to find late in the valley.'] },
+      ],
+    },
   },
   texts: { ...(generic as Record<string, string>), ...FILLS },
   // 2:00pm in Sydney (daylight saving time).
@@ -70,7 +86,7 @@ export const SAMPLE_INVITE: InvitePayload = {
     token: 'sample-olivia-and-james',
     people: [
       { idx: 0, name: 'Emma', diet: '' },
-      { idx: 1, name: 'Tom', diet: '' },
+      { idx: 1, name: 'Tom', diet: 'Vegetarian' },
     ],
     seatsHeld: 2,
     invited: ['wedding'],

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { tableTop } from './Stills';
+import { RealEnvelope } from './RealEnvelope';
 
 /**
  * Paper or phone: one invitation two ways, side by side on a tabletop. On the left, a letterpress card on
@@ -157,84 +158,14 @@ function paperArt(names: [string, string], place: string): string {
   </svg>`;
 }
 
-/** A five-petal blossom with a gold heart. */
-function blossom(x: number, y: number, r: number, k: number): string {
-  let p = '';
-  for (let i = 0; i < 5; i++) {
-    const a = i * 72 + k * 13;
-    p += `<ellipse cx='0' cy='${f1(-r * 0.52)}' rx='${f1(r * 0.42)}' ry='${f1(r * 0.56)}' transform='rotate(${a})' fill='url(#pvPetal)' stroke='#e7d3c2' stroke-width='.6'/>`;
-  }
-  let dots = '';
-  for (let i = 0; i < 7; i++) {
-    const a = (i / 7) * Math.PI * 2;
-    dots += `<circle cx='${f1(Math.cos(a) * r * 0.2)}' cy='${f1(Math.sin(a) * r * 0.2)}' r='${f1(r * 0.05)}' fill='#a8834a'/>`;
-  }
-  return `<g transform='translate(${f1(x)} ${f1(y)})'>
-    <g transform='translate(1.5 2.5)' opacity='.18' filter='url(#pvSoft)'><circle r='${f1(r)}' fill='#5a3a2a'/></g>
-    ${p}<circle r='${f1(r * 0.22)}' fill='#ecc779'/>${dots}</g>`;
-}
 
-/** A corner posy for the phone: three blossoms, leaves and buds, fanned from (x, y) toward `deg`. */
-function posy(x: number, y: number, deg: number, k: number, size = 1): string {
-  let leaves = '';
-  for (let i = 0; i < 11; i++) {
-    const a = deg - 80 + i * 16 + (rnd(i, k) - 0.5) * 14;
-    const L = (34 + rnd(i + 3, k) * 30) * size;
-    leaves += leaf(x, y, a, L, `fill='url(#${i % 2 ? 'pvLeaf' : 'pvLeaf2'})' stroke='#56694a' stroke-opacity='.35' stroke-width='.6'`);
-  }
-  let flowers = '';
-  for (let i = 0; i < 5; i++) {
-    const a = ((deg - 50 + i * 25) * Math.PI) / 180;
-    const d = (14 + (i % 2) * 22 + rnd(i, k + 5) * 10) * size;
-    flowers += blossom(x + Math.cos(a) * d, y + Math.sin(a) * d, (15 + rnd(i, k + 2) * 7) * size, k + i);
-  }
-  let buds = '';
-  for (let i = 0; i < 8; i++) {
-    const a = ((deg - 60 + rnd(i, k + 7) * 120) * Math.PI) / 180;
-    const d = (50 + rnd(i, k + 8) * 30) * size;
-    buds += `<circle cx='${f1(x + Math.cos(a) * d)}' cy='${f1(y + Math.sin(a) * d)}' r='${f1(2.5 + rnd(i, k) * 1.6)}' fill='#fffaf3' stroke='#e2cfbd' stroke-width='.6'/>`;
-  }
-  return leaves + buds + flowers;
-}
-
-/** The same invitation on a phone's screen (300 × 640). */
-function phoneArt(names: [string, string], place: string): string {
-  const cx = 150;
-  const caps = `font-family="${SERIF}" font-weight='600' letter-spacing='2.6' text-anchor='middle' fill='#7c6a52'`;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 640' width='100%' height='100%' preserveAspectRatio='xMidYMid slice'>
-    <defs>${DEFS}<filter id='pvSoft' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation='2'/></filter></defs>
-    <rect width='300' height='640' fill='#fbf6ee' filter='url(#pvPaper)'/>
-    ${posy(10, 46, 40, 1, 1.25)}${posy(290, 46, 140, 2, 1.25)}${posy(10, 606, -40, 3, 1.25)}${posy(290, 606, -140, 4, 1.25)}
-    ${posy(-4, 330, 0, 5, 0.75)}${posy(304, 300, 180, 6, 0.75)}
-    <g fill='url(#pvFoil)' font-family="${SCRIPT}" text-anchor='middle'>
-      <text x='${cx}' y='112' font-size='56'>${names[0].charAt(0)}</text>
-    </g>
-    <g fill='url(#pvFoil)'>${sprig(cx, 132, 0.7).replace(/stroke='#000'/g, "stroke='#a8834a'")}</g>
-    <text x='${cx}' y='176' font-size='9' ${caps}>TOGETHER</text>
-    <text x='${cx}' y='190' font-size='9' ${caps}>WITH THEIR FAMILIES</text>
-    <g fill='url(#pvFoil)' font-family="${SCRIPT}" text-anchor='middle'>
-      <text x='${cx}' y='246' font-size='44'>${names[0]}</text>
-      <text x='${cx}' y='284' font-size='28'>&amp;</text>
-      <text x='${cx}' y='328' font-size='44'>${names[1]}</text>
-    </g>
-    <path d='M${cx - 52} 275 H${cx - 16} M${cx + 16} 275 H${cx + 52}' stroke='#b8955a' stroke-width='1'/>
-    <text x='${cx}' y='364' font-size='8.5' ${caps}>INVITE YOU TO CELEBRATE</text>
-    <text x='${cx}' y='378' font-size='8.5' ${caps}>THEIR WEDDING</text>
-    <path d='M${cx - 40} 398 H${cx + 40}' stroke='#b8955a' stroke-width='.8'/>
-    <text x='${cx}' y='428' font-size='8.5' ${caps}>${place}</text>
-    <rect x='${cx - 64}' y='470' width='128' height='40' rx='20' fill='url(#pvFoil)' filter='url(#pvFoilLift)'/>
-    <text x='${cx - 8}' y='495' font-family="${SERIF}" font-weight='700' font-size='14' letter-spacing='3' text-anchor='middle' fill='#fffaf2'>RSVP</text>
-    <path d='M${cx + 22} 490 h14 m-5 -5 l5 5 l-5 5' fill='none' stroke='#fffaf2' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/>
-  </svg>`;
-}
 
 const PAPER_LIST = ['Printing and postage, weeks ahead', 'Replies by phone, text and memory', 'A change means reprinting', 'Dietary needs on scraps of paper'];
 const OURS_LIST = ['Replies land in your guest list', 'Change anything, any time, free', 'Each guest gets their own link', 'Gentle reminders for anyone who hasn’t replied'];
 
 export function PaperVsPhone({ ink, soft, gold, serif, script, fromPrice }: { ink: string; soft: string; gold: string; serif: string; script: string; fromPrice: string }) {
   const backdrop = useMemo(() => tableTop(), []);
-  const paper = useMemo(() => paperArt(['Harriet', 'Theo'], 'BERRIMA · NEW SOUTH WALES'), []);
-  const phone = useMemo(() => phoneArt(['Harriet', 'Theo'], 'BERRIMA · NEW SOUTH WALES'), []);
+  const paper = useMemo(() => paperArt(['Harriet', 'Theo'], 'LARKWOOD ESTATE · HUNTER VALLEY'), []);
   const pill = (label: string, on: boolean) => (
     <span
       className="self-center py-[7px] px-5 rounded-[8px] text-[13px] font-semibold tracking-[.18em] uppercase shadow-[0_6px_14px_rgba(70,40,40,.12)]"
@@ -303,7 +234,8 @@ export function PaperVsPhone({ ink, soft, gold, serif, script, fromPrice }: { in
             <a href="/demo" aria-label="Open the sample invitation" className="block mx-auto my-auto w-[230px] sm:w-[250px] no-underline">
               <span className="relative block p-[10px] rounded-[46px] shadow-[0_40px_70px_rgba(46,30,36,.32),0_10px_20px_rgba(46,30,36,.18)]" style={{ background: 'linear-gradient(145deg,#3a3a3d,#0f0f10 40%,#26262a)' }}>
                 <span className="relative block rounded-[37px] overflow-hidden aspect-[300/640] ring-1 ring-black/60">
-                  <span className="block w-full h-full" dangerouslySetInnerHTML={{ __html: phone }} />
+                  {/* The envelope every guest actually receives, from the invitation's own parts. */}
+                  <RealEnvelope compact className="absolute inset-0" label="The invitation on a phone: a sealed envelope with a gold wax seal pressed with H & T, ready to tap open" />
                   <span aria-hidden className="absolute top-[10px] left-1/2 -translate-x-1/2 w-[34%] h-[22px] rounded-full bg-black" />
                   <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(125deg, rgba(255,255,255,.18), rgba(255,255,255,0) 32%)' }} />
                 </span>

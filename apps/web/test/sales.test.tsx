@@ -1,4 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
+import { SAMPLE_INVITE } from '../src/sales/sample';
+import { MUSIC_BOX } from '../src/guest/musicBox';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EVENT_ADDON, PLAN_INFO, TEXT_COST_NOTE, TEXT_CREDIT_ALL_IN } from '@wp/shared';
@@ -86,7 +88,12 @@ describe('front page', () => {
     const phone = screen.getByTitle(/^Sample invitation for/);
     expect(phone.tagName).toBe('IFRAME');
     expect(phone).toHaveAttribute('src', '/demo?embed=1&play=1');
-    expect(screen.getByRole('img', { name: /sealed envelope/ })).toBeInTheDocument();
+    // Every envelope pictured is the one guests get: the invitation's own wax seal and envelope papers.
+    const envelopes = screen.getAllByRole('img', { name: /sealed envelope/ });
+    expect(envelopes.length).toBeGreaterThanOrEqual(3);
+    for (const e of envelopes) expect(e).toHaveTextContent('Tap to open');
+    // No paper still lifes (ribbons, eucalyptus) we don't provide.
+    expect(screen.queryByRole('img', { name: /ribbon|eucalyptus/i })).toBeNull();
     expect(screen.getByRole('link', { name: 'See every design' })).toHaveAttribute('href', '/designs');
   });
 
@@ -118,5 +125,22 @@ describe('sample invitation (/demo)', () => {
     expect(screen.getAllByText('Larkwood Estate').length).toBeGreaterThan(0);
     expect(screen.queryByText('[Ceremony venue]')).toBeNull();
     expect(screen.getByRole('link', { name: 'Make your own' })).toHaveAttribute('href', '/#start');
+  });
+
+  it('answers the usual questions, shows where dietary needs go, and plays our own music', async () => {
+    render(
+      <MemoryRouter initialEntries={['/demo']}>
+        <DemoPage />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Dear Emma & Tom');
+    // The questions section is on, with the couple's own answers (no placeholders).
+    expect(screen.getByText('Can I tell you about my dietary needs?')).toBeInTheDocument();
+    expect(screen.getByText('What should I wear?')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\[your mobile\]|\[the venue/);
+    // A dietary need already noted, so the reply shows where it goes.
+    expect(SAMPLE_INVITE.invitation!.people.find((p) => p.name === 'Tom')!.diet).toBe('Vegetarian');
+    // Our own music, never someone else's recording.
+    expect(SAMPLE_INVITE.content.audioUrl).toBe(MUSIC_BOX);
   });
 });
