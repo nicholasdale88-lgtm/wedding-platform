@@ -1,4 +1,4 @@
-import { comingCount, countGuests, isSerious, localParts } from '@wp/shared';
+import { comingCount, countGuests, isSerious, localParts, type GuestCounts } from '@wp/shared';
 import type { AdminEvent, AdminGuest, AdminPerson, WeddingData } from './data';
 
 /**
@@ -24,6 +24,8 @@ export interface Overview {
   yesInv: number;
   noInv: number;
   seatsHeld: number;
+  /** Guests for the event in view (or the first): coming + can't come + still to reply = guests invited. */
+  guests: GuestCounts | null;
   events: { key: string; name: string; startsAt: string; venue: string; coming: number }[];
   diet: { people: number; serious: number; mealsSet: number };
   daysToGo: number | null;
@@ -36,7 +38,7 @@ export interface Overview {
   /** The event this overview is about (null: all of them). */
   focus: string | null;
   /** Every event side by side (the "Both events" overview). */
-  perEvent: { key: string; name: string; startsAt: string; invited: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
+  perEvent: { key: string; name: string; startsAt: string; invited: number; guests: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
