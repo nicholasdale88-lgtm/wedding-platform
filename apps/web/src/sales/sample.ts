@@ -37,6 +37,13 @@ const FILLS: Record<string, string> = {
   'inv.de092a2e': `At ${SAMPLE.venue}`,
   'inv.a045b264': ` ${SAMPLE.venue}.`,
   'inv.ddbb7763': '1 February 2027',
+  // The venue's address (made up) and the couple's mobile (ACMA's reserved drama range, so it never rings anyone).
+  'inv.080fadc0': 'Larkwood Lane',
+  'inv.698be8f5': '. Mention 12 Larkwood Lane, Pokolbin.',
+  'inv.7c099bd6': '0491 570 156',
+  'inv.8297e5e4': 'Address: 12 Larkwood Lane, Pokolbin NSW. ',
+  'inv.bcd99820': ' book a car or shuttle from the airport to 12 Larkwood Lane, Pokolbin.',
+  'inv.db80331a': ' to 12 Larkwood Lane, Pokolbin.',
   // Where to stay: laid out the way a real couple fills it in. Every business here is made up.
   'inv.7fb60683': 'The cottages on the estate are taken by the wedding party, but you can still stay among the vines in a tent.',
   'inv.1e770267': 'Pick one of the three glamping providers: Canvas & Cork Glamping, Little Fern Tents or Starlit Bell Tents.',
