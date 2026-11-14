@@ -339,16 +339,23 @@ describe('company portal', () => {
   });
   it('made roles: an owner makes a role with exactly the parts it reaches; a person with it sees just those; a role in use can’t be removed', async () => {
     const boss = await signup('Boss', 'boss@example.com');
-    const roles = [{ id: 'bookkeeper', name: 'Bookkeeper', does: 'The books', perms: ['money', 'activity', 'team'] }];
+    // A Bookkeeper sees Money but can't refund (a switch within Money, turned off for this role).
+    const roles = [{ id: 'bookkeeper', name: 'Bookkeeper', does: 'The books', perms: ['money', 'activity', 'team'], deny: ['money.refund'] }];
     const saved = (await (await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles }) }, boss.cookie)).json()) as { roles: { perms: string[] }[] };
     expect(saved.roles[0]!.perms).toEqual(['money', 'activity']); // never the team
     const r = (await (await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email: 'books@example.com', role: 'custom:bookkeeper' }) }, boss.cookie)).json()) as { link: string };
     const token = new URL(r.link).searchParams.get('t')!;
     const joined = await call(`/a/staff-join/${token}`, { method: 'POST', body: JSON.stringify({ passcode: 'long-enough-3', firstName: 'Bea' }) });
-    expect(((await joined.json()) as { user: { staff: string; perms: string[]; staffName: string } }).user).toMatchObject({ staff: 'custom:bookkeeper', perms: ['money', 'activity'], staffName: 'Bookkeeper' });
+    expect(((await joined.json()) as { user: { staff: string; perms: string[]; staffName: string } }).user).toMatchObject({ staff: 'custom:bookkeeper', perms: ['money', 'activity', 'money.paid', 'money.books'], staffName: 'Bookkeeper' });
     const bea = (joined.headers.get('set-cookie') ?? '').split(';')[0]!;
     expect((await call('/a/company/money', {}, bea)).status).toBe(200);
     expect((await call('/a/company/weddings', {}, bea)).status).toBe(403);
+    // Switched off within Money: no refunds (refused before anything else is looked at); the rest of Money works.
+    expect((await call('/a/company/weddings/any/refund', { method: 'POST', body: JSON.stringify({ cents: 100, reason: 'Test' }) }, bea)).status).toBe(403);
+    expect((await call('/a/company/money/expenses', { method: 'POST', body: JSON.stringify({ date: '2026-11-01', what: 'Domain', kind: 'domain', cents: 2400, gstCents: 0 }) }, bea)).status).not.toBe(403);
+    // An owner turns refunds back on: Bea can refund straight away (her next request), no new sign-in.
+    await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles: [{ ...roles[0], deny: [] }] }) }, boss.cookie);
+    expect((await call('/a/company/weddings/any/refund', { method: 'POST', body: JSON.stringify({ cents: 100, reason: 'Test' }) }, bea)).status).not.toBe(403);
     expect((await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles: [] }) }, boss.cookie)).status).toBe(400); // Bea still has it
     expect((await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email: 'x@example.com', role: 'custom:nope' }) }, boss.cookie)).status).toBe(400);
   });

@@ -1084,7 +1084,7 @@ export interface CompanySettings {
 }
 export interface CompanyFeedback { id: string; kind: 'idea' | 'problem' | 'love'; text: string; page: string; status: 'new' | 'planned' | 'in_progress' | 'done' | 'not_now'; note: string; createdAt: string; assignee: string; names: string; slug: string; email: string }
 export interface CompanyStaff { id: string; name: string; email: string; role: string; roleName?: string; founder: boolean; since: string; lastIn: string }
-export interface CompanyRole { id: string; name: string; does: string; perms: string[]; people?: number }
+export interface CompanyRole { id: string; name: string; does: string; perms: string[]; deny?: string[]; people?: number }
 type MoneyQuarter = { q: number; sales: number; gross: number; fees: number; gstCollected: number; gstPaid: number; gstOwed: number; spent: number; profit: number; setAside: number };
 export interface CompanyMoney {
   fy: number;
@@ -1120,7 +1120,7 @@ export const companyApi = {
   saveBanner: (b: CompanySettings['banner']) => send<CompanySettings>('PUT', '/a/company/banner', b),
   staff: () => request<{ staff: { id: string; name: string; role: string; roleName?: string }[]; me: { id: string; role: string } }>('/a/company/staff'),
   roles: () => request<{ roles: CompanyRole[] }>('/a/company/roles'),
-  saveRoles: (roles: CompanyRole[]) => send<{ roles: CompanyRole[] }>('PUT', '/a/company/roles', { roles: roles.map(({ id, name, does, perms }) => ({ id, name, does, perms })) }),
+  saveRoles: (roles: CompanyRole[]) => send<{ roles: CompanyRole[] }>('PUT', '/a/company/roles', { roles: roles.map(({ id, name, does, perms, deny }) => ({ id, name, does, perms, deny: deny ?? [] })) }),
   team: () => request<{ staff: CompanyStaff[]; invites: { id: string; email: string; role: string; roleName?: string; expiresAt: string }[] }>('/a/company/team'),
   invite: (email: string, role: string) => send<{ ok: true; emailed: boolean; link: string }>('POST', '/a/company/team/invite', { email, role }),
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),

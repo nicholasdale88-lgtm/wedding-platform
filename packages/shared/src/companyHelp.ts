@@ -148,7 +148,7 @@ export const COMPANY_HELP: HelpArticle[] = [
     steps: [
       'Open Team → Invite someone: their email and a role. They get a link (good for a week, once) to set up their sign-in.',
       'Each role sees only its part of the portal. “What each role can do” lists them.',
-      'Make your own roles, like Bookkeeper with Money and Activity. Only owners can make owners.',
+      'Make your own roles under Your own roles: tick the parts it reaches, then untick anything within a part they shouldn’t do, like refunds or the marketing list. Give it to someone from the team list.',
       'Weekly targets: give each person and bot a weekly number. The team’s total shows against what the goal needs.',
     ],
     also: 'staff team member invite role permissions bookkeeper developer support marketing manager weekly targets remove',
@@ -444,7 +444,7 @@ export const COMPANY_HELP_SAY: Record<string, HelpSay> = {
     steps: [
       'Open Team, then invite someone, with their email and a role. They get a link to set up their sign-in.',
       'Each role sees only its own part of the portal.',
-      'You can make your own roles, like a bookkeeper who only sees money and activity.',
+      'Make your own roles. Tick the parts they reach, then untick anything they shouldn’t do, like refunds.',
       'Give each person and bot a weekly target, and see the total against what the goal needs.',
     ],
     outro: 'That’s it. Welcome to the team.',

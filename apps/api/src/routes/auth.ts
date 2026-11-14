@@ -6,7 +6,7 @@ import type { Env } from '../env';
 import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { buttonEmail, emailReady, sendEmail } from '../lib/email';
-import { CustomRoles, isBuiltInRole, staffPermsOf, roleName, type CustomRole, type StaffPerm } from '@wp/shared';
+import { CustomRoles, isBuiltInRole, staffPermsOf, roleName, type CustomRole, type StaffAccess } from '@wp/shared';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface SessionUser {
@@ -17,7 +17,7 @@ export interface SessionUser {
   /** Their role in the company portal, if they work on the app: a built-in one, or 'custom:<id>'. */
   staff: string | null;
   /** What that role reaches in the portal. */
-  perms: StaffPerm[];
+  perms: StaffAccess[];
 }
 export type AdminEnv = { Bindings: Env; Variables: { user: SessionUser; role: Role } };
 

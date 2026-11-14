@@ -1,4 +1,4 @@
-import { companyHelpFor, FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { companyHelpFor, FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffAccess } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -184,7 +184,7 @@ export function companyRoutes() {
   });
 
   /** Set a wedding's plan (and extra events), by its address: clears its request. */
-  app.put('/weddings/:slug/plan', can('money'), async (c) => {
+  app.put('/weddings/:slug/plan', can('money.paid'), async (c) => {
     const b = z.object({ plan: z.enum(PLANS).optional(), extraEvents: z.number().int().min(0).max(20).optional() }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success || (b.data.plan === undefined && b.data.extraEvents === undefined)) return err(c, 400, 'invalid', 'A plan (or extra events), please.');
     const r = await c.env.DB.prepare(
@@ -203,7 +203,7 @@ export function companyRoutes() {
   });
 
   /** A plan request, step 1: email the couple's main account the payment link for what they asked for. */
-  app.post('/weddings/:slug/send-link', can('couples'), async (c) => {
+  app.post('/weddings/:slug/send-link', can('couples.links'), async (c) => {
     const w = await c.env.DB.prepare(`SELECT id, name1, name2, plan, COALESCE(json_extract(content, '$.planRequested'), '') AS requested FROM wedding WHERE slug = ? AND deleted_at IS NULL AND json_valid(content)`)
       .bind(c.req.param('slug'))
       .first<{ id: string; name1: string; name2: string; plan: string; requested: string }>();
@@ -233,7 +233,7 @@ export function companyRoutes() {
   });
 
   /** A plan request, step 2: they paid (by the link, a transfer, cash): switch it on and count the money. */
-  app.post('/weddings/:slug/paid', can('money'), async (c) => {
+  app.post('/weddings/:slug/paid', can('money.paid'), async (c) => {
     const b = z.object({ what: z.enum(['essentials', 'complete', 'event']), cents: z.number().int().min(0).max(1_000_000) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'What did they pay for, and how much?');
     const w = await c.env.DB.prepare(`SELECT id FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string }>();
@@ -398,7 +398,7 @@ export function companyRoutes() {
     });
     return c.json({ fy, tax, quarters, total, sales, expenses, last12Cents: last12, gstThresholdCents: 7_500_000, months, prices: { essentials: PRICE_CENTS.essentials, deluxe: PRICE_CENTS.complete, event: EVENT_ADDON_CENTS } });
   });
-  app.put('/money/settings', can('money'), async (c) => {
+  app.put('/money/settings', can('money.books'), async (c) => {
     const b = TaxSettings.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check that.');
     if (b.data.gstRegistered && !b.data.gstFrom) return err(c, 400, 'invalid', 'The date your GST registration started, please.');
@@ -406,7 +406,7 @@ export function companyRoutes() {
     await logCompany(c, 'company.tax', 'tax', { gstRegistered: b.data.gstRegistered, setAsidePct: b.data.setAsidePct });
     return c.json(b.data);
   });
-  app.post('/money/expenses', can('money'), async (c) => {
+  app.post('/money/expenses', can('money.books'), async (c) => {
     const b = Expense.omit({ id: true }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'A date, what it was and the amount, please.');
     const all = await readSetting(c.env.DB, 'expenses', Expenses);
@@ -415,7 +415,7 @@ export function companyRoutes() {
     await logCompany(c, 'company.expense', e.what, { cents: e.cents });
     return c.json(e);
   });
-  app.delete('/money/expenses/:id', can('money'), async (c) => {
+  app.delete('/money/expenses/:id', can('money.books'), async (c) => {
     const all = await readSetting(c.env.DB, 'expenses', Expenses);
     await writeSetting(c.env.DB, 'expenses', { list: all.list.filter((e) => e.id !== c.req.param('id')) });
     return c.json({ ok: true });
@@ -486,7 +486,7 @@ export function companyRoutes() {
     if (!b.success) return err(c, 400, 'invalid', 'What would you like help with?');
     if (!c.env.AI) return err(c, 400, 'off', 'The assistant isn’t switched on for this site yet (Workers AI).');
     if (!(await allow(c.env.DB, `company-ai:${c.get('user').id}`, 40, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty for today. Try again tomorrow.');
-    const need: Record<typeof b.data.task, StaffPerm> = { brief: 'overview', feedback: 'feedback', posts: 'promote', outreach: 'promote', ask: 'overview' };
+    const need: Record<typeof b.data.task, StaffAccess> = { brief: 'overview', feedback: 'feedback', posts: 'promote', outreach: 'promote', ask: 'overview' };
     if (!c.get('user').perms.includes(need[b.data.task])) return err(c, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
     const db = c.env.DB;
     const one = async (sql: string, ...v: unknown[]) => (await db.prepare(sql).bind(...v).first<{ n: number }>())?.n ?? 0;
@@ -616,7 +616,7 @@ export function companyRoutes() {
    * recorded for you to pay back by bank. It comes off revenue and profit. Bots may refund up to one Deluxe
    * plan's price, three a day; anything bigger is for a person. Optionally switches the plan back to Free.
    */
-  app.post('/weddings/:slug/refund', can('money'), async (c) => {
+  app.post('/weddings/:slug/refund', can('money.refund'), async (c) => {
     const b = z.object({ cents: z.number().int().min(1).max(1_000_000), reason: z.string().trim().min(3).max(300), downgrade: z.boolean().default(false) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'How much, and why?');
     const db = c.env.DB;
@@ -669,7 +669,7 @@ export function companyRoutes() {
   });
 
   /** Reply to whoever sent a piece of feedback, by email from the support address; kept in Activity. */
-  app.post('/feedback/:id/reply', can('feedback'), async (c) => {
+  app.post('/feedback/:id/reply', can('feedback.reply'), async (c) => {
     const b = z.object({ text: z.string().trim().min(3).max(3000) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Write a reply first.');
     if (!(await allow(c.env.DB, `fb-reply:${c.get('user').id}`, 60, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty of replies for today.');
@@ -732,7 +732,7 @@ export function companyRoutes() {
   });
 
   /** A listing's partner code (10% off for their couples), made if it hasn't one; uses counted from payments. */
-  app.post('/listings/:id/code', can('vendors', 'promote'), async (c) => {
+  app.post('/listings/:id/code', can('vendors.invite', 'promote.codes'), async (c) => {
     const l = await c.env.DB.prepare(`SELECT id, name FROM vendor_listing WHERE id = ?`).bind(c.req.param('id')).first<{ id: string; name: string }>();
     if (!l) return err(c, 404, 'not_found', 'Listing not found.');
     const code = await ensureVendorCode(c.env.DB, l.id, l.name);
@@ -760,7 +760,7 @@ export function companyRoutes() {
     return c.json({ list });
   });
   /** Invite some to list free (and to give their couples 10% off with their own code). At most 50 a day. */
-  app.post('/prospects/invite', can('vendors', 'promote'), async (c) => {
+  app.post('/prospects/invite', can('vendors.invite'), async (c) => {
     const b = z.object({ ids: z.array(z.string().max(40)).min(1).max(50) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Choose who to invite.');
     if (!emailReady(c.env) || !c.env.SESSION_SECRET) return err(c, 400, 'no_email', 'Email isn’t set up yet (Settings → Connections → Email).');
@@ -861,7 +861,7 @@ export function companyRoutes() {
 
   app.get('/settings', can('settings', 'promote'), async (c) => c.json(await readSetting(c.env.DB, 'site', SiteSettings)));
   /** The front-page banner on its own, for marketing (who can't change the rest of the settings). */
-  app.put('/banner', can('promote'), async (c) => {
+  app.put('/banner', can('promote.codes'), async (c) => {
     const b = SiteSettings.shape.banner.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Please check the banner.');
     if (b.data.link && !/^(https:\/\/|\/)/.test(b.data.link)) return err(c, 400, 'invalid', 'Links start with https:// or /.');
@@ -884,7 +884,7 @@ export function companyRoutes() {
     const [all, uses] = await Promise.all([readSetting(c.env.DB, 'promos', Promos), promoUses(c.env.DB)]);
     return c.json({ codes: all.codes.map((p) => ({ ...p, used: uses[p.code] ?? 0 })) });
   });
-  app.put('/promos', can('promote'), async (c) => {
+  app.put('/promos', can('promote.codes'), async (c) => {
     const raw = (await readJson(c.req.raw)) as { codes?: unknown[] } | null;
     // `used` comes back from the list; it's counted from payments, never stored.
     const codes = Array.isArray(raw?.codes) ? raw.codes.map((x) => (x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'used')) : x)) : null;
@@ -898,7 +898,7 @@ export function companyRoutes() {
   });
 
   /** Who said yes to news (at sign-up): name, email, wedding date and plan, as CSV for a mailing tool. */
-  app.get('/optins.csv', can('promote'), async (c) => {
+  app.get('/optins.csv', can('promote.list'), async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT u.first_name, u.email, u.created_at,
               (SELECT w.plan FROM membership m JOIN wedding w ON w.id = m.wedding_id WHERE m.user_id = u.id AND w.deleted_at IS NULL LIMIT 1) AS plan,
@@ -1019,7 +1019,7 @@ export function feedbackRoutes() {
 
 /** Only staff whose role can do one of these. */
 const can =
-  (...perms: StaffPerm[]): MiddlewareHandler<AdminEnv> =>
+  (...perms: StaffAccess[]): MiddlewareHandler<AdminEnv> =>
   async (c, next) => {
     if (!perms.some((p) => c.get('user').perms.includes(p))) return err(c as C, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
     await next();
