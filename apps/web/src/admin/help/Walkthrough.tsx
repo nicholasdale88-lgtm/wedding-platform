@@ -293,9 +293,10 @@ export function Walkthrough({ guides, where, onClose, pack = COUPLES }: { guides
                 </span>
               ))}
             </div>
-            <div className="flex-1 grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] max-[560px]:grid-cols-1 gap-6 items-center px-6 py-6 min-h-[340px]">
+            {/* On a phone: the picture, then the words, one under the other, scrolling if they don't fit (never on top of each other). */}
+            <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-6 items-center px-6 py-6 min-h-[340px] max-[560px]:flex max-[560px]:flex-col max-[560px]:items-center max-[560px]:justify-start max-[560px]:gap-4 max-[560px]:px-5 max-[560px]:py-4 max-[560px]:min-h-0 max-[560px]:overflow-y-auto">
               <Phone key={at} menuWith={pack.menu} place={place} view={view} step={scene.step} still={still} shot={done ? undefined : shot} playing={playing} pace={pace} />
-              <div aria-live="polite" className="flex flex-col gap-3 max-[560px]:text-center">
+              <div aria-live="polite" className="flex flex-col gap-3 max-[560px]:text-center max-[560px]:flex-none max-[560px]:w-full">
                 {done ? (
                   <>
                     <strong className="font-display font-medium text-[clamp(26px,5vw,36px)] leading-tight">That’s it.</strong>
@@ -313,7 +314,7 @@ export function Walkthrough({ guides, where, onClose, pack = COUPLES }: { guides
                     <span className="text-[13px] tracking-[.16em] uppercase text-[#c8b98f]">
                       Step {scene.step + 1} of {scene.a.steps.length}
                     </span>
-                    <span key={at} className={`text-[clamp(18px,2.6vw,22px)] leading-[1.45] ${still ? '' : 'wt-in'}`}>
+                    <span key={at} className={`text-[clamp(17px,2.6vw,22px)] leading-[1.45] ${still ? '' : 'wt-in'}`}>
                       {quoted(text)}
                     </span>
                   </>
@@ -436,7 +437,7 @@ function Phone({ place, view, step, still, shot, playing, pace = 1, menuWith = [
   const tapping = !!plan && !!shot?.tap && t >= plan.tap && t < plan.tap + 900;
   const shown = !!plan && t >= plan.then;
   return (
-    <div aria-hidden className="justify-self-center w-[min(260px,62vw)] max-[560px]:w-[200px] aspect-[9/17] rounded-[32px] border-[7px] border-[#0d0f0c] bg-[var(--adm-bg,#f6f0e2)] shadow-[0_18px_40px_rgba(0,0,0,.5)] overflow-hidden flex flex-col text-[var(--adm-ink,#33402f)]">
+    <div aria-hidden className="justify-self-center flex-none w-[min(260px,62vw)] max-[560px]:w-[min(190px,21vh)] aspect-[9/17] rounded-[32px] border-[7px] border-[#0d0f0c] bg-[var(--adm-bg,#f6f0e2)] shadow-[0_18px_40px_rgba(0,0,0,.5)] overflow-hidden flex flex-col text-[var(--adm-ink,#33402f)]">
       <div className="h-5 flex justify-center items-center flex-none">
         <span className="w-14 h-[6px] rounded-full bg-[#0d0f0c]" />
       </div>
