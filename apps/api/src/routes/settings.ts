@@ -1,4 +1,4 @@
-import { displayPhone, TEXT_COST_NOTE, TEXT_RATE, textCreditsCents, toE164 } from '@wp/shared';
+import { displayPhone, textCostNote, TEXT_RATE, textCreditsCents, toE164 } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -11,6 +11,7 @@ import { creditsOf, siteAccount } from '../lib/smsAccount';
 import { estimateAll, type EngineDeps, type Estimate } from '../sms/engine';
 import { DEFAULT_REPLIES } from '../sms/inbound';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { gstNow } from './company';
 
 /**
  * Admin → SMS setup (/api/a/w/:wid/settings): the switches set once and left alone. Sender number,
@@ -98,6 +99,7 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     }
     const replies = { ...DEFAULT_REPLIES, ...safeJson<Record<string, string>>(w.sms_replies, {}) };
     const credits = await creditsOf(c.env, w.id);
+    const gst = await gstNow(c.env.DB);
     return {
       version: w.version,
       provider: texto ? 'Texto' : 'Mobile Message',
@@ -110,7 +112,8 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
       rate: TEXT_RATE,
       /** Credits the texts planned so far need, for the guests on the list now. */
       plannedCredits: parts,
-      costNote: TEXT_COST_NOTE,
+      costNote: textCostNote(gst),
+      gst,
       live: !!w.sms_sender,
       sender: w.sms_sender ? displayPhone(w.sms_sender) : '',
       adminMobile: w.admin_mobile ? displayPhone(w.admin_mobile) : '',

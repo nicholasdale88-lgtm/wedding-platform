@@ -1,7 +1,8 @@
 import '@fontsource/cormorant-garamond/400.css';
 import { useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { PLAN_INFO, TEXT_CREDIT_ALL_IN } from '@wp/shared';
+import { gstWords, PLAN_INFO, TEXT_CREDIT_ALL_IN } from '@wp/shared';
+import { useSite } from '../lib/site';
 import { Wordmark } from './Art';
 import { BRAND } from './SalesPage';
 
@@ -182,6 +183,8 @@ export function PrivacyPage() {
 }
 
 export function TermsPage() {
+  // Prices name GST only once the business is registered for it (company portal → Money).
+  const gst = !!useSite()?.gst;
   return (
     <Shell title="Terms">
       <Updated />
@@ -198,8 +201,8 @@ export function TermsPage() {
       <H2>Paying</H2>
       <List
         items={[
-          `Every plan (${PLANS}) is a one-off payment per wedding, in Australian dollars with GST included. You can set everything up before you pay, and pay once when you’re ready to send your invitations. There is no free plan, no subscription and nothing renews.`,
-          `Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately. The price is ${TEXT_CREDIT_ALL_IN}c a credit, all-in, with GST included and no other fees (no card surcharge). The total you will pay is shown before you pay. Each text of up to 160 characters uses one credit; a longer one uses more. Credits don’t expire, and when they run out nothing more is texted until you buy more. Sending from your own phone or by email is free.`,
+          `Every plan (${PLANS}) is a one-off payment per wedding, in Australian dollars, ${gstWords(gst)}. You can set everything up before you pay, and pay once when you’re ready to send your invitations. There is no free plan, no subscription and nothing renews.`,
+          `Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately. The price is ${TEXT_CREDIT_ALL_IN}c a credit, all-in (${gstWords(gst)}), with no other fees (no card surcharge). The total you will pay is shown before you pay. Each text of up to 160 characters uses one credit; a longer one uses more. Credits don’t expire, and when they run out nothing more is texted until you buy more. Sending from your own phone or by email is free.`,
           'Prices can change for new purchases, but never for a plan you’ve already paid for.',
         ]}
       />
@@ -217,8 +220,15 @@ export function TermsPage() {
           'What you put in (names, numbers, photos, wording) stays yours. You give us permission to store and use it only to run the service for you.',
           'Only add people you’re inviting, and only text people who would expect to hear from you about your wedding.',
           'Keep your passcode to yourselves, and only invite helpers you trust with your guest list.',
+          'Only upload photos, videos, music and wording you made yourselves or have permission to use. You’re responsible for what you add, and we may take down anything that seems to break someone else’s copyright or trade mark.',
         ]}
       />
+
+      <H2>Copyright complaints</H2>
+      <P>
+        If you think something on {BRAND} uses your work without permission, email <Email /> with a link to it and what it copies. We’ll look at it quickly and take it
+        down if it shouldn’t be there.
+      </P>
 
       <H2>Fair use</H2>
       <P>
@@ -237,6 +247,13 @@ export function TermsPage() {
       <P>
         If you connect Google Drive, Dropbox or OneDrive, files are saved into your account there. That provider’s terms apply to those files, and keeping enough
         space is up to you.
+      </P>
+
+      <H2>Credits</H2>
+      <P>
+        Weather forecasts: data from MET Norway (the Norwegian Meteorological Institute), used under CC BY 4.0. Vendor and place data © OpenStreetMap contributors, available under the Open Database Licence. Fonts are open-licence
+        fonts used under the SIL Open Font License. Other product names mentioned (such as Google Drive, Dropbox, OneDrive, YouTube and WhatsApp) belong to their owners and
+        are used only to say what {BRAND} works with; we aren’t affiliated with or endorsed by them.
       </P>
 
       <H2>Our responsibility</H2>

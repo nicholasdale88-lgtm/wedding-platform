@@ -9,7 +9,8 @@ import {
   FEATURE_LABEL,
   FREE_GUEST_LIMIT,
   PLAN_INFO,
-  TEXT_COST_NOTE,
+  gstWords,
+  textCostNote,
   TEXT_CREDIT_ALL_IN,
   TEXT_RATE,
   textCreditsCents,
@@ -51,7 +52,7 @@ const dollars = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
 /** The cheapest plan's price, from the shared plans (so it can't drift). */
 const fromPrice = Object.values(PLAN_INFO).reduce((a, p) => (dollars(p.price) < dollars(a.price) ? p : a)).price;
 
-/** The text price, all-in first (the service fee and GST included), as it must be shown. */
+/** The text price, all-in first (the service fee included), as it must be shown. */
 const TEXT_ALL_IN = `${TEXT_CREDIT_ALL_IN}c a credit, all-in`;
 /** What texting a typical wedding costs, worked out from the shared rate. */
 const TYPICAL_GUESTS = 120;
@@ -217,16 +218,17 @@ const VS_USUAL: { what: string; usual: string; ours: string }[] = [
   { what: 'After the replies', usual: 'A list of who’s coming', ours: 'Reminders, a dietary list for your caterer, the seating plan and the whole wedding plan.' },
 ];
 
-const FAQ: [string, string][] = [
+/** Our questions; `gst` is whether the business is GST registered (only then may prices say GST is included). */
+const faq = (gst: boolean): [string, string][] => [
   ['Is it a subscription?', 'No. Set everything up first, then pay once for your wedding when you’re ready to send your invitations. Nothing renews.'],
   [
     'Are text messages included?',
-    `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (GST included, no other fees), and you see the total before you pay.`,
+    `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (${gstWords(gst)}, no other fees), and you see the total before you pay.`,
   ],
   ['Can we move to a bigger plan later?', 'Yes. Everything you’ve set up stays, and you only pay the difference.'],
   ['Do guests need to download anything?', 'No. They open their own link: no app, no account, no password.'],
   ['Who can see our guest list?', 'Only the two of you and anyone you invite to help. Each wedding is kept separate, and we never share or sell your data.'],
-  ['Who are you?', 'An Australian business, owned and operated here. Prices are in Australian dollars with GST included, and we answer your emails in Australian hours.'],
+  ['Who are you?', `An Australian business, owned and operated here. Prices are in Australian dollars, ${gstWords(gst)}, and we answer your emails in Australian hours.`],
 ];
 
 /** The questions every couple asks about invitations, whoever they use. */
@@ -242,6 +244,8 @@ const INVITE_FAQ: [string, string][] = [
 export function SalesPage() {
   const [plan, setPlan] = useState<PlanKey>('essentials');
   const site = useSite();
+  // Prices name GST only once the business is registered for it (company portal → Money).
+  const gst = !!site?.gst;
   useEffect(() => {
     // Came from a wedding's "Made with" link or a post (?ref= / ?utm_source=): kept for sign-up.
     rememberRef();
@@ -348,7 +352,7 @@ export function SalesPage() {
                 <li>✓ Set up in an evening</li>
               </ul>
               <span className="text-[13px]" style={{ color: SOFT }}>
-                Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Australian dollars, GST included.
+                Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Australian dollars, {gstWords(gst)}.
               </span>
             </div>
             <div className="relative flex justify-center py-6">
@@ -506,7 +510,7 @@ export function SalesPage() {
                 One payment. No subscription.
               </h2>
               <p className="m-0 text-[18px] leading-[1.55] max-w-[620px] mx-auto" style={{ color: SOFT }}>
-                Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, GST included.
+                Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, {gstWords(gst)}.
               </p>
             </div>
             <div className="grid gap-5 md:grid-cols-3 items-stretch">
@@ -580,7 +584,7 @@ export function SalesPage() {
               </div>
             </div>
             <p role="note" className="m-0 max-w-[900px] mx-auto text-[13px] leading-[1.6] text-center" style={{ color: SOFT }}>
-              {TEXT_COST_NOTE}
+              {textCostNote(gst)}
             </p>
 
             <details className="max-w-[900px] w-full mx-auto rounded-[20px] border border-[#ecdcd3] bg-white">
@@ -641,7 +645,7 @@ export function SalesPage() {
               About {BRAND}
             </h3>
             <div role="group" aria-label={`About ${BRAND}`}>
-              {FAQ.map(([q, a]) => (
+              {faq(gst).map(([q, a]) => (
                 <details key={q} className="py-4 border-b border-[#ecdcd3]">
                   <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
                   <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>

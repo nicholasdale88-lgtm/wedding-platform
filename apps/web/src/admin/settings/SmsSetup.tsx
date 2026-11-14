@@ -359,7 +359,7 @@ function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
           {need > 0 && (
             <p className="m-0 text-[14px]" aria-live="polite">
               {g ? `${g} guests × about ${rate.creditsPerGuest} credits each, replies included (about $${((rate.creditsPerGuest * rate.centsPerCredit) / 100).toFixed(2)} a guest)` : 'Your planned texts and replies, less what you have'} = <strong>{need.toLocaleString('en-AU')} credits</strong>. Total{' '}
-              <strong>{money(sub + fee)}</strong>, all-in ({rate.centsPerCredit}c a credit{fee ? ` + ${rate.serviceFeePct}% service fee ${money(fee)}` : ''}; GST included).
+              <strong>{money(sub + fee)}</strong>, all-in ({rate.centsPerCredit}c a credit{fee ? ` + ${rate.serviceFeePct}% service fee ${money(fee)}` : ''}; {s.gst ? 'GST included' : 'no GST charged'}).
             </p>
           )}
           <div>

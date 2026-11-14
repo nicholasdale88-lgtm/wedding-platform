@@ -364,6 +364,8 @@ export interface SettingsData {
   plannedCredits?: number;
   /** "Text messages are not included in any plan…" */
   costNote?: string;
+  /** Whether prices may say "GST included" (the business is GST registered); none is charged until then. */
+  gst?: boolean;
   live: boolean;
   sender: string;
   adminMobile: string;

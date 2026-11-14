@@ -118,16 +118,29 @@ export function textCreditsForGuests(guests: number): number {
   const n = Math.max(0, Math.round(guests)) * TEXT_RATE.creditsPerGuest;
   return Math.min(TEXT_RATE.maxCredits, Math.max(TEXT_RATE.minCredits, Math.ceil(n / 10) * 10));
 }
-/** What `credits` cost before the service fee, in cents incl. GST. */
+/** What `credits` cost before the service fee, in cents, all-in. */
 export const textCreditsSubtotal = (credits: number) => Math.round(credits) * TEXT_RATE.centsPerCredit;
 /** The service fee on that, in cents (rounded up to the cent). */
 export const textServiceFee = (credits: number) => Math.ceil((textCreditsSubtotal(credits) * TEXT_RATE.serviceFeePct) / 100);
-/** What `credits` cost in all, the service fee included, in cents incl. GST. */
+/** What `credits` cost in all, the service fee included, in cents, all-in. */
 export const textCreditsCents = (credits: number) => textCreditsSubtotal(credits) + textServiceFee(credits);
 
-/** The all-in price of one credit, in cents (5.1): what's shown first, the service fee and GST included. */
+/** The all-in price of one credit, in cents (5.1): what's shown first, the service fee included. */
 export const TEXT_CREDIT_ALL_IN = (TEXT_RATE.centsPerCredit * (100 + TEXT_RATE.serviceFeePct)) / 100;
 
+/**
+ * How a price speaks of GST. Only a GST-registered business may say "GST included": until the registration
+ * in the company portal (Money → GST registered, from its start date) is on, prices say none is charged.
+ */
+export const gstWords = (registered: boolean) => (registered ? 'GST included' : 'no GST charged');
+
+/** The text notice after its first sentence (budgeting, couples sharing a mobile, the free ways to send). */
+const TEXT_COST_REST =
+  ' Budget about 17 credits (about $1.36) per guest’s mobile: up to 13 for every text we send (save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after), plus about 4 for the back-and-forth (when a guest texts back we answer with their link, anything that needs you is forwarded to your phone, and your answers from Messages are texts too). A couple on one invitation share one mobile, so they cost the same as one guest: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';
 /** The notice shown wherever prices are: the sales page, the pricing table, Terms, Help and Texting. */
-export const TEXT_COST_NOTE =
-  'Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 8c a credit, all-in (GST included, no other fees). Budget about 17 credits (about $1.36) per guest’s mobile: up to 13 for every text we send (save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after), plus about 4 for the back-and-forth (when a guest texts back we answer with their link, anything that needs you is forwarded to your phone, and your answers from Messages are texts too). A couple on one invitation share one mobile, so they cost the same as one guest: tell us how many guests and we show the total before you pay. Sending invitations and reminders from your own phone or by email is always free.';
+export const textCostNote = (registered: boolean) =>
+  `Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately at 8c a credit, all-in (${gstWords(registered)}, no other fees).` +
+  TEXT_COST_REST;
+
+/** The notice before GST registration: the default everywhere until the company portal says otherwise. */
+export const TEXT_COST_NOTE = textCostNote(false);

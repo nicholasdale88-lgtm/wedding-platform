@@ -34,6 +34,12 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
+/** Whether prices include GST today: registered in Money, and the registration's start date has come. */
+export async function gstNow(db: D1Database): Promise<boolean> {
+  const t = await readSetting(db, 'tax', TaxSettings);
+  return t.gstRegistered && !!t.gstFrom && t.gstFrom <= new Date().toISOString().slice(0, 10);
+}
+
 export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets' | 'prospects', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
@@ -945,7 +951,8 @@ export function siteRoutes() {
   });
   app.get('/', async (c) => {
     const s = await readSetting(c.env.DB, 'site', SiteSettings);
-    return c.json({ social: s.social, supportEmail: s.supportEmail, banner: s.banner.on && s.banner.text ? { text: s.banner.text, link: s.banner.link } : null, madeWith: s.madeWith }, 200, { 'cache-control': 'public, max-age=300' });
+    // gst: whether prices may say "GST included" (only once registered; the site says none is charged until then).
+    return c.json({ social: s.social, supportEmail: s.supportEmail, banner: s.banner.on && s.banner.text ? { text: s.banner.text, link: s.banner.link } : null, madeWith: s.madeWith, gst: await gstNow(c.env.DB) }, 200, { 'cache-control': 'public, max-age=300' });
   });
   return app;
 }

@@ -6,7 +6,7 @@ import { allow } from '../lib/rateLimit';
 import { readJson, readText } from '../lib/security';
 import { safeEqual } from '../sms/webhook';
 import { mainAccountOf } from './accounts';
-import { findPromo } from './company';
+import { findPromo, gstNow } from './company';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -168,7 +168,8 @@ export function billingRoutes() {
       'line_items[0][quantity]': '1',
       'line_items[0][price_data][currency]': 'aud',
       'line_items[0][price_data][unit_amount]': String(cents),
-      'line_items[0][price_data][product_data][name]': `The Yes List: ${credits.toLocaleString('en-AU')} text credits for ${w.name1} & ${w.name2} (${TEXT_RATE.serviceFeePct ? `incl. ${TEXT_RATE.serviceFeePct}% service fee and GST` : 'GST included'})`,
+      // GST is named only once the business is registered (company portal → Money); until then, none is charged.
+      'line_items[0][price_data][product_data][name]': `The Yes List: ${credits.toLocaleString('en-AU')} text credits for ${w.name1} & ${w.name2} (${[TEXT_RATE.serviceFeePct ? `incl. ${TEXT_RATE.serviceFeePct}% service fee` : '', (await gstNow(c.env.DB)) ? 'GST included' : 'no GST charged'].filter(Boolean).join(', ')})`,
       'metadata[wedding]': wid,
       'metadata[what]': 'texts',
       'metadata[credits]': String(credits),

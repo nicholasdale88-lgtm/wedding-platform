@@ -70,11 +70,22 @@ describe('company portal', () => {
 
   it('settings: social links and the banner show on the public site settings; bad links are refused', async () => {
     const boss = await signup('Boss', 'boss@example.com');
-    expect(await (await call('/site')).json()).toEqual({ social: { instagram: '', tiktok: '', facebook: '', pinterest: '', youtube: '' }, supportEmail: '', banner: null, madeWith: true });
+    expect(await (await call('/site')).json()).toEqual({ social: { instagram: '', tiktok: '', facebook: '', pinterest: '', youtube: '' }, supportEmail: '', banner: null, madeWith: true, gst: false });
     expect((await call('/a/company/settings', { method: 'PUT', body: JSON.stringify({ social: { instagram: 'instagram.com/x' } }) }, boss.cookie)).status).toBe(400);
     const put = await call('/a/company/settings', { method: 'PUT', body: JSON.stringify({ social: { instagram: 'https://instagram.com/theyeslist' }, banner: { on: true, text: 'Launch week: 20% off with YES20', link: '/#pricing' }, madeWith: false }) }, boss.cookie);
     expect(put.status).toBe(200);
     expect(await (await call('/site')).json()).toMatchObject({ social: { instagram: 'https://instagram.com/theyeslist' }, banner: { text: 'Launch week: 20% off with YES20', link: '/#pricing' }, madeWith: false });
+  });
+
+  it('GST: prices say none is charged until the business is registered, then "GST included" from the start date', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    expect((await (await call('/site')).json()).gst).toBe(false);
+    // Registered from a date still to come: not yet.
+    const later = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
+    expect((await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true, gstFrom: later }) }, boss.cookie)).status).toBe(200);
+    expect((await (await call('/site')).json()).gst).toBe(false);
+    expect((await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true, gstFrom: '2026-07-01' }) }, boss.cookie)).status).toBe(200);
+    expect((await (await call('/site')).json()).gst).toBe(true);
   });
 
   it('promo codes: a percentage off at checkout, a free code switches the plan on without a card, uses counted, limits kept', async () => {

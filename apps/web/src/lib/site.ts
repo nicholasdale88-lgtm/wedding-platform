@@ -10,6 +10,8 @@ export interface Site {
   supportEmail: string;
   banner: { text: string; link: string } | null;
   madeWith: boolean;
+  /** GST registered (company portal → Money): prices say "GST included". Until then they say none is charged. */
+  gst?: boolean;
 }
 let cache: Promise<Site | null> | null = null;
 export function useSite() {
