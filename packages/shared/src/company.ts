@@ -234,7 +234,7 @@ export const ADDED_TODOS: TodoItem[] = [
 ];
 
 /** The saved list with any owner jobs it hasn't had yet added at the end (the first time: every job). */
-export function todoList(saved: Todos): { items: TodoItem[]; offered: string[] } {
+export function todoList(saved: z.infer<typeof Todos>): { items: TodoItem[]; offered: string[] } {
   const base = saved.seeded ? saved.items : LAUNCH_TODOS;
   const have = new Set([...base.map((i) => i.id), ...saved.offered]);
   return { items: [...base, ...ADDED_TODOS.filter((i) => !have.has(i.id))], offered: ADDED_TODOS.map((i) => i.id) };
