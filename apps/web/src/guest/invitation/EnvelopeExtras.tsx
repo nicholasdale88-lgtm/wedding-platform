@@ -1,5 +1,5 @@
 import type { EnvelopePaper } from '@wp/shared';
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { prefersLessMotion } from './openings';
 
 /**
@@ -63,6 +63,53 @@ function linerBackground(kind: NonNullable<EnvelopeOptions['liner']>, c: Colours
   return `${svg(body, 64, 60)}, ${c.paper}`;
 }
 
+/**
+ * Heavy cotton paper, as a fine stationer's envelope is made: the felted surface lit from the top left (a
+ * real relief, not a pattern), long cotton fibres lying in it, and a soft cloudiness through the sheet.
+ * Each is a tile drawn once; they lie over any colour of envelope.
+ */
+const rndP = (i: number, k: number) => {
+  const x = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
+const FELT = svg(
+  "<filter id='f' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='.62' numOctaves='4' seed='9' stitchTiles='stitch' result='n'/><feDiffuseLighting in='n' surfaceScale='1.7' lighting-color='#fff'><feDistantLight azimuth='225' elevation='52'/></feDiffuseLighting><feComponentTransfer><feFuncR type='linear' slope='1.5' intercept='-.72'/><feFuncG type='linear' slope='1.5' intercept='-.72'/><feFuncB type='linear' slope='1.5' intercept='-.72'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(#f)'/>",
+  320,
+  320,
+);
+const FIBRES = svg(
+  Array.from({ length: 46 }, (_, i) => {
+    const x = rndP(i, 1) * 420;
+    const y = rndP(i, 2) * 420;
+    const a = rndP(i, 3) * Math.PI * 2;
+    const L = 10 + rndP(i, 4) * 26;
+    const bend = (rndP(i, 5) - 0.5) * 10;
+    const x2 = x + Math.cos(a) * L;
+    const y2 = y + Math.sin(a) * L;
+    const lightOne = i % 3 !== 0;
+    return `<path d='M${x.toFixed(1)} ${y.toFixed(1)} Q${((x + x2) / 2 + bend).toFixed(1)} ${((y + y2) / 2 - bend).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}' fill='none' stroke='${lightOne ? '#fffdf6' : '#5a4630'}' stroke-opacity='${lightOne ? 0.55 : 0.12}' stroke-width='${(0.35 + rndP(i, 6) * 0.45).toFixed(2)}' stroke-linecap='round'/>`;
+  }).join(''),
+  420,
+  420,
+);
+const CLOUD = svg(
+  "<filter id='c' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='3' seed='21' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .98  0 0 0 0 .94  0 0 0 .9 -.38'/></filter><rect width='100%' height='100%' filter='url(#c)'/>",
+  700,
+  700,
+);
+
+/** The window's size (the deckled edges are drawn in real pixels, so their tearing isn't stretched). */
+function useViewport() {
+  const read = () => ({ w: typeof window === 'undefined' ? 390 : window.innerWidth, h: typeof window === 'undefined' ? 844 : window.innerHeight });
+  const [vp, setVp] = useState(read);
+  useEffect(() => {
+    const on = () => setVp(read());
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return vp;
+}
+
 /** Light writing on a dark envelope, dark on a light one. */
 const lightOn = (hex: string) => {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
@@ -72,6 +119,7 @@ const lightOn = (hex: string) => {
 };
 
 export function EnvelopeExtras({ phase, opts, colours, guestName, music = false, opening = 'classic' }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string; music?: boolean; opening?: string }) {
+  const { w: vw, h: vh } = useViewport();
   if (phase >= 4) return null;
   const closed = phase < 2;
   const front: CSSProperties = { opacity: closed ? 1 : 0, transition: 'opacity .6s ease' };
@@ -128,12 +176,47 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
         {/* Light from the top left, and the corners falling into shade. */}
         <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', background: 'linear-gradient(135deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.28) 100%)' }} />
         <div className="absolute inset-0" style={{ mixBlendMode: 'multiply', background: 'radial-gradient(120% 95% at 50% 46%, transparent 60%, rgba(0,0,0,.22) 100%)' }} />
+        {/* The top flap's deckled edge: torn cotton, a ragged fringe a few millimetres past the fold, its
+            fibres catching the light, with a soft shadow beneath. Drawn in real pixels so it isn't stretched. */}
+        <svg width={vw} height={vh} viewBox={`0 0 ${vw} ${vh}`} className="absolute inset-0" style={{ WebkitMaskImage: hole, maskImage: hole }}>
+          <defs>
+            <linearGradient id="dkFlap" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={vh * 0.56}>
+              <stop offset="0" style={{ stopColor: 'var(--t1,#e9dfca)' }} />
+              <stop offset=".55" style={{ stopColor: 'var(--t2,#e2d7bf)' }} />
+              <stop offset="1" style={{ stopColor: 'var(--t3,#d9cdb3)' }} />
+            </linearGradient>
+            <filter id="dkTear" x="-5%" y="-5%" width="110%" height="110%">
+              <feTurbulence type="fractalNoise" baseFrequency=".09" numOctaves="3" seed="17" result="t" />
+              <feDisplacementMap in="SourceGraphic" in2="t" scale="9" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+            <filter id="dkShade" x="-5%" y="-5%" width="110%" height="115%">
+              <feGaussianBlur stdDeviation="2.2" />
+            </filter>
+          </defs>
+          {(() => {
+            const tipY = vh * 0.56;
+            const fringe = `M-20 -20 H${vw + 20} L${(vw / 2).toFixed(1)} ${(tipY + 6).toFixed(1)} Z`;
+            return (
+              <>
+                <path d={fringe} fill="rgba(40,28,14,.28)" transform="translate(0 3)" filter="url(#dkShade)" style={{ mixBlendMode: 'multiply' }} />
+                <g filter="url(#dkTear)">
+                  <path d={fringe} fill="url(#dkFlap)" />
+                  <path d={`M-20 -20 L${(vw / 2).toFixed(1)} ${(tipY + 6).toFixed(1)} L${vw + 20} -20`} fill="none" stroke="rgba(255,252,244,.75)" strokeWidth="1.2" />
+                </g>
+              </>
+            );
+          })()}
+        </svg>
+        {/* Cotton paper: the felted surface lit from the top left, fibres lying in it, a cloudiness through the sheet. */}
+        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', opacity: 0.75, background: FELT }} />
+        <div className="absolute inset-0" style={{ opacity: 0.6, background: FIBRES }} />
+        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', opacity: 0.55, background: CLOUD }} />
         {/* Paper grain. */}
         <div
           className="absolute inset-0"
           style={{
             mixBlendMode: 'multiply',
-            opacity: 0.35,
+            opacity: 0.18,
             background: svg("<filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='3'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .38 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/>", 180, 180),
           }}
         />
@@ -157,7 +240,8 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
               transform: 'rotateX(180deg)',
               backfaceVisibility: 'hidden',
               clipPath: 'polygon(0 100%,100% 100%,50% 44%)',
-              background: linerBackground(liner, colours),
+              background: `${FELT}, ${linerBackground(liner, colours)}`,
+              backgroundBlendMode: 'soft-light, normal',
               boxShadow: 'inset 0 0 40px rgba(0,0,0,.18)',
             }}
           />

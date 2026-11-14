@@ -2258,7 +2258,7 @@ export function InvitationView({ v, t }: ViewProps) {
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
                 <div style={sx("position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.16),rgba(255,255,255,.06) 55%,rgba(0,0,0,.1));")} />
               </div>
-              <div style={sx("position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(120,90,50,.06) 0 1px,transparent 1px 7px)")} />
+              <div style={sx("position:absolute;inset:0;background:none")} />
             </div>
             {" "}
           </div>
@@ -2269,7 +2269,7 @@ export function InvitationView({ v, t }: ViewProps) {
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
                 <div style={sx("position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.14),rgba(255,255,255,.06) 60%,rgba(0,0,0,.12));")} />
               </div>
-              <div style={sx("position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(120,90,50,.06) 0 1px,transparent 1px 7px)")} />
+              <div style={sx("position:absolute;inset:0;background:none")} />
             </div>
             {" "}
           </div>
@@ -2280,7 +2280,7 @@ export function InvitationView({ v, t }: ViewProps) {
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
                 <div style={sx("position:absolute;inset:0;background:linear-gradient(270deg,rgba(0,0,0,.14),rgba(255,255,255,.06) 60%,rgba(0,0,0,.12));")} />
               </div>
-              <div style={sx("position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(120,90,50,.06) 0 1px,transparent 1px 7px)")} />
+              <div style={sx("position:absolute;inset:0;background:none")} />
             </div>
             {" "}
           </div>
@@ -2291,7 +2291,7 @@ export function InvitationView({ v, t }: ViewProps) {
               <div style={sx("position:absolute;inset:0;pointer-events:none")}>
                 <div style={sx("position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(0,0,0,.04) 50%,rgba(0,0,0,.18));")} />
               </div>
-              <div style={sx("position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.07) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(120,90,50,.06) 0 1px,transparent 1px 7px)")} />
+              <div style={sx("position:absolute;inset:0;background:none")} />
             </div>
             {" "}
           </div>
