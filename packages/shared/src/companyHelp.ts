@@ -23,6 +23,19 @@ export const COMPANY_HELP: HelpArticle[] = [
     go: { tab: 'overview' },
   },
   {
+    id: 'co-inbox',
+    title: 'Approving what the bots prepare',
+    group: 'Start here',
+    steps: [
+      'The bots post their drafts to the inbox at the top of Overview → What needs you: a reply to a couple, vendor invitations, a payment link, a refund.',
+      'Each card says what it is, who it’s from, and exactly what Approve will do.',
+      'Change any words in a draft, then tap Approve. It runs as you, so it shows in Activity under your name. Tap Skip if it shouldn’t happen.',
+      'Reports, like the weekly brief, only need Got it. What you decided this week folds away underneath.',
+    ],
+    also: 'inbox approve approval drafts bots grok yes skip waiting review sign off decide',
+    go: { tab: 'overview' },
+  },
+  {
     id: 'co-connections',
     title: 'Connecting card payments, email and texts',
     group: 'Start here',
@@ -233,7 +246,7 @@ export const COMPANY_HELP_PLACES: Record<string, string> = {
 };
 
 /** The company tour: the guides to play one after another for someone new to the portal. */
-export const COMPANY_HELP_TOUR = ['co-bestuse', 'co-connections', 'co-requests', 'co-feedback', 'co-promos', 'co-bots'];
+export const COMPANY_HELP_TOUR = ['co-bestuse', 'co-inbox', 'co-connections', 'co-requests', 'co-feedback', 'co-promos', 'co-bots'];
 
 export const COMPANY_HELP_SCENES: Record<string, HelpScene[]> = {
   'co-bestuse': [
@@ -242,6 +255,12 @@ export const COMPANY_HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Overview', 'Assistant'], tap: 'Brief me on this week', then: 'A one-page brief, from the real numbers' },
     { at: ['Feedback'], rows: ['Idea: bigger seating rooms', 'Problem: import a .csv'], tap: 'Planned', then: 'Couples see it’s coming ✓' },
     { at: ['Overview'], rows: ['Card payment · Essentials · $88', 'Backup ran 2:00pm ✓'], then: 'The rest runs by itself' },
+  ],
+  'co-inbox': [
+    { at: ['Overview', 'What needs you'], rows: ['Reply to Alex & Sam · from Grok', 'Invite 12 vendors · from Grok'], then: 'Drafts waiting for your yes' },
+    { at: ['Overview', 'What needs you'], rows: ['Approve: Emails this reply to the couple'], then: 'You see exactly what happens' },
+    { at: ['Overview', 'What needs you'], fields: [['The draft', 'Hi Alex, great idea! Seating rooms…']], tap: 'Approve', then: 'Sent, under your name ✓' },
+    { at: ['Overview', 'What needs you'], rows: ['Report · Weekly brief · from Grok'], tap: 'Got it', then: 'Decided this week (3)' },
   ],
   'co-connections': [
     { at: ['Settings', 'Connections'], rows: ['Card payments · not set', 'Email · not set', 'Texts · not set'], tap: 'Open Stripe', then: 'Stripe opens in a new tab' },
@@ -346,6 +365,16 @@ export const COMPANY_HELP_SAY: Record<string, HelpSay> = {
       'The rest runs by itself. Card payments switch plans on, texts go out, and backups run twice a day.',
     ],
     outro: 'That’s the routine. Short and steady.',
+  },
+  'co-inbox': {
+    intro: 'Here’s how to approve what the bots prepare.',
+    steps: [
+      'The bots post their drafts at the top of Overview, under what needs you. Replies, invitations, payment links, refunds.',
+      'Each card says what it is, who it’s from, and exactly what approve will do.',
+      'Change any words you like, then tap approve. It runs as you. Or tap skip if it shouldn’t happen.',
+      'Reports, like the weekly brief, just need got it.',
+    ],
+    outro: 'That’s it. A few taps a day.',
   },
   'co-connections': {
     intro: 'Here’s how to connect card payments, email and texts.',

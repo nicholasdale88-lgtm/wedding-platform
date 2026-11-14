@@ -87,6 +87,55 @@ export function companyRoutes() {
     return c.json(companyHelpFor(c.get('user').perms));
   });
 
+  /**
+   * The inbox (Overview → What needs you). A bot, or a person, posts a task:
+   * - "approve": a draft with the one action it would take, which waits for a person's yes;
+   * - "report": something to know.
+   * Only a person decides. The action runs from the portal as the person who approves it, so it needs their
+   * permission and shows in Activity under their name. Only the everyday actions listed in TASK_ACTIONS can
+   * be proposed.
+   */
+  app.post('/tasks', async (c) => {
+    const b = TaskIn.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the task.');
+    const a = b.data.action;
+    if (a && !TASK_ACTIONS.some(([m, re]) => m === a.method && re.test(a.path))) return err(c, 400, 'invalid', 'That action can’t be proposed from the inbox.');
+    if (b.data.kind === 'report' && a) return err(c, 400, 'invalid', 'A report has no action: use kind "approve".');
+    const me = c.get('user');
+    const waiting = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM company_task WHERE created_by = ? AND status = 'waiting'`).bind(me.id).first<{ n: number }>();
+    if ((waiting?.n ?? 0) >= 30) return err(c, 429, 'busy', 'Thirty of your tasks are already waiting. Let a person catch up first.');
+    const id = crypto.randomUUID();
+    await c.env.DB.prepare(`INSERT INTO company_task (id, kind, title, body, action, created_by, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'waiting', ?)`)
+      .bind(id, b.data.kind, b.data.title, b.data.body, a ? JSON.stringify(a) : '', me.id, new Date().toISOString())
+      .run();
+    await logCompany(c, 'task.new', b.data.title, { kind: b.data.kind, action: a ? `${a.method} ${a.path}` : '' });
+    return c.json({ id });
+  });
+  app.get('/tasks', can('overview'), async (c) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT t.id, t.kind, t.title, t.body, t.action, t.status, t.result, t.created_at, t.decided_at, COALESCE(u.first_name, u.name, u.email, '') AS who
+         FROM company_task t LEFT JOIN user u ON u.id = t.created_by
+        WHERE t.status = 'waiting' OR t.decided_at >= ?
+        ORDER BY (t.status = 'waiting') DESC, t.created_at DESC LIMIT 60`,
+    )
+      .bind(new Date(Date.now() - 7 * 86_400_000).toISOString())
+      .all<{ id: string; kind: string; title: string; body: string; action: string; status: string; result: string; created_at: string; decided_at: string | null; who: string }>();
+    return c.json({
+      tasks: results.map((r) => ({ id: r.id, kind: r.kind, title: r.title, body: r.body, action: r.action ? (JSON.parse(r.action) as unknown) : null, status: r.status, result: r.result, createdAt: r.created_at, decidedAt: r.decided_at, from: r.who })),
+    });
+  });
+  app.put('/tasks/:id', can('overview'), async (c) => {
+    if (c.get('user').bot) return err(c, 403, 'forbidden', 'Only a person can decide on the inbox.');
+    const b = z.object({ status: z.enum(['done', 'skipped']), result: z.string().trim().max(500).default('') }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Done or skipped, please.');
+    const r = await c.env.DB.prepare(`UPDATE company_task SET status = ?, result = ?, decided_at = ?, decided_by = ? WHERE id = ? AND status = 'waiting'`)
+      .bind(b.data.status, b.data.result, new Date().toISOString(), c.get('user').id, c.req.param('id'))
+      .run();
+    if (!r.meta.changes) return err(c, 404, 'not_found', 'That’s already been decided.');
+    await logCompany(c, `task.${b.data.status}`, c.req.param('id'), { result: b.data.result });
+    return c.json({ ok: true });
+  });
+
   app.get('/stats', can('overview'), async (c) => {
     const db = c.env.DB;
     const now = new Date();
@@ -1016,6 +1065,28 @@ export function feedbackRoutes() {
   });
   return app;
 }
+
+/** What can be proposed in the inbox: the everyday actions, each still checked against the approver's role when it runs. */
+const TASK_ACTIONS: [method: 'POST' | 'PUT', path: RegExp][] = [
+  ['POST', /^\/weddings\/[\w-]{1,80}\/send-link$/],
+  ['POST', /^\/weddings\/[\w-]{1,80}\/paid$/],
+  ['POST', /^\/weddings\/[\w-]{1,80}\/refund$/],
+  ['POST', /^\/feedback\/[\w-]{1,80}\/reply$/],
+  ['PUT', /^\/feedback\/[\w-]{1,80}$/],
+  ['PUT', /^\/banner$/],
+  ['PUT', /^\/listings\/[\w-]{1,80}$/],
+  ['POST', /^\/listings\/[\w-]{1,80}\/code$/],
+  ['POST', /^\/prospects\/invite$/],
+  ['POST', /^\/money\/expenses$/],
+];
+const TaskIn = z
+  .object({
+    kind: z.enum(['approve', 'report']).default('approve'),
+    title: z.string().trim().min(3, 'A short title, please.').max(140),
+    body: z.string().trim().max(4000).default(''),
+    action: z.object({ method: z.enum(['POST', 'PUT']), path: z.string().max(200), body: z.record(z.unknown()).default({}) }).strict().optional(),
+  })
+  .strict();
 
 /** Only staff whose role can do one of these. */
 const can =

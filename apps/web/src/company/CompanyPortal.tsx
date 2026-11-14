@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { CompanyHelp } from './CompanyHelp';
+import { Inbox } from './Inbox';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
@@ -251,7 +252,7 @@ function Portal() {
             </span>
           </div>
           <main className="max-w-[1160px] px-4 md:px-8 py-6 pb-24 flex flex-col gap-4">
-            {shown === 'overview' && <Overview onGo={go} />}
+            {shown === 'overview' && <Overview onGo={go} onNote={setNote} />}
             {shown === 'weddings' && <Weddings onNote={setNote} />}
             {shown === 'feedback' && <Feedback onNote={setNote} />}
             {shown === 'promote' && <Promote onNote={setNote} />}
@@ -309,9 +310,10 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-function Overview({ onGo }: { onGo: (t: Tab) => void }) {
+function Overview({ onGo, onNote }: { onGo: (t: Tab) => void; onNote: (s: string) => void }) {
   const can = useCan();
   const seeFeedback = can('feedback');
+  const [inbox, setInbox] = useState(0); // drafts and reports waiting in the inbox
   const { data: s, error } = useLoad(companyApi.stats);
   const fb = useLoad(useCallback(() => (seeFeedback ? companyApi.feedback() : Promise.resolve({ feedback: [] as CompanyFeedback[], counts: {} as Record<string, number> })), [seeFeedback]));
   if (error) return <Problem text={error} />;
@@ -326,7 +328,8 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
   return (
     <>
       <section className={card} aria-label="To do">
-        <H sub="Only what needs a person today. Everything else is running by itself.">What needs you</H>
+        <H sub="Only what needs a person today. The bots’ drafts wait here for your yes; everything else is running by itself.">What needs you</H>
+        <Inbox onCount={setInbox} onNote={onNote} />
         {todo.length ? (
           todo.map((t) => (
             <button key={t.to} type="button" onClick={() => onGo(t.to)} className="flex items-center justify-between gap-3 p-3 rounded-[12px] border border-[#ecd9ae] bg-[#fbf3e1] text-left cursor-pointer text-[#3a2532]">
@@ -337,7 +340,7 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
               <span aria-hidden>→</span>
             </button>
           ))
-        ) : (
+        ) : inbox ? null : (
           <p className="m-0 text-[15px] text-[#6e6068]">Nothing needs you right now ✓</p>
         )}
       </section>
