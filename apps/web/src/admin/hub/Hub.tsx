@@ -246,7 +246,7 @@ export function Hub({ wid, o, to }: { wid: string; o: Overview; to: (link: strin
             <Tile label="Unread messages" value={o.nav.messages ?? 0} go={() => to('messages', 'all')} warn={(o.nav.messages ?? 0) > 0} />
             <Tile label="Texts sending automatically" value={o.nav.smsLive ? o.nav.autopilot : 'Off'} go={() => to('texts', o.nav.smsLive ? first?.key : 'all')} warn={!o.nav.smsLive} />
             {ins && <Tile label="Texts sent" value={ins.texts.sent} sub={ins.texts.failed ? `${ins.texts.failed} failed` : undefined} go={() => to('texts', first?.key)} warn={ins.texts.failed > 0} />}
-            {ins && ins.seating.seats > 0 && <Tile label="Seated" value={`${ins.seating.seated}/${ins.seating.seats}`} go={() => to('seating', first?.key)} />}
+            {ins && ins.seating.tables > 0 && <Tile label="Guests seated" value={`${ins.seating.seated}/${ins.seating.people}`} go={() => to('seating', first?.key)} />}
             {ins && <Tile label="Guest photos" value={ins.guests.photos} go={() => to('photos', first?.key)} />}
             {ins && <Tile label="Board posts" value={ins.guests.board} go={() => to('messages', 'all')} />}
             {ins && ins.opened.invitations > 0 && <Tile label="Invitations opened" value={`${Math.round((ins.opened.opened / ins.opened.invitations) * 100)}%`} go={() => to('guests?show=all', first?.key)} />}

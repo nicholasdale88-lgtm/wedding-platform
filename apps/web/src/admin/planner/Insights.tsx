@@ -256,10 +256,10 @@ export function Insights() {
         <section aria-label="Seating" className={card}>
           <H2>Seating</H2>
           <div className="flex items-center gap-4">
-            <Ring done={data.seating.seated} total={Math.max(data.catering.people, 1)} size={70} label={`${data.seating.seated} of ${data.catering.people} seated`} />
+            <Ring done={data.seating.seated} total={Math.max(data.seating.people, 1)} size={70} label={`${data.seating.seated} of ${data.seating.people} seated`} />
             <div className="text-[14px] flex flex-col gap-1">
               <span>
-                <strong className="font-semibold">{data.seating.seated}</strong> of {data.catering.people} seated
+                <strong className="font-semibold">{data.seating.seated}</strong> of {data.seating.people} seated
               </span>
               <span>
                 {data.seating.tables} tables · {data.seating.seats} seats
