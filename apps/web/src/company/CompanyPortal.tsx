@@ -285,6 +285,7 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
       />
       <Goals onGo={onGo} />
       <TodoList onGo={onGo} />
+      <Capacity />
       <section className={card} aria-label="To do">
         <H>To do</H>
         {todo.length ? (
@@ -2019,6 +2020,24 @@ const SERVICES: { id: string; name: string; does: string; open: string; openLabe
     copy: 'redirect',
   },
   {
+    id: 'onedrive',
+    name: 'OneDrive',
+    does: 'The same for couples who use OneDrive: Connect, sign in, allow.',
+    open: 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade',
+    openLabel: 'Open Microsoft',
+    steps: [
+      'App registrations, New registration: any organisational directory and personal Microsoft accounts.',
+      'Redirect URI: Web, with the return address below.',
+      'API permissions: Microsoft Graph, delegated: offline_access, User.Read and Files.ReadWrite.AppFolder.',
+      'Certificates & secrets: New client secret. Paste the Application (client) ID and the secret’s Value here.',
+    ],
+    keys: [
+      ['MS_CLIENT_ID', 'Application (client) ID', false],
+      ['MS_CLIENT_SECRET', 'Client secret value', true],
+    ],
+    copy: 'redirect',
+  },
+  {
     id: 'stripe',
     name: 'Card payments (Stripe)',
     does: 'Couples pay by card and their plan switches on by itself. Stripe pays into your bank.',
@@ -2137,6 +2156,37 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
         );
       })}
       {problem && <Problem text={problem} />}
+    </section>
+  );
+}
+
+/** Capacity: how close the site is to Cloudflare's limits, and what to do before couples notice. */
+function Capacity() {
+  const { data } = useLoad(companyApi.capacity);
+  if (!data) return null;
+  const tone = { ok: ['#e7eedb', 'All good'], soon: ['#fbf3e1', 'Plan ahead'], now: ['#f6e1da', 'Do this week'] } as const;
+  const mb = (b: number) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)} GB` : `${Math.max(0, Math.round(b / 1024 ** 2))} MB`);
+  return (
+    <section className={card} aria-label="Capacity">
+      <H sub="Photos don’t count here: they’re kept in each couple’s own Google Drive, Dropbox or OneDrive.">Capacity</H>
+      <p className="m-0 self-start px-3 py-1 rounded-full text-[14px] font-semibold text-[#3a2532]" style={{ background: tone[data.level][0] }}>
+        {tone[data.level][1]}
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Tile label="Weddings" value={String(data.weddings)} sub={`${data.paid} paid`} />
+        <Tile label="Active" value={String(data.active)} sub="this year or next" />
+        <Tile label="Database" value={mb(data.dbBytes)} sub={`of ${mb(data.dbLimitBytes)}`} />
+        <Tile label="Timer" value={data.cronAt ? `${data.cronWeddings}` : '–'} sub={data.cronAt ? 'weddings, last run' : 'no run yet'} />
+      </div>
+      {data.notes.length ? (
+        <ul className="m-0 pl-5 flex flex-col gap-1 text-[15px] text-[#3a2532]">
+          {data.notes.map((n) => (
+            <li key={n.text}>{n.text}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="m-0 text-[15px] text-[#6e6068]">Nothing to do: there’s plenty of room.</p>
+      )}
     </section>
   );
 }

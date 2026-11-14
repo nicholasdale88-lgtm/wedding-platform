@@ -186,7 +186,12 @@ export const TodoItem = z.object({
   doneBy: z.string().max(80).default(''),
 });
 export type TodoItem = z.infer<typeof TodoItem>;
-export const Todos = z.object({ items: z.array(TodoItem).max(200).default([]), seeded: z.boolean().default(false) });
+export const Todos = z.object({
+  items: z.array(TodoItem).max(200).default([]),
+  seeded: z.boolean().default(false),
+  /** Jobs from ADDED_TODOS already put on the list: one an owner removed doesn't come back. */
+  offered: z.array(z.string().max(40)).max(200).default([]),
+});
 
 const t = (id: string, group: string, text: string, link = ''): TodoItem => ({ id, group, text, link, done: false, doneAt: '', doneBy: '' });
 /** What the owner has to do to go live (docs/GO_LIVE.md), in order. */
@@ -216,6 +221,24 @@ export const LAUNCH_TODOS: TodoItem[] = [
   t('own', 'Before you announce', 'Your own wedding and the 30th look right on the live site', '/admin'),
   t('backup', 'Before you announce', 'Check the 12-hourly backup ran (GitHub → Actions → Nightly)', 'https://github.com/nicholasdale88-lgtm/wedding-platform/actions'),
 ];
+
+/**
+ * Owner jobs added after the list was first made (a saved list gets each once, at the end; removing it
+ * keeps it gone). Things only the owner can do: accounts, keys, plan upgrades.
+ */
+export const ADDED_TODOS: TodoItem[] = [
+  t('onedrive', 'Accounts to set up', 'OneDrive (optional): register the site with Microsoft, paste the 2 keys in Connections', 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade'),
+  t('xai', 'Accounts to set up', 'Grok: make an xAI API account and add a little credit (pay as you go, no free allowance); keep the API key ready', 'https://console.x.ai'),
+  t('cfalerts', 'When you grow', 'Cloudflare: turn on usage email alerts (Notifications) so you hear before any limit', 'https://dash.cloudflare.com/?to=/:account/notifications'),
+  t('cfpaid', 'When you grow', 'Upgrade Cloudflare Workers to Paid (US$5 a month) when Overview → Capacity says so', 'https://dash.cloudflare.com/?to=/:account/workers/plans'),
+];
+
+/** The saved list with any owner jobs it hasn't had yet added at the end (the first time: every job). */
+export function todoList(saved: Todos): { items: TodoItem[]; offered: string[] } {
+  const base = saved.seeded ? saved.items : LAUNCH_TODOS;
+  const have = new Set([...base.map((i) => i.id), ...saved.offered]);
+  return { items: [...base, ...ADDED_TODOS.filter((i) => !have.has(i.id))], offered: ADDED_TODOS.map((i) => i.id) };
+}
 
 /**
  * Roles the owners make themselves (Team → Roles): a name and exactly which parts of the portal it reaches.

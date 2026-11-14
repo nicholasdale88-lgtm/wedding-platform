@@ -1098,7 +1098,19 @@ export interface CompanyMoney {
 export interface CompanyTodo { id: string; text: string; link: string; group: string; done: boolean; doneAt: string; doneBy: string }
 export interface CompanyActivity { id: string; action: string; target: string; detail: string; at: string; who: string; names: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
+export interface CompanyCapacity {
+  level: 'ok' | 'soon' | 'now';
+  notes: { level: 'ok' | 'soon' | 'now'; text: string }[];
+  weddings: number;
+  paid: number;
+  active: number;
+  dbBytes: number;
+  dbLimitBytes: number;
+  cronAt: string;
+  cronWeddings: number;
+}
 export const companyApi = {
+  capacity: () => request<CompanyCapacity>('/a/company/capacity'),
   stats: () => request<CompanyStats>('/a/company/stats'),
   weddings: (q: string, requests = false) => request<{ weddings: CompanyWedding[] }>(`/a/company/weddings?q=${encodeURIComponent(q)}${requests ? '&requests=1' : ''}`),
   setPlan: (slug: string, body: { plan?: 'free' | 'basic' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),

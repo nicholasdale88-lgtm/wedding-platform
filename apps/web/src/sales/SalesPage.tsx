@@ -187,9 +187,9 @@ const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] =
     items: [
       `Everything in ${PLAN_INFO.essentials.name}`,
       `${EVENTS_INCLUDED.complete} events, like a welcome drinks`,
-      'Guests’ photos by QR code, and a live photo wall',
+      'Guests’ photos and videos by QR code, and a live photo wall',
+      'Photos and backups save to your own Google Drive, Dropbox or OneDrive',
       'Wedding party sign-ins',
-      'Daily backups to your own Drive',
       TEXTS_PRICE_LINE,
     ],
   },
@@ -224,6 +224,10 @@ const FAQ: [string, string][] = [
     `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (GST included, no other fees), and you see the total before you pay.`,
   ],
   ['Can we move to a bigger plan later?', 'Yes. Everything you’ve set up stays, and you only pay the difference.'],
+  [
+    'Where are our photos kept?',
+    'In your own Google Drive, Dropbox or OneDrive. You connect it once, and guests’ photos, videos and your daily backups go straight into a folder there: yours to keep for good, with no storage limit from us. A wedding usually needs 1 to 3 GB free in that account.',
+  ],
   ['Do guests need to download anything?', 'No. They open their own link: no app, no account, no password.'],
   ['Who can see our guest list?', 'Only the two of you and anyone you invite to help. Each wedding is kept separate, and we never share or sell your data.'],
   ['Who are you?', 'An Australian business, owned and operated here. Prices are in Australian dollars with GST included, and we answer your emails in Australian hours.'],

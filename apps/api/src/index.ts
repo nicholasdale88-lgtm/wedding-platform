@@ -146,6 +146,18 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
 }
 
 /** Cron, every 15 minutes: finish any unprocessed replies, then run the autopilot. */
+/**
+ * How the cron's last run went (Company portal → Overview → Capacity): when, how many weddings, and whether
+ * Cloudflare's per-run limit stopped any (the sign it's time for Workers Paid, then Queues).
+ */
+export async function noteCronRun(db: D1Database, now: Date, report: { weddings: number; errors: { error: string }[] }) {
+  const limitHit = report.errors.some((e) => /too many (api )?(sub)?requests/i.test(e.error));
+  await db
+    .prepare(`INSERT INTO platform_setting (key, value, updated_at) VALUES ('cron_health', ?1, ?2) ON CONFLICT (key) DO UPDATE SET value = ?1, updated_at = ?2`)
+    .bind(JSON.stringify({ at: now.toISOString(), weddings: report.weddings, errors: report.errors.length, limitHit }), now.toISOString())
+    .run();
+}
+
 export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engineDeps) {
   await applyConnections(env).catch(() => undefined);
   const d = deps(env);
@@ -164,6 +176,7 @@ export async function scheduled(env: Env, deps: (env: Env) => EngineDeps = engin
   const emails = await runEmailCampaigns(env, d).catch((e) => ({ error: String(e) }));
   await purgeExpired(env.DB, d.now()).catch(() => undefined);
   console.log(JSON.stringify({ cron: 'sms', swept, ...report, photos, payReminders, backups, digests, quoteFollowUps, emails }));
+  await noteCronRun(env.DB, d.now(), report).catch(() => undefined);
   return { swept, ...report };
 }
 

@@ -14,6 +14,12 @@ import type { EventFacts } from './smart';
  */
 export interface SmsStore {
   weddings(): Promise<WeddingCtx[]>;
+  /**
+   * The cron's list: only weddings with something to do (a dated message due soon, messages waiting, or
+   * automatic messages on before the wedding is long past), the urgent first, at most `limit`. Without it
+   * the cron goes through every wedding (tests' memory store).
+   */
+  activeWeddings?(nowIso: string, limit: number): Promise<WeddingCtx[]>;
   wedding(id: string): Promise<WeddingCtx | null>;
   audience(weddingId: string): Promise<{ events: EventInfo[]; recipients: Recipient[] }>;
   campaigns(weddingId: string): Promise<Campaign[]>;

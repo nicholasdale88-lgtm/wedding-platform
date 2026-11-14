@@ -1,4 +1,4 @@
-import { FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, LAUNCH_TODOS, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, todoList, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -12,6 +12,7 @@ import { customRoles, jsonWritesOnly, requireMember, requireUser, signIn, superA
 import { applyPurchase } from './billing';
 import { CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
 import { PLANS } from './signup';
+import { CRON_WEDDINGS } from '../sms/engine';
 import { recordError, recordHit, traffic } from '../lib/stats';
 
 /**
@@ -34,7 +35,7 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
-export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets' | 'prospects', schema: S): Promise<z.output<S>> {
+export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets' | 'prospects' | 'cron_health', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
   try {
@@ -47,6 +48,27 @@ export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: '
 }
 const writeSetting = (db: D1Database, key: string, value: unknown) =>
   db.prepare(`INSERT INTO platform_setting (key, value, updated_at) VALUES (?1, ?2, ?3) ON CONFLICT (key) DO UPDATE SET value = ?2, updated_at = ?3`).bind(key, JSON.stringify(value), new Date().toISOString()).run();
+
+const CronHealth = z.object({ at: z.string().default(''), weddings: z.number().default(0), errors: z.number().default(0), limitHit: z.boolean().default(false) });
+
+const MB = 1024 * 1024;
+/** Cloudflare's limits that matter as the business grows (developers.cloudflare.com/d1/platform/limits). */
+export const LIMITS_CF = { dbFreeBytes: 500 * MB, dbPaidBytes: 10 * 1024 * MB };
+
+/** The capacity card's verdict: 'ok', 'soon' (plan it) or 'now' (do it this week), with the reasons. */
+export function capacityOf(x: { weddings: number; paid: number; active: number; dbBytes: number; cron: z.infer<typeof CronHealth>; now: Date; perRun: number }) {
+  const notes: { level: 'ok' | 'soon' | 'now'; text: string }[] = [];
+  const quietMin = x.cron.at ? Math.round((x.now.getTime() - Date.parse(x.cron.at)) / 60_000) : -1;
+  if (x.cron.limitHit) notes.push({ level: 'now', text: 'The 15-minute timer hit Cloudflare’s per-run limit, so some weddings’ texts waited. Upgrade Workers to Paid (US$5 a month).' });
+  else if (quietMin > 45) notes.push({ level: 'now', text: `The 15-minute timer last finished ${quietMin} minutes ago. If you’re on Cloudflare’s free plan, upgrade Workers to Paid (US$5 a month).` });
+  if (x.active >= 5) notes.push({ level: 'soon', text: `${x.active} weddings are active. Cloudflare’s free plan only lets the timer look after a handful at a time: be on Workers Paid (US$5 a month) before launch.` });
+  if (x.active >= x.perRun * 4)
+    notes.push({ level: 'soon', text: `Over ${x.perRun * 4} active weddings: the timer now takes turns between them. Next step: ask Claude to move it to Cloudflare Queues (included with Workers Paid), so each wedding runs on its own.` });
+  if (x.dbBytes >= LIMITS_CF.dbPaidBytes * 0.7) notes.push({ level: 'now', text: 'The database is over 7 GB of its 10 GB. Ask Claude to archive weddings that finished over a year ago.' });
+  else if (x.dbBytes >= LIMITS_CF.dbFreeBytes * 0.7) notes.push({ level: 'soon', text: 'The database is past 350 MB: Cloudflare’s free plan stops at 500 MB (Workers Paid allows 10 GB).' });
+  const level = notes.some((n) => n.level === 'now') ? 'now' : notes.length ? 'soon' : 'ok';
+  return { level, notes, weddings: x.weddings, paid: x.paid, active: x.active, dbBytes: x.dbBytes, dbLimitBytes: LIMITS_CF.dbPaidBytes, cronAt: x.cron.at, cronWeddings: x.cron.weddings };
+}
 
 /** How many paid purchases used each promo code. */
 export async function promoUses(db: D1Database): Promise<Record<string, number>> {
@@ -529,18 +551,40 @@ export function companyRoutes() {
     return c.json({ status: await connectionStatus(c.env) });
   });
 
+  /**
+   * Capacity (Overview): how close the site is to Cloudflare's limits, in plain words, so the owner upgrades
+   * before couples notice. Photos aren't counted: they live in couples' own Drive, Dropbox or OneDrive.
+   */
+  app.get('/capacity', can('overview'), async (c) => {
+    const now = new Date();
+    const soon = new Date(now.getTime() + 365 * 86_400_000).toISOString();
+    const recent = new Date(now.getTime() - 30 * 86_400_000).toISOString();
+    const counts = await c.env.DB.prepare(
+      `SELECT COUNT(*) AS weddings,
+              SUM(CASE WHEN plan NOT IN ('free', 'basic') THEN 1 ELSE 0 END) AS paid,
+              SUM(CASE WHEN (SELECT MAX(e.starts_at) FROM event e WHERE e.wedding_id = wedding.id AND e.deleted_at IS NULL) BETWEEN ?1 AND ?2 THEN 1 ELSE 0 END) AS active
+         FROM wedding WHERE deleted_at IS NULL`,
+    )
+      .bind(recent, soon)
+      .all<{ weddings: number; paid: number | null; active: number | null }>();
+    const row = counts.results[0] ?? { weddings: 0, paid: 0, active: 0 };
+    const dbBytes = Number((counts.meta as { size_after?: number }).size_after ?? 0);
+    const cron = await readSetting(c.env.DB, 'cron_health', CronHealth);
+    return c.json(capacityOf({ weddings: row.weddings, paid: row.paid ?? 0, active: row.active ?? 0, dbBytes, cron, now, perRun: CRON_WEDDINGS }));
+  });
+
   /** The company's to-do list: anyone on the team reads it; owners and managers tick, add and remove. */
   app.get('/todo', async (c) => {
-    const saved = await readSetting(c.env.DB, 'todo', Todos);
-    // The first time: the launch jobs, ready to tick.
-    const items = saved.seeded ? saved.items : LAUNCH_TODOS;
+    // The first time: the launch jobs, ready to tick; later, any owner jobs added since.
+    const { items } = todoList(await readSetting(c.env.DB, 'todo', Todos));
     return c.json({ items, canEdit: c.get('user').perms.includes('money') });
   });
   app.put('/todo', can('money'), async (c) => {
     const b = z.object({ items: z.array(TodoItem).max(200) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Please check the list.');
     const before = await readSetting(c.env.DB, 'todo', Todos);
-    const was = new Map((before.seeded ? before.items : LAUNCH_TODOS).map((i) => [i.id, i]));
+    const shown = todoList(before);
+    const was = new Map(shown.items.map((i) => [i.id, i]));
     const who = c.get('user').email;
     // Who ticked what, and when (kept from before for anything not newly ticked).
     const items = b.data.items.map((i) => {
@@ -549,7 +593,7 @@ export function companyRoutes() {
       if (!i.done) return { ...i, doneAt: '', doneBy: '' };
       return { ...i, doneAt: old?.doneAt ?? i.doneAt, doneBy: old?.doneBy ?? i.doneBy };
     });
-    await writeSetting(c.env.DB, 'todo', { items, seeded: true });
+    await writeSetting(c.env.DB, 'todo', { items, seeded: true, offered: shown.offered });
     return c.json({ items, canEdit: true });
   });
 
