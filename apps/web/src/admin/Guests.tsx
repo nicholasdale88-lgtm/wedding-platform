@@ -1,11 +1,11 @@
-import { circleSuggestions, contactGaps, GAP_LABEL } from '@wp/shared';
+import { circleSuggestions, contactGaps, GAP_LABEL, householdName, othersNames } from '@wp/shared';
 import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
 import { fmtWhen, shortLabel } from '../lib/format';
 import { fileName } from '../lib/csv';
 import { downloadDressed } from './exportLook';
-import { GuestDrawer } from './GuestDrawer';
+import { GuestDrawer, previewUrl } from './GuestDrawer';
 import { exportSheets, labelRows } from './guestImport';
 import { ImportContacts } from './ImportContacts';
 import { ImportGuests } from './ImportGuests';
@@ -128,6 +128,23 @@ export function Guests() {
       else n.add(id);
       return n;
     });
+  };
+  // Their own invitation, as they'll see it (opened in preview: it doesn't count as them opening it).
+  const preview = (g: Guest, cls: string) => {
+    const link = data?.links?.[g.id];
+    if (!link || !g.people.some((p) => p.name.trim())) return null;
+    return (
+      <a
+        href={previewUrl(link)}
+        target="_blank"
+        rel="noopener"
+        onClick={(e) => e.stopPropagation()}
+        aria-label={`Preview ${householdName(g.people.map((p) => p.name))}’s invitation`}
+        className={`${cls} items-center gap-1 py-[3px] px-[10px] rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f2)] text-[12px] font-semibold no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]`}
+      >
+        <span aria-hidden>👁</span> Preview
+      </a>
+    );
   };
   const tick = (id: string) => (picking ? <span aria-hidden="true" className="mr-[6px]">{picked.has(id) ? '☑' : '☐'}</span> : null);
   const stopPicking = () => {
@@ -446,7 +463,7 @@ export function Guests() {
                 <strong className="font-semibold text-[15px]">{tick(g.id)}{g.people[0]?.name || 'New guest'}</strong>
                 <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{seats(g)}</span>
               </span>
-              {g.people.length > 1 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>}
+              {g.people.length > 1 && <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">with {othersNames(g.people.map((p) => p.name)).join(', ')}</span>}
               <span className="flex gap-[6px] flex-wrap items-center">
                 <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{events.filter((e) => g.invited.includes(e.key)).map((e) => shortLabel(e.name)).join(' · ')}</span>
                 {events.map((e) => <StatusPill key={e.key} invited={g.invited.includes(e.key)} attending={g.rsvp[e.key]?.attending} />)}
@@ -454,6 +471,7 @@ export function Guests() {
               <TieChips g={g} />
               {g.people.some((p) => p.name.trim()) && contactGaps(g).length > 0 && <span className="text-[12px] font-semibold text-[#7a4a37]">{contactGaps(g).map((k) => GAP_LABEL[k]).join(' · ')}</span>}
             </button>
+            {!picking && preview(g, 'absolute right-[2px] bottom-[12px] inline-flex')}
             </SwipeToDelete>
             </Fragment>
           ))}
@@ -491,9 +509,10 @@ export function Guests() {
                 <span className="min-w-0">
                   <span className="block font-medium">{tick(g.id)}{g.people[0]?.name || 'New guest'}</span>
                   {g.people.length > 1 && (
-                    <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] overflow-hidden text-ellipsis whitespace-nowrap">with {g.people.slice(1).map((p) => p.name).join(', ')}</span>
+                    <span className="block text-[12px] text-[var(--adm-muted,#5b6a52)] overflow-hidden text-ellipsis whitespace-nowrap">with {othersNames(g.people.map((p) => p.name)).join(', ')}</span>
                   )}
                   <TieChips g={g} />
+                  {!picking && preview(g, 'mt-1 inline-flex')}
                 </span>
                 <span className="text-[13px] tabular-nums" style={{ color: g.phone ? '#33402f' : '#8a5a45' }}>{g.phoneDisplay || 'No mobile'}</span>
                 {events.length === 2 && (

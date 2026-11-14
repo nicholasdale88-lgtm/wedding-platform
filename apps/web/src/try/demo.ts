@@ -205,7 +205,12 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
   }
   if (rest === '/overview') return ok(overview(new URLSearchParams(path.split('?')[1] ?? '').get('event')));
   if (rest === '/events') return ok({ timezone: TZ, events: eventsFull() });
-  if (rest === '/guests' && method === 'GET') return ok({ events: EVENTS, guests: guests.filter((g) => !(g as Guest & { gone?: boolean }).gone) });
+  if (rest === '/guests' && method === 'GET') {
+    const live = guests.filter((g) => !(g as Guest & { gone?: boolean }).gone);
+    // Each guest's invitation is the sample invitation (Preview opens it).
+    const links = Object.fromEntries(live.map((g) => [g.id, `${window.location.origin}/demo`]));
+    return ok({ events: EVENTS, guests: live, links });
+  }
   if (rest === '/guests' && method === 'POST') {
     const g = { ...guests[0]!, id: `dg${Date.now()}`, phone: null, phoneDisplay: '', email: '', version: 1, people: [{ id: `dp${Date.now()}`, idx: 0, name: '', diet: '', table: null, meal: { entree: '', main: '', dessert: '' }, role: '', child: false }], rsvp: {}, repliedAt: null, openedAt: null, lastSms: null, party: '', seatsHeld: 1 } as Guest;
     guests = [g, ...guests];

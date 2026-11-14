@@ -37,9 +37,12 @@ async function addGuest(page: Page, name: string) {
   await page.getByRole('button', { name: 'Add guest' }).click();
   const drawer = page.getByRole('dialog');
   await expect(drawer).toBeVisible();
-  const main = drawer.getByLabel('Main contact · gets the texts');
-  await main.fill(name);
-  await main.blur();
+  // First and last names, in their own boxes.
+  const [first, ...rest] = name.split(' ');
+  await drawer.getByLabel("Main contact's first name").fill(first!);
+  const last = drawer.getByLabel("Main contact's last name");
+  await last.fill(rest.join(' '));
+  await last.blur();
   await expect(drawer.getByRole('heading', { level: 2 })).toHaveText(name);
   return drawer;
 }
@@ -67,8 +70,13 @@ test('add a guest: details open at once, and every choice shows the moment it is
   await second.blur();
   await expect(drawer.getByLabel(/is a child/)).toHaveCount(1);
 
+  // Sharing a last name, it's said once; and their own invitation is a tap away.
+  await expect(drawer.getByRole('heading', { level: 2 })).toHaveText('Charlotte & Tom Hale');
+  await expect(drawer.getByRole('link', { name: /Preview their invitation/ })).toHaveAttribute('href', /preview=1/);
   await drawer.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByText('Charlotte Hale')).toBeVisible();
+  await expect(page.getByText('with Tom', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Preview Charlotte & Tom Hale’s invitation/ }).first()).toHaveAttribute('href', /preview=1/);
 
   // Search answers every key.
   const search = page.getByLabel('Search name or mobile');
