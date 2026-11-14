@@ -1,5 +1,5 @@
 import { companyHelpFor, STAFF_CAN, STAFF_PERMS } from '@wp/shared';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CompanyHelp } from '../src/company/CompanyHelp';
