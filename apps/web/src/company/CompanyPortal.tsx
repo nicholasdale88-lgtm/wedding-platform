@@ -48,6 +48,9 @@ const TABS = [
   ['help', 'Help', null],
 ] as const satisfies readonly (readonly [string, string, StaffPerm | null])[];
 type Tab = (typeof TABS)[number][0];
+/** Always on show; everything else folds under More (opened by itself when you're on one of those). */
+const MAIN: readonly Tab[] = ['overview', 'weddings', 'money', 'help'];
+const MORE_KEY = 'wp-company-more';
 
 /** The signed-in person's company role, for every tab. */
 const RoleCtx = createContext<{ role: string | null; perms: string[] }>({ role: null, perms: [] });
@@ -79,6 +82,13 @@ function Portal() {
   const [roleLabel, setRoleLabel] = useState('');
   const [tab, setTab] = useState<Tab>(() => (TABS.find(([k]) => `#${k}` === window.location.hash)?.[0] ?? 'overview'));
   const [note, setNote] = useState('');
+  const [more, setMore] = useState(() => {
+    try {
+      return localStorage.getItem(MORE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   // Help remembers the page it was opened from, to show that page's guides first.
   const [helpFrom, setHelpFrom] = useState<Tab | undefined>();
   // A link to /company#<tab> (Help's "Take me there" in a walkthrough) opens that tab.
@@ -142,6 +152,19 @@ function Portal() {
   const tabs = TABS.filter(([, , perm]) => perm === null || perms.includes(perm));
   const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
   const label = tabs.find(([k]) => k === shown)?.[1] ?? '';
+  // A short menu: the everyday places first, the rest under More (only worth folding when there are many).
+  const fold = tabs.length > 5;
+  const mainTabs = fold ? tabs.filter(([k]) => MAIN.includes(k)) : tabs;
+  const moreTabs = fold ? tabs.filter(([k]) => !MAIN.includes(k)) : [];
+  const moreOpen = more || moreTabs.some(([k]) => k === shown);
+  const toggleMore = () => {
+    setMore(!moreOpen);
+    try {
+      localStorage.setItem(MORE_KEY, moreOpen ? '' : '1');
+    } catch {
+      /* private browsing: just this time */
+    }
+  };
   const navItem = (k: Tab, text: string) => (
     <button
       key={k}
@@ -171,7 +194,16 @@ function Portal() {
             </span>
           </div>
           <nav aria-label="Company" className="flex flex-col gap-[2px] flex-1 overflow-y-auto">
-            {tabs.map(([k, text]) => navItem(k, text))}
+            {mainTabs.map(([k, text]) => navItem(k, text))}
+            {moreTabs.length > 0 && (
+              <>
+                <button type="button" aria-expanded={moreOpen} onClick={toggleMore} className="flex items-center gap-3 w-full mt-2 py-[9px] px-3 rounded-[10px] border-0 text-left text-[13px] cursor-pointer bg-transparent text-[#d9c3c6] hover:text-[#fbf8f2]">
+                  <span aria-hidden className="w-5 text-center">⋯</span>
+                  {moreOpen ? 'Less' : `More (${moreTabs.length})`}
+                </button>
+                {moreOpen && moreTabs.map(([k, text]) => navItem(k, text))}
+              </>
+            )}
           </nav>
           <div className="pt-3 border-t border-[rgba(243,236,214,.12)] flex flex-col gap-2">
             {role && <span className="text-[12px] text-[#d9c3c6]">Signed in as {roleLabel || role}</span>}
@@ -190,7 +222,7 @@ function Portal() {
               <ProfileSwitch here="company" />
             </div>
             <nav aria-label="Company sections" className="flex gap-1 overflow-x-auto [scrollbar-width:none] mt-2 -mx-1 px-1">
-              {tabs.map(([k, text]) => (
+              {[...mainTabs, ...(moreOpen ? moreTabs : [])].map(([k, text]) => (
                 <button
                   key={k}
                   type="button"
@@ -293,18 +325,8 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
   ].filter((x): x is { to: Tab; text: string; sub: string } => !!x);
   return (
     <>
-      <Assistant
-        title="Assistant"
-        sub="Drafts from the real numbers. It writes; you decide what goes out."
-        tasks={[
-          ['brief', 'Brief me on this week', ''],
-          ['ask', 'Ask', 'e.g. What should I focus on to get 20 weddings this month?'],
-        ]}
-      />
-      <Goals onGo={onGo} />
-      <TodoList onGo={onGo} />
       <section className={card} aria-label="To do">
-        <H>To do</H>
+        <H sub="Only what needs a person today. Everything else is running by itself.">What needs you</H>
         {todo.length ? (
           todo.map((t) => (
             <button key={t.to} type="button" onClick={() => onGo(t.to)} className="flex items-center justify-between gap-3 p-3 rounded-[12px] border border-[#ecd9ae] bg-[#fbf3e1] text-left cursor-pointer text-[#3a2532]">
@@ -316,9 +338,12 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
             </button>
           ))
         ) : (
-          <p className="m-0 text-[15px] text-[#6e6068]">All done: no plan requests or new feedback waiting.</p>
+          <p className="m-0 text-[15px] text-[#6e6068]">Nothing needs you right now ✓</p>
         )}
       </section>
+      <Goals onGo={onGo} />
+      <TodoList onGo={onGo} />
+      <Fold title="Numbers and charts" sub="Sign-ups, plans, money taken and guests">
       <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Tile label="Weddings" value={String(s.weddings)} sub={`${s.signups.last7} this week · ${s.signups.last30} this month`} />
         <Tile label="Paying" value={String(paidPlans)} sub={`${s.weddings ? Math.round((paidPlans / s.weddings) * 100) : 0}% of weddings`} />
@@ -383,7 +408,34 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
           </button>
         </div>
       </section>
+      </Fold>
+      <Fold title="Ask the assistant" sub="A brief on the week, or any question about the business">
+        <Assistant
+          title="Assistant"
+          sub="Drafts from the real numbers. It writes; you decide what goes out."
+          tasks={[
+            ['brief', 'Brief me on this week', ''],
+            ['ask', 'Ask', 'e.g. What should I focus on to get 20 weddings this month?'],
+          ]}
+        />
+      </Fold>
     </>
+  );
+}
+
+/** Tucked away until wanted: a titled row that opens to show what's inside. */
+function Fold({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
+  return (
+    <details className="group rounded-[16px] border border-[#ecdcd2] bg-white">
+      <summary className="flex justify-between items-center gap-3 p-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-[#3a2532]">
+        <span className="flex flex-col">
+          <strong className="text-[16px] font-semibold">{title}</strong>
+          <span className="text-[14px] text-[#6e6068]">{sub}</span>
+        </span>
+        <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="px-4 pb-4 flex flex-col gap-4">{children}</div>
+    </details>
   );
 }
 

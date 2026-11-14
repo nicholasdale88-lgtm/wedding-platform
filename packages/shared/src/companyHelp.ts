@@ -13,9 +13,9 @@ export const COMPANY_HELP: HelpArticle[] = [
     title: 'Running the business in ten minutes a day',
     group: 'Start here',
     steps: [
-      'Open Overview each morning. To do at the top shows only what needs a person: plan requests waiting and new feedback. When it says “All done”, you are.',
+      'Open Overview each morning. “What needs you” at the top shows only what needs a person: plan requests waiting and new feedback. When it says “Nothing needs you right now”, you’re done.',
       'Under it, Goals shows this week’s paying weddings against the number needed, and each person’s and bot’s own target.',
-      'Ask the Assistant “Brief me on this week” for a one-page summary written from the real numbers. It drafts; you decide.',
+      'Charts and the assistant are folded away underneath. Open “Ask the assistant” → Brief me on this week for a one-page summary from the real numbers. The menu shows the everyday places; the rest are under More.',
       'Once a week: read Feedback, check Money & tax → Are we making money?, and approve what the bots have prepared.',
       'Let the app and the bots do the rest: card payments switch plans on by themselves, texts and reminders go on their own, and backups run twice a day.',
     ],
@@ -339,9 +339,9 @@ export const COMPANY_HELP_SAY: Record<string, HelpSay> = {
   'co-bestuse': {
     intro: 'Here’s how to run the business in about ten minutes a day.',
     steps: [
-      'Start each morning in Overview. The To do list shows only what needs a person. When it says all done, you are.',
+      'Start each morning in Overview. What needs you shows only what needs a person. When there’s nothing there, you’re done.',
       'Under it, Goals shows this week’s paying weddings against what you need, and everyone’s own target.',
-      'Ask the assistant to brief you on the week. It writes from the real numbers, and you decide what happens.',
+      'Charts and the assistant are folded away underneath. Open the assistant for a brief on the week. Everything else in the menu is under More.',
       'Once a week, read the feedback, check whether you’re making money, and approve what the bots have prepared.',
       'The rest runs by itself. Card payments switch plans on, texts go out, and backups run twice a day.',
     ],
