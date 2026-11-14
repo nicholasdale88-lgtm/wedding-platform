@@ -37,9 +37,12 @@ async function addGuest(page: Page, name: string) {
   await page.getByRole('button', { name: 'Add guest' }).click();
   const drawer = page.getByRole('dialog');
   await expect(drawer).toBeVisible();
-  const main = drawer.getByLabel('Main contact · gets the texts');
-  await main.fill(name);
-  await main.blur();
+  // First and last names, in their own boxes.
+  const [first, ...rest] = name.split(' ');
+  await drawer.getByLabel("Main contact's first name").fill(first!);
+  const last = drawer.getByLabel("Main contact's last name");
+  await last.fill(rest.join(' '));
+  await last.blur();
   await expect(drawer.getByRole('heading', { level: 2 })).toHaveText(name);
   return drawer;
 }
@@ -67,8 +70,13 @@ test('add a guest: details open at once, and every choice shows the moment it is
   await second.blur();
   await expect(drawer.getByLabel(/is a child/)).toHaveCount(1);
 
+  // Sharing a last name, it's said once; and their own invitation is a tap away.
+  await expect(drawer.getByRole('heading', { level: 2 })).toHaveText('Charlotte & Tom Hale');
+  await expect(drawer.getByRole('link', { name: /Preview their invitation/ })).toHaveAttribute('href', /preview=1/);
   await drawer.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByText('Charlotte Hale')).toBeVisible();
+  await expect(page.getByText('with Tom', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('link', { name: /Preview Charlotte & Tom Hale’s invitation/ }).first()).toHaveAttribute('href', /preview=1/);
 
   // Search answers every key.
   const search = page.getByLabel('Search name or mobile');
@@ -173,4 +181,55 @@ test('a guest opens their own invitation, says yes, and the couple sees it', asy
   await page.goto(`/admin/${wid}/wedding/guests?show=all`);
   await expect(page.getByText('Robin Hart').first()).toBeVisible();
   await expect(page.getByText('Attending').first()).toBeVisible();
+});
+
+test('a band or DJ opens their own page: the song list, their live calendar link, and they confirm the details', async ({ page, browser }) => {
+  // The couple books a DJ and picks a song (the same API the admin uses).
+  const booked = await page.request.put(`/api/a/w/${wid}/planner/doc/vendors`, { headers: { 'If-Match': '0' }, data: { list: [{ id: 'dj', name: 'Night Owl DJs', category: 'DJ', status: 'booked', arrival: '5pm' }] } });
+  expect(booked.status(), await booked.text()).toBe(200);
+  expect((await page.request.post(`/api/a/w/${wid}/songs`, { data: { title: 'Our First Dance', artist: 'The Band', status: 'must' } })).status()).toBe(200);
+  const { url } = (await (await page.request.get(`/api/a/w/${wid}/planner/vendors/dj/hub`)).json()) as { url: string };
+  // The DJ, on their own phone (no sign-in), opens the link.
+  const vendor = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const v = await vendor.newPage();
+  v.on('pageerror', (e) => {
+    throw new Error(`Vendor page error: ${e.message}`);
+  });
+  await v.goto(new URL(url).pathname + new URL(url).search);
+  await expect(v.getByRole('heading', { level: 1 })).toContainText('wedding');
+  const songs = v.getByRole('region', { name: 'Songs' });
+  await expect(songs.getByText('Our First Dance')).toBeVisible();
+  await expect(v.getByRole('link', { name: 'Add to my calendar' })).toHaveAttribute('href', /^webcal:.*\/day\.ics$/);
+  // The live spreadsheet link answers.
+  const sheet = await v.request.get(new URL(url).pathname.replace(/\/w\/([^/]+)\/vendor$/, '/api/p/$1/vendor') + `/${new URL(url).searchParams.get('v')}/${new URL(url).searchParams.get('k')}/songs.csv`);
+  expect(sheet.status()).toBe(200);
+  // Confirm, with a note: thanked at once.
+  await v.getByLabel('Note for the couple (optional)').fill('Need a power point by the dance floor');
+  await v.getByRole('button', { name: 'Confirm the details' }).click();
+  await expect(v.getByText(/Thank you. The couple can see/)).toBeVisible();
+  await expect(v.getByText(/You confirmed these details on/)).toBeVisible();
+  await vendor.close();
+});
+
+test('vendor meals on the day: plus and minus, and typing a new number never snaps back to 0', async ({ page }) => {
+  const booked = await page.request.put(`/api/a/w/${wid}/planner/doc/vendors`, { headers: { 'If-Match': '0' }, data: { list: [{ id: 'cat', name: 'Feast Co', category: 'Caterer', status: 'booked' }] } });
+  expect(booked.status(), await booked.text()).toBe(200);
+  await page.goto(`/admin/${wid}/wedding/planner?view=vendors`);
+  await page.getByRole('button', { name: /Lock in/ }).first().click();
+  const meals = page.getByLabel('Meals for Feast Co’s team');
+  await expect(meals).toHaveValue('0');
+  await page.getByRole('button', { name: 'One more meal for Feast Co' }).click();
+  await page.getByRole('button', { name: 'One more meal for Feast Co' }).click();
+  await expect(meals).toHaveValue('2');
+  // Clear it and type a new number: it stays empty while typing, then saves.
+  await meals.fill('');
+  await expect(meals).toHaveValue('');
+  await meals.fill('6');
+  await meals.press('Enter');
+  await expect(meals).toHaveValue('6');
+  await expect(page.getByText(/Vendor meals on the day: 6 meals/)).toBeVisible();
+  // Kept after a reload.
+  await page.reload();
+  await page.getByRole('button', { name: /Lock in/ }).first().click();
+  await expect(page.getByLabel('Meals for Feast Co’s team')).toHaveValue('6');
 });

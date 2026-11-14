@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SAMPLE } from './sample';
 
 /** The phone the invitation is laid out for (an iPhone's screen, in CSS pixels). */
@@ -11,7 +11,7 @@ const PHONE_H = 844;
  * The invitation is laid out at a real phone's size and shrunk to the frame, so it looks exactly as it does
  * on a guest's phone instead of being squeezed into a narrower screen.
  */
-export function HeroInvite({ src = '/demo?embed=1', caption = true, poster }: { src?: string; caption?: boolean; poster?: string } = {}) {
+export function HeroInvite({ src = '/demo?embed=1', caption = true, poster, cover }: { src?: string; caption?: boolean; poster?: string; cover?: ReactNode } = {}) {
   // Until the invitation has loaded, the screen shows the poster (never a blank screen).
   const [ready, setReady] = useState(false);
   // A new frame plays the envelope again from the start.
@@ -50,6 +50,11 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true, poster }: { 
             className="absolute top-0 left-0 block border-0 bg-[#f6f0e2]"
             style={{ width: PHONE_W, height: PHONE_H, transform: `scale(${scale})`, transformOrigin: '0 0' }}
           />
+          {cover && (
+            <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ opacity: ready ? 0 : 1, transition: 'opacity .6s ease' }}>
+              {cover}
+            </div>
+          )}
           {poster && <img aria-hidden alt="" src={poster} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: ready ? 0 : 1, transition: 'opacity .6s ease' }} />}
         </div>
       </div>

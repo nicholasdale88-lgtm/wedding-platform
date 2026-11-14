@@ -1,4 +1,5 @@
-import type { DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
+import type { AdDraft, AdsSettings, AdsState } from '@wp/shared';
+import type { CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
@@ -364,6 +365,8 @@ export interface SettingsData {
   plannedCredits?: number;
   /** "Text messages are not included in any plan…" */
   costNote?: string;
+  /** Whether prices may say "GST included" (the business is GST registered); none is charged until then. */
+  gst?: boolean;
   live: boolean;
   sender: string;
   adminMobile: string;
@@ -844,7 +847,8 @@ export interface InsightsData {
   /** Each message: sent, arrived, failed, and guests who replied within three days of it. */
   byMessage: { name: string; sent: number; delivered: number; failed: number; replied: number }[];
   catering: { people: number; withNeeds: number; diets: [string, number][]; mains: [string, number][] };
-  seating: { tables: number; seats: number; seated: number };
+  /** seated of people: guests who can be seated (as the Seating page counts them); seats: chairs at the tables. */
+  seating: { tables: number; seats: number; seated: number; people: number };
   shuttles: { runs: number; capacity: number; booked: number };
   rsvpClose: string;
   /** Still to reply to the wedding: when they opened it (null: not yet), whether they can be texted, the last text. */
@@ -1081,7 +1085,9 @@ export interface CompanySettings {
 }
 export interface CompanyFeedback { id: string; kind: 'idea' | 'problem' | 'love'; text: string; page: string; status: 'new' | 'planned' | 'in_progress' | 'done' | 'not_now'; note: string; createdAt: string; assignee: string; names: string; slug: string; email: string }
 export interface CompanyStaff { id: string; name: string; email: string; role: string; roleName?: string; founder: boolean; since: string; lastIn: string }
-export interface CompanyRole { id: string; name: string; does: string; perms: string[]; people?: number }
+export interface CompanyTaskAction { method: 'POST' | 'PUT'; path: string; body: Record<string, unknown> }
+export interface CompanyTask { id: string; kind: 'approve' | 'report'; title: string; body: string; action: CompanyTaskAction | null; status: 'waiting' | 'done' | 'skipped'; result: string; createdAt: string; decidedAt: string | null; from: string }
+export interface CompanyRole { id: string; name: string; does: string; perms: string[]; deny?: string[]; people?: number }
 type MoneyQuarter = { q: number; sales: number; gross: number; fees: number; gstCollected: number; gstPaid: number; gstOwed: number; spent: number; profit: number; setAside: number };
 export interface CompanyMoney {
   fy: number;
@@ -1110,11 +1116,27 @@ export interface CompanyCapacity {
   cronAt: string;
   cronWeddings: number;
 }
+/** The Ads bot (Promote → Ads). */
+export type CompanyAds = AdsState & { images: { id: string; file: string; label: string }[]; connected: boolean; missing: string[]; canSpend: boolean };
 export const companyApi = {
   capacity: () => request<CompanyCapacity>('/a/company/capacity'),
   accounts: () => request<{ list: CompanyAccountRow[] }>('/a/company/accounts'),
   saveAccounts: (list: CompanyAccountRow[]) => send<{ list: CompanyAccountRow[] }>('PUT', '/a/company/accounts', { list }),
+  /** The Ads bot: drafts, approval (owners and managers only), pause, stop, caps, check now. */
+  ads: () => request<CompanyAds>('/a/company/ads'),
+  saveAdDraft: (d: AdDraft) => send<{ ok: true }>('POST', '/a/company/ads/drafts', d),
+  removeAdDraft: (id: string) => send<{ ok: true }>('DELETE', `/a/company/ads/drafts/${encodeURIComponent(id)}`),
+  adAction: (id: string, what: 'approve' | 'pause' | 'resume') => send<{ ok: true }>('POST', `/a/company/ads/${encodeURIComponent(id)}/${what}`, {}),
+  adsAll: (what: 'stop-all' | 'start-all' | 'run') => send<{ ok: true; changed?: string[] }>('POST', `/a/company/ads/${what}`, {}),
+  saveAdsSettings: (s: AdsSettings) => send<{ ok: true }>('PUT', '/a/company/ads/settings', s),
   stats: () => request<CompanyStats>('/a/company/stats'),
+  /** The portal's own Help, only the guides this person's role can use (staff only). */
+  help: () => request<CompanyHelpPack>('/a/company/help'),
+  /** The inbox: drafts and reports waiting for a person, and the last week's decided ones. */
+  tasks: () => request<{ tasks: CompanyTask[] }>('/a/company/tasks'),
+  decideTask: (id: string, status: 'done' | 'skipped', result = '') => send<{ ok: true }>('PUT', `/a/company/tasks/${encodeURIComponent(id)}`, { status, result }),
+  /** Runs an approved task's action as the person approving it (the API checks their role). */
+  runTask: (a: CompanyTaskAction) => send<unknown>(a.method, `/a/company${a.path}`, a.body),
   weddings: (q: string, requests = false) => request<{ weddings: CompanyWedding[] }>(`/a/company/weddings?q=${encodeURIComponent(q)}${requests ? '&requests=1' : ''}`),
   setPlan: (slug: string, body: { plan?: 'free' | 'basic' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),
   listings: () => request<{ listings: CompanyListing[] }>('/a/company/listings'),
@@ -1130,7 +1152,7 @@ export const companyApi = {
   saveBanner: (b: CompanySettings['banner']) => send<CompanySettings>('PUT', '/a/company/banner', b),
   staff: () => request<{ staff: { id: string; name: string; role: string; roleName?: string }[]; me: { id: string; role: string } }>('/a/company/staff'),
   roles: () => request<{ roles: CompanyRole[] }>('/a/company/roles'),
-  saveRoles: (roles: CompanyRole[]) => send<{ roles: CompanyRole[] }>('PUT', '/a/company/roles', { roles: roles.map(({ id, name, does, perms }) => ({ id, name, does, perms })) }),
+  saveRoles: (roles: CompanyRole[]) => send<{ roles: CompanyRole[] }>('PUT', '/a/company/roles', { roles: roles.map(({ id, name, does, perms, deny }) => ({ id, name, does, perms, deny: deny ?? [] })) }),
   team: () => request<{ staff: CompanyStaff[]; invites: { id: string; email: string; role: string; roleName?: string; expiresAt: string }[] }>('/a/company/team'),
   invite: (email: string, role: string) => send<{ ok: true; emailed: boolean; link: string }>('POST', '/a/company/team/invite', { email, role }),
   cancelInvite: (id: string) => send<{ ok: true }>('DELETE', `/a/company/team/invites/${encodeURIComponent(id)}`),
@@ -1139,7 +1161,7 @@ export const companyApi = {
   traffic: () => request<CompanyTraffic>('/a/company/traffic'),
   todo: () => request<{ items: CompanyTodo[]; canEdit: boolean }>('/a/company/todo'),
   saveTodo: (items: CompanyTodo[]) => send<{ items: CompanyTodo[]; canEdit: boolean }>('PUT', '/a/company/todo', { items }),
-  connections: () => request<{ status: Record<string, 'deploy' | 'saved' | ''>; redirectUri: string; stripeHook: string }>('/a/company/connections'),
+  connections: () => request<{ status: Record<string, 'deploy' | 'saved' | ''>; choices?: Record<string, string>; redirectUri: string; stripeHook: string }>('/a/company/connections'),
   saveConnections: (keys: Record<string, string>) => send<{ status: Record<string, 'deploy' | 'saved' | ''> }>('PUT', '/a/company/connections', keys),
   refund: (slug: string, cents: number, reason: string, downgrade: boolean) => send<{ ok: true; stripe: boolean }>('POST', `/a/company/weddings/${encodeURIComponent(slug)}/refund`, { cents, reason, downgrade }),
   replyFeedback: (id: string, text: string) => send<{ ok: true; to: string }>('POST', `/a/company/feedback/${encodeURIComponent(id)}/reply`, { text }),

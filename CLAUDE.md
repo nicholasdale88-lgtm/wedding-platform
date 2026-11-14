@@ -28,6 +28,17 @@ Specs live in `/docs`. Read the relevant doc **before** starting a task. Do not 
 - **Phone and desktop.** Every feature must work on iPhone Safari, Android Chrome and desktop browsers, with touch and mouse (pointer events), 360–1440 px. The admin is installable as a PWA.
 - **No fakes.** The prototype simulates links, SMS, seating sync and uploads in one browser. Build them for real per docs/09_REAL_SYSTEMS_TO_BUILD.md.
 
+## Owner's launch spreadsheet (keep it current)
+The owner tracks launch tasks, start-up costs and monthly payments in
+`C:\Users\NicholasDale\Downloads\Wedding and birthday RSVP admin\The Yes List - Launch plan and costs.xlsx`,
+built by `tools/launch_plan/build_launch.py`. **Whenever your work changes any of the following, update the script's
+`sections` (checklist) or `items` (costs) list in the same task, then run `python tools/launch_plan/build_launch.py`:**
+- prices or fees (plan prices, text-credit price, Stripe fees);
+- a paid service or plan that is added, removed or re-priced (Cloudflare, Resend, Mobile Message, xAI, ads, domain, and so on);
+- an owner setup step that is new or finished (a new key or secret, account, DNS record, legal page, launch check).
+
+Re-running keeps the owner's ticks, dates and Include?/price edits. These are matched by task or item name, so keep names stable. If the file is open in Excel the save fails; ask the owner to close it, then re-run. Mention the change in your reply, and keep docs/GO_LIVE.md in step.
+
 ## Stack (do not change without asking)
 - `apps/web`: Vite + React 18 + TypeScript + Tailwind + React Router. Guest pages and admin SPA. Deployed to Cloudflare Pages.
 - `apps/api`: Cloudflare Worker using Hono + zod + Drizzle ORM (D1/SQLite). Cron trigger `*/15 * * * *`.

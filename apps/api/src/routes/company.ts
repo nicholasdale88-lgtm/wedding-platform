@@ -1,4 +1,4 @@
-import { FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, todoList, TodoItem, Todos, CompanyAccount, CompanyAccounts, STARTER_ACCOUNTS, looksLikeSecret, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { companyHelpFor, FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, todoList, TodoItem, Todos, CompanyAccount, CompanyAccounts, STARTER_ACCOUNTS, looksLikeSecret, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffAccess } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -10,7 +10,8 @@ import { readJson } from '../lib/security';
 import { mainAccountOf } from './accounts';
 import { customRoles, jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv } from './auth';
 import { applyPurchase } from './billing';
-import { CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
+import { CONNECTION_CHOICES, CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
+import { adsRoutes } from './ads';
 import { PLANS } from './signup';
 import { CRON_WEDDINGS } from '../sms/engine';
 import { recordError, recordHit, traffic } from '../lib/stats';
@@ -35,6 +36,12 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
+/** Whether prices include GST today: registered in Money, and the registration's start date has come. */
+export async function gstNow(db: D1Database): Promise<boolean> {
+  const t = await readSetting(db, 'tax', TaxSettings);
+  return t.gstRegistered && !!t.gstFrom && t.gstFrom <= new Date().toISOString().slice(0, 10);
+}
+
 export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets' | 'prospects' | 'cron_health' | 'accounts', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
@@ -92,6 +99,64 @@ export function companyRoutes() {
   app.use('*', jsonWritesOnly, requireUser, async (c, next) => {
     if (!c.get('user').staff) return err(c, 403, 'forbidden', 'This is for the company only.');
     await next();
+  });
+
+  /**
+   * The portal's own Help: only the guides for the parts of the portal this person's role opens. Served here,
+   * to signed-in staff, so the business's how-tos are never in the public website's code.
+   */
+  app.get('/help', (c) => {
+    c.header('Cache-Control', 'private, no-store');
+    return c.json(companyHelpFor(c.get('user').perms));
+  });
+
+  /**
+   * The inbox (Overview → What needs you). A bot, or a person, posts a task:
+   * - "approve": a draft with the one action it would take, which waits for a person's yes;
+   * - "report": something to know.
+   * Only a person decides. The action runs from the portal as the person who approves it, so it needs their
+   * permission and shows in Activity under their name. Only the everyday actions listed in TASK_ACTIONS can
+   * be proposed.
+   */
+  app.post('/tasks', async (c) => {
+    const b = TaskIn.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the task.');
+    const a = b.data.action;
+    if (a && !TASK_ACTIONS.some(([m, re]) => m === a.method && re.test(a.path))) return err(c, 400, 'invalid', 'That action can’t be proposed from the inbox.');
+    if (b.data.kind === 'report' && a) return err(c, 400, 'invalid', 'A report has no action: use kind "approve".');
+    const me = c.get('user');
+    const waiting = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM company_task WHERE created_by = ? AND status = 'waiting'`).bind(me.id).first<{ n: number }>();
+    if ((waiting?.n ?? 0) >= 30) return err(c, 429, 'busy', 'Thirty of your tasks are already waiting. Let a person catch up first.');
+    const id = crypto.randomUUID();
+    await c.env.DB.prepare(`INSERT INTO company_task (id, kind, title, body, action, created_by, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'waiting', ?)`)
+      .bind(id, b.data.kind, b.data.title, b.data.body, a ? JSON.stringify(a) : '', me.id, new Date().toISOString())
+      .run();
+    await logCompany(c, 'task.new', b.data.title, { kind: b.data.kind, action: a ? `${a.method} ${a.path}` : '' });
+    return c.json({ id });
+  });
+  app.get('/tasks', can('overview'), async (c) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT t.id, t.kind, t.title, t.body, t.action, t.status, t.result, t.created_at, t.decided_at, COALESCE(u.first_name, u.name, u.email, '') AS who
+         FROM company_task t LEFT JOIN user u ON u.id = t.created_by
+        WHERE t.status = 'waiting' OR t.decided_at >= ?
+        ORDER BY (t.status = 'waiting') DESC, t.created_at DESC LIMIT 60`,
+    )
+      .bind(new Date(Date.now() - 7 * 86_400_000).toISOString())
+      .all<{ id: string; kind: string; title: string; body: string; action: string; status: string; result: string; created_at: string; decided_at: string | null; who: string }>();
+    return c.json({
+      tasks: results.map((r) => ({ id: r.id, kind: r.kind, title: r.title, body: r.body, action: r.action ? (JSON.parse(r.action) as unknown) : null, status: r.status, result: r.result, createdAt: r.created_at, decidedAt: r.decided_at, from: r.who })),
+    });
+  });
+  app.put('/tasks/:id', can('overview'), async (c) => {
+    if (c.get('user').bot) return err(c, 403, 'forbidden', 'Only a person can decide on the inbox.');
+    const b = z.object({ status: z.enum(['done', 'skipped']), result: z.string().trim().max(500).default('') }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Done or skipped, please.');
+    const r = await c.env.DB.prepare(`UPDATE company_task SET status = ?, result = ?, decided_at = ?, decided_by = ? WHERE id = ? AND status = 'waiting'`)
+      .bind(b.data.status, b.data.result, new Date().toISOString(), c.get('user').id, c.req.param('id'))
+      .run();
+    if (!r.meta.changes) return err(c, 404, 'not_found', 'That’s already been decided.');
+    await logCompany(c, `task.${b.data.status}`, c.req.param('id'), { result: b.data.result });
+    return c.json({ ok: true });
   });
 
   app.get('/stats', can('overview'), async (c) => {
@@ -191,7 +256,7 @@ export function companyRoutes() {
   });
 
   /** Set a wedding's plan (and extra events), by its address: clears its request. */
-  app.put('/weddings/:slug/plan', can('money'), async (c) => {
+  app.put('/weddings/:slug/plan', can('money.paid'), async (c) => {
     const b = z.object({ plan: z.enum(PLANS).optional(), extraEvents: z.number().int().min(0).max(20).optional() }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success || (b.data.plan === undefined && b.data.extraEvents === undefined)) return err(c, 400, 'invalid', 'A plan (or extra events), please.');
     const r = await c.env.DB.prepare(
@@ -210,7 +275,7 @@ export function companyRoutes() {
   });
 
   /** A plan request, step 1: email the couple's main account the payment link for what they asked for. */
-  app.post('/weddings/:slug/send-link', can('couples'), async (c) => {
+  app.post('/weddings/:slug/send-link', can('couples.links'), async (c) => {
     const w = await c.env.DB.prepare(`SELECT id, name1, name2, plan, COALESCE(json_extract(content, '$.planRequested'), '') AS requested FROM wedding WHERE slug = ? AND deleted_at IS NULL AND json_valid(content)`)
       .bind(c.req.param('slug'))
       .first<{ id: string; name1: string; name2: string; plan: string; requested: string }>();
@@ -240,7 +305,7 @@ export function companyRoutes() {
   });
 
   /** A plan request, step 2: they paid (by the link, a transfer, cash): switch it on and count the money. */
-  app.post('/weddings/:slug/paid', can('money'), async (c) => {
+  app.post('/weddings/:slug/paid', can('money.paid'), async (c) => {
     const b = z.object({ what: z.enum(['essentials', 'complete', 'event']), cents: z.number().int().min(0).max(1_000_000) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'What did they pay for, and how much?');
     const w = await c.env.DB.prepare(`SELECT id FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string }>();
@@ -405,7 +470,7 @@ export function companyRoutes() {
     });
     return c.json({ fy, tax, quarters, total, sales, expenses, last12Cents: last12, gstThresholdCents: 7_500_000, months, prices: { essentials: PRICE_CENTS.essentials, deluxe: PRICE_CENTS.complete, event: EVENT_ADDON_CENTS } });
   });
-  app.put('/money/settings', can('money'), async (c) => {
+  app.put('/money/settings', can('money.books'), async (c) => {
     const b = TaxSettings.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check that.');
     if (b.data.gstRegistered && !b.data.gstFrom) return err(c, 400, 'invalid', 'The date your GST registration started, please.');
@@ -413,7 +478,7 @@ export function companyRoutes() {
     await logCompany(c, 'company.tax', 'tax', { gstRegistered: b.data.gstRegistered, setAsidePct: b.data.setAsidePct });
     return c.json(b.data);
   });
-  app.post('/money/expenses', can('money'), async (c) => {
+  app.post('/money/expenses', can('money.books'), async (c) => {
     const b = Expense.omit({ id: true }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'A date, what it was and the amount, please.');
     const all = await readSetting(c.env.DB, 'expenses', Expenses);
@@ -422,7 +487,7 @@ export function companyRoutes() {
     await logCompany(c, 'company.expense', e.what, { cents: e.cents });
     return c.json(e);
   });
-  app.delete('/money/expenses/:id', can('money'), async (c) => {
+  app.delete('/money/expenses/:id', can('money.books'), async (c) => {
     const all = await readSetting(c.env.DB, 'expenses', Expenses);
     await writeSetting(c.env.DB, 'expenses', { list: all.list.filter((e) => e.id !== c.req.param('id')) });
     return c.json({ ok: true });
@@ -493,7 +558,7 @@ export function companyRoutes() {
     if (!b.success) return err(c, 400, 'invalid', 'What would you like help with?');
     if (!c.env.AI) return err(c, 400, 'off', 'The assistant isn’t switched on for this site yet (Workers AI).');
     if (!(await allow(c.env.DB, `company-ai:${c.get('user').id}`, 40, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty for today. Try again tomorrow.');
-    const need: Record<typeof b.data.task, StaffPerm> = { brief: 'overview', feedback: 'feedback', posts: 'promote', outreach: 'promote', ask: 'overview' };
+    const need: Record<typeof b.data.task, StaffAccess> = { brief: 'overview', feedback: 'feedback', posts: 'promote', outreach: 'promote', ask: 'overview' };
     if (!c.get('user').perms.includes(need[b.data.task])) return err(c, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
     const db = c.env.DB;
     const one = async (sql: string, ...v: unknown[]) => (await db.prepare(sql).bind(...v).first<{ n: number }>())?.n ?? 0;
@@ -539,12 +604,20 @@ export function companyRoutes() {
   /** The site's connections (owners only): which services are set up, never the keys themselves. */
   app.get('/connections', async (c) => {
     if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can see the connections.');
-    return c.json({ status: await connectionStatus(c.env), redirectUri: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/oauth/callback`, stripeHook: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/hooks/stripe` });
+    const status = await connectionStatus(c.env);
+    const env = c.env as unknown as Record<string, string | undefined>;
+    // The list settings (not secrets) are shown as they are, so the portal can show what's picked.
+    const choices = Object.fromEntries(Object.keys(CONNECTION_CHOICES).map((k) => [k, (env[k] ?? '').trim().toLowerCase()]));
+    return c.json({ status, choices, redirectUri: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/oauth/callback`, stripeHook: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/hooks/stripe` });
   });
   app.put('/connections', async (c) => {
     if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can change the connections.');
     const b = z.record(z.enum(CONNECTION_KEYS), z.string().max(400)).safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Please check what you pasted.');
+    for (const [k, v] of Object.entries(b.data)) {
+      const allowed = CONNECTION_CHOICES[k as keyof typeof CONNECTION_CHOICES];
+      if (allowed && !allowed.includes(v.trim().toLowerCase())) return err(c, 400, 'invalid', 'Please pick one of the choices.');
+    }
     if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in isn’t set up.');
     await saveConnections(c.env, b.data);
     await logCompany(c, 'company.connections', Object.keys(b.data).join(', '), {});
@@ -654,7 +727,7 @@ export function companyRoutes() {
    * recorded for you to pay back by bank. It comes off revenue and profit. Bots may refund up to one Deluxe
    * plan's price, three a day; anything bigger is for a person. Optionally switches the plan back to Free.
    */
-  app.post('/weddings/:slug/refund', can('money'), async (c) => {
+  app.post('/weddings/:slug/refund', can('money.refund'), async (c) => {
     const b = z.object({ cents: z.number().int().min(1).max(1_000_000), reason: z.string().trim().min(3).max(300), downgrade: z.boolean().default(false) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'How much, and why?');
     const db = c.env.DB;
@@ -707,7 +780,7 @@ export function companyRoutes() {
   });
 
   /** Reply to whoever sent a piece of feedback, by email from the support address; kept in Activity. */
-  app.post('/feedback/:id/reply', can('feedback'), async (c) => {
+  app.post('/feedback/:id/reply', can('feedback.reply'), async (c) => {
     const b = z.object({ text: z.string().trim().min(3).max(3000) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Write a reply first.');
     if (!(await allow(c.env.DB, `fb-reply:${c.get('user').id}`, 60, 86_400_000))) return err(c, 429, 'slow_down', 'That’s plenty of replies for today.');
@@ -770,7 +843,7 @@ export function companyRoutes() {
   });
 
   /** A listing's partner code (10% off for their couples), made if it hasn't one; uses counted from payments. */
-  app.post('/listings/:id/code', can('vendors', 'promote'), async (c) => {
+  app.post('/listings/:id/code', can('vendors.invite', 'promote.codes'), async (c) => {
     const l = await c.env.DB.prepare(`SELECT id, name FROM vendor_listing WHERE id = ?`).bind(c.req.param('id')).first<{ id: string; name: string }>();
     if (!l) return err(c, 404, 'not_found', 'Listing not found.');
     const code = await ensureVendorCode(c.env.DB, l.id, l.name);
@@ -798,7 +871,7 @@ export function companyRoutes() {
     return c.json({ list });
   });
   /** Invite some to list free (and to give their couples 10% off with their own code). At most 50 a day. */
-  app.post('/prospects/invite', can('vendors', 'promote'), async (c) => {
+  app.post('/prospects/invite', can('vendors.invite'), async (c) => {
     const b = z.object({ ids: z.array(z.string().max(40)).min(1).max(50) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Choose who to invite.');
     if (!emailReady(c.env) || !c.env.SESSION_SECRET) return err(c, 400, 'no_email', 'Email isn’t set up yet (Settings → Connections → Email).');
@@ -899,7 +972,7 @@ export function companyRoutes() {
 
   app.get('/settings', can('settings', 'promote'), async (c) => c.json(await readSetting(c.env.DB, 'site', SiteSettings)));
   /** The front-page banner on its own, for marketing (who can't change the rest of the settings). */
-  app.put('/banner', can('promote'), async (c) => {
+  app.put('/banner', can('promote.codes'), async (c) => {
     const b = SiteSettings.shape.banner.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Please check the banner.');
     if (b.data.link && !/^(https:\/\/|\/)/.test(b.data.link)) return err(c, 400, 'invalid', 'Links start with https:// or /.');
@@ -922,7 +995,7 @@ export function companyRoutes() {
     const [all, uses] = await Promise.all([readSetting(c.env.DB, 'promos', Promos), promoUses(c.env.DB)]);
     return c.json({ codes: all.codes.map((p) => ({ ...p, used: uses[p.code] ?? 0 })) });
   });
-  app.put('/promos', can('promote'), async (c) => {
+  app.put('/promos', can('promote.codes'), async (c) => {
     const raw = (await readJson(c.req.raw)) as { codes?: unknown[] } | null;
     // `used` comes back from the list; it's counted from payments, never stored.
     const codes = Array.isArray(raw?.codes) ? raw.codes.map((x) => (x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'used')) : x)) : null;
@@ -936,7 +1009,7 @@ export function companyRoutes() {
   });
 
   /** Who said yes to news (at sign-up): name, email, wedding date and plan, as CSV for a mailing tool. */
-  app.get('/optins.csv', can('promote'), async (c) => {
+  app.get('/optins.csv', can('promote.list'), async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT u.first_name, u.email, u.created_at,
               (SELECT w.plan FROM membership m JOIN wedding w ON w.id = m.wedding_id WHERE m.user_id = u.id AND w.deleted_at IS NULL LIMIT 1) AS plan,
@@ -951,6 +1024,8 @@ export function companyRoutes() {
     return new Response(csv, { headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="opted-in-${dateIn('Australia/Sydney')}.csv"`, 'cache-control': 'no-store' } });
   });
 
+  // The Ads bot (Promote → Ads): drafts, approval, the daily check (routes/ads.ts).
+  app.route('/ads', adsRoutes());
   return app;
 }
 
@@ -1006,7 +1081,8 @@ export function siteRoutes() {
   });
   app.get('/', async (c) => {
     const s = await readSetting(c.env.DB, 'site', SiteSettings);
-    return c.json({ social: s.social, supportEmail: s.supportEmail, banner: s.banner.on && s.banner.text ? { text: s.banner.text, link: s.banner.link } : null, madeWith: s.madeWith }, 200, { 'cache-control': 'public, max-age=300' });
+    // gst: whether prices may say "GST included" (only once registered; the site says none is charged until then).
+    return c.json({ social: s.social, supportEmail: s.supportEmail, banner: s.banner.on && s.banner.text ? { text: s.banner.text, link: s.banner.link } : null, madeWith: s.madeWith, gst: await gstNow(c.env.DB) }, 200, { 'cache-control': 'public, max-age=300' });
   });
   return app;
 }
@@ -1054,9 +1130,31 @@ export function feedbackRoutes() {
   return app;
 }
 
+/** What can be proposed in the inbox: the everyday actions, each still checked against the approver's role when it runs. */
+const TASK_ACTIONS: [method: 'POST' | 'PUT', path: RegExp][] = [
+  ['POST', /^\/weddings\/[\w-]{1,80}\/send-link$/],
+  ['POST', /^\/weddings\/[\w-]{1,80}\/paid$/],
+  ['POST', /^\/weddings\/[\w-]{1,80}\/refund$/],
+  ['POST', /^\/feedback\/[\w-]{1,80}\/reply$/],
+  ['PUT', /^\/feedback\/[\w-]{1,80}$/],
+  ['PUT', /^\/banner$/],
+  ['PUT', /^\/listings\/[\w-]{1,80}$/],
+  ['POST', /^\/listings\/[\w-]{1,80}\/code$/],
+  ['POST', /^\/prospects\/invite$/],
+  ['POST', /^\/money\/expenses$/],
+];
+const TaskIn = z
+  .object({
+    kind: z.enum(['approve', 'report']).default('approve'),
+    title: z.string().trim().min(3, 'A short title, please.').max(140),
+    body: z.string().trim().max(4000).default(''),
+    action: z.object({ method: z.enum(['POST', 'PUT']), path: z.string().max(200), body: z.record(z.unknown()).default({}) }).strict().optional(),
+  })
+  .strict();
+
 /** Only staff whose role can do one of these. */
 const can =
-  (...perms: StaffPerm[]): MiddlewareHandler<AdminEnv> =>
+  (...perms: StaffAccess[]): MiddlewareHandler<AdminEnv> =>
   async (c, next) => {
     if (!perms.some((p) => c.get('user').perms.includes(p))) return err(c as C, 403, 'forbidden', 'Your role can’t do that. Ask an owner.');
     await next();

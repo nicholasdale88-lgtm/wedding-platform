@@ -1,6 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   allows,
@@ -9,7 +9,8 @@ import {
   FEATURE_LABEL,
   FREE_GUEST_LIMIT,
   PLAN_INFO,
-  TEXT_COST_NOTE,
+  gstWords,
+  textCostNote,
   TEXT_CREDIT_ALL_IN,
   TEXT_RATE,
   textCreditsCents,
@@ -18,7 +19,7 @@ import {
 } from '@wp/shared';
 import { rememberRef, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
-import { envelopeClose, flatLay } from './Stills';
+import { RealEnvelope } from './RealEnvelope';
 import { HeroInvite } from './HeroInvite';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
@@ -51,7 +52,7 @@ const dollars = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
 /** The cheapest plan's price, from the shared plans (so it can't drift). */
 const fromPrice = Object.values(PLAN_INFO).reduce((a, p) => (dollars(p.price) < dollars(a.price) ? p : a)).price;
 
-/** The text price, all-in first (the service fee and GST included), as it must be shown. */
+/** The text price, all-in first (the service fee included), as it must be shown. */
 const TEXT_ALL_IN = `${TEXT_CREDIT_ALL_IN}c a credit, all-in`;
 /** What texting a typical wedding costs, worked out from the shared rate. */
 const TYPICAL_GUESTS = 120;
@@ -69,11 +70,9 @@ const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN
  * cards for what the app does. Each is a sentence, not a paragraph.
  */
 function Tiles() {
-  const close = useMemo(() => envelopeClose('#b6bea7', '#5e1a2a'), []);
-  const lay = useMemo(() => flatLay(), []);
-  const picture = (src: string, title: string, sub: string, span = '') => (
+  const picture = (art: ReactNode, title: string, sub: string, span = '') => (
     <article className={`relative min-h-[300px] rounded-[26px] overflow-hidden shadow-[0_24px_50px_rgba(70,40,40,.14)] ${span}`}>
-      <img aria-hidden alt="" src={src} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+      {art}
       <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(46,30,36,.62), rgba(46,30,36,0) 55%)' }} />
       <span className="absolute left-6 right-6 bottom-6 flex flex-col gap-1" style={{ color: '#fffaf3' }}>
         <h3 className="m-0 text-[30px] leading-[1.1] font-medium" style={{ fontFamily: serif }}>
@@ -98,8 +97,18 @@ function Tiles() {
   );
   return (
     <div className="grid gap-5 md:grid-cols-3 max-w-[1100px] mx-auto w-full">
-      {picture(close, 'Your envelope, your seal', 'your initials, pressed in wax')}
-      {picture(lay, 'Every colour you love', `${THEME_COUNT} designs in six looks`, 'md:col-span-2')}
+      {picture(<RealEnvelope compact paper="blush" wax="Burgundy" className="absolute inset-0" />, 'Your envelope, your seal', 'your initials, pressed in wax')}
+      {picture(
+        <div aria-label="Envelopes in four of the papers and wax colours you can choose" role="img" className="absolute inset-0 grid grid-cols-2 sm:grid-cols-4">
+          <RealEnvelope compact paper="sage" wax="Gold" className="h-full" />
+          <RealEnvelope compact paper="navy" wax="Champagne" className="h-full" />
+          <RealEnvelope compact paper="dustyblue" wax="Silver" className="h-full hidden sm:block" />
+          <RealEnvelope compact paper="terracotta" wax="Pearl white" className="h-full hidden sm:block" />
+        </div>,
+        'Every colour you love',
+        `${THEME_COUNT} designs, 12 envelope papers, 15 wax colours`,
+        'md:col-span-2',
+      )}
       {card(
         'linear-gradient(160deg,#eef4ec,#e2ecdf)',
         'Replies chase themselves',
@@ -114,27 +123,9 @@ function Tiles() {
   );
 }
 
-/** The envelope section's picture: one sealed envelope, close up, on linen. */
+/** The envelope section's picture: the envelope every guest opens first, exactly as it is. */
 function EnvelopeStill() {
-  const src = useMemo(() => envelopeClose(), []);
-  return <img alt="A sealed envelope with the couple's initials pressed into a burgundy wax seal, tied with a silk ribbon and eucalyptus" src={src} loading="lazy" decoding="async" className="w-full aspect-square object-cover rounded-[30px] shadow-[0_34px_70px_rgba(70,40,40,.2)]" />;
-}
-
-/** The hero phone's screen while the invitation loads: a sealed envelope, close up. */
-const posterSrc = envelopeClose();
-
-/** Behind the hero's phone: our own still life of sealed envelopes on linen, set like a product photograph. */
-function HeroStill() {
-  const src = useMemo(() => flatLay(), []);
-  return (
-    <img
-      aria-hidden
-      alt=""
-      src={src}
-      decoding="async"
-      className="absolute top-[4%] bottom-[4%] left-[2%] right-[2%] w-[96%] h-[92%] object-cover rounded-[34px] rotate-[-3deg] shadow-[0_40px_80px_rgba(70,40,40,.22)]"
-    />
-  );
+  return <RealEnvelope className="w-full aspect-square rounded-[30px] shadow-[0_34px_70px_rgba(70,40,40,.2)]" />;
 }
 
 /** A text message beside the hero's phone: the invitation going out, the reply coming back, the list updating. */
@@ -217,11 +208,12 @@ const VS_USUAL: { what: string; usual: string; ours: string }[] = [
   { what: 'After the replies', usual: 'A list of who’s coming', ours: 'Reminders, a dietary list for your caterer, the seating plan and the whole wedding plan.' },
 ];
 
-const FAQ: [string, string][] = [
+/** Our questions; `gst` is whether the business is GST registered (only then may prices say GST is included). */
+const faq = (gst: boolean): [string, string][] => [
   ['Is it a subscription?', 'No. Set everything up first, then pay once for your wedding when you’re ready to send your invitations. Nothing renews. Move to a bigger plan any time: everything stays, and you only pay the difference.'],
   [
     'Are text messages included?',
-    `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (GST included, no other fees), and you see the total before you pay.`,
+    `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (${gstWords(gst)}, no other fees), and you see the total before you pay.`,
   ],
   [
     'Where are our photos kept?',
@@ -229,7 +221,7 @@ const FAQ: [string, string][] = [
   ],
   ['Do guests need to download anything?', 'No. They open their own link: no app, no account, no password.'],
   ['Who can see our guest list?', 'Only the two of you and anyone you invite to help. Each wedding is kept separate, and we never share or sell your data.'],
-  ['Who are you?', 'An Australian business, owned and operated here. Prices are in Australian dollars with GST included, and we answer your emails in Australian hours.'],
+  ['Who are you?', `An Australian business, owned and operated here. Prices are in Australian dollars, ${gstWords(gst)}, and we answer your emails in Australian hours.`],
 ];
 
 /** The questions every couple asks about invitations, whoever they use. */
@@ -245,6 +237,8 @@ const INVITE_FAQ: [string, string][] = [
 export function SalesPage() {
   const [plan, setPlan] = useState<PlanKey>('essentials');
   const site = useSite();
+  // Prices name GST only once the business is registered for it (company portal → Money).
+  const gst = !!site?.gst;
   useEffect(() => {
     // Came from a wedding's "Made with" link or a post (?ref= / ?utm_source=): kept for sign-up.
     rememberRef();
@@ -351,14 +345,13 @@ export function SalesPage() {
                 <li>✓ Set up in an evening</li>
               </ul>
               <span className="text-[13px]" style={{ color: SOFT }}>
-                Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Australian dollars, GST included.
+                Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Australian dollars, {gstWords(gst)}.
               </span>
             </div>
             <div className="relative flex justify-center py-6">
-              <HeroStill />
               {/* The real invitation: the envelope and its wax seal, which breaks and opens by itself. */}
               <span className="relative z-10">
-                <HeroInvite src="/demo?embed=1&play=1" caption={false} poster={posterSrc} />
+                <HeroInvite src="/demo?embed=1&play=1" caption={false} cover={<RealEnvelope paper="cream" wax="Sandstone" className="absolute inset-0" />} />
               </span>
               <Bubble from="us" className="top-[6%] left-0 md:-left-6 hidden sm:block">
                 Harriet &amp; Theo would love you to celebrate with them. Your invitation and RSVP: <u>tap here</u>
@@ -388,7 +381,7 @@ export function SalesPage() {
                 Opened like a gift.
               </h2>
               <p className="m-0 text-[18px] leading-[1.6] max-w-[480px]" style={{ color: SOFT }}>
-                Every guest’s invitation arrives sealed, with your initials pressed into the wax. One tap breaks the seal, the flap lifts and the card rises out to meet them. Choose the paper, the wax and the colours; {THEME_COUNT} designs to start from.
+                Every guest’s invitation arrives sealed, with your initials pressed into the wax. One tap breaks the seal, the flap lifts and the card rises out to meet them. Choose the envelope paper, the wax colour and the seal; {THEME_COUNT} designs to start from.
               </p>
               <Link to="/designs" className="mt-2 py-3 px-6 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: '#fbf1e8' }}>
                 See every design
@@ -509,7 +502,7 @@ export function SalesPage() {
                 One payment. No subscription.
               </h2>
               <p className="m-0 text-[18px] leading-[1.55] max-w-[620px] mx-auto" style={{ color: SOFT }}>
-                Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, GST included.
+                Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, {gstWords(gst)}.
               </p>
             </div>
             <div className="grid gap-5 md:grid-cols-3 items-stretch">
@@ -583,7 +576,7 @@ export function SalesPage() {
               </div>
             </div>
             <p role="note" className="m-0 max-w-[900px] mx-auto text-[13px] leading-[1.6] text-center" style={{ color: SOFT }}>
-              {TEXT_COST_NOTE}
+              {textCostNote(gst)}
             </p>
 
             <details className="max-w-[900px] w-full mx-auto rounded-[20px] border border-[#ecdcd3] bg-white">
@@ -644,7 +637,7 @@ export function SalesPage() {
               About {BRAND}
             </h3>
             <div role="group" aria-label={`About ${BRAND}`}>
-              {FAQ.map(([q, a]) => (
+              {faq(gst).map(([q, a]) => (
                 <details key={q} className="py-4 border-b border-[#ecdcd3]">
                   <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
                   <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>

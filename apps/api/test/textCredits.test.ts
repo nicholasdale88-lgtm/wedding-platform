@@ -82,7 +82,7 @@ describe('text credits', () => {
     expect(res.status).toBe(200);
     const sent = new URLSearchParams(stripeCalls.at(-1)!.body);
     expect(sent.get('line_items[0][price_data][unit_amount]')).toBe('5760');
-    expect(sent.get('line_items[0][price_data][product_data][name]')).toMatch(/720 text credits .*GST included/);
+    expect(sent.get('line_items[0][price_data][product_data][name]')).toMatch(/720 text credits .*no GST charged/);
     expect(sent.get('metadata[what]')).toBe('texts');
     expect(sent.get('metadata[credits]')).toBe('720');
 

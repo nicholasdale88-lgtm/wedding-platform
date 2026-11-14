@@ -1,4 +1,5 @@
 export * from './phone';
+export * from './names';
 export * from './tokens';
 export * from './time';
 export * from './sms';
@@ -18,7 +19,9 @@ export * from './seatStage';
 export * from './planner';
 export * from './help';
 export * from './helpSay';
+export * from './companyHelp';
 export * from './plan';
 export * from './directory';
 export * from './company';
 export * from './budgetImport';
+export * from './ads';

@@ -93,6 +93,30 @@ const DEFS = `
     <feMerge><feMergeNode in='s2'/><feMergeNode in='s1'/><feMergeNode in='SourceGraphic'/></feMerge>
   </filter>
   <filter id='soft' x='-40%' y='-40%' width='180%' height='180%'><feGaussianBlur stdDeviation='3'/></filter>
+  <filter id='relief' x='-5%' y='-5%' width='110%' height='110%' color-interpolation-filters='sRGB'>
+    <feGaussianBlur in='SourceAlpha' stdDeviation='1.1' result='h'/>
+    <feDiffuseLighting in='h' surfaceScale='9' diffuseConstant='.7071' lighting-color='#fff' result='l'><feDistantLight azimuth='225' elevation='45'/></feDiffuseLighting>
+    <feColorMatrix in='l' type='matrix' values='0 0 0 0 1  0 0 0 0 .96  0 0 0 0 .92  1.5 0 0 0 -.75' result='hi'/>
+    <feColorMatrix in='l' type='matrix' values='0 0 0 0 .08  0 0 0 0 .01  0 0 0 0 .02  -2.6 0 0 0 1.3' result='lo'/>
+    <feSpecularLighting in='h' surfaceScale='9' specularConstant='.8' specularExponent='48' lighting-color='#fff8f0' result='sp'><feDistantLight azimuth='225' elevation='52'/></feSpecularLighting>
+    <feColorMatrix in='sp' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  .7 .2 0 0 -.2' result='sp2'/>
+    <feComposite in='sp2' in2='SourceAlpha' operator='in' result='sp3'/>
+    <feMerge><feMergeNode in='lo'/><feMergeNode in='hi'/><feMergeNode in='sp3'/></feMerge>
+  </filter>
+  <filter id='sealShadow' x='-30%' y='-30%' width='170%' height='170%' color-interpolation-filters='sRGB'>
+    <feGaussianBlur in='SourceAlpha' stdDeviation='1.4' result='a'/><feOffset in='a' dx='1.5' dy='2.5' result='a2'/>
+    <feFlood flood-color='#1a0606' flood-opacity='.7'/><feComposite in2='a2' operator='in' result='s1'/>
+    <feGaussianBlur in='SourceAlpha' stdDeviation='9' result='b'/><feOffset in='b' dx='9' dy='15' result='b2'/>
+    <feFlood flood-color='#2a1008' flood-opacity='.42'/><feComposite in2='b2' operator='in' result='s2'/>
+    <feMerge><feMergeNode in='s2'/><feMergeNode in='s1'/></feMerge>
+  </filter>
+  <filter id='edgeShadow' x='-5%' y='-5%' width='110%' height='130%' color-interpolation-filters='sRGB'>
+    <feGaussianBlur in='SourceAlpha' stdDeviation='.9' result='a'/><feOffset in='a' dx='0' dy='2' result='a2'/>
+    <feFlood flood-color='#2b1810' flood-opacity='.45'/><feComposite in2='a2' operator='in' result='s1'/>
+    <feGaussianBlur in='SourceAlpha' stdDeviation='5' result='b'/><feOffset in='b' dx='2' dy='7' result='b2'/>
+    <feFlood flood-color='#2b1810' flood-opacity='.22'/><feComposite in2='b2' operator='in' result='s2'/>
+    <feMerge><feMergeNode in='s2'/><feMergeNode in='s1'/></feMerge>
+  </filter>
   <filter id='gobo' x='-20%' y='-20%' width='140%' height='140%'><feGaussianBlur stdDeviation='13'/></filter>
   <radialGradient id='key' cx='.18' cy='.08' r='1.05'><stop offset='0' stop-color='#fff4e2' stop-opacity='.5'/><stop offset='.55' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#26140e' stop-opacity='.38'/></radialGradient>
   <radialGradient id='euc' cx='.32' cy='.28' r='.85'><stop offset='0' stop-color='#c3cfbf'/><stop offset='.55' stop-color='#8fa293'/><stop offset='1' stop-color='#5d7366'/></radialGradient>
@@ -165,40 +189,64 @@ function petal(x: number, y: number, s: number, a: number): string {
   </g>`;
 }
 
-/** A deep wax seal: a pooled, uneven edge, a pressed well with a laurel ring and the initials standing up. */
+/**
+ * A deep wax seal, lit like a photograph: a pooled, uneven edge with a raised rim, a pressed well, and a laurel
+ * ring and the initials standing up in it. The colour is the wax's own (round, with the light falling from the
+ * top left); a height map of the shapes is then lit for crisp light and shade and tight glints, and it sits on a
+ * sharp contact shadow inside a soft one.
+ */
 function seal(x: number, y: number, r: number, colour: string, initials: string, k: number): string {
-  const edge: P[] = Array.from({ length: 22 }, (_, i) => {
-    const a = (i / 22) * Math.PI * 2;
-    const rr = r * (1 + (rnd(i + k * 31, 2) - 0.5) * 0.16 + (rnd(i + k, 5) > 0.82 ? 0.09 : 0));
+  const edge: P[] = Array.from({ length: 30 }, (_, i) => {
+    const a = (i / 30) * Math.PI * 2;
+    const drip = rnd(i + k, 5) > 0.84 ? 0.1 : 0;
+    const rr = r * (1 + (rnd(i + k * 31, 2) - 0.5) * 0.1 + drip);
     return [x + Math.cos(a) * rr, y + Math.sin(a) * rr];
   });
-  const well = r * 0.7;
+  const outline = smooth(edge);
+  const well = r * 0.66;
+  const id = `w${k}`;
   // The laurel ring: two branches of small leaves meeting at the bottom.
   let laurel = '';
   for (const side of [-1, 1]) {
     for (let i = 0; i < 9; i++) {
-      const a = Math.PI / 2 + side * (0.35 + i * 0.29);
+      const a = Math.PI / 2 + side * (0.38 + i * 0.29);
       const lx = x + Math.cos(a) * well * 0.8;
       const ly = y + Math.sin(a) * well * 0.8;
       const deg = (a * 180) / Math.PI + (side > 0 ? 90 : -90);
       for (const out of [-1, 1]) {
-        const L = r * 0.12;
-        laurel += `<path d='M0 0 Q${f1(L * 0.45)} ${f1(-L * 0.5)} 0 ${f1(-L)} Q${f1(-L * 0.45)} ${f1(-L * 0.5)} 0 0Z' transform='translate(${f1(lx)} ${f1(ly)}) rotate(${f1(deg + out * 40 * side - 90 * side)})' fill='${colour}'/>`;
+        const L = r * 0.13;
+        laurel += `<path d='M0 0 Q${f1(L * 0.45)} ${f1(-L * 0.5)} 0 ${f1(-L)} Q${f1(-L * 0.45)} ${f1(-L * 0.5)} 0 0Z' transform='translate(${f1(lx)} ${f1(ly)}) rotate(${f1(deg + out * 40 * side - 90 * side)})'/>`;
       }
     }
   }
   const [a, b] = initials.split('&').map((t) => t.trim());
+  const fs = r * 0.5;
   const mono = b
-    ? `<text x='${f1(x - r * 0.25)}' y='${f1(y + r * 0.16)}' text-anchor='middle' font-family='Georgia, "Times New Roman", serif' font-size='${f1(r * 0.46)}' fill='${colour}'>${esc(a!)}</text>
-       <text x='${f1(x + r * 0.25)}' y='${f1(y + r * 0.16)}' text-anchor='middle' font-family='Georgia, "Times New Roman", serif' font-size='${f1(r * 0.46)}' fill='${colour}'>${esc(b)}</text>
-       <text x='${x}' y='${f1(y + r * 0.1)}' text-anchor='middle' font-family='Georgia, "Times New Roman", serif' font-style='italic' font-size='${f1(r * 0.22)}' fill='${colour}'>&amp;</text>`
-    : `<text x='${x}' y='${f1(y + r * 0.18)}' text-anchor='middle' font-family='Georgia, "Times New Roman", serif' font-size='${f1(r * 0.55)}' fill='${colour}'>${esc(initials)}</text>`;
+    ? `<text x='${f1(x - r * 0.24)}' y='${f1(y + fs * 0.34)}' text-anchor='middle' font-size='${f1(fs)}'>${esc(a!)}</text>
+       <text x='${f1(x + r * 0.24)}' y='${f1(y + fs * 0.34)}' text-anchor='middle' font-size='${f1(fs)}'>${esc(b)}</text>
+       <text x='${x}' y='${f1(y + fs * 0.2)}' text-anchor='middle' font-style='italic' font-size='${f1(fs * 0.48)}'>&amp;</text>`
+    : `<text x='${x}' y='${f1(y + fs * 0.38)}' text-anchor='middle' font-size='${f1(fs * 1.15)}'>${esc(initials)}</text>`;
+  const serif = `font-family='Georgia, "Times New Roman", serif' font-weight='bold'`;
   return `<g>
-    <ellipse cx='${f1(x + 7)}' cy='${f1(y + 11)}' rx='${f1(r * 1.02)}' ry='${f1(r)}' fill='#1e0d08' fill-opacity='.42' filter='url(#soft)'/>
-    <path d='${smooth(edge)}' fill='${colour}' filter='url(#wax)'/>
-    <circle cx='${x}' cy='${y}' r='${f1(well)}' fill='${dark(colour, 0.06)}' filter='url(#well)'/>
-    <g filter='url(#raise)'>${laurel}${mono}</g>
-    <path d='M${f1(x - r * 0.62)} ${f1(y - r * 0.5)} Q${f1(x - r * 0.25)} ${f1(y - r * 0.93)} ${f1(x + r * 0.3)} ${f1(y - r * 0.86)}' fill='none' stroke='#fff' stroke-opacity='.32' stroke-width='${f1(r * 0.07)}' stroke-linecap='round' filter='url(#soft)'/>
+    <radialGradient id='${id}' cx='.36' cy='.3' r='.85'>
+      <stop offset='0' stop-color='${light(colour, 0.28)}'/><stop offset='.45' stop-color='${colour}'/>
+      <stop offset='.85' stop-color='${dark(colour, 0.32)}'/><stop offset='1' stop-color='${dark(colour, 0.45)}'/>
+    </radialGradient>
+    <radialGradient id='${id}w' cx='.62' cy='.68' r='.7'>
+      <stop offset='0' stop-color='${dark(colour, 0.05)}'/><stop offset='1' stop-color='${dark(colour, 0.28)}'/>
+    </radialGradient>
+    <path d='${outline}' fill='#000' filter='url(#sealShadow)'/>
+    <path d='${outline}' fill='url(#${id})'/>
+    <circle cx='${x}' cy='${y}' r='${f1(well)}' fill='url(#${id}w)'/>
+    <g filter='url(#relief)' fill='#fff' ${serif}>
+      <path d='${outline}' fill-opacity='.42'/>
+      <circle cx='${x}' cy='${y}' r='${f1(r * 0.8)}' fill='none' stroke='#fff' stroke-opacity='.4' stroke-width='${f1(r * 0.22)}'/>
+      <circle cx='${x}' cy='${y}' r='${f1(well)}' fill='#000' fill-opacity='.0'/>
+      <circle cx='${x}' cy='${y}' r='${f1(well + r * 0.03)}' fill='none' stroke='#fff' stroke-opacity='.35' stroke-width='${f1(r * 0.03)}'/>
+      <g fill-opacity='.5'>${laurel}${mono}</g>
+    </g>
+    <path d='M${f1(x - r * 0.62)} ${f1(y - r * 0.52)} Q${f1(x - r * 0.3)} ${f1(y - r * 0.88)} ${f1(x + r * 0.18)} ${f1(y - r * 0.86)}' fill='none' stroke='#fff' stroke-opacity='.55' stroke-width='${f1(r * 0.035)}' stroke-linecap='round'/>
+    <ellipse cx='${f1(x - r * 0.42)}' cy='${f1(y - r * 0.55)}' rx='${f1(r * 0.08)}' ry='${f1(r * 0.04)}' transform='rotate(-35 ${f1(x - r * 0.42)} ${f1(y - r * 0.55)})' fill='#fff' fill-opacity='.8'/>
   </g>`;
 }
 
@@ -251,10 +299,14 @@ function envelope(x: number, y: number, turn: number, e: Env): string {
     <!-- The bottom and side flaps' seams, pressed into the paper. -->
     <path d='M2 ${h - 2} L${f1(cx - 30)} ${f1(h * 0.5)} M${w - 2} ${h - 2} L${f1(cx + 30)} ${f1(h * 0.5)}' fill='none' stroke='${dark(paper, 0.16)}' stroke-opacity='.5' stroke-width='1.2'/>
     <path d='M3 ${h} L${f1(cx - 28)} ${f1(h * 0.5 + 2)} M${w - 1} ${h} L${f1(cx + 32)} ${f1(h * 0.5 + 2)}' fill='none' stroke='#fff' stroke-opacity='.55' stroke-width='1'/>
-    <!-- The flap, casting a soft shadow onto the body. -->
-    <path d='${flap}' fill='#2b1810' fill-opacity='.2' transform='translate(2 5)' filter='url(#soft)'/>
+    <!-- The flap, its edge casting a crisp shadow onto the body, lit along its fold and cut. -->
+    <path d='${flap}' fill='#000' filter='url(#edgeShadow)'/>
     <path d='${flap}' fill='${light(paper, 0.08)}' filter='url(#paper)'/>
-    <path d='M1 1 H${w - 1}' stroke='#fff' stroke-opacity='.7' stroke-width='1.2'/>
+    <linearGradient id='fl${k}' x1='0' y1='0' x2='.3' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.28'/><stop offset='.6' stop-color='#fff' stop-opacity='0'/><stop offset='1' stop-color='#000' stop-opacity='.06'/></linearGradient>
+    <path d='${flap}' fill='url(#fl${k})'/>
+    <path d='M0 0 L${f1(cx - 16)} ${f1(tipY - 6)} Q${f1(cx)} ${f1(tipY + 4)} ${f1(cx + 16)} ${f1(tipY - 6)} L${w} 0' fill='none' stroke='${dark(paper, 0.22)}' stroke-opacity='.55' stroke-width='.9'/>
+    <path d='M2 1.5 L${f1(cx - 15)} ${f1(tipY - 7.5)}' fill='none' stroke='#fff' stroke-opacity='.75' stroke-width='1'/>
+    <path d='M1 1 H${w - 1}' stroke='#fff' stroke-opacity='.8' stroke-width='1.4'/>
     <rect x='.5' y='.5' width='${w - 1}' height='${h - 1}' rx='5' fill='none' stroke='${dark(paper, 0.2)}' stroke-opacity='.35'/>
     ${tuck.map((t) => `<g filter='url(#soft)' opacity='.3' transform='translate(3 5)'>${t[0]}</g>`).join('')}
     ${tuck.map((t) => t[1]).join('')}

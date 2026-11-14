@@ -1,4 +1,4 @@
-import { keepPrivateVows, noimStatus, questionnaireProgress, vowsFor, type Ceremony, PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
+import { hasContract, keepPrivateVows, noimStatus, questionnaireProgress, vowsFor, type Ceremony, PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -202,7 +202,7 @@ export async function plannerNeedsYou(db: D1Database, weddingId: string, first: 
     });
   }
   // Booked without a signed contract: the deposit is at risk if anything goes wrong.
-  const unsigned = vendors.data.list.filter((v) => v.status === 'booked' && !v.contractSigned);
+  const unsigned = vendors.data.list.filter((v) => v.status === 'booked' && !hasContract(v));
   if (unsigned.length) {
     out.push({
       kind: 'contracts',

@@ -1,5 +1,5 @@
-import { DELIVERY, DELIVERY_LABEL, joinDiet, PARTY_ROLES, printed, TEXT_CREDIT_ALL_IN, toE164, type Delivery } from '@wp/shared';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { DELIVERY, DELIVERY_LABEL, householdName, joinDiet, joinName, sharedLast, splitName, PARTY_ROLES, printed, TEXT_CREDIT_ALL_IN, toE164, type Delivery } from '@wp/shared';
+import { useCallback, useEffect, useRef, useState, type InputHTMLAttributes } from 'react';
 import { api, ApiError, partyAccountsApi, plannerApi, type GuestDetail, type GuestPatch, type RsvpPut } from '../lib/api';
 import { fmtWeekday, fmtWhen, shortLabel } from '../lib/format';
 import { groupSuggestions } from './groups';
@@ -26,6 +26,12 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   const [d, setD] = useState<GuestDetail | null>(null);
   const [error, setError] = useState('');
   const [names, setNames] = useState<string[]>([]);
+  // Everyone on the invitation shares the main contact's last name: typed once (ticked when they already do).
+  const [sameLast, setSameLast] = useState(false);
+  const sameLastSet = useRef(false);
+  // The main contact's last name as typed in its box (so "Mary Ann" stays a first name before a last name is
+  // added); unset until they type in a name box, then the name is read with it.
+  const [mainLast, setMainLast] = useState<string | undefined>(undefined);
   const [phone, setPhone] = useState('');
   const [phone2, setPhone2] = useState('');
   // "Add their number from my contacts" on a phone without a contact picker: how to use AutoFill Contact.
@@ -83,6 +89,10 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
     shown.current = next;
     const keep = (k: keyof typeof next) => (cur: string) => (!was || cur === was[k] ? next[k] : cur);
     setNames((cur) => JSON.parse(keep('names')(JSON.stringify(cur))) as string[]);
+    if (!sameLastSet.current) {
+      sameLastSet.current = true;
+      setSameLast(!!sharedLast(x.guest.people.map((p) => p.name)));
+    }
     setPhone(keep('phone'));
     setPhone2(keep('phone2'));
     setEmail(keep('email'));
@@ -187,6 +197,15 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   if (!d) return <Drawer onClose={close} label="Guest"><div aria-busy="true" /></Drawer>;
 
   const g = d.guest;
+  /** The main contact's first and last names (as typed, else read from the name). */
+  const main = (() => {
+    const n = names[0] ?? '';
+    if (mainLast === undefined) return splitName(n);
+    if (!mainLast) return { first: n, last: '' };
+    return n.endsWith(` ${mainLast}`) ? { first: n.slice(0, -(mainLast.length + 1)), last: mainLast } : splitName(n);
+  })();
+  /** Someone's first name, when they share the main contact's last name. */
+  const firstOf = (n: string) => (main.last && n.endsWith(` ${main.last}`) ? n.slice(0, -(main.last.length + 1)) : splitName(n).first);
   const events = d.events;
   const hasAddress = !!g.address && Object.values(g.address).some((v) => typeof v === 'string' && v.trim());
   /**
@@ -308,8 +327,13 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
             ← Guests
           </button>
           <Eyebrow className="hidden sm:block">Guest</Eyebrow>
-          <h2 className="mt-1 mb-0 font-display font-medium text-[clamp(26px,7vw,32px)] leading-[1.1] truncate">{g.people[0]?.name || 'New guest'}</h2>
+          <h2 className="mt-1 mb-0 font-display font-medium text-[clamp(26px,7vw,32px)] leading-[1.1] truncate">{householdName(g.people.map((p) => p.name)) || 'New guest'}</h2>
           <div className="mt-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">{g.repliedAt ? `Replied ${fmtWhen(g.repliedAt, tz)} · ${VIA[lastVia] ?? lastVia}` : 'No reply yet'}</div>
+          {d.link && g.people.some((p) => p.name.trim()) && (
+            <a href={previewUrl(d.link)} target="_blank" rel="noopener" className="mt-2 inline-flex items-center gap-[6px] py-[6px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f2)] text-[13px] font-semibold no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]">
+              <span aria-hidden>👁</span> Preview their invitation
+            </a>
+          )}
         </div>
         <button onClick={close} aria-label="Close" className="flex-none w-10 h-10 rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f2)] text-[20px] leading-none cursor-pointer">×</button>
       </div>
@@ -319,17 +343,58 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
           <Eyebrow>People on this invitation</Eyebrow>
           <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{peopleNames.length} {peopleNames.length === 1 ? 'person' : 'people'}</span>
         </div>
-        <Label text="Main contact · gets the texts">
-          <input value={names[0] ?? ''} onChange={(e) => setNames([e.target.value, ...names.slice(1)])} onBlur={() => names[0] !== g.people[0]?.name && savePeople(names)} className={inputCls} />
-        </Label>
+        {/* First and last names. One shared last name (ticked) is typed once and given to everyone. */}
+        {names.length > 1 && (
+          <label className="flex items-center gap-2 text-[14px] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={sameLast}
+              onChange={(e) => {
+                setSameLast(e.target.checked);
+                if (e.target.checked) {
+                  const next = names.map((n, i) => (i === 0 || !n.trim() ? n : joinName(splitName(n).first, main.last)));
+                  setNames(next);
+                  if (next.some((n, i) => n !== (g.people[i]?.name ?? ''))) savePeople(next);
+                }
+              }}
+              className="w-[18px] h-[18px] accent-[#33402f]"
+            />
+            Everyone shares the same last name
+          </label>
+        )}
+        <span className="text-[13px] font-semibold text-[var(--adm-ink,#33402f)]">Main contact · gets the texts</span>
+        <div className="grid grid-cols-2 gap-2">
+          <NameBox
+            aria-label="Main contact's first name"
+            placeholder="First name"
+            value={main.first}
+            onText={(v) => {
+              setMainLast(main.last);
+              setNames([joinName(v, main.last), ...names.slice(1)]);
+            }}
+            onBlur={() => names[0] !== g.people[0]?.name && savePeople(names)}
+            className={inputCls}
+          />
+          <NameBox
+            aria-label={sameLast ? 'Last name (everyone)' : "Main contact's last name"}
+            placeholder={sameLast ? 'Last name (everyone)' : 'Last name'}
+            value={main.last}
+            onText={(last) => {
+              setMainLast(last.trim());
+              setNames(names.map((n, i) => (i === 0 ? joinName(main.first, last) : sameLast && n.trim() ? joinName(firstOf(n), last) : n)));
+            }}
+            onBlur={() => names.some((n, i) => n !== (g.people[i]?.name ?? '')) && savePeople(names)}
+            className={inputCls}
+          />
+        </div>
         {names.slice(1).map((n, i) => (
           <div key={i} className="flex gap-2 items-center">
-            <input
-              value={n}
-              placeholder="Guest name"
+            <NameBox
+              value={sameLast ? firstOf(n) : n}
+              placeholder={sameLast ? 'First name' : 'First and last name'}
               aria-label="Guest name"
-              onChange={(e) => setNames(names.map((x, j) => (j === i + 1 ? e.target.value : x)))}
-              onBlur={() => n !== g.people[i + 1]?.name && savePeople(names)}
+              onText={(v) => setNames(names.map((x, j) => (j === i + 1 ? (sameLast ? joinName(v, main.last) : v) : x)))}
+              onBlur={() => names[i + 1] !== g.people[i + 1]?.name && savePeople(names)}
               className={`flex-1 min-w-0 ${inputCls}`}
             />
             {g.people[i + 1] && <ChildTick compact on={!!g.people[i + 1]!.child} name={n || 'this guest'} onChange={(v) => setChild(i + 1, v)} />}
@@ -701,7 +766,7 @@ const previewCls = 'py-[7px] px-[14px] rounded-full border border-dashed border-
  * One of the guest's own pages (invitation, a night-before guide, photos), opened in preview mode:
  * it doesn't count as them opening it and never records a reply.
  */
-function previewUrl(link: string, page = ''): string {
+export function previewUrl(link: string, page = ''): string {
   try {
     const u = new URL(link);
     if (page) u.pathname = `${u.pathname.replace(/\/+$/, '')}/${page}`;
@@ -749,4 +814,27 @@ function repliedLocally(g: G, r: RsvpPut): G {
   }
   if (r.count !== undefined) for (const k of Object.keys(rsvp)) rsvp[k] = { ...rsvp[k]!, count: r.count };
   return { ...g, rsvp };
+}
+
+/**
+ * A name box: shows the saved name, but while you type it keeps exactly what you type (a space between two
+ * first names, say), and reports each change.
+ */
+function NameBox({ value, onText, onBlur, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & { value: string; onText: (v: string) => void }) {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <input
+      {...rest}
+      value={text ?? value}
+      onFocus={() => setText(value)}
+      onChange={(e) => {
+        setText(e.target.value);
+        onText(e.target.value);
+      }}
+      onBlur={(e) => {
+        setText(null);
+        onBlur?.(e);
+      }}
+    />
+  );
 }

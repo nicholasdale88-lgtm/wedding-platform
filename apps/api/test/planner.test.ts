@@ -332,6 +332,66 @@ describe('planner: wedding party', () => {
     expect(page.seating.special).toContainEqual({ table: 'Table 1', seat: 1, name: allergic.name, diet: 'Severe peanut allergy', meal: expect.any(Object), serious: true });
     expect(page.seating.tables.find((t) => t.name === 'Table 1')).toMatchObject({ serious: true });
     expect(page.seating.special.every((r) => r.diet || r.serious || r.name)).toBe(true);
+    // The live spreadsheet for their own tools: each special meal by table and seat, then the counts.
+    const sheet = await app.request(`${api}/dietary.csv`, {}, env, ctx);
+    expect(sheet.status).toBe(200);
+    expect(sheet.headers.get('content-type')).toContain('text/csv');
+    const rows = await sheet.text();
+    expect(rows).toContain('"Table 1","1"');
+    expect(rows).toContain('Severe peanut allergy');
+    expect(rows).toContain('"Guests coming"');
+  });
+
+  it('the band or DJ sees the song list (never who asked); others do not; a vendor can confirm, and their calendar is live', async () => {
+    const inv = await t.db.prepare(`SELECT id FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL LIMIT 2`).bind(wid).all<{ id: string }>();
+    const [a, b] = inv.results;
+    const now = new Date().toISOString();
+    const song = (id: string, invitation: string | null, title: string, status: string, note = '') =>
+      t.db.prepare(`INSERT INTO song_request (id, wedding_id, invitation_id, title, artist, note, status, created_at) VALUES (?, ?, ?, ?, 'The Band', ?, ?, ?)`).bind(id, wid, invitation, title, note, status, now).run();
+    await song('s1', null, 'First Dance Song', 'must', 'Our first dance');
+    await song('s2', a!.id, 'Party Starter', 'new', 'for my sister, private');
+    await song('s3', b!.id, 'party starter', 'new');
+    await song('s4', null, 'Too Slow', 'no');
+    const list = [
+      { id: 'dj', name: 'Night Owl DJs', category: 'DJ', status: 'booked', arrival: '5pm', phone: '0400 000 001' },
+      { id: 'pho', name: 'Light Catchers', category: 'Photographer', status: 'booked', arrival: '1pm', phone: '0400 000 002' },
+    ];
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ list }) })).status).toBe(200);
+    const link = async (id: string) => {
+      const u = new URL(((await (await call(`/vendors/${id}/hub`)).json()) as { url: string }).url);
+      return `/api/p/sophie-and-nicholas/vendor/${u.searchParams.get('v')}/${u.searchParams.get('k')}`;
+    };
+    const dj = await link('dj');
+    const text = await (await app.request(dj, {}, env, ctx)).text();
+    const page = JSON.parse(text) as { songs: { title: string; status: string; asks: number; note: string }[]; team: { name: string }[]; meals: unknown[] };
+    expect(page.songs.map((s) => s.title)).toEqual(['First Dance Song', 'Too Slow', 'Party Starter']); // must, don't play, then requests
+    expect(page.songs[0]).toMatchObject({ status: 'must', note: 'Our first dance' });
+    expect(page.songs[2]).toMatchObject({ asks: 2, note: '' }); // the same song twice is one line; guests' notes stay private
+    expect(text).not.toContain('for my sister');
+    expect(page.team.map((x) => x.name)).toEqual(['Light Catchers']);
+    expect(Array.isArray(page.meals)).toBe(true);
+    const songsCsv = await app.request(`${dj}/songs.csv`, {}, env, ctx);
+    expect(songsCsv.status).toBe(200);
+    expect(await songsCsv.text()).toContain('"Must play","First Dance Song"');
+    // The photographer doesn't see the songs (unless the couple shares them).
+    const pho = await link('pho');
+    expect(((await (await app.request(pho, {}, env, ctx)).json()) as { songs: unknown }).songs).toBeNull();
+    expect((await app.request(`${pho}/songs.csv`, {}, env, ctx)).status).toBe(404);
+    expect((await app.request(`${pho}/other.txt`, {}, env, ctx)).status).toBe(404);
+    // Their calendar: the day from their arrival time.
+    const cal = await app.request(`${pho}/day.ics`, {}, env, ctx);
+    expect(cal.status).toBe(200);
+    const ics = await cal.text();
+    expect(ics).toContain('BEGIN:VCALENDAR');
+    expect(ics).toMatch(/SUMMARY:.*wedding: Light Catchers/);
+    // Confirming ticks them off in the planner, with the note in their log.
+    const ok = await app.request(`${pho}/confirm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ note: 'Need a power point by the dance floor' }) }, env, ctx);
+    expect(ok.status).toBe(200);
+    const after = (await (await call('/doc/vendors')).json()) as { data: { list: { id: string; confirmedOn?: string; log?: { text: string }[] }[] } };
+    const p = after.data.list.find((x) => x.id === 'pho')!;
+    expect(p.confirmedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(p.log?.[0]?.text).toContain('power point'); // newest first
+    expect((await app.request(`${pho.replace(/[^/]+$/, 'x'.repeat(24))}/confirm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }, env, ctx)).status).toBe(404);
   });
 
   it("the assistant answers from the wedding's own facts, and says when it is off", async () => {

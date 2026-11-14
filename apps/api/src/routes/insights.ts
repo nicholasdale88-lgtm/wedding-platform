@@ -4,6 +4,7 @@ import { servedAt } from '../lib/meals';
 import { safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { readDoc } from './planner';
+import { loadSeating } from './seating';
 
 /**
  * Wedding planner → Insights: the numbers behind the plan. Replies per event (invited, opened, replied,
@@ -86,6 +87,8 @@ export function insightsRoutes() {
       : null;
     // Mains by what each person is served at the first event (their menu's main, or one written for them).
     const served = firstEv ? await servedAt(db, w, firstEv) : () => ({ e: '', m: '', d: '', menu: '' });
+    // Seated is counted exactly as the Seating page counts it, from the same loader.
+    const seatPlan = firstEv ? await loadSeating(db, w, firstEv.key) : null;
     const coming = ((extra?.[0]?.results ?? []) as { id: string; diet: string }[]).map((p) => ({ diet: p.diet, main: served(p.id).m }));
     const dietCounts = new Map<string, number>();
     for (const p of coming) for (const k of dietCategories(p.diet)) dietCounts.set(k, (dietCounts.get(k) ?? 0) + 1);
@@ -126,7 +129,14 @@ export function insightsRoutes() {
         replied: n(r.replied),
       })),
       catering: { people: coming.length, withNeeds: coming.filter((p) => p.diet.trim()).length, diets: [...dietCounts.entries()].sort((a, b) => b[1] - a[1]), mains: [...mains.entries()].sort((a, b) => b[1] - a[1]) },
-      seating: { tables: n(one(extra?.[1]).tables), seats: n(one(extra?.[1]).seats), seated: n(one(extra?.[2]).n) },
+      // Guests who can be seated (invited, no "no") and how many of them have a seat at a table that still
+      // exists: not the couple, removed guests or seats left on deleted tables.
+      seating: {
+        tables: n(one(extra?.[1]).tables),
+        seats: n(one(extra?.[1]).seats),
+        seated: seatPlan ? seatPlan.view.people.filter((p) => seatPlan.draft.seats[p.id]).length : 0,
+        people: seatPlan ? seatPlan.view.people.length : 0,
+      },
       shuttles: { runs: runs.length, capacity: runs.reduce((a, s) => a + s.seats, 0), booked: n(one(extra?.[4]).n) },
       rsvpClose: inv.success ? (inv.data.rsvpClose ?? '') : '',
       chase: ((extra?.[6]?.results ?? []) as { id: string; name: string | null; opened_at: string | null; phone: number; texted: string | null }[]).map((r) => ({

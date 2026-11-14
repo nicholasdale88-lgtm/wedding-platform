@@ -1,6 +1,6 @@
 import type { Env } from '../env';
 import { safeEqual } from '../sms/webhook';
-import { emailReady, plainHtml, sendEmail } from './email';
+import { emailPaid, emailReady, plainHtml, sendEmail } from './email';
 import { allow } from './rateLimit';
 import { safeJson } from './security';
 import { mainAccountOf } from '../routes/accounts';
@@ -12,10 +12,14 @@ import { mainAccountOf } from '../routes/accounts';
  * - Sent mail goes From "Name1 & Name2" <their address>, Reply-To their address, so answers come back in.
  * - Copies of what arrives can go to the couple's own inbox (Outlook, Apple Mail, Gmail): their Reply goes
  *   to reply+<email id>.<signature>@<INBOX_DOMAIN>, comes back here, and is sent on from the wedding address.
- * Resend's free tier is shared by every wedding (100 a day), so each wedding sends at most MAIL_PER_DAY.
+ * Resend's free tier is shared by every wedding (100 a day), so each wedding sends at most MAIL_PER_DAY_FREE.
+ * On a paid sender (Resend with EMAIL_PLAN=paid, or SES) the cap is MAIL_PER_DAY_PAID: high enough for a
+ * whole invitation round in one go, still a stop on runaway sending.
  */
 
-export const MAIL_PER_DAY = 40;
+export const MAIL_PER_DAY_FREE = 40;
+export const MAIL_PER_DAY_PAID = 500;
+export const mailPerDay = (env: Env) => (emailPaid(env) ? MAIL_PER_DAY_PAID : MAIL_PER_DAY_FREE);
 const DAY = 24 * 3_600_000;
 const capKey = (weddingId: string) => `mail:${weddingId}`;
 
@@ -79,16 +83,17 @@ export async function senderOf(env: Env, weddingId: string, address: string) {
 }
 
 /** How many emails the wedding can still send today. */
-export async function mailLeft(db: D1Database, weddingId: string, now = new Date()) {
-  const row = await db.prepare(`SELECT n, reset_at FROM rate_limit WHERE k = ?`).bind(capKey(weddingId)).first<{ n: number; reset_at: string }>();
-  if (!row || row.reset_at <= now.toISOString()) return MAIL_PER_DAY;
-  return Math.max(0, MAIL_PER_DAY - row.n);
+export async function mailLeft(env: Env, weddingId: string, now = new Date()) {
+  const cap = mailPerDay(env);
+  const row = await env.DB.prepare(`SELECT n, reset_at FROM rate_limit WHERE k = ?`).bind(capKey(weddingId)).first<{ n: number; reset_at: string }>();
+  if (!row || row.reset_at <= now.toISOString()) return cap;
+  return Math.max(0, cap - row.n);
 }
 
 /** Counts one email against today's allowance; false when the day's emails are used up. */
-export const takeMail = (db: D1Database, weddingId: string) => allow(db, capKey(weddingId), MAIL_PER_DAY, DAY);
+export const takeMail = (env: Env, weddingId: string) => allow(env.DB, capKey(weddingId), mailPerDay(env), DAY);
 
-export const CAP_MESSAGE = `You’ve sent ${MAIL_PER_DAY} emails today, the most for one day. The rest can go tomorrow.`;
+export const capMessage = (env: Env) => `You’ve sent ${mailPerDay(env)} emails today, the most for one day. The rest can go tomorrow.`;
 
 // ---- Replying from Outlook or Apple Mail -------------------------------------------------------------
 
@@ -167,7 +172,7 @@ export async function sendCopies(env: Env, weddingId: string, email: { id: strin
   ].join('\n');
   let sent = 0;
   for (const p of people) {
-    if (!(await takeMail(env.DB, weddingId))) break;
+    if (!(await takeMail(env, weddingId))) break;
     if (await sendEmail(env, { to: p.email, from: me.from, replyTo: [replyTo], subject: email.subject || '(no subject)', text, html: plainHtml(text) })) sent++;
   }
   return sent;

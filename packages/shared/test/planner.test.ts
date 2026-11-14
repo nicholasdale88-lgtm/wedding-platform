@@ -249,7 +249,7 @@ describe('vendor items for the checklist', () => {
     // The paid deposit has no date, so it's left off; the rest are there.
     expect(items.map((i) => [i.kind, i.text, i.due, i.done])).toEqual([
       ['payment', 'Pay Bloom · balance ($800)', '2027-10-01', false],
-      ['contract', 'Sign Bloom’s contract', '', false],
+      ['contract', 'Keep Bloom’s signed contract', '', false],
       ['quote', 'Decide on Snap’s quote (it runs out)', '2027-02-01', false],
     ]);
   });
@@ -546,5 +546,21 @@ describe('saving up', () => {
     expect(p).toMatchObject({ saved: 6000, toPay: 14000, short: 8000, months: 12, perMonth: 667, pace: 1000 });
     expect(p.gap).toEqual({ label: 'Venue', due: '2027-03-01', by: 4000 });
     expect(savingsPlan([], [], '2026-10-20', '2027-11-18')).toMatchObject({ saved: 0, toPay: 0, short: 0, perMonth: 0, gap: null });
+  });
+});
+
+describe('vendor pages', () => {
+  it('marks a vendor’s own moments in the timeline: named, or their kind of moment', async () => {
+    const { isVendorMoment, vendorShares } = await import('../src/planner');
+    const dj = { name: 'Night Owl DJs', category: 'DJ', contact: 'Sam Lee' };
+    expect(isVendorMoment(dj, 'First dance')).toBe(true);
+    expect(isVendorMoment(dj, 'Speeches')).toBe(true);
+    expect(isVendorMoment(dj, 'Canapés on the lawn')).toBe(false);
+    expect(isVendorMoment({ name: 'Feast Co', category: 'Caterer', contact: '' }, 'Mains served')).toBe(true);
+    expect(isVendorMoment({ name: 'Feast Co', category: 'Caterer', contact: '' }, 'Remaining guests leave')).toBe(false);
+    expect(isVendorMoment({ name: 'Petal Co', category: 'Florist', contact: 'Jodie Hart' }, 'Jodie moves the arbour')).toBe(true); // by name
+    expect(vendorShares({ name: 'Night Owl DJs', category: 'DJ', shareSeating: false })).toEqual({ seating: false, songs: true });
+    expect(vendorShares({ name: 'Light Catchers', category: 'Photographer' })).toEqual({ seating: false, songs: false });
+    expect(vendorShares({ name: 'Night Owl DJs', category: 'DJ', shareSongs: false, shareSeating: true })).toEqual({ seating: true, songs: false });
   });
 });

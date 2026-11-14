@@ -3,11 +3,13 @@
  * needed), and given to the planning assistant so it can answer "how do I…" questions from the same words.
  * `go` is where in the admin it happens: a tab, with a planner view or a page's view after "?".
  */
+/** The company portal's Help sections (companyHelp.ts). */
+export type CompanyHelpGroup = 'Start here' | 'Couples and support' | 'Growth' | 'Money' | 'Team and bots';
 export interface HelpArticle {
   id: string;
   title: string;
   /** Section heading in the help page. */
-  group: 'Getting started' | 'Guests and replies' | 'Planning' | 'On the day' | 'Your account';
+  group: 'Getting started' | 'Guests and replies' | 'Planning' | 'On the day' | 'Your account' | CompanyHelpGroup;
   steps: string[];
   /** Other words people use for it. */
   also: string;
@@ -223,10 +225,11 @@ export const HELP: HelpArticle[] = [
       'Step 1, Add vendors: in Wedding planner → Vendors tap + Add a vendor for each one you’re thinking of (their name, what they do, an email or mobile). Ideas? Browse the vendor directory.',
       'Step 2, Get quotes: tap + Get quotes, tap what for, and Send. Each vendor prices it on their own link or attaches their own quote; slow ones are reminded automatically. Already have quotes? + Enter myself, and type them in.',
       'Step 3, Compare: best value first, like for like, with star ratings. Tap Ask for a better price for a plan for your favourite: what to aim for, the levers, and messages ready to send.',
-      'Step 4, Lock in: book your favourite, put them on their budget line (budgeted against booked), enter each payment (or tap a layout such as deposit + 3 monthly), sign the contract, and add meals for their team: your caterer sees them all.',
+      'Step 4, Lock in: book your favourite, put them on their budget line (budgeted against booked), enter each payment (or tap a layout such as deposit + 3 monthly), keep their signed contract (upload it, or paste a link), and add meals for their team: your caterer sees them all.',
       'Step 5, Manage, where you’ll spend most of your time: what needs you (payments due, with Mark paid; tasks due; check-ins), and each vendor’s tasks (the usual ones for their kind in a tap: the shot list, final numbers…), notes of calls, payments, files, the final check-in three weeks out, and the day’s contact sheet to print. Payment reminders go in your phone’s calendar.',
+      'Step 6, Their page: under each booked vendor, Text it or Email it sends their own live page (the day, the timeline, guest numbers, dietary needs and meal choices, the other suppliers, who to call). Tick Share the song list for your band or DJ, and Share the seating for your caterer. They can add it to their calendar or their own spreadsheet or booking software (it stays up to date), and tap Confirm the details: you see the date and their note here.',
     ],
-    also: 'quote request rfq tender price compare comparison email draft manual enter type in myself negotiate discount better deal haggle book lock in deposit contract vendor meals caterer payment schedule add vendor',
+    also: 'quote request rfq tender price compare comparison email draft manual enter type in myself negotiate discount better deal haggle book lock in deposit contract vendor meals caterer payment schedule add vendor vendor page portal dj band song list must play spreadsheet csv calendar ics confirm live link',
     go: { tab: 'planner', event: true, query: 'view=vendors' },
   },
   {
@@ -274,7 +277,7 @@ export const HELP: HelpArticle[] = [
     group: 'Your account',
     steps: [
       'Texts aren’t included in any plan. Sending from your own phone or by email is always free; automatic texts need text credits, which you buy separately.',
-      'Open Settings → Texting, and type how many guests you’ll text. It works out the credits (about 17 for each guest’s mobile: up to 13 for every text we send, the save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after, each with its link 2 credits; plus about 4 for the back-and-forth when guests text you back: our automatic answer, forwards to your phone and your replies from Messages) and shows the total, all-in: 8c a credit, GST included, no other fees. A couple on one invitation share one mobile.',
+      'Open Settings → Texting, and type how many guests you’ll text. It works out the credits (about 17 for each guest’s mobile: up to 13 for every text we send, the save the date, invitation, two reminders, RSVP thank-you, night before and thank-you after, each with its link 2 credits; plus about 4 for the back-and-forth when guests text you back: our automatic answer, forwards to your phone and your replies from Messages) and shows the total, all-in: 8c a credit, no other fees. A couple on one invitation share one mobile.',
       'Tap Buy and pay by card. The credits are added straight away and never expire. When they run out, automatic texts stop until you buy more: nothing is charged without you choosing to.',
     ],
     also: 'sms text cost price credits buy texts top up how much are texts included extra fee service fee charge per text money',
@@ -432,6 +435,7 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Wedding planner', 'Vendors'], rows: ['Wildflower $2,800 · Best value', 'Petal Co $3,150 · 1 item left out'], tap: 'Ask for a better price', then: 'Aim for $2,750: your plan and message' },
     { at: ['Wedding planner', 'Vendors'], rows: ['Budget: Florist $3,000 · booked $2,750', 'Deposit $700 · today', 'Instalments 1–3 · monthly'], tap: 'Deposit + 3 monthly', then: '4 payments, in the budget and your calendar ✓' },
     { at: ['Wedding planner', 'Vendors'], rows: ['Pay Petal Co $700 · due Fri', 'Send delivery times · by 4 Nov', 'Final check-in with Petal Co'], tap: 'Mark paid', then: 'Managed to the day ✓' },
+    { at: ['Their page'], rows: ['Songs · Must play 12', 'Dietary · Vegan 3 · Coeliac 1', 'Arriving 4:30pm'], tap: 'Confirm the details', then: 'Confirmed on their page ✓' },
   ],
   checklist: [
     { at: ['Wedding planner', 'Checklist'], rows: ['Book the venue · 12 months', 'Notice of Intended Marriage ⚠ by 14 Feb', 'Send invitations · 3 months'], then: 'Counted back from your date' },
@@ -464,7 +468,7 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
   photos: [
     { at: ['Photos', 'Photo settings'], rows: ['Google Drive', 'Dropbox', 'OneDrive'], tap: 'Connect Google Drive', then: '“Alex & Sam wedding” folder made ✓' },
     { at: ['Wedding planner', 'The day'], rows: ['Table numbers · with QR code', 'Snap & share cards'], tap: 'Print', then: 'Each card has your QR code' },
-    { at: ['Guest’s phone'], fields: [['Your name', 'Priya']], rows: ['Frame: Polaroid'], tap: 'Take a photo', then: 'In your album and your Drive ✓' },
+    { at: ['Guest’s phone'], fields: [['Your name', 'Priya']], rows: ['Frame: Instant print'], tap: 'Take a photo', then: 'In your album and your Drive ✓' },
   ],
   guide: [
     { at: ['Setup', 'Night-before'], fields: [['Arrive by', '2:30pm'], ['Parking', 'Free, beside the lawn']], rows: ['Run sheet', 'Menu', 'Your FAQ'], tap: 'Save', then: 'Saved ✓' },
@@ -503,11 +507,11 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
 /** Words that say nothing about what someone wants to do. */
 const FILLER = new Set(['how', 'what', 'where', 'when', 'who', 'why', 'can', 'are', 'our', 'the', 'and', 'for', 'you', 'your', 'with', 'does', 'did', 'get', 'want', 'need', 'from', 'this', 'that', 'there', 'into', 'have', 'has', 'all', 'any', 'out']);
 
-/** The help articles that best match a question, best first (empty when nothing fits). */
-export function searchHelp(q: string, limit = 3): HelpArticle[] {
+/** The help articles that best match a question, best first (empty when nothing fits); the couples' guides unless another list is given. */
+export function searchHelp(q: string, limit = 3, list: HelpArticle[] = HELP): HelpArticle[] {
   const words = (q.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter((w) => !FILLER.has(w));
   if (!words.length) return [];
-  const scored = HELP.map((a) => {
+  const scored = list.map((a) => {
     const title = a.title.toLowerCase();
     const body = `${a.also} ${a.steps.join(' ')}`.toLowerCase();
     let score = 0;

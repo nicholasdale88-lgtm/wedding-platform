@@ -161,7 +161,7 @@ export async function flushEmail(env: Env, d: EngineDeps, w: WeddingCtx, address
     // Claimed first, so two runs at once never send the same email.
     const claim = await db.prepare(`UPDATE email_out SET status = 'sending' WHERE id = ? AND status = 'queued'`).bind(row.id).run();
     if (!claim.meta.changes) continue;
-    if (!(await takeMail(db, w.id))) {
+    if (!(await takeMail(env, w.id))) {
       await db.prepare(`UPDATE email_out SET status = 'queued' WHERE id = ?`).bind(row.id).run();
       out.capped = true;
       out.waiting++;
@@ -377,4 +377,4 @@ export async function answerGuestEmail(env: Env, d: EngineDeps, weddingId: strin
 }
 
 /** How many emails the wedding can still send today (for the Texts screen). */
-export const emailsLeftToday = (env: Env, weddingId: string) => mailLeft(env.DB, weddingId);
+export const emailsLeftToday = (env: Env, weddingId: string) => mailLeft(env, weddingId);

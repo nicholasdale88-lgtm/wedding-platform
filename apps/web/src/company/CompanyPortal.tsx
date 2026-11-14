@@ -1,9 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { CompanyHelp } from './CompanyHelp';
+import { AdsBot } from './Ads';
+import { Inbox } from './Inbox';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
-import { chargeCents, COST_GUIDE, type CostKind, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
+import { chargeCents, COST_GUIDE, type CostKind, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffAccess, type StaffPerm, STAFF_ABILITIES, STAFF_ABILITY_KEYS, type StaffAbility } from '@wp/shared';
 import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyAccountRow, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding, type CompanyTraffic } from '../lib/api';
 
 /**
@@ -44,14 +47,18 @@ const TABS = [
   ['traffic', 'Traffic & errors', 'activity'],
   ['activity', 'Activity', 'activity'],
   ['settings', 'Settings', 'settings'],
-] as const satisfies readonly (readonly [string, string, StaffPerm])[];
+  ['help', 'Help', null],
+] as const satisfies readonly (readonly [string, string, StaffPerm | null])[];
 type Tab = (typeof TABS)[number][0];
+/** Always on show; everything else folds under More (opened by itself when you're on one of those). */
+const MAIN: readonly Tab[] = ['overview', 'weddings', 'money', 'help'];
+const MORE_KEY = 'wp-company-more';
 
 /** The signed-in person's company role, for every tab. */
 const RoleCtx = createContext<{ role: string | null; perms: string[] }>({ role: null, perms: [] });
 const useCan = () => {
   const { perms } = useContext(RoleCtx);
-  return (p: StaffPerm) => perms.includes(p);
+  return (p: StaffAccess) => perms.includes(p);
 };
 
 /** Every role that can be given: the built-in ones, then the ones the owners made. */
@@ -77,6 +84,21 @@ function Portal() {
   const [roleLabel, setRoleLabel] = useState('');
   const [tab, setTab] = useState<Tab>(() => (TABS.find(([k]) => `#${k}` === window.location.hash)?.[0] ?? 'overview'));
   const [note, setNote] = useState('');
+  const [more, setMore] = useState(() => {
+    try {
+      return localStorage.getItem(MORE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  // Help remembers the page it was opened from, to show that page's guides first.
+  const [helpFrom, setHelpFrom] = useState<Tab | undefined>();
+  // A link to /company#<tab> (Help's "Take me there" in a walkthrough) opens that tab.
+  const loc = useLocation();
+  useEffect(() => {
+    const k = TABS.find(([t]) => `#${t}` === loc.hash)?.[0];
+    if (k) setTab(k);
+  }, [loc.key, loc.hash]);
   useEffect(() => {
     document.title = 'Company portal';
     api.me().then(
@@ -129,9 +151,22 @@ function Portal() {
       </main>
     );
 
-  const tabs = TABS.filter(([, , perm]) => perms.includes(perm));
+  const tabs = TABS.filter(([, , perm]) => perm === null || perms.includes(perm));
   const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
   const label = tabs.find(([k]) => k === shown)?.[1] ?? '';
+  // A short menu: the everyday places first, the rest under More (only worth folding when there are many).
+  const fold = tabs.length > 5;
+  const mainTabs = fold ? tabs.filter(([k]) => MAIN.includes(k)) : tabs;
+  const moreTabs = fold ? tabs.filter(([k]) => !MAIN.includes(k)) : [];
+  const moreOpen = more || moreTabs.some(([k]) => k === shown);
+  const toggleMore = () => {
+    setMore(!moreOpen);
+    try {
+      localStorage.setItem(MORE_KEY, moreOpen ? '' : '1');
+    } catch {
+      /* private browsing: just this time */
+    }
+  };
   const navItem = (k: Tab, text: string) => (
     <button
       key={k}
@@ -161,7 +196,16 @@ function Portal() {
             </span>
           </div>
           <nav aria-label="Company" className="flex flex-col gap-[2px] flex-1 overflow-y-auto">
-            {tabs.map(([k, text]) => navItem(k, text))}
+            {mainTabs.map(([k, text]) => navItem(k, text))}
+            {moreTabs.length > 0 && (
+              <>
+                <button type="button" aria-expanded={moreOpen} onClick={toggleMore} className="flex items-center gap-3 w-full mt-2 py-[9px] px-3 rounded-[10px] border-0 text-left text-[13px] cursor-pointer bg-transparent text-[#d9c3c6] hover:text-[#fbf8f2]">
+                  <span aria-hidden className="w-5 text-center">⋯</span>
+                  {moreOpen ? 'Less' : `More (${moreTabs.length})`}
+                </button>
+                {moreOpen && moreTabs.map(([k, text]) => navItem(k, text))}
+              </>
+            )}
           </nav>
           <div className="pt-3 border-t border-[rgba(243,236,214,.12)] flex flex-col gap-2">
             {role && <span className="text-[12px] text-[#d9c3c6]">Signed in as {roleLabel || role}</span>}
@@ -180,7 +224,7 @@ function Portal() {
               <ProfileSwitch here="company" />
             </div>
             <nav aria-label="Company sections" className="flex gap-1 overflow-x-auto [scrollbar-width:none] mt-2 -mx-1 px-1">
-              {tabs.map(([k, text]) => (
+              {[...mainTabs, ...(moreOpen ? moreTabs : [])].map(([k, text]) => (
                 <button
                   key={k}
                   type="button"
@@ -197,12 +241,19 @@ function Portal() {
             <span className="text-[13px] text-[#6e6068]">
               Company <span aria-hidden>›</span> <strong className="text-[#2a1c26] font-semibold">{label}</strong>
             </span>
-            <a href="/" target="_blank" rel="noopener" className="text-[13px] !text-[#6e6068]">
-              View the front page ↗
-            </a>
+            <span className="flex items-center gap-4">
+              {shown !== 'help' && (
+                <button type="button" onClick={() => (setHelpFrom(shown), go('help'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]">
+                  ? Help with this page
+                </button>
+              )}
+              <a href="/" target="_blank" rel="noopener" className="text-[13px] !text-[#6e6068]">
+                View the front page ↗
+              </a>
+            </span>
           </div>
           <main className="max-w-[1160px] px-4 md:px-8 py-6 pb-24 flex flex-col gap-4">
-            {shown === 'overview' && <Overview onGo={go} />}
+            {shown === 'overview' && <Overview onGo={go} onNote={setNote} />}
             {shown === 'weddings' && <Weddings onNote={setNote} />}
             {shown === 'feedback' && <Feedback onNote={setNote} />}
             {shown === 'promote' && <Promote onNote={setNote} />}
@@ -212,6 +263,7 @@ function Portal() {
             {shown === 'traffic' && <Traffic />}
             {shown === 'activity' && <Activity />}
             {shown === 'settings' && <Settings onNote={setNote} />}
+            {shown === 'help' && <CompanyHelp from={helpFrom} fromLabel={TABS.find(([k]) => k === helpFrom)?.[1]} onGo={(t) => go(TABS.find(([k]) => k === t)?.[0] ?? 'overview')} />}
           </main>
         </div>
         {note && (
@@ -225,7 +277,7 @@ function Portal() {
 }
 
 /** A small symbol for each section in the sidebar. */
-const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', traffic: '↗', activity: '≡', settings: '⚙' };
+const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', traffic: '↗', activity: '≡', settings: '⚙', help: '?' };
 
 /** Loads something once (and again on reload()), with an error if it fails. */
 function useLoad<T>(fn: () => Promise<T>) {
@@ -259,9 +311,10 @@ function Tile({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-function Overview({ onGo }: { onGo: (t: Tab) => void }) {
+function Overview({ onGo, onNote }: { onGo: (t: Tab) => void; onNote: (s: string) => void }) {
   const can = useCan();
   const seeFeedback = can('feedback');
+  const [inbox, setInbox] = useState(0); // drafts and reports waiting in the inbox
   const { data: s, error } = useLoad(companyApi.stats);
   const fb = useLoad(useCallback(() => (seeFeedback ? companyApi.feedback() : Promise.resolve({ feedback: [] as CompanyFeedback[], counts: {} as Record<string, number> })), [seeFeedback]));
   if (error) return <Problem text={error} />;
@@ -275,19 +328,9 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
   ].filter((x): x is { to: Tab; text: string; sub: string } => !!x);
   return (
     <>
-      <Assistant
-        title="Assistant"
-        sub="Drafts from the real numbers. It writes; you decide what goes out."
-        tasks={[
-          ['brief', 'Brief me on this week', ''],
-          ['ask', 'Ask', 'e.g. What should I focus on to get 20 weddings this month?'],
-        ]}
-      />
-      <Goals onGo={onGo} />
-      <TodoList onGo={onGo} />
-      <Capacity />
       <section className={card} aria-label="To do">
-        <H>To do</H>
+        <H sub="Only what needs a person today. The bots’ drafts wait here for your yes; everything else is running by itself.">What needs you</H>
+        <Inbox onCount={setInbox} onNote={onNote} />
         {todo.length ? (
           todo.map((t) => (
             <button key={t.to} type="button" onClick={() => onGo(t.to)} className="flex items-center justify-between gap-3 p-3 rounded-[12px] border border-[#ecd9ae] bg-[#fbf3e1] text-left cursor-pointer text-[#3a2532]">
@@ -298,10 +341,14 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
               <span aria-hidden>→</span>
             </button>
           ))
-        ) : (
-          <p className="m-0 text-[15px] text-[#6e6068]">All done: no plan requests or new feedback waiting.</p>
+        ) : inbox ? null : (
+          <p className="m-0 text-[15px] text-[#6e6068]">Nothing needs you right now ✓</p>
         )}
       </section>
+      <Goals onGo={onGo} />
+      <TodoList onGo={onGo} />
+      <Capacity />
+      <Fold title="Numbers and charts" sub="Sign-ups, plans, money taken and guests">
       <section className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <Tile label="Weddings" value={String(s.weddings)} sub={`${s.signups.last7} this week · ${s.signups.last30} this month`} />
         <Tile label="Paying" value={String(paidPlans)} sub={`${s.weddings ? Math.round((paidPlans / s.weddings) * 100) : 0}% of weddings`} />
@@ -366,7 +413,34 @@ function Overview({ onGo }: { onGo: (t: Tab) => void }) {
           </button>
         </div>
       </section>
+      </Fold>
+      <Fold title="Ask the assistant" sub="A brief on the week, or any question about the business">
+        <Assistant
+          title="Assistant"
+          sub="Drafts from the real numbers. It writes; you decide what goes out."
+          tasks={[
+            ['brief', 'Brief me on this week', ''],
+            ['ask', 'Ask', 'e.g. What should I focus on to get 20 weddings this month?'],
+          ]}
+        />
+      </Fold>
     </>
+  );
+}
+
+/** Tucked away until wanted: a titled row that opens to show what's inside. */
+function Fold({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
+  return (
+    <details className="group rounded-[16px] border border-[#ecdcd2] bg-white">
+      <summary className="flex justify-between items-center gap-3 p-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-[#3a2532]">
+        <span className="flex flex-col">
+          <strong className="text-[16px] font-semibold">{title}</strong>
+          <span className="text-[14px] text-[#6e6068]">{sub}</span>
+        </span>
+        <span aria-hidden className="transition-transform group-open:rotate-180">▾</span>
+      </summary>
+      <div className="px-4 pb-4 flex flex-col gap-4">{children}</div>
+    </details>
   );
 }
 
@@ -456,7 +530,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
       </span>
       {w.requested && <RequestSteps w={w} onDone={onSaved} />}
       <div className="flex gap-2 flex-wrap items-center">
-        {can('money') && (
+        {can('money.paid') && (
           <>
         <select value={plan} aria-label={`Plan for ${w.names}`} onChange={(e) => setPlan(e.target.value)} className={`${input} w-auto`}>
           <option value="free">Basic, not paid yet</option>
@@ -476,7 +550,7 @@ function WeddingRow({ w, onSaved }: { w: CompanyWedding; onSaved: (msg: string) 
         <a href={`/w/${encodeURIComponent(w.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#3a2532]">
           Their page
         </a>
-        {can('money') && w.paidCents > 0 && <Refund w={w} onDone={onSaved} />}
+        {can('money.refund') && w.paidCents > 0 && <Refund w={w} onDone={onSaved} />}
       </div>
       {problem && <Problem text={problem} />}
     </li>
@@ -535,9 +609,11 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
       <div className={step}>
         <span className={num} style={{ background: sent ? '#c99aa6' : '#ecd9ae' }}>{sent ? '✓' : '1'}</span>
         <span className="flex-1 min-w-[160px] text-[14px]">{sent ? `Payment link sent ${day(sent)}` : 'Send the payment link'}</span>
-        <button type="button" className={sent ? btn : primary} disabled={!!busy} onClick={() => void sendLink()}>
-          {busy === 'link' ? 'Sending…' : sent ? 'Send again' : 'Email it'}
-        </button>
+        {can('couples.links') && (
+          <button type="button" className={sent ? btn : primary} disabled={!!busy} onClick={() => void sendLink()}>
+            {busy === 'link' ? 'Sending…' : sent ? 'Send again' : 'Email it'}
+          </button>
+        )}
       </div>
       {byHand && (
         <p className="m-0 text-[13px] text-[#6b4f1d] break-words">
@@ -550,8 +626,8 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
       )}
       <div className={step}>
         <span className={num} style={{ background: '#ecd9ae' }}>2</span>
-        <span className="flex-1 min-w-[160px] text-[14px]">{can('money') ? 'When they’ve paid, switch it on' : 'When they’ve paid, a manager or owner switches it on'}</span>
-        {can('money') && (
+        <span className="flex-1 min-w-[160px] text-[14px]">{can('money.paid') ? 'When they’ve paid, switch it on' : 'When they’ve paid, a manager or owner switches it on'}</span>
+        {can('money.paid') && (
           <>
             <label className="flex items-center gap-1 text-[14px]">
               $
@@ -563,7 +639,7 @@ function RequestSteps({ w, onDone }: { w: CompanyWedding; onDone: (msg: string) 
           </>
         )}
       </div>
-      {can('money') && (
+      {can('money.paid') && (
         <button type="button" className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[#6e6068]" disabled={!!busy} onClick={() => void notNow()}>
           Not now: clear the request
         </button>
@@ -637,6 +713,7 @@ function Feedback({ onNote }: { onNote: (s: string) => void }) {
 }
 
 function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { id: string; name: string; role: string; roleName?: string }[]; meId: string; onSaved: (msg: string) => void }) {
+  const canReply = useCan()('feedback.reply');
   const [note, setNote] = useState(f.note);
   const [problem, setProblem] = useState('');
   const update = async (body: { status?: CompanyFeedback['status']; note?: string; assignee?: string }, msg: string) => {
@@ -680,7 +757,7 @@ function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { i
           </button>
         )}
       </label>
-      <DraftReply id={f.id} />
+      {canReply && <DraftReply id={f.id} />}
       <input value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder="What we’ll do (couples see this once it’s planned)" aria-label="What we’ll do" className={input} />
       <div className="flex gap-2 flex-wrap">
         {FB_NEXT[f.status].map((k, i) => (
@@ -702,6 +779,7 @@ function FeedbackRow({ f, team, meId, onSaved }: { f: CompanyFeedback; team: { i
 const blankPromo = (): CompanyPromo => ({ code: '', percentOff: 10, amountOffCents: 0, plans: [], expires: '', maxUses: 0, note: '', on: true, used: 0 });
 
 function Promote({ onNote }: { onNote: (s: string) => void }) {
+  const canList = useCan()('promote.list');
   const promos = useLoad(companyApi.promos);
   const stats = useLoad(companyApi.stats);
   const site = useLoad(companyApi.settings);
@@ -747,6 +825,7 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
 
   return (
     <>
+      <AdsBot onNote={onNote} />
       <Assistant
         title="Write with the assistant"
         sub="Posts for Instagram, Facebook and TikTok, or a first email to a celebrant or planner. Check every draft before it goes out."
@@ -897,12 +976,14 @@ function Promote({ onNote }: { onNote: (s: string) => void }) {
         </span>
       </section>
 
+      {canList && (
       <section className={card} aria-label="Marketing list">
         <H sub="People who ticked “send me news” when they signed up: for a mailing tool (Mailchimp, Brevo). Only email people on this list.">Marketing list</H>
         <a href={companyApi.optInsUrl} className={`${primary} self-start no-underline !text-[#fbf8f2]`}>
           Download {stats.data ? `${stats.data.optIns} ` : ''}as a spreadsheet (CSV)
         </a>
       </section>
+      )}
     </>
   );
 }
@@ -1990,7 +2071,7 @@ function DraftReply({ id }: { id: string }) {
 }
 
 /** Each outside service the site uses: what it's for, where to get its keys, and a box to paste them. */
-const SERVICES: { id: string; name: string; does: string; open: string; openLabel: string; steps: string[]; keys: [key: string, label: string, secret: boolean][]; copy?: 'redirect' | 'hook' }[] = [
+const SERVICES: { id: string; name: string; does: string; open: string; openLabel: string; steps: string[]; keys: [key: string, label: string, secret: boolean, choices?: [value: string, label: string][]][]; copy?: 'redirect' | 'hook' }[] = [
   {
     id: 'google',
     name: 'Google Drive and Google Photos',
@@ -2058,11 +2139,51 @@ const SERVICES: { id: string; name: string; does: string; open: string; openLabe
     does: 'Sign-in links, payment links, and every wedding’s own email address. Free for 3,000 emails a month.',
     open: 'https://resend.com/api-keys',
     openLabel: 'Open Resend',
-    steps: ['Add and verify your domain in Resend.', 'Create an API key and paste it with the From address, e.g. The Yes List <hello@your-domain>.'],
+    steps: [
+      'Add and verify your domain in Resend.',
+      'Create an API key and paste it with the From address, e.g. The Yes List <hello@your-domain>.',
+      'Moved to a paid Resend plan? Pick it below so each wedding can send a whole invitation round in one day.',
+    ],
     keys: [
       ['RESEND_API_KEY', 'API key', true],
       ['EMAIL_FROM', 'From address', false],
       ['INBOX_DOMAIN', 'Domain for wedding addresses', false],
+      [
+        'EMAIL_PLAN',
+        'Resend plan',
+        false,
+        [
+          ['', 'Free: 40 emails a wedding a day (the 100 a day is shared)'],
+          ['paid', 'Paid: 500 emails a wedding a day'],
+        ],
+      ],
+    ],
+  },
+  {
+    id: 'ses',
+    name: 'Email at volume (Amazon SES, optional)',
+    does: 'The cheaper sender once you send more than about 50,000 emails a month (about US$0.10 per 1,000). Uses the From address and domain above.',
+    open: 'https://console.aws.amazon.com/ses/home',
+    openLabel: 'Open Amazon SES',
+    steps: [
+      'In SES, add your domain as a verified identity (it shows DNS records: add them in Cloudflare).',
+      'Request production access (AWS reviews it, usually in a day or two). Until then SES only sends to addresses you verified.',
+      'In IAM, create a user allowed only ses:SendEmail, make an access key, and paste it with the region (e.g. ap-southeast-2 for Sydney).',
+      'When it’s approved, switch “Send email through” to Amazon SES. Switch back to Resend at any time.',
+    ],
+    keys: [
+      ['AWS_SES_ACCESS_KEY_ID', 'Access key ID', false],
+      ['AWS_SES_SECRET_ACCESS_KEY', 'Secret access key', true],
+      ['AWS_SES_REGION', 'Region', false],
+      [
+        'EMAIL_PROVIDER',
+        'Send email through',
+        false,
+        [
+          ['', 'Resend'],
+          ['ses', 'Amazon SES'],
+        ],
+      ],
     ],
   },
   {
@@ -2075,6 +2196,24 @@ const SERVICES: { id: string; name: string; does: string; open: string; openLabe
     keys: [
       ['MM_USER', 'API username', false],
       ['MM_PASS', 'API password', true],
+    ],
+  },
+  {
+    id: 'meta',
+    name: 'Facebook and Instagram ads (Meta)',
+    does: 'Optional: the Ads bot in Promote → Ads puts approved ads live and pauses the ones that don’t bring sign-ups.',
+    open: 'https://business.facebook.com/settings',
+    openLabel: 'Open Meta Business settings',
+    steps: [
+      'Make the ad account (Accounts → Ad accounts), add the card, and set an account spending limit: Meta never spends past it.',
+      'Users → System users: add one (Admin), give it the ad account and the Facebook Page, then Generate token with ads_management and pages_read_engagement. Choose a token that never expires.',
+      'Copy the token, the ad account number (the digits after act_) and the Page number (Page → About → Page ID). The Instagram account number is optional (Accounts → Instagram accounts).',
+    ],
+    keys: [
+      ['META_ADS_TOKEN', 'System user token', true],
+      ['META_AD_ACCOUNT_ID', 'Ad account number', false],
+      ['META_PAGE_ID', 'Facebook Page number', false],
+      ['META_IG_USER_ID', 'Instagram account number (optional)', false],
     ],
   },
 ];
@@ -2106,7 +2245,8 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
       <H sub="Paste each service’s keys here once: kept encrypted, never shown again, and working straight away. Only owners see this.">Connections</H>
       {SERVICES.map((s) => {
         const states = s.keys.map(([k]) => data.status[k] ?? '');
-        const on = states.every(Boolean);
+        // A choice is never needed for "Connected": its first option (no value) is the default.
+        const on = s.keys.every(([, , , choices], i) => !!choices || !!states[i]);
         const copy = s.copy === 'redirect' ? data.redirectUri : s.copy === 'hook' ? data.stripeHook : '';
         return (
           <div key={s.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#ecdcd2]">
@@ -2132,10 +2272,20 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
                     {s.copy === 'hook' ? 'Webhook address' : 'Return address'}: <code className="break-all select-all bg-[#fbf5f0] px-1 rounded">{copy}</code>
                   </span>
                 )}
-                {s.keys.map(([k, label, secret], i) => (
+                {s.keys.map(([k, label, secret, choices], i) => (
                   <label key={k} className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
                     {label}
-                    {states[i] === 'deploy' ? (
+                    {states[i] === 'deploy' && choices ? (
+                      <span className="text-[14px] text-[#2a1c26]">{choices.find(([v]) => v === (data.choices?.[k] ?? ''))?.[1] ?? data.choices?.[k]} (set in GitHub)</span>
+                    ) : choices ? (
+                      <select value={vals[k] ?? data.choices?.[k] ?? ''} onChange={(e) => setVals({ ...vals, [k]: e.target.value })} className={input}>
+                        {choices.map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    ) : states[i] === 'deploy' ? (
                       <span className="text-[14px] text-[#2a1c26]">Set in GitHub</span>
                     ) : (
                       <input
@@ -2149,7 +2299,7 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
                     )}
                   </label>
                 ))}
-                <button type="button" className={`${primary} self-start`} disabled={!s.keys.some(([k]) => vals[k])} onClick={() => void save(s.keys.map(([k]) => k))}>
+                <button type="button" className={`${primary} self-start`} disabled={!s.keys.some(([k, , , ch]) => vals[k] !== undefined && (vals[k] !== '' || !!ch))} onClick={() => void save(s.keys.map(([k]) => k))}>
                   Save
                 </button>
               </div>
@@ -2589,7 +2739,7 @@ function Roles({ onNote }: { onNote: (s: string) => void }) {
   };
   const add = () => {
     const n = roles.length + 1;
-    setData({ roles: [...roles, { id: `role-${Date.now().toString(36)}`, name: `New role ${n}`, does: '', perms: ['overview'], people: 0 }] });
+    setData({ roles: [...roles, { id: `role-${Date.now().toString(36)}`, name: `New role ${n}`, does: '', perms: ['overview'], deny: [], people: 0 }] });
   };
   return (
     <section className={card} aria-label="Roles">
@@ -2609,18 +2759,39 @@ function Roles({ onNote }: { onNote: (s: string) => void }) {
               Remove
             </button>
           </div>
-          <div className="grid gap-1 sm:grid-cols-2">
-            {STAFF_PERMS.filter((x) => x !== 'team').map((x) => (
-              <label key={x} className="flex items-start gap-2 text-[14px] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={r.perms.includes(x)}
-                  onChange={(e) => set(i, { perms: e.target.checked ? [...r.perms, x] : r.perms.filter((y) => y !== x) })}
-                  className="mt-[3px] w-[16px] h-[16px]"
-                />
-                {PERM_INFO[x]}
-              </label>
-            ))}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {STAFF_PERMS.filter((x) => x !== 'team').map((x) => {
+              const on = r.perms.includes(x);
+              const within = STAFF_ABILITY_KEYS.filter((a) => STAFF_ABILITIES[a].area === x);
+              const deny = r.deny ?? [];
+              return (
+                <div key={x} className="flex flex-col gap-1">
+                  <label className="flex items-start gap-2 text-[14px] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={(e) => set(i, { perms: e.target.checked ? [...r.perms, x] : r.perms.filter((y) => y !== x) })}
+                      className="mt-[3px] w-[16px] h-[16px]"
+                    />
+                    {PERM_INFO[x]}
+                  </label>
+                  {/* Within a ticked part: each thing it lets them do, on unless switched off here. */}
+                  {on &&
+                    within.map((a: StaffAbility) => (
+                      <label key={a} className="flex items-start gap-2 ml-6 text-[13px] text-[#6e6068] cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!deny.includes(a)}
+                          onChange={(e) => set(i, { deny: e.target.checked ? deny.filter((y) => y !== a) : [...deny, a] })}
+                          aria-label={`${r.name}: ${STAFF_ABILITIES[a].label}`}
+                          className="mt-[2px] w-[14px] h-[14px]"
+                        />
+                        {STAFF_ABILITIES[a].label}
+                      </label>
+                    ))}
+                </div>
+              );
+            })}
           </div>
           {!!r.people && <span className="text-[12px] text-[#6e6068]">{r.people} on the team have this role.</span>}
         </div>

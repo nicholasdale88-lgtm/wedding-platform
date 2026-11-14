@@ -1,4 +1,4 @@
-import { allPayments, BUDGET_SPLIT, moneyOf, withSchedules, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
+import { allPayments, BUDGET_SPLIT, hasContract, moneyOf, withSchedules, dateIn, daysUntil, type Budget, type Gifts, type PlanChecklist, type Vendors } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { insightsApi, plannerApi, type InsightsData } from '../../lib/api';
@@ -256,10 +256,10 @@ export function Insights() {
         <section aria-label="Seating" className={card}>
           <H2>Seating</H2>
           <div className="flex items-center gap-4">
-            <Ring done={data.seating.seated} total={Math.max(data.catering.people, 1)} size={70} label={`${data.seating.seated} of ${data.catering.people} seated`} />
+            <Ring done={data.seating.seated} total={Math.max(data.seating.people, 1)} size={70} label={`${data.seating.seated} of ${data.seating.people} seated`} />
             <div className="text-[14px] flex flex-col gap-1">
               <span>
-                <strong className="font-semibold">{data.seating.seated}</strong> of {data.catering.people} seated
+                <strong className="font-semibold">{data.seating.seated}</strong> of {data.seating.people} seated
               </span>
               <span>
                 {data.seating.tables} tables · {data.seating.seats} seats
@@ -463,7 +463,7 @@ export function Insights() {
               { label: 'Shortlisted', value: vendors.list.length, colour: '#c6b794' },
               { label: 'Quoted', value: vendors.list.filter((v) => v.quotes.length || v.quote).length, colour: '#b39563' },
               { label: 'Booked', value: booked.length, colour: '#5d6b47' },
-              { label: 'Contract signed', value: booked.filter((v) => v.contractSigned).length, colour: '#33402f' },
+              { label: 'Contract kept', value: booked.filter((v) => hasContract(v)).length, colour: '#33402f' },
             ]}
           />
           <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{quotes} quotes filed</div>

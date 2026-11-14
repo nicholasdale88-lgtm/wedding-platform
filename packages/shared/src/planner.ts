@@ -746,10 +746,14 @@ export const Vendor = z.object({
   depositRefundable: z.boolean().default(false),
   contractFileId: s(40),
   contractFileName: s(160),
+  /** Or where the contract lives (a signing site, a shared drive), for one too big to upload. */
+  contractLink: z.string().max(500).optional(),
   /** Meals for this vendor's team on the day (tell the caterer). */
   meals: z.number().int().min(0).max(50).default(0),
   /** Their page also shows the seating: each table, and who has a special meal at which seat (for the caterer). */
   shareSeating: z.boolean().optional(),
+  /** Their page also shows the song list (must play, maybe, don't play, guests' requests). Unset: on for a band or DJ. */
+  shareSongs: z.boolean().optional(),
   /** The quote: when you asked for it, when they said it would come (or when to chase), when you last chased. */
   askedOn: s(10),
   quoteBy: s(10),
@@ -769,6 +773,43 @@ export const Vendor = z.object({
   payments: z.array(Payment).max(12).default([]),
 });
 export type Vendor = z.infer<typeof Vendor>;
+
+/** The contract is sorted: uploaded, linked, or marked signed. (Vendors send their own; we keep it.) */
+export const hasContract = (v: Pick<Vendor, 'contractSigned' | 'contractFileId' | 'contractLink'>) => !!(v.contractSigned || v.contractFileId || v.contractLink);
+
+/** How a vendor's confirmation from their own page starts in their notes (the planner shows a note that follows it). */
+export const VENDOR_PAGE_NOTE = 'Confirmed the details on their page';
+
+/**
+ * Whether a line of the day's timeline is this vendor's moment: it names them (or their contact), or it's
+ * the kind of moment their kind of vendor looks after (the first dance for the band, the ceremony for the
+ * celebrant, dinner for the caterer).
+ */
+const MOMENTS: Record<string, RegExp> = {
+  Venue: /arriv|ceremony|reception|dinner|pack ?down|bump|close|last drinks/i,
+  Celebrant: /ceremony|vows|ring|kiss|sign|register|processional|aisle/i,
+  Catering: /canap|entr[eé]e|\bmains?\b|dessert|dinner|lunch|meal|food|grazing|cake|supper|served/i,
+  Photographer: /photo|portrait|getting ready|first look|ceremony|entrance|speech|first dance|cake|send ?off|sparkler/i,
+  Videographer: /video|film|getting ready|ceremony|entrance|speech|first dance|send ?off/i,
+  'Band or DJ': /music|song|dance|band|dj|entrance|march|speech|toast|last song|send ?off|mc\b/i,
+  'Hair and makeup': /hair|make-?up|getting ready|touch ?up/i,
+  Florist: /flower|bouquet|florist|styl|bump|set ?up/i,
+  Transport: /transport|car|bus|shuttle|coach|depart|leave|arriv|pick ?up/i,
+  'Styling and hire': /styl|set ?up|bump|pack ?down|hire/i,
+  Cake: /cake|dessert/i,
+};
+export function isVendorMoment(v: Pick<Vendor, 'name' | 'category' | 'contact'>, text: string): boolean {
+  const t = text.toLowerCase();
+  const own = [v.name, v.contact.split(' ')[0] ?? ''].map((x) => x.trim().toLowerCase()).filter((x) => x.length > 2);
+  if (own.some((x) => t.includes(x))) return true;
+  const kind = vendorKind({ category: v.category, name: v.name });
+  return !!kind && !!MOMENTS[kind]?.test(text);
+}
+
+/** What a vendor's own page shows beyond the basics: the seating (for the caterer), the song list (for the band or DJ). */
+export function vendorShares(v: Pick<Vendor, 'shareSeating' | 'shareSongs' | 'category' | 'name'>) {
+  return { seating: !!v.shareSeating, songs: v.shareSongs ?? vendorKind(v) === 'Band or DJ' };
+}
 
 /** A booked vendor's commitment: the accepted quote (or the quote entered by hand). */
 export function commitmentOf(v: Vendor): { amount: number; deposit: number } {
@@ -1006,7 +1047,7 @@ export function vendorActions(lines: BudgetLine[], vendors: Vendor[]): VendorAct
     .filter((p) => p.amount > 0 && (p.due || !p.paid))
     .map((p) => ({ key: `pay:${p.key}`, kind: 'payment' as const, text: `Pay ${p.who}${p.label === 'Payment' ? '' : ` · ${p.label.toLowerCase()}`} (${aud0(p.amount)})`, due: p.due, done: p.paid, vendorId: p.vendorId, payment: p }));
   for (const v of vendors) {
-    if (v.status === 'booked') out.push({ key: `contract:${v.id}`, kind: 'contract', text: `Sign ${v.name}’s contract`, due: '', done: !!v.contractSigned, vendorId: v.id });
+    if (v.status === 'booked') out.push({ key: `contract:${v.id}`, kind: 'contract', text: `Keep ${v.name}’s signed contract`, due: '', done: hasContract(v), vendorId: v.id });
     else if (v.status !== 'declined') for (const q of v.quotes.filter((x) => x.validUntil)) out.push({ key: `quote:${q.id}`, kind: 'quote', text: `Decide on ${v.name}’s quote (it runs out)`, due: q.validUntil, done: false, vendorId: v.id });
     // A quote you're waiting on: chase it when it's due (or a week after asking, or after the last chase).
     if (v.status === 'requested') out.push({ key: `chase:${v.id}:${v.chasedOn}`, kind: 'chase', text: `Chase ${v.name} for their quote`, due: chaseDue(v), done: false, vendorId: v.id });

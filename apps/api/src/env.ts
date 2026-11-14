@@ -37,6 +37,14 @@ export interface Env {
   /** Email through Resend (lib/email.ts): the API key, and who it's from ("Name <hello@your-domain>"). */
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  /** Who sends email: 'resend' (default) or 'ses' (Amazon SES, docs/GROWTH_PLAN.md → Email). */
+  EMAIL_PROVIDER?: string;
+  /** 'paid' once Resend is on a paid plan: no shared daily limit, so each wedding can send more a day. */
+  EMAIL_PLAN?: string;
+  /** Amazon SES (EMAIL_PROVIDER=ses): an IAM user's keys allowed ses:SendEmail, and the region (e.g. ap-southeast-2). */
+  AWS_SES_ACCESS_KEY_ID?: string;
+  AWS_SES_SECRET_ACCESS_KEY?: string;
+  AWS_SES_REGION?: string;
   /**
    * The domain couples' own addresses are on (e.g. "theyeslist.com.au"): each wedding gets <its address>@ it,
    * and copies' replies come back to reply+…@ it. Cloudflare Email Routing (catch-all → this Worker) and a
@@ -50,6 +58,11 @@ export interface Env {
   STRIPE_SECRET_KEY?: string;
   /** Signing secret (whsec_…) of the Stripe webhook pointed at /api/hooks/stripe: it switches plans on once paid. */
   STRIPE_WEBHOOK_SECRET?: string;
+  /** The Ads bot (Promote → Ads): a Meta system user token with ads_management, the ad account (act_…), the Facebook Page and, optionally, the Instagram account. Pasted in Connections. */
+  META_ADS_TOKEN?: string;
+  META_AD_ACCOUNT_ID?: string;
+  META_PAGE_ID?: string;
+  META_IG_USER_ID?: string;
   /** Workers AI, for the planning assistant (bound by the deploy only when the account allows it). */
   AI?: {
     run(model: string, input: unknown): Promise<unknown>;
