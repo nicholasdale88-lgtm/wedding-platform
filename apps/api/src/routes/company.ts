@@ -15,6 +15,8 @@ import { adsRoutes } from './ads';
 import { PLANS } from './signup';
 import { CRON_WEDDINGS } from '../sms/engine';
 import { recordError, recordHit, traffic } from '../lib/stats';
+import { readDoc } from './planner';
+import { vendorHubKey } from './vendorHub';
 
 /**
  * The company portal (/api/a/company): for the people who run the app (staff), each route gated by what
@@ -252,6 +254,69 @@ export function companyRoutes() {
       .all<{ id: string; slug: string; name1: string; name2: string; plan: string; created_at: string; requested: string; requested_at: string; link_sent_at: string; paid_cents: number; extra_events: number; ref: string; day: string | null; guests: number; email: string | null }>();
     return c.json({
       weddings: results.map((r) => ({ id: r.id, slug: r.slug, names: `${r.name1} & ${r.name2}`, plan: r.plan, createdAt: r.created_at, requested: r.requested, requestedAt: r.requested_at, linkSentAt: r.link_sent_at, paidCents: r.paid_cents, extraEvents: r.extra_events, ref: r.ref, day: r.day ?? '', guests: r.guests, email: r.email ?? '' })),
+    });
+  });
+
+  /**
+   * Preview a wedding's portals, as each person sees them (Preview → A wedding's portals): its invitation, each
+   * of the wedding party, each booked vendor, the coordinator, each helper's tasks, and its other pages. Private
+   * links: for the people who help couples (Couples), and every look is logged.
+   */
+  app.get('/weddings/:slug/portals', can('couples'), async (c) => {
+    const db = c.env.DB;
+    const w = await db.prepare(`SELECT id, slug, name1, name2, content FROM wedding WHERE slug = ? AND deleted_at IS NULL`).bind(c.req.param('slug')).first<{ id: string; slug: string; name1: string; name2: string; content: string }>();
+    if (!w) return err(c, 404, 'not_found', 'No wedding at that address.');
+    const base = `/w/${w.slug}`;
+    let content: Record<string, unknown> = {};
+    try {
+      content = JSON.parse(w.content) as Record<string, unknown>;
+    } catch {
+      content = {};
+    }
+    const [{ results: events }, { results: crew }, guest] = await Promise.all([
+      db.prepare(`SELECT key, name FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(w.id).all<{ key: string; name: string }>(),
+      db
+        .prepare(
+          `SELECT p.name, p.party_role AS role, i.token FROM person p JOIN invitation i ON i.id = p.invitation_id AND i.deleted_at IS NULL
+            WHERE i.wedding_id = ? AND p.deleted_at IS NULL AND p.party_role != '' AND p.name != '' ORDER BY p.party_role, p.name`,
+        )
+        .bind(w.id)
+        .all<{ name: string; role: string; token: string }>(),
+      db.prepare(`SELECT token FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY created_at LIMIT 1`).bind(w.id).first<{ token: string }>(),
+    ]);
+    const vendors = (await readDoc(db, w.id, 'vendors', '')).data.list.filter((v) => v.status === 'booked');
+    const helpers = (await readDoc(db, w.id, 'checklist', '')).data.helpers;
+    const co = content.coordinator as { key?: string; name?: string } | undefined;
+    const secret = c.env.SESSION_SECRET;
+    const vendorLinks = secret ? await Promise.all(vendors.map(async (v) => ({ name: v.name || 'A vendor', what: v.category || 'Vendor', url: `${base}/vendor?v=${encodeURIComponent(v.id)}&k=${await vendorHubKey(secret, w.id, v.id)}` }))) : [];
+    await logCompany(c, 'company.preview', w.slug, {}, w.id);
+    const g = guest?.token ? `?g=${encodeURIComponent(guest.token)}` : '';
+    return c.json({
+      names: `${w.name1} & ${w.name2}`,
+      groups: [
+        {
+          title: 'Guests',
+          links: [
+            { name: 'The invitation', what: 'As someone without their own link sees it', url: `${base}/` },
+            ...(g ? [{ name: 'A guest’s own invitation', what: 'The first guest on the list', url: `${base}/${g}` }] : []),
+            ...events.map((e) => ({ name: `Night-before page: ${e.name}`, what: 'The guide for the day', url: `${base}/tomorrow/${encodeURIComponent(e.key)}${g}` })),
+            { name: 'Photos', what: 'Guests’ photos and frames', url: `${base}/photos${g}` },
+            { name: 'Message board', what: 'Guests’ messages', url: `${base}/board${g}` },
+            { name: 'Save the date', what: 'Before the invitation', url: `${base}/save-the-date` },
+            { name: 'Album', what: 'After the day', url: `${base}/album${g}` },
+            { name: 'Live screen', what: 'For a screen at the venue', url: `${base}/live` },
+          ],
+        },
+        { title: 'Wedding party', links: crew.map((m) => ({ name: m.name, what: m.role, url: `${base}/party?g=${encodeURIComponent(m.token)}` })) },
+        { title: 'Vendors', links: vendorLinks },
+        {
+          title: 'On the day',
+          links: [
+            ...(co?.key ? [{ name: co.name || 'The coordinator', what: 'The coordinator’s run sheet', url: `${base}/coordinator?k=${encodeURIComponent(co.key)}` }] : []),
+            ...helpers.map((h) => ({ name: h.name, what: 'Their task list', url: `${base}/tasks?k=${encodeURIComponent(h.key)}` })),
+          ],
+        },
+      ],
     });
   });
 

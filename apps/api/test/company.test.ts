@@ -68,6 +68,20 @@ describe('company portal', () => {
     expect(tr.trials).toEqual([expect.objectContaining({ name1: 'Harriet', email: 'harriet@example.com', weddingDate: '2027-03-20', news: true })]);
   });
 
+  it('preview: the team opens any wedding’s portals as each person sees them; a couple can’t, and each look is logged', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const couple = await signup('Alex', 'alex@example.com');
+    const slug = (await t.db.prepare(`SELECT slug FROM wedding WHERE id = ?`).bind(couple.wid).first<{ slug: string }>())!.slug;
+    expect((await call(`/a/company/weddings/${slug}/portals`, {}, couple.cookie)).status).toBe(403);
+    const res = await call(`/a/company/weddings/${slug}/portals`, {}, boss.cookie);
+    expect(res.status).toBe(200);
+    const p = (await res.json()) as { names: string; groups: { title: string; links: { name: string; url: string }[] }[] };
+    expect(p.groups.map((g) => g.title)).toEqual(['Guests', 'Wedding party', 'Vendors', 'On the day']);
+    expect(p.groups[0]!.links[0]).toMatchObject({ name: 'The invitation', url: `/w/${slug}/` });
+    expect((await call('/a/company/weddings/no-such-wedding/portals', {}, boss.cookie)).status).toBe(404);
+    expect(await t.db.prepare(`SELECT COUNT(*) AS n FROM audit WHERE action = 'company.preview'`).first<{ n: number }>()).toEqual({ n: 1 });
+  });
+
   it('settings: social links and the banner show on the public site settings; bad links are refused', async () => {
     const boss = await signup('Boss', 'boss@example.com');
     expect(await (await call('/site')).json()).toEqual({ social: { instagram: '', tiktok: '', facebook: '', pinterest: '', youtube: '' }, supportEmail: '', banner: null, madeWith: true, gst: false });

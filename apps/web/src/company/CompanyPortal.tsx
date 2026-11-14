@@ -8,6 +8,7 @@ import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
 import { chargeCents, COST_GUIDE, type CostKind, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffAccess, type StaffPerm, STAFF_ABILITIES, STAFF_ABILITY_KEYS, type StaffAbility } from '@wp/shared';
 import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyAccountRow, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding, type CompanyTraffic } from '../lib/api';
+import { PreviewTab } from './PreviewTab';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -44,6 +45,7 @@ const TABS = [
   ['vendors', 'Vendors', 'vendors'],
   ['money', 'Money & tax', 'money'],
   ['team', 'Team', 'team'],
+  ['preview', 'Preview', 'overview'],
   ['traffic', 'Traffic & errors', 'activity'],
   ['activity', 'Activity', 'activity'],
   ['settings', 'Settings', 'settings'],
@@ -260,6 +262,7 @@ function Portal() {
             {shown === 'vendors' && <Vendors onNote={setNote} />}
             {shown === 'money' && <Money onNote={setNote} />}
             {shown === 'team' && <Team onNote={setNote} />}
+            {shown === 'preview' && <PreviewTab />}
             {shown === 'traffic' && <Traffic />}
             {shown === 'activity' && <Activity />}
             {shown === 'settings' && <Settings onNote={setNote} />}
@@ -277,7 +280,7 @@ function Portal() {
 }
 
 /** A small symbol for each section in the sidebar. */
-const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', traffic: '↗', activity: '≡', settings: '⚙', help: '?' };
+const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', preview: '◉', traffic: '↗', activity: '≡', settings: '⚙', help: '?' };
 
 /** Loads something once (and again on reload()), with an error if it fails. */
 function useLoad<T>(fn: () => Promise<T>) {

@@ -1140,6 +1140,8 @@ export const companyApi = {
   /** Runs an approved task's action as the person approving it (the API checks their role). */
   runTask: (a: CompanyTaskAction) => send<unknown>(a.method, `/a/company${a.path}`, a.body),
   weddings: (q: string, requests = false) => request<{ weddings: CompanyWedding[] }>(`/a/company/weddings?q=${encodeURIComponent(q)}${requests ? '&requests=1' : ''}`),
+  /** A wedding's portals (Preview): each link as that person opens it. */
+  portals: (slug: string) => request<{ names: string; groups: { title: string; links: { name: string; what: string; url: string }[] }[] }>(`/a/company/weddings/${encodeURIComponent(slug)}/portals`),
   setPlan: (slug: string, body: { plan?: 'free' | 'basic' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),
   listings: () => request<{ listings: CompanyListing[] }>('/a/company/listings'),
   hideListing: (id: string, hidden: boolean) => send<{ ok: true }>('PUT', `/a/company/listings/${encodeURIComponent(id)}`, { hidden }),
