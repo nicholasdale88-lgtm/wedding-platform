@@ -10,12 +10,41 @@ import { DEFAULT_LOOK, lookVars } from './AdminLook';
 import { confirmLeave, LeaveGuard } from './leave';
 import { TellUs } from './TellUs';
 import { Pill, useAutoRefresh, useMedia } from './ui';
-import { sealBadge } from '../sales/Stills';
+import { initialsOf, sealDate, sealWords, WaxSeal } from '../guest/invitation/WaxSeal';
 
 /** The sidebar and the phone's top bar: the admin's ink, lit softly from the top and deepening downwards. */
 const SIDE = 'radial-gradient(420px 260px at 20% -40px, rgba(255,240,225,.16), transparent 70%), linear-gradient(180deg, transparent, rgba(0,0,0,.22))';
-/** "Harriet Lane", "Theo Park" → "H & T". */
-const initialsOf = (a = '', b = '') => [a, b].map((n) => n.trim()[0] ?? '').filter(Boolean).join(' & ');
+
+/**
+ * Their own wax seal (the colour, design and words chosen for the invitation), beside their names.
+ * It opens Setup → Invitation → Envelope and seal, where it's chosen; it lifts a little under the pointer.
+ */
+function HeaderSeal({ o, px, path }: { o: Overview | null; px: number; path: (tab: string, event?: string) => string }) {
+  if (!o) return <span aria-hidden className="block flex-none" style={{ width: px, height: px }} />;
+  const first = o.events[0];
+  const s = o.wedding.seal ?? { colour: 'Sandstone' as const, design: {} };
+  const words = sealWords(s.design, initialsOf(o.wedding.monogram, o.wedding.name1, o.wedding.name2), sealDate(first?.startsAt, o.wedding.timezone));
+  const seal = (
+    <span className="relative block" style={{ width: px, height: px }}>
+      <WaxSeal colour={s.colour} design={s.design} words={words} px={px} still />
+    </span>
+  );
+  const look = 'block flex-none rounded-full transition-[transform,filter] duration-200 [filter:drop-shadow(0_3px_5px_rgba(0,0,0,.35))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d6b780]';
+  if (!first) return <span aria-hidden className={look}>{seal}</span>;
+  return (
+    <Link
+      to={`${path('pages', first.key)}?page=invitation&open=seal`}
+      onClick={(e) => {
+        if (!confirmLeave()) e.preventDefault();
+      }}
+      aria-label="Your wax seal: change it"
+      title="Your wax seal: tap to change it"
+      className={`${look} hover:-translate-y-[2px] hover:rotate-[-6deg] hover:[filter:drop-shadow(0_6px_8px_rgba(0,0,0,.4))_drop-shadow(0_0_10px_rgba(214,183,128,.45))]`}
+    >
+      {seal}
+    </Link>
+  );
+}
 
 /** Shared wedding summary: nav badges, sidebar footer and the Overview tab all read it. */
 interface AdminData {
@@ -329,7 +358,6 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
     if (confirmLeave()) onSignOut();
   };
   const [more, setMore] = useState(false);
-  const seal = useMemo(() => sealBadge(o?.wedding.monogram || initialsOf(o?.wedding.name1, o?.wedding.name2)), [o?.wedding.monogram, o?.wedding.name1, o?.wedding.name2]);
   const sectionName = o?.events.find((e) => e.key === event)?.name ?? 'Account';
   const unread = o?.nav.messages ?? 0;
 
@@ -341,7 +369,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         <LeaveGuard />
         {/* The only menu on a phone. */}
         <header style={{ backgroundImage: SIDE }} className="sticky top-0 z-[15] bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] transition-colors duration-300 px-4 pt-[max(10px,env(safe-area-inset-top))] pb-[10px] flex items-center justify-between gap-3 border-b border-[rgba(214,183,128,.45)] shadow-[0_6px_20px_rgba(30,10,20,.18)]">
-          <img aria-hidden alt="" src={seal} className="flex-none w-9 h-9 -my-1" />
+          <HeaderSeal o={o} px={36} path={path} />
           <div className="font-script text-[26px] leading-[1.15] min-w-0 truncate flex-1">{name}</div>
           <button
             type="button"
@@ -378,7 +406,9 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
       <LeaveGuard />
       <aside style={{ backgroundImage: SIDE }} className="bg-[var(--adm-ink,#33402f)] text-[#f3ecd6] flex flex-col sticky top-0 z-[15] min-w-0 gap-[24px] pt-[30px] px-4 pb-[22px] h-screen transition-colors duration-300 border-r border-[rgba(214,183,128,.4)] shadow-[6px_0_30px_rgba(30,10,20,.12)]">
         <div className="px-[10px]">
-          <img aria-hidden alt="" src={seal} className="block w-[52px] h-[52px] mb-2 -ml-1" />
+          <div className="mb-3 w-fit">
+            <HeaderSeal o={o} px={54} path={path} />
+          </div>
           <div className="font-script text-[30px] leading-[1.15] min-h-[35px]">{name}</div>
           <div className="mt-[6px] text-[11px] font-semibold tracking-[.24em] uppercase text-[#d6b780]">RSVP admin</div>
         </div>

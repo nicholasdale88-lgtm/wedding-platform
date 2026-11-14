@@ -1,4 +1,4 @@
-import { allows, DELIVERY, GUEST_SIDES, joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164, contactGaps } from '@wp/shared';
+import { allows, DELIVERY, GUEST_SIDES, InvitationContent,joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164, contactGaps } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
@@ -10,6 +10,14 @@ import type { Env } from '../env';
 import { estimate, sendNow, type EngineDeps } from '../sms/engine';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { plannerNeedsYou } from './planner';
+
+/** The invitation's wax seal: its colour and design, read one field at a time so one odd field never hides the rest. */
+function sealOf(invitation: unknown) {
+  const inv = (invitation && typeof invitation === 'object' ? invitation : {}) as Record<string, unknown>;
+  const colour = InvitationContent.shape.seal.safeParse(inv.seal).data;
+  const design = InvitationContent.shape.sealDesign.safeParse(inv.sealDesign).data;
+  return { colour: colour ?? 'Sandstone', design: design ?? {} };
+}
 
 /**
  * Per-wedding admin API (/api/a/w/:wid/...). Every route needs a session and membership;
@@ -154,6 +162,8 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         planRequested: (w.content.planRequested as string | undefined) ?? '',
         // Private: its pages open only with each guest's own link.
         private: w.content.private === true,
+        // Their wax seal as chosen in Setup → Invitation (the admin's header wears it).
+        seal: sealOf(w.content.invitation),
       },
       ...ov,
       partySides: { p1: setup.p1, p2: setup.p2 },

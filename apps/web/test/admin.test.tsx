@@ -67,6 +67,13 @@ describe('admin shell', () => {
     expect(screen.getByText('138 days to go')).toBeInTheDocument();
     expect(location).toBe('/admin/w1/account/overview');
   });
+
+  it('the wax seal beside the names is theirs and opens where it is chosen', async () => {
+    mockApi();
+    renderAt('/admin');
+    const seal = await screen.findByRole('link', { name: 'Your wax seal: change it' });
+    expect(seal).toHaveAttribute('href', '/admin/w1/wedding/pages?page=invitation&open=seal');
+  });
 });
 
 describe('addresses', () => {

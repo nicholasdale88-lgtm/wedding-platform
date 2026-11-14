@@ -422,6 +422,12 @@ function InvitationEditor({
   setNames: (names: PageNames) => void;
   setTheme: (t: string) => void;
 }) {
+  const [params] = useSearchParams();
+  const openSeal = params.get('open') === 'seal';
+  const sealRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (openSeal) sealRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [openSeal]);
   const inv = doc.invitation;
   const toast = useToast();
   const text = (key: string) => {
@@ -518,7 +524,9 @@ function InvitationEditor({
             </Label>
             <span className="-mt-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">A short, quiet clip works best (10 to 30 seconds; it plays silently on a loop). From Dropbox, paste the share link. Leave empty for none.</span>
           </Rollup>
-          <Rollup title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal${sealStyle === 'classic' ? '' : ` (${SEAL_STYLE_INFO[sealStyle].label.toLowerCase()})`}${paper} · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
+          {/* The seal in the admin's header opens straight here (?open=seal). */}
+          <div ref={sealRef} className="scroll-mt-6" />
+          <Rollup start={openSeal} title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal${sealStyle === 'classic' ? '' : ` (${SEAL_STYLE_INFO[sealStyle].label.toLowerCase()})`}${paper} · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
             <SealPicker inv={inv} theme={doc.theme} initials={initials} setInv={setInv} />
             <Grid>
               <Label text="Envelope liner">
