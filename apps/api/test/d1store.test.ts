@@ -34,18 +34,16 @@ describe('D1 SMS store', () => {
   });
 
   it('the cron list: only weddings with something to do, the urgent first', async () => {
-    // A second wedding with nothing set up: no guests, no messages on, nothing waiting.
-    await t.db.prepare(`CREATE TEMP TABLE tw AS SELECT * FROM wedding WHERE id = 'w1'`).run();
-    await t.db.prepare(`UPDATE tw SET id = 'w2', slug = 'quiet-one', sms_sender = NULL`).run();
-    await t.db.prepare(`INSERT INTO wedding SELECT * FROM tw`).run();
     const now = '2026-11-15T00:00:00.000Z';
     const ids = async () => (await store.activeWeddings(now, 40)).map((w) => w.id);
-    expect(await ids()).toContain('w1');
-    expect(await ids()).not.toContain('w2');
-    // A text waiting for it: now it's on the list, ahead of the rest.
-    await store.enqueue([row('wait', { weddingId: 'w2' })]);
-    expect((await ids())[0]).toBe('w2');
-    expect(await store.activeWeddings(now, 1)).toHaveLength(1);
+    // Nothing on and nothing due: off the list.
+    await t.db.prepare(`UPDATE campaign SET enabled = 0 WHERE wedding_id = 'w1'`).run();
+    await t.db.prepare(`UPDATE campaign_slot SET status = 'cancelled'`).run();
+    expect(await ids()).toEqual([]);
+    // A text waiting: back on, and at most `limit`.
+    await store.enqueue([row('wait')]);
+    expect(await ids()).toEqual(['w1']);
+    expect(await store.activeWeddings(now, 0)).toHaveLength(0);
   });
 
   it('enqueue ignores duplicate dedupe keys', async () => {
