@@ -323,6 +323,20 @@ describe('company portal', () => {
     expect(again.items.map((i) => i.id)).not.toContain('xai');
     expect(again.items.map((i) => i.id)).toContain('onedrive');
   });
+  it('accounts: owners keep the list of company accounts; a password typed in is refused', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    type Acc = { id: string; login: string; status: string; note: string };
+    const { list } = (await (await call('/a/company/accounts', {}, boss.cookie)).json()) as { list: Acc[] };
+    expect(list.map((a) => a.id)).toEqual(expect.arrayContaining(['bitwarden', 'stripe', 'cloudflare']));
+    const done = list.map((a) => (a.id === 'stripe' ? { ...a, login: 'hello@example.com', status: 'done' } : a));
+    expect((await call('/a/company/accounts', { method: 'PUT', body: JSON.stringify({ list: done }) }, boss.cookie)).status).toBe(200);
+    const again = (await (await call('/a/company/accounts', {}, boss.cookie)).json()) as { list: Acc[] };
+    expect(again.list.find((a) => a.id === 'stripe')).toMatchObject({ login: 'hello@example.com', status: 'done' });
+    const leaky = done.map((a) => (a.id === 'stripe' ? { ...a, note: 'password: hunter2' } : a));
+    expect((await call('/a/company/accounts', { method: 'PUT', body: JSON.stringify({ list: leaky }) }, boss.cookie)).status).toBe(400);
+    const couple = await signup('Alex', 'alex@example.com');
+    expect((await call('/a/company/accounts', {}, couple.cookie)).status).toBe(403);
+  });
   it('capacity: counts and a plain verdict; a cron run that hit the per-run limit says upgrade now', async () => {
     const boss = await signup('Boss', 'boss@example.com');
     type Cap = { level: string; notes: { level: string; text: string }[]; weddings: number; cronAt: string };

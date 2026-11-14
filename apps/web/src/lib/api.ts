@@ -1098,6 +1098,7 @@ export interface CompanyMoney {
 export interface CompanyTodo { id: string; text: string; link: string; group: string; done: boolean; doneAt: string; doneBy: string }
 export interface CompanyActivity { id: string; action: string; target: string; detail: string; at: string; who: string; names: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
+export interface CompanyAccountRow { id: string; name: string; link: string; login: string; kept: string; twoStep: boolean; status: 'todo' | 'started' | 'done' | 'problem'; note: string }
 export interface CompanyCapacity {
   level: 'ok' | 'soon' | 'now';
   notes: { level: 'ok' | 'soon' | 'now'; text: string }[];
@@ -1111,6 +1112,8 @@ export interface CompanyCapacity {
 }
 export const companyApi = {
   capacity: () => request<CompanyCapacity>('/a/company/capacity'),
+  accounts: () => request<{ list: CompanyAccountRow[] }>('/a/company/accounts'),
+  saveAccounts: (list: CompanyAccountRow[]) => send<{ list: CompanyAccountRow[] }>('PUT', '/a/company/accounts', { list }),
   stats: () => request<CompanyStats>('/a/company/stats'),
   weddings: (q: string, requests = false) => request<{ weddings: CompanyWedding[] }>(`/a/company/weddings?q=${encodeURIComponent(q)}${requests ? '&requests=1' : ''}`),
   setPlan: (slug: string, body: { plan?: 'free' | 'basic' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),

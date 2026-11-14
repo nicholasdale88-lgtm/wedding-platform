@@ -228,10 +228,76 @@ export const LAUNCH_TODOS: TodoItem[] = [
  */
 export const ADDED_TODOS: TodoItem[] = [
   t('onedrive', 'Accounts to set up', 'OneDrive (optional): register the site with Microsoft, paste the 2 keys in Connections', 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade'),
-  t('xai', 'Accounts to set up', 'Grok: make an xAI API account and add a little credit (pay as you go, no free allowance); keep the API key ready', 'https://console.x.ai'),
+  t('xai', 'Accounts to set up', 'Grok (optional, paid): only if you want Grok instead of the free Cloudflare AI for the bots. xAI API account, pay as you go', 'https://console.x.ai'),
+  t('vault', 'Accounts to set up', 'Passwords: put every account’s password in a free password manager (Bitwarden), then fill in Settings → Accounts', 'https://bitwarden.com/go/start-free/'),
   t('cfalerts', 'When you grow', 'Cloudflare: turn on usage email alerts (Notifications) so you hear before any limit', 'https://dash.cloudflare.com/?to=/:account/notifications'),
   t('cfpaid', 'When you grow', 'Upgrade Cloudflare Workers to Paid (US$5 a month) when Overview → Capacity says so', 'https://dash.cloudflare.com/?to=/:account/workers/plans'),
 ];
+
+/**
+ * Every service the business uses, what it costs and when (Money & tax → Start-up and running costs).
+ * Prices checked Nov 2026; update here when they change.
+ */
+export type CostKind = 'free' | 'once' | 'monthly' | 'yearly' | 'per-sale' | 'optional';
+export const COST_GUIDE: { group: 'Start-up' | 'Every month' | 'Only when you grow' | 'Optional'; what: string; does: string; cost: string; kind: CostKind }[] = [
+  { group: 'Start-up', what: 'ABN', does: 'Needed for the business name, the .com.au domain and Stripe', cost: 'Free', kind: 'free' },
+  { group: 'Start-up', what: 'Business name (ASIC)', does: 'Registers "The Yes List"', cost: 'About $45 a year', kind: 'yearly' },
+  { group: 'Start-up', what: 'Domain', does: 'The site’s own address and email domain', cost: 'About $15 to $25 a year', kind: 'yearly' },
+  { group: 'Start-up', what: 'Bitwarden', does: 'Keeps every account’s password safely (not on the website)', cost: 'Free', kind: 'free' },
+  { group: 'Every month', what: 'Cloudflare Workers Paid', does: 'Hosting, database and the 15-minute texting timer. Needed once more than a handful of weddings are active', cost: 'US$5 (about A$8) a month', kind: 'monthly' },
+  { group: 'Every month', what: 'Cloudflare AI (Workers AI)', does: 'The planning assistant, help voice, reading quotes, and the business bots', cost: 'Free daily allowance', kind: 'free' },
+  { group: 'Every month', what: 'GitHub', does: 'Keeps the code; tests and deploys every change', cost: 'Free', kind: 'free' },
+  { group: 'Every month', what: 'Resend', does: 'Sign-in, payment and guest emails', cost: 'Free up to 3,000 emails a month', kind: 'free' },
+  { group: 'Every month', what: 'Google, Dropbox and Microsoft keys', does: 'Couples link their own storage; their photos and backups go there', cost: 'Free (couples use their own storage)', kind: 'free' },
+  { group: 'Every month', what: 'Stripe', does: 'Card payments from couples', cost: 'No monthly fee; about 1.7% + 30c a sale', kind: 'per-sale' },
+  { group: 'Every month', what: 'Mobile Message (texts)', does: 'Texts sent for couples', cost: 'Paid by couples’ text credits (8c each, about 3c kept)', kind: 'per-sale' },
+  { group: 'Only when you grow', what: 'Cloudflare Queues', does: 'Lets the timer run each wedding on its own (past about 160 active weddings)', cost: 'Included with Workers Paid (1 million a month)', kind: 'free' },
+  { group: 'Only when you grow', what: 'Resend Pro', does: 'More than 3,000 emails a month', cost: 'US$20 a month', kind: 'monthly' },
+  { group: 'Optional', what: 'Grok (xAI API)', does: 'A stronger AI for the business bots. Without it, the bots use the free Cloudflare AI', cost: 'About A$10 to $18 a month, pay as you go', kind: 'optional' },
+  { group: 'Optional', what: 'Claude', does: 'Building and improving the site', cost: 'Your Claude plan, only while building', kind: 'optional' },
+  { group: 'Optional', what: 'Facebook and Instagram ads', does: 'The launch test', cost: 'Your choice (the $10 a day test is about $300 a month)', kind: 'optional' },
+];
+
+/**
+ * The company's accounts (Settings → Accounts, owners only): which exist, the login email, whether 2-step
+ * sign-in is on, and where the password is kept. Never the passwords themselves: those stay in a password
+ * manager, so a break-in at the site can't reach Stripe, Google or Cloudflare.
+ */
+export const ACCOUNT_STATUS = ['todo', 'started', 'done', 'problem'] as const;
+export const CompanyAccount = z.object({
+  id: z.string().regex(/^[a-z0-9-]{1,30}$/),
+  name: z.string().trim().min(1).max(60),
+  link: z.string().trim().max(300).default(''),
+  login: z.string().trim().max(120).default(''),
+  kept: z.string().trim().max(60).default('Bitwarden'),
+  twoStep: z.boolean().default(false),
+  status: z.enum(ACCOUNT_STATUS).default('todo'),
+  note: z.string().trim().max(300).default(''),
+});
+export type CompanyAccount = z.infer<typeof CompanyAccount>;
+export const CompanyAccounts = z.object({ list: z.array(CompanyAccount).max(60).default([]), seeded: z.boolean().default(false) });
+const acct = (id: string, name: string, link: string, note = ''): CompanyAccount => ({ id, name, link, login: '', kept: 'Bitwarden', twoStep: false, status: 'todo', note });
+export const STARTER_ACCOUNTS: CompanyAccount[] = [
+  acct('bitwarden', 'Bitwarden (passwords)', 'https://vault.bitwarden.com', 'Its master password is the one to write down and keep somewhere safe offline'),
+  acct('google', 'Google (business account)', 'https://myaccount.google.com'),
+  acct('cloudflare', 'Cloudflare', 'https://dash.cloudflare.com', 'Hosting, database, domain'),
+  acct('github', 'GitHub', 'https://github.com/settings/security', 'The code and deploys'),
+  acct('stripe', 'Stripe', 'https://dashboard.stripe.com'),
+  acct('resend', 'Resend', 'https://resend.com'),
+  acct('mobilemessage', 'Mobile Message', 'https://mobilemessage.com.au'),
+  acct('dropbox', 'Dropbox developer', 'https://www.dropbox.com/developers/apps'),
+  acct('microsoft', 'Microsoft (OneDrive app)', 'https://entra.microsoft.com'),
+  acct('xai', 'xAI (Grok, optional)', 'https://console.x.ai'),
+  acct('asic', 'ASIC Connect (business name)', 'https://connectonline.asic.gov.au'),
+  acct('ato', 'ATO / myGov (ABN, GST, BAS)', 'https://my.gov.au'),
+  acct('bank', 'Business bank', ''),
+  acct('meta', 'Meta Business Suite (Facebook, Instagram)', 'https://business.facebook.com'),
+  acct('tiktok', 'TikTok', 'https://www.tiktok.com'),
+  acct('pinterest', 'Pinterest', 'https://www.pinterest.com.au'),
+  acct('claude', 'Claude', 'https://claude.ai'),
+];
+/** Looks like a password was typed into a note: refused, so none is ever stored here by mistake. */
+export const looksLikeSecret = (s: string) => /pass(word)?\s*[:=]|\bpw\s*[:=]|sk_(live|test)_|whsec_|\bxai-[A-Za-z0-9]{16,}|\bghp_|\bre_[A-Za-z0-9]{16,}/i.test(s);
 
 /** The saved list with any owner jobs it hasn't had yet added at the end (the first time: every job). */
 export function todoList(saved: z.infer<typeof Todos>): { items: TodoItem[]; offered: string[] } {

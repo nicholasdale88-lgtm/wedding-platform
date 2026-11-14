@@ -1,4 +1,4 @@
-import { FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, todoList, TodoItem, Todos, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
+import { FEEDBACK_REWARD_CREDITS, FEEDBACK_REWARD_MIN, vendorCode, VendorProspects, PersonTargets, CustomRole, CustomRoles, isBuiltInRole, roleName, todoList, TodoItem, Todos, CompanyAccount, CompanyAccounts, STARTER_ACCOUNTS, looksLikeSecret, basQuarter, chargeCents, PRICE_CENTS, EVENT_ADDON_CENTS, dateIn, Expense, Expenses, FeedbackIn, FeedbackUpdate, financialYear, TaxSettings, PLAN_INFO, planOf, Promo, Promos, randomToken, SiteSettings, STAFF_INFO, StaffInviteIn, type PROMO_FOR, type StaffPerm } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -35,7 +35,7 @@ type C = Context<AdminEnv>;
 const err = (c: C, status: 400 | 403 | 404 | 429, code: string, message: string) => c.json({ error: { code, message } }, status);
 
 /** A setting's JSON (the schema's defaults when it isn't set). */
-export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets' | 'prospects' | 'cron_health', schema: S): Promise<z.output<S>> {
+export async function readSetting<S extends z.ZodTypeAny>(db: D1Database, key: 'site' | 'promos' | 'tax' | 'expenses' | 'todo' | 'targets' | 'prospects' | 'cron_health' | 'accounts', schema: S): Promise<z.output<S>> {
   const row = await db.prepare(`SELECT value FROM platform_setting WHERE key = ?`).bind(key).first<{ value: string }>();
   let raw: unknown = {};
   try {
@@ -571,6 +571,23 @@ export function companyRoutes() {
     const dbBytes = Number((counts.meta as { size_after?: number }).size_after ?? 0);
     const cron = await readSetting(c.env.DB, 'cron_health', CronHealth);
     return c.json(capacityOf({ weddings: row.weddings, paid: row.paid ?? 0, active: row.active ?? 0, dbBytes, cron, now, perRun: CRON_WEDDINGS }));
+  });
+
+  /** The company's accounts (owners only): status, login email, 2-step sign-in, where the password is kept. */
+  app.get('/accounts', async (c) => {
+    if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can see the accounts.');
+    const saved = await readSetting(c.env.DB, 'accounts', CompanyAccounts);
+    return c.json({ list: saved.seeded ? saved.list : STARTER_ACCOUNTS });
+  });
+  app.put('/accounts', async (c) => {
+    if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can change the accounts.');
+    const b = z.object({ list: z.array(CompanyAccount).max(60) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Please check the accounts.');
+    if (b.data.list.some((a) => [a.login, a.kept, a.note].some(looksLikeSecret)))
+      return err(c, 400, 'secret', 'That looks like a password or key. Keep those in your password manager, not here.');
+    await writeSetting(c.env.DB, 'accounts', { list: b.data.list, seeded: true });
+    await logCompany(c, 'company.accounts', `${b.data.list.length} accounts`, {});
+    return c.json({ list: b.data.list });
   });
 
   /** The company's to-do list: anyone on the team reads it; owners and managers tick, add and remove. */

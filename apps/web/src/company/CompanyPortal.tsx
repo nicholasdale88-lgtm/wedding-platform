@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Login } from '../admin/Login';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { LogoMark } from '../sales/Art';
-import { chargeCents, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
-import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding, type CompanyTraffic } from '../lib/api';
+import { chargeCents, COST_GUIDE, type CostKind, PERM_INFO, staffPermsOf, planOf, STAFF_INFO, STAFF_PERMS, STAFF_ROLES, type StaffPerm } from '@wp/shared';
+import { api, companyApi, staffJoinApi, type VendorProspect, type CompanyActivity, type CompanyRole, type CompanyTodo, type CompanyAccountRow, type CompanyMoney, type CompanyFeedback, type CompanyListing, type CompanyPromo, type CompanySettings, type CompanyStaff, type CompanyWedding, type CompanyTraffic } from '../lib/api';
 
 /**
  * /company: the company portal, for the platform owner (super admins) only.
@@ -1047,6 +1047,7 @@ function Settings({ onNote }: { onNote: (s: string) => void }) {
   return (
     <>
       <Connections onNote={onNote} />
+      <Accounts onNote={onNote} />
       <section className={card} aria-label="Payment links">
         <H sub="When a couple asks for a plan, Couples → Email it sends the matching link. Make one per plan in Stripe (Payment Links) or your bank; they start with https://.">Payment links</H>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -1744,6 +1745,7 @@ function Profit({ data, tax, setTax, onSave }: { data: CompanyMoney; tax: Compan
 
       <Goal data={data} tax={tax} setTax={setTax} onSave={onSave} running={running} each={each} />
       <Targets data={data} tax={tax} setTax={setTax} onSave={onSave} running={running} each={each} />
+      <CostGuide />
       <section className={card} aria-label="Running costs">
         <H sub="What the business pays every month: the Grok bot, Claude, hosting, email, and yearly costs divided by 12. Used in every profit figure.">Running costs each month</H>
         {costs.map((c, i) => (
@@ -2155,6 +2157,120 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
           </div>
         );
       })}
+      {problem && <Problem text={problem} />}
+    </section>
+  );
+}
+
+/** Money & tax → Start-up and running costs: every service, what it does and what it costs (shared COST_GUIDE). */
+function CostGuide() {
+  const groups = ['Start-up', 'Every month', 'Only when you grow', 'Optional'] as const;
+  const badge: Record<CostKind, [string, string]> = {
+    free: ['Free', '#e7eedb'],
+    once: ['Once', '#fbf3e1'],
+    monthly: ['Monthly', '#fbf3e1'],
+    yearly: ['Yearly', '#fbf3e1'],
+    'per-sale': ['Per sale', '#efe6f0'],
+    optional: ['Optional', '#eeeae2'],
+  };
+  return (
+    <section className={card} aria-label="Start-up and running costs">
+      <H sub="Every service the business uses, what it’s for and what it costs. Add the paid ones you use to Running costs below so the profit stays true.">Start-up and running costs</H>
+      {groups.map((g) => (
+        <div key={g} className="flex flex-col gap-2">
+          <h3 className="m-0 text-[13px] font-semibold tracking-[.12em] uppercase text-[#6e6068]">{g}</h3>
+          {COST_GUIDE.filter((x) => x.group === g).map((x) => (
+            <div key={x.what} className="grid gap-x-3 gap-y-1 grid-cols-[minmax(0,1fr)_auto] items-start py-2 border-t border-[#f0e6dc]">
+              <span>
+                <strong className="block text-[15px] text-[#2a1c26]">{x.what}</strong>
+                <span className="text-[13px] text-[#6e6068]">{x.does}</span>
+              </span>
+              <span className="text-right">
+                <span className="inline-block px-2 py-[2px] rounded-full text-[12px] font-semibold text-[#3a2532]" style={{ background: badge[x.kind][1] }}>
+                  {badge[x.kind][0]}
+                </span>
+                <span className="block text-[13px] text-[#3a2532] mt-1">{x.cost}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/**
+ * Settings → Accounts (owners): every account the business has, its login email, 2-step sign-in and where
+ * the password is kept. Passwords never go here: they stay in a password manager.
+ */
+function Accounts({ onNote }: { onNote: (s: string) => void }) {
+  const { role } = useContext(RoleCtx);
+  const load = useCallback(() => (role === 'owner' ? companyApi.accounts() : Promise.resolve(null)), [role]);
+  const { data, setData } = useLoad(load);
+  const [problem, setProblem] = useState('');
+  const [dirty, setDirty] = useState(false);
+  if (!data) return null;
+  const list = data.list;
+  const set = (i: number, p: Partial<CompanyAccountRow>) => {
+    setData({ list: list.map((a, j) => (j === i ? { ...a, ...p } : a)) });
+    setDirty(true);
+  };
+  const save = async () => {
+    setProblem('');
+    try {
+      setData(await companyApi.saveAccounts(list));
+      setDirty(false);
+      onNote('Accounts saved.');
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+  const add = () => {
+    setData({ list: [...list, { id: `own-${Date.now().toString(36)}`, name: 'New account', link: '', login: '', kept: 'Bitwarden', twoStep: false, status: 'todo', note: '' }] });
+    setDirty(true);
+  };
+  const STATUS: Record<CompanyAccountRow['status'], string> = { todo: 'To set up', started: 'Started', done: 'Set up', problem: 'Needs fixing' };
+  const doneCount = list.filter((a) => a.status === 'done').length;
+  const noTwo = list.filter((a) => a.status === 'done' && !a.twoStep).length;
+  return (
+    <section className={card} aria-label="Accounts">
+      <H sub="Every account the business has, so nothing is forgotten. Passwords never go here: keep them in your password manager (Bitwarden is free), and note where.">Accounts</H>
+      <p className="m-0 text-[14px] text-[#6e6068]">
+        {doneCount} of {list.length} set up{noTwo ? `, ${noTwo} without 2-step sign-in yet` : ''}.
+      </p>
+      {list.map((a, i) => (
+        <div key={a.id} className="grid gap-2 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,1fr)_auto_auto] items-center py-2 border-t border-[#f0e6dc]">
+          <span className="min-w-0">
+            <input aria-label="Account" className={input} value={a.name} maxLength={60} onChange={(e) => set(i, { name: e.target.value })} />
+            {a.link && (
+              <a href={a.link} target="_blank" rel="noreferrer" className="text-[13px] text-[#7a4a37]">
+                Open
+              </a>
+            )}
+          </span>
+          <input aria-label={`${a.name}: login email`} className={input} placeholder="Login email" value={a.login} maxLength={120} onChange={(e) => set(i, { login: e.target.value })} />
+          <input aria-label={`${a.name}: password kept in`} className={input} placeholder="Password kept in" value={a.kept} maxLength={60} onChange={(e) => set(i, { kept: e.target.value })} />
+          <label className="flex items-center gap-1 text-[13px] text-[#3a2532] whitespace-nowrap">
+            <input type="checkbox" checked={a.twoStep} onChange={(e) => set(i, { twoStep: e.target.checked })} /> 2-step on
+          </label>
+          <select aria-label={`${a.name}: status`} className={input} value={a.status} onChange={(e) => set(i, { status: e.target.value as CompanyAccountRow['status'] })}>
+            {(Object.keys(STATUS) as CompanyAccountRow['status'][]).map((s) => (
+              <option key={s} value={s}>
+                {STATUS[s]}
+              </option>
+            ))}
+          </select>
+          <input aria-label={`${a.name}: note`} className={`${input} sm:col-span-5`} placeholder="Note (not a password)" value={a.note} maxLength={300} onChange={(e) => set(i, { note: e.target.value })} />
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={primary} disabled={!dirty} onClick={() => void save()}>
+          Save accounts
+        </button>
+        <button type="button" className="py-[9px] px-4 rounded-[10px] border border-[#d3c6a4] bg-white text-[14px] cursor-pointer" onClick={add}>
+          Add an account
+        </button>
+      </div>
       {problem && <Problem text={problem} />}
     </section>
   );
