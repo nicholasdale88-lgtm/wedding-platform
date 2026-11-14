@@ -27,7 +27,7 @@ export type RuleTable = { id: string; name: string; seats: number; shape?: strin
 type Seats = Record<string, string | null | undefined>;
 
 export const SEAT_PRESETS: { key: keyof SeatPresets; label: string; hint: string }[] = [
-  { key: 'invite', label: 'People invited together sit together', hint: 'Couples, families and plus-ones stay at one table.' },
+  { key: 'invite', label: 'People invited together sit together', hint: 'Couples, families and plus-ones stay at one table (the wedding party sits at the head table, and the rest of their invitation still together).' },
   { key: 'groups', label: 'Keep each group at the same tables', hint: 'Uses each guest’s group (e.g. “Uni friends”), so nobody is the only one they know.' },
   { key: 'head', label: 'Wedding party at the head table', hint: 'Anyone with a wedding-party role, when a table is a head table.' },
   { key: 'fill', label: 'Fill each table before starting another', hint: 'Fewer half-empty tables.' },
@@ -104,8 +104,10 @@ export function seatProblems(people: RulePerson[], tables: RuleTable[], seats: S
     if (n > t.seats) out.push(`${tableLabel(t)} has ${n} people for ${t.seats} seats.`);
   }
   if (pre.invite) {
+    // The wedding party at the head table doesn't split their invitation: the rest of it is what sits together.
+    const partyAway = pre.head && tables.some(isHeadTable);
     const byInv = new Map<string, RulePerson[]>();
-    for (const p of coming) byInv.set(p.invitationId, [...(byInv.get(p.invitationId) ?? []), p]);
+    for (const p of coming) if (!(partyAway && inParty(p))) byInv.set(p.invitationId, [...(byInv.get(p.invitationId) ?? []), p]);
     for (const ps of byInv.values()) {
       const ts = [...new Set(ps.map((p) => at(p.id)).filter((x): x is string => !!x))];
       if (ts.length > 1) out.push(`${names(ps)} were invited together but sit at ${ts.map((x) => tableLabel(table.get(x))).join(' and ')}.`);
@@ -234,9 +236,12 @@ export function autoSeat(people: RulePerson[], tables: RuleTable[], seats: Seats
     return true;
   };
   const notes: string[] = [];
+  // The wedding party sits at the head table, apart from their invitation (the rest of it still together).
+  const partyApart = pre.head && tables.some(isHeadTable);
   if (pre.invite) {
     const firstOf = new Map<string, string>();
     for (const p of coming) {
+      if (partyApart && inParty(p)) continue;
       const f = firstOf.get(p.invitationId);
       if (f) join(f, p.id);
       else firstOf.set(p.invitationId, p.id);

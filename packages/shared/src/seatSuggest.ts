@@ -96,9 +96,13 @@ export function suggestSeating(people: RulePerson[], tablesIn: RuleTable[], rule
     else root.set(ra, rb);
     return true;
   };
+  // People invited together sit together, except the wedding party: they go to the head table (when there is
+  // one) and the rest of their invitation still sits together at a guest table.
+  const partyApart = pre.head && tablesIn.some(isHeadTable);
   if (pre.invite) {
     const firstOf = new Map<string, string>();
     for (const p of coming) {
+      if (partyApart && p.role?.trim()) continue;
       const f = firstOf.get(p.invitationId);
       if (f) join(f, p.id);
       else firstOf.set(p.invitationId, p.id);

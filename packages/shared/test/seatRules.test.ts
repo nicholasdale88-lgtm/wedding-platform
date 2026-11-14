@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SeatRules } from '../src/planner';
 import { autoSeat, DEFAULT_PRESETS, seatProblems, type RulePerson, type RuleTable } from '../src/seatRules';
+import { suggestSeating } from '../src/seatSuggest';
 
 const person = (id: string, inv: string, party = '', role = '', coming = true): RulePerson => ({ id, invitationId: inv, name: `${id[0]!.toUpperCase()}${id.slice(1)} Smith`, party, role, coming });
 const table = (id: string, seats: number, shape = 'round', name = id): RuleTable => ({ id, name, seats, shape });
@@ -47,6 +48,21 @@ describe('seating rules', () => {
     const moved = { ...r.seats, ann: 't1' };
     expect(seatProblems(people, tables, moved, rules())).toEqual(['Ann is in the wedding party but not at the head table.']);
     expect(seatProblems(people, tables, moved, rules({ presets: { ...DEFAULT_PRESETS, head: false } }))).toEqual([]);
+  });
+
+  it('a bridesmaid goes to the head table, and the rest of her invitation still sits together', () => {
+    const people = [person('ann', 'g1', '', 'Bridesmaid'), person('bob', 'g1'), person('kit', 'g1'), person('cat', 'g2'), person('dan', 'g2')];
+    const tables = [table('t1', 4), table('t2', 4), table('head', 6, 'head', 'Head table')];
+    for (const r of [autoSeat(people, tables, {}, rules()), suggestSeating(people, tables, rules())]) {
+      expect(r.seats.ann).toBe('head');
+      expect(r.seats.bob).not.toBe('head');
+      expect(together(r.seats, ['bob', 'kit'])).toBe(true);
+      expect(together(r.seats, ['cat', 'dan'])).toBe(true);
+      expect(seatProblems(people, tables, r.seats, rules())).toEqual([]);
+    }
+    // No head table: the bridesmaid sits with her own invitation, like anyone.
+    const plain = autoSeat(people, [table('t1', 4), table('t2', 4)], {}, rules());
+    expect(together(plain.seats, ['ann', 'bob', 'kit'])).toBe(true);
   });
 
   it('groups stay at their tables, so nobody is the only one they know', () => {
