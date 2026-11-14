@@ -57,12 +57,26 @@ const VendorJoinPage = lazy(() => fresh(import('./sales/Directory')).then((m) =>
 const CompanyPortal = lazy(() => fresh(import('./company/CompanyPortal')).then((m) => ({ default: m.CompanyPortal })));
 const VendorHomePage = lazy(() => fresh(import('./sales/Directory')).then((m) => ({ default: m.VendorHomePage })));
 
+/** The couple previewing someone's portal (Overview → See what everyone else sees): a reminder it's the real page. */
+const PORTAL_OF: Record<string, string> = { party: 'wedding party', vendor: 'vendor', coordinator: 'coordinator', tasks: 'helper' };
+function PortalPreviewBanner() {
+  const { pathname, search } = useLocation();
+  const kind = /^\/w\/[^/]+\/(party|vendor|coordinator|tasks)\/?$/.exec(pathname)?.[1];
+  if (!kind || new URLSearchParams(search).get('preview') !== '1') return null;
+  return (
+    <div role="status" className="fixed z-[90] left-1/2 -translate-x-1/2 bottom-[max(12px,env(safe-area-inset-bottom))] max-w-[calc(100%-24px)] py-2 px-4 rounded-full bg-[#2e2430] text-[#fbf1e8] text-[13px] text-center shadow-[0_10px_24px_rgba(0,0,0,.3)]">
+      <strong>Preview:</strong> this is exactly what the {PORTAL_OF[kind]} sees. Looking changes nothing; anything you tap is real.
+    </div>
+  );
+}
+
 function Pages() {
   // Traffic & errors (company portal): the kind of page opened, counted as the address changes.
   const { pathname } = useLocation();
   useEffect(() => countPage(pathname), [pathname]);
   return (
     <Suspense fallback={<div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />}>
+      <PortalPreviewBanner />
       <Routes>
         <Route path="/admin/reset" element={<ResetPasscode />} />
         <Route path="/company/*" element={<CompanyPortal />} />

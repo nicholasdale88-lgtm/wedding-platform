@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtWhen } from '../lib/format';
 import { AccountHome, NeedsYou, RehearseCard } from './AccountHome';
 import { Card, Hub, Kpis } from './hub/Hub';
+import { PortalPreviews } from './PortalPreviews';
 import { C, Donut } from './hub/charts';
 import { useAdmin, useSectionOverview } from './Shell';
 import { ErrorState, Eyebrow, H2, Loading, useToast } from './ui';
@@ -106,6 +107,9 @@ export function Overview() {
         </Card>
 
         <NeedsYou o={o} to={to} />
+
+        {/* Every portal as its person sees it: the wedding party, vendors, the coordinator, helpers. */}
+        {isWedding && <PortalPreviews to={to} />}
 
         <Card title="Latest replies" action={['Everyone', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
           <div className="flex flex-col">

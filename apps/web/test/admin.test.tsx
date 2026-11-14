@@ -336,6 +336,9 @@ describe('Overview', () => {
     expect(within(needs).getByText('2 things to do')).toBeInTheDocument();
     expect(within(needs).getByText('1 invitation has no mobile')).toBeInTheDocument();
     expect(screen.getByText('Casey Lund')).toBeInTheDocument();
+    // Every portal a tap away, as its person sees it.
+    expect(await screen.findByText('See what everyone else sees')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /The invitation.*Preview/ })).toHaveAttribute('href', '/w/alex-and-blair/?preview=1');
   });
 
   it('Account → Overview is the setup home: what to set up, plan, who signs in, backups, and each event as a card', async () => {
