@@ -772,6 +772,35 @@ export const Vendor = z.object({
 });
 export type Vendor = z.infer<typeof Vendor>;
 
+/** How a vendor's confirmation from their own page starts in their notes (the planner shows a note that follows it). */
+export const VENDOR_PAGE_NOTE = 'Confirmed the details on their page';
+
+/**
+ * Whether a line of the day's timeline is this vendor's moment: it names them (or their contact), or it's
+ * the kind of moment their kind of vendor looks after (the first dance for the band, the ceremony for the
+ * celebrant, dinner for the caterer).
+ */
+const MOMENTS: Record<string, RegExp> = {
+  Venue: /arriv|ceremony|reception|dinner|pack ?down|bump|close|last drinks/i,
+  Celebrant: /ceremony|vows|ring|kiss|sign|register|processional|aisle/i,
+  Catering: /canap|entr[eé]e|\bmains?\b|dessert|dinner|lunch|meal|food|grazing|cake|supper|served/i,
+  Photographer: /photo|portrait|getting ready|first look|ceremony|entrance|speech|first dance|cake|send ?off|sparkler/i,
+  Videographer: /video|film|getting ready|ceremony|entrance|speech|first dance|send ?off/i,
+  'Band or DJ': /music|song|dance|band|dj|entrance|march|speech|toast|last song|send ?off|mc\b/i,
+  'Hair and makeup': /hair|make-?up|getting ready|touch ?up/i,
+  Florist: /flower|bouquet|florist|styl|bump|set ?up/i,
+  Transport: /transport|car|bus|shuttle|coach|depart|leave|arriv|pick ?up/i,
+  'Styling and hire': /styl|set ?up|bump|pack ?down|hire/i,
+  Cake: /cake|dessert/i,
+};
+export function isVendorMoment(v: Pick<Vendor, 'name' | 'category' | 'contact'>, text: string): boolean {
+  const t = text.toLowerCase();
+  const own = [v.name, v.contact.split(' ')[0] ?? ''].map((x) => x.trim().toLowerCase()).filter((x) => x.length > 2);
+  if (own.some((x) => t.includes(x))) return true;
+  const kind = vendorKind({ category: v.category, name: v.name });
+  return !!kind && !!MOMENTS[kind]?.test(text);
+}
+
 /** What a vendor's own page shows beyond the basics: the seating (for the caterer), the song list (for the band or DJ). */
 export function vendorShares(v: Pick<Vendor, 'shareSeating' | 'shareSongs' | 'category' | 'name'>) {
   return { seating: !!v.shareSeating, songs: v.shareSongs ?? vendorKind(v) === 'Band or DJ' };

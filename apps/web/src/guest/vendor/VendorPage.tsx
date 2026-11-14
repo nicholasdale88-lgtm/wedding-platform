@@ -1,5 +1,5 @@
 import { cssAspect, tableBox, type TableShape } from '@wp/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
 
@@ -18,7 +18,8 @@ interface Data {
   event: { name: string; startsAt: string; venue: string; address: string } | null;
   timezone: string;
   parking: string;
-  timeline: { t: string; what: string; where: string }[];
+  /** `mine`: a moment this vendor looks after (it names them, or it's their kind of moment). */
+  timeline: { t: string; what: string; where: string; mine?: boolean }[];
   guests: { coming: number; waiting: number } | null;
   dietary: { diet: string; n: number; serious: boolean }[];
   /** Meal choices of everyone coming, by course (counts only). */
@@ -66,6 +67,7 @@ export function VendorPage() {
       })
       .catch((e: Error) => setErr(e.message));
   }, [api]);
+  const changes = useChanges(d, api);
   if (err) return <GuestMessage message={err} />;
   if (!d) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
   const when = d.event ? new Date(d.event.startsAt) : null;
@@ -74,6 +76,20 @@ export function VendorPage() {
   return (
     <main className="min-h-screen bg-[#f6f0e2] text-[#33402f] px-4 py-8" style={{ fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" }}>
       <div className="max-w-[640px] mx-auto flex flex-col gap-4">
+        {/* Printed: The Yes List and the wedding at the top of the page. */}
+        <div className="hidden print:flex items-center gap-[10px] pb-2 border-b-2 border-[#b39563] text-[20px]" style={{ fontFamily: 'Georgia, serif' }} aria-hidden>
+          <svg width="30" height="30" viewBox="0 0 100 100">
+            <rect width="100" height="100" rx="22" fill="#2b3727" />
+            <circle cx="38" cy="54" r="20" fill="none" stroke="#d6b270" strokeWidth="6.2" />
+            <circle cx="62" cy="54" r="20" fill="none" stroke="#d6b270" strokeWidth="6.2" />
+          </svg>
+          <span>
+            The <em className="text-[#b39563]">Yes</em> List
+          </span>
+          <span className="ml-auto text-[12px] text-[#5b6a52]" style={{ fontFamily: 'inherit' }}>
+            {[fmt({ day: 'numeric', month: 'long', year: 'numeric' }), d.event?.venue].filter(Boolean).join(' · ')}
+          </span>
+        </div>
         <header className="flex flex-col gap-1">
           <span className="text-[12px] tracking-[.2em] uppercase font-semibold text-[#5b6a52]">For {d.vendor.name}</span>
           <h1 className="m-0 text-[34px] leading-[1.1] font-normal" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}>
@@ -88,6 +104,17 @@ export function VendorPage() {
             </a>
           )}
         </header>
+
+        {changes.length > 0 && (
+          <section role="status" aria-label="Since you last looked" className="flex flex-col gap-1 p-4 rounded-[16px] bg-[#f3e7c9] border border-[#d9c48f] print:hidden">
+            <strong>Since you last looked</strong>
+            <ul className="m-0 pl-5 text-[15px]">
+              {changes.map((x) => (
+                <li key={x}>{x}</li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {d.event && (
           <section className={card} aria-label="The day">
@@ -105,22 +132,7 @@ export function VendorPage() {
           </section>
         )}
 
-        {d.timeline.length > 0 && (
-          <section className={card} aria-label="Timeline">
-            <strong>The timeline</strong>
-            <ol className="m-0 p-0 list-none flex flex-col gap-1">
-              {d.timeline.map((r, i) => (
-                <li key={i} className="grid grid-cols-[80px_minmax(0,1fr)] gap-3 text-[15px]">
-                  <span className="font-semibold tabular-nums">{r.t}</span>
-                  <span>
-                    {r.what}
-                    {r.where && <span className="text-[#5b6a52]"> · {r.where}</span>}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </section>
-        )}
+        {d.timeline.length > 0 && <Timeline rows={d.timeline} />}
 
         {d.guests && (
           <section className={card} aria-label="Guests">
@@ -212,9 +224,85 @@ export function VendorPage() {
 
         <YourTools api={api} songs={!!d.songs} />
         <Confirm api={api} confirmedOn={d.vendor.confirmedOn} onDone={(on) => setD({ ...d, vendor: { ...d.vendor, confirmedOn: on } })} />
+        <p className="hidden print:block m-0 pt-2 border-t border-[#e2d7bc] text-[11px] text-[#5b6a52]">
+          Made with The Yes List · printed {new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}. The live page is always the latest.
+        </p>
       </div>
     </main>
   );
+}
+
+/** The day's timeline, this vendor's own moments marked; a tap shows only theirs. */
+function Timeline({ rows }: { rows: Data['timeline'] }) {
+  const mine = rows.filter((r) => r.mine).length;
+  const [only, setOnly] = useState(false);
+  const shown = only ? rows.filter((r) => r.mine) : rows;
+  return (
+    <section className={card} aria-label="Timeline">
+      <div className="flex justify-between items-baseline gap-2 flex-wrap">
+        <strong>The timeline</strong>
+        {mine > 0 && mine < rows.length && (
+          <button type="button" onClick={() => setOnly(!only)} aria-pressed={only} className={btn}>
+            {only ? 'Show everything' : `Only my moments (${mine})`}
+          </button>
+        )}
+      </div>
+      <ol className="m-0 p-0 list-none flex flex-col gap-1">
+        {shown.map((r, i) => (
+          <li key={i} className={`grid grid-cols-[80px_minmax(0,1fr)] gap-3 text-[15px] py-[3px] ${r.mine ? 'bg-[#f3e7c9] -mx-2 px-2 rounded-[8px]' : ''}`}>
+            <span className="font-semibold tabular-nums">{r.t}</span>
+            <span>
+              {r.what}
+              {r.where && <span className="text-[#5b6a52]"> · {r.where}</span>}
+              {r.mine && <span className="ml-2 text-[11px] font-semibold tracking-[.12em] uppercase text-[#7a5a2a]">You</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/**
+ * What changed since this vendor last opened the page (kept on their own device): guest numbers, dietary
+ * needs, the timeline, their arrival time, songs. Nothing is shown on a first visit.
+ */
+function useChanges(d: Data | null, key: string): string[] {
+  const [changes, setChanges] = useState<string[]>([]);
+  const looked = useRef(false);
+  useEffect(() => {
+    // Once per visit: the first load is compared, later updates (a confirmation) aren't.
+    if (!d || looked.current) return;
+    looked.current = true;
+    const now = {
+      coming: d.guests?.coming ?? 0,
+      diet: d.dietary.map((x) => `${x.diet}:${x.n}`).join('|'),
+      meals: d.meals.map((x) => `${x.course}${x.choice}:${x.n}`).join('|'),
+      timeline: d.timeline.map((r) => `${r.t}${r.what}${r.where}`).join('|'),
+      arrival: d.vendor.arrival,
+      songs: d.songs?.length ?? 0,
+      special: d.seating?.special.map((r) => `${r.table}${r.seat}${r.name}${r.diet}`).join('|') ?? '',
+    };
+    let before: typeof now | null = null;
+    try {
+      before = JSON.parse(localStorage.getItem(`vendor-seen:${key}`) ?? 'null') as typeof now | null;
+      localStorage.setItem(`vendor-seen:${key}`, JSON.stringify(now));
+    } catch {
+      return;
+    }
+    if (!before) return;
+    const out: string[] = [];
+    if (before.arrival !== now.arrival) out.push(`Your arrival time is now ${now.arrival || 'to be confirmed'}`);
+    if (before.coming !== now.coming) out.push(`${now.coming} guests coming (was ${before.coming})`);
+    if (before.diet !== now.diet) out.push('Dietary needs changed');
+    if (before.meals !== now.meals) out.push('Meal choices changed');
+    if (before.special !== now.special) out.push('Special meals by table changed');
+    if (before.timeline !== now.timeline) out.push('The timeline changed');
+    if (now.songs > before.songs) out.push(`${now.songs - before.songs} new ${now.songs - before.songs === 1 ? 'song' : 'songs'}`);
+    else if (before.songs !== now.songs) out.push('The song list changed');
+    setChanges(out);
+  }, [d, key]);
+  return changes;
 }
 
 /** Meal choices by course: how many of each, for ordering and prep. */

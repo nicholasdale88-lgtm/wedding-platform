@@ -198,7 +198,7 @@ test('a band or DJ opens their own page: the song list, their live calendar link
   // Confirm, with a note: thanked at once.
   await v.getByLabel('Note for the couple (optional)').fill('Need a power point by the dance floor');
   await v.getByRole('button', { name: 'Confirm the details' }).click();
-  await expect(v.getByRole('status')).toContainText('Thank you');
+  await expect(v.getByText(/Thank you. The couple can see/)).toBeVisible();
   await expect(v.getByText(/You confirmed these details on/)).toBeVisible();
   await vendor.close();
 });

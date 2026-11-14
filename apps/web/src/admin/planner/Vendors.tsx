@@ -1,4 +1,4 @@
-import { allPayments, budgetFit, commitmentOf, dateIn, lineFor, linkToBudget, suggestedTasks, vendorKind, vendorShares, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, budgetFit, commitmentOf, dateIn, lineFor, linkToBudget, suggestedTasks, vendorKind, VENDOR_PAGE_NOTE, vendorShares, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
@@ -577,6 +577,11 @@ function Manage({
       ),
     ...booked.filter((v) => !v.contractSigned).map((v): Item => ({ key: `contract:${v.id}`, vendorId: v.id, text: `Sign ${v.name}’s contract`, tone: 'todo', action: { label: 'Lock in', run: () => onStep(4) } })),
     ...(toGo !== null && toGo <= 60 && !after ? booked.filter((v) => !v.arrival).map((v): Item => ({ key: `arrive:${v.id}`, vendorId: v.id, text: `When does ${v.name} arrive on the day?`, tone: 'todo', action: { label: 'Add it', run: () => open(v.id, 'checkin') } })) : []),
+    // A note a vendor left when confirming on their own page (the past week).
+    ...booked.flatMap((v): Item[] => {
+      const n = (v.log ?? []).find((x) => x.text.startsWith(`${VENDOR_PAGE_NOTE}: `) && x.on >= plus(today, -7));
+      return n ? [{ key: `pagenote:${v.id}:${n.id}`, vendorId: v.id, text: `${v.name} wrote from their page: ${n.text.slice(VENDOR_PAGE_NOTE.length + 2)}`, tone: 'soon', action: { label: 'Their notes', run: () => open(v.id, 'notes') } }] : [];
+    }),
     ...(checkInDue ? booked.filter((v) => !v.confirmedOn).map((v): Item => ({ key: `confirm:${v.id}`, vendorId: v.id, text: `Final check-in with ${v.name}`, tone: 'soon', action: { label: 'Write it', run: () => open(v.id, 'checkin') } })) : []),
     ...(after ? booked.filter((v) => !v.wrapped).map((v): Item => ({ key: `wrap:${v.id}`, vendorId: v.id, text: `Wrap up with ${v.name}: final balance, anything hired back, a thank-you or review`, tone: 'todo', action: { label: 'All done', run: () => onPatch(v.id, { wrapped: true }, `${v.name}: wrapped up ✓`) } })) : []),
   ];

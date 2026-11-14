@@ -1,4 +1,4 @@
-import { clockMinutes, dateIn, dropControls, guidesOf, isSerious, scheduleOf, vendorShares, zonedToUtc, type Vendor } from '@wp/shared';
+import { clockMinutes, dateIn, dropControls, guidesOf, isSerious, isVendorMoment, scheduleOf, VENDOR_PAGE_NOTE as FROM_PAGE, vendorShares, zonedToUtc, type Vendor } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -132,7 +132,8 @@ async function pageOf(db: D1Database, o: Opened) {
     event: ev ? { name: ev.name, startsAt: ev.starts_at, venue: ev.venue ?? '', address: ev.address ?? '' } : null,
     timezone: w.timezone,
     parking: [guide?.parking, guide?.parkDirections].filter((x): x is string => typeof x === 'string' && !!x.trim()).join(' '),
-    timeline: ((guide?.runsheet as { t: string; what: string; where: string }[] | undefined) ?? []).filter((r) => r.t || r.what),
+    // The day's timeline, with this vendor's own moments marked.
+    timeline: ((guide?.runsheet as { t: string; what: string; where: string }[] | undefined) ?? []).filter((r) => r.t || r.what).map((r) => ({ ...r, mine: isVendorMoment(v, `${r.what} ${r.where}`) })),
     guests: counts ? { coming: counts.coming, waiting: counts.waiting } : null,
     dietary: [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([diet, n]) => ({ diet, n, serious: isSerious(diet) })),
     meals,
@@ -290,7 +291,8 @@ export function vendorHubRoutes() {
       const v = d.list.find((x) => x.id === o.v.id);
       if (!v) return false;
       v.confirmedOn = today;
-      v.log = [...(v.log ?? []), { id: crypto.randomUUID(), on: today, kind: 'note' as const, text: note ? `Confirmed the details on their page: ${note}` : 'Confirmed the details on their page.' }].slice(-200);
+      // Newest first, as the planner keeps them.
+      v.log = [{ id: crypto.randomUUID(), on: today, kind: 'note' as const, text: note ? `${FROM_PAGE}: ${note}` : `${FROM_PAGE}.` }, ...(v.log ?? [])].slice(0, 200);
     });
     if (!ok) return c.json({ error: { code: 'busy', message: 'That didn’t save. Please try again.' } }, 409);
     return c.json({ ok: true, confirmedOn: today });

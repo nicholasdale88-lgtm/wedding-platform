@@ -390,7 +390,7 @@ describe('planner: wedding party', () => {
     const after = (await (await call('/doc/vendors')).json()) as { data: { list: { id: string; confirmedOn?: string; log?: { text: string }[] }[] } };
     const p = after.data.list.find((x) => x.id === 'pho')!;
     expect(p.confirmedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(p.log?.at(-1)?.text).toContain('power point');
+    expect(p.log?.[0]?.text).toContain('power point'); // newest first
     expect((await app.request(`${pho.replace(/[^/]+$/, 'x'.repeat(24))}/confirm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }, env, ctx)).status).toBe(404);
   });
 
