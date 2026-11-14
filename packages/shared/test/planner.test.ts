@@ -564,3 +564,12 @@ describe('vendor pages', () => {
     expect(vendorShares({ name: 'Night Owl DJs', category: 'DJ', shareSongs: false, shareSeating: true })).toEqual({ seating: true, songs: false });
   });
 });
+
+describe('wedding party roles', () => {
+  it('includes the parents of a bridesmaid and of a groomsman, each on their side', async () => {
+    const { PARTY_ROLES, sideOf } = await import('../src/planner');
+    expect(PARTY_ROLES.map((r) => r.role)).toEqual(expect.arrayContaining(['Parent of a bridesmaid', 'Parent of a groomsman']));
+    expect(sideOf('Parent of a bridesmaid')).toBe('p1');
+    expect(sideOf('parent of a groomsman')).toBe('p2');
+  });
+});
