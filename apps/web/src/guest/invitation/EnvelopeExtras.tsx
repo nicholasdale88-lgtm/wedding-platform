@@ -72,10 +72,12 @@ const rndP = (i: number, k: number) => {
   const x = Math.sin((i + 1) * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 };
+// Light and shade only (white and brown with their own transparency), so it lies on the envelope without
+// blending modes, which can't reach through to the envelope from this layer.
 const FELT = svg(
-  "<filter id='f' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='.62' numOctaves='4' seed='9' stitchTiles='stitch' result='n'/><feDiffuseLighting in='n' surfaceScale='1.7' lighting-color='#fff'><feDistantLight azimuth='225' elevation='52'/></feDiffuseLighting><feComponentTransfer><feFuncR type='linear' slope='1.5' intercept='-.72'/><feFuncG type='linear' slope='1.5' intercept='-.72'/><feFuncB type='linear' slope='1.5' intercept='-.72'/></feComponentTransfer></filter><rect width='100%' height='100%' filter='url(#f)'/>",
-  320,
-  320,
+  "<filter id='f' x='0' y='0' width='100%' height='100%' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='3' seed='9' stitchTiles='stitch' result='n'/><feDiffuseLighting in='n' surfaceScale='1.1' lighting-color='#fff' result='L'><feDistantLight azimuth='225' elevation='52'/></feDiffuseLighting><feColorMatrix in='L' type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 .97  2.6 0 0 0 -2.05' result='hi'/><feColorMatrix in='L' type='matrix' values='0 0 0 0 .22  0 0 0 0 .16  0 0 0 0 .1  -2.6 0 0 0 2.05' result='lo'/><feMerge><feMergeNode in='lo'/><feMergeNode in='hi'/></feMerge></filter><rect width='100%' height='100%' filter='url(#f)'/>",
+  240,
+  240,
 );
 const FIBRES = svg(
   Array.from({ length: 46 }, (_, i) => {
@@ -192,6 +194,13 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
             <filter id="dkShade" x="-5%" y="-5%" width="110%" height="115%">
               <feGaussianBlur stdDeviation="2.2" />
             </filter>
+            {/* The torn fringe fades into the real flap a little way in from its edge. */}
+            <filter id="dkSoftEdge">
+              <feGaussianBlur stdDeviation="5" />
+            </filter>
+            <mask id="dkEdge" maskUnits="userSpaceOnUse" x={-40} y={-40} width={vw + 80} height={vh + 80}>
+              <path d={`M-20 -20 L${(vw / 2).toFixed(1)} ${(vh * 0.56 + 6).toFixed(1)} L${vw + 20} -20`} fill="none" stroke="#fff" strokeWidth="26" filter="url(#dkSoftEdge)" />
+            </mask>
           </defs>
           {(() => {
             const tipY = vh * 0.56;
@@ -199,7 +208,7 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
             return (
               <>
                 <path d={fringe} fill="rgba(40,28,14,.28)" transform="translate(0 3)" filter="url(#dkShade)" style={{ mixBlendMode: 'multiply' }} />
-                <g filter="url(#dkTear)">
+                <g filter="url(#dkTear)" mask="url(#dkEdge)">
                   <path d={fringe} fill="url(#dkFlap)" />
                   <path d={`M-20 -20 L${(vw / 2).toFixed(1)} ${(tipY + 6).toFixed(1)} L${vw + 20} -20`} fill="none" stroke="rgba(255,252,244,.75)" strokeWidth="1.2" />
                 </g>
@@ -208,9 +217,9 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
           })()}
         </svg>
         {/* Cotton paper: the felted surface lit from the top left, fibres lying in it, a cloudiness through the sheet. */}
-        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', opacity: 0.75, background: FELT }} />
-        <div className="absolute inset-0" style={{ opacity: 0.6, background: FIBRES }} />
-        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', opacity: 0.55, background: CLOUD }} />
+        <div className="absolute inset-0" style={{ opacity: 0.38, background: FELT, WebkitMaskImage: hole, maskImage: hole }} />
+        <div className="absolute inset-0" style={{ opacity: 0.6, background: FIBRES, WebkitMaskImage: hole, maskImage: hole }} />
+        <div className="absolute inset-0" style={{ opacity: 0.35, background: CLOUD, WebkitMaskImage: hole, maskImage: hole }} />
         {/* Paper grain. */}
         <div
           className="absolute inset-0"
@@ -241,7 +250,6 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
               backfaceVisibility: 'hidden',
               clipPath: 'polygon(0 100%,100% 100%,50% 44%)',
               background: `${FELT}, ${linerBackground(liner, colours)}`,
-              backgroundBlendMode: 'soft-light, normal',
               boxShadow: 'inset 0 0 40px rgba(0,0,0,.18)',
             }}
           />
