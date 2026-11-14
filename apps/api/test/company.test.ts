@@ -337,18 +337,52 @@ describe('company portal', () => {
     const fb = (await (await call('/a/company/feedback', {}, boss.cookie)).json()) as { feedback: { text: string; status: string; page: string }[] };
     expect(fb.feedback[0]).toMatchObject({ text: 'Rivals now offer a QR code on printed save-the-dates', status: 'new', page: 'grok scout' });
   });
+  it('inbox: a bot posts drafts and reports; only a person decides; only everyday actions can be proposed', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const alex = await signup('Alex', 'alex@example.com');
+    const { key } = (await (await call('/a/company/bots', { method: 'POST', body: JSON.stringify({ name: 'Grok', role: 'support' }) }, boss.cookie)).json()) as { key: string };
+    const asBot = (path: string, init: RequestInit = {}) => call(path, { ...init, headers: { authorization: `Bearer ${key}` } });
+    const draft = { kind: 'approve', title: 'Reply to Alex about seating', body: 'They asked about bigger rooms.', action: { method: 'POST', path: '/feedback/abc-123/reply', body: { text: 'Hi Alex, coming soon!' } } };
+    const made = await asBot('/a/company/tasks', { method: 'POST', body: JSON.stringify(draft) });
+    expect(made.status).toBe(200);
+    const { id } = (await made.json()) as { id: string };
+    // Only the listed everyday actions, and a report never carries one.
+    for (const action of [{ method: 'POST', path: '/team/invite', body: {} }, { method: 'POST', path: '/weddings/../team/invite', body: {} }, { method: 'PUT', path: '/feedback/abc-123/reply', body: {} }]) {
+      expect((await asBot('/a/company/tasks', { method: 'POST', body: JSON.stringify({ ...draft, action }) })).status, action.path).toBe(400);
+    }
+    expect((await asBot('/a/company/tasks', { method: 'POST', body: JSON.stringify({ ...draft, kind: 'report' }) })).status).toBe(400);
+    expect((await asBot('/a/company/tasks', { method: 'POST', body: JSON.stringify({ kind: 'report', title: 'Weekly brief', body: '3 sign-ups' }) })).status).toBe(200);
+    // Everyone on the team sees what's waiting; couples don't.
+    const list = (await (await call('/a/company/tasks', {}, boss.cookie)).json()) as { tasks: { id: string; status: string; kind: string; action: { path: string } | null }[] };
+    expect(list.tasks).toHaveLength(2);
+    expect(list.tasks.find((x) => x.id === id)).toMatchObject({ status: 'waiting', kind: 'approve', action: { path: '/feedback/abc-123/reply' } });
+    expect((await call('/a/company/tasks', {}, alex.cookie)).status).toBe(403);
+    // A bot can't approve (its own or anyone's); a person can, once.
+    expect((await asBot(`/a/company/tasks/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'done' }) })).status).toBe(403);
+    expect((await call(`/a/company/tasks/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'done', result: 'Sent' }) }, boss.cookie)).status).toBe(200);
+    expect((await call(`/a/company/tasks/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'skipped' }) }, boss.cookie)).status).toBe(404);
+    const after = (await (await call('/a/company/tasks', {}, boss.cookie)).json()) as { tasks: { id: string; status: string }[] };
+    expect(after.tasks.find((x) => x.id === id)?.status).toBe('done');
+  });
   it('made roles: an owner makes a role with exactly the parts it reaches; a person with it sees just those; a role in use can’t be removed', async () => {
     const boss = await signup('Boss', 'boss@example.com');
-    const roles = [{ id: 'bookkeeper', name: 'Bookkeeper', does: 'The books', perms: ['money', 'activity', 'team'] }];
+    // A Bookkeeper sees Money but can't refund (a switch within Money, turned off for this role).
+    const roles = [{ id: 'bookkeeper', name: 'Bookkeeper', does: 'The books', perms: ['money', 'activity', 'team'], deny: ['money.refund'] }];
     const saved = (await (await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles }) }, boss.cookie)).json()) as { roles: { perms: string[] }[] };
     expect(saved.roles[0]!.perms).toEqual(['money', 'activity']); // never the team
     const r = (await (await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email: 'books@example.com', role: 'custom:bookkeeper' }) }, boss.cookie)).json()) as { link: string };
     const token = new URL(r.link).searchParams.get('t')!;
     const joined = await call(`/a/staff-join/${token}`, { method: 'POST', body: JSON.stringify({ passcode: 'long-enough-3', firstName: 'Bea' }) });
-    expect(((await joined.json()) as { user: { staff: string; perms: string[]; staffName: string } }).user).toMatchObject({ staff: 'custom:bookkeeper', perms: ['money', 'activity'], staffName: 'Bookkeeper' });
+    expect(((await joined.json()) as { user: { staff: string; perms: string[]; staffName: string } }).user).toMatchObject({ staff: 'custom:bookkeeper', perms: ['money', 'activity', 'money.paid', 'money.books'], staffName: 'Bookkeeper' });
     const bea = (joined.headers.get('set-cookie') ?? '').split(';')[0]!;
     expect((await call('/a/company/money', {}, bea)).status).toBe(200);
     expect((await call('/a/company/weddings', {}, bea)).status).toBe(403);
+    // Switched off within Money: no refunds (refused before anything else is looked at); the rest of Money works.
+    expect((await call('/a/company/weddings/any/refund', { method: 'POST', body: JSON.stringify({ cents: 100, reason: 'Test' }) }, bea)).status).toBe(403);
+    expect((await call('/a/company/money/expenses', { method: 'POST', body: JSON.stringify({ date: '2026-11-01', what: 'Domain', kind: 'domain', cents: 2400, gstCents: 0 }) }, bea)).status).not.toBe(403);
+    // An owner turns refunds back on: Bea can refund straight away (her next request), no new sign-in.
+    await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles: [{ ...roles[0], deny: [] }] }) }, boss.cookie);
+    expect((await call('/a/company/weddings/any/refund', { method: 'POST', body: JSON.stringify({ cents: 100, reason: 'Test' }) }, bea)).status).not.toBe(403);
     expect((await call('/a/company/roles', { method: 'PUT', body: JSON.stringify({ roles: [] }) }, boss.cookie)).status).toBe(400); // Bea still has it
     expect((await call('/a/company/team/invite', { method: 'POST', body: JSON.stringify({ email: 'x@example.com', role: 'custom:nope' }) }, boss.cookie)).status).toBe(400);
   });

@@ -13,13 +13,26 @@ export const COMPANY_HELP: HelpArticle[] = [
     title: 'Running the business in ten minutes a day',
     group: 'Start here',
     steps: [
-      'Open Overview each morning. To do at the top shows only what needs a person: plan requests waiting and new feedback. When it says “All done”, you are.',
+      'Open Overview each morning. “What needs you” at the top shows only what needs a person: plan requests waiting and new feedback. When it says “Nothing needs you right now”, you’re done.',
       'Under it, Goals shows this week’s paying weddings against the number needed, and each person’s and bot’s own target.',
-      'Ask the Assistant “Brief me on this week” for a one-page summary written from the real numbers. It drafts; you decide.',
+      'Charts and the assistant are folded away underneath. Open “Ask the assistant” → Brief me on this week for a one-page summary from the real numbers. The menu shows the everyday places; the rest are under More.',
       'Once a week: read Feedback, check Money & tax → Are we making money?, and approve what the bots have prepared.',
       'Let the app and the bots do the rest: card payments switch plans on by themselves, texts and reminders go on their own, and backups run twice a day.',
     ],
     also: 'daily routine start how to use tips overview brief morning what to do first',
+    go: { tab: 'overview' },
+  },
+  {
+    id: 'co-inbox',
+    title: 'Approving what the bots prepare',
+    group: 'Start here',
+    steps: [
+      'The bots post their drafts to the inbox at the top of Overview → What needs you: a reply to a couple, vendor invitations, a payment link, a refund.',
+      'Each card says what it is, who it’s from, and exactly what Approve will do.',
+      'Change any words in a draft, then tap Approve. It runs as you, so it shows in Activity under your name. Tap Skip if it shouldn’t happen.',
+      'Reports, like the weekly brief, only need Got it. What you decided this week folds away underneath.',
+    ],
+    also: 'inbox approve approval drafts bots grok yes skip waiting review sign off decide',
     go: { tab: 'overview' },
   },
   {
@@ -148,7 +161,7 @@ export const COMPANY_HELP: HelpArticle[] = [
     steps: [
       'Open Team → Invite someone: their email and a role. They get a link (good for a week, once) to set up their sign-in.',
       'Each role sees only its part of the portal. “What each role can do” lists them.',
-      'Make your own roles, like Bookkeeper with Money and Activity. Only owners can make owners.',
+      'Make your own roles under Your own roles: tick the parts it reaches, then untick anything within a part they shouldn’t do, like refunds or the marketing list. Give it to someone from the team list.',
       'Weekly targets: give each person and bot a weekly number. The team’s total shows against what the goal needs.',
     ],
     also: 'staff team member invite role permissions bookkeeper developer support marketing manager weekly targets remove',
@@ -233,7 +246,7 @@ export const COMPANY_HELP_PLACES: Record<string, string> = {
 };
 
 /** The company tour: the guides to play one after another for someone new to the portal. */
-export const COMPANY_HELP_TOUR = ['co-bestuse', 'co-connections', 'co-requests', 'co-feedback', 'co-promos', 'co-bots'];
+export const COMPANY_HELP_TOUR = ['co-bestuse', 'co-inbox', 'co-connections', 'co-requests', 'co-feedback', 'co-promos', 'co-bots'];
 
 export const COMPANY_HELP_SCENES: Record<string, HelpScene[]> = {
   'co-bestuse': [
@@ -242,6 +255,12 @@ export const COMPANY_HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Overview', 'Assistant'], tap: 'Brief me on this week', then: 'A one-page brief, from the real numbers' },
     { at: ['Feedback'], rows: ['Idea: bigger seating rooms', 'Problem: import a .csv'], tap: 'Planned', then: 'Couples see it’s coming ✓' },
     { at: ['Overview'], rows: ['Card payment · Essentials · $88', 'Backup ran 2:00pm ✓'], then: 'The rest runs by itself' },
+  ],
+  'co-inbox': [
+    { at: ['Overview', 'What needs you'], rows: ['Reply to Alex & Sam · from Grok', 'Invite 12 vendors · from Grok'], then: 'Drafts waiting for your yes' },
+    { at: ['Overview', 'What needs you'], rows: ['Approve: Emails this reply to the couple'], then: 'You see exactly what happens' },
+    { at: ['Overview', 'What needs you'], fields: [['The draft', 'Hi Alex, great idea! Seating rooms…']], tap: 'Approve', then: 'Sent, under your name ✓' },
+    { at: ['Overview', 'What needs you'], rows: ['Report · Weekly brief · from Grok'], tap: 'Got it', then: 'Decided this week (3)' },
   ],
   'co-connections': [
     { at: ['Settings', 'Connections'], rows: ['Card payments · not set', 'Email · not set', 'Texts · not set'], tap: 'Open Stripe', then: 'Stripe opens in a new tab' },
@@ -339,13 +358,23 @@ export const COMPANY_HELP_SAY: Record<string, HelpSay> = {
   'co-bestuse': {
     intro: 'Here’s how to run the business in about ten minutes a day.',
     steps: [
-      'Start each morning in Overview. The To do list shows only what needs a person. When it says all done, you are.',
+      'Start each morning in Overview. What needs you shows only what needs a person. When there’s nothing there, you’re done.',
       'Under it, Goals shows this week’s paying weddings against what you need, and everyone’s own target.',
-      'Ask the assistant to brief you on the week. It writes from the real numbers, and you decide what happens.',
+      'Charts and the assistant are folded away underneath. Open the assistant for a brief on the week. Everything else in the menu is under More.',
       'Once a week, read the feedback, check whether you’re making money, and approve what the bots have prepared.',
       'The rest runs by itself. Card payments switch plans on, texts go out, and backups run twice a day.',
     ],
     outro: 'That’s the routine. Short and steady.',
+  },
+  'co-inbox': {
+    intro: 'Here’s how to approve what the bots prepare.',
+    steps: [
+      'The bots post their drafts at the top of Overview, under what needs you. Replies, invitations, payment links, refunds.',
+      'Each card says what it is, who it’s from, and exactly what approve will do.',
+      'Change any words you like, then tap approve. It runs as you. Or tap skip if it shouldn’t happen.',
+      'Reports, like the weekly brief, just need got it.',
+    ],
+    outro: 'That’s it. A few taps a day.',
   },
   'co-connections': {
     intro: 'Here’s how to connect card payments, email and texts.',
@@ -444,7 +473,7 @@ export const COMPANY_HELP_SAY: Record<string, HelpSay> = {
     steps: [
       'Open Team, then invite someone, with their email and a role. They get a link to set up their sign-in.',
       'Each role sees only its own part of the portal.',
-      'You can make your own roles, like a bookkeeper who only sees money and activity.',
+      'Make your own roles. Tick the parts they reach, then untick anything they shouldn’t do, like refunds.',
       'Give each person and bot a weekly target, and see the total against what the goal needs.',
     ],
     outro: 'That’s it. Welcome to the team.',

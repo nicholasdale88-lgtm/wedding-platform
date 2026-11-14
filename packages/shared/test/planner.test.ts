@@ -249,7 +249,7 @@ describe('vendor items for the checklist', () => {
     // The paid deposit has no date, so it's left off; the rest are there.
     expect(items.map((i) => [i.kind, i.text, i.due, i.done])).toEqual([
       ['payment', 'Pay Bloom · balance ($800)', '2027-10-01', false],
-      ['contract', 'Sign Bloom’s contract', '', false],
+      ['contract', 'Keep Bloom’s signed contract', '', false],
       ['quote', 'Decide on Snap’s quote (it runs out)', '2027-02-01', false],
     ]);
   });

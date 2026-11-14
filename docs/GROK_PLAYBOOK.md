@@ -22,6 +22,8 @@ It never touches couples' wedding data, can't change the team, and is never an o
 | Ask for | Address | Role needed |
 |---|---|---|
 | The goals, this week's number and your own weekly target | `GET /goals` | any |
+| **Ask the owner for a yes, or report something** (the inbox) | `POST /tasks` `{kind, title, body, action?}` | any |
+| What's waiting in the inbox, and what was decided this week | `GET /tasks` | any |
 | Reply to whoever sent a piece of feedback (by email, from the support address) | `POST /feedback/<id>/reply` `{text}` | Support, Developer, Manager |
 | Refund a couple (card refunds go through Stripe; bots up to $98 and 3 a day) | `POST /weddings/<address>/refund` `{cents, reason, downgrade}` | Manager (Money) |
 | Add an idea or a problem to Feedback (it lands as New, with your source) | `POST /ideas` `{kind: "idea"|"problem", text, source}` | Developer, Support, Marketing, Manager |
@@ -40,6 +42,27 @@ It never touches couples' wedding data, can't change the team, and is never an o
 | Activity log | `GET /activity` | Manager |
 
 All amounts are in cents (8800 = $88). Dates are `yyyy-mm-dd`.
+
+## The inbox: how a bot asks for a yes
+
+Never send drafts to the owner in a chat. Post them to the inbox. They show at the top of Company portal → Overview → What needs you, and the owner taps Approve or Skip.
+
+- **Something that needs a yes:** `POST /tasks` with `{"kind": "approve", "title": "Reply to Alex & Sam about seating", "body": "Why, in a line or two", "action": {"method": "POST", "path": "/feedback/<id>/reply", "body": {"text": "The draft reply"}}}`. When the action has a `text`, the owner can change the words before approving. Approve runs the action **as the owner**, so it is logged under their name.
+- **Just so they know:** `{"kind": "report", "title": "Weekly brief", "body": "…"}`. The owner taps Got it.
+- **Actions that can be proposed:**
+  - `POST /weddings/<address>/send-link`
+  - `POST /weddings/<address>/paid`
+  - `POST /weddings/<address>/refund`
+  - `POST /feedback/<id>/reply`
+  - `PUT /feedback/<id>`
+  - `PUT /banner`
+  - `PUT /listings/<id>`
+  - `POST /listings/<id>/code`
+  - `POST /prospects/invite`
+  - `POST /money/expenses`
+
+  Anything else is refused.
+- A bot can't approve its own task, or anyone's. At most 30 of a bot's tasks can wait at once. Before posting, check `GET /tasks` so you don't ask twice.
 
 ## The mission every bot works towards
 
@@ -81,7 +104,7 @@ The bots never spend money, change prices or send offers without your OK.
 
 The aim is for you to check one Monday brief and approve a few things a week. Each bot is set to one of three levels:
 - **Auto:** it just does the job.
-- **Approve:** it prepares the job and you say yes.
+- **Approve:** it prepares the job as an inbox task (`POST /tasks`), and you say yes in Overview → What needs you.
 - **Report:** it only tells you.
 
 | Bot | Key role | Runs | Level | Does |
@@ -117,7 +140,7 @@ The aim is for you to check one Monday brief and approve a few things a week. Ea
 > Read /stats, /money and /feedback. Write me a one-page brief: sign-ups and paid weddings last week vs the week before, revenue, profit this month vs break-even, plan requests waiting, new feedback, and the three things I should do this week. Don't change anything.
 
 **Bookings manager (Support key), every day 9am**
-> Read /weddings?requests=1. For each plan request without a link sent, call send-link. For any link sent more than 3 days ago with no payment, tell me who to follow up. Never mark anything paid.
+> Read /weddings?requests=1. For each plan request without a link sent, call send-link. For any link sent more than 3 days ago with no payment, post one report task (`kind: "report"`) listing who to follow up. Never mark anything paid.
 
 **IT support (Developer key), every day 7am**
 > Check that the site loads, that /stats answers, and that today's GitHub Actions runs (CI, and the 2am/2pm backup) passed: https://github.com/nicholasdale88-lgtm/wedding-platform/actions. If anything is red, tell me what failed in plain words. Don't change code.
@@ -126,7 +149,7 @@ The aim is for you to check one Monday brief and approve a few things a week. Ea
 > Read /feedback. Group the new items into themes. Pick the top three by how many couples asked and how much they'd lift sales. For each, assign it to the developer, move it to planned, and write a one-line note couples will see under "Coming from your feedback".
 
 **Marketing team (Marketing key), Monday and Thursday**
-> Using docs/MARKETING_LAUNCH.md, write three short posts (Instagram/TikTok caption, Facebook post, Pinterest pin) about one feature, with the campaign link `?ref=<platform>` and the current promo code from /promos. Send them to me to post. Change the banner only if I've approved an offer.
+> Using docs/MARKETING_LAUNCH.md, write three short posts (Instagram/TikTok caption, Facebook post, Pinterest pin) about one feature, with the campaign link `?ref=<platform>` and the current promo code from /promos. Post them as one report task, titled "Posts for this week", with each post in the body. To change the banner, post an approve task with the action `PUT /banner`.
 
 **Accounts (Manager key), the 1st of each month**
 > From /money: last month's sales, card fees, running costs, expenses and profit; what to move to the tax savings account; whether sales in the last 12 months are near $75,000 (GST). Remind me of the BAS due dates if I'm registered.
@@ -135,7 +158,7 @@ The aim is for you to check one Monday brief and approve a few things a week. Ea
 > Check the prices and new features of other online wedding invitation and RSVP services sold in Australia (for example wooowinvites.com, wedvite.net, Paperless Post, Greenvelope). Report changes in a table: name, price in AUD, what's included, anything they do that we don't. Don't copy their wording or designs.
 
 **Sales team (Marketing key), every Tuesday**
-> Find 20 celebrants, small venues, planners and photographers in one region that publish a business email for enquiries. For each: name, business, email, website, why they'd like us. Draft a short, friendly email from the founder offering their couples 10% off with a partner code and a free Deluxe for their own events. Send me the list and drafts. I'll approve before anything goes out.
+> Find 20 celebrants, small venues, planners and photographers in one region that publish a business email for enquiries. For each: name, business, email, website, why they'd like us. Draft a short, friendly email from the founder offering their couples 10% off with a partner code and a free Deluxe for their own events. Add them with `PUT /prospects`, then post one approve task with the action `POST /prospects/invite` `{"ids": [...]}` (their ids from `GET /prospects`) and the drafts in the body. Nothing goes out until I approve.
 
 ## Keeping the site ahead (the evolution loop)
 

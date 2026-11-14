@@ -747,3 +747,18 @@ export const trialBooking = sqliteTable('trial_booking', {
   weddingDate: text('wedding_date').notNull().default(''),
   news: integer('news').notNull().default(0),
 });
+
+/** The company portal's inbox: bot drafts and reports waiting for a person (migrations/0048). */
+export const companyTask = sqliteTable('company_task', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull().default('approve'),
+  title: text('title').notNull(),
+  body: text('body').notNull().default(''),
+  action: text('action').notNull().default(''),
+  createdBy: text('created_by').notNull(),
+  status: text('status').notNull().default('waiting'),
+  result: text('result').notNull().default(''),
+  createdAt: text('created_at').notNull(),
+  decidedAt: text('decided_at'),
+  decidedBy: text('decided_by'),
+});

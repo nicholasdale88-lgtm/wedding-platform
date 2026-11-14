@@ -104,6 +104,30 @@ export const STAFF_INFO: Record<StaffRole, { name: string; does: string }> = {
   marketing: { name: 'Marketing', does: 'Promo codes, the front-page banner, campaign links, the marketing list and vendors.' },
 };
 export const staffCan = (role: StaffRole | null | undefined, perm: StaffPerm) => !!role && STAFF_CAN[role].includes(perm);
+
+/**
+ * The things within a part of the portal that a made role can be kept from: a Bookkeeper who sees Money but
+ * can't refund, a helper on Couples who can't email payment links. Each needs its part; having the part
+ * gives all of them unless the role switches one off (CustomRole.deny). Built-in roles have all of theirs.
+ */
+export const STAFF_ABILITIES = {
+  'couples.links': { area: 'couples', label: 'Email payment links' },
+  'money.paid': { area: 'money', label: 'Mark paid and change plans' },
+  'money.refund': { area: 'money', label: 'Refund couples' },
+  'money.books': { area: 'money', label: 'Add expenses, change tax settings and targets' },
+  'feedback.reply': { area: 'feedback', label: 'Email couples a reply' },
+  'promote.codes': { area: 'promote', label: 'Change promo codes and the banner' },
+  'promote.list': { area: 'promote', label: 'Download the marketing list' },
+  'vendors.invite': { area: 'vendors', label: 'Email vendors invitations and give partner codes' },
+} as const satisfies Record<string, { area: StaffPerm; label: string }>;
+export type StaffAbility = keyof typeof STAFF_ABILITIES;
+export const STAFF_ABILITY_KEYS = Object.keys(STAFF_ABILITIES) as StaffAbility[];
+/** A part of the portal, or one thing within it. */
+export type StaffAccess = StaffPerm | StaffAbility;
+/** The parts given, plus every thing within them that isn't switched off. */
+export function withAbilities(areas: readonly StaffPerm[], deny: readonly string[] = []): StaffAccess[] {
+  return [...areas, ...STAFF_ABILITY_KEYS.filter((a) => areas.includes(STAFF_ABILITIES[a].area) && !deny.includes(a))];
+}
 /** A role: a built-in one (owner, manager…) or one the owners made ('custom:<id>'). */
 export const StaffInviteIn = z.object({ email: z.string().trim().toLowerCase().email().max(200), role: z.string().trim().max(60) }).strict();
 
@@ -226,17 +250,19 @@ export const CustomRole = z.object({
   name: z.string().trim().min(1).max(40),
   does: z.string().trim().max(200).default(''),
   perms: z.array(z.enum(STAFF_PERMS)).max(STAFF_PERMS.length).default([]),
+  /** Things within its parts this role can't do (see STAFF_ABILITIES). */
+  deny: z.array(z.enum(STAFF_ABILITY_KEYS as [StaffAbility, ...StaffAbility[]])).max(20).default([]),
 });
 export type CustomRole = z.infer<typeof CustomRole>;
 export const CustomRoles = z.object({ roles: z.array(CustomRole).max(20).default([]) });
 export const isBuiltInRole = (role: string): role is StaffRole => (STAFF_ROLES as readonly string[]).includes(role);
 
 /** What a role reaches: a built-in role's set, or a made role's (never the team). */
-export function staffPermsOf(role: string | null | undefined, custom: readonly CustomRole[]): StaffPerm[] {
+export function staffPermsOf(role: string | null | undefined, custom: readonly CustomRole[]): StaffAccess[] {
   if (!role) return [];
-  if (isBuiltInRole(role)) return [...STAFF_CAN[role]];
+  if (isBuiltInRole(role)) return withAbilities(STAFF_CAN[role]);
   const made = role.startsWith('custom:') ? custom.find((r) => `custom:${r.id}` === role) : undefined;
-  return made ? made.perms.filter((p) => p !== 'team') : [];
+  return made ? withAbilities(made.perms.filter((p) => p !== 'team'), made.deny ?? []) : [];
 }
 /** A role's name for people: "Manager", or a made role's own name. */
 export function roleName(role: string | null | undefined, custom: readonly CustomRole[]): string {

@@ -6,7 +6,7 @@ import type { Env } from '../env';
 import { hashPasscode, newSessionToken, passcodeProblem, SESSION_COOKIE, SESSION_DAYS, sessionId, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { buttonEmail, emailReady, sendEmail } from '../lib/email';
-import { CustomRoles, isBuiltInRole, staffPermsOf, roleName, type CustomRole, type StaffPerm } from '@wp/shared';
+import { CustomRoles, isBuiltInRole, staffPermsOf, roleName, type CustomRole, type StaffAccess } from '@wp/shared';
 
 export type Role = 'owner' | 'editor' | 'viewer';
 export interface SessionUser {
@@ -17,7 +17,9 @@ export interface SessionUser {
   /** Their role in the company portal, if they work on the app: a built-in one, or 'custom:<id>'. */
   staff: string | null;
   /** What that role reaches in the portal. */
-  perms: StaffPerm[];
+  perms: StaffAccess[];
+  /** Signed in with a bot key (Team → Bots), not a person. */
+  bot?: boolean;
 }
 export type AdminEnv = { Bindings: Env; Variables: { user: SessionUser; role: Role } };
 
@@ -74,7 +76,7 @@ async function botUser(c: Context<AdminEnv>): Promise<SessionUser | null> {
   // A bot is never an owner: it can't change the team or its own key.
   const staff = row.role && row.role !== 'owner' && (isBuiltInRole(row.role) || row.role.startsWith('custom:')) ? row.role : null;
   const perms = staffPermsOf(staff, staff?.startsWith('custom:') ? await customRoles(c.env.DB) : []).filter((x) => x !== 'team');
-  return { id: row.user_id, email: row.email, staff, perms, superAdmin: false };
+  return { id: row.user_id, email: row.email, staff, perms, superAdmin: false, bot: true };
 }
 
 export const requireUser: MiddlewareHandler<AdminEnv> = async (c, next) => {

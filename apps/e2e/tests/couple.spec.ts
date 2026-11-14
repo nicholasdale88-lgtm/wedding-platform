@@ -202,3 +202,26 @@ test('a band or DJ opens their own page: the song list, their live calendar link
   await expect(v.getByText(/You confirmed these details on/)).toBeVisible();
   await vendor.close();
 });
+
+test('vendor meals on the day: plus and minus, and typing a new number never snaps back to 0', async ({ page }) => {
+  const booked = await page.request.put(`/api/a/w/${wid}/planner/doc/vendors`, { headers: { 'If-Match': '0' }, data: { list: [{ id: 'cat', name: 'Feast Co', category: 'Caterer', status: 'booked' }] } });
+  expect(booked.status(), await booked.text()).toBe(200);
+  await page.goto(`/admin/${wid}/wedding/planner?view=vendors`);
+  await page.getByRole('button', { name: /Lock in/ }).first().click();
+  const meals = page.getByLabel('Meals for Feast Co’s team');
+  await expect(meals).toHaveValue('0');
+  await page.getByRole('button', { name: 'One more meal for Feast Co' }).click();
+  await page.getByRole('button', { name: 'One more meal for Feast Co' }).click();
+  await expect(meals).toHaveValue('2');
+  // Clear it and type a new number: it stays empty while typing, then saves.
+  await meals.fill('');
+  await expect(meals).toHaveValue('');
+  await meals.fill('6');
+  await meals.press('Enter');
+  await expect(meals).toHaveValue('6');
+  await expect(page.getByText(/Vendor meals on the day: 6 meals/)).toBeVisible();
+  // Kept after a reload.
+  await page.reload();
+  await page.getByRole('button', { name: /Lock in/ }).first().click();
+  await expect(page.getByLabel('Meals for Feast Co’s team')).toHaveValue('6');
+});
