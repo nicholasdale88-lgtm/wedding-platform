@@ -10,7 +10,7 @@ import { readJson } from '../lib/security';
 import { mainAccountOf } from './accounts';
 import { customRoles, jsonWritesOnly, requireMember, requireUser, signIn, superAdmins, type AdminEnv } from './auth';
 import { applyPurchase } from './billing';
-import { CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
+import { CONNECTION_CHOICES, CONNECTION_KEYS, connectionStatus, saveConnections } from '../lib/connections';
 import { PLANS } from './signup';
 import { recordError, recordHit, traffic } from '../lib/stats';
 
@@ -532,12 +532,20 @@ export function companyRoutes() {
   /** The site's connections (owners only): which services are set up, never the keys themselves. */
   app.get('/connections', async (c) => {
     if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can see the connections.');
-    return c.json({ status: await connectionStatus(c.env), redirectUri: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/oauth/callback`, stripeHook: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/hooks/stripe` });
+    const status = await connectionStatus(c.env);
+    const env = c.env as unknown as Record<string, string | undefined>;
+    // The list settings (not secrets) are shown as they are, so the portal can show what's picked.
+    const choices = Object.fromEntries(Object.keys(CONNECTION_CHOICES).map((k) => [k, (env[k] ?? '').trim().toLowerCase()]));
+    return c.json({ status, choices, redirectUri: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/oauth/callback`, stripeHook: `${c.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/hooks/stripe` });
   });
   app.put('/connections', async (c) => {
     if (c.get('user').staff !== 'owner') return err(c, 403, 'forbidden', 'Only an owner can change the connections.');
     const b = z.record(z.enum(CONNECTION_KEYS), z.string().max(400)).safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Please check what you pasted.');
+    for (const [k, v] of Object.entries(b.data)) {
+      const allowed = CONNECTION_CHOICES[k as keyof typeof CONNECTION_CHOICES];
+      if (allowed && !allowed.includes(v.trim().toLowerCase())) return err(c, 400, 'invalid', 'Please pick one of the choices.');
+    }
     if (!c.env.SESSION_SECRET) return err(c, 400, 'invalid', 'Sign-in isn’t set up.');
     await saveConnections(c.env, b.data);
     await logCompany(c, 'company.connections', Object.keys(b.data).join(', '), {});

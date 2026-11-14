@@ -1,11 +1,23 @@
 import type { Env } from '../env';
+import { sendSes } from './ses';
 
 /**
- * Email, through Resend (resend.com; free for 3,000 a month). On when RESEND_API_KEY and EMAIL_FROM
- * ("Your wedding <hello@your-domain>", a domain verified in Resend) are set; until then nothing is sent
- * and the admin offers the link to copy or text instead.
+ * Email, through Resend (resend.com; free for 3,000 a month) or, with EMAIL_PROVIDER=ses, Amazon SES (the
+ * cheaper sender at volume: docs/GROWTH_PLAN.md → Email). On when the chosen provider's keys and EMAIL_FROM
+ * ("Your wedding <hello@your-domain>", a domain verified with that provider) are set; until then nothing is
+ * sent and the admin offers the link to copy or text instead.
  */
-export const emailReady = (env: Env) => !!(env.RESEND_API_KEY && env.EMAIL_FROM);
+export type EmailProvider = 'resend' | 'ses';
+export const emailProvider = (env: Env): EmailProvider => ((env.EMAIL_PROVIDER ?? '').trim().toLowerCase() === 'ses' ? 'ses' : 'resend');
+
+const sesReady = (env: Env) => !!(env.AWS_SES_ACCESS_KEY_ID && env.AWS_SES_SECRET_ACCESS_KEY && env.AWS_SES_REGION);
+export const emailReady = (env: Env) => !!env.EMAIL_FROM && (emailProvider(env) === 'ses' ? sesReady(env) : !!env.RESEND_API_KEY);
+
+/**
+ * True on a sender with no shared daily limit: SES, or Resend with EMAIL_PLAN=paid. On Resend's free plan
+ * the 100 a day is shared by every wedding, so each wedding gets a small share (lib/weddingMail.ts).
+ */
+export const emailPaid = (env: Env) => emailProvider(env) === 'ses' || (env.EMAIL_PLAN ?? '').trim().toLowerCase() === 'paid';
 
 const ENTITY: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ENTITY[ch] ?? ch);
@@ -39,8 +51,8 @@ export const plainHtml = (text: string) =>
   `<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#222">${esc(text).replace(/\r?\n/g, '<br>')}</div>`;
 
 /**
- * Sends one email; true when Resend took it. Never throws (the caller still has the link to share).
- * `from` is the site's EMAIL_FROM unless given (a couple's own address on a domain verified in Resend);
+ * Sends one email; true when the provider took it. Never throws (the caller still has the link to share).
+ * `from` is the site's EMAIL_FROM unless given (a couple's own address on the verified domain);
  * `headers` carries In-Reply-To so replies stay in the same conversation.
  */
 export async function sendEmail(
@@ -49,6 +61,12 @@ export async function sendEmail(
 ): Promise<boolean> {
   if (!emailReady(env)) return false;
   try {
+    if (emailProvider(env) === 'ses') {
+      return await sendSes(
+        { accessKeyId: env.AWS_SES_ACCESS_KEY_ID!, secretAccessKey: env.AWS_SES_SECRET_ACCESS_KEY!, region: env.AWS_SES_REGION! },
+        { from: m.from ?? env.EMAIL_FROM!, to: m.to, subject: m.subject, text: m.text, html: m.html, replyTo: m.replyTo, headers: m.headers },
+      );
+    }
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },

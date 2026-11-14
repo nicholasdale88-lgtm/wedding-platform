@@ -2005,7 +2005,7 @@ function DraftReply({ id }: { id: string }) {
 }
 
 /** Each outside service the site uses: what it's for, where to get its keys, and a box to paste them. */
-const SERVICES: { id: string; name: string; does: string; open: string; openLabel: string; steps: string[]; keys: [key: string, label: string, secret: boolean][]; copy?: 'redirect' | 'hook' }[] = [
+const SERVICES: { id: string; name: string; does: string; open: string; openLabel: string; steps: string[]; keys: [key: string, label: string, secret: boolean, choices?: [value: string, label: string][]][]; copy?: 'redirect' | 'hook' }[] = [
   {
     id: 'google',
     name: 'Google Drive and Google Photos',
@@ -2055,11 +2055,51 @@ const SERVICES: { id: string; name: string; does: string; open: string; openLabe
     does: 'Sign-in links, payment links, and every wedding’s own email address. Free for 3,000 emails a month.',
     open: 'https://resend.com/api-keys',
     openLabel: 'Open Resend',
-    steps: ['Add and verify your domain in Resend.', 'Create an API key and paste it with the From address, e.g. The Yes List <hello@your-domain>.'],
+    steps: [
+      'Add and verify your domain in Resend.',
+      'Create an API key and paste it with the From address, e.g. The Yes List <hello@your-domain>.',
+      'Moved to a paid Resend plan? Pick it below so each wedding can send a whole invitation round in one day.',
+    ],
     keys: [
       ['RESEND_API_KEY', 'API key', true],
       ['EMAIL_FROM', 'From address', false],
       ['INBOX_DOMAIN', 'Domain for wedding addresses', false],
+      [
+        'EMAIL_PLAN',
+        'Resend plan',
+        false,
+        [
+          ['', 'Free: 40 emails a wedding a day (the 100 a day is shared)'],
+          ['paid', 'Paid: 500 emails a wedding a day'],
+        ],
+      ],
+    ],
+  },
+  {
+    id: 'ses',
+    name: 'Email at volume (Amazon SES, optional)',
+    does: 'The cheaper sender once you send more than about 50,000 emails a month (about US$0.10 per 1,000). Uses the From address and domain above.',
+    open: 'https://console.aws.amazon.com/ses/home',
+    openLabel: 'Open Amazon SES',
+    steps: [
+      'In SES, add your domain as a verified identity (it shows DNS records: add them in Cloudflare).',
+      'Request production access (AWS reviews it, usually in a day or two). Until then SES only sends to addresses you verified.',
+      'In IAM, create a user allowed only ses:SendEmail, make an access key, and paste it with the region (e.g. ap-southeast-2 for Sydney).',
+      'When it’s approved, switch “Send email through” to Amazon SES. Switch back to Resend at any time.',
+    ],
+    keys: [
+      ['AWS_SES_ACCESS_KEY_ID', 'Access key ID', false],
+      ['AWS_SES_SECRET_ACCESS_KEY', 'Secret access key', true],
+      ['AWS_SES_REGION', 'Region', false],
+      [
+        'EMAIL_PROVIDER',
+        'Send email through',
+        false,
+        [
+          ['', 'Resend'],
+          ['ses', 'Amazon SES'],
+        ],
+      ],
     ],
   },
   {
@@ -2103,7 +2143,8 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
       <H sub="Paste each service’s keys here once: kept encrypted, never shown again, and working straight away. Only owners see this.">Connections</H>
       {SERVICES.map((s) => {
         const states = s.keys.map(([k]) => data.status[k] ?? '');
-        const on = states.every(Boolean);
+        // A choice is never needed for "Connected": its first option (no value) is the default.
+        const on = s.keys.every(([, , , choices], i) => !!choices || !!states[i]);
         const copy = s.copy === 'redirect' ? data.redirectUri : s.copy === 'hook' ? data.stripeHook : '';
         return (
           <div key={s.id} className="flex flex-col gap-2 p-3 rounded-[12px] border border-[#ecdcd2]">
@@ -2129,10 +2170,20 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
                     {s.copy === 'hook' ? 'Webhook address' : 'Return address'}: <code className="break-all select-all bg-[#fbf5f0] px-1 rounded">{copy}</code>
                   </span>
                 )}
-                {s.keys.map(([k, label, secret], i) => (
+                {s.keys.map(([k, label, secret, choices], i) => (
                   <label key={k} className="flex flex-col gap-1 text-[13px] text-[#6e6068]">
                     {label}
-                    {states[i] === 'deploy' ? (
+                    {states[i] === 'deploy' && choices ? (
+                      <span className="text-[14px] text-[#2a1c26]">{choices.find(([v]) => v === (data.choices?.[k] ?? ''))?.[1] ?? data.choices?.[k]} (set in GitHub)</span>
+                    ) : choices ? (
+                      <select value={vals[k] ?? data.choices?.[k] ?? ''} onChange={(e) => setVals({ ...vals, [k]: e.target.value })} className={input}>
+                        {choices.map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    ) : states[i] === 'deploy' ? (
                       <span className="text-[14px] text-[#2a1c26]">Set in GitHub</span>
                     ) : (
                       <input
@@ -2146,7 +2197,7 @@ function Connections({ onNote }: { onNote: (s: string) => void }) {
                     )}
                   </label>
                 ))}
-                <button type="button" className={`${primary} self-start`} disabled={!s.keys.some(([k]) => vals[k])} onClick={() => void save(s.keys.map(([k]) => k))}>
+                <button type="button" className={`${primary} self-start`} disabled={!s.keys.some(([k, , , ch]) => vals[k] !== undefined && (vals[k] !== '' || !!ch))} onClick={() => void save(s.keys.map(([k]) => k))}>
                   Save
                 </button>
               </div>

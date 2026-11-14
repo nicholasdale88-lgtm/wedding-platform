@@ -35,14 +35,14 @@ Rough monthly cost by size:
 
 ### Things to do at each stage
 - **Now (before launch):** send from a subdomain such as `mail.<your domain>`, and add SPF, DKIM and DMARC records in Cloudflare. Every wedding sends from your one domain, so if one couple's emails get flagged as spam, every couple's emails can start landing in junk. The subdomain keeps your main domain's reputation separate.
-- **Stage B (paid Resend):** raise the per-wedding daily cap, which exists only because the free plan is shared. *To build:* the cap rises automatically when a paid plan is set.
+- **Stage B (paid Resend):** raise the per-wedding daily cap, which exists only because the free plan is shared. **Built:** Company portal → Settings → Connections → Email → *Resend plan: Paid* raises it from 40 to 500 a wedding a day, straight away.
 - **Stage C:** move outgoing mail to Amazon SES. This needs:
   - an AWS account
   - a request to leave the SES "sandbox" (AWS reviews it, usually in a day or two)
   - the domain verified in SES (DNS records in Cloudflare)
   - bounce and complaint reports sent back to the app, so it stops emailing bad addresses
 
-  *To build:* make the email provider a setting, so the move is only a matter of adding keys.
+  **Built:** Connections → *Email at volume (Amazon SES)*. Paste the keys and region, then set *Send email through: Amazon SES* once AWS approves production access. It can be switched back to Resend at any time. On SES the cap is 500 a wedding a day.
 - **Stage D:** think about a dedicated sending IP (SES offers one for about US$25/month), and watch bounce and complaint rates weekly in the Company portal.
 
 ### A premium extra: the couple's own domain

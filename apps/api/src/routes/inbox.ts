@@ -7,7 +7,7 @@ import { answerGuestEmail } from '../mail/campaigns';
 import { buttonEmail, emailReady, plainHtml, sendEmail } from '../lib/email';
 import { MAX_PLANNER_FILE, readJson, safeJson } from '../lib/security';
 import {
-  addressFree, CAP_MESSAGE, copyRecipients, ensureAddress, inboxDomain, mailLeft, MAIL_PER_DAY, readInbox, readReplyAddress, replyAddress, saveInbox, sendCopies, senderOf, stripQuoted, takeMail,
+  addressFree, capMessage, copyRecipients, ensureAddress, inboxDomain, mailLeft, mailPerDay, readInbox, readReplyAddress, replyAddress, saveInbox, sendCopies, senderOf, stripQuoted, takeMail,
 } from '../lib/weddingMail';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { keepDocument } from '../photos/store';
@@ -100,7 +100,7 @@ async function sendOut(env: Env, weddingId: string, address: string, o: Outgoing
   const failed: string[] = [];
   let capped = false;
   for (const to of o.to) {
-    if (capped || !(await takeMail(env.DB, weddingId))) {
+    if (capped || !(await takeMail(env, weddingId))) {
       capped = true;
       failed.push(to);
       continue;
@@ -319,8 +319,8 @@ export function inboxRoutes() {
       // Viewers can read, not send.
       canWrite: c.get('role') !== 'viewer',
       replyByEmail: emailReady(c.env) && !!(await replyAddress(c.env, crypto.randomUUID())),
-      left: await mailLeft(db, wid(c)),
-      perDay: MAIL_PER_DAY,
+      left: await mailLeft(c.env, wid(c)),
+      perDay: mailPerDay(c.env),
       copies: results.map((r) => ({ id: r.id, email: r.email, name: r.name ?? '', role: r.role, on: chosen.has(r.id) })),
     });
   });
@@ -339,7 +339,7 @@ export function inboxRoutes() {
   /** "Email everyone their invitation": who has an email and hasn't had it yet, and who has no email. */
   app.get('/invitations', async (c) => {
     const list = await invitationList(c);
-    return c.json({ ready: list.ready.length, already: list.already, without: list.without, left: await mailLeft(c.env.DB, wid(c)), canSend: emailReady(c.env) && !!(await address(c)) });
+    return c.json({ ready: list.ready.length, already: list.already, without: list.without, left: await mailLeft(c.env, wid(c)), canSend: emailReady(c.env) && !!(await address(c)) });
   });
 
   /**
@@ -385,7 +385,7 @@ export function inboxRoutes() {
       left,
       without: list.without,
       already: list.already,
-      ...(capped ? { message: `Sent ${sent}. ${CAP_MESSAGE} Press “Email everyone” again tomorrow to send the other ${left}.` } : {}),
+      ...(capped ? { message: `Sent ${sent}. ${capMessage(c.env)} Press “Email everyone” again tomorrow to send the other ${left}.` } : {}),
     });
   });
 
@@ -449,8 +449,8 @@ export function inboxRoutes() {
     to.delete(addr);
     if (!to.size) return err(c, 400, 'no_one', skipped.length ? `${skipped.join(', ')} ${skipped.length === 1 ? 'has' : 'have'} no email address yet.` : 'Add who it’s to.');
     if (to.size > 20) return err(c, 400, 'too_many', 'Up to 20 people at a time. For every guest, use “Email everyone their invitation”.');
-    const left = await mailLeft(db, wid(c));
-    if (to.size > left) return err(c, 429, 'daily_cap', left ? `You can send ${left} more email${left === 1 ? '' : 's'} today. Send to fewer people, or the rest tomorrow.` : CAP_MESSAGE);
+    const left = await mailLeft(c.env, wid(c));
+    if (to.size > left) return err(c, 429, 'daily_cap', left ? `You can send ${left} more email${left === 1 ? '' : 's'} today. Send to fewer people, or the rest tomorrow.` : capMessage(c.env));
 
     const subject = d.subject || (orig ? (/^re:/i.test(orig.subject) ? orig.subject : `Re: ${orig.subject}`) : '(no subject)');
     // Sorted like the inbox: what it answers, who was chosen, or by the first address.
@@ -474,9 +474,9 @@ export function inboxRoutes() {
       vendorId = 'vendor' in s && s.vendor ? s.vendor.id : null;
     }
     const r = await sendOut(c.env, wid(c), addr, { to: [...to], subject, text: d.body, kind, invitationId, vendorId, inReplyTo: orig ? { id: orig.id, messageId: orig.message_id } : null });
-    if (!r.sent) return err(c, 400, 'not_sent', r.capped ? CAP_MESSAGE : 'That didn’t send. Please try again in a minute.');
+    if (!r.sent) return err(c, 400, 'not_sent', r.capped ? capMessage(c.env) : 'That didn’t send. Please try again in a minute.');
     if (orig) await db.prepare(`UPDATE inbox_email SET read_at = COALESCE(read_at, ?) WHERE id = ?`).bind(new Date().toISOString(), orig.id).run();
-    return c.json({ sent: r.sent, failed: r.failed, skipped, left: await mailLeft(db, wid(c)) });
+    return c.json({ sent: r.sent, failed: r.failed, skipped, left: await mailLeft(c.env, wid(c)) });
   });
 
   app.get('/:id', async (c) => {

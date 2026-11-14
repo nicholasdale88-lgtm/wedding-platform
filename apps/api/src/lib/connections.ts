@@ -18,9 +18,20 @@ export const CONNECTION_KEYS = [
   'RESEND_API_KEY',
   'EMAIL_FROM',
   'INBOX_DOMAIN',
+  'EMAIL_PLAN',
+  'EMAIL_PROVIDER',
+  'AWS_SES_ACCESS_KEY_ID',
+  'AWS_SES_SECRET_ACCESS_KEY',
+  'AWS_SES_REGION',
   'MM_USER',
   'MM_PASS',
 ] as const;
+
+/** Settings picked from a list, not secrets: their values are shown in the portal, and only these values are kept. */
+export const CONNECTION_CHOICES: Partial<Record<(typeof CONNECTION_KEYS)[number], readonly string[]>> = {
+  EMAIL_PLAN: ['', 'paid'],
+  EMAIL_PROVIDER: ['', 'ses'],
+};
 export type ConnectionKey = (typeof CONNECTION_KEYS)[number];
 type Stored = Partial<Record<ConnectionKey, string>>;
 

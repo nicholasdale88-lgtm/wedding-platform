@@ -37,6 +37,14 @@ export interface Env {
   /** Email through Resend (lib/email.ts): the API key, and who it's from ("Name <hello@your-domain>"). */
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;
+  /** Who sends email: 'resend' (default) or 'ses' (Amazon SES, docs/GROWTH_PLAN.md → Email). */
+  EMAIL_PROVIDER?: string;
+  /** 'paid' once Resend is on a paid plan: no shared daily limit, so each wedding can send more a day. */
+  EMAIL_PLAN?: string;
+  /** Amazon SES (EMAIL_PROVIDER=ses): an IAM user's keys allowed ses:SendEmail, and the region (e.g. ap-southeast-2). */
+  AWS_SES_ACCESS_KEY_ID?: string;
+  AWS_SES_SECRET_ACCESS_KEY?: string;
+  AWS_SES_REGION?: string;
   /**
    * The domain couples' own addresses are on (e.g. "theyeslist.com.au"): each wedding gets <its address>@ it,
    * and copies' replies come back to reply+…@ it. Cloudflare Email Routing (catch-all → this Worker) and a

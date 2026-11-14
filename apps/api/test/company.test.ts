@@ -304,6 +304,17 @@ describe('company portal', () => {
     const couple = await signup('Alex', 'alex@example.com');
     expect((await call('/a/company/connections', {}, couple.cookie)).status).toBe(403);
   });
+  it('connections: the email plan and provider are picked from a list, shown as picked, and nothing else is kept', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    const read = async () => (await (await call('/a/company/connections', {}, boss.cookie)).json()) as { choices: Record<string, string> };
+    expect((await read()).choices).toEqual({ EMAIL_PLAN: '', EMAIL_PROVIDER: '' });
+    expect((await call('/a/company/connections', { method: 'PUT', body: JSON.stringify({ EMAIL_PLAN: 'gold' }) }, boss.cookie)).status).toBe(400);
+    expect((await call('/a/company/connections', { method: 'PUT', body: JSON.stringify({ EMAIL_PLAN: 'paid' }) }, boss.cookie)).status).toBe(200);
+    expect((await read()).choices.EMAIL_PLAN).toBe('paid');
+    expect(env.EMAIL_PLAN).toBe('paid');
+    expect((await call('/a/company/connections', { method: 'PUT', body: JSON.stringify({ EMAIL_PLAN: '' }) }, boss.cookie)).status).toBe(200);
+    expect((await read()).choices.EMAIL_PLAN).toBe('');
+  });
   it('the to-do list: starts with the launch jobs; owners tick (who and when kept); the team can read', async () => {
     const boss = await signup('Boss', 'boss@example.com');
     const first = (await (await call('/a/company/todo', {}, boss.cookie)).json()) as { items: { id: string; done: boolean; doneBy: string }[]; canEdit: boolean };

@@ -276,7 +276,7 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
       name: 'Email (passcode resets, your daily summary, vendor enquiries)',
       state: emailReady(env) ? 'ok' : 'off',
       detail: emailReady(env) ? `Switched on. Your daily summary at about 6pm is ${off?.off ? 'off' : 'on'}.` : 'Not switched on for the site yet, so nothing is emailed.',
-      fix: emailReady(env) ? '' : 'The site owner adds the Resend key (RESEND_API_KEY and EMAIL_FROM).',
+      fix: emailReady(env) ? '' : 'The site owner sets up email in the company portal (Settings → Connections → Email).',
     });
     items.push({
       key: 'assistant',
