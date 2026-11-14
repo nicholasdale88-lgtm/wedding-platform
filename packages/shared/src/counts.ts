@@ -14,8 +14,8 @@ export interface CountableGuest {
   people: { name: string; child?: boolean }[];
 }
 
-/** Places held on an invitation (at least 1). */
-export const placesOf = (g: CountableGuest) => Math.max(1, g.seatsHeld || 1);
+/** Places held on an invitation: at least 1, and at least one for each person named on it. */
+export const placesOf = (g: CountableGuest) => Math.max(1, g.seatsHeld || 1, g.people.filter((p) => p.name.trim()).length);
 
 /** How many are coming to an event from this invitation (0 unless they said yes). */
 export function comingCount(g: CountableGuest, event: string): number {

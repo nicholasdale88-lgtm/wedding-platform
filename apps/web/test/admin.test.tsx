@@ -759,11 +759,11 @@ describe('seating tab', () => {
     });
     renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Change seat allocation' })); // the plan opens to look at; Edit seating to change it
-    expect(await screen.findByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '1 of 3 guests seated' })).toBeInTheDocument();
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Table 1, 1 of 4' }));
     expect(screen.getAllByText('Nut allergy').length).toBeGreaterThan(0); // who sits there, with their diet (and on the caterer's printout)
     await userEvent.click(screen.getByRole('button', { name: 'Sam Hart' }));
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2 of 3 guests seated' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Save seating' }));
     await waitFor(() => expect(saved?.v).toBe('4'));
     expect(saved!.body.seats).toEqual({ p1: T1, p2: T1, p3: null });
@@ -811,7 +811,7 @@ describe('seating tab', () => {
     expect(within(big).getByRole('button', { name: 'Seat 5: empty' })).toBeInTheDocument();
     await userEvent.click(within(big).getByRole('button', { name: 'Back to the room' }));
     expect(screen.queryByRole('dialog', { name: 'Table 1, seat by seat' })).toBeNull();
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2 of 3 guests seated' })).toBeInTheDocument();
   });
 
   it('a table can be given its size in metres, and the room its real size', async () => {
@@ -866,12 +866,12 @@ describe('seating tab', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Change seat allocation' }));
     expect(screen.getByRole('radio', { name: 'Everyone invited (concept plan)' })).toHaveAttribute('aria-checked', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Auto-seat the rest' }));
-    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument(); // Jo hasn't replied: pencilled in
+    expect(screen.getByRole('heading', { name: '3 of 3 guests seated' })).toBeInTheDocument(); // Jo hasn't replied: pencilled in
     expect(screen.getByText(/1 pencilled in/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
     await userEvent.click(screen.getByRole('radio', { name: 'Only those who said yes' }));
     await userEvent.click(screen.getByRole('button', { name: 'Auto-seat the rest' }));
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2 of 3 guests seated' })).toBeInTheDocument();
     expect(screen.getByText('Waiting for a reply (1)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Jo Banks' })).toBeNull(); // waits until she says yes
   });
@@ -895,7 +895,7 @@ describe('seating tab', () => {
     expect(since).toHaveTextContent('1 said yes (pencilled in → confirmed) · 1 can’t come (seat freed at Table 1) · 1 new guest to place');
     expect(screen.getByRole('region', { name: 'Seating stage' })).toHaveTextContent('Replies coming in');
     await userEvent.click(within(since).getByRole('button', { name: 'Fill gaps with auto-seat' }));
-    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument(); // Robin stays at Table 1; Sam and Jo join
+    expect(screen.getByRole('heading', { name: '3 of 3 guests seated' })).toBeInTheDocument(); // Robin stays at Table 1; Sam and Jo join
     await userEvent.click(within(since).getByRole('button', { name: 'Mark as seen' }));
     await waitFor(() => expect(seen).toBe(true));
     await waitFor(() => expect(screen.queryByRole('status', { name: 'Since your last save' })).toBeNull());
@@ -925,7 +925,7 @@ describe('seating tab', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: /Wedding party at the head table/ }));
     await waitFor(() => expect(saved).toMatchObject({ presets: { invite: true, head: false }, pairs: [{ a: 'p1', b: 'p2', kind: 'apart' }] }));
     await userEvent.click(screen.getByRole('button', { name: 'Auto-seat the rest' }));
-    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '3 of 3 guests seated' })).toBeInTheDocument();
     expect(screen.getByText('All good ✓')).toBeInTheDocument(); // Robin and Sam ended up apart
   });
 
@@ -967,7 +967,7 @@ describe('seating tab', () => {
     expect(ask).toHaveBeenCalledWith('You have seating changes that are not saved. Leave without saving them?');
     expect(location).toBe('/admin/w1/wedding/seating');
     // A concept plan (nothing sent yet): Jo, not replied, is pencilled in too.
-    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '3 of 3 guests seated' })).toBeInTheDocument();
     ask.mockReturnValue(true);
     await userEvent.click(screen.getByRole('link', { name: 'Guest list' }));
     await waitFor(() => expect(location).toBe('/admin/w1/wedding/guests'));
@@ -979,11 +979,11 @@ describe('seating tab', () => {
     renderAt('/admin/w1/wedding/seating');
     await userEvent.click(await screen.findByRole('button', { name: 'Change seat allocation' })); // the plan opens to look at; Edit seating to change it
     await userEvent.click(await screen.findByRole('button', { name: 'Auto-seat the rest' }));
-    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument(); // the concept plan pencils in Jo too
+    expect(screen.getByRole('heading', { name: '3 of 3 guests seated' })).toBeInTheDocument(); // the concept plan pencils in Jo too
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(screen.getByRole('heading', { name: '1 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '1 of 3 guests seated' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Redo' }));
-    expect(screen.getByRole('heading', { name: '3 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '3 of 3 guests seated' })).toBeInTheDocument();
   });
 
   it('undo puts back a room size change, with the tables it moved, and Save sends the room as it was', async () => {
@@ -1042,7 +1042,7 @@ describe('seating tab', () => {
     } finally {
       delete (document as { elementFromPoint?: unknown }).elementFromPoint;
     }
-    expect(screen.getByRole('heading', { name: '2 of 3 seated' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '2 of 3 guests seated' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Table 1, 2 of 4' })).toBeInTheDocument();
     expect(document.querySelector('[data-drag-label]')).toBeNull();
   });

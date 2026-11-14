@@ -712,6 +712,9 @@ function SeatingPlan() {
     ], [s.event.key]);
 
   const seated = s.people.filter((p) => seats[p.id]).length;
+  // The headline counts guests, as the guest list does; the two of you are counted on their own.
+  const guestsToSeat = s.people.filter((p) => !isCouple(p)).length;
+  const guestsSeated = s.people.filter((p) => !isCouple(p) && seats[p.id]).length;
   // Guests coming, as every page counts them (the replies' numbers), apart from the two of you; and any
   // coming who aren't named yet (a reply for 3 on an invitation naming 2): they need a name to be seated.
   const comingGuests = s.people.filter((p) => p.coming && !isCouple(p)).length;
@@ -803,7 +806,7 @@ function SeatingPlan() {
         <div>
           <Eyebrow>{s.event.name} · Seating</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">
-            {seated} of {s.people.length} seated
+            {guestsSeated} of {guestsToSeat} {guestsToSeat === 1 ? 'guest' : 'guests'} seated
           </h1>
           <div className="mt-1 text-[14px] text-[var(--adm-muted,#5b6a52)]">
             {tables.length} {tables.length === 1 ? 'table' : 'tables'} · {seatCount} seats · {comingGuests} {comingGuests === 1 ? 'guest' : 'guests'} coming{coupleHere ? ' + the two of you' : ''}

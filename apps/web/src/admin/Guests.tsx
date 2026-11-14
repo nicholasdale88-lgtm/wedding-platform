@@ -1,4 +1,4 @@
-import { circleSuggestions, contactGaps, GAP_LABEL, householdName, othersNames } from '@wp/shared';
+import { circleSuggestions, contactGaps, GAP_LABEL, householdName, othersNames, placesOf } from '@wp/shared';
 import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
@@ -250,7 +250,8 @@ export function Guests() {
   if (error) return <p role="alert" className="text-[#8a5a45]">{error}</p>;
   const labels = labelRows(guests);
   const byPost = guests.filter((g) => g.delivery === 'post').length;
-  const seatsHeld = guests.reduce((n, g) => n + g.seatsHeld, 0);
+  // Guests: the places on invitations, at least one for each person named (as every page counts them).
+  const seatsHeld = guests.reduce((n, g) => n + placesOf(g), 0);
   const kids = guests.reduce((n, g) => n + g.people.filter((p) => p.child).length, 0);
   const cols = `minmax(200px,1.5fr) 128px ${events.length === 2 ? '118px ' : ''}${events.map(() => '104px').join(' ')} 84px ${questions.map(() => '82px').join(' ')} minmax(170px,1.4fr) 150px`;
 

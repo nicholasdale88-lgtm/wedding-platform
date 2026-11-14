@@ -28,3 +28,11 @@ describe('counting guests, the same on every page', () => {
     expect(c.coming + c.cantCome + c.awaiting).toBe(c.guests);
   });
 });
+
+describe('places on an invitation', () => {
+  it('hold at least one place for each person named on it', async () => {
+    const { placesOf } = await import('../src/counts');
+    expect(placesOf({ seatsHeld: 1, invited: [], rsvp: {}, people: [{ name: 'Ann' }, { name: 'Bob' }, { name: ' ' }] })).toBe(2);
+    expect(placesOf({ seatsHeld: 4, invited: [], rsvp: {}, people: [{ name: 'Ann' }] })).toBe(4);
+  });
+});
