@@ -79,13 +79,13 @@ describe('company portal', () => {
 
   it('GST: prices say none is charged until the business is registered, then "GST included" from the start date', async () => {
     const boss = await signup('Boss', 'boss@example.com');
-    expect((await (await call('/site')).json()).gst).toBe(false);
+    expect(((await (await call('/site')).json()) as { gst: boolean }).gst).toBe(false);
     // Registered from a date still to come: not yet.
     const later = new Date(Date.now() + 40 * 86_400_000).toISOString().slice(0, 10);
     expect((await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true, gstFrom: later }) }, boss.cookie)).status).toBe(200);
-    expect((await (await call('/site')).json()).gst).toBe(false);
+    expect(((await (await call('/site')).json()) as { gst: boolean }).gst).toBe(false);
     expect((await call('/a/company/money/settings', { method: 'PUT', body: JSON.stringify({ gstRegistered: true, gstFrom: '2026-07-01' }) }, boss.cookie)).status).toBe(200);
-    expect((await (await call('/site')).json()).gst).toBe(true);
+    expect(((await (await call('/site')).json()) as { gst: boolean }).gst).toBe(true);
   });
 
   it('promo codes: a percentage off at checkout, a free code switches the plan on without a card, uses counted, limits kept', async () => {
