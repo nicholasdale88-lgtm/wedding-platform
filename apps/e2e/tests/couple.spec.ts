@@ -111,9 +111,9 @@ test('seating: the couple are there to seat without being guests', async ({ page
   await expect(page.getByText('James').first()).toBeVisible();
 });
 
-test('seating: Move tables drags a table (and never opens it); in Seat guests a tap opens it; changes save themselves', async ({ page }) => {
+test('seating: Move tables drags a table (and never opens it); in Change seat allocation a tap opens it; changes save themselves', async ({ page }) => {
   await page.goto(`/admin/${wid}/wedding/seating`);
-  await page.getByRole('button', { name: 'Edit seating' }).click();
+  await page.getByRole('button', { name: 'Reconfigure room layout' }).click();
   await page.getByRole('tab', { name: 'Move tables' }).click();
   await page.getByRole('button', { name: '+ Add tables' }).click();
   const plan = page.getByRole('application', { name: 'Floor plan' });
@@ -153,7 +153,7 @@ test('seating: Move tables drags a table (and never opens it); in Seat guests a 
   // It saves itself.
   await expect(page.getByRole('button', { name: 'Saved ✓' })).toBeVisible({ timeout: 15_000 });
   // Seat guests: a tap opens the table.
-  await page.getByRole('tab', { name: 'Seat guests' }).click();
+  await page.getByRole('tab', { name: 'Change seat allocation' }).click();
   await table.click();
   await expect(page.getByRole('dialog', { name: /seat by seat/ })).toBeVisible();
 });

@@ -1,5 +1,5 @@
 import { autoSeat as autoSeatPlan, chairsAt, clampTable, metresAspect, roomMetres, roomSizeM, sizeLabel, TABLE_SIZE_M, tableMetres, compareLine, planSummary, suggestName, suggestSeating, cssAspect, ROOM_SHAPES, ROOM_SIZES, roomAspect, roomScale, roomShape, DEFAULT_SEATS, isSerious, seatSpots, SHAPE_LABEL, STAGE_VERSION, STRETCHES, TABLE_SHAPES, tableBox, type SeatStage, type TableShape } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { ApiError, seatingApi, type SeatArea, type SeatTable, type SeatingData } from '../../lib/api';
@@ -26,16 +26,21 @@ import { Eyebrow, inputCls, Label, Pill, useMedia, useToast } from '../ui';
  * Chairs: each guest can be given exactly which seat at their table (open the table, choose Seat N); anyone
  * not given one takes the next free chair. Sizes: tables and areas in metres, to scale in the room (give the
  * room its real size under Room, or it's taken as about 20 m across).
- * Editing has three tabs, so only what you need shows: Seat guests, Tables, Room.
+ * Editing is one of two things: Change seat allocation, or Reconfigure room layout (Move tables, Table settings,
+ * Room size & shape).
  */
 
 type Sel = { kind: 'table'; id: string } | { kind: 'area'; i: number } | null;
 type Tool = 'guests' | 'tables' | 'setup' | 'room';
+/**
+ * Two things you can change: who sits where (Change seat allocation), or the room itself (Reconfigure room
+ * layout: move tables, each table's settings, the room's size and shape).
+ */
 const TOOLS: [Tool, string][] = [
-  ['guests', 'Seat guests'],
+  ['guests', 'Change seat allocation'],
   ['tables', 'Move tables'],
   ['setup', 'Table settings'],
-  ['room', 'Room'],
+  ['room', 'Room size & shape'],
 ];
 const round10 = (n: number) => Math.round(n * 10) / 10;
 type Drag = { kind: 'table' | 'area'; key: string | number; dx: number; dy: number; moved: boolean };
@@ -87,7 +92,7 @@ function SeatingPlan() {
   const [snap, setSnap] = useState(true);
   const [zoom, setZoom] = useState(1);
   const mob = useMedia('(max-width: 759px)');
-  // Looking at the plan by default; Edit seating opens every tool (and nothing changes outside it).
+  // Looking at the plan by default; Change seat allocation or Reconfigure room layout opens the tools (and nothing changes outside it).
   const [editing, setEditing] = useState(false);
   const editingRef = useRef(false);
   editingRef.current = editing;
@@ -891,9 +896,9 @@ function SeatingPlan() {
               setAdding(false);
             }}
           >
-            {editing ? 'Done editing' : 'Edit seating'}
+            {editing ? 'Done editing' : 'Change seat allocation'}
           </Pill>
-          {!editing && tables.length > 0 && (
+          {!editing && (
             <Pill
               disabled={!!viewing}
               onClick={() => {
@@ -902,7 +907,7 @@ function SeatingPlan() {
                 setAdding(false);
               }}
             >
-              Move tables
+              Reconfigure room layout
             </Pill>
           )}
           {editing && (
@@ -915,8 +920,13 @@ function SeatingPlan() {
               </Pill>
               <div role="tablist" aria-label="Seating tools" className="inline-flex max-w-full overflow-x-auto [scrollbar-width:none] p-[3px] rounded-full border border-[var(--adm-line,#c6b794)] bg-[#fbf8f2]">
                 {TOOLS.map(([k, label]) => (
+                  <Fragment key={k}>
+                  {k === 'tables' && (
+                    <span aria-hidden className="flex-none self-center pl-3 pr-1 text-[11px] font-semibold tracking-[.12em] uppercase text-[var(--adm-muted,#5b6a52)] border-l border-[var(--adm-line,#c6b794)] ml-1 whitespace-nowrap">
+                      Reconfigure room layout:
+                    </span>
+                  )}
                   <button
-                    key={k}
                     type="button"
                     role="tab"
                     aria-selected={tool === k}
@@ -933,6 +943,7 @@ function SeatingPlan() {
                   >
                     {label}
                   </button>
+                  </Fragment>
                 ))}
               </div>
             </>
@@ -990,7 +1001,7 @@ function SeatingPlan() {
         </div>
 
         {editing && tool === 'guests' && (
-          <div role="tabpanel" aria-label="Seat guests" className={toolRow}>
+          <div role="tabpanel" aria-label="Change seat allocation" className={toolRow}>
             <Pill kind="primary" onClick={autoSeat} disabled={!tables.length}>
               Auto-seat the rest
             </Pill>
@@ -1075,7 +1086,7 @@ function SeatingPlan() {
         )}
 
         {editing && tool === 'room' && (
-          <div role="tabpanel" aria-label="Room" className={toolRow}>
+          <div role="tabpanel" aria-label="Room size & shape" className={toolRow}>
             {!metres && (
               <Label text="Shape" className="!flex-row items-center gap-2">
                 <select aria-label="Room shape" value={roomShape(aspect)} onChange={(e) => setRoomTo(roomAspect(e.target.value, roomScale(aspect)))} className={`${inputCls} !py-2`}>
@@ -1142,7 +1153,7 @@ function SeatingPlan() {
       </div>
       <div className="text-[14px] text-[var(--adm-muted,#5b6a52)] print:hidden">
         {!editing
-          ? 'Tap a table to see who sits where. To move tables or seat people, tap Edit seating.'
+          ? 'Tap a table to see who sits where. To seat people, tap Change seat allocation; to move tables or change the room, tap Reconfigure room layout.'
           : adding
             ? 'Tap the plan to drop a table. Tap Done adding when finished.'
             : tool === 'guests'
@@ -1270,7 +1281,7 @@ function SeatingPlan() {
                   ×
                 </button>
               </div>
-              {/* Table settings is only the table's settings; who sits where is Seat guests' job. */}
+              {/* Table settings is only the table's settings; who sits where is Change seat allocation's job. */}
               {tool !== 'setup' && (
                 <>
                   <Pill size="sm" kind="primary" className="self-start" onClick={() => setFocus(selTable.id)}>
@@ -1452,7 +1463,7 @@ function SeatingPlan() {
                 ))}
               </select>
             )}
-            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{!editing ? 'Edit seating to seat them.' : target ? `Tap a name to seat them at table ${selTable!.name}, or drag names onto any table.` : 'Drag names onto a table, or tap a table first and then tap names.'}</div>
+            <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{!editing ? 'Tap Change seat allocation to seat them.' : target ? `Tap a name to seat them at table ${selTable!.name}, or drag names onto any table.` : 'Drag names onto a table, or tap a table first and then tap names.'}</div>
             {unseated.map((group) => (
               <div key={group[0]!.invitationId} className="flex flex-col gap-1 py-2 border-t border-[var(--adm-line,#ece3cc)]">
                 <div className="flex justify-between gap-2 items-center">
@@ -1463,7 +1474,7 @@ function SeatingPlan() {
                       type="button"
                       onPointerDown={dragGuests(group)}
                       onContextMenu={(e) => editing && e.preventDefault()}
-                      onClick={() => (!editing ? toast('Tap Edit seating first') : target ? seat(group.map((p) => p.id), target) : toast('Tap a table first, or drag them onto one'))}
+                      onClick={() => (!editing ? toast('Tap Change seat allocation first') : target ? seat(group.map((p) => p.id), target) : toast('Tap a table first, or drag them onto one'))}
                       style={{ WebkitTouchCallout: 'none' }}
                       className={`${mob ? 'min-h-[40px] px-3' : 'p-0'} border-0 bg-transparent text-[12px] underline cursor-pointer select-none text-[var(--adm-ink,#33402f)] ${editing && target ? '' : 'opacity-60'}`}
                     >
@@ -1478,7 +1489,7 @@ function SeatingPlan() {
                       type="button"
                       onPointerDown={dragGuests([p])}
                       onContextMenu={(e) => editing && e.preventDefault()}
-                      onClick={() => (!editing ? toast('Tap Edit seating first') : target ? seat([p.id], target) : toast(mob ? 'Tap a table first, or hold the name and drag it onto one' : 'Tap a table first, or drag the name onto one'))}
+                      onClick={() => (!editing ? toast('Tap Change seat allocation first') : target ? seat([p.id], target) : toast(mob ? 'Tap a table first, or hold the name and drag it onto one' : 'Tap a table first, or drag the name onto one'))}
                       title={p.party || undefined}
                       style={{ boxShadow: p.party ? `inset 4px 0 0 ${groupColour(p.party)}` : undefined, WebkitTouchCallout: 'none' }}
                       className={`${mob ? 'py-2 min-h-[40px]' : 'py-[5px]'} px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-[#fbf8f2] text-[13px] ${editing ? 'cursor-grab' : 'cursor-pointer'} select-none hover:bg-[var(--adm-tint,#efe7d3)] text-[var(--adm-ink,#33402f)]`}
