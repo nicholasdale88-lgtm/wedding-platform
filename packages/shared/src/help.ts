@@ -225,8 +225,9 @@ export const HELP: HelpArticle[] = [
       'Step 3, Compare: best value first, like for like, with star ratings. Tap Ask for a better price for a plan for your favourite: what to aim for, the levers, and messages ready to send.',
       'Step 4, Lock in: book your favourite, put them on their budget line (budgeted against booked), enter each payment (or tap a layout such as deposit + 3 monthly), sign the contract, and add meals for their team: your caterer sees them all.',
       'Step 5, Manage, where you’ll spend most of your time: what needs you (payments due, with Mark paid; tasks due; check-ins), and each vendor’s tasks (the usual ones for their kind in a tap: the shot list, final numbers…), notes of calls, payments, files, the final check-in three weeks out, and the day’s contact sheet to print. Payment reminders go in your phone’s calendar.',
+      'Step 6, Their page: under each booked vendor, Text it or Email it sends their own live page (the day, the timeline, guest numbers, dietary needs and meal choices, the other suppliers, who to call). Tick Share the song list for your band or DJ, and Share the seating for your caterer. They can add it to their calendar or their own spreadsheet or booking software (it stays up to date), and tap Confirm the details: you see the date and their note here.',
     ],
-    also: 'quote request rfq tender price compare comparison email draft manual enter type in myself negotiate discount better deal haggle book lock in deposit contract vendor meals caterer payment schedule add vendor',
+    also: 'quote request rfq tender price compare comparison email draft manual enter type in myself negotiate discount better deal haggle book lock in deposit contract vendor meals caterer payment schedule add vendor vendor page portal dj band song list must play spreadsheet csv calendar ics confirm live link',
     go: { tab: 'planner', event: true, query: 'view=vendors' },
   },
   {

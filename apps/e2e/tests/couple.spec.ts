@@ -174,3 +174,31 @@ test('a guest opens their own invitation, says yes, and the couple sees it', asy
   await expect(page.getByText('Robin Hart').first()).toBeVisible();
   await expect(page.getByText('Attending').first()).toBeVisible();
 });
+
+test('a band or DJ opens their own page: the song list, their live calendar link, and they confirm the details', async ({ page, browser }) => {
+  // The couple books a DJ and picks a song (the same API the admin uses).
+  const booked = await page.request.put(`/api/a/w/${wid}/planner/doc/vendors`, { headers: { 'If-Match': '0' }, data: { list: [{ id: 'dj', name: 'Night Owl DJs', category: 'DJ', status: 'booked', arrival: '5pm' }] } });
+  expect(booked.status(), await booked.text()).toBe(200);
+  expect((await page.request.post(`/api/a/w/${wid}/songs`, { data: { title: 'Our First Dance', artist: 'The Band', status: 'must' } })).status()).toBe(200);
+  const { url } = (await (await page.request.get(`/api/a/w/${wid}/planner/vendors/dj/hub`)).json()) as { url: string };
+  // The DJ, on their own phone (no sign-in), opens the link.
+  const vendor = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const v = await vendor.newPage();
+  v.on('pageerror', (e) => {
+    throw new Error(`Vendor page error: ${e.message}`);
+  });
+  await v.goto(new URL(url).pathname + new URL(url).search);
+  await expect(v.getByRole('heading', { level: 1 })).toContainText('wedding');
+  const songs = v.getByRole('region', { name: 'Songs' });
+  await expect(songs.getByText('Our First Dance')).toBeVisible();
+  await expect(v.getByRole('link', { name: 'Add to my calendar' })).toHaveAttribute('href', /^webcal:.*\/day\.ics$/);
+  // The live spreadsheet link answers.
+  const sheet = await v.request.get(new URL(url).pathname.replace(/\/w\/([^/]+)\/vendor$/, '/api/p/$1/vendor') + `/${new URL(url).searchParams.get('v')}/${new URL(url).searchParams.get('k')}/songs.csv`);
+  expect(sheet.status()).toBe(200);
+  // Confirm, with a note: thanked at once.
+  await v.getByLabel('Note for the couple (optional)').fill('Need a power point by the dance floor');
+  await v.getByRole('button', { name: 'Confirm the details' }).click();
+  await expect(v.getByRole('status')).toContainText('Thank you');
+  await expect(v.getByText(/You confirmed these details on/)).toBeVisible();
+  await vendor.close();
+});

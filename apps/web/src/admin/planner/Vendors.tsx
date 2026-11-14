@@ -1,4 +1,4 @@
-import { allPayments, budgetFit, commitmentOf, dateIn, lineFor, linkToBudget, suggestedTasks, vendorKind, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, budgetFit, commitmentOf, dateIn, lineFor, linkToBudget, suggestedTasks, vendorKind, vendorShares, type VendorNote, type VendorTask, moneyOf, type Budget as BudgetDoc, QUOTE_STAGES, quoteStatus, VENDOR_STATUS, type QuoteStage, type Quote, type Vendor, type Vendors as VendorsDoc } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, plannerApi } from '../../lib/api';
 import { QuoteRequests } from './QuoteRequests';
@@ -1643,10 +1643,24 @@ function TheirPage({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>, 
     }
   };
   const couple = overview ? `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}` : 'us';
-  const msg = (u: string) => `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''}, here are all the details for ${couple}'s wedding, kept up to date (times, guest numbers, dietary needs, who to call on the day): ${u}`;
+  const shares = vendorShares(v);
+  const msg = (u: string) =>
+    `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''}, here are all the details for ${couple}'s wedding, kept up to date (times, guest numbers, dietary needs${shares.songs ? ', the song list' : ''}, who to call on the day). You can add it to your calendar or spreadsheet from there, and confirm once you have everything: ${u}`;
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[13px]">
-      <span className="flex-1 min-w-[200px] text-[var(--adm-muted,#5b6a52)]">Their page: the day, the timeline, guest numbers and dietary needs, their payments and who to call, always up to date.</span>
+      <span className="flex-1 min-w-[200px] text-[var(--adm-muted,#5b6a52)]">
+        Their page: the day, the timeline, guest numbers, dietary needs and meal choices, the other suppliers, their payments and who to call, always up to date. They can add it to their calendar or spreadsheet and confirm.
+        {v.confirmedOn && <strong className="block text-[var(--adm-ink,#33402f)]">They confirmed the details on {new Date(`${v.confirmedOn}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}.</strong>}
+      </span>
+      <label className="basis-full flex items-start gap-2 cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
+        <input
+          type="checkbox"
+          checked={shares.songs}
+          onChange={(e) => onChange({ shareSongs: e.target.checked }, e.target.checked ? `${v.name} can now see the song list` : `${v.name} no longer sees the song list`)}
+          className="mt-[2px] w-[16px] h-[16px] accent-[#5d6b47]"
+        />
+        <span>Share the song list (for your band or DJ): must play, maybe, don’t play, and guests’ requests (never who asked).</span>
+      </label>
       <label className="basis-full flex items-start gap-2 cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
         <input
           type="checkbox"

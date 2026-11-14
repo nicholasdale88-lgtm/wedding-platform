@@ -750,6 +750,8 @@ export const Vendor = z.object({
   meals: z.number().int().min(0).max(50).default(0),
   /** Their page also shows the seating: each table, and who has a special meal at which seat (for the caterer). */
   shareSeating: z.boolean().optional(),
+  /** Their page also shows the song list (must play, maybe, don't play, guests' requests). Unset: on for a band or DJ. */
+  shareSongs: z.boolean().optional(),
   /** The quote: when you asked for it, when they said it would come (or when to chase), when you last chased. */
   askedOn: s(10),
   quoteBy: s(10),
@@ -769,6 +771,11 @@ export const Vendor = z.object({
   payments: z.array(Payment).max(12).default([]),
 });
 export type Vendor = z.infer<typeof Vendor>;
+
+/** What a vendor's own page shows beyond the basics: the seating (for the caterer), the song list (for the band or DJ). */
+export function vendorShares(v: Pick<Vendor, 'shareSeating' | 'shareSongs' | 'category' | 'name'>) {
+  return { seating: !!v.shareSeating, songs: v.shareSongs ?? vendorKind(v) === 'Band or DJ' };
+}
 
 /** A booked vendor's commitment: the accepted quote (or the quote entered by hand). */
 export function commitmentOf(v: Vendor): { amount: number; deposit: number } {

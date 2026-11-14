@@ -59,7 +59,7 @@ export function Music() {
       <div className="flex justify-between items-end gap-3 flex-wrap">
         <div>
           <H2>Music</H2>
-          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Guests request songs from “Message us” on their invitation. Decide what the DJ plays.</div>
+          <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Guests request songs from “Message us” on their invitation. Decide what the DJ plays: your band or DJ sees this list live on their own page (Vendors, then their page).</div>
         </div>
         <Pill kind="primary" disabled={!songs.length} onClick={download}>
           Download for the DJ
