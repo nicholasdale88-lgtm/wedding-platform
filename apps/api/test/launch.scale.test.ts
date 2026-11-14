@@ -298,10 +298,14 @@ describe('launch scale: every feature pushed hard', () => {
     expect(ins.opened.invitations).toBe(300);
     expect(ins.repliesByDay.reduce((n, d) => n + d.n, 0)).toBe(snap.filter((g) => g.invited.includes('wedding') && !pending(g, 'wedding')).length);
 
-    // Events list: invited and coming (invitations) per event.
+    // Events list: guests invited (places) and guests coming (the replies' numbers) per event, as every page counts them.
     const evs = (await (await api('/events')).json()) as { events: { key: string; invited: number; coming: number }[] };
     expect(evs.events.map(({ key, invited, coming }) => ({ key, invited, coming }))).toEqual(
-      events.map(({ key }) => ({ key, invited: snap.filter((g) => g.invited.includes(key)).length, coming: snap.filter((g) => att(g, key)).length })),
+      events.map(({ key }) => ({
+        key,
+        invited: snap.filter((g) => g.invited.includes(key)).reduce((n, g) => n + Math.max(1, g.seats), 0),
+        coming: snap.filter((g) => att(g, key)).reduce((n, g) => n + Math.max(1, g.rsvp[key]?.count ?? 1), 0),
+      })),
     );
   });
 
