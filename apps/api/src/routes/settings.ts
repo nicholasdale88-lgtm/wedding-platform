@@ -287,10 +287,10 @@ export function settingsRoutes(deps: (env: Env) => EngineDeps) {
     });
     items.push({
       key: 'media',
-      name: 'Photo storage on the site',
-      state: env.MEDIA ? 'ok' : 'warn',
-      detail: env.MEDIA ? 'Guests’ photos are kept on the site as well.' : 'Not set up: guests’ photos go only to your linked storage.',
-      fix: env.MEDIA ? '' : 'The site owner sets up photo storage (Cloudflare R2).',
+      name: 'Where photos are kept',
+      state: 'ok',
+      detail: env.MEDIA ? 'Guests’ photos go to your own linked storage, with a copy on the site.' : 'Guests’ photos and videos go straight to your own Google Drive, Dropbox or OneDrive.',
+      fix: '',
     });
     items.push({
       key: 'signin',

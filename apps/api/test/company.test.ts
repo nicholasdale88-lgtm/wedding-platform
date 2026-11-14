@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Env } from '../src/env';
-import { createApp } from '../src/index';
+import { createApp, noteCronRun } from '../src/index';
 import { testD1 } from './support/d1';
 
 /** The company portal: only for super admins; stats, weddings, settings, promo codes (used when paying), referrals. */
@@ -328,6 +328,50 @@ describe('company portal', () => {
     expect(asBot.canEdit).toBe(false);
     expect(asBot.items.find((i) => i.id === 'abn')!.done).toBe(true);
     expect((await call('/a/company/todo', { method: 'PUT', body: JSON.stringify({ items: [] }), headers: { authorization: `Bearer ${key}` } })).status).toBe(403);
+  });
+  it('the to-do list: owner jobs added later reach a saved list once, and one removed stays gone', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    // A list saved before the later jobs existed.
+    await env.DB.prepare(`INSERT INTO platform_setting (key, value, updated_at) VALUES ('todo', ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`)
+      .bind(JSON.stringify({ items: [{ id: 'abn', text: 'Get an ABN', link: '', group: 'Business', done: true, doneAt: '2026-11-01', doneBy: 'boss@example.com' }], seeded: true }), new Date().toISOString())
+      .run();
+    type List = { items: { id: string; done: boolean }[] };
+    const list = (await (await call('/a/company/todo', {}, boss.cookie)).json()) as List;
+    expect(list.items[0]).toMatchObject({ id: 'abn', done: true });
+    expect(list.items.map((i) => i.id)).toEqual(expect.arrayContaining(['onedrive', 'xai', 'cfpaid']));
+    const without = list.items.filter((i) => i.id !== 'xai');
+    expect((await call('/a/company/todo', { method: 'PUT', body: JSON.stringify({ items: without }) }, boss.cookie)).status).toBe(200);
+    const again = (await (await call('/a/company/todo', {}, boss.cookie)).json()) as List;
+    expect(again.items.map((i) => i.id)).not.toContain('xai');
+    expect(again.items.map((i) => i.id)).toContain('onedrive');
+  });
+  it('accounts: owners keep the list of company accounts; a password typed in is refused', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    type Acc = { id: string; login: string; status: string; note: string };
+    const { list } = (await (await call('/a/company/accounts', {}, boss.cookie)).json()) as { list: Acc[] };
+    expect(list.map((a) => a.id)).toEqual(expect.arrayContaining(['bitwarden', 'stripe', 'cloudflare']));
+    const done = list.map((a) => (a.id === 'stripe' ? { ...a, login: 'hello@example.com', status: 'done' } : a));
+    expect((await call('/a/company/accounts', { method: 'PUT', body: JSON.stringify({ list: done }) }, boss.cookie)).status).toBe(200);
+    const again = (await (await call('/a/company/accounts', {}, boss.cookie)).json()) as { list: Acc[] };
+    expect(again.list.find((a) => a.id === 'stripe')).toMatchObject({ login: 'hello@example.com', status: 'done' });
+    const leaky = done.map((a) => (a.id === 'stripe' ? { ...a, note: 'password: hunter2' } : a));
+    expect((await call('/a/company/accounts', { method: 'PUT', body: JSON.stringify({ list: leaky }) }, boss.cookie)).status).toBe(400);
+    const couple = await signup('Alex', 'alex@example.com');
+    expect((await call('/a/company/accounts', {}, couple.cookie)).status).toBe(403);
+  });
+  it('capacity: counts and a plain verdict; a cron run that hit the per-run limit says upgrade now', async () => {
+    const boss = await signup('Boss', 'boss@example.com');
+    type Cap = { level: string; notes: { level: string; text: string }[]; weddings: number; cronAt: string };
+    const first = (await (await call('/a/company/capacity', {}, boss.cookie)).json()) as Cap;
+    expect(first.weddings).toBeGreaterThan(0);
+    expect(first.cronAt).toBe('');
+    expect(first.notes.some((n) => n.level === 'now')).toBe(false);
+    await noteCronRun(env.DB, new Date(), { weddings: 6, errors: [{ error: 'Too many API requests by single Worker invocation.' }] });
+    const after = (await (await call('/a/company/capacity', {}, boss.cookie)).json()) as Cap;
+    expect(after.level).toBe('now');
+    expect(after.notes[0]!.text).toMatch(/Workers to Paid/);
+    const couple = await signup('Alex', 'alex@example.com');
+    expect((await call('/a/company/capacity', {}, couple.cookie)).status).toBe(403);
   });
   it('ideas: a bot (the Grok scout) adds ideas straight into Feedback as new', async () => {
     const boss = await signup('Boss', 'boss@example.com');

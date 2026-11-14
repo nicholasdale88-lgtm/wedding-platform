@@ -66,7 +66,7 @@ export const FEATURE_LABEL: Record<Feature, string> = {
   planner: 'The wedding planner (budget, payments, checklist, vendors and quotes)',
   photoQr: 'Guests’ photos by QR code on each table',
   partySignIns: 'Wedding party sign-ins',
-  dailyBackups: 'Daily backups to your own storage',
+  dailyBackups: 'Daily backups to your own Google Drive, Dropbox or OneDrive',
   extraEvent: 'Another event (welcome drinks, a recovery brunch…)',
 };
 

@@ -4,7 +4,7 @@ import { emailReady, plainHtml, sendEmail } from '../lib/email';
 import { recheckOwnNumbers } from '../lib/ownNumber';
 import { ensureAddress, mailLeft, senderOf, stripQuoted, takeMail } from '../lib/weddingMail';
 import { matches } from '../sms/audience';
-import { LIMITS, thanksKey, type EngineDeps } from '../sms/engine';
+import { cronWeddings, LIMITS, thanksKey, type EngineDeps } from '../sms/engine';
 import { classify, DEFAULT_REPLIES } from '../sms/inbound';
 import { renderFor } from '../sms/render';
 import { answerFrom, dietsIn, whoseDiet } from '../sms/smart';
@@ -197,7 +197,7 @@ export async function runEmailCampaigns(env: Env, d: EngineDeps) {
   const report = { weddings: 0, queued: 0, sent: 0, waiting: 0 };
   // An own number that's no longer an active sender: back to texting from their own phone, first.
   await recheckOwnNumbers(env).catch(() => undefined);
-  for (const w of await d.store.weddings()) {
+  for (const w of await cronWeddings(d)) {
     try {
       // Email only for weddings with someone to email (no address is made for a wedding that has none).
       const any = emailReady(env) && (await env.DB.prepare(`SELECT 1 FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL AND email IS NOT NULL AND email != '' LIMIT 1`).bind(w.id).first());

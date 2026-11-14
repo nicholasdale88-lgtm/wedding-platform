@@ -30,6 +30,38 @@ export class D1SmsStore implements SmsStore {
     return (await this.all<WeddingRow>(`SELECT *, (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = wedding.id AND e.deleted_at IS NULL) AS first_event FROM wedding WHERE deleted_at IS NULL`)).map((w) => this.toWedding(w));
   }
 
+  async activeWeddings(nowIso: string, limit: number) {
+    const now = Date.parse(nowIso);
+    // Dated messages up to two days ahead (the pre-flight checks), automatic ones until 30 days after the day.
+    const horizon = new Date(now + 49 * 3_600_000).toISOString();
+    const cutoff = new Date(now - 30 * 24 * 3_600_000).toISOString();
+    // A slot the texts finished earlier in this run still owes its emails (they're built within a day).
+    const lastDay = new Date(now - 24 * 3_600_000).toISOString();
+    const rows = await this.all<WeddingRow & { urgent: number }>(
+      `SELECT w.*, (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL) AS first_event,
+              (EXISTS (SELECT 1 FROM sms_out o WHERE o.wedding_id = w.id AND o.status IN ('queued', 'sending'))
+                OR EXISTS (SELECT 1 FROM email_out m WHERE m.wedding_id = w.id AND m.status = 'queued')
+                OR EXISTS (SELECT 1 FROM campaign_slot s JOIN campaign c ON c.id = s.campaign_id
+                            WHERE c.wedding_id = w.id AND c.deleted_at IS NULL AND s.send_at <= ?1 AND (s.status IN ('pending', 'claimed') OR (s.status != 'cancelled' AND s.send_at > ?4)))) AS urgent
+         FROM wedding w
+        WHERE w.deleted_at IS NULL
+          AND (EXISTS (SELECT 1 FROM sms_out o WHERE o.wedding_id = w.id AND o.status IN ('queued', 'sending'))
+            OR EXISTS (SELECT 1 FROM email_out m WHERE m.wedding_id = w.id AND m.status = 'queued')
+            OR EXISTS (SELECT 1 FROM campaign_slot s JOIN campaign c ON c.id = s.campaign_id
+                        WHERE c.wedding_id = w.id AND c.deleted_at IS NULL AND s.send_at <= ?1 AND (s.status IN ('pending', 'claimed') OR (s.status != 'cancelled' AND s.send_at > ?4)))
+            OR (EXISTS (SELECT 1 FROM campaign c WHERE c.wedding_id = w.id AND c.deleted_at IS NULL AND c.enabled = 1 AND c.mode = 'auto')
+                AND EXISTS (SELECT 1 FROM invitation i WHERE i.wedding_id = w.id AND i.deleted_at IS NULL)
+                AND COALESCE((SELECT MAX(e.starts_at) FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL), '9999') >= ?2))
+        ORDER BY urgent DESC, random()
+        LIMIT ?3`,
+      horizon,
+      cutoff,
+      limit,
+      lastDay,
+    );
+    return rows.map((w) => this.toWedding(w));
+  }
+
   async wedding(id: string) {
     const [w] = await this.all<WeddingRow>(`SELECT *, (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = wedding.id AND e.deleted_at IS NULL) AS first_event FROM wedding WHERE id = ? AND deleted_at IS NULL`, id);
     return w ? this.toWedding(w) : null;

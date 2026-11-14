@@ -24,7 +24,14 @@ export interface EngineDeps {
   providerFor?: (weddingId: string) => Promise<SmsProvider | null>;
   now: () => Date;
   uuid: () => string;
+  /** Most weddings one cron run goes through (each costs about ten database reads; Cloudflare caps a run). */
+  cronWeddings?: number;
 }
+
+/** Default per run: fits Workers Paid's 1,000 reads a run with room for the rest of the cron. */
+export const CRON_WEDDINGS = 40;
+/** The weddings this cron run looks at: those with something to do, the urgent first (see SmsStore). */
+export const cronWeddings = (d: EngineDeps) => (d.store.activeWeddings ? d.store.activeWeddings(d.now().toISOString(), d.cronWeddings ?? CRON_WEDDINGS) : d.store.weddings());
 
 export const LIMITS = {
   slotAttempts: 5,
@@ -63,7 +70,7 @@ export interface RunReport {
 /** Cron entry point, every 15 minutes. */
 export async function runAutopilot(d: EngineDeps): Promise<RunReport> {
   const report: RunReport = { weddings: 0, sent: 0, errors: [] };
-  for (const w of await d.store.weddings()) {
+  for (const w of await cronWeddings(d)) {
     report.weddings++;
     try {
       await preflight(d, w).catch(() => []); // a check that fails never stops the sending

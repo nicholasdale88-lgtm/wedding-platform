@@ -33,6 +33,19 @@ describe('D1 SMS store', () => {
     expect(i0).toMatchObject({ people: ['Guest0 Smith', 'Partner0 Smith'], invited: ['wedding'], seatsHeld: 2, optOut: false });
   });
 
+  it('the cron list: only weddings with something to do, the urgent first', async () => {
+    const now = '2026-11-15T00:00:00.000Z';
+    const ids = async () => (await store.activeWeddings(now, 40)).map((w) => w.id);
+    // Nothing on and nothing due: off the list.
+    await t.db.prepare(`UPDATE campaign SET enabled = 0 WHERE wedding_id = 'w1'`).run();
+    await t.db.prepare(`UPDATE campaign_slot SET status = 'cancelled'`).run();
+    expect(await ids()).toEqual([]);
+    // A text waiting: back on, and at most `limit`.
+    await store.enqueue([row('wait')]);
+    expect(await ids()).toEqual(['w1']);
+    expect(await store.activeWeddings(now, 0)).toHaveLength(0);
+  });
+
   it('enqueue ignores duplicate dedupe keys', async () => {
     expect(await store.enqueue([row('a'), row('b')])).toBe(2);
     expect(await store.enqueue([row('a'), row('c')])).toBe(1);

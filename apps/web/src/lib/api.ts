@@ -1104,9 +1104,24 @@ export interface CompanyMoney {
 export interface CompanyTodo { id: string; text: string; link: string; group: string; done: boolean; doneAt: string; doneBy: string }
 export interface CompanyActivity { id: string; action: string; target: string; detail: string; at: string; who: string; names: string }
 export interface CompanyPromo { code: string; percentOff: number; amountOffCents: number; plans: ('essentials' | 'complete' | 'event')[]; expires: string; maxUses: number; note: string; on: boolean; used: number }
+export interface CompanyAccountRow { id: string; name: string; link: string; login: string; kept: string; twoStep: boolean; status: 'todo' | 'started' | 'done' | 'problem'; note: string }
+export interface CompanyCapacity {
+  level: 'ok' | 'soon' | 'now';
+  notes: { level: 'ok' | 'soon' | 'now'; text: string }[];
+  weddings: number;
+  paid: number;
+  active: number;
+  dbBytes: number;
+  dbLimitBytes: number;
+  cronAt: string;
+  cronWeddings: number;
+}
 /** The Ads bot (Promote → Ads). */
 export type CompanyAds = AdsState & { images: { id: string; file: string; label: string }[]; connected: boolean; missing: string[]; canSpend: boolean };
 export const companyApi = {
+  capacity: () => request<CompanyCapacity>('/a/company/capacity'),
+  accounts: () => request<{ list: CompanyAccountRow[] }>('/a/company/accounts'),
+  saveAccounts: (list: CompanyAccountRow[]) => send<{ list: CompanyAccountRow[] }>('PUT', '/a/company/accounts', { list }),
   /** The Ads bot: drafts, approval (owners and managers only), pause, stop, caps, check now. */
   ads: () => request<CompanyAds>('/a/company/ads'),
   saveAdDraft: (d: AdDraft) => send<{ ok: true }>('POST', '/a/company/ads/drafts', d),
