@@ -14,4 +14,10 @@ describe('the front page envelope', () => {
     render(<RealEnvelope className="w-full aspect-square" label="alone" />);
     expect(screen.getByRole('img', { name: 'alone' }).className.split(/\s+/)).toContain('relative');
   });
+  it('bare (under a caption): the envelope and seal without its own words', () => {
+    render(<RealEnvelope compact bare label="bare" />);
+    expect(screen.queryByText('Tap to open')).toBeNull();
+    render(<RealEnvelope compact label="dressed" />);
+    expect(screen.getByText('Tap to open')).toBeInTheDocument();
+  });
 });

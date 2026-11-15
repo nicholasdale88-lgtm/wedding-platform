@@ -14,6 +14,8 @@ const mix = (a: string, b: string, t: number) => {
   return `#${A.map((v, i) => Math.round(v + (B[i]! - v) * t).toString(16).padStart(2, '0')).join('')}`;
 };
 
+const GRAIN = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .3  0 0 0 0 .25  0 0 0 0 .17  0 0 0 .1 0'/></filter><rect width='200' height='200' filter='url(#n)'/></svg>")}")`;
+
 export function RealEnvelope({
   paper = 'cream',
   wax = 'Sandstone',
@@ -21,6 +23,7 @@ export function RealEnvelope({
   label,
   className = '',
   compact = false,
+  bare = false,
 }: {
   paper?: EnvelopePaper;
   wax?: SealColour;
@@ -30,6 +33,8 @@ export function RealEnvelope({
   className?: string;
   /** Smaller type (a tile). */
   compact?: boolean;
+  /** Just the envelope and seal, without "Tap to open" and the names (when a caption sits over it). */
+  bare?: boolean;
 }) {
   const env = ENVELOPE_PAPER_INFO[paper].hex;
   const darkPaper = ['navy', 'midnight', 'eucalyptus', 'terracotta'].includes(paper);
@@ -41,8 +46,8 @@ export function RealEnvelope({
   // Positioned by the caller (absolute inset-0 in a phone) or relative: never both, or it collapses to no height.
   return (
     <div role="img" aria-label={label ?? `A sealed envelope: ${ENVELOPE_PAPER_INFO[paper].label.toLowerCase()} paper and a ${wax.toLowerCase()} wax seal pressed with H & T`} className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative '}overflow-hidden ${className}`} style={{ background: env, containerType: 'size' }}>
-      {/* Cotton paper: a fine weave and the light from the top left. */}
-      <div className="absolute inset-0" style={{ background: `repeating-linear-gradient(45deg, rgba(0,0,0,.025) 0 1px, transparent 1px 7px), repeating-linear-gradient(-45deg, rgba(0,0,0,.025) 0 1px, transparent 1px 7px), radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.35), rgba(255,255,255,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,.08))` }} />
+      {/* Fine paper: a soft, irregular grain and the light from the top left. */}
+      <div className="absolute inset-0" style={{ background: `${GRAIN}, radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.35), rgba(255,255,255,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,.08))` }} />
       {/* The side and bottom flaps, then the top flap to its point at the seal, each with a lit edge and a crisp shadow. */}
       <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         <path d="M0 100 L50 62 L100 100Z" fill="rgba(0,0,0,.04)" />
@@ -88,12 +93,16 @@ export function RealEnvelope({
       <div className="absolute left-1/2 top-1/2" style={{ width: seal, height: seal, marginLeft: -seal / 2, marginTop: -seal / 2, filter: 'drop-shadow(0 2px 2px rgba(40,25,10,.45)) drop-shadow(0 10px 14px rgba(40,25,10,.25))' }}>
         <WaxSeal colour={wax} words="H & T" px={seal} still />
       </div>
+      {!bare && (
+        <>
       <span className="absolute left-0 right-0 text-center uppercase" style={{ top: `calc(50% + ${seal * 0.62}px)`, color: text, fontFamily: "'Cormorant Garamond', Georgia, serif", letterSpacing: '.32em', fontSize: compact ? 11 : 14 }}>
         Tap to open
       </span>
       <span className="absolute left-0 right-0 text-center" style={{ top: `calc(50% + ${seal * 1.12}px)`, color: names, fontFamily: "'Pinyon Script', cursive", fontSize: compact ? 26 : 38, lineHeight: 1 }}>
         {SAMPLE.guests}
       </span>
+        </>
+      )}
     </div>
   );
 }

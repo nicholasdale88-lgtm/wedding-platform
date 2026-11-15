@@ -97,13 +97,13 @@ function Tiles() {
   );
   return (
     <div className="grid gap-5 md:grid-cols-3 max-w-[1100px] mx-auto w-full">
-      {picture(<RealEnvelope compact paper="blush" wax="Burgundy" className="absolute inset-0" />, 'Your envelope, your seal', 'your initials, pressed in wax')}
+      {picture(<RealEnvelope compact bare paper="blush" wax="Burgundy" className="absolute inset-0" />, 'Your envelope, your seal', 'your initials, pressed in wax')}
       {picture(
         <div aria-label="Envelopes in four of the papers and wax colours you can choose" role="img" className="absolute inset-0 grid grid-cols-2 sm:grid-cols-4">
-          <RealEnvelope compact paper="sage" wax="Gold" className="h-full" />
-          <RealEnvelope compact paper="navy" wax="Champagne" className="h-full" />
-          <RealEnvelope compact paper="dustyblue" wax="Silver" className="h-full hidden sm:block" />
-          <RealEnvelope compact paper="terracotta" wax="Pearl white" className="h-full hidden sm:block" />
+          <RealEnvelope compact bare paper="sage" wax="Gold" className="h-full" />
+          <RealEnvelope compact bare paper="navy" wax="Champagne" className="h-full" />
+          <RealEnvelope compact bare paper="dustyblue" wax="Silver" className="h-full hidden sm:block" />
+          <RealEnvelope compact bare paper="terracotta" wax="Pearl white" className="h-full hidden sm:block" />
         </div>,
         'Every colour you love',
         `${THEME_COUNT} designs, 12 envelope papers, 15 wax colours`,
