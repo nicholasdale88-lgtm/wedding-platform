@@ -1,6 +1,7 @@
 import { allows, chargeCents, EVENT_ADDON, FEATURE_LABEL, PLAN_INFO, planFor, planOf, type Feature, type Purchase, isPaid, PRICE_CENTS, TEXT_CREDIT_ALL_IN, TEXT_RATE } from '@wp/shared';
 import { useEffect, useState, type ReactNode } from 'react';
 import { api, UPGRADE_EVENT } from '../lib/api';
+import { savedCode } from '../lib/site';
 import { useAdmin } from './Shell';
 import { Pill, useToast } from './ui';
 
@@ -68,8 +69,9 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   // A promo code: typed, then checked (the new price shows before paying).
-  const [codeOpen, setCodeOpen] = useState(false);
-  const [code, setCode] = useState('');
+  // A vendor's code they arrived with (their link) is filled in and checked straight away.
+  const [codeOpen, setCodeOpen] = useState(() => !!savedCode());
+  const [code, setCode] = useState(() => savedCode());
   const [deal, setDeal] = useState<{ cents: number; off: number; code: string } | null>(null);
   const [codeProblem, setCodeProblem] = useState('');
   // null until we know; the button waits rather than changing under the couple's finger.
@@ -99,6 +101,9 @@ export function Upgrade({ feature, compact = false }: { feature: Feature; compac
       setCodeProblem((e as Error).message);
     }
   };
+  useEffect(() => {
+    if (savedCode()) void applyCode();
+  }, [need]); // eslint-disable-line
   // Just paid for this (or for Deluxe, which covers Essentials): say thanks while the webhook switches it on.
   const back = backFromPaying();
   const thanks = !!back?.paid && (back.bought === need || (back.bought === 'complete' && need === 'essentials'));

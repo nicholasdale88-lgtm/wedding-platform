@@ -1,6 +1,7 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect } from 'react';
+import { rememberRef } from '../lib/site';
 import { Link, useSearchParams } from 'react-router-dom';
 import { InvitationView } from '../guest/generated/InvitationView';
 import { EnvelopeExtras } from '../guest/invitation/EnvelopeExtras';
@@ -27,6 +28,8 @@ export function DemoPage() {
   const theme = THEME_NAMES.includes(asked) ? asked : undefined;
   useEffect(() => {
     document.title = `Sample invitation · ${BRAND}`;
+    // From a vendor's link (?ref=, ?code=): kept for sign-up and their code for upgrading.
+    rememberRef();
   }, []);
   return (
     <>

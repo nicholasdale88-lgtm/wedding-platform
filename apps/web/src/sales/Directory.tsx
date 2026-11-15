@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { api, ApiError, directoryApi, type MyListing } from '../lib/api';
 import { BRAND } from './SalesPage';
+import { VendorKit } from './VendorKit';
 
 /**
  * The vendor directory on the public site: wedding vendors who've signed up and listed themselves (free).
@@ -477,6 +478,9 @@ export function VendorJoinPage() {
             <li>Enquiries come to your account, with the couple’s date and numbers.</li>
             <li>When couples add or book you in their planner, it shows on your listing.</li>
             <li>Change anything, any time. Your email stays private.</li>
+            <li>Your own code: your couples get 10% off, and you see how many used it.</li>
+            <li>A link and QR to the live sample invitation, so couples see it on their phone before they spend anything.</li>
+            <li>Cards to print for your counter or client packs.</li>
           </ul>
         </section>
         <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3 p-5 rounded-[16px] bg-[#fbf8f0] border border-[#e2d7bc]">
@@ -609,30 +613,7 @@ export function VendorHomePage() {
             {busy ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
           </button>
         </section>
-        {data?.partner && (
-          <section aria-label="Your partner code" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] self-start">
-            <h2 className="m-0 text-[24px] font-normal" style={{ fontFamily: serif }}>
-              Your code for your couples
-            </h2>
-            <span className="text-[30px] tracking-[.08em]" style={{ fontFamily: serif }}>
-              {data.partner.code}
-            </span>
-            <span className="text-[15px]">
-              {data.partner.percentOff}% off The Yes List when they upgrade. Used {data.partner.uses} {data.partner.uses === 1 ? 'time' : 'times'} so far.
-            </span>
-            <button
-              type="button"
-              className="self-start py-2 px-4 rounded-full border border-[#c6b794] bg-white text-[14px] cursor-pointer"
-              onClick={() =>
-                void navigator.clipboard
-                  ?.writeText(`Planning your wedding? The Yes List does your invitations, RSVPs and seating in one place. Use my code ${data.partner!.code} for ${data.partner!.percentOff}% off: ${window.location.origin}/?ref=${encodeURIComponent(data.listing.slug)}`)
-                  .catch(() => undefined)
-              }
-            >
-              Copy a message for your couples
-            </button>
-          </section>
-        )}
+        {data?.partner && <VendorKit name={l.name} slug={data.listing.slug} code={data.partner.code} percentOff={data.partner.percentOff} uses={data.partner.uses} />}
         <section aria-label="Enquiries" className="flex flex-col gap-3 self-start">
           <h2 className="m-0 text-[28px] font-normal" style={{ fontFamily: serif }}>
             Enquiries{unread ? ` · ${unread} new` : ''}

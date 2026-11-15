@@ -6,7 +6,7 @@ const KEY = 'wp-saved-to-phone';
 const isPhone = () => (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse) and (max-width: 900px)').matches) || isIos();
 
 /** A QR code as one SVG path (crisp at any size, no canvas). */
-function QrSvg({ text, size = 168 }: { text: string; size?: number }) {
+export function QrSvg({ text, size = 168 }: { text: string; size?: number }) {
   const d = useMemo(() => {
     try {
       const q = qrcode(0, 'M');

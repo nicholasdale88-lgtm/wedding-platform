@@ -36,8 +36,22 @@ export function rememberRef() {
     const p = new URLSearchParams(window.location.search);
     const ref = cleanRef(p.get('ref') || p.get('utm_source'));
     if (ref) localStorage.setItem(KEY, ref);
+    // A vendor's partner code (?code=, on the link they give their couples): filled in when the couple upgrades.
+    const code = cleanCode(p.get('code'));
+    if (code) localStorage.setItem(CODE_KEY, code);
   } catch {
     /* private browsing: no referral, no harm */
+  }
+}
+const CODE_KEY = 'yl.code';
+/** A promo code as typed on a link: letters and digits, upper case. */
+export const cleanCode = (s: string | null | undefined) => (s ?? '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 30);
+/** The partner code this visitor arrived with ('' none). */
+export function savedCode() {
+  try {
+    return localStorage.getItem(CODE_KEY) ?? '';
+  } catch {
+    return '';
   }
 }
 export function savedRef() {

@@ -17,7 +17,7 @@ import {
   textCreditsForGuests,
   type Feature,
 } from '@wp/shared';
-import { rememberRef, savedRef, useSite } from '../lib/site';
+import { rememberRef, savedCode, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
 import { RealEnvelope } from './RealEnvelope';
 import { HeroInvite } from './HeroInvite';
@@ -234,6 +234,32 @@ const INVITE_FAQ: [string, string][] = [
   ['Should we put registry or gift details on the invitation?', 'On a digital invitation, yes: a gift registry or wishing-well page is fine, as guests look for it there. On paper, it’s usually left to the website or a separate card.'],
 ];
 
+/** Arrived from a vendor's link (?ref=their page, ?code=their code): who sent them, and the saving waiting for them. */
+function RecommendedBy() {
+  const [who, setWho] = useState<{ name: string; code: string } | null>(null);
+  useEffect(() => {
+    const code = savedCode();
+    const ref = savedRef();
+    if (!code) return;
+    setWho({ name: '', code });
+    if (!ref) return;
+    let live = true;
+    fetch(`/api/directory/v/${encodeURIComponent(ref)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ name?: string }>) : null))
+      .then((l) => live && l?.name && setWho({ name: l.name, code }))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!who) return null;
+  return (
+    <div role="note" className="px-4 py-2 text-center text-[14px]" style={{ background: '#e9dfc4', color: INK }}>
+      {who.name ? `Recommended by ${who.name}: ` : ''}your code <strong className="tracking-[.06em]">{who.code}</strong> takes 10% off when you upgrade. It’s filled in for you.
+    </div>
+  );
+}
+
 export function SalesPage() {
   const [plan, setPlan] = useState<PlanKey>('essentials');
   const site = useSite();
@@ -254,6 +280,7 @@ export function SalesPage() {
   return (
     <div className="min-h-screen" style={{ background: CREAM, color: INK, fontFamily: sans }}>
       <ShowcaseStyles />
+      <RecommendedBy />
       {site?.banner && (
         <div className="px-4 py-2 text-center text-[14px]" style={{ background: INK, color: PAPER }}>
           {site.banner.link ? (
