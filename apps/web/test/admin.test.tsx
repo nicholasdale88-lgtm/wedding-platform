@@ -397,13 +397,14 @@ describe('Guests', () => {
     renderAt('/admin/w1/wedding/guests?show=all');
     await screen.findByText('Robin Hart');
     await userEvent.selectOptions(screen.getByLabelText('Mobile'), 'has');
-    expect(screen.getByText('2 of 3 invitations')).toBeInTheDocument();
+    // Invitations shown, and the guests on them (as the overview counts them).
+    expect(screen.getByText(/^2 of 3 invitations · \d+ guests$/)).toBeInTheDocument();
     expect(location).toContain('mob=has');
     await userEvent.type(screen.getByLabelText('Search name or mobile'), 'casey');
     expect(screen.queryByText('Robin Hart')).not.toBeInTheDocument();
     expect(screen.getByText('Casey Lund')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(screen.getByText('3 invitations')).toBeInTheDocument();
+    expect(screen.getByText(/^3 invitations · \d+ guests$/)).toBeInTheDocument();
   });
 
   it('Select: tick guests and set their side, how they know you and a circle in one go', async () => {
