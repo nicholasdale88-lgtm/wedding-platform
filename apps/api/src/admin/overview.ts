@@ -123,18 +123,17 @@ export function buildOverview(data: WeddingData, now: Date, focusKey?: string): 
     .filter((s) => reminderIds.has(s.campaignId) && s.status === 'pending' && s.sendAt > now.toISOString())
     .map((s) => s.sendAt)
     .sort();
+  const reminderNote = reminderDates.length ? `Reminders go out by themselves on ${listJoin(reminderDates.map(day))}.` : 'No reminder texts are scheduled.';
   // In Account, each event says its own (an invitation to both is still to reply to each separately).
   if (!focus) {
     for (const e of d.events) {
       const n = d.guests.filter((g) => g.invited.includes(e.key) && (g.rsvp[e.key]?.attending ?? null) === null).length;
-      add(n, { kind: 'awaiting', title: `${plural(n, 'invitation', 'invitations')} still to reply to ${shortName(e)}`, detail: 'Each gets a gentle reminder before replies close.', cta: 'See who', link: 'guests?filter=awaiting', event: e.key });
+      add(n, { kind: 'awaiting', title: `${plural(n, 'invitation', 'invitations')} still to reply to ${shortName(e)}`, detail: reminderNote, cta: 'See who', link: 'guests?filter=awaiting', event: e.key });
     }
   }
   add(focus && awaitingG.length, {
     kind: 'awaiting', title: `${plural(awaitingG.length, 'invitation', 'invitations')} still to reply`,
-    detail: reminderDates.length
-      ? `Reminders go out by themselves on ${listJoin(reminderDates.map(day))}.`
-      : 'No reminder texts are scheduled.',
+    detail: reminderNote,
     cta: 'See who', link: focus ? 'guests?filter=awaiting' : 'guests?show=all&filter=awaiting', event: home,
   });
 
@@ -208,7 +207,7 @@ export function buildOverview(data: WeddingData, now: Date, focusKey?: string): 
     awaiting: awaitingG.length,
     yesInv,
     noInv: replied - yesInv,
-    seatsHeld: G.reduce((n, g) => n + g.seatsHeld, 0),
+    seatsHeld: G.reduce((n, g) => n + placesOf(g), 0),
     // Guests (places on invitations) for the event in view, or the first: coming, can't come and still to reply
     // add up to the guests invited, the guest list's number (shared/counts).
     guests: first ? countGuests(d.guests, first.key) : null,

@@ -51,7 +51,7 @@ describe('admin API', () => {
     expect(kinds).toContain('awaiting');
     expect(kinds).toContain('no-mobile'); // one seeded guest has no mobile
     expect(o.needsYou.find((n) => n.kind === 'awaiting')!.detail).toBe('Reminders go out by themselves on 18 Jun, 18 Jul and 11 Aug.');
-    expect(o.nav.guests).toBe(22);
+    expect(o.nav.guests).toBe(o.seatsHeld); // guests, as the guest list counts them
   });
 
   it('blank invitations (never given a name, mobile or email) are counted nowhere, so every page agrees', async () => {

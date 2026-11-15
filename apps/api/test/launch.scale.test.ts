@@ -235,7 +235,7 @@ describe('launch scale: every feature pushed hard', () => {
     const yesInv = snap.filter((g) => g.invited.some((k) => att(g, k))).length;
     expect(awaiting).toBe(silent.length); // everyone who replied answered every event they're invited to
     expect(ov).toMatchObject({ total: 300, replied: 300 - awaiting, awaiting, yesInv, noInv: 300 - awaiting - yesInv, seatsHeld: snap.reduce((n, g) => n + g.seats, 0) });
-    expect(ov.nav.guests).toBe(300);
+    expect(ov.nav.guests).toBe(ov.seatsHeld);
     expect(ov.events.map(({ key, coming }) => ({ key, coming }))).toEqual(
       events.map(({ key }) => ({ key, coming: snap.reduce((n, g) => n + (att(g, key) ? Math.max(1, g.rsvp[key]?.count ?? 1) : 0), 0) })),
     );

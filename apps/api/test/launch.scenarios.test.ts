@@ -301,9 +301,10 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect((await post(w, '/guests', {})).status).toBe(201);
     const people = 50 + rows.reduce((n, r) => n + r.people.length, 0) + 1;
     const ov = await overview(w);
-    expect(ov).toMatchObject({ total: 81, seatsHeld: people, awaiting: 81, replied: 0 });
-    expect(ov.nav.guests).toBe(81);
-    expect(ov.perEvent[0]).toMatchObject({ invited: 81, awaiting: 81 });
+    // The one added by hand is still blank (no name, mobile or email), so it isn't a guest yet.
+    expect(ov).toMatchObject({ total: 80, seatsHeld: people - 1, awaiting: 80, replied: 0 });
+    expect(ov.nav.guests).toBe(people - 1);
+    expect(ov.perEvent[0]).toMatchObject({ invited: 80, awaiting: 80 });
     // And seating and texts are open (texts now only need the couple's own mobile).
     const s1 = await seating(w);
     expect((await put(w, '/seating', s1.version, { event: 'wedding', aspect: '4 / 3', tables: [table('Table 1', 0)], areas: [], seats: {} })).status).toBe(200);
@@ -1201,7 +1202,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect((await del(w, `/guests/${gone2.id}`)).status).toBe(404); // already gone
     const ov1 = await overview(w);
     expect(ov1).toMatchObject({ total: 8, replied: 8 });
-    expect(ov1.nav.guests).toBe(8);
+    expect(ov1.nav.guests).toBe(ov1.seatsHeld);
     expect(ov1.perEvent.map((e) => [e.key, e.invited])).toEqual([['wedding', 8], ['recovery-brunch', 8]]);
     expect((await events(w)).map((e) => e.invited)).toEqual([8, 8]);
     expect((await rsvp(w, token(gone1), { events: { wedding: { attending: true } } }, ipOf(1440))).status).toBe(404); // their link stops working
