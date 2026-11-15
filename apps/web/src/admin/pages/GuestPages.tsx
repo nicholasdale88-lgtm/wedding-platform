@@ -590,7 +590,7 @@ function InvitationEditor({
                 <select value={inv.envelope?.finish ?? 'smooth'} onChange={(e) => setInv({ envelope: { ...inv.envelope, finish: e.target.value as 'smooth' | 'linen' | 'cotton' } })} className={inputCls}>
                   <option value="smooth">Smooth paper</option>
                   <option value="linen">Linen</option>
-                  <option value="cotton">Cotton</option>
+                  <option value="cotton">Handmade cotton (torn edge)</option>
                 </select>
               </Label>
               <Label text="Ribbon">

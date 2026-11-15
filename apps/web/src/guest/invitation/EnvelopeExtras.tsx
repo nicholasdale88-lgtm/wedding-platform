@@ -122,6 +122,37 @@ const lightOn = (hex: string) => {
   return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 140;
 };
 
+/**
+ * A fine gold-foil rule along the closed flap, a little inside its two edges, as fine stationers press one:
+ * it runs from the top of the envelope towards the seal and stops with a dot short of the sprig. In real pixels.
+ */
+function FoilRule({ vw, vh, seal }: { vw: number; vh: number; seal: number }) {
+  const tip = vh * 0.56;
+  const inset = Math.max(16, Math.min(28, vw * 0.045));
+  const dx = inset / Math.sin(Math.atan2(tip, vw / 2));
+  const stop = tip - seal * 0.95;
+  const x = (vw / 2) * (stop / tip) + dx;
+  return (
+    <svg width={vw} height={vh} viewBox={`0 0 ${vw} ${vh}`} className="absolute inset-0">
+      <defs>
+        <linearGradient id="envRule" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#a77b2c" />
+          <stop offset=".3" stopColor="#f3dc9a" />
+          <stop offset=".5" stopColor="#b98a36" />
+          <stop offset=".72" stopColor="#f8e7b4" />
+          <stop offset="1" stopColor="#9c7128" />
+        </linearGradient>
+      </defs>
+      <g fill="url(#envRule)" stroke="url(#envRule)" strokeWidth="1.3" style={{ filter: 'drop-shadow(0 1px 0 rgba(255,255,255,.35)) drop-shadow(0 -0.5px 0 rgba(90,60,20,.35))' }}>
+        <path d={`M${dx.toFixed(1)} 0 L${x.toFixed(1)} ${stop.toFixed(1)}`} fill="none" />
+        <path d={`M${(vw - dx).toFixed(1)} 0 L${(vw - x).toFixed(1)} ${stop.toFixed(1)}`} fill="none" />
+        <circle cx={x} cy={stop} r="2.2" stroke="none" />
+        <circle cx={vw - x} cy={stop} r="2.2" stroke="none" />
+      </g>
+    </svg>
+  );
+}
+
 export function EnvelopeExtras({ phase, opts, colours, guestName, music = false, opening = 'classic' }: { phase: number; opts: EnvelopeOptions; colours: Colours; guestName: string; music?: boolean; opening?: string }) {
   const { w: vw, h: vh } = useViewport();
   if (phase >= 4) return null;
@@ -135,6 +166,8 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
   const ribbon = untie && (opts.ribbon ?? 'none') === 'none' ? 'silk' : (opts.ribbon ?? 'none');
   // The seal's size in the design (a gap is left for it in the ribbon).
   const seal = 'clamp(96px,24vmin,150px)';
+  const sealPx = Math.min(150, Math.max(96, Math.min(vw, vh) * 0.24));
+  const dark = lightOn(colours.envelope);
   const hole = `radial-gradient(circle at 50% 56%, transparent calc(${seal} / 2 + 2px), #000 calc(${seal} / 2 + 4px))`;
   return (
     <div aria-hidden className="fixed inset-0 z-[1] pointer-events-none overflow-hidden" style={{ perspective: 1100 }}>
@@ -179,10 +212,15 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
           }}
         />
         {/* Light from the top left, and the corners falling into shade. */}
-        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', background: 'linear-gradient(135deg, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.28) 100%)' }} />
-        <div className="absolute inset-0" style={{ mixBlendMode: 'multiply', background: 'radial-gradient(120% 95% at 50% 46%, transparent 60%, rgba(0,0,0,.22) 100%)' }} />
-        {/* The top flap's deckled edge: torn cotton, a ragged fringe a few millimetres past the fold, its
-            fibres catching the light, with a soft shadow beneath. Drawn in real pixels so it isn't stretched. */}
+        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', background: 'linear-gradient(170deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,.15) 45%, rgba(0,0,0,.06) 100%)' }} />
+        <div className="absolute inset-0" style={{ mixBlendMode: 'multiply', background: 'radial-gradient(140% 100% at 50% 35%, transparent 70%, rgba(60,40,20,.07) 100%)' }} />
+        {/* A light envelope reads as warm ivory in soft daylight, not grey: a gentle warm lift (not over the seal). */}
+        {!dark && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,250,238,.32), rgba(255,244,222,.18) 60%, rgba(255,240,215,.1))', WebkitMaskImage: hole, maskImage: hole }} />}
+        {/* A fine gold-foil rule pressed along the flap, just inside its edges, ending in a dot before the sprig. */}
+        {opts.sprig !== false && <FoilRule vw={vw} vh={vh} seal={sealPx} />}
+        {/* Cotton paper only: the top flap's deckled edge, torn cotton, a ragged fringe a few millimetres past the
+            fold, its fibres catching the light, with a soft shadow beneath. Drawn in real pixels so it isn't stretched. */}
+        {finish === 'cotton' && (
         <svg width={vw} height={vh} viewBox={`0 0 ${vw} ${vh}`} className="absolute inset-0" style={{ WebkitMaskImage: hole, maskImage: hole }}>
           <defs>
             <linearGradient id="dkFlap" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2={vh * 0.56}>
@@ -219,6 +257,7 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
             );
           })()}
         </svg>
+        )}
         {/* The paper's finish. Smooth (the default): a soft light across a fine sheet, only a whisper of grain.
             Linen: a fine woven texture. Cotton: a gently felted surface with a few fibres. */}
         {finish === 'cotton' && (
