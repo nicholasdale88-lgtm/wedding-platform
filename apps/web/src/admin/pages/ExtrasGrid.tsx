@@ -14,7 +14,8 @@ export interface ExtraProps {
   start?: boolean;
   children: ReactNode;
 }
-export function Extra(_: ExtraProps): null {
+export function Extra(props: ExtraProps): null {
+  void props; // read by ExtrasGrid
   return null;
 }
 
