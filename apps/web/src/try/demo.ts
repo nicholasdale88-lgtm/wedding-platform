@@ -164,6 +164,54 @@ function seating(): SeatingData {
   };
 }
 
+// ---------------------------------------------------------------- Setup: the sample invitation, changeable
+/**
+ * The sample's Setup page edits the sample invitation for real (colour boards, the arch photo, wording...).
+ * Each change is kept in this tab (sessionStorage), where the preview beside it (/demo?embed=1&mine=1, the
+ * same tab's storage) reads it. Closing the tab forgets it; nothing reaches the server.
+ */
+export const DEMO_PAGES_KEY = 'yl-try-pages';
+export interface DemoPagesDoc {
+  names: { name1: string; name2: string; monogram: string };
+  theme: string;
+  invitation: Record<string, unknown>;
+  texts: Record<string, string>;
+}
+let pagesVersion = 1;
+export function readDemoPages(): Partial<DemoPagesDoc> | null {
+  try {
+    const s = sessionStorage.getItem(DEMO_PAGES_KEY);
+    return s ? (JSON.parse(s) as Partial<DemoPagesDoc>) : null;
+  } catch {
+    return null;
+  }
+}
+async function demoPages(method: string, body: Record<string, unknown>) {
+  if (method === 'POST') throw new ApiError(400, 'demo', 'In the sample, there’s no link to share. Start your wedding to share a preview with family.');
+  const { SAMPLE_INVITE } = await import('../sales/sample');
+  const w = SAMPLE_INVITE.wedding;
+  const saved = readDemoPages() ?? {};
+  const doc: DemoPagesDoc = {
+    names: saved.names ?? { name1: w.name1, name2: w.name2, monogram: w.monogram },
+    theme: saved.theme ?? w.theme,
+    invitation: saved.invitation ?? (SAMPLE_INVITE.content as Record<string, unknown>),
+    texts: saved.texts ?? SAMPLE_INVITE.texts,
+  };
+  if (method === 'PUT') {
+    if (body.names) doc.names = body.names as DemoPagesDoc['names'];
+    if (typeof body.theme === 'string') doc.theme = body.theme;
+    if (body.invitation) doc.invitation = body.invitation as Record<string, unknown>;
+    if (body.texts) doc.texts = { ...doc.texts, ...(body.texts as Record<string, string>) };
+    try {
+      sessionStorage.setItem(DEMO_PAGES_KEY, JSON.stringify(doc));
+    } catch {
+      throw new ApiError(400, 'demo', 'That photo is too big for the sample. Try a smaller one.');
+    }
+    pagesVersion += 1;
+  }
+  return { version: pagesVersion, slug: w.slug, share: null, events: [{ key: 'wedding', name: 'The wedding' }], guides: {}, filled: {}, samples: [], ...doc };
+}
+
 // ---------------------------------------------------------------- answering the admin
 const notHere = () => new ApiError(404, 'demo', 'This part isn’t in the sample. Start your wedding to use it: everything you set up stays.');
 const FEATURE_OF: [RegExp, string][] = [
@@ -220,6 +268,7 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
     if (data === null) try { data = PLANNER_DOCS[kind].parse({}); } catch { data = {}; }
     return ok({ data, version: 1 });
   }
+  if (rest === '/pages' || rest === '/pages/share') return ok(await demoPages(method, body));
   if (rest.startsWith('/vendor-chat')) {
     const r = coupleVendorDemo(rest, method, body);
     if (r === null) throw notHere();

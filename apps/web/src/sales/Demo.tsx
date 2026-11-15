@@ -13,6 +13,7 @@ import '../guest/looks.css';
 import { MotionPortal } from '../guest/invitation/Motion';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 import { BRAND } from './SalesPage';
+import { readDemoPages } from '../try/demo';
 
 /**
  * /demo: the real invitation, exactly as a guest sees it on their phone (the same view and behaviour as
@@ -33,7 +34,7 @@ export function DemoPage() {
   }, []);
   return (
     <>
-      <SampleInvitation key={theme ?? ''} theme={theme} play={params.get('play') === '1'} />
+      <SampleInvitation key={theme ?? ''} theme={theme} play={params.get('play') === '1'} mine={params.get('mine') === '1'} />
       {!embed && (
         <div className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-3 py-2 pl-4 pr-2 rounded-full text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]" style={{ background: 'rgba(51,64,47,.92)' }}>
           <Link to={params.get('from') === 'designs' ? '/designs' : '/'} className="flex-none py-[7px] px-3 rounded-full no-underline font-semibold !text-[#fbf8f2] border border-[rgba(251,248,242,.4)]">
@@ -52,8 +53,13 @@ export function DemoPage() {
 }
 
 /** The guest invitation for the sample wedding: the generated design view, run by the real invitation logic. */
-export function SampleInvitation({ theme, play = false }: { theme?: string; play?: boolean } = {}) {
-  const data = theme ? { ...SAMPLE_INVITE, wedding: { ...SAMPLE_INVITE.wedding, theme } } : SAMPLE_INVITE;
+export function SampleInvitation({ theme, play = false, mine = false }: { theme?: string; play?: boolean; mine?: boolean } = {}) {
+  // ?mine=1: the sample as changed in the sample app's Setup (kept in this tab), for its preview.
+  const own = mine ? readDemoPages() : null;
+  const base = own
+    ? { ...SAMPLE_INVITE, wedding: { ...SAMPLE_INVITE.wedding, ...(own.names ?? {}), theme: own.theme ?? SAMPLE_INVITE.wedding.theme }, content: (own.invitation ?? SAMPLE_INVITE.content) as typeof SAMPLE_INVITE.content, texts: own.texts ?? SAMPLE_INVITE.texts }
+    : SAMPLE_INVITE;
+  const data = theme ? { ...base, wedding: { ...base.wedding, theme } } : base;
   const { v: core, t, phase, seal } = useInvitation(data.wedding.slug, data, true);
   // The front page's phone: the seal breaks by itself after a moment, so the envelope opens as people watch.
   const openNow = core.open;
@@ -88,7 +94,7 @@ export function SampleInvitation({ theme, play = false }: { theme?: string; play
           kind={scene}
           phase={phase}
           colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: th.e1 ?? '#e6dcc4' }}
-          initials="H & T"
+          initials={data.wedding.monogram.replace(/\s*&\s*/, ' & ')}
           guestName={SAMPLE.guests}
           photo={data.content.images?.backdrop}
         />

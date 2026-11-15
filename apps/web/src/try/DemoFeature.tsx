@@ -52,7 +52,7 @@ const FEATURES: Record<string, { title: string; plan: 'free' | 'essentials' | 'c
     points: ['Run the whole wedding with your real guest list before it happens', 'Every text, each guest’s page and anything that would go wrong', 'Nothing is sent'],
   },
 };
-export const DEMO_HANDS_ON = new Set(['overview', 'guests', 'dietary', 'seating', 'help']);
+export const DEMO_HANDS_ON = new Set(['overview', 'guests', 'dietary', 'seating', 'pages', 'help']);
 
 export function DemoFeature({ tab }: { tab: string }) {
   const f = FEATURES[tab] ?? FEATURES.planner!;

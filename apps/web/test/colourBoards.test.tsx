@@ -18,3 +18,17 @@ describe('colour boards (the design studio)', () => {
     expect(screen.getByRole('radio', { name: /Navy & gold/ })).toHaveAttribute('aria-checked', 'true');
   });
 });
+
+describe('mood boards', () => {
+  it('the chosen board is pinned up large as "Your board", with its materials and seal', () => {
+    const b = BOARDS.find((x) => x.name === 'Olive grove')!;
+    render(<ColourBoards inv={{ custom: { paper: b.paper, soft: b.soft, accent: b.accent, ink: b.ink, envelope: b.envelope }, seal: b.seal }} setInv={() => {}} names={['H', 'T']} />);
+    expect(screen.getByText('Your board')).toBeInTheDocument();
+    expect(screen.getByText(`Wax seal · ${b.seal}`)).toBeInTheDocument();
+    for (const m of b.materials) expect(screen.getAllByText(new RegExp(m)).length).toBeGreaterThan(0);
+  });
+  it('no board chosen: nothing pinned up large', () => {
+    render(<ColourBoards inv={{}} setInv={() => {}} names={['H', 'T']} />);
+    expect(screen.queryByText('Your board')).toBeNull();
+  });
+});

@@ -19,6 +19,7 @@ import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
 import { checkMusic } from '../../guest/audio';
 import { photoData } from '../../guest/invitation/LiveEdit';
 import { SaveToPhone } from '../../lib/SaveToPhone';
+import { isDemo } from '../../try/demo';
 
 /**
  * Admin → Setup (Account: the shared invitation and photo page; an event: its details, timeline and night-before page and text). Pick a page (the invitation, each
@@ -144,8 +145,11 @@ export function GuestPages() {
     return () => window.removeEventListener('beforeunload', warn);
   }, []);
 
+  // The sample app (Company → Preview, Try the app): the invitation only, previewed from this tab's copy.
+  const demo = isDemo();
   const pages = useMemo(() => {
     if (!data) return [];
+    if (demo) return [{ key: 'invitation', label: 'Invitation' }] as { key: PageKey; label: string }[];
     // Each event's own pages. The invitation lives with the first event (the other events have their
     // section and timeline in it); every event has its own photo page.
     const ev = data.events.find((e) => e.key === chosen) ?? data.events[0];
@@ -156,7 +160,7 @@ export function GuestPages() {
     if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
     list.push({ key: 'photos', label: 'Photo page' });
     return list;
-  }, [data, doc, chosen]);
+  }, [data, doc, chosen, demo]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
   const eventKey = page.startsWith('guide:') ? page.slice(6) : null;
   const ev = data?.events.find((e) => e.key === chosen) ?? data?.events[0];
@@ -187,8 +191,8 @@ export function GuestPages() {
     );
   const base = `/w/${data.slug}`;
   const path = page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
-  const editingCard = liveEdit && page === 'invitation';
-  const previewUrl = `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}${asEvents && path === '/' ? `events=${encodeURIComponent(asEvents)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
+  const editingCard = liveEdit && page === 'invitation' && !demo;
+  const previewUrl = demo ? '/demo?embed=1&mine=1' : `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}${asEvents && path === '/' ? `events=${encodeURIComponent(asEvents)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
   const shareUrl = `${window.location.origin}${base}${path}${sample ? `?g=${encodeURIComponent(sample.token)}` : ''}`;
 
   const guide = eventKey ? doc.guides[eventKey] : undefined;
@@ -230,6 +234,7 @@ export function GuestPages() {
     <div className={`flex flex-col gap-3 ${wide ? 'sticky top-6' : ''}`}>
       <DevicePicker device={device} onChange={setDevice} />
       {page === 'invitation' &&
+        !demo &&
         (editingCard ? (
           <LiveEditBar
             inv={doc.invitation}
@@ -271,7 +276,7 @@ export function GuestPages() {
           <span role="status" aria-live="polite" className="text-[13px] text-[var(--adm-muted,#5b6a52)]">
             {page === 'details' ? 'Event details save with the Save button' : status === 'saving' ? 'Saving…' : status === 'waiting' ? 'Unsaved changes' : status === 'error' ? 'Not saved. Check your connection.' : 'All changes saved'}
           </span>
-          <Pill onClick={() => setSharing((x) => !x)}>Share a preview</Pill>
+          {!demo && <Pill onClick={() => setSharing((x) => !x)}>Share a preview</Pill>}
         </div>
       </header>
       {sharing && (
@@ -284,7 +289,7 @@ export function GuestPages() {
         />
       )}
 
-      <SaveToPhone url={`${window.location.origin}/admin/${encodeURIComponent(wid)}`} />
+      {!demo && <SaveToPhone url={`${window.location.origin}/admin/${encodeURIComponent(wid)}`} />}
 
       <div className="flex gap-2 flex-wrap items-center">
         <nav aria-label="Setup" className={subNavCls}>
