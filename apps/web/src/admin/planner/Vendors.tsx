@@ -176,7 +176,7 @@ export function Vendors() {
         ))}
       </section>
 
-      <VendorMessages wid={wid} />
+      <VendorMessages wid={wid} list={list} />
 
       {/* The four steps: done ones ticked, where you're at in bold; tap any to go there. */}
       <nav id="vendor-steps" aria-label="Vendor steps" className="scroll-mt-4">

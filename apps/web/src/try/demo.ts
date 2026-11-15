@@ -1,5 +1,6 @@
-import { countGuests } from '@wp/shared';
+import { countGuests, PLANNER_DOCS } from '@wp/shared';
 import { ApiError, type EventFull, type EventInfo, type Guest, type GuestDetail, type GuestPatch, type Overview, type RsvpPut, type SeatingData, type SeatTable } from '../lib/api';
+import { coupleVendorDemo } from './vendorDemo';
 
 /**
  * "Try the app": the real admin, for a made-up wedding, answered here in the browser instead of by the
@@ -208,6 +209,22 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
   }
   if (rest === '/overview') return ok(overview(new URLSearchParams(path.split('?')[1] ?? '').get('event')));
   if (rest === '/events') return ok({ timezone: TZ, events: eventsFull() });
+  // The planner's pages: each starts as a new couple's would (the vendors list has their florist, who
+  // writes to them in Messages with your vendors).
+  const pd = /^\/planner\/doc\/([a-z-]+)(?:\/.*)?$/.exec(rest);
+  if (pd && method === 'GET' && Object.hasOwn(PLANNER_DOCS, pd[1]!)) {
+    const kind = pd[1] as keyof typeof PLANNER_DOCS;
+    const start = kind === 'vendors' ? { list: [{ id: 'florist', name: 'Wildflower Studio', category: 'Florist', status: 'booked', dirId: 'v:sample-florist' }, { id: 'photo', name: 'Golden Hour Photography', category: 'Photographer', status: 'requested', email: 'hello@example.com' }] } : {};
+    const parsed = PLANNER_DOCS[kind].safeParse(start);
+    let data: unknown = parsed.success ? parsed.data : null;
+    if (data === null) try { data = PLANNER_DOCS[kind].parse({}); } catch { data = {}; }
+    return ok({ data, version: 1 });
+  }
+  if (rest.startsWith('/vendor-chat')) {
+    const r = coupleVendorDemo(rest, method, body);
+    if (r === null) throw notHere();
+    return ok(r);
+  }
   if (rest === '/guests' && method === 'GET') {
     const live = guests.filter((g) => !(g as Guest & { gone?: boolean }).gone);
     // Each guest's invitation is the sample invitation (Preview opens it).

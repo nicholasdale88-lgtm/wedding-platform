@@ -8,6 +8,7 @@ import { readJson } from '../lib/security';
 import { jsonWritesOnly, requireUser, signIn, type AdminEnv } from './auth';
 import { slugPart } from './signup';
 import { ensureVendorCode, promoUses, readSetting } from './company';
+import { linkByEmail } from './vendorCouples';
 
 /**
  * The vendor directory of vendors who've signed up (/api/directory, public) and a vendor's own listing
@@ -187,6 +188,9 @@ export function directoryRoutes() {
     }
     // Their partner code for their couples (10% off), made straight away.
     await ensureVendorCode(db, id, f.name).catch(() => '');
+    // Couples who already have them in their planner (by this email: invited them, or asked for a quote) are
+    // their couples from the start, with those quote requests waiting.
+    await linkByEmail(db, id, f.email).catch(() => undefined);
     await signIn(c, { id: userId, email: f.email });
     return c.json({ slug });
   });

@@ -407,6 +407,49 @@ const LINERS = [
 const field = (key: string) => INV_FIELDS.find((f) => f.key === key)!;
 const shortUrl = (u: string) => u.replace(/^https?:\/\/(www\.)?/, '').slice(0, 40);
 
+/**
+ * The photo in the arch on the invitation (the venue, usually): choose one from the phone or computer, or paste a
+ * link; shown in the arch as guests see it. Empty: the design's sample photo.
+ */
+function VenuePhoto({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const pick = useRef<HTMLInputElement>(null);
+  const [problem, setProblem] = useState('');
+  const [link, setLink] = useState(value.startsWith('data:') ? '' : value);
+  const choose = async (f: File | undefined) => {
+    if (!f) return;
+    const data = await photoData(f);
+    if (!data) return setProblem('That photo couldn’t be used. Try a JPEG or PNG.');
+    setProblem('');
+    onChange(data);
+  };
+  return (
+    <div className="flex gap-4 items-start flex-wrap">
+      <img
+        src={value.trim() || '/seed-media/lookout.jpg'}
+        alt={value.trim() ? 'Your venue photo, in the arch' : 'The design’s sample photo, in the arch'}
+        className="w-[120px] aspect-[4/5] object-cover flex-none"
+        style={{ clipPath: 'inset(0 round 999px 999px 0 0)' }}
+      />
+      <div className="flex flex-col gap-2 flex-[1_1_220px]">
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Your venue, the two of you, or anywhere that means something. A tall photo fits the arch best.</span>
+        <div className="flex gap-2 flex-wrap">
+          <Pill kind="primary" size="sm" onClick={() => pick.current?.click()}>
+            {value.trim() ? 'Choose another photo' : 'Choose a photo'}
+          </Pill>
+          {value.trim() && (
+            <Pill size="sm" onClick={() => (setLink(''), onChange(''))}>
+              Use the sample photo
+            </Pill>
+          )}
+        </div>
+        <input ref={pick} type="file" accept="image/*" className="hidden" aria-label="Choose a venue photo" onChange={(e) => void choose(e.target.files?.[0])} />
+        {problem && <span role="alert" className="text-[13px] text-[#7a4a37]">{problem}</span>}
+        <TextField label="Or a link to a photo" value={link} placeholder="https://…" onChange={(v) => (setLink(v), onChange(v))} />
+      </div>
+    </div>
+  );
+}
+
 function InvitationEditor({
   doc,
   n,
@@ -633,8 +676,8 @@ function InvitationEditor({
             </Label>
           </Rollup>
 
-          <Rollup title="Photo" now={set(inv.images?.lookout) ? `Your photo: ${shortUrl(inv.images!.lookout!)}` : 'The design’s photo'}>
-            <TextField label="Photo (link)" value={inv.images?.lookout ?? ''} placeholder="/seed-media/lookout.jpg" onChange={(v) => setInv({ images: { ...inv.images, lookout: v } })} hint="A link to your photo. Leave it empty for the design’s own." />
+          <Rollup title="Venue photo (the arch)" now={set(inv.images?.lookout) ? (inv.images!.lookout!.startsWith('data:') ? 'Your photo' : `Your photo: ${shortUrl(inv.images!.lookout!)}`) : 'The design’s sample photo: add your venue'}>
+            <VenuePhoto value={inv.images?.lookout ?? ''} onChange={(v) => setInv({ images: { ...inv.images, lookout: v } })} />
           </Rollup>
 
           <Rollup title="Music" now={set(inv.audioUrl) ? `Plays when they open it: ${shortUrl(inv.audioUrl!)}` : 'No music'}>

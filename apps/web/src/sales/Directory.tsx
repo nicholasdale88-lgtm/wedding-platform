@@ -5,6 +5,7 @@ import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { api, ApiError, directoryApi, type MyListing } from '../lib/api';
 import { BRAND } from './SalesPage';
 import { VendorCouples } from './VendorCouples';
+import { isVendorDemo } from '../try/vendorDemo';
 import { VendorKit } from './VendorKit';
 
 /**
@@ -446,7 +447,9 @@ function ListingForm({ value, onChange }: { value: ListingFields; onChange: (v: 
 export function VendorJoinPage() {
   const nav = useNavigate();
   const [f, setF] = useState<ListingFields>(BLANK);
-  const [acct, setAcct] = useState({ email: '', passcode: '', company: '' });
+  // Invited by a couple (their email to us): the address they used is filled in, so the couple are linked on joining.
+  const [joinParams] = useSearchParams();
+  const [acct, setAcct] = useState({ email: joinParams.get('email') ?? '', passcode: '', company: '' });
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const submit = async (e: FormEvent) => {
@@ -598,6 +601,11 @@ export function VendorHomePage() {
   }, { replace: true });
   return (
     <Frame title="Your listing">
+      {isVendorDemo() && (
+        <p role="note" className="mt-4 p-3 rounded-[12px] bg-[#f3ecd6] text-[14px]">
+          A sample vendor account: a made-up florist with couples, messages and enquiries. Everything works here, but nothing is saved or sent.
+        </p>
+      )}
       {params.get('joined') && <p className="mt-4 p-4 rounded-[12px] bg-[#e7eedb] text-[15px]">You’re listed. Couples can find you now. Add a few photos and your prices to stand out.</p>}
       <div className="flex justify-between items-end gap-3 flex-wrap pt-6">
         <div>

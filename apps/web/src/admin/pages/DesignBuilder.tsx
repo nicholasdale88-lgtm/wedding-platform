@@ -17,6 +17,7 @@ import { isHex, NAMES_STYLES, paletteOf, themeOf, type NamesStyle } from '../../
 import { inputCls, Label, Pill } from '../ui';
 import { Grid, TextField } from './fields';
 import { SealPicker } from './SealPicker';
+import { ColourBoards } from './ColourBoards';
 import { sealSwatch } from '../../guest/invitation/WaxSeal';
 
 /**
@@ -229,7 +230,8 @@ export function DesignBuilder({
       <div className="flex flex-col gap-3 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
         {step === 0 && (
           <>
-            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Any template’s colours, or your own. More looks are under the Theme list below.</span>
+            <ColourBoards inv={inv} setInv={setInv} names={initials} />
+            <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Or any template’s colours, or your own. More looks are under the Theme list below.</span>
             <div role="radiogroup" aria-label="Look" className="flex gap-2 flex-wrap">
               {TEMPLATES.map((t) => (
                 <button key={t.name} type="button" role="radio" aria-checked={theme === t.name} title={t.style} onClick={() => lookOf(t)} className={`flex items-center gap-2 py-[5px] px-3 rounded-full border text-[12px] cursor-pointer ${theme === t.name ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#d3c6a4)]'} bg-white`}>

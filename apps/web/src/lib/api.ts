@@ -1,6 +1,7 @@
 import type { AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
 import type { CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
+import { isVendorDemo, vendorDemo } from '../try/vendorDemo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
 export class ApiError extends Error {
@@ -19,6 +20,13 @@ export const UPGRADE_EVENT = 'wp:upgrade';
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   // Try the app (/admin/demo): a made-up wedding answered in the browser; nothing reaches the server.
   if (isDemo()) return demoRequest<T>(path, init);
+  // The sample vendor account (/vendors/me?sample=1): answered in the browser too.
+  if (isVendorDemo()) {
+    await new Promise((ok) => setTimeout(ok, 120));
+    const r = vendorDemo(path.split('?')[0]!, (init.method ?? 'GET').toUpperCase(), init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : {});
+    if (r === null) throw new ApiError(400, 'demo', 'In the sample, that isn’t saved or sent.');
+    return r as T;
+  }
   let res: Response;
   try {
     const go = () =>
@@ -628,9 +636,11 @@ export interface VendorCouple {
   last: { body: string; at: string } | null;
   /** Their page for this wedding (the details the couple shares), when the couple has them in their planner. */
   details: string;
+  /** The couple's quote requests to this vendor (leads), each with its link to price it. */
+  quotes?: { id: string; title: string; lines: number; due: string; sent: string; answered: boolean; declined: boolean; link: string }[];
 }
 export const vendorCouplesApi = {
-  list: () => request<{ couples: VendorCouple[]; unread: number }>('/a/vendor/couples'),
+  list: () => request<{ couples: VendorCouple[]; unread: number; quotesOpen?: number }>('/a/vendor/couples'),
   thread: (wid: string) => request<{ couple: string; messages: VendorChatMessage[] }>(`/a/vendor/couples/${encodeURIComponent(wid)}/messages`),
   send: (wid: string, body: string) => send<{ messages: VendorChatMessage[] }>('POST', `/a/vendor/couples/${encodeURIComponent(wid)}/messages`, { body }),
   invite: (name: string, email: string) => send<{ sent: boolean }>('POST', '/a/vendor/couples/invite', { name, email }),
@@ -649,6 +659,7 @@ export const vendorChatApi = {
   thread: (wid: string, lid: string) => request<{ vendor: { id: string; name: string; category: string }; messages: VendorChatMessage[] }>(`/a/w/${wid}/vendor-chat/${encodeURIComponent(lid)}`),
   send: (wid: string, lid: string, body: string) => send<{ messages: VendorChatMessage[] }>('POST', `/a/w/${wid}/vendor-chat/${encodeURIComponent(lid)}`, { body }),
   end: (wid: string, lid: string) => send<{ ok: true }>('DELETE', `/a/w/${wid}/vendor-chat/${encodeURIComponent(lid)}`),
+  invite: (wid: string, vendorId: string) => send<{ linked: boolean; sent: boolean }>('POST', `/a/w/${wid}/vendor-chat/invite/vendor`, { vendorId }),
 };
 
 export interface VendorHit {

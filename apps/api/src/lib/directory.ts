@@ -201,6 +201,12 @@ export async function recordUse(db: D1Database, weddingId: string, list: Vendor[
     if (dir.startsWith('v:'))
       stmts.push(db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'added', 'active', ?)`).bind(dir.slice(2), weddingId, now));
   }
+  // A vendor added by hand whose email is a listed vendor's: linked too (the couple's own vendor, on The Yes List).
+  const emails = [...new Set(list.filter((v) => !v.dirId?.startsWith('v:') && v.email?.trim()).map((v) => v.email.trim().toLowerCase()))].slice(0, 50);
+  if (emails.length) {
+    const { results: listed } = await db.prepare(`SELECT id FROM vendor_listing WHERE hidden = 0 AND lower(email) IN (${emails.map(() => '?').join(',')})`).bind(...emails).all<{ id: string }>();
+    for (const l of listed) stmts.push(db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'added', 'active', ?)`).bind(l.id, weddingId, now));
+  }
   // A vendor taken off their list no longer counts for them.
   const { results: had } = await db.prepare(`SELECT dir_id FROM vendor_use WHERE wedding_id = ?`).bind(weddingId).all<{ dir_id: string }>();
   const kept = new Set(keep);

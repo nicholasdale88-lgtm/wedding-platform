@@ -8,6 +8,7 @@ import { readJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { ensureVendorCode } from './company';
 import { readDoc } from './planner';
+import { requestLink, weddingFacts } from '../lib/quoteRequests';
 import { vendorHubKey } from './vendorHub';
 
 /**
@@ -48,13 +49,26 @@ async function post(env: Env, listingId: string, weddingId: string, fromVendor: 
   if (!recent && emailReady(env)) await notify().catch(() => undefined);
 }
 
+/** Links a new listing to every wedding whose vendors already include this email. */
+export async function linkByEmail(db: D1Database, listingId: string, email: string) {
+  const e = email.trim().toLowerCase().replace(/[%_"\\]/g, '');
+  if (!e) return;
+  const { results } = await db.prepare(`SELECT wedding_id FROM planner_doc WHERE kind = 'vendors' AND scope = '' AND lower(data) LIKE ? LIMIT 200`).bind(`%"email":"${e}"%`).all<{ wedding_id: string }>();
+  const now = new Date().toISOString();
+  if (results.length) await db.batch(results.map((x) => db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'invited', 'active', ?)`).bind(listingId, x.wedding_id, now)));
+}
+
+/** In a couple's vendors, the entries that are this listed vendor: by its directory id, or by its email. */
+const mineIn = <V extends { id: string; dirId?: string; email?: string }>(list: V[], listing: { id: string; email: string }) =>
+  list.filter((v) => v.dirId === `v:${listing.id}` || (!!v.email?.trim() && v.email.trim().toLowerCase() === listing.email.trim().toLowerCase()));
+
 const firstNames = (a: string, b: string) => [a, b].map((n) => n.trim().split(' ')[0]).filter(Boolean).join(' & ');
 
 /** The vendor's side (signed in with their listing's account). */
 export function vendorCoupleRoutes() {
   const app = new Hono<AdminEnv>();
   app.use('*', jsonWritesOnly, requireUser);
-  const listingOf = (c: C) => c.env.DB.prepare(`SELECT id, slug, name FROM vendor_listing WHERE user_id = ?`).bind(c.get('user').id).first<{ id: string; slug: string; name: string }>();
+  const listingOf = (c: C) => c.env.DB.prepare(`SELECT id, slug, name, email FROM vendor_listing WHERE user_id = ?`).bind(c.get('user').id).first<{ id: string; slug: string; name: string; email: string }>();
   /** The couple, if linked to this vendor and not ended. */
   const linked = (c: C, listingId: string, weddingId: string) =>
     c.env.DB.prepare(`SELECT w.id, w.slug, w.name1, w.name2 FROM vendor_couple vc JOIN wedding w ON w.id = vc.wedding_id AND w.deleted_at IS NULL WHERE vc.listing_id = ? AND vc.wedding_id = ? AND vc.status = 'active'`)
@@ -94,10 +108,16 @@ export function vendorCoupleRoutes() {
     const couples = await Promise.all(
       results.map(async (w) => {
         let details = '';
-        if (secret && w.booked !== null) {
-          const v = (await readDoc(db, w.id, 'vendors', '')).data.list.find((x) => x.dirId === `v:${l.id}`);
-          if (v) details = `${base(c.env)}/w/${w.slug}/vendor?v=${encodeURIComponent(v.id)}&k=${await vendorHubKey(secret, w.id, v.id)}`;
-        }
+        const doc = (await readDoc(db, w.id, 'vendors', '')).data;
+        const mine = mineIn(doc.list, l);
+        if (secret && mine[0]) details = `${base(c.env)}/w/${w.slug}/vendor?v=${encodeURIComponent(mine[0].id)}&k=${await vendorHubKey(secret, w.id, mine[0].id)}`;
+        // Their quote requests to this vendor: leads, each with its own link to price it.
+        const ids = new Set(mine.map((v) => v.id));
+        const quotes = doc.rfqs.flatMap((q) =>
+          q.vendors
+            .filter((rv) => ids.has(rv.vendorId) && !!rv.key && !q.closed)
+            .map((rv) => ({ id: `${q.id}:${rv.vendorId}`, title: q.title || 'Quote request', lines: q.lines.length, due: q.due, sent: rv.sentOn, answered: !!rv.answeredOn, declined: !!rv.declinedOn, link: requestLink(c.env, w.slug, rv.key) })),
+        );
         return {
           id: w.id,
           couple: firstNames(w.name1, w.name2),
@@ -111,10 +131,12 @@ export function vendorCoupleRoutes() {
           unread: w.unread,
           last: w.last ? { body: w.last.slice(0, 140), at: w.last_at ?? '' } : null,
           details,
+          quotes,
         };
       }),
     );
-    return c.json({ couples, unread: couples.reduce((n, x) => n + x.unread, 0) });
+    const quotesOpen = couples.reduce((n, x) => n + x.quotes.filter((q) => !q.answered && !q.declined).length, 0);
+    return c.json({ couples, unread: couples.reduce((n, x) => n + x.unread, 0), quotesOpen });
   });
 
   app.get('/:wid/messages', async (c) => {
@@ -190,6 +212,43 @@ export function coupleVendorChatRoutes() {
       .bind(wid(c))
       .all<{ id: string; slug: string; name: string; category: string; unread: number; last: string | null }>();
     return c.json({ vendors: results.map((v) => ({ id: v.id, slug: v.slug, name: v.name, category: v.category, unread: v.unread, last: v.last ? v.last.slice(0, 140) : '' })) });
+  });
+
+  /**
+   * Invite one of your vendors to The Yes List (by the email on their entry): free for them, and then you
+   * message each other here and your quote requests wait in their account. Already listed: linked now.
+   */
+  app.post('/invite/vendor', writer, async (c) => {
+    const b = z.object({ vendorId: z.string().min(1).max(40) }).strict().safeParse(await readJson(c));
+    if (!b.success) return err(c, 400, 'invalid', 'Choose a vendor.');
+    const v = (await readDoc(c.env.DB, wid(c), 'vendors', '')).data.list.find((x) => x.id === b.data.vendorId);
+    if (!v) return err(c, 404, 'not_found', 'That vendor is gone.');
+    const email = v.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err(c, 400, 'no_email', `Add ${v.name || 'their'} email first.`);
+    const listed = await c.env.DB.prepare(`SELECT id FROM vendor_listing WHERE lower(email) = ? AND hidden = 0`).bind(email).first<{ id: string }>();
+    if (listed) {
+      await c.env.DB.prepare(`INSERT INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'invited', 'active', ?) ON CONFLICT (listing_id, wedding_id) DO UPDATE SET status = 'active'`)
+        .bind(listed.id, wid(c), new Date().toISOString())
+        .run();
+      return c.json({ linked: true, sent: false });
+    }
+    if (!emailReady(c.env)) return c.json({ linked: false, sent: false });
+    if (!(await allow(c.env.DB, `vendor-invite-from:${wid(c)}`, 30, 86_400_000))) return err(c, 429, 'slow_down', 'That is a lot of invitations today. Try again tomorrow.');
+    const f = await weddingFacts(c.env.DB, wid(c));
+    const who = f?.couple ?? 'A couple';
+    const m = buttonEmail({
+      heading: `${who} would like to plan with you on The Yes List`,
+      lines: [
+        `${who} are planning their wedding on The Yes List and have you down as their ${v.category ? v.category.toLowerCase() : 'vendor'}.`,
+        'Join free: message them there, see their date and numbers as they firm up, price their quote requests, and be found by other couples near you.',
+      ],
+      button: 'Join free',
+      link: `${base(c.env)}/vendors/join?email=${encodeURIComponent(email)}`,
+      footer: `You got this because ${who} asked us to send it. We won't email you again unless you join.`,
+      brand: true,
+    });
+    const sent = await sendEmail(c.env, { to: email, subject: `${who} invited you to The Yes List`, ...m });
+    return c.json({ linked: false, sent });
   });
 
   app.get('/:lid', async (c) => {

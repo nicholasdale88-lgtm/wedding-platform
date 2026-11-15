@@ -73,6 +73,11 @@ const PRODUCT: Group[] = [
     links: [
       { name: 'Vendor directory', what: 'Couples find vendors', url: '/vendors' },
       { name: 'Vendor sign-up', what: 'A business lists itself', url: '/vendors/join' },
+      { name: 'Vendor account (sample)', what: 'Their couples and messages, a made-up florist; works, saves nothing', url: '/vendors/me?sample=1&tab=couples' },
+      { name: 'Recommend us (sample)', what: 'Their link, QR, code and counter cards', url: '/vendors/me?sample=1&tab=recommend' },
+      { name: 'Vendor enquiries (sample)', what: 'Questions from couples in the directory', url: '/vendors/me?sample=1&tab=enquiries' },
+      { name: 'Vendor listing (sample)', what: 'Editing their directory page', url: '/vendors/me?sample=1&tab=listing' },
+      { name: 'Couple’s vendor messages (sample)', what: 'The sample couple writing to their florist', url: '/admin/demo/wedding/planner?view=vendors' },
     ],
   },
 ];

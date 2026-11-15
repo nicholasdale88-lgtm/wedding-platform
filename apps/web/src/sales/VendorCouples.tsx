@@ -10,7 +10,8 @@ const DAY = 86_400_000;
 const when = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Date not set yet');
 const daysTo = (iso: string) => (iso ? Math.ceil((Date.parse(iso) - Date.now()) / DAY) : null);
 const STATUS: Record<VendorCouple['status'], string> = { booked: 'Booked you', considering: 'Considering you', linked: 'Linked' };
-type Filter = 'all' | 'unread' | 'booked' | 'upcoming';
+type Filter = 'all' | 'unread' | 'quotes' | 'booked' | 'upcoming';
+const toPrice = (c: VendorCouple) => (c.quotes ?? []).filter((x) => !x.answered && !x.declined).length;
 
 /**
  * A vendor's couples: everyone who signed up through their link or added them to their planner. Each with
@@ -47,12 +48,13 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
 
   const upcoming = (c: VendorCouple) => (daysTo(c.date) ?? 1) >= 0;
   const shown = couples
-    .filter((c) => (filter === 'unread' ? c.unread > 0 : filter === 'booked' ? c.status === 'booked' : filter === 'upcoming' ? upcoming(c) : true))
+    .filter((c) => (filter === 'unread' ? c.unread > 0 : filter === 'quotes' ? toPrice(c) > 0 : filter === 'booked' ? c.status === 'booked' : filter === 'upcoming' ? upcoming(c) : true))
     .filter((c) => !q.trim() || c.couple.toLowerCase().includes(q.trim().toLowerCase()));
   const chosen = couples.find((c) => c.id === open) ?? null;
   const chips: [Filter, string, number][] = [
     ['all', 'All', couples.length],
     ['unread', 'New messages', couples.filter((c) => c.unread > 0).length],
+    ['quotes', 'Quotes to price', couples.filter((c) => toPrice(c) > 0).length],
     ['booked', 'Booked you', couples.filter((c) => c.status === 'booked').length],
     ['upcoming', 'Still to come', couples.filter(upcoming).length],
   ];
@@ -74,6 +76,7 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
           ['Booked you', couples.filter((c) => c.status === 'booked').length],
           ['Weddings in the next 90 days', couples.filter((c) => { const d = daysTo(c.date); return d !== null && d >= 0 && d <= 90; }).length],
           ['New messages', couples.reduce((n, c) => n + c.unread, 0)],
+          ['Quotes to price', couples.reduce((n, c) => n + (c.quotes ?? []).filter((x) => !x.answered && !x.declined).length, 0)],
         ].map(([k, v]) => (
           <div key={k} className="flex flex-col gap-1 p-4 rounded-[14px] border border-[#e2d7bc] bg-[#fbf8f0]">
             <span className="text-[11px] font-semibold tracking-[.14em] uppercase" style={{ color: SOFT }}>{k}</span>
@@ -117,6 +120,7 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
                       <span className="text-[13px]" style={{ color: SOFT }}>
                         {c.coming} coming of {c.invited} invited · {c.via}
                       </span>
+                      {toPrice(c) > 0 && <span className="text-[13px] font-semibold text-[#7a4a37]">{toPrice(c)} quote {toPrice(c) === 1 ? 'request' : 'requests'} to price</span>}
                       {c.last && <span className="text-[13px] truncate" style={{ color: INK }}>{c.unread ? <strong>{c.unread} new: </strong> : null}{c.last.body}</span>}
                     </button>
                   </li>
@@ -136,6 +140,23 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
                     </a>
                   )}
                 </div>
+                {(chosen.quotes ?? []).length > 0 && (
+                  <div aria-label="Their quote requests" role="group" className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#b39563] bg-[#fbf3e1]">
+                    <strong className="text-[14px]" style={{ color: INK }}>Their quote requests</strong>
+                    {chosen.quotes!.map((x) => (
+                      <div key={x.id} className="flex justify-between items-center gap-2 flex-wrap text-[14px]">
+                        <span>
+                          {x.title} · {x.lines} {x.lines === 1 ? 'line' : 'lines'}
+                          {x.due ? ` · wanted by ${new Date(`${x.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
+                          {x.answered ? ' · priced ✓' : x.declined ? ' · declined' : ''}
+                        </span>
+                        <a href={x.link} target="_blank" rel="noreferrer" className="py-[6px] px-4 rounded-full no-underline text-[13px] font-semibold" style={{ background: INK, color: '#fbf8f2' }}>
+                          {x.answered ? 'Change your quote' : 'Price it'}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <ChatThread
                   messages={thread}
                   mine="vendor"

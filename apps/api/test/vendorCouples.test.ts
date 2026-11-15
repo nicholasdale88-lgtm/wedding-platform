@@ -81,6 +81,27 @@ describe("vendors' couples and messages", () => {
     expect((await json<{ vendors: unknown[] }>(call(`/a/w/${couple.wid}/vendor-chat`, {}, couple.cookie))).vendors).toEqual([]);
   });
 
+  it('a couple’s own vendor (by email) who joins later finds the couple and their quote request waiting; a couple can invite a vendor', async () => {
+    const couple = await signup('Ava', 'ava@example.com');
+    // The couple has a florist by email, and a quote request out to them, before the florist ever joins.
+    const doc = { list: [{ id: 'v1', name: 'Bloom Co', category: 'Florist', email: 'Hello@Bloom.example', status: 'requested' }, { id: 'v2', name: 'Snap', category: 'Photographer', email: 'snap@photo.example' }], rfqs: [{ id: 'r1', title: 'Flowers', vendors: [{ vendorId: 'v1', key: 'k'.repeat(24), sentOn: '2026-11-01' }] }] };
+    await t.db.prepare(`INSERT INTO planner_doc (wedding_id, kind, scope, data, version, updated_at) VALUES (?, 'vendors', '', ?, 1, ?)`).bind(couple.wid, JSON.stringify(doc), new Date().toISOString()).run();
+    const vendor = await joinVendor('Bloom Co', 'hello@bloom.example');
+    const list = await json<{ couples: { id: string; via: string; quotes: { title: string; answered: boolean; link: string }[] }[]; quotesOpen: number }>(call('/a/vendor/couples', {}, vendor.cookie));
+    expect(list.couples.map((c) => c.id)).toEqual([couple.wid]);
+    expect(list.quotesOpen).toBe(1);
+    expect(list.couples[0]!.quotes[0]).toMatchObject({ title: 'Flowers', answered: false });
+    expect(list.couples[0]!.quotes[0]!.link).toMatch(/\/quote\?k=k{24}$/);
+
+    // The couple invites their photographer: not listed, and email is off here, so nothing is sent yet.
+    expect(await json(call(`/a/w/${couple.wid}/vendor-chat/invite/vendor`, { method: 'POST', body: JSON.stringify({ vendorId: 'v2' }) }, couple.cookie))).toEqual({ linked: false, sent: false });
+    // Once the photographer has joined, inviting links them straight away.
+    const snap = await joinVendor('Snap', 'snap@photo.example');
+    expect((await json<{ couples: unknown[] }>(call('/a/vendor/couples', {}, snap.cookie))).couples).toHaveLength(1); // linked on joining, by email
+    expect(await json(call(`/a/w/${couple.wid}/vendor-chat/invite/vendor`, { method: 'POST', body: JSON.stringify({ vendorId: 'v2' }) }, couple.cookie))).toEqual({ linked: true, sent: false });
+    expect((await call(`/a/w/${couple.wid}/vendor-chat/invite/vendor`, { method: 'POST', body: JSON.stringify({ vendorId: 'nope' }) }, couple.cookie)).status).toBe(404);
+  });
+
   it('inviting a couple by email says so when email is switched off', async () => {
     const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
     expect(await json(call('/a/vendor/couples/invite', { method: 'POST', body: JSON.stringify({ name: 'Mia', email: 'mia@example.com' }) }, vendor.cookie))).toEqual({ sent: false });
