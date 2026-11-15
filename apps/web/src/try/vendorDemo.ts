@@ -26,7 +26,12 @@ const couples: VendorCouple[] = [
   { id: 'c5', couple: 'Ella & Kai', date: at(-12, 15), venue: 'Seaside Pavilion', coming: 120, invited: 126, status: 'booked', via: 'Signed up through your link', since: at(-200), unread: 0, last: null, details: '' },
 ];
 let n = 0;
-const msg = (fromVendor: boolean, body: string, days: number, read = true): VendorChatMessage => ({ id: `m${++n}`, fromVendor, body, at: at(days, 10 + (n % 8)), read });
+// In order: each sample message a little after the one before; one written now says now.
+const msg = (fromVendor: boolean, body: string, days: number, read = true): VendorChatMessage => {
+  const id = `m${++n}`;
+  const when = days === 0 ? new Date().toISOString() : new Date(Date.parse(at(days, 9)) + n * 37 * 60_000).toISOString();
+  return { id, fromVendor, body, at: when, read };
+};
 const threads: Record<string, VendorChatMessage[]> = {
   [SAMPLE_WID]: [
     msg(true, 'Congratulations, you two! So happy to be doing your flowers. Shall we lock in a time to talk colours?', -30),
