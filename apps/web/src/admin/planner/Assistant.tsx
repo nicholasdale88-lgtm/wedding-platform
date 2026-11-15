@@ -33,7 +33,10 @@ export function Assistant() {
       .then((s) => setOn(s.on))
       .catch(() => setOn(null));
   }, [wid]);
-  useEffect(() => end.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }), [turns.length, busy]);
+  // In braces: newer browsers return a promise from scrolling, and an effect may only return a cleanup.
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  }, [turns.length, busy]);
 
   const ask = async (question: string) => {
     const text = question.trim();

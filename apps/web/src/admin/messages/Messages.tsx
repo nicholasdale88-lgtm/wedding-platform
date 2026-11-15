@@ -240,7 +240,10 @@ function Chat({ inv, tz, onChanged }: { inv: string; tz: string; onChanged: () =
     }
   }, [wid, inv]); // eslint-disable-line
   useAutoRefresh(refresh, 60_000); // an open conversation: new messages within a minute
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [c?.messages.length]);
+  // In braces: newer browsers return a promise from scrolling, and an effect may only return a cleanup.
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'end' });
+  }, [c?.messages.length]);
 
   const send = async () => {
     if (!text.trim() || !c) return;

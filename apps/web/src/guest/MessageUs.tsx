@@ -61,7 +61,10 @@ export function MessageUs({ slug, token, ink: themeInk = '#33402f', side = 'left
     const t = setInterval(() => void load(), 30_000);
     return () => clearInterval(t);
   }, [open, load]);
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [msgs?.length, open]);
+  // In braces: newer browsers return a promise from scrolling, and an effect may only return a cleanup.
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: 'end' });
+  }, [msgs?.length, open]);
   // A proper dialog: Escape closes it, the page behind doesn't scroll, focus goes back to the button.
   const opener = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);

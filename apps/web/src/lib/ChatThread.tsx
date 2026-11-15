@@ -22,7 +22,10 @@ export function ChatThread({
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView?.({ block: 'nearest' }), [messages.length]);
+  // In braces: newer browsers return a promise from scrolling, and an effect may only return a cleanup.
+  useEffect(() => {
+    end.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [messages.length]);
   const send = async () => {
     if (!text.trim()) return;
     setBusy(true);
