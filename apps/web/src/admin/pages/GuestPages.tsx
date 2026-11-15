@@ -538,6 +538,13 @@ function InvitationEditor({
                   ))}
                 </select>
               </Label>
+              <Label text="Envelope finish">
+                <select value={inv.envelope?.finish ?? 'smooth'} onChange={(e) => setInv({ envelope: { ...inv.envelope, finish: e.target.value as 'smooth' | 'linen' | 'cotton' } })} className={inputCls}>
+                  <option value="smooth">Smooth paper</option>
+                  <option value="linen">Linen</option>
+                  <option value="cotton">Cotton</option>
+                </select>
+              </Label>
               <Label text="Ribbon">
                 <select value={inv.envelope?.ribbon ?? 'none'} onChange={(e) => setInv({ envelope: { ...inv.envelope, ribbon: e.target.value as NonNullable<NonNullable<InvitationContent['envelope']>['ribbon']> } })} className={inputCls}>
                   <option value="none">None</option>

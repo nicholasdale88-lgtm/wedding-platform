@@ -76,6 +76,8 @@ export const InvitationContent = z
         stamp: z.boolean(),
         sprig: z.boolean(),
         ribbon: z.enum(['none', 'silk', 'twine']),
+        /** The paper's finish: smooth (fine, quiet grain; the default), linen (a fine woven texture) or cotton (felted, with fibres). */
+        finish: z.enum(['smooth', 'linen', 'cotton']),
         shimmer: z.boolean(),
         /** The envelope's paper colour by name; the look's own envelope colour when unset. */
         paper: z.enum(ENVELOPE_PAPERS),

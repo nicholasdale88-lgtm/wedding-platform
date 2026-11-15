@@ -17,6 +17,8 @@ export interface EnvelopeOptions {
   /** Gold-foil leaves above the seal (on unless switched off). */
   sprig?: boolean;
   ribbon?: 'none' | 'silk' | 'twine';
+  /** The paper's finish: smooth (default), linen or cotton. */
+  finish?: 'smooth' | 'linen' | 'cotton';
   shimmer?: boolean;
   /** The envelope's paper colour by name (ENVELOPE_PAPERS); the look's own when unset. */
   paper?: EnvelopePaper;
@@ -127,6 +129,7 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
   const front: CSSProperties = { opacity: closed ? 1 : 0, transition: 'opacity .6s ease' };
   const writing = lightOn(colours.envelope) ? '#fbf6ea' : colours.ink;
   const liner = opts.liner ?? 'floral';
+  const finish = opts.finish ?? 'smooth';
   // "Ribbon untie" needs a ribbon to untie: a silk one unless they chose twine.
   const untie = opening === 'ribbon';
   const ribbon = untie && (opts.ribbon ?? 'none') === 'none' ? 'silk' : (opts.ribbon ?? 'none');
@@ -216,16 +219,33 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
             );
           })()}
         </svg>
-        {/* Cotton paper: the felted surface lit from the top left, fibres lying in it, a cloudiness through the sheet. */}
-        <div className="absolute inset-0" style={{ opacity: 0.38, background: FELT, WebkitMaskImage: hole, maskImage: hole }} />
-        <div className="absolute inset-0" style={{ opacity: 0.6, background: FIBRES, WebkitMaskImage: hole, maskImage: hole }} />
-        <div className="absolute inset-0" style={{ opacity: 0.35, background: CLOUD, WebkitMaskImage: hole, maskImage: hole }} />
-        {/* Paper grain. */}
+        {/* The paper's finish. Smooth (the default): a soft light across a fine sheet, only a whisper of grain.
+            Linen: a fine woven texture. Cotton: a gently felted surface with a few fibres. */}
+        {finish === 'cotton' && (
+          <>
+            <div className="absolute inset-0" style={{ opacity: 0.16, background: FELT, WebkitMaskImage: hole, maskImage: hole }} />
+            <div className="absolute inset-0" style={{ opacity: 0.22, background: FIBRES, WebkitMaskImage: hole, maskImage: hole }} />
+          </>
+        )}
+        {finish === 'linen' && (
+          <div
+            className="absolute inset-0"
+            style={{
+              opacity: 0.5,
+              background: 'repeating-linear-gradient(0deg, rgba(255,255,255,.10) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(90,70,40,.06) 0 1px, transparent 1px 3px)',
+              WebkitMaskImage: hole,
+              maskImage: hole,
+            }}
+          />
+        )}
+        <div className="absolute inset-0" style={{ opacity: 0.28, background: CLOUD, WebkitMaskImage: hole, maskImage: hole }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.05) 100%)', WebkitMaskImage: hole, maskImage: hole }} />
+        {/* Paper grain: fine, and quiet. */}
         <div
           className="absolute inset-0"
           style={{
             mixBlendMode: 'multiply',
-            opacity: 0.18,
+            opacity: finish === 'smooth' ? 0.06 : 0.1,
             background: svg("<filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='3'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .38 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(#g)'/>", 180, 180),
           }}
         />
