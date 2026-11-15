@@ -1,0 +1,89 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Env } from '../src/env';
+import { createApp } from '../src/index';
+import { testD1 } from './support/d1';
+
+/**
+ * A vendor's couples: a couple who signs up through the vendor's link appears among the vendor's couples
+ * (date and numbers, no guest names); they message each other in the app; the couple can stop sharing,
+ * and then the vendor no longer sees them. Nobody else's wedding is reachable.
+ */
+describe("vendors' couples and messages", () => {
+  let t: Awaited<ReturnType<typeof testD1>>;
+  let env: Env;
+  const app = createApp();
+  const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
+  let ip = 0;
+  const call = (path: string, init: RequestInit = {}, cookie = '') =>
+    app.request(`/api${path}`, { ...init, headers: { 'content-type': 'application/json', 'CF-Connecting-IP': `7.7.7.${++ip}`, ...(cookie ? { cookie } : {}), ...init.headers } }, env, ctx);
+  const cookieOf = (r: Response) => (r.headers.get('set-cookie') ?? '').split(';')[0]!;
+  const json = async <T>(r: Response | Promise<Response>) => (await (await r).json()) as T;
+
+  beforeEach(async () => {
+    t = await testD1();
+    env = { DB: t.db, PUBLIC_BASE_URL: 'https://example.com', SESSION_SECRET: 'test-secret-for-sessions-000000' };
+  });
+  afterEach(() => t.dispose());
+
+  const joinVendor = async (name: string, email: string) => {
+    const r = await call('/directory/join', {
+      method: 'POST',
+      body: JSON.stringify({ name, category: 'florist', region: 'sydney', regions: [], contactName: 'Jess Lee', phone: '', website: '', instagram: '', about: '', priceFrom: 0, photos: [], email, passcode: 'long-enough-1', company: '' }),
+    });
+    expect(r.status).toBe(200);
+    return { cookie: cookieOf(r), slug: ((await r.json()) as { slug: string }).slug };
+  };
+  const signup = async (firstName: string, email: string, ref = '') => {
+    const r = await call('/a/signup', { method: 'POST', body: JSON.stringify({ firstName, partnerName: 'Sam', email, passcode: 'long-enough-1', date: '2027-03-14', plan: 'free', marketing: false, website: '', ref }) });
+    expect(r.status).toBe(200);
+    return { cookie: cookieOf(r), wid: ((await r.json()) as { weddingId: string }).weddingId };
+  };
+
+  it('signing up through a vendor’s link: the vendor sees the couple, they message each other, and the couple can stop sharing', async () => {
+    const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
+    const couple = await signup('Ava', 'ava@example.com', vendor.slug);
+    await signup('Other', 'other@example.com'); // not through the link: never seen by this vendor
+
+    type List = { couples: { id: string; couple: string; date: string; coming: number; invited: number; status: string; via: string; unread: number }[]; unread: number };
+    let list = await json<List>(call('/a/vendor/couples', {}, vendor.cookie));
+    expect(list.couples).toHaveLength(1);
+    expect(list.couples[0]).toMatchObject({ id: couple.wid, couple: 'Ava & Sam', coming: 0, invited: 0, status: 'linked', via: 'Signed up through your link', unread: 0 });
+    expect(list.couples[0]!.date).toMatch(/^2027-03-1[34]/);
+
+    // The vendor writes; the couple sees it waiting, reads it and replies.
+    expect((await call(`/a/vendor/couples/${couple.wid}/messages`, { method: 'POST', body: JSON.stringify({ body: 'Congratulations! Happy to help with your flowers.' }) }, vendor.cookie)).status).toBe(200);
+    expect((await call(`/a/vendor/couples/${couple.wid}/messages`, { method: 'POST', body: JSON.stringify({ body: '   ' }) }, vendor.cookie)).status).toBe(400);
+    const linked = await json<{ vendors: { id: string; name: string; unread: number; last: string }[] }>(call(`/a/w/${couple.wid}/vendor-chat`, {}, couple.cookie));
+    expect(linked.vendors).toHaveLength(1);
+    expect(linked.vendors[0]).toMatchObject({ name: 'Wildflower Studio', unread: 1, last: 'Congratulations! Happy to help with your flowers.' });
+    const lid = linked.vendors[0]!.id;
+    const th = await json<{ messages: { fromVendor: boolean; body: string }[] }>(call(`/a/w/${couple.wid}/vendor-chat/${lid}`, {}, couple.cookie));
+    expect(th.messages.map((m) => m.fromVendor)).toEqual([true]);
+    expect((await json<{ vendors: { unread: number }[] }>(call(`/a/w/${couple.wid}/vendor-chat`, {}, couple.cookie))).vendors[0]!.unread).toBe(0);
+    await call(`/a/w/${couple.wid}/vendor-chat/${lid}`, { method: 'POST', body: JSON.stringify({ body: 'Thank you! Can we talk peonies?' }) }, couple.cookie);
+
+    list = await json<List>(call('/a/vendor/couples', {}, vendor.cookie));
+    expect(list.unread).toBe(1);
+    const vt = await json<{ messages: { fromVendor: boolean; body: string }[] }>(call(`/a/vendor/couples/${couple.wid}/messages`, {}, vendor.cookie));
+    expect(vt.messages.map((m) => m.body)).toEqual(['Congratulations! Happy to help with your flowers.', 'Thank you! Can we talk peonies?']);
+    expect((await json<List>(call('/a/vendor/couples', {}, vendor.cookie))).unread).toBe(0);
+
+    // Another vendor can't reach this couple, and a stranger can't reach the couple's side.
+    const other = await joinVendor('Petal Co', 'pat@petal.example');
+    expect((await call(`/a/vendor/couples/${couple.wid}/messages`, {}, other.cookie)).status).toBe(404);
+    expect((await json<List>(call('/a/vendor/couples', {}, other.cookie))).couples).toEqual([]);
+    expect((await call(`/a/w/${couple.wid}/vendor-chat`, {}, other.cookie)).status).toBe(404);
+
+    // The couple stops sharing: the vendor no longer sees them, and can't write.
+    expect((await call(`/a/w/${couple.wid}/vendor-chat/${lid}`, { method: 'DELETE' }, couple.cookie)).status).toBe(200);
+    expect((await json<List>(call('/a/vendor/couples', {}, vendor.cookie))).couples).toEqual([]);
+    expect((await call(`/a/vendor/couples/${couple.wid}/messages`, { method: 'POST', body: JSON.stringify({ body: 'Hello?' }) }, vendor.cookie)).status).toBe(404);
+    expect((await json<{ vendors: unknown[] }>(call(`/a/w/${couple.wid}/vendor-chat`, {}, couple.cookie))).vendors).toEqual([]);
+  });
+
+  it('inviting a couple by email says so when email is switched off', async () => {
+    const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
+    expect(await json(call('/a/vendor/couples/invite', { method: 'POST', body: JSON.stringify({ name: 'Mia', email: 'mia@example.com' }) }, vendor.cookie))).toEqual({ sent: false });
+    expect((await call('/a/vendor/couples/invite', { method: 'POST', body: JSON.stringify({ email: 'not-an-email' }) }, vendor.cookie)).status).toBe(400);
+  });
+});

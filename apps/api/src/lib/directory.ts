@@ -196,6 +196,10 @@ export async function recordUse(db: D1Database, weddingId: string, list: Vendor[
         )
         .bind(weddingId, dir, booked ? 1 : 0, booked ? commitmentOf(v).amount : 0, now),
     );
+    // A listed vendor the couple added: they're linked, so the vendor sees them among their couples and they
+    // can message each other (once ended by the couple, it stays ended).
+    if (dir.startsWith('v:'))
+      stmts.push(db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'added', 'active', ?)`).bind(dir.slice(2), weddingId, now));
   }
   // A vendor taken off their list no longer counts for them.
   const { results: had } = await db.prepare(`SELECT dir_id FROM vendor_use WHERE wedding_id = ?`).bind(weddingId).all<{ dir_id: string }>();

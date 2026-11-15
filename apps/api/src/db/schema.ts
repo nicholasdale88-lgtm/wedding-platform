@@ -762,3 +762,27 @@ export const companyTask = sqliteTable('company_task', {
   decidedAt: text('decided_at'),
   decidedBy: text('decided_by'),
 });
+
+/** Vendors' couples: linked by the vendor's link or the couple adding them (migrations/0050). */
+export const vendorCouple = sqliteTable(
+  'vendor_couple',
+  {
+    listingId: text('listing_id').notNull(),
+    weddingId: text('wedding_id').notNull(),
+    source: text('source').notNull().default('added'),
+    status: text('status').notNull().default('active'),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.listingId, t.weddingId] }) }),
+);
+
+/** Messages between a vendor and a couple (migrations/0050). */
+export const vendorMessage = sqliteTable('vendor_message', {
+  id: text('id').primaryKey(),
+  listingId: text('listing_id').notNull(),
+  weddingId: text('wedding_id').notNull(),
+  fromVendor: integer('from_vendor').notNull(),
+  body: text('body').notNull(),
+  createdAt: text('created_at').notNull(),
+  readAt: text('read_at'),
+});

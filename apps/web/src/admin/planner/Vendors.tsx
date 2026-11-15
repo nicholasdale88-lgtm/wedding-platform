@@ -9,6 +9,7 @@ import { saveContacts } from '../../lib/vcard';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
 import { useDocSave } from './useDocSave';
+import { VendorMessages } from './VendorMessages';
 import { H2, inputCls, Pill, useToast } from '../ui';
 
 /**
@@ -174,6 +175,8 @@ export function Vendors() {
           </div>
         ))}
       </section>
+
+      <VendorMessages wid={wid} />
 
       {/* The four steps: done ones ticked, where you're at in bold; tap any to go there. */}
       <nav id="vendor-steps" aria-label="Vendor steps" className="scroll-mt-4">

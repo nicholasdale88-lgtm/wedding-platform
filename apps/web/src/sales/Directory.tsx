@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { api, ApiError, directoryApi, type MyListing } from '../lib/api';
 import { BRAND } from './SalesPage';
+import { VendorCouples } from './VendorCouples';
 import { VendorKit } from './VendorKit';
 
 /**
@@ -516,8 +517,20 @@ export function VendorJoinPage() {
 
 // ------------------------------------------------------------------------------------------- a vendor's own home
 
+const VENDOR_TABS = [
+  ['couples', 'Your couples'],
+  ['recommend', 'Recommend us'],
+  ['enquiries', 'Enquiries'],
+  ['listing', 'Your listing'],
+] as const;
+type VendorTab = (typeof VENDOR_TABS)[number][0];
+
 export function VendorHomePage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const asked = params.get('tab');
+  // Just joined: their listing first (add photos and prices); otherwise their couples.
+  const tab: VendorTab = VENDOR_TABS.some(([k]) => k === asked) ? (asked as VendorTab) : params.get('joined') ? 'listing' : 'couples';
+  const [chatUnread, setChatUnread] = useState(0);
   const [data, setData] = useState<MyListing | null>(null);
   const [state, setState] = useState<'loading' | 'signed_out' | 'no_listing' | 'ready'>('loading');
   const [f, setF] = useState<ListingFields>(BLANK);
@@ -577,6 +590,12 @@ export function VendorHomePage() {
     );
   const l = data!.listing;
   const unread = data!.enquiries.filter((e) => !e.read).length;
+  const setTab = (k: VendorTab) => setParams((p) => {
+    const n = new URLSearchParams(p);
+    n.set('tab', k);
+    n.delete('joined');
+    return n;
+  }, { replace: true });
   return (
     <Frame title="Your listing">
       {params.get('joined') && <p className="mt-4 p-4 rounded-[12px] bg-[#e7eedb] text-[15px]">You’re listed. Couples can find you now. Add a few photos and your prices to stand out.</p>}
@@ -598,7 +617,35 @@ export function VendorHomePage() {
           </button>
         </div>
       </div>
-      <div className="grid gap-8 md:grid-cols-[1.3fr_1fr] pt-6">
+      {/* Their account: couples first (the everyday place), then how to recommend us, enquiries and the listing. */}
+      <nav aria-label="Your vendor account" className="flex gap-2 flex-wrap pt-5">
+        {VENDOR_TABS.map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            aria-pressed={tab === k}
+            onClick={() => setTab(k)}
+            className={`py-2 px-4 rounded-full border text-[15px] cursor-pointer ${tab === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
+            style={tab === k ? undefined : { color: INK }}
+          >
+            {label}
+            {k === 'couples' && chatUnread ? ` · ${chatUnread} new` : ''}
+            {k === 'enquiries' && unread ? ` · ${unread} new` : ''}
+          </button>
+        ))}
+      </nav>
+      {tab === 'couples' && (
+        <div className="pt-5">
+          <VendorCouples onUnread={setChatUnread} />
+        </div>
+      )}
+      {tab === 'recommend' && data?.partner && (
+        <div className="pt-5 max-w-[760px]">
+          <VendorKit name={l.name} slug={data.listing.slug} code={data.partner.code} percentOff={data.partner.percentOff} uses={data.partner.uses} />
+        </div>
+      )}
+      <div className={`grid gap-8 pt-6 ${tab === 'listing' || tab === 'enquiries' ? '' : 'hidden'}`}>
+        {tab === 'listing' && (
         <section aria-label="Your listing" className="flex flex-col gap-3 p-5 rounded-[16px] bg-[#fbf8f0] border border-[#e2d7bc]">
           <ListingForm
             key={l.slug}
@@ -613,7 +660,8 @@ export function VendorHomePage() {
             {busy ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
           </button>
         </section>
-        {data?.partner && <VendorKit name={l.name} slug={data.listing.slug} code={data.partner.code} percentOff={data.partner.percentOff} uses={data.partner.uses} />}
+        )}
+        {tab === 'enquiries' && (
         <section aria-label="Enquiries" className="flex flex-col gap-3 self-start">
           <h2 className="m-0 text-[28px] font-normal" style={{ fontFamily: serif }}>
             Enquiries{unread ? ` · ${unread} new` : ''}
@@ -654,6 +702,7 @@ export function VendorHomePage() {
             </article>
           ))}
         </section>
+        )}
       </div>
     </Frame>
   );

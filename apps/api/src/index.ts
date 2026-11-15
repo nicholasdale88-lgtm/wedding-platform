@@ -43,6 +43,7 @@ import { paymentReminderRoutes, runPaymentReminders } from './routes/paymentRemi
 import { myTaskRoutes } from './routes/myTasks';
 import { helpRoutes } from './routes/help';
 import { directoryRoutes, vendorAccountRoutes } from './routes/vendorListings';
+import { coupleVendorChatRoutes, vendorCoupleRoutes } from './routes/vendorCouples';
 import { manifestRoutes } from './routes/manifest';
 import { partyAccountRoutes, partyPortalRoutes } from './routes/partyPortal';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
@@ -68,6 +69,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/hooks', hookRoutes(deps));
   // The vendor directory (public) and a vendor's own listing: before the admin's /a routes.
   app.route('/directory', directoryRoutes());
+  app.route('/a/vendor/couples', vendorCoupleRoutes());
   app.route('/a/vendor', vendorAccountRoutes());
   app.route('/a/signup', signupRoutes());
   app.route('/a/company', companyRoutes());
@@ -88,6 +90,7 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/a/w/:wid/test-send', testSendRoutes(deps));
   app.route('/a/w/:wid/rehearsal', rehearsalRoutes(deps));
   app.route('/a/w/:wid/insights', insightsRoutes());
+  app.route('/a/w/:wid/vendor-chat', coupleVendorChatRoutes());
   app.route('/a/w/:wid/coordinator', coordinatorAdminRoutes());
   app.route('/a/w/:wid/planner-calendar', plannerCalendarAdminRoutes());
   app.route('/a/w/:wid/pay-reminders', paymentReminderRoutes());

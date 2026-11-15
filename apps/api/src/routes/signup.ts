@@ -98,6 +98,10 @@ export function signupRoutes() {
       db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'account.signup', ?, ?, ?)`).bind(crypto.randomUUID(), weddingId, userId, weddingId, JSON.stringify({ plan: b.plan, ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) }), now),
       // The usual texts (save the date to the thank-you), all switched off until the couple turns each on.
       ...starterStatements(db, weddingId, { key: 'wedding', name: 'The wedding' }, { startsAt, tz, rsvpClose: '', dateSet: !!b.date }, new Date(now)),
+      // Came through a vendor's link: that vendor sees them among their couples (the couple can end it).
+      ...(cleanRef(b.ref)
+        ? [db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) SELECT l.id, ?, 'link', 'active', ? FROM vendor_listing l WHERE l.slug = ? AND l.hidden = 0`).bind(weddingId, now, cleanRef(b.ref))]
+        : []),
     ];
     try {
       await db.batch(stmts);

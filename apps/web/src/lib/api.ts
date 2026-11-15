@@ -605,6 +605,52 @@ export const directoryApi = {
   read: (id: string) => send<{ ok: true }>('POST', `/a/vendor/enquiries/${encodeURIComponent(id)}/read`),
 };
 
+/** A message between a vendor and a couple. */
+export interface VendorChatMessage {
+  id: string;
+  fromVendor: boolean;
+  body: string;
+  at: string;
+  read: boolean;
+}
+/** One of a vendor's couples: linked by the vendor's link or the couple adding them (counts only, no guest names). */
+export interface VendorCouple {
+  id: string;
+  couple: string;
+  date: string;
+  venue: string;
+  coming: number;
+  invited: number;
+  status: 'booked' | 'considering' | 'linked';
+  via: string;
+  since: string;
+  unread: number;
+  last: { body: string; at: string } | null;
+  /** Their page for this wedding (the details the couple shares), when the couple has them in their planner. */
+  details: string;
+}
+export const vendorCouplesApi = {
+  list: () => request<{ couples: VendorCouple[]; unread: number }>('/a/vendor/couples'),
+  thread: (wid: string) => request<{ couple: string; messages: VendorChatMessage[] }>(`/a/vendor/couples/${encodeURIComponent(wid)}/messages`),
+  send: (wid: string, body: string) => send<{ messages: VendorChatMessage[] }>('POST', `/a/vendor/couples/${encodeURIComponent(wid)}/messages`, { body }),
+  invite: (name: string, email: string) => send<{ sent: boolean }>('POST', '/a/vendor/couples/invite', { name, email }),
+};
+/** The couple's side: vendors linked to the wedding, and the conversations. */
+export interface LinkedVendor {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  unread: number;
+  last: string;
+}
+export const vendorChatApi = {
+  list: (wid: string) => request<{ vendors: LinkedVendor[] }>(`/a/w/${wid}/vendor-chat`),
+  thread: (wid: string, lid: string) => request<{ vendor: { id: string; name: string; category: string }; messages: VendorChatMessage[] }>(`/a/w/${wid}/vendor-chat/${encodeURIComponent(lid)}`),
+  send: (wid: string, lid: string, body: string) => send<{ messages: VendorChatMessage[] }>('POST', `/a/w/${wid}/vendor-chat/${encodeURIComponent(lid)}`, { body }),
+  end: (wid: string, lid: string) => send<{ ok: true }>('DELETE', `/a/w/${wid}/vendor-chat/${encodeURIComponent(lid)}`),
+};
+
 export interface VendorHit {
   /** Its id in the shared vendor directory. */
   id?: string;
