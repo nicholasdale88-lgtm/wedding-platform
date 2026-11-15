@@ -153,6 +153,8 @@ export const mix = (a: string, b: string, t: number) => {
   return toHex(x.map((v, i) => v + (y[i]! - v) * t));
 };
 const darker = (a: string, t: number) => mix(a, '#000000', t);
+/** A dark colour (navy, burgundy, forest): light writing and gentle highlights on it. */
+const dark = (a: string) => { const [r, g, b] = hex(a); return 0.299 * r! + 0.587 * g! + 0.114 * b! < 120; };
 export const isHex = (s: string | undefined): s is string => !!s && /^#[0-9a-f]{6}$/i.test(s);
 
 /** Every colour setting the design uses, worked out from a palette (laid over a hand-made base theme). */
@@ -180,7 +182,8 @@ function fromPalette(p: Palette, onto?: Record<string, string>): Record<string, 
     mg: mix(ink, paper, 0.1),
     sg: mix(ink, paper, 0.3),
     htx: ink,
-    hint: ink,
+    // "Tap to open" sits on the envelope: light on a dark one.
+    hint: dark(envelope) ? mix(envelope, '#ffffff', 0.78) : ink,
     inkc: ink,
     hsub: mix(ink, paper, 0.4),
     acc: accent,
@@ -190,8 +193,10 @@ function fromPalette(p: Palette, onto?: Record<string, string>): Record<string, 
     e1: envelope,
     e2: darker(envelope, 0.07),
     e3: darker(envelope, 0.16),
-    t1: mix(paper, envelope, 0.6),
-    t2: mix(paper, envelope, 0.85),
+    // The top flap: a little lighter than the envelope where it catches the light. On a dark envelope only a
+    // touch lighter, or the flap washes out to grey.
+    t1: dark(envelope) ? mix(envelope, '#ffffff', 0.09) : mix(paper, envelope, 0.6),
+    t2: dark(envelope) ? mix(envelope, '#ffffff', 0.04) : mix(paper, envelope, 0.85),
     t3: darker(envelope, 0.05),
     fl1: mix(soft, ink, 0.2),
     fl2: soft,

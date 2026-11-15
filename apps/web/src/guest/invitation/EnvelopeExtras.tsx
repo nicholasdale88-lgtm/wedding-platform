@@ -212,7 +212,7 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
           }}
         />
         {/* Light from the top left, and the corners falling into shade. */}
-        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', background: 'linear-gradient(170deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,.15) 45%, rgba(0,0,0,.06) 100%)' }} />
+        <div className="absolute inset-0" style={{ mixBlendMode: 'soft-light', background: `linear-gradient(170deg, rgba(255,255,255,${dark ? 0.18 : 0.55}) 0%, rgba(255,255,255,${dark ? 0.05 : 0.15}) 45%, rgba(0,0,0,.06) 100%)` }} />
         <div className="absolute inset-0" style={{ mixBlendMode: 'multiply', background: 'radial-gradient(140% 100% at 50% 35%, transparent 70%, rgba(60,40,20,.07) 100%)' }} />
         {/* A light envelope reads as warm ivory in soft daylight, not grey: a gentle warm lift (not over the seal). */}
         {!dark && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,250,238,.32), rgba(255,244,222,.18) 60%, rgba(255,240,215,.1))', WebkitMaskImage: hole, maskImage: hole }} />}
@@ -277,8 +277,8 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
             }}
           />
         )}
-        <div className="absolute inset-0" style={{ opacity: 0.28, background: CLOUD, WebkitMaskImage: hole, maskImage: hole }} />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.05) 100%)', WebkitMaskImage: hole, maskImage: hole }} />
+        <div className="absolute inset-0" style={{ opacity: dark ? 0.06 : 0.28, background: CLOUD, WebkitMaskImage: hole, maskImage: hole }} />
+        <div className="absolute inset-0" style={{ background: `linear-gradient(160deg, rgba(255,255,255,${dark ? 0.07 : 0.22}) 0%, rgba(255,255,255,0) 45%, rgba(0,0,0,.05) 100%)`, WebkitMaskImage: hole, maskImage: hole }} />
         {/* Paper grain: fine, and quiet. */}
         <div
           className="absolute inset-0"
