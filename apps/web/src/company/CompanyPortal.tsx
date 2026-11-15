@@ -44,6 +44,7 @@ const TABS = [
   ['promote', 'Promote', 'promote'],
   ['vendors', 'Vendors', 'vendors'],
   ['money', 'Money & tax', 'money'],
+  ['plan', 'Planning', 'overview'],
   ['team', 'Team', 'team'],
   ['preview', 'Preview', 'overview'],
   ['traffic', 'Traffic & errors', 'activity'],
@@ -52,9 +53,13 @@ const TABS = [
   ['help', 'Help', null],
 ] as const satisfies readonly (readonly [string, string, StaffPerm | null])[];
 type Tab = (typeof TABS)[number][0];
-/** Always on show; everything else folds under More (opened by itself when you're on one of those). */
-const MAIN: readonly Tab[] = ['overview', 'weddings', 'money', 'help'];
-const MORE_KEY = 'wp-company-more';
+/** Every section on show, on a phone too, under plain headings (nothing folded away). */
+const GROUPS: [string, readonly Tab[]][] = [
+  ['Business', ['overview', 'weddings', 'feedback', 'money']],
+  ['Marketing', ['promote', 'vendors']],
+  ['Planning', ['plan']],
+  ['Team & tools', ['team', 'preview', 'traffic', 'activity', 'settings', 'help']],
+];
 
 /** The signed-in person's company role, for every tab. */
 const RoleCtx = createContext<{ role: string | null; perms: string[] }>({ role: null, perms: [] });
@@ -86,13 +91,6 @@ function Portal() {
   const [roleLabel, setRoleLabel] = useState('');
   const [tab, setTab] = useState<Tab>(() => (TABS.find(([k]) => `#${k}` === window.location.hash)?.[0] ?? 'overview'));
   const [note, setNote] = useState('');
-  const [more, setMore] = useState(() => {
-    try {
-      return localStorage.getItem(MORE_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
   // Help remembers the page it was opened from, to show that page's guides first.
   const [helpFrom, setHelpFrom] = useState<Tab | undefined>();
   // A link to /company#<tab> (Help's "Take me there" in a walkthrough) opens that tab.
@@ -156,19 +154,9 @@ function Portal() {
   const tabs = TABS.filter(([, , perm]) => perm === null || perms.includes(perm));
   const shown: Tab = tabs.some(([k]) => k === tab) ? tab : (tabs[0]?.[0] ?? 'overview');
   const label = tabs.find(([k]) => k === shown)?.[1] ?? '';
-  // A short menu: the everyday places first, the rest under More (only worth folding when there are many).
-  const fold = tabs.length > 5;
-  const mainTabs = fold ? tabs.filter(([k]) => MAIN.includes(k)) : tabs;
-  const moreTabs = fold ? tabs.filter(([k]) => !MAIN.includes(k)) : [];
-  const moreOpen = more || moreTabs.some(([k]) => k === shown);
-  const toggleMore = () => {
-    setMore(!moreOpen);
-    try {
-      localStorage.setItem(MORE_KEY, moreOpen ? '' : '1');
-    } catch {
-      /* private browsing: just this time */
-    }
-  };
+  // Every section the person can open, under its heading (on a phone, one scrolling row in the same order).
+  const grouped = GROUPS.map(([title, keys]) => [title, tabs.filter(([k]) => keys.includes(k))] as const).filter(([, ts]) => ts.length);
+  const ordered = grouped.flatMap(([, ts]) => ts);
   const navItem = (k: Tab, text: string) => (
     <button
       key={k}
@@ -198,16 +186,12 @@ function Portal() {
             </span>
           </div>
           <nav aria-label="Company" className="flex flex-col gap-[2px] flex-1 overflow-y-auto">
-            {mainTabs.map(([k, text]) => navItem(k, text))}
-            {moreTabs.length > 0 && (
-              <>
-                <button type="button" aria-expanded={moreOpen} onClick={toggleMore} className="flex items-center gap-3 w-full mt-2 py-[9px] px-3 rounded-[10px] border-0 text-left text-[13px] cursor-pointer bg-transparent text-[#d9c3c6] hover:text-[#fbf8f2]">
-                  <span aria-hidden className="w-5 text-center">⋯</span>
-                  {moreOpen ? 'Less' : `More (${moreTabs.length})`}
-                </button>
-                {moreOpen && moreTabs.map(([k, text]) => navItem(k, text))}
-              </>
-            )}
+            {grouped.map(([title, ts]) => (
+              <div key={title} role="group" aria-label={title} className="flex flex-col gap-[2px] pt-2 first:pt-0">
+                <span className="px-3 pb-1 text-[10px] font-semibold tracking-[.18em] uppercase text-[#b89aa3]">{title}</span>
+                {ts.map(([k, text]) => navItem(k, text))}
+              </div>
+            ))}
           </nav>
           <div className="pt-3 border-t border-[rgba(243,236,214,.12)] flex flex-col gap-2">
             {role && <span className="text-[12px] text-[#d9c3c6]">Signed in as {roleLabel || role}</span>}
@@ -226,7 +210,7 @@ function Portal() {
               <ProfileSwitch here="company" />
             </div>
             <nav aria-label="Company sections" className="flex gap-1 overflow-x-auto [scrollbar-width:none] mt-2 -mx-1 px-1">
-              {[...mainTabs, ...(moreOpen ? moreTabs : [])].map(([k, text]) => (
+              {ordered.map(([k, text]) => (
                 <button
                   key={k}
                   type="button"
@@ -263,6 +247,13 @@ function Portal() {
             {shown === 'money' && <Money onNote={setNote} />}
             {shown === 'team' && <Team onNote={setNote} />}
             {shown === 'preview' && <PreviewTab />}
+            {shown === 'plan' && (
+              <section className="flex flex-col gap-5">
+                <H sub="Where the business is heading and what's still to do to launch: goals, this week's numbers, and the launch to-do list.">Planning</H>
+                <Goals onGo={go} />
+                <TodoList onGo={go} />
+              </section>
+            )}
             {shown === 'traffic' && <Traffic />}
             {shown === 'activity' && <Activity />}
             {shown === 'settings' && <Settings onNote={setNote} />}
@@ -280,7 +271,7 @@ function Portal() {
 }
 
 /** A small symbol for each section in the sidebar. */
-const ICON: Record<Tab, string> = { overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', preview: '◉', traffic: '↗', activity: '≡', settings: '⚙', help: '?' };
+const ICON: Record<Tab, string> = { plan: '✓', overview: '◧', weddings: '♡', feedback: '✎', promote: '✦', vendors: '⌂', money: '$', team: '☺', preview: '◉', traffic: '↗', activity: '≡', settings: '⚙', help: '?' };
 
 /** Loads something once (and again on reload()), with an error if it fails. */
 function useLoad<T>(fn: () => Promise<T>) {
@@ -434,7 +425,7 @@ function Overview({ onGo, onNote }: { onGo: (t: Tab) => void; onNote: (s: string
 /** Tucked away until wanted: a titled row that opens to show what's inside. */
 function Fold({ title, sub, children }: { title: string; sub: string; children: ReactNode }) {
   return (
-    <details className="group rounded-[16px] border border-[#ecdcd2] bg-white">
+    <details open className="group rounded-[16px] border border-[#ecdcd2] bg-white">
       <summary className="flex justify-between items-center gap-3 p-4 cursor-pointer list-none [&::-webkit-details-marker]:hidden text-[#3a2532]">
         <span className="flex flex-col">
           <strong className="text-[16px] font-semibold">{title}</strong>
