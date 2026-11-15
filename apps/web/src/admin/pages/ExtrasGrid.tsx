@@ -102,7 +102,7 @@ export function ExtrasGrid({ children }: { children: ReactNode }) {
   }, [open]);
   return (
     <div className="flex flex-col gap-3">
-      <div role="list" aria-label="Extras" className="grid gap-3 grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-3">
+      <div role="list" aria-label="Extras" className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,220px),1fr))]">
         {items.map((i) => {
           const on = open === i.props.title;
           return (
