@@ -78,6 +78,6 @@ test('try the app: book a free trial, then the sample admin opens, switches plan
   // Seating, with the couple in their own colour.
   await page.goto('/admin/demo/wedding/seating');
   await expect(page.getByRole('button', { name: /^Table 1, / })).toBeVisible();
-  await page.getByRole('region', { name: 'Sample wedding' }).getByRole('link', { name: '← The Yes List' }).click();
+  await page.getByRole('region', { name: 'Sample wedding' }).getByRole('link', { name: 'Back to The Yes List' }).click();
   await expect(page).toHaveURL(/\/$/);
 });
