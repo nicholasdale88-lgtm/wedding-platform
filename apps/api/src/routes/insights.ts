@@ -5,6 +5,7 @@ import { safeJson } from '../lib/security';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { readDoc } from './planner';
 import { loadSeating } from './seating';
+import { PLACES, REAL_INVITATION } from '../lib/realGuests';
 
 /**
  * Wedding planner → Insights: the numbers behind the plan. Replies per event (invited, opened, replied,
@@ -30,8 +31,8 @@ export function insightsRoutes() {
                 SUM(r.attending = 1) AS yes,
                 SUM(r.attending = 0) AS no,
                 SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END) AS people,
-                SUM(MAX(1, i.seats_held)) AS seats
-           FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL AND i.wedding_id = ?
+                SUM(${PLACES}) AS seats
+           FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} AND i.wedding_id = ?
            LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id
           GROUP BY ie.event_id`,
       ).bind(w),

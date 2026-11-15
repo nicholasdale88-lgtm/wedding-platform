@@ -14,6 +14,7 @@ import { recordUse, searchDirectory } from '../lib/directory';
 import { listedNear } from './vendorListings';
 import { hasFeature, needsUpgrade, roomFor } from '../lib/plan';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { PLACES, REAL_INVITATION } from '../lib/realGuests';
 
 /**
  * The planner. Admin (/api/a/w/:wid/planner): the wedding party (roles on guests), its run sheet per
@@ -432,9 +433,9 @@ export function plannerRoutes() {
     const { results: events } = await db
       .prepare(
         `SELECT e.key, e.name, e.starts_at, e.venue,
-                (SELECT COALESCE(SUM(MAX(1, i.seats_held)), 0) FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL WHERE ie.event_id = e.id) AS invited,
-                (SELECT COUNT(*) FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL WHERE r.event_id = e.id AND r.attending = 1) AS yes,
-                (SELECT COALESCE(SUM(MAX(1, COALESCE(r.count, 1))), 0) FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL WHERE r.event_id = e.id AND r.attending = 1) AS coming
+                (SELECT COALESCE(SUM(${PLACES}), 0) FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} WHERE ie.event_id = e.id) AS invited,
+                (SELECT COUNT(*) FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} WHERE r.event_id = e.id AND r.attending = 1) AS yes,
+                (SELECT COALESCE(SUM(MAX(1, COALESCE(r.count, 1))), 0) FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} WHERE r.event_id = e.id AND r.attending = 1) AS coming
            FROM event e WHERE e.wedding_id = ? AND e.deleted_at IS NULL ORDER BY e.sort`,
       )
       .bind(wid(c))
@@ -731,8 +732,8 @@ async function partyExtras(db: D1Database, weddingId: string, perms: Record<Part
   if (perms.guests && first) {
     const g = await db
       .prepare(
-        `SELECT SUM(MAX(1, i.seats_held)) AS invited, SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END) AS coming, SUM(CASE WHEN r.attending IS NULL THEN MAX(1, i.seats_held) ELSE 0 END) AS waiting
-           FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id WHERE ie.event_id = ?`,
+        `SELECT SUM(${PLACES}) AS invited, SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END) AS coming, SUM(CASE WHEN r.attending IS NULL THEN ${PLACES} ELSE 0 END) AS waiting
+           FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id WHERE ie.event_id = ?`,
       )
       .bind(first.id)
       .first<{ invited: number; coming: number | null; waiting: number | null }>();

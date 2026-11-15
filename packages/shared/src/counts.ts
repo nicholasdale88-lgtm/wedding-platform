@@ -12,7 +12,19 @@ export interface CountableGuest {
   invited: string[];
   rsvp: Record<string, { attending: boolean | null; count?: number | null } | undefined>;
   people: { name: string; child?: boolean }[];
+  phone?: string | null;
+  email?: string | null;
 }
+
+/**
+ * A blank invitation: started with Add guest but never given a name, a mobile or an email. It isn't a guest:
+ * the guest list hides it, and no page counts it.
+ */
+export const isBlankGuest = (g: { people: { name: string }[]; phone?: string | null; email?: string | null }) =>
+  !g.people.some((p) => p.name.trim()) && !(g.phone ?? '').trim() && !(g.email ?? '').trim();
+
+/** The real guests: every invitation that isn't blank. */
+export const realGuests = <G extends { people: { name: string }[]; phone?: string | null; email?: string | null }>(gs: G[]) => gs.filter((g) => !isBlankGuest(g));
 
 /** Places held on an invitation: at least 1, and at least one for each person named on it. */
 export const placesOf = (g: CountableGuest) => Math.max(1, g.seatsHeld || 1, g.people.filter((p) => p.name.trim()).length);
@@ -44,7 +56,7 @@ export interface GuestCounts {
 export function countGuests(guests: CountableGuest[], event: string): GuestCounts {
   const c: GuestCounts = { invitations: 0, guests: 0, children: 0, coming: 0, cantCome: 0, awaiting: 0, invitationsYes: 0, invitationsNo: 0, invitationsAwaiting: 0 };
   for (const g of guests) {
-    if (!g.invited.includes(event)) continue;
+    if (!g.invited.includes(event) || isBlankGuest(g)) continue;
     const places = placesOf(g);
     const a = g.rsvp[event]?.attending ?? null;
     c.invitations++;

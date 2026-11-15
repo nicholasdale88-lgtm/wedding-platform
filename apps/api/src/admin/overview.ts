@@ -1,4 +1,4 @@
-import { comingCount, countGuests, isSerious, localParts, type GuestCounts } from '@wp/shared';
+import { comingCount, countGuests, isSerious, localParts, realGuests, type GuestCounts } from '@wp/shared';
 import type { AdminEvent, AdminGuest, AdminPerson, WeddingData } from './data';
 
 /**
@@ -70,7 +70,9 @@ function daysBetween(now: Date, day: Date, tz: string): number {
   return Math.max(0, Math.round((Date.UTC(b.year, b.month - 1, b.day) - Date.UTC(a.year, a.month - 1, a.day)) / 86_400_000));
 }
 
-export function buildOverview(d: WeddingData, now: Date, focusKey?: string): Overview {
+export function buildOverview(data: WeddingData, now: Date, focusKey?: string): Overview {
+  // Blank invitations (never given a name, mobile or email) aren't guests: no figure counts them, as the guest list doesn't.
+  const d: WeddingData = { ...data, guests: realGuests(data.guests) };
   const focus = d.events.find((e) => e.key === focusKey) ?? null;
   const G = focus ? d.guests.filter((g) => g.invited.includes(focus.key)) : d.guests;
   const tz = d.wedding.timezone;

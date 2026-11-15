@@ -54,6 +54,23 @@ describe('admin API', () => {
     expect(o.nav.guests).toBe(22);
   });
 
+  it('blank invitations (never given a name, mobile or email) are counted nowhere, so every page agrees', async () => {
+    const before = await json<ReturnType<typeof buildOverview>>(await call('/overview?event=wedding'));
+    // Five started with Add guest and left blank.
+    for (let i = 0; i < 5; i++) expect((await call('/guests', { method: 'POST', body: '{}' })).status).toBe(201);
+    const after = await json<ReturnType<typeof buildOverview>>(await call('/overview?event=wedding'));
+    expect(after.total).toBe(before.total);
+    expect(after.guests).toEqual(before.guests);
+    expect(after.perEvent).toEqual(before.perEvent);
+    // The guest list's own count (named, or with a mobile or email) is the overview's.
+    const list = await json<{ guests: { seatsHeld: number; invited: string[]; people: { name: string }[]; phone: string | null; email?: string }[] }>(await call('/guests'));
+    const real = list.guests.filter((g) => g.invited.includes('wedding') && (g.people.some((p) => p.name.trim()) || g.phone || g.email));
+    expect(after.guests!.invitations).toBe(real.length);
+    expect(after.guests!.guests).toBe(real.reduce((n, g) => n + Math.max(1, g.seatsHeld, g.people.filter((p) => p.name.trim()).length), 0));
+    const evs = await json<{ events: { key: string; invited: number }[] }>(await app.request(`/api/a/w/${wid}/events`, { headers: { cookie } }, env, ctx));
+    expect(evs.events.find((e) => e.key === 'wedding')!.invited).toBe(after.guests!.guests);
+  });
+
   it('every admin route needs a session and membership', async () => {
     cookie = '';
     expect((await call('/overview')).status).toBe(401);

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { readJson, safeJson } from '../lib/security';
 import { eventRoom, needsUpgrade } from '../lib/plan';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
+import { PLACES, REAL_INVITATION } from '../lib/realGuests';
 
 /**
  * Admin → Events (/api/a/w/:wid/events): the celebrations guests are invited to (a wedding, a
@@ -84,9 +85,9 @@ export function eventRoutes() {
     const { results } = await c.env.DB.prepare(
       `SELECT e.*,
               -- Guests (the places on invitations) and how many are coming: counted as every page counts them (shared/counts).
-              (SELECT COALESCE(SUM(MAX(1, i.seats_held)), 0) FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL WHERE ie.event_id = e.id) AS invited,
+              (SELECT COALESCE(SUM(${PLACES}), 0) FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} WHERE ie.event_id = e.id) AS invited,
               (SELECT COALESCE(SUM(MAX(1, COALESCE(r.count, 1))), 0) FROM rsvp r JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
-                 JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL WHERE r.event_id = e.id AND r.attending = 1) AS coming
+                 JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} WHERE r.event_id = e.id AND r.attending = 1) AS coming
          FROM event e WHERE e.wedding_id = ? AND e.deleted_at IS NULL ORDER BY e.sort, e.starts_at`,
     )
       .bind(wid(c))
