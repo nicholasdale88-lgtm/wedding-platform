@@ -280,12 +280,21 @@ describe('launch scale: every feature pushed hard', () => {
       }),
     );
     const groupWant = new Map<string, { invited: number; yes: number; no: number }>();
+    // Each group's guests at the wedding (the first event), as the overview counts them: places invited,
+    // coming on each yes, and can't come (a no's places, plus the places a yes didn't take).
+    const firstKey = events[0]!.key;
     for (const g of snap) {
+      if (!g.invited.includes(firstKey)) continue;
       const k = g.party || 'No group';
       const e = groupWant.get(k) ?? { invited: 0, yes: 0, no: 0 };
-      e.invited++;
-      if (Object.values(g.rsvp).some((r) => r.attending === true)) e.yes++;
-      if (Object.values(g.rsvp).some((r) => r.attending === false)) e.no++;
+      const places = Math.max(1, g.seats, g.people.length);
+      const r = g.rsvp[firstKey];
+      e.invited += places;
+      if (r?.attending === true) {
+        const c = Math.max(1, r.count ?? 1);
+        e.yes += c;
+        e.no += Math.max(0, places - c);
+      } else if (r?.attending === false) e.no += places;
       groupWant.set(k, e);
     }
     expect(Object.fromEntries(ins.groups.map((x) => [x.group, { invited: x.invited, yes: x.yes, no: x.no }]))).toEqual(Object.fromEntries(groupWant));

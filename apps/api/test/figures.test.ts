@@ -99,7 +99,7 @@ describe('figures agree on every page', () => {
     const g = guests.find((x) => x.people.some((p) => p.name === 'Ann Field'))!;
     const r = await app.request(`/api/a/w/${wid}/guests/${g.id}`, { method: 'PATCH', headers: { cookie, 'content-type': 'application/json', 'If-Match': String(g.version) }, body: JSON.stringify({ seatsHeld: 1 }) }, env, ctx);
     expect(r.status).toBe(200);
-    expect(((await r.json()) as { seatsHeld: number }).seatsHeld).toBe(3);
+    expect(((await r.json()) as { guest: { seatsHeld: number } }).guest.seatsHeld).toBe(3);
   });
 
   it('seating counts the named people of this event only, with the couple apart and only at the wedding', async () => {
