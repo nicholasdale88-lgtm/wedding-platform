@@ -17,6 +17,12 @@ export function GuestMessage({ message, title = '' }: { message: string; title?:
         {message}
       </p>
       <span aria-hidden className="block w-10 border-t border-[#b39563]" />
+      {/* A link that leads nowhere: what to do next, still without pointing at the admin. */}
+      {/could not find/i.test(message) && (
+        <p className="m-0 max-w-[320px] text-[16px] leading-relaxed not-italic text-[#5b6a52]" style={{ fontFamily: 'system-ui, sans-serif' }}>
+          Each invitation link is personal. Open the one sent to you by text or email, or ask the couple to send it again.
+        </p>
+      )}
     </main>
   );
 }
