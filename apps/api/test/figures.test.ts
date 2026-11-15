@@ -42,7 +42,7 @@ describe('figures agree on every page', () => {
       for (const [i, name] of o.names.entries()) await t.db.prepare(`INSERT INTO person (id, invitation_id, idx, name, child) VALUES (?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), id, i, name, o.child === i ? 1 : 0).run();
       for (const e of o.events) {
         await t.db.prepare(`INSERT INTO invite_event (invitation_id, event_id) VALUES (?, ?)`).bind(id, e).run();
-        if (o.reply) await t.db.prepare(`INSERT INTO rsvp (invitation_id, event_id, attending, count, updated_at) VALUES (?, ?, ?, ?, ?)`).bind(id, e, o.reply.attending, o.reply.count ?? null, now).run();
+        if (o.reply) await t.db.prepare(`INSERT INTO rsvp (invitation_id, event_id, attending, count, updated_at) VALUES (?, ?, ?, ?, ?)`).bind(id, e, o.reply.attending, o.reply.count ?? (o.reply.attending ? 1 : 0), now).run(); // count is required (0 on a no)
       }
     };
     // Three blank invitations (Add guest, never filled in): to the wedding.
