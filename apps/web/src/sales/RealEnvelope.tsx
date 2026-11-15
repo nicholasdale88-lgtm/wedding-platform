@@ -38,8 +38,9 @@ export function RealEnvelope({
   const crease = darkPaper ? 'rgba(0,0,0,.35)' : 'rgba(80,60,30,.22)';
   const lit = 'rgba(255,255,255,.55)';
   const seal = compact ? 72 : 112;
+  // Positioned by the caller (absolute inset-0 in a phone) or relative: never both, or it collapses to no height.
   return (
-    <div role="img" aria-label={label ?? `A sealed envelope: ${ENVELOPE_PAPER_INFO[paper].label.toLowerCase()} paper and a ${wax.toLowerCase()} wax seal pressed with H & T`} className={`relative overflow-hidden ${className}`} style={{ background: env, containerType: 'size' }}>
+    <div role="img" aria-label={label ?? `A sealed envelope: ${ENVELOPE_PAPER_INFO[paper].label.toLowerCase()} paper and a ${wax.toLowerCase()} wax seal pressed with H & T`} className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative '}overflow-hidden ${className}`} style={{ background: env, containerType: 'size' }}>
       {/* Cotton paper: a fine weave and the light from the top left. */}
       <div className="absolute inset-0" style={{ background: `repeating-linear-gradient(45deg, rgba(0,0,0,.025) 0 1px, transparent 1px 7px), repeating-linear-gradient(-45deg, rgba(0,0,0,.025) 0 1px, transparent 1px 7px), radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.35), rgba(255,255,255,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,.08))` }} />
       {/* The side and bottom flaps, then the top flap to its point at the seal, each with a lit edge and a crisp shadow. */}
