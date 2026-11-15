@@ -92,7 +92,7 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
           No couples yet. Send couples your link (under Recommend us) or invite one above: when they sign up, or add you to their planner, they appear here.
         </p>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[1fr_1.1fr]">
+        <div className="grid gap-4 grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div className="flex flex-col gap-3">
             <div className="flex gap-2 flex-wrap items-center">
               <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a couple" aria-label="Find a couple" className="flex-[1_1_180px] py-2 px-3 rounded-full border border-[#d3c6a4] bg-white text-[15px]" />

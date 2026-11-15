@@ -113,3 +113,20 @@
   .yl-backdrop,
   .yl-page { animation: none; }
 }
+
+/* Touch screens: links in page headers and footers, and tick boxes, big enough to tap without missing. */
+@media (pointer: coarse) {
+  header nav a,
+  header > a,
+  footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+    flex: none;
+  }
+}

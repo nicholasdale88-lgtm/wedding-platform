@@ -318,7 +318,7 @@ export function Card({ title, action, children }: { title: string; action?: [str
           </button>
         </h2>
         {action && !folded && (
-          <button type="button" onClick={action[1]} className="p-0 border-0 bg-transparent text-[13px] font-medium underline cursor-pointer text-[var(--adm-ink,#33402f)] whitespace-nowrap">
+          <button type="button" onClick={action[1]} className="py-[10px] px-1 -my-[10px] border-0 bg-transparent text-[13px] font-medium underline cursor-pointer text-[var(--adm-ink,#33402f)] whitespace-nowrap">
             {action[0]}
           </button>
         )}
