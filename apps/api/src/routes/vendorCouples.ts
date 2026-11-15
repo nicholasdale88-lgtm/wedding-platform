@@ -153,7 +153,7 @@ export function vendorCoupleRoutes() {
     if (!l) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
     const w = await linked(c, l.id, c.req.param('wid'));
     if (!w) return err(c, 404, 'not_found', 'That couple isn’t linked to you.');
-    const b = Body.safeParse(await readJson(c));
+    const b = Body.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Write a message first.');
     if (!(await allow(c.env.DB, `vendor-msg:${l.id}`, 120, 3_600_000))) return err(c, 429, 'slow_down', 'That is a lot of messages. Try again in a little while.');
     await post(c.env, l.id, w.id, true, b.data.body, async () => {
@@ -168,7 +168,7 @@ export function vendorCoupleRoutes() {
   app.post('/invite', async (c) => {
     const l = await listingOf(c);
     if (!l) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
-    const b = Invite.safeParse(await readJson(c));
+    const b = Invite.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Check the email.');
     if (!emailReady(c.env)) return c.json({ sent: false });
     if (!(await allow(c.env.DB, `vendor-invite:${l.id}`, 30, 86_400_000))) return err(c, 429, 'slow_down', 'That is a lot of invitations today. Try again tomorrow.');
@@ -219,7 +219,7 @@ export function coupleVendorChatRoutes() {
    * message each other here and your quote requests wait in their account. Already listed: linked now.
    */
   app.post('/invite/vendor', writer, async (c) => {
-    const b = z.object({ vendorId: z.string().min(1).max(40) }).strict().safeParse(await readJson(c));
+    const b = z.object({ vendorId: z.string().min(1).max(40) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Choose a vendor.');
     const v = (await readDoc(c.env.DB, wid(c), 'vendors', '')).data.list.find((x) => x.id === b.data.vendorId);
     if (!v) return err(c, 404, 'not_found', 'That vendor is gone.');
@@ -261,7 +261,7 @@ export function coupleVendorChatRoutes() {
   app.post('/:lid', writer, async (c) => {
     const v = await vendorOf(c, c.req.param('lid'));
     if (!v) return err(c, 404, 'not_found', 'That vendor isn’t linked to your wedding.');
-    const b = Body.safeParse(await readJson(c));
+    const b = Body.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Write a message first.');
     if (!(await allow(c.env.DB, `couple-msg:${wid(c)}`, 120, 3_600_000))) return err(c, 429, 'slow_down', 'That is a lot of messages. Try again in a little while.');
     const w = await c.env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(wid(c)).first<{ name1: string; name2: string }>();
