@@ -87,17 +87,19 @@ export function DesignsPage() {
                     className="flex flex-col gap-2 p-2 rounded-[14px] border text-left cursor-pointer"
                     style={{ background: t.b1 ?? '#fff', borderColor: on ? INK : '#e2d7bc', boxShadow: on ? `0 0 0 2px ${INK}` : undefined }}
                   >
-                    <span className="relative flex flex-col items-center justify-center gap-1 h-[84px] rounded-[10px]" style={{ background: SIGNATURE[name] ? SIGNATURE[name]!.envelope : (t.b2 ?? t.b1) }}>
-                      {SIGNATURE[name] && (
+                    {SIGNATURE[name] ? (
+                      <span className="relative flex flex-col items-center justify-center gap-1 h-[84px] rounded-[10px]" style={{ background: SIGNATURE[name]!.envelope }}>
                         <span className="absolute top-1 left-1 px-2 py-[1px] rounded-full text-[10px] font-semibold tracking-[.08em] uppercase" style={{ background: '#e6cf9e', color: '#1b2218' }}>
                           Signature
                         </span>
-                      )}
-                      <span className="font-script text-[24px] leading-none" style={{ color: SIGNATURE[name] ? t.b1 : t.dg }}>
-                        H &amp; T
+                        <span className="font-script text-[24px] leading-none" style={{ color: t.b1 }}>
+                          H &amp; T
+                        </span>
+                        <span className="block w-10 h-px" style={{ background: t.acc ?? '#c8a46a' }} />
                       </span>
-                      <span className="block w-10 h-px" style={{ background: t.acc ?? '#c8a46a' }} />
-                    </span>
+                    ) : (
+                      <MiniEnvelope t={t} />
+                    )}
                     <span className="px-1 text-[14px] font-medium" style={{ color: t.dg ?? INK }}>
                       {themeLabel(name)}
                     </span>
@@ -131,5 +133,34 @@ export function DesignsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+/**
+ * A design as a little envelope in its own colours: the paper, the top flap folded over it with its shadow, a
+ * fine foil rule along the flap, and the wax seal where the flap meets.
+ */
+function MiniEnvelope({ t }: { t: ReturnType<typeof themeOf> }) {
+  const env = [t.e1 ?? t.b2 ?? '#e6dcc4', t.e2 ?? t.b2 ?? '#d9cdb0', t.e3 ?? '#c6b794'];
+  const flap = [t.t1 ?? env[0], t.t2 ?? env[1], t.t3 ?? env[2]];
+  const acc = t.acc ?? '#c8a46a';
+  return (
+    <span aria-hidden className="relative block h-[84px] rounded-[10px] overflow-hidden shadow-[inset_0_0_0_1px_rgba(0,0,0,.05)]" style={{ background: `linear-gradient(0deg, ${env[2]}, ${env[0]})` }}>
+      {/* The bottom panel and sides, folded in. */}
+      <span className="absolute inset-0" style={{ background: `linear-gradient(0deg, ${env[1]}, ${env[0]})`, clipPath: 'polygon(0 100%, 50% 46%, 100% 100%)' }} />
+      {/* The top flap, with its shadow below. */}
+      <span className="absolute inset-0" style={{ background: 'rgba(40,28,14,.16)', clipPath: 'polygon(0 0, 100% 0, 50% 64%)', filter: 'blur(1.5px)', transform: 'translateY(2px)' }} />
+      <span className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${flap[0]}, ${flap[2]})`, clipPath: 'polygon(0 0, 100% 0, 50% 62%)' }} />
+      {/* The foil rule, just inside the flap's edges. */}
+      <svg viewBox="0 0 100 84" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
+        <path d="M8 0 L44 36 M92 0 L56 36" stroke={acc} strokeWidth="1" vectorEffect="non-scaling-stroke" fill="none" opacity=".9" />
+      </svg>
+      {/* The seal. */}
+      <span className="absolute left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2 w-[26px] h-[26px] rounded-full grid place-items-center shadow-[0_2px_4px_rgba(0,0,0,.3)]" style={{ background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), ${acc} 50%, color-mix(in srgb, ${acc} 70%, #000))` }}>
+        <span className="font-script text-[11px] leading-none" style={{ color: 'rgba(255,255,255,.85)' }}>
+          H&amp;T
+        </span>
+      </span>
+    </span>
   );
 }
