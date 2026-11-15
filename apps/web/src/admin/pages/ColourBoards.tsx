@@ -206,7 +206,8 @@ export function ColourBoards({ inv, setInv, names = ['A', 'B'] }: { inv: Invitat
                   <span aria-hidden className="w-[22px] h-[22px] rounded-[3px] border border-black/10" style={{ background: c }} />
                   <span className="flex-1">
                     {k}
-                    {feature.materials[i] && i < 3 ? <span className="text-[#8a7a5c] italic"> · {feature.materials[i]}</span> : null}
+                    {/* Materials are listed paper, foil, fabric: the fabric is the tint. */}
+                {i < 3 ? <span className="text-[#8a7a5c] italic"> · {feature.materials[[0, 2, 1][i]!]}</span> : null}
                   </span>
                   <span className="text-[11px] tracking-[.06em] text-[#7a7466]">{label(c)}</span>
                 </li>
