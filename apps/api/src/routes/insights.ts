@@ -31,21 +31,26 @@ export function insightsRoutes() {
                 SUM(r.attending = 1) AS yes,
                 SUM(r.attending = 0) AS no,
                 SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END) AS people,
-                SUM(${PLACES}) AS seats
+                SUM(${PLACES}) AS seats,
+                SUM(CASE WHEN r.attending = 0 THEN ${PLACES} WHEN r.attending = 1 THEN MAX(0, ${PLACES} - MAX(1, COALESCE(r.count, 1))) ELSE 0 END) AS cant,
+                SUM(CASE WHEN r.attending IS NULL THEN ${PLACES} ELSE 0 END) AS waiting
            FROM invite_event ie JOIN invitation i ON i.id = ie.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION} AND i.wedding_id = ?
            LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id
           GROUP BY ie.event_id`,
       ).bind(w),
-      db.prepare(`SELECT COUNT(*) AS n, SUM(opened_at IS NOT NULL) AS opened FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL`).bind(w),
+      db.prepare(`SELECT COUNT(*) AS n, SUM(i.opened_at IS NOT NULL) AS opened FROM invitation i WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND ${REAL_INVITATION}`).bind(w),
       db.prepare(
-        `SELECT substr(r.updated_at, 1, 10) AS day, COUNT(*) AS n FROM rsvp r JOIN invitation i ON i.id = r.invitation_id AND i.wedding_id = ?1 AND i.deleted_at IS NULL
+        `SELECT substr(r.updated_at, 1, 10) AS day, COUNT(*) AS n FROM rsvp r JOIN invitation i ON i.id = r.invitation_id AND i.wedding_id = ?1 AND i.deleted_at IS NULL AND ${REAL_INVITATION}
           WHERE r.attending IS NOT NULL AND r.event_id = (SELECT id FROM event WHERE wedding_id = ?1 AND deleted_at IS NULL ORDER BY sort LIMIT 1) GROUP BY day ORDER BY day`,
       ).bind(w),
       db.prepare(
-        `SELECT CASE WHEN i.party = '' THEN 'No group' ELSE i.party END AS grp, COUNT(DISTINCT i.id) AS invited,
-                COUNT(DISTINCT CASE WHEN r.attending = 1 THEN i.id END) AS yes, COUNT(DISTINCT CASE WHEN r.attending = 0 THEN i.id END) AS no
-           FROM invitation i LEFT JOIN rsvp r ON r.invitation_id = i.id
-          WHERE i.wedding_id = ? AND i.deleted_at IS NULL GROUP BY grp ORDER BY invited DESC LIMIT 30`,
+        // Each group's guests at the wedding (the first event), counted as the overview counts them.
+        `SELECT CASE WHEN i.party = '' THEN 'No group' ELSE i.party END AS grp, SUM(${PLACES}) AS invited,
+                SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END) AS yes,
+                SUM(CASE WHEN r.attending = 0 THEN ${PLACES} WHEN r.attending = 1 THEN MAX(0, ${PLACES} - MAX(1, COALESCE(r.count, 1))) ELSE 0 END) AS no
+           FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = (SELECT id FROM event WHERE wedding_id = ?1 AND deleted_at IS NULL ORDER BY sort LIMIT 1)
+           LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id
+          WHERE i.wedding_id = ?1 AND i.deleted_at IS NULL AND ${REAL_INVITATION} GROUP BY grp ORDER BY invited DESC LIMIT 30`,
       ).bind(w),
       db.prepare(`SELECT COUNT(*) AS texts, COALESCE(SUM(parts), 0) AS parts, SUM(status = 'failed') AS failed FROM sms_out WHERE wedding_id = ? AND status IN ('sent', 'delivered', 'failed')`).bind(w),
       db.prepare(`SELECT COUNT(*) AS n FROM media WHERE wedding_id = ? AND kind IN ('photo', 'video') AND raw_of IS NULL AND deleted_at IS NULL`).bind(w),
@@ -67,8 +72,13 @@ export function insightsRoutes() {
     const extra = firstEv
       ? await db.batch([
           db.prepare(
-            `SELECT p.id, p.diet FROM person p JOIN invitation i ON i.id = p.invitation_id AND i.wedding_id = ? AND i.deleted_at IS NULL
-               JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ? AND r.attending = 1 WHERE p.deleted_at IS NULL`,
+            // The named people coming: on each yes, the first N named (N = the number it said; shared/counts namedComing).
+            `SELECT id, diet FROM (
+               SELECT p.id, p.diet, ROW_NUMBER() OVER (PARTITION BY p.invitation_id ORDER BY p.idx) AS rn, MAX(1, COALESCE(r.count, 1)) AS cap
+                 FROM person p JOIN invitation i ON i.id = p.invitation_id AND i.wedding_id = ? AND i.deleted_at IS NULL
+                 JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?2
+                 JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ?2 AND r.attending = 1
+                WHERE p.deleted_at IS NULL AND trim(p.name) != '') WHERE rn <= cap`,
           ).bind(w, firstEv.id),
           db.prepare(`SELECT COUNT(*) AS tables, COALESCE(SUM(seats), 0) AS seats FROM seat_table WHERE event_id = ? AND deleted_at IS NULL`).bind(firstEv.id),
           db.prepare(`SELECT COUNT(*) AS n FROM seat WHERE event_id = ?`).bind(firstEv.id),
@@ -81,7 +91,7 @@ export function insightsRoutes() {
                     (SELECT MAX(o.sent_at) FROM sms_out o WHERE o.invitation_id = i.id AND o.status IN ('sent', 'delivered')) AS texted
                FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?
                LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ie.event_id
-              WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND (r.attending IS NULL)
+              WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND ${REAL_INVITATION} AND (r.attending IS NULL)
               ORDER BY i.opened_at IS NULL, i.opened_at DESC LIMIT 200`,
           ).bind(firstEv.id, w),
         ])
@@ -116,7 +126,10 @@ export function insightsRoutes() {
         const invited = n(s?.invited);
         const yes = n(s?.yes);
         const no = n(s?.no);
-        return { key: e.key, name: e.name, startsAt: e.starts_at, venue: e.venue ?? '', invited, yes, no, awaiting: Math.max(0, invited - yes - no), people: n(s?.people), seats: n(s?.seats) };
+        // In guests too, as the overview counts them (shared/counts): coming + can't come + still to reply = guests.
+        const counts = { coming: n(s?.people), cantCome: n(s?.cant), awaiting: n(s?.waiting) };
+        const guests = Math.max(n(s?.seats), counts.coming + counts.cantCome + counts.awaiting);
+        return { key: e.key, name: e.name, startsAt: e.starts_at, venue: e.venue ?? '', invited, yes, no, awaiting: Math.max(0, invited - yes - no), people: n(s?.people), seats: n(s?.seats), guests, ...{ cantCome: counts.cantCome, awaitingGuests: counts.awaiting } };
       }),
       opened: { invitations: n(one(opened).n), opened: n(one(opened).opened) },
       repliesByDay: (byDay!.results as { day: string; n: number }[]).map((r) => ({ day: r.day, n: n(r.n) })),

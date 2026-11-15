@@ -115,9 +115,16 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
       return { id, invitationId: 'couple', idx, name: (name ?? '').trim() || (idx ? 'Partner two' : 'Partner one'), diet: '', tableId: s?.tableId ?? null, chair: s?.chair ?? null, party: 'The couple', side: idx ? 'p2' : 'p1', relation: '', circles: '', role: '', invited: 1, attending: 1, count: 2 };
     });
     const rows = [...(isWedding ? couple : []), ...guestRows];
-    // A yes is for the first N people on the invitation (N = the reply's count, as the overview counts them):
+    // A yes is for the first N named people on the invitation (N = the reply's count; shared/counts namedComing):
     // the others on it aren't coming, so they get no seat and are never shown to guests.
-    const beyondCount = (x: Row) => x.attending === 1 && x.idx >= Math.max(1, x.count ?? 1);
+    const rank = new Map<string, number>();
+    const seen = new Map<string, number>();
+    for (const x of rows) {
+      const n = seen.get(x.invitationId) ?? 0;
+      rank.set(x.id, n);
+      seen.set(x.invitationId, n + 1);
+    }
+    const beyondCount = (x: Row) => x.attending === 1 && (rank.get(x.id) ?? x.idx) >= Math.max(1, x.count ?? 1);
     // A seat needs an invitation to this event and no "no" (still to reply is fine: pencilled in).
     const seatable = (x: Row) => !!x.invited && x.attending !== 0 && !beyondCount(x);
     const seatOf = (x: Row) => (seatable(x) && x.tableId && tableIds.has(x.tableId) ? x.tableId : null);

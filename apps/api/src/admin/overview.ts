@@ -1,4 +1,4 @@
-import { comingCount, countGuests, isSerious, localParts, realGuests, type GuestCounts } from '@wp/shared';
+import { comingCount, countGuests, isSerious, localParts, namedComing, placesOf, realGuests, type GuestCounts } from '@wp/shared';
 import type { AdminEvent, AdminGuest, AdminPerson, WeddingData } from './data';
 
 /**
@@ -38,7 +38,7 @@ export interface Overview {
   /** The event this overview is about (null: all of them). */
   focus: string | null;
   /** Every event side by side (the "Both events" overview). */
-  perEvent: { key: string; name: string; startsAt: string; invited: number; guests: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
+  perEvent: { key: string; name: string; startsAt: string; invited: number; guests: number; counts: GuestCounts; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -47,9 +47,8 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 export const isAwaiting = (g: AdminGuest) => g.invited.some((k) => (g.rsvp[k]?.attending ?? null) === null);
 export const attendingAny = (g: AdminGuest) => g.invited.some((k) => g.rsvp[k]?.attending === true);
 export const attends = (g: AdminGuest, key: string) => g.invited.includes(key) && g.rsvp[key]?.attending === true;
-/** People coming to an event: the first N on the invitation, N = their reply count. */
-export const comingPeople = (g: AdminGuest, key: string): AdminPerson[] =>
-  attends(g, key) ? g.people.slice(0, Math.max(1, g.rsvp[key]?.count ?? 1)) : [];
+/** People coming to an event: the first N named people on the invitation, N = their reply count (shared/counts). */
+export const comingPeople = (g: AdminGuest, key: string): AdminPerson[] => namedComing(g, key);
 /** Given a menu, or courses written for them, at this event. */
 const hasMeal = (p: AdminPerson, key: string) => {
   const c = p.meals[key];
@@ -124,7 +123,14 @@ export function buildOverview(data: WeddingData, now: Date, focusKey?: string): 
     .filter((s) => reminderIds.has(s.campaignId) && s.status === 'pending' && s.sendAt > now.toISOString())
     .map((s) => s.sendAt)
     .sort();
-  add(awaitingG.length, {
+  // In Account, each event says its own (an invitation to both is still to reply to each separately).
+  if (!focus) {
+    for (const e of d.events) {
+      const n = d.guests.filter((g) => g.invited.includes(e.key) && (g.rsvp[e.key]?.attending ?? null) === null).length;
+      add(n, { kind: 'awaiting', title: `${plural(n, 'invitation', 'invitations')} still to reply to ${shortName(e)}`, detail: 'Each gets a gentle reminder before replies close.', cta: 'See who', link: 'guests?filter=awaiting', event: e.key });
+    }
+  }
+  add(focus && awaitingG.length, {
     kind: 'awaiting', title: `${plural(awaitingG.length, 'invitation', 'invitations')} still to reply`,
     detail: reminderDates.length
       ? `Reminders go out by themselves on ${listJoin(reminderDates.map(day))}.`
@@ -223,8 +229,9 @@ export function buildOverview(data: WeddingData, now: Date, focusKey?: string): 
       return {
         key: e.key, name: e.name, startsAt: e.startsAt, hasSeating: e.hasSeating, catered: e.catered,
         invited: inv.length,
-        // Guests invited: the places those invitations hold (the guest list's number).
-        guests: inv.reduce((n, g) => n + Math.max(1, g.seatsHeld || 1), 0),
+        // Guests invited: the places those invitations hold (the guest list's number), and every figure in guests.
+        guests: countGuests(d.guests, e.key).guests,
+        counts: countGuests(d.guests, e.key),
         yes: inv.filter((g) => g.rsvp[e.key]?.attending === true).length,
         no: inv.filter((g) => g.rsvp[e.key]?.attending === false).length,
         awaiting: inv.filter((g) => (g.rsvp[e.key]?.attending ?? null) === null).length,
@@ -235,7 +242,8 @@ export function buildOverview(data: WeddingData, now: Date, focusKey?: string): 
       };
     }),
     nav: {
-      guests: d.guests.length,
+      // Everyone on the guest list (each counted once, whatever they're invited to), as the guest list counts them.
+      guests: d.guests.reduce((n, g) => n + placesOf(g), 0),
       dietary: dietPeople.length,
       autopilot: d.campaigns.filter((c) => c.enabled && c.mode !== 'manual').length,
       smsLive: reachable,

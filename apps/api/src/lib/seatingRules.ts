@@ -2,7 +2,7 @@
  * Seating follows the replies: a seat at an event's tables needs an invitation to that event and no "no".
  * Guests still to reply keep their seat (the couple pencils them in before replies arrive); anyone on this
  * invitation who has declined, or is no longer invited, loses theirs. A yes for fewer people than are on the
- * invitation (its count) is for the first ones on it: the others lose their seat too. Added to the same batch
+ * invitation (its count) is for the first ones named on it: the others lose their seat too. Added to the same batch
  * as the reply or invite change, after it, so the two can never disagree.
  */
 export const unseatIfNotComing = (db: D1Database, invitationId: string): D1PreparedStatement =>
@@ -14,7 +14,7 @@ export const unseatIfNotComing = (db: D1Database, invitationId: string): D1Prepa
                 SELECT ie.event_id FROM invite_event ie LEFT JOIN rsvp r ON r.invitation_id = ie.invitation_id AND r.event_id = ie.event_id
                  WHERE ie.invitation_id = ?1 AND (r.attending IS NULL OR r.attending = 1))
             OR EXISTS (SELECT 1 FROM rsvp r JOIN person p ON p.id = seat.person_id
-                        WHERE r.invitation_id = ?1 AND r.event_id = seat.event_id AND r.attending = 1 AND p.idx >= MAX(1, COALESCE(r.count, 1))))`,
+                        WHERE r.invitation_id = ?1 AND r.event_id = seat.event_id AND r.attending = 1 AND (SELECT COUNT(*) FROM person q WHERE q.invitation_id = p.invitation_id AND q.deleted_at IS NULL AND trim(q.name) != '' AND q.idx < p.idx) >= MAX(1, COALESCE(r.count, 1))))`,
     )
     .bind(invitationId);
 
@@ -28,7 +28,7 @@ export const unseatEveryoneNotComing = (db: D1Database, eventId: string): D1Prep
           AND person_id NOT IN (
             SELECT p.id FROM person p JOIN invite_event ie ON ie.invitation_id = p.invitation_id
               LEFT JOIN rsvp r ON r.invitation_id = ie.invitation_id AND r.event_id = ie.event_id
-             WHERE ie.event_id = ?1 AND (r.attending IS NULL OR (r.attending = 1 AND p.idx < MAX(1, COALESCE(r.count, 1)))))`,
+             WHERE ie.event_id = ?1 AND (r.attending IS NULL OR (r.attending = 1 AND (SELECT COUNT(*) FROM person q WHERE q.invitation_id = p.invitation_id AND q.deleted_at IS NULL AND trim(q.name) != '' AND q.idx < p.idx) < MAX(1, COALESCE(r.count, 1)))))`,
     )
     .bind(eventId);
 

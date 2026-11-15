@@ -114,7 +114,7 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
                 <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-muted,#5b6a52)]">{fmtEvent(e.startsAt, o.wedding.timezone)}</span>
                 <span className="font-display text-[26px] leading-tight">{e.name}</span>
                 <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">
-                  {e.coming} coming{p ? ` · ${p.awaiting} still to reply` : ''}
+                  {e.coming} coming{p ? ` · ${p.counts?.awaiting ?? p.awaiting} still to reply` : ''}
                 </span>
                 <span className="text-[13px] font-medium underline">Open {e.name}</span>
               </button>

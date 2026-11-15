@@ -29,6 +29,17 @@ export const realGuests = <G extends { people: { name: string }[]; phone?: strin
 /** Places held on an invitation: at least 1, and at least one for each person named on it. */
 export const placesOf = (g: CountableGuest) => Math.max(1, g.seatsHeld || 1, g.people.filter((p) => p.name.trim()).length);
 
+/**
+ * The named people coming to an event from this invitation: on a yes, the first N people with a name
+ * (N = the number it said). People without a name yet can't be seated or given a meal; they're the
+ * difference between this and comingCount.
+ */
+export function namedComing<P extends { name: string }>(g: { invited: string[]; rsvp: CountableGuest['rsvp']; people: P[] }, event: string): P[] {
+  const r = g.rsvp[event];
+  if (!g.invited.includes(event) || r?.attending !== true) return [];
+  return g.people.filter((p) => p.name.trim()).slice(0, Math.max(1, r.count ?? 1));
+}
+
 /** How many are coming to an event from this invitation (0 unless they said yes). */
 export function comingCount(g: CountableGuest, event: string): number {
   const r = g.rsvp[event];

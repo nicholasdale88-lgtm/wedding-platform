@@ -163,7 +163,7 @@ export interface Overview {
   partySides?: { p1: string; p2: string };
   /** The event these figures are about (the admin's event switcher), or null for all. */
   focus?: string | null;
-  perEvent?: { key: string; name: string; startsAt: string; invited: number; guests?: number; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
+  perEvent?: { key: string; name: string; startsAt: string; invited: number; guests?: number; counts?: GuestCounts; yes: number; no: number; awaiting: number; coming: number; diet: number; seated: number; hasSeating: boolean; catered: boolean }[];
 }
 
 export interface GuestPatch {
@@ -841,7 +841,7 @@ export const boardApi = {
 export interface InsightsData {
   /** The plan's tasks: by status, overdue and due soon, by person, done per week (12 Mondays), the next eight. */
   tasks: TaskTotals;
-  events: { key: string; name: string; startsAt: string; venue: string; invited: number; yes: number; no: number; awaiting: number; people: number; seats: number }[];
+  events: { key: string; name: string; startsAt: string; venue: string; invited: number; yes: number; no: number; awaiting: number; people: number; seats: number; guests?: number; cantCome?: number; awaitingGuests?: number }[];
   opened: { invitations: number; opened: number };
   repliesByDay: { day: string; n: number }[];
   groups: { group: string; invited: number; yes: number; no: number }[];

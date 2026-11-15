@@ -171,7 +171,7 @@ export function companyRoutes() {
       one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL`),
       one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND created_at >= ?`, new Date(now.getTime() - 7 * 86_400_000).toISOString()),
       one(`SELECT COUNT(*) AS n FROM wedding WHERE deleted_at IS NULL AND created_at >= ?`, new Date(now.getTime() - 30 * 86_400_000).toISOString()),
-      one(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id JOIN wedding w ON w.id = i.wedding_id WHERE p.deleted_at IS NULL AND i.deleted_at IS NULL AND w.deleted_at IS NULL`),
+      one(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id JOIN wedding w ON w.id = i.wedding_id WHERE p.deleted_at IS NULL AND i.deleted_at IS NULL AND w.deleted_at IS NULL AND trim(p.name) != ''`),
       // Replies: answers (yes or no) to events the guest is still invited to, in weddings that still exist.
       one(
         `SELECT COUNT(*) AS n FROM rsvp r JOIN invitation i ON i.id = r.invitation_id JOIN wedding w ON w.id = i.wedding_id JOIN event e ON e.id = r.event_id
@@ -240,7 +240,7 @@ export function companyRoutes() {
               COALESCE(json_extract(w.content, '$.extraEvents'), 0) AS extra_events,
               COALESCE(json_extract(w.content, '$.ref'), '') AS ref,
               (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL) AS day,
-              (SELECT COUNT(*) FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = w.id AND p.deleted_at IS NULL AND i.deleted_at IS NULL) AS guests,
+              (SELECT COUNT(*) FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = w.id AND p.deleted_at IS NULL AND i.deleted_at IS NULL AND trim(p.name) != '') AS guests,
               (SELECT u.email FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = w.id AND m.role = 'owner' ORDER BY u.created_at LIMIT 1) AS email
          FROM wedding w
         WHERE w.deleted_at IS NULL AND json_valid(w.content)

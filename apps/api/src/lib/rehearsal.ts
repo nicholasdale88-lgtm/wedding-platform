@@ -482,7 +482,8 @@ export function readiness(f: RehearsalFacts, times: Record<StepKey, string> = st
   f.events.forEach((ev, i) => {
     const start = ev.startsAt;
     const coming = f.recipients.filter((r) => r.invited.includes(ev.key) && r.rsvp[ev.key]?.attending === true);
-    const comingPeople = coming.flatMap((r) => f.people.filter((p) => p.invitationId === r.id && p.idx < Math.max(1, r.rsvp[ev.key]?.count ?? 1)));
+    // The first N named people on each yes (N = the number it said), as the seating counts them.
+    const comingPeople = coming.flatMap((r) => f.people.filter((p) => p.invitationId === r.id && p.name.trim()).sort((x, y) => x.idx - y.idx).slice(0, Math.max(1, r.rsvp[ev.key]?.count ?? 1)));
     const of = f.events.length > 1 ? ` (${ev.name})` : '';
     if (ev.tables) {
       if (!ev.published) add({ key: `unpublished:${ev.key}`, area: 'seating', level: 'amber', step: 'seating', title: `Seating isn’t published${of}`, detail: 'Guests see their table only once you publish it.', fix: { tab: 'seating', event: true } });

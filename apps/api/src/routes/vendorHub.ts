@@ -7,6 +7,7 @@ import { allow } from '../lib/rateLimit';
 import { readJson, safeJson } from '../lib/security';
 import { changeDoc, readDoc } from './planner';
 import { loadSeating } from './seating';
+import { PLACES, REAL_INVITATION } from '../lib/realGuests';
 
 /**
  * A vendor's own page (the celebrant, the caterer, the band…): /api/p/:slug/vendor/:vid/:key. The
@@ -57,11 +58,12 @@ async function pageOf(db: D1Database, o: Opened) {
   const counts = ev
     ? await db
         .prepare(
-          `SELECT COALESCE(SUM(CASE WHEN r.attending = 1 THEN r.count ELSE 0 END), 0) AS coming,
-                  COALESCE(SUM(CASE WHEN r.attending IS NULL THEN i.seats_held ELSE 0 END), 0) AS waiting
+          // Counted as the couple's overview counts them (shared/counts): coming, and the guests still to reply.
+          `SELECT COALESCE(SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) ELSE 0 END), 0) AS coming,
+                  COALESCE(SUM(CASE WHEN r.attending IS NULL THEN ${PLACES} ELSE 0 END), 0) AS waiting
              FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
              LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ?1
-            WHERE i.wedding_id = ?2 AND i.deleted_at IS NULL`,
+            WHERE i.wedding_id = ?2 AND i.deleted_at IS NULL AND ${REAL_INVITATION}`,
         )
         .bind(ev.id, w.id)
         .first<{ coming: number; waiting: number }>()
@@ -69,8 +71,11 @@ async function pageOf(db: D1Database, o: Opened) {
   const { results: diets } = ev
     ? await db
         .prepare(
-          `SELECT p.diet FROM person p JOIN invitation i ON i.id = p.invitation_id JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ? AND r.attending = 1
-            WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND trim(p.diet) != ''`,
+          // The named people coming (the first N named on each yes), as the dietary page counts them.
+          `SELECT p.diet FROM person p JOIN invitation i ON i.id = p.invitation_id JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
+             JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ?1 AND r.attending = 1
+            WHERE i.wedding_id = ?2 AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND trim(p.name) != '' AND trim(p.diet) != ''
+              AND (SELECT COUNT(*) FROM person q WHERE q.invitation_id = p.invitation_id AND q.deleted_at IS NULL AND trim(q.name) != '' AND q.idx < p.idx) < MAX(1, COALESCE(r.count, 1))`,
         )
         .bind(ev.id, w.id)
         .all<{ diet: string }>()

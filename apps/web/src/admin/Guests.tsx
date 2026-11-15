@@ -1,4 +1,4 @@
-import { circleSuggestions, contactGaps, GAP_LABEL, householdName, othersNames, placesOf } from '@wp/shared';
+import { circleSuggestions, comingCount, contactGaps, GAP_LABEL, householdName, othersNames, placesOf } from '@wp/shared';
 import { Fragment, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, ApiError, type EventInfo, type Guest, type BulkSet } from '../lib/api';
@@ -403,7 +403,7 @@ export function Guests() {
                 className="flex-none whitespace-nowrap py-[7px] px-[13px] min-h-[40px] sm:min-h-0 rounded-full border text-[13px] cursor-pointer"
                 style={{ borderColor: on ? 'var(--adm-ink,#33402f)' : '#d3c6a4', background: on ? 'var(--adm-ink,#33402f)' : '#fbf8f2', color: on ? '#f3ecd6' : 'var(--adm-ink,#33402f)' }}
               >
-                {f.label} {guests.filter(f.test).length}
+                {f.label} {chipGuests(guests, f)}
               </button>
             );
           })}
@@ -430,7 +430,7 @@ export function Guests() {
           </label>
         ))}
         <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] ml-auto">
-          {shown.length === guests.length ? `${guests.length} invitations` : `${shown.length} of ${guests.length} invitations`}
+          {shown.length === guests.length ? `${guests.length} invitations` : `${shown.length} of ${guests.length} invitations`} · {shown.reduce((n, g) => n + placesOf(g), 0)} guests
         </span>
         {/* One tap: the list grouped by side (the bride's, the groom's, both, not set), each with a heading. */}
         <button
@@ -558,11 +558,18 @@ export function Guests() {
   );
 }
 
+/** A quick filter's number, in guests as the overview counts them: coming for an event's yes, otherwise the places held. */
+function chipGuests(guests: Guest[], f: { key: string; test: (g: Guest) => boolean }): number {
+  const ev = f.key.startsWith('attending:') ? f.key.slice('attending:'.length) : null;
+  return guests.filter(f.test).reduce((n, g) => n + (ev ? comingCount(g, ev) : placesOf(g)), 0);
+}
+
+/** Coming of the places held ("2/3"), from the event they said yes to with the most, and their table. */
 function seats(g: Guest): string {
-  const yes = Object.entries(g.rsvp).filter(([k, r]) => g.invited.includes(k) && r.attending);
-  const n = yes.length ? Math.max(...yes.map(([, r]) => r.count)) : null;
+  const yes = g.invited.filter((k) => g.rsvp[k]?.attending === true);
+  const n = yes.length ? Math.max(...yes.map((k) => comingCount(g, k))) : null;
   const table = g.people.find((p) => p.table)?.table;
-  return `${n ?? '–'}/${g.seatsHeld}${table ? ` · T${table}` : ''}`;
+  return `${n ?? '–'}/${placesOf(g)}${table ? ` · T${table}` : ''}`;
 }
 
 /** A printable A4 sheet of address labels (3 across, 7 down: the usual 21-label sheet). */

@@ -540,6 +540,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       );
     }
     if (p.invited || tableId !== undefined) stmts.push(unseatIfNotComing(db, invId)); // not invited any more, or declined
+    // Never fewer places than people named on it (each named person is a guest; shared/counts placesOf).
+    if (p.seatsHeld !== undefined || p.people)
+      stmts.push(db.prepare(`UPDATE invitation SET seats_held = MIN(60, MAX(seats_held, (SELECT COUNT(*) FROM person WHERE invitation_id = ?1 AND deleted_at IS NULL AND trim(name) != ''))) WHERE id = ?1`).bind(invId));
     stmts.push(audit(c, 'guest.edit', invId, p));
     await db.batch(stmts);
     return c.json(await guestJson(c, invId));

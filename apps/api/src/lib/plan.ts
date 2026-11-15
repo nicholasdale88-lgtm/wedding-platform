@@ -46,10 +46,10 @@ export async function eventRoom(db: D1Database, weddingId: string): Promise<bool
   return w.n < EVENTS_INCLUDED[planOf(w.plan)] + Number(w.extra || 0);
 }
 
-/** How many guests (people) a wedding has. */
+/** How many guests (named people) a wedding has: a blank line from Add guest isn't one. */
 export async function peopleCount(db: D1Database, weddingId: string): Promise<number> {
   const r = await db
-    .prepare(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND p.deleted_at IS NULL`)
+    .prepare(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ? AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND trim(p.name) != ''`)
     .bind(weddingId)
     .first<{ n: number }>();
   return r?.n ?? 0;

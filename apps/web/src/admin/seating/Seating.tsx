@@ -670,8 +670,11 @@ function SeatingPlan() {
       setBusy(false);
     }
   };
-  // The guests to seat: the couple's expected number (Account → Overview), or more if more have said yes.
-  const planFor = Math.max(overview?.expectedGuests ?? 0, s.people.filter((p) => p.coming).length);
+  // The guests to seat at this event: the couple's expected number (the wedding's only, set in Account), or more
+  // if more have said yes (the replies' number, named or not), plus the two of you at the wedding.
+  const isFirstEvent = overview?.perEvent?.[0]?.key === s.event.key;
+  const comingHere = overview?.perEvent?.find((e) => e.key === s.event.key)?.coming ?? 0;
+  const planFor = Math.max(isFirstEvent ? (overview?.expectedGuests ?? 0) : 0, comingHere + s.people.filter((p) => isCouple(p)).length, s.people.filter((p) => p.coming).length);
   const seatsNow = tables.reduce((n, t) => n + t.seats, 0);
   const tablesShort = planFor > seatsNow ? Math.ceil((planFor - seatsNow) / DEFAULT_SEATS[shape]) : 0;
   /** Enough tables of the chosen type for everyone expected, set out in rows (any already there stay). */

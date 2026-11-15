@@ -133,10 +133,12 @@ export function Insights() {
   const today = dateIn(tz);
   const first = data.events[0];
   const days = first ? daysUntil(first.startsAt, tz) : null;
-  // Replies and a forecast: the awaiting split like the replies so far (or 85% yes before any are in).
-  const rate = first && first.yes + first.no ? first.yes / (first.yes + first.no) : 0.85;
-  const perInvite = first && first.yes ? first.people / first.yes : 2;
-  const forecast = first ? Math.round(first.people + first.awaiting * rate * perInvite) : 0;
+  // Replies and a forecast, in guests as the overview counts them: those still to reply split like the guests
+  // who have (or 85% coming before any are in).
+  const gc = (e: NonNullable<typeof first>) => ({ guests: e.guests ?? e.seats, coming: e.people, cant: e.cantCome ?? 0, waiting: e.awaitingGuests ?? 0 });
+  const fg = first ? gc(first) : null;
+  const rate = fg && fg.coming + fg.cant ? fg.coming / (fg.coming + fg.cant) : 0.85;
+  const forecast = fg ? Math.round(fg.coming + fg.waiting * rate) : 0;
   // Money.
   const booked = vendors.list.filter((v) => v.status === 'booked');
   const lines = withSchedules(budget.lines, vendors.list);
@@ -205,19 +207,24 @@ export function Insights() {
             <div key={e.key} className="flex flex-col gap-2">
               <strong className="text-[14px] font-semibold">{e.name}</strong>
               <Bars
-                max={e.invited}
+                max={gc(e).guests}
                 rows={[
-                  { label: 'Invited', value: e.invited, colour: '#c6b794' },
-                  ...(e.key === first?.key ? [{ label: 'Opened their invitation', value: Math.min(e.invited, data.opened.opened), colour: '#b39563' }] : []),
-                  { label: 'Replied', value: e.yes + e.no, colour: '#8a9670' },
-                  { label: 'Coming', value: e.yes, note: `${e.yes} (${e.people} people)`, colour: '#5d6b47' },
-                  { label: 'Can’t come', value: e.no, colour: '#a5533c' },
+                  { label: 'Guests invited', value: gc(e).guests, colour: '#c6b794' },
+                  { label: 'Replied', value: gc(e).coming + gc(e).cant, colour: '#8a9670' },
+                  { label: 'Coming', value: gc(e).coming, colour: '#5d6b47' },
+                  { label: 'Can’t come', value: gc(e).cant, colour: '#a5533c' },
+                  { label: 'Still to reply', value: gc(e).waiting, colour: '#b39563' },
                 ]}
               />
+              {e.key === first?.key && (
+                <span className="text-[12px] text-[#7a7466]">
+                  {Math.min(e.invited, data.opened.opened)} of {e.invited} invitations opened
+                </span>
+              )}
             </div>
           ))}
           <p className="m-0 text-[12px] text-[#7a7466]">
-            Expected guests assumes the {first?.awaiting ?? 0} still to reply answer like those who have ({Math.round(rate * 100)}% yes).
+            Expected guests assumes the {fg?.waiting ?? 0} guests still to reply answer like those who have ({Math.round(rate * 100)}% coming).
           </p>
           {waitingAtClose !== null && (
             <p className={`m-0 text-[13px] ${waitingAtClose > 0 ? 'text-[#7a4a37]' : 'text-[var(--adm-muted,#5b6a52)]'}`}>
@@ -383,7 +390,7 @@ export function Insights() {
       {data.groups.length > 1 && (
         <section aria-label="By guest group" className={card}>
           <H2>By guest group</H2>
-          <Bars rows={data.groups.map((g) => ({ label: g.group, value: g.yes + g.no, note: `${g.yes} yes · ${g.no} no · ${g.invited - g.yes - g.no} waiting`, colour: '#8a9670' }))} max={Math.max(...data.groups.map((g) => g.invited))} />
+          <Bars rows={data.groups.map((g) => ({ label: g.group, value: g.yes + g.no, note: `${g.yes} coming · ${g.no} can’t come · ${Math.max(0, g.invited - g.yes - g.no)} still to reply`, colour: '#8a9670' }))} max={Math.max(...data.groups.map((g) => g.invited))} />
         </section>
       )}
 

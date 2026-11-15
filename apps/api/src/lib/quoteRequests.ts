@@ -4,6 +4,7 @@ import { changeDoc, readDoc } from '../routes/planner';
 import { keepDocument } from '../photos/store';
 import { buttonEmail, emailReady, sendEmail } from './email';
 import { MAX_PLANNER_FILE } from './security';
+import { PLACES, REAL_INVITATION } from './realGuests';
 
 /**
  * What quote requests share: filing a quote's file (the couple's own, or the one a vendor attaches on
@@ -66,9 +67,11 @@ export async function weddingFacts(db: D1Database, weddingId: string) {
     ? ((
         await db
           .prepare(
-            `SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
-              LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ?1
-              WHERE i.wedding_id = ?2 AND i.deleted_at IS NULL AND p.deleted_at IS NULL AND COALESCE(r.attending, 1) != 0`,
+            // Guests as the overview counts them: coming on each yes, plus every guest still to reply.
+            `SELECT COALESCE(SUM(CASE WHEN r.attending = 1 THEN MAX(1, COALESCE(r.count, 1)) WHEN r.attending IS NULL THEN ${PLACES} ELSE 0 END), 0) AS n
+               FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ?1
+               LEFT JOIN rsvp r ON r.invitation_id = i.id AND r.event_id = ?1
+              WHERE i.wedding_id = ?2 AND i.deleted_at IS NULL AND ${REAL_INVITATION}`,
           )
           .bind(ev.id, w.id)
           .first<{ n: number }>()

@@ -1,4 +1,4 @@
-import { dietCategories, isSerious, mealWarning, menuFit, NO_MEAL, servedMeal, suggestMenu, type MealChoice, type Menu, type Menus } from '@wp/shared';
+import { dietCategories, isSerious, namedComing, realGuests, mealWarning, menuFit, NO_MEAL, servedMeal, suggestMenu, type MealChoice, type Menu, type Menus } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, plannerApi, type EventInfo, type Guest, type Person } from '../../lib/api';
@@ -49,8 +49,8 @@ export function Dietary() {
     // The sidebar's event: only people coming to it, and their messages about it.
     const focus = data.events.find((e) => e.key === chosen);
     const people = focus
-      ? data.guests.filter((g) => coming(g, focus)).flatMap((g) => g.people.slice(0, Math.max(1, g.rsvp[focus.key]?.count ?? g.people.length)).map((p) => ({ g, p })))
-      : data.guests.flatMap((g) => g.people.map((p) => ({ g, p })));
+      ? realGuests(data.guests).filter((g) => coming(g, focus)).flatMap((g) => namedComing(g, focus.key).map((p) => ({ g, p })))
+      : data.guests.flatMap((g) => g.people.filter((p) => p.name.trim()).map((p) => ({ g, p })));
     const withDiet = people.filter(({ p }) => p.diet.trim());
     const counts = new Map<string, number>();
     for (const { p } of withDiet) for (const c of dietCategories(p.diet)) counts.set(c, (counts.get(c) ?? 0) + 1);
@@ -81,7 +81,7 @@ export function Dietary() {
       ['Name', 'Table', 'Dietary', 'Serious', 'Menu', 'Entrée', 'Main', 'Dessert', 'Check'],
       ...data.guests
         .filter((g) => coming(g, e))
-        .flatMap((g) => g.people.slice(0, Math.max(1, g.rsvp[e.key]?.count ?? g.people.length)))
+        .flatMap((g) => namedComing(g, e.key))
         .map((p) => {
           const c = p.meals?.[e.key];
           const m = servedMeal(c, menus);
@@ -121,7 +121,7 @@ export function Dietary() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {catered.map((e) => {
-          const rows = data.guests.filter((g) => coming(g, e)).flatMap((g) => g.people.filter((p) => p.diet.trim()).map((p) => ({ g, p })));
+          const rows = data.guests.filter((g) => coming(g, e)).flatMap((g) => namedComing(g, e.key).filter((p) => p.diet.trim()).map((p) => ({ g, p })));
           return (
             <section key={e.key} className="flex flex-col">
               <Eyebrow>{fmtWeekday(e.startsAt, tz)}</Eyebrow>
@@ -178,7 +178,10 @@ function Meals({ event, guests, onSaved }: { event: EventInfo; guests: Guest[]; 
   const [giving, setGiving] = useState(false);
   const menus = live.doc?.data;
   // Everyone invited who hasn't declined: meals get planned before every reply is in.
-  const people = guests.filter((g) => g.invited.includes(event.key) && g.rsvp[event.key]?.attending !== false).flatMap((g) => g.people);
+  // On a yes, only the named people it's for; still to reply, everyone named on it (the seating counts the same).
+  const people = guests
+    .filter((g) => g.invited.includes(event.key) && g.rsvp[event.key]?.attending !== false)
+    .flatMap((g) => (g.rsvp[event.key]?.attending === true ? namedComing(g, event.key) : g.people.filter((x) => x.name.trim())));
   const withDiet = people.filter((p) => p.diet.trim());
   const special = menus?.special ?? [];
   const rows = withDiet.map((p) => {

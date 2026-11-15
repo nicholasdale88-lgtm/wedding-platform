@@ -1,4 +1,4 @@
-import { addressLines, isSerious, printed, relationLabel, sideShort } from '@wp/shared';
+import { addressLines, countGuests, isSerious, namedComing, printed, relationLabel, sideShort } from '@wp/shared';
 import type { EventInfo, Guest } from '../lib/api';
 import { shortLabel } from '../lib/format';
 import type { Sheet } from '../lib/xlsx';
@@ -166,16 +166,12 @@ export function exportSheets(guests: Guest[], events: EventInfo[], links: Record
   const summary: Sheet = {
     name: 'Summary',
     rows: [
-      ['Event', 'Invitations', 'Coming (invitations)', 'Coming (people)', 'Declined', 'Awaiting', 'Dietary needs', 'Serious allergies'],
+      ['Event', 'Invitations', 'Guests', 'Coming', "Can't come", 'Still to reply', 'Dietary needs', 'Serious allergies'],
       ...events.map((e) => {
-        const inv = guests.filter((g) => g.invited.includes(e.key));
-        const yes = inv.filter((g) => g.rsvp[e.key]?.attending === true);
-        const ppl = yes.flatMap((g) => g.people.slice(0, Math.max(1, g.rsvp[e.key]?.count ?? g.people.length)));
-        return [
-          e.name, inv.length, yes.length, yes.reduce((n, g) => n + (g.rsvp[e.key]?.count ?? 0), 0),
-          inv.filter((g) => g.rsvp[e.key]?.attending === false).length, inv.filter((g) => (g.rsvp[e.key]?.attending ?? null) === null).length,
-          ppl.filter((p) => p.diet.trim()).length, ppl.filter((p) => isSerious(p.diet)).length,
-        ];
+        // The same figures as the overview (shared/counts): guests, each coming, can't come or still to reply.
+        const c = countGuests(guests, e.key);
+        const ppl = guests.flatMap((g) => namedComing(g, e.key));
+        return [e.name, c.invitations, c.guests, c.coming, c.cantCome, c.awaiting, ppl.filter((p) => p.diet.trim()).length, ppl.filter((p) => isSerious(p.diet)).length];
       }),
     ],
   };

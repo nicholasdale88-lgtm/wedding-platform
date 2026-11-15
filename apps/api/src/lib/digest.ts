@@ -2,6 +2,7 @@ import { allPayments, dateIn, localParts } from '@wp/shared';
 import type { Env } from '../env';
 import { readDoc } from '../routes/planner';
 import { buttonEmail, emailReady, sendEmail } from './email';
+import { REAL_INVITATION } from './realGuests';
 
 /**
  * The couple's daily summary email, at about 6pm their time: who replied since the last one (yes and no,
@@ -20,7 +21,7 @@ export async function digestFor(env: Env, weddingId: string, since: string, now 
       `SELECT r.attending, r.count, r.invitation_id AS inv, e.name AS event, e.sort,
               (SELECT p.name FROM person p WHERE p.invitation_id = r.invitation_id AND p.deleted_at IS NULL ORDER BY p.idx LIMIT 1) AS who
          FROM rsvp r JOIN event e ON e.id = r.event_id AND e.deleted_at IS NULL
-         JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL
+         JOIN invitation i ON i.id = r.invitation_id AND i.deleted_at IS NULL AND ${REAL_INVITATION}
         WHERE e.wedding_id = ? AND r.updated_at > ? AND r.attending IS NOT NULL
         ORDER BY r.updated_at`,
     )
@@ -40,16 +41,20 @@ export async function digestFor(env: Env, weddingId: string, since: string, now 
 
   const lines: string[] = [];
   if (replies.length) {
-    const yes = replies.filter((r) => r.attending === 1);
-    const no = replies.filter((r) => r.attending === 0);
     const names = (xs: typeof replies) => [...new Set(xs.map((r) => r.who?.split(' ')[0] ?? 'A guest'))];
     const list = (xs: string[]) => (xs.length > 6 ? `${xs.slice(0, 6).join(', ')} and ${xs.length - 6} more` : xs.join(', '));
-    // How many are coming: each yes once (an invitation answering yes to two events is still the same people),
-    // at the largest number it said, as every page counts it.
-    const heads = new Map<string, number>();
-    for (const r of yes) heads.set(r.inv, Math.max(heads.get(r.inv) ?? 0, Math.max(1, r.count || 1)));
-    if (yes.length) lines.push(`Yes from ${list(names(yes))} (${[...heads.values()].reduce((s, n) => s + n, 0)} coming).`);
-    if (no.length) lines.push(`Can't make it: ${list(names(no))}.`);
+    // Each event on its own lines (the wedding and a birthday are never added together), in their order.
+    const events = [...new Map(replies.map((r) => [r.event, r.sort])).entries()].sort((a, b) => a[1] - b[1]).map(([e]) => e);
+    for (const event of events) {
+      const of = replies.filter((r) => r.event === event);
+      const yes = of.filter((r) => r.attending === 1);
+      const no = of.filter((r) => r.attending === 0);
+      const at = events.length > 1 ? `${event}: ` : '';
+      // How many are coming: the number each yes said, as every page counts it.
+      const heads = yes.reduce((n, r) => n + Math.max(1, r.count || 1), 0);
+      if (yes.length) lines.push(`${at}Yes from ${list(names(yes))} (${heads} coming).`);
+      if (no.length) lines.push(`${at}Can't make it: ${list(names(no))}.`);
+    }
   }
   if (waiting?.n) lines.push(`${waiting.n} ${waiting.n === 1 ? 'message is' : 'messages are'} waiting for you.`);
   for (const p of due.slice(0, 4)) lines.push(`${p.due < today ? 'Overdue' : `Due ${p.due === today ? 'today' : new Date(`${p.due}T00:00:00Z`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })}`}: ${p.who} ${p.label.toLowerCase()} ${fmt(p.amount)}.`);
