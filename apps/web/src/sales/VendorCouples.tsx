@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ChatThread } from '../lib/ChatThread';
+import { CoupleDetails } from './CoupleDetails';
 import { vendorCouplesApi, type VendorChatMessage, type VendorCouple } from '../lib/api';
 
 const INK = '#33402f';
@@ -25,6 +26,8 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
   const [thread, setThread] = useState<VendorChatMessage[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
+  // A couple opens on their wedding details, or on the conversation when they've written.
+  const [view, setView] = useState<'details' | 'messages'>('details');
   const load = () =>
     vendorCouplesApi
       .list()
@@ -38,6 +41,7 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
   }, []); // eslint-disable-line
   const openThread = async (id: string) => {
     setOpen(id);
+    setView((couples ?? []).find((c) => c.id === id)?.unread ? 'messages' : 'details');
     setThread([]);
     const r = await vendorCouplesApi.thread(id);
     setThread(r.messages);
@@ -157,6 +161,20 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
                     ))}
                   </div>
                 )}
+                <div role="tablist" aria-label={`${chosen.couple}`} className="inline-flex self-start p-[3px] rounded-full bg-[#efe6d0]">
+                  {(
+                    [
+                      ['details', 'Their wedding'],
+                      ['messages', `Messages${thread.length ? ` (${thread.length})` : ''}`],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} className={`py-[7px] px-4 rounded-full border-0 text-[14px] font-semibold cursor-pointer ${view === k ? 'bg-[#33402f] text-[#fbf8f2]' : 'bg-transparent text-[#33402f]'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {view === 'details' && <CoupleDetails wid={chosen.id} couple={chosen.couple} />}
+                {view === 'messages' && (
                 <ChatThread
                   messages={thread}
                   mine="vendor"
@@ -167,6 +185,7 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
                     void load();
                   }}
                 />
+                )}
               </>
             ) : (
               <p className="m-0 p-4 rounded-[14px] bg-[#fbf8f0] border border-[#e2d7bc] text-[15px]" style={{ color: SOFT }}>

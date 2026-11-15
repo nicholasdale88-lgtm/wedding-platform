@@ -644,7 +644,25 @@ export const vendorCouplesApi = {
   thread: (wid: string) => request<{ couple: string; messages: VendorChatMessage[] }>(`/a/vendor/couples/${encodeURIComponent(wid)}/messages`),
   send: (wid: string, body: string) => send<{ messages: VendorChatMessage[] }>('POST', `/a/vendor/couples/${encodeURIComponent(wid)}/messages`, { body }),
   invite: (name: string, email: string) => send<{ sent: boolean }>('POST', '/a/vendor/couples/invite', { name, email }),
+  details: (wid: string) => request<{ couple: string; inPlanner: boolean; details: VendorCoupleDetails | null }>(`/a/vendor/couples/${encodeURIComponent(wid)}/details`),
 };
+/** What a couple shares with a vendor in their planner, as the vendor's portal shows it (counts, never guests' names). */
+export interface VendorCoupleDetails {
+  couple: string;
+  vendor: { name: string; category: string; arrival: string; meals: number; confirmedOn: string };
+  event: { name: string; startsAt: string; venue: string; address: string } | null;
+  timezone: string;
+  parking: string;
+  timeline: { t: string; what: string; where: string; mine: boolean }[];
+  guests: { coming: number; waiting: number } | null;
+  dietary: { diet: string; n: number; serious: boolean }[];
+  meals: { course: string; choice: string; n: number }[];
+  vendorMeals: { name: string; meals: number }[];
+  team: { name: string; category: string; arrival: string; contact: string; phone: string }[];
+  contacts: { name: string; role: string; phone: string }[];
+  payments: { label: string; amount: number; due: string; paid: boolean }[];
+  files: { dietary: string; day: string; songs: string };
+}
 /** The couple's side: vendors linked to the wedding, and the conversations. */
 export interface LinkedVendor {
   id: string;

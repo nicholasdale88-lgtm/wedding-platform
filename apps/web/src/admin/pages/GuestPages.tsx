@@ -10,6 +10,7 @@ import { LiveEditBar } from './LiveEditBar';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
 import { Eyebrow, inputCls, Label, Pill, Rollup, subNavCls, tabCls, useMedia, useToast } from '../ui';
+import { Extra, ExtrasGrid } from './ExtrasGrid';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
 import { Events } from '../events/Events';
@@ -520,9 +521,9 @@ function InvitationEditor({
         <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Event names, dates, times and venues come from each event’s Details.</span>
       </Section>
 
-      <Section n={n()} title="Extras" hint="Each shows what’s set now. Tap Change to make it yours; anything you leave keeps the design’s own.">
-        <div className="flex flex-col gap-2">
-          <Rollup title="Opening scene" now={SCENE_INFO[(inv.scene ?? 'auto') as Scene].label}>
+      <Section n={n()} title="Extras" hint="Each card shows what’s set now. Tap one to make it yours; anything you leave keeps the design’s own.">
+        <ExtrasGrid>
+          <Extra title="Opening scene" now={SCENE_INFO[(inv.scene ?? 'auto') as Scene].label}>
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">What guests tap to open, in place of the envelope. Drawn in your colours, on every plan.</span>
             <div role="radiogroup" aria-label="Opening scene" className="flex flex-col gap-2">
               {SCENES.map((k) => (
@@ -539,8 +540,8 @@ function InvitationEditor({
                 </button>
               ))}
             </div>
-          </Rollup>
-          <Rollup title="Moving background" now={`${MOTION_LABEL[(inv.motion ?? 'auto') as Motion]}${inv.film ? ' · your own film' : ''}`}>
+          </Extra>
+          <Extra title="Moving background" now={`${MOTION_LABEL[(inv.motion ?? 'auto') as Motion]}${inv.film ? ' · your own film' : ''}`}>
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Moves gently over the opening of your invitation, on every plan. Guests who prefer less motion see it still.</span>
             <div role="radiogroup" aria-label="Moving background" className="flex flex-wrap gap-2">
               {MOTIONS.map((k) => (
@@ -571,10 +572,10 @@ function InvitationEditor({
               />
             </Label>
             <span className="-mt-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">A short, quiet clip works best (10 to 30 seconds; it plays silently on a loop). From Dropbox, paste the share link. Leave empty for none.</span>
-          </Rollup>
+          </Extra>
           {/* The seal in the admin's header opens straight here (?open=seal). */}
           <div ref={sealRef} className="scroll-mt-6" />
-          <Rollup start={openSeal} title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal${sealStyle === 'classic' ? '' : ` (${SEAL_STYLE_INFO[sealStyle].label.toLowerCase()})`}${paper} · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
+          <Extra start={openSeal} title="Envelope and seal" now={`${inv.seal ?? 'Sandstone'} seal${sealStyle === 'classic' ? '' : ` (${SEAL_STYLE_INFO[sealStyle].label.toLowerCase()})`}${paper} · ${liner} liner${ribbon}${inv.envelope?.name === false ? '' : ' · their name on it'}`}>
             <SealPicker inv={inv} theme={doc.theme} initials={initials} setInv={setInv} />
             <Grid>
               <Label text="Envelope liner">
@@ -616,9 +617,9 @@ function InvitationEditor({
                 </label>
               ))}
             </div>
-          </Rollup>
+          </Extra>
 
-          <Rollup
+          <Extra
             title="Photo behind the words"
             now={set(inv.images?.backdrop) && (inv.backdrop?.where ?? 'none') !== 'none' ? (inv.backdrop?.where === 'all' ? 'Behind the whole invitation' : 'Behind the opening') : 'None'}
           >
@@ -679,26 +680,26 @@ function InvitationEditor({
                 className="w-full accent-[#5d6b47]"
               />
             </Label>
-          </Rollup>
+          </Extra>
 
-          <Rollup title="Venue photo (the arch)" now={set(inv.images?.lookout) ? (inv.images!.lookout!.startsWith('data:') ? 'Your photo' : `Your photo: ${shortUrl(inv.images!.lookout!)}`) : 'The design’s sample photo: add your venue'}>
+          <Extra title="Venue photo (the arch)" now={set(inv.images?.lookout) ? (inv.images!.lookout!.startsWith('data:') ? 'Your photo' : `Your photo: ${shortUrl(inv.images!.lookout!)}`) : 'The design’s sample photo: add your venue'}>
             <VenuePhoto value={inv.images?.lookout ?? ''} onChange={(v) => setInv({ images: { ...inv.images, lookout: v } })} />
-          </Rollup>
+          </Extra>
 
-          <Rollup title="Music" now={set(inv.audioUrl) ? `Plays when they open it: ${shortUrl(inv.audioUrl!)}` : 'No music'}>
+          <Extra title="Music" now={set(inv.audioUrl) ? `Plays when they open it: ${shortUrl(inv.audioUrl!)}` : 'No music'}>
             {text('audioUrl')}
             {inv.audioUrl?.trim() ? <MusicCheck src={inv.audioUrl.trim()} /> : null}
-          </Rollup>
+          </Extra>
 
-          <Rollup title="Gifts and registry" now={[set(inv.registryUrl) && `Registry: ${shortUrl(inv.registryUrl!)}`, set(inv.giftAccount) && (inv.giftAccountLabel?.trim() || 'Gift account')].filter(Boolean).join(' · ') || 'Nothing added'}>
+          <Extra title="Gifts and registry" now={[set(inv.registryUrl) && `Registry: ${shortUrl(inv.registryUrl!)}`, set(inv.giftAccount) && (inv.giftAccountLabel?.trim() || 'Gift account')].filter(Boolean).join(' · ') || 'Nothing added'}>
             <Grid>
               {text('registryUrl')}
               {text('giftAccountLabel')}
               {text('giftAccount')}
             </Grid>
-          </Rollup>
+          </Extra>
 
-          <Rollup
+          <Extra
             title="Directions, email and extra details"
             now={[set(inv.directionsUrl) && 'Directions link', set(inv.rsvpEmail) && inv.rsvpEmail, set(inv.rideTime) && `Activity at ${inv.rideTime}`, doc.names?.monogram && `Monogram ${doc.names.monogram}`].filter(Boolean).join(' · ') || 'Nothing added'}
           >
@@ -708,9 +709,9 @@ function InvitationEditor({
               {text('rideTime')}
               {doc.names && <TextField label="Monogram" value={doc.names.monogram} placeholder="A&B" onChange={(v) => setNames({ ...doc.names!, monogram: v.slice(0, 12) })} />}
             </Grid>
-          </Rollup>
+          </Extra>
 
-          <Rollup title="Which parts guests see" now={shown === sections.length ? `All ${sections.length} parts shown` : `${shown} of ${sections.length} parts shown`}>
+          <Extra title="Which parts guests see" now={shown === sections.length ? `All ${sections.length} parts shown` : `${shown} of ${sections.length} parts shown`}>
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Switch off any part you don’t need. Your wording is kept if you switch it back on.</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
               {sections.map((s) => {
@@ -723,9 +724,9 @@ function InvitationEditor({
                 );
               })}
             </div>
-          </Rollup>
+          </Extra>
 
-          <Rollup title="Questions and answers" now={ownLists ? `Your own questions in ${ownLists} ${ownLists === 1 ? 'list' : 'lists'}` : 'The design’s questions'}>
+          <Extra title="Questions and answers" now={ownLists ? `Your own questions in ${ownLists} ${ownLists === 1 ? 'list' : 'lists'}` : 'The design’s questions'}>
             {INV_LISTS.map((l, i) => {
               const own = inv.lists?.[l.key];
               const label = `${sectionName(l.section)}${INV_LISTS.filter((x) => x.section === l.section).length > 1 ? `, list ${INV_LISTS.filter((x) => x.section === l.section).indexOf(l) + 1}` : ''}`;
@@ -766,8 +767,8 @@ function InvitationEditor({
                 </div>
               );
             })}
-          </Rollup>
-        </div>
+          </Extra>
+        </ExtrasGrid>
       </Section>
     </>
   );

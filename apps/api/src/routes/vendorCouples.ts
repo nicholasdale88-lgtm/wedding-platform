@@ -9,7 +9,7 @@ import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './aut
 import { ensureVendorCode } from './company';
 import { readDoc } from './planner';
 import { requestLink, weddingFacts } from '../lib/quoteRequests';
-import { vendorHubKey } from './vendorHub';
+import { vendorDetailsFor, vendorHubKey } from './vendorHub';
 
 /**
  * A listed vendor's couples, and messages between them in the app.
@@ -137,6 +137,22 @@ export function vendorCoupleRoutes() {
     );
     const quotesOpen = couples.reduce((n, x) => n + x.quotes.filter((q) => !q.answered && !q.declined).length, 0);
     return c.json({ couples, unread: couples.reduce((n, x) => n + x.unread, 0), quotesOpen });
+  });
+
+  /**
+   * A couple's details, in the portal: once they have this vendor in their planner (they invited them, or added
+   * them), what they share with them: the day, numbers, dietary needs and meal choices (counts), the timeline,
+   * who to call, and the live spreadsheet and calendar. Before that, just that they will appear.
+   */
+  app.get('/:wid/details', async (c) => {
+    const l = await listingOf(c);
+    if (!l) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
+    const w = await linked(c, l.id, c.req.param('wid'));
+    if (!w) return err(c, 404, 'not_found', 'That couple isn’t linked to you.');
+    const mine = mineIn((await readDoc(c.env.DB, w.id, 'vendors', '')).data.list, l);
+    const secret = c.env.SESSION_SECRET;
+    const details = secret && mine[0] ? await vendorDetailsFor(c.env.DB, secret, base(c.env), w.id, mine[0].id) : null;
+    return c.json({ couple: firstNames(w.name1, w.name2), inPlanner: !!details, details });
   });
 
   app.get('/:wid/messages', async (c) => {

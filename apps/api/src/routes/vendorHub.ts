@@ -50,6 +50,23 @@ async function open(c: C): Promise<Opened | null> {
   return { w, v, all, ev };
 }
 
+/**
+ * The same details for a vendor signed in to their portal (the couple has them in their planner): the page's
+ * contents, and the live files' links. Null when the wedding or that vendor isn't there (or declined).
+ */
+export async function vendorDetailsFor(db: D1Database, secret: string, origin: string, weddingId: string, vendorId: string) {
+  const w = await db.prepare(`SELECT id, slug, name1, name2, timezone, guide, admin_mobile FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(weddingId).first<Wedding & { slug: string }>();
+  if (!w) return null;
+  const all = (await readDoc(db, w.id, 'vendors', '')).data.list;
+  const v = all.find((x) => x.id === vendorId);
+  if (!v || v.status === 'declined') return null;
+  const ev = await db.prepare(`SELECT id, key, name, starts_at, venue, address FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(w.id).first<Ev>();
+  const page = await pageOf(db, { w, v, all, ev });
+  const key = await vendorHubKey(secret, w.id, v.id);
+  const api = `${origin}/api/p/${w.slug}/vendor/${encodeURIComponent(v.id)}/${key}`;
+  return { ...page, files: { dietary: `${api}/dietary.csv`, day: `${api}/day.ics`, songs: page.songs ? `${api}/songs.csv` : '' } };
+}
+
 /** Everything on the page. */
 async function pageOf(db: D1Database, o: Opened) {
   const { w, v, all, ev } = o;

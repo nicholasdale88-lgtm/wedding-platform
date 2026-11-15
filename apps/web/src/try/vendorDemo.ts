@@ -1,4 +1,4 @@
-import type { LinkedVendor, MyListing, VendorChatMessage, VendorCouple } from '../lib/api';
+import type { LinkedVendor, MyListing, VendorChatMessage, VendorCouple, VendorCoupleDetails } from '../lib/api';
 
 /**
  * The sample vendor account (/vendors/me?sample=1), for the company portal's Preview and for showing vendors:
@@ -100,6 +100,14 @@ export function vendorDemo(path: string, method: string, body: Record<string, un
     else for (const x of t) if (!x.fromVendor) x.read = true;
     return { couple: c.couple, messages: t };
   }
+  // A couple's wedding, as they share it with their florist: made up, counts only.
+  const dm = /^\/a\/vendor\/couples\/([^/]+)\/details$/.exec(path);
+  if (dm) {
+    const c = couples.find((x) => x.id === decodeURIComponent(dm[1]!));
+    if (!c) return null;
+    if (c.id === 'c3') return { couple: c.couple, inPlanner: false, details: null }; // only asked for a quote so far
+    return { couple: c.couple, inPlanner: true, details: sampleDetails(c) };
+  }
   const e = /^\/a\/vendor\/enquiries\/([^/]+)\/read$/.exec(path);
   if (e) {
     const q = listing.enquiries.find((x) => x.id === e[1]);
@@ -122,4 +130,45 @@ export function coupleVendorDemo(rest: string, method: string, body: Record<stri
     return { vendor: { id: LISTING_ID, name: vendor.name, category: vendor.category }, messages: t };
   }
   return null;
+}
+
+/** The made-up details a couple shares with their florist (the sample vendor account). */
+function sampleDetails(c: (typeof couples)[number]): VendorCoupleDetails {
+  const waiting = Math.max(0, c.invited - c.coming - Math.round(c.invited * 0.05));
+  return {
+    couple: c.couple,
+    vendor: { name: listing.listing.name, category: 'Florist', arrival: '11:30am', meals: 2, confirmedOn: '' },
+    event: { name: 'The wedding', startsAt: c.date, venue: c.venue, address: '' },
+    timezone: 'Australia/Sydney',
+    parking: 'Unload at the side gate by the kitchen; park in the staff bays behind the barn.',
+    timeline: [
+      { t: '11:30am', what: 'Florist arrives: ceremony arch and aisle', where: 'The lawn', mine: true },
+      { t: '1:30pm', what: 'Guests arrive', where: '', mine: false },
+      { t: '2:00pm', what: 'Ceremony', where: 'The lawn', mine: false },
+      { t: '3:00pm', what: 'Move the arch flowers to the reception', where: 'The barn', mine: true },
+      { t: '5:30pm', what: 'Reception', where: 'The barn', mine: false },
+      { t: '11:00pm', what: 'Pack down and collect vases', where: 'The barn', mine: true },
+    ],
+    guests: { coming: c.coming, waiting },
+    dietary: [
+      { diet: 'Nut allergy (anaphylaxis)', n: 2, serious: true },
+      { diet: 'Vegetarian', n: 9, serious: false },
+      { diet: 'Gluten free', n: 6, serious: false },
+      { diet: 'Vegan', n: 3, serious: false },
+      { diet: 'Dairy free', n: 2, serious: false },
+    ],
+    meals: [
+      { course: 'Main', choice: 'Lamb', n: Math.round(c.coming * 0.45) },
+      { course: 'Main', choice: 'Barramundi', n: Math.round(c.coming * 0.35) },
+      { course: 'Main', choice: 'Mushroom risotto', n: Math.round(c.coming * 0.2) },
+    ],
+    vendorMeals: [],
+    team: [
+      { name: 'Golden Hour Photography', category: 'Photographer', arrival: '12:30pm', contact: '', phone: '' },
+      { name: 'Larkwood Kitchen', category: 'Caterer', arrival: '9:00am', contact: '', phone: '' },
+    ],
+    contacts: [{ name: 'Alex', role: 'Coordinator', phone: '0400 000 000' }],
+    payments: [],
+    files: { dietary: '/demo', day: '/demo', songs: '' },
+  };
 }

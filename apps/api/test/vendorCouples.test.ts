@@ -50,6 +50,9 @@ describe("vendors' couples and messages", () => {
     expect(list.couples[0]).toMatchObject({ id: couple.wid, couple: 'Ava & Sam', coming: 0, invited: 0, status: 'linked', via: 'Signed up through your link', unread: 0 });
     expect(list.couples[0]!.date).toMatch(/^2027-03-1[34]/);
 
+    // Linked by their link only (not in the couple's planner yet): no details to show, just that they will come.
+    expect(await json(call(`/a/vendor/couples/${couple.wid}/details`, {}, vendor.cookie))).toEqual({ couple: 'Ava & Sam', inPlanner: false, details: null });
+
     // The vendor writes; the couple sees it waiting, reads it and replies.
     expect((await call(`/a/vendor/couples/${couple.wid}/messages`, { method: 'POST', body: JSON.stringify({ body: 'Congratulations! Happy to help with your flowers.' }) }, vendor.cookie)).status).toBe(200);
     expect((await call(`/a/vendor/couples/${couple.wid}/messages`, { method: 'POST', body: JSON.stringify({ body: '   ' }) }, vendor.cookie)).status).toBe(400);
@@ -92,6 +95,17 @@ describe("vendors' couples and messages", () => {
     expect(list.quotesOpen).toBe(1);
     expect(list.couples[0]!.quotes[0]).toMatchObject({ title: 'Flowers', answered: false });
     expect(list.couples[0]!.quotes[0]!.link).toMatch(/\/quote\?k=k{24}$/);
+
+    // In the couple's planner: their day, numbers and dietary needs, in the vendor's portal, with the live files.
+    type Det = { inPlanner: boolean; details: { vendor: { name: string }; guests: { coming: number } | null; dietary: unknown[]; files: { dietary: string; day: string } } };
+    const det = await json<Det>(call(`/a/vendor/couples/${couple.wid}/details`, {}, vendor.cookie));
+    expect(det.inPlanner).toBe(true);
+    expect(det.details.vendor.name).toBe('Bloom Co');
+    expect(det.details.dietary).toEqual([]);
+    expect(det.details.files.dietary).toMatch(/\/api\/p\/[^/]+\/vendor\/v1\/[^/]{24}\/dietary\.csv$/);
+    // Another vendor can't read them.
+    const stranger = await joinVendor('Petal Co', 'pat@petal.example');
+    expect((await call(`/a/vendor/couples/${couple.wid}/details`, {}, stranger.cookie)).status).toBe(404);
 
     // The couple invites their photographer: not listed, and email is off here, so nothing is sent yet.
     expect(await json(call(`/a/w/${couple.wid}/vendor-chat/invite/vendor`, { method: 'POST', body: JSON.stringify({ vendorId: 'v2' }) }, couple.cookie))).toEqual({ linked: false, sent: false });
