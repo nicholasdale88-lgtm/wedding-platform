@@ -91,7 +91,9 @@ describe('front page', () => {
     // Every envelope pictured is the one guests get: the invitation's own wax seal and envelope papers.
     const envelopes = screen.getAllByRole('img', { name: /sealed envelope/ });
     expect(envelopes.length).toBeGreaterThanOrEqual(3);
-    for (const e of envelopes) expect(e).toHaveTextContent('Tap to open');
+    // Each has its wax seal; under a caption it leaves out its own words, so the two never overlap.
+    for (const e of envelopes) expect(e).toHaveTextContent('H&T');
+    expect(envelopes.some((e) => /Tap to open/.test(e.textContent ?? ''))).toBe(true);
     // No paper still lifes (ribbons, eucalyptus) we don't provide.
     expect(screen.queryByRole('img', { name: /ribbon|eucalyptus/i })).toBeNull();
     expect(screen.getByRole('link', { name: 'See every design' })).toHaveAttribute('href', '/designs');
