@@ -61,7 +61,60 @@ function Glyph({ title }: { title: string }) {
       <rect x="4" y="9" width="16" height="11" rx="1" {...p} />
       <path d="M12 9v11M4 13h16M12 9c-2-4-6-3-5-1s5 1 5 1 4-1 5-1-3-3-5 1" {...p} />
     </>
-  ) : t.includes('directions') ? (
+  ) : t.includes('run sheet') || t === 'the day' ? (
+    <>
+      <circle cx="12" cy="12" r="8.5" {...p} />
+      <path d="M12 7.5V12l3 2" {...p} />
+    </>
+  ) : t.includes('parking') ? (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="3" {...p} />
+      <path d="M10 17V8h3a2.5 2.5 0 0 1 0 5h-3" {...p} />
+    </>
+  ) : t.includes('getting') ? (
+    <>
+      <path d="M4 16v-4l2-4h12l2 4v4H4z" {...p} />
+      <circle cx="8" cy="17" r="1.6" {...p} />
+      <circle cx="16" cy="17" r="1.6" {...p} />
+    </>
+  ) : t.includes('menu') ? (
+    <>
+      <path d="M8 3v8M6 3v5a2 2 0 0 0 4 0V3M8 11v10" {...p} />
+      <path d="M17 21V3c-2 1-3 4-3 8h3" {...p} />
+    </>
+  ) : t.includes('seating') ? (
+    <>
+      <circle cx="12" cy="12" r="4" {...p} />
+      <circle cx="12" cy="4.5" r="1.4" {...p} />
+      <circle cx="12" cy="19.5" r="1.4" {...p} />
+      <circle cx="4.5" cy="12" r="1.4" {...p} />
+      <circle cx="19.5" cy="12" r="1.4" {...p} />
+    </>
+  ) : t.includes('wet') ? (
+    <>
+      <path d="M3 12a9 9 0 0 1 18 0H3z" {...p} />
+      <path d="M12 12v6a2 2 0 0 1-4 0" {...p} />
+    </>
+  ) : t.includes('photo') ? (
+    <>
+      <path d="M4 8h3l2-2.5h6L17 8h3v11H4z" {...p} />
+      <circle cx="12" cy="13" r="3.2" {...p} />
+    </>
+  ) : t.includes('contacts') ? (
+    <path d="M6 3h3l1.5 4.5-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2L21 15v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z" {...p} />
+  ) : t.includes('bring') ? (
+    <>
+      <rect x="4" y="8" width="16" height="12" rx="2" {...p} />
+      <path d="M9 8V6a3 3 0 0 1 6 0v2" {...p} />
+    </>
+  ) : t.includes('dress') ? (
+    <path d="M12 6a2 2 0 1 1 2 2c-1 .4-2 1-2 2l9 6H3l9-6" {...p} />
+  ) : t.includes('plan by') ? (
+    <>
+      <path d="M12 21v-7M12 14l-6-6M12 14l6-6" {...p} />
+      <path d="M3 8h6M15 8h6" {...p} />
+    </>
+  ) : t.includes('directions') || t.includes('map') ? (
     <>
       <path d="M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z" {...p} />
       <circle cx="12" cy="10" r="2" {...p} />

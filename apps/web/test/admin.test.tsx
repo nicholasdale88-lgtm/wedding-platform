@@ -550,7 +550,10 @@ describe('guest pages tab', () => {
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/tomorrow/brunch?preview=1');
     expect(screen.getByRole('option', { name: 'A sample guest' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Jo Banks' })).toBeNull();
-    // Each part of the guide is rolled up with what's in it; Change opens it.
+    // Set up like the invitation: the essentials first, then each part as a card with what's in it; tapping opens it.
+    expect(screen.getByRole('heading', { name: 'The essentials' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Date line')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Extras' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /What to bring\s*Hat/ }));
     expect(screen.getByDisplayValue('Hat')).toBeInTheDocument();
   });

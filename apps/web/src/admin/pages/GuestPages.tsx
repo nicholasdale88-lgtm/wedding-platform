@@ -1,5 +1,5 @@
 import type { DayoutGuide, GuideContent, InvitationContent, ReceptionGuide } from '@wp/shared';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ThemeGallery } from './ThemeGallery';
 import { DesignBuilder } from './DesignBuilder';
@@ -9,7 +9,7 @@ import { ENVELOPE_PAPER_INFO, SEAL_STYLE_INFO, MOTIONS, MOTION_LABEL, type Motio
 import { LiveEditBar } from './LiveEditBar';
 import { ApiError, pagesApi, type PageNames, type PagesData, type PagesPut } from '../../lib/api';
 import { useAdmin } from '../Shell';
-import { Eyebrow, inputCls, Label, Pill, Rollup, subNavCls, tabCls, useMedia, useToast } from '../ui';
+import { Eyebrow, inputCls, Label, Pill, subNavCls, tabCls, useMedia, useToast } from '../ui';
 import { Extra, ExtrasGrid } from './ExtrasGrid';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
@@ -784,80 +784,105 @@ const ALWAYS_ON = /^\d+\w?\s+(welcome|rsvp)$/i;
 const RUN = { cols: [{ key: 't', label: 'Time', width: 'w-[96px]' }, { key: 'what', label: 'What' }, { key: 'where', label: 'Where' }], blank: { t: '', what: '', where: '' } } as const;
 const CONTACT = { cols: [{ key: 'name', label: 'Name' }, { key: 'role', label: 'Role' }, { key: 'phone', label: 'Phone or email' }], blank: { name: '', role: '', phone: '' } } as const;
 
-function PlaceFields<G extends ReceptionGuide | DayoutGuide>({ g, set }: { g: G; set: (g: G) => void }) {
-  return (
-    <>
-      <TextField label="Address" value={g.address ?? ''} onChange={(address) => set({ ...g, address })} />
+/** "3 times", "1 question", or what to say when there are none. */
+const count = (n: number | undefined, word: string, none: string) => (n ? `${n} ${word}${n === 1 ? '' : 's'}` : none);
+const filled = (v: string | undefined, yes: string, no = 'Not added yet') => (v?.trim() ? yes : no);
+const short = (v: string | undefined, no = 'Not added yet') => (v?.trim() ? (v.trim().length > 60 ? `${v.trim().slice(0, 57)}…` : v.trim()) : no);
+const Hint = ({ children }: { children: ReactNode }) => <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{children}</span>;
+
+/** The cards both guides share: the map and forecast, the wet-weather plan and music. */
+function placeExtras<G extends ReceptionGuide | DayoutGuide>(g: G, set: (g: G) => void) {
+  return [
+    <Extra key="map" title="Map and forecast" now={[g.mapUrl?.trim() && 'Map link', g.lat != null && g.lon != null && 'live forecast', g.bomUrl?.trim() && 'weather link'].filter(Boolean).join(' · ') || 'Not added yet'}>
+      <Hint>A map button for guests, and the live forecast for the day (it fills itself in from the week before).</Hint>
       <TextField label="Map link" value={g.mapUrl ?? ''} placeholder="https://maps.google.com/…" onChange={(mapUrl) => set({ ...g, mapUrl })} />
-      <TextField label="Weather link (Bureau of Meteorology)" value={g.bomUrl ?? ''} placeholder="https://www.bom.gov.au/places/…" onChange={(bomUrl) => set({ ...g, bomUrl })} />
       <div className="grid grid-cols-2 gap-[14px]">
         <CoordField label="Latitude" value={g.lat} placeholder="-33.37" onChange={(lat) => set({ ...g, lat })} hint="For the live forecast." />
         <CoordField label="Longitude" value={g.lon} placeholder="151.19" onChange={(lon) => set({ ...g, lon })} hint="Right-click the venue in Google Maps." />
       </div>
-      <TextField
-        label="Wet-weather plan"
-        long
-        value={g.wetPlan ?? ''}
-        placeholder="If it rains, the ceremony moves undercover to… Same times; follow the signs from the car park."
-        onChange={(wetPlan) => set({ ...g, wetPlan })}
-        hint="Pops up on the page when the forecast says rain, and is always in the quick answers."
-      />
-      <div className="grid grid-cols-2 gap-[14px]">
-        <TextField label="Music (MP3 or YouTube link)" value={g.music ?? ''} placeholder="https://youtu.be/…" onChange={(music) => set({ ...g, music })} hint="Guests tap to play it; it loops until they pause." />
-        <TextField label="Music button wording" value={g.musicTitle ?? ''} placeholder="Play our music" onChange={(musicTitle) => set({ ...g, musicTitle })} />
-      </div>
-    </>
+      <TextField label="Weather link (Bureau of Meteorology)" value={g.bomUrl ?? ''} placeholder="https://www.bom.gov.au/places/…" onChange={(bomUrl) => set({ ...g, bomUrl })} />
+    </Extra>,
+    <Extra key="wet" title="Wet-weather plan" now={short(g.wetPlan)}>
+      <Hint>Pops up on the page when the forecast says rain, and is always in the quick answers.</Hint>
+      <TextField label="Wet-weather plan" long value={g.wetPlan ?? ''} placeholder="If it rains, the ceremony moves undercover to… Same times; follow the signs from the car park." onChange={(wetPlan) => set({ ...g, wetPlan })} />
+    </Extra>,
+    <Extra key="music" title="Music" now={filled(g.music, g.musicTitle?.trim() || 'Music added', 'No music')}>
+      <Hint>Guests tap to play it; it loops until they pause.</Hint>
+      <TextField label="Music (MP3 or YouTube link)" value={g.music ?? ''} placeholder="https://youtu.be/…" onChange={(music) => set({ ...g, music })} />
+      <TextField label="Music button wording" value={g.musicTitle ?? ''} placeholder="Play our music" onChange={(musicTitle) => set({ ...g, musicTitle })} />
+    </Extra>,
+  ];
+}
+
+function contactsExtra<G extends ReceptionGuide | DayoutGuide>(g: G, set: (g: G) => void, hint: string) {
+  return (
+    <Extra title="Contacts on the day" now={(g.contacts ?? []).map((c) => c.name).filter(Boolean).join(', ') || 'Nobody yet'}>
+      <Hint>{hint}</Hint>
+      <Rows rows={(g.contacts ?? []).map((c) => ({ name: c.name, role: c.role ?? '', phone: c.phone }))} cols={[...CONTACT.cols]} blank={{ ...CONTACT.blank }} addLabel="+ Add contact" onChange={(contacts) => set({ ...g, contacts })} />
+    </Extra>
   );
 }
 
-/** "3 times", "1 question", or what to say when there are none. */
-const count = (n: number | undefined, word: string, none: string) => (n ? `${n} ${word}${n === 1 ? '' : 's'}` : none);
-
+/**
+ * The night-before page, set up like the invitation: the essentials every guest needs first, then
+ * everything else as cards (what's set now on each; tap one to change it).
+ */
 function ReceptionEditor({ g, n, set }: { g: ReceptionGuide; n: () => number; set: (g: ReceptionGuide) => void }) {
-  const f = (key: keyof ReceptionGuide & string, label: string, long = false, ph = '') => (
-    <TextField key={key} label={label} long={long} placeholder={ph} value={String(g[key] ?? '')} onChange={(v) => set({ ...g, [key]: v })} />
+  const f = (key: keyof ReceptionGuide & string, label: string, long = false, ph = '', hint?: string) => (
+    <TextField key={key} label={label} long={long} placeholder={ph} hint={hint} value={String(g[key] ?? '')} onChange={(v) => set({ ...g, [key]: v })} />
   );
   return (
     <>
-      <Rollup step={n()} title="Arrival and parking" now={[g.date, g.arrive && `arrive from ${g.arrive}`, g.start && `starts ${g.start}`, g.address].filter(Boolean).join(' · ') || 'Not filled in yet'}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">What guests read first: when to arrive, where to park, how to get home. The forecast fills itself in from the week before.</p>
+      <Section n={n()} title="The essentials" hint="What guests read first: the date, when to arrive and where. That’s all the page needs: everything under Extras is optional.">
         <Grid>
           {f('date', 'Date line', false, 'Thursday 18 November 2027')}
           {f('arrive', 'Arrive from', false, '1:30pm')}
           {f('start', 'Ceremony starts', false, '2:00pm')}
-          <PlaceFields g={g} set={set} />
+          {f('address', 'Address')}
         </Grid>
-        {f('parkDirections', 'Finding the ceremony', true)}
-        {f('parking', 'Parking', true)}
-        {f('transport', 'Getting home', true)}
-        {f('tableNote', 'Note under the seating plan', true)}
-        <Grid>
-          {f('parkVideo', 'Parking video (YouTube or Google Drive link)', false, 'https://youtu.be/…')}
-          {f('photoUrl', 'Photo album link (empty = your own photo page)', false, 'https://…')}
-        </Grid>
-      </Rollup>
-      <Rollup step={n()} title="Run sheet" now={count(g.runsheet?.length, 'time', 'No times yet')}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">The times guests see for the day. The forecast uses these times.</p>
-        <Rows rows={(g.runsheet ?? []).map((r) => ({ t: r.t, what: r.what, where: r.where ?? '' }))} cols={[...RUN.cols]} blank={{ ...RUN.blank }} addLabel="+ Add item" onChange={(runsheet) => set({ ...g, runsheet })} />
-      </Rollup>
-      <Rollup step={n()} title="Menu" now={(g.menu ?? []).map((m) => m.course).filter(Boolean).join(', ') || 'No menu yet'}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">The set menu by course. Guests with dietary needs also see their own meal.</p>
-        <Rows
-          rows={(g.menu ?? []).map((m) => ({ course: m.course, a: m.a, b: m.b ?? '' }))}
-          cols={[{ key: 'course', label: 'Course', width: 'w-[120px]' }, { key: 'a', label: 'Dish one' }, { key: 'b', label: 'Dish two (optional)' }]}
-          blank={{ course: '', a: '', b: '' }}
-          addLabel="+ Add course"
-          onChange={(menu) => set({ ...g, menu })}
-        />
-      </Rollup>
-      <Rollup step={n()} title="Contacts on the day" now={(g.contacts ?? []).map((c) => c.name).filter(Boolean).join(', ') || 'Nobody yet'}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Who guests call on the day, such as you, the venue and the local taxi company.</p>
-        <Rows rows={(g.contacts ?? []).map((c) => ({ name: c.name, role: c.role ?? '', phone: c.phone }))} cols={[...CONTACT.cols]} blank={{ ...CONTACT.blank }} addLabel="+ Add contact" onChange={(contacts) => set({ ...g, contacts })} />
-      </Rollup>
-      <Rollup step={n()} title="Quick answers" now={count(g.faq?.length, 'question', 'No questions yet')}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">The questions guests ask the night before.</p>
-        <Rows rows={(g.faq ?? []).map((q) => ({ q: q.q, a: q.a }))} cols={[{ key: 'q', label: 'Question' }, { key: 'a', label: 'Answer', long: true }]} blank={{ q: '', a: '' }} addLabel="+ Add question" onChange={(faq) => set({ ...g, faq })} />
-      </Rollup>
+      </Section>
+      <Section n={n()} title="Extras" hint="Each card shows what’s set now. Tap one to fill it in; the page only shows the parts that have something to say.">
+        <ExtrasGrid>
+          <Extra title="Run sheet" now={count(g.runsheet?.length, 'time', 'No times yet')}>
+            <Hint>The times guests see for the day. The forecast uses these times.</Hint>
+            <Rows rows={(g.runsheet ?? []).map((r) => ({ t: r.t, what: r.what, where: r.where ?? '' }))} cols={[...RUN.cols]} blank={{ ...RUN.blank }} addLabel="+ Add item" onChange={(runsheet) => set({ ...g, runsheet })} />
+          </Extra>
+          <Extra title="Parking" now={[g.parking?.trim() && 'Parking', g.parkDirections?.trim() && 'directions', g.parkVideo?.trim() && 'video'].filter(Boolean).join(' · ') || 'Not added yet'}>
+            <Hint>Where to park and how to find the ceremony from the car park. A short video helps at a big venue.</Hint>
+            {f('parking', 'Parking', true)}
+            {f('parkDirections', 'Finding the ceremony', true)}
+            {f('parkVideo', 'Parking video (YouTube or Google Drive link)', false, 'https://youtu.be/…')}
+          </Extra>
+          <Extra title="Getting home" now={short(g.transport)}>
+            <Hint>Shuttles, taxis and rideshare: how guests get home at the end of the night.</Hint>
+            {f('transport', 'Getting home', true)}
+          </Extra>
+          <Extra title="Menu" now={(g.menu ?? []).map((m) => m.course).filter(Boolean).join(', ') || 'No menu yet'}>
+            <Hint>The set menu by course. Guests with dietary needs also see their own meal.</Hint>
+            <Rows
+              rows={(g.menu ?? []).map((m) => ({ course: m.course, a: m.a, b: m.b ?? '' }))}
+              cols={[{ key: 'course', label: 'Course', width: 'w-[120px]' }, { key: 'a', label: 'Dish one' }, { key: 'b', label: 'Dish two (optional)' }]}
+              blank={{ course: '', a: '', b: '' }}
+              addLabel="+ Add course"
+              onChange={(menu) => set({ ...g, menu })}
+            />
+          </Extra>
+          <Extra title="Seating note" now={short(g.tableNote, 'No note')}>
+            <Hint>Each guest sees their own table; this note sits under the seating plan.</Hint>
+            {f('tableNote', 'Note under the seating plan', true)}
+          </Extra>
+          {placeExtras(g, set)}
+          <Extra title="Photos" now={g.photoUrl?.trim() ? 'Your own album link' : 'Your photo page'}>
+            <Hint>Where guests add their photos. Leave it empty to use your own photo page.</Hint>
+            {f('photoUrl', 'Photo album link', false, 'https://…')}
+          </Extra>
+          {contactsExtra(g, set, 'Who guests call on the day, such as you, the venue and the local taxi company.')}
+          <Extra title="Quick answers" now={count(g.faq?.length, 'question', 'No questions yet')}>
+            <Hint>The questions guests ask the night before.</Hint>
+            <Rows rows={(g.faq ?? []).map((q) => ({ q: q.q, a: q.a }))} cols={[{ key: 'q', label: 'Question' }, { key: 'a', label: 'Answer', long: true }]} blank={{ q: '', a: '' }} addLabel="+ Add question" onChange={(faq) => set({ ...g, faq })} />
+          </Extra>
+        </ExtrasGrid>
+      </Section>
     </>
   );
 }
@@ -868,41 +893,51 @@ function DayoutEditor({ g, n, set }: { g: DayoutGuide; n: () => number; set: (g:
   );
   return (
     <>
-      <Rollup step={n()} title="Photo and key times" now={[g.date, g.arriveBy && `arrive by ${g.arriveBy}`, g.picnicWhere].filter(Boolean).join(' · ') || 'Not filled in yet'}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">The photo at the top of the guide, plus the times and place every guest sees.</p>
+      <Section n={n()} title="The essentials" hint="What every guest reads first: the date, the times and where everyone meets. Everything under Extras is optional.">
         <Grid>
-          {f('hero', 'Photo (link)', false, '/seed-media/valley-30th.jpg')}
           {f('date', 'Date line', false, 'Saturday 20 November 2027')}
           {f('arriveBy', 'Arrive by (activity)', false, '9:30am')}
           {f('activityTime', 'Activity starts', false, '10:00am')}
           {f('picnicTime', 'Main gathering time', false, '12:00pm')}
           {f('picnicWhere', 'Where everyone meets', false, 'By the river')}
-          {f('dress', 'Dress', false, 'Country casual')}
-          {f('signoff', 'Sign-off', false, 'Happy trails')}
-          <PlaceFields g={g} set={set} />
+          {f('address', 'Address')}
         </Grid>
-        {f('transport', 'Getting there and home', true)}
-      </Rollup>
-      <Rollup step={n()} title="Your plan follows their answer" now={g.choiceKey ? `By their answer to “${g.choiceKey}”` : 'Everyone sees the same plan'}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Guests who answered yes to the activity see the activity plan; everyone else sees the gathering plan.</p>
-        <Grid>
-          {f('choiceKey', 'RSVP question key', false, 'ride')}
-          {f('yesAnswer', 'The "yes" answer', false, 'Yes, I will ride')}
-          {f('unsureAnswer', 'The "not sure" answer', false, 'Not sure yet')}
-        </Grid>
-      </Rollup>
-      <Rollup step={n()} title="The day" now={count(g.runsheet?.length, 'time', 'No times yet')}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">The run of the day. The forecast uses these times.</p>
-        <Rows rows={(g.runsheet ?? []).map((r) => ({ t: r.t, what: r.what, where: r.where ?? '' }))} cols={[...RUN.cols]} blank={{ ...RUN.blank }} addLabel="+ Add item" onChange={(runsheet) => set({ ...g, runsheet })} />
-      </Rollup>
-      <Rollup step={n()} title="What to bring" now={(g.bring ?? []).filter(Boolean).join(', ') || 'Nothing listed yet'}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">The packing list guests tick off.</p>
-        <Lines items={g.bring ?? []} label="Item" addLabel="+ Add item" onChange={(bring) => set({ ...g, bring })} />
-      </Rollup>
-      <Rollup step={n()} title="Contacts on the day" now={(g.contacts ?? []).map((c) => c.name).filter(Boolean).join(', ') || 'Nobody yet'}>
-        <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Who guests can call.</p>
-        <Rows rows={(g.contacts ?? []).map((c) => ({ name: c.name, role: c.role ?? '', phone: c.phone }))} cols={[...CONTACT.cols]} blank={{ ...CONTACT.blank }} addLabel="+ Add contact" onChange={(contacts) => set({ ...g, contacts })} />
-      </Rollup>
+      </Section>
+      <Section n={n()} title="Extras" hint="Each card shows what’s set now. Tap one to fill it in; the page only shows the parts that have something to say.">
+        <ExtrasGrid>
+          <Extra title="Photo at the top" now={g.hero?.trim() ? 'Photo added' : 'No photo'}>
+            <Hint>The photo across the top of the guide.</Hint>
+            {f('hero', 'Photo (link)', false, '/seed-media/valley-30th.jpg')}
+          </Extra>
+          <Extra title="The day" now={count(g.runsheet?.length, 'time', 'No times yet')}>
+            <Hint>The run of the day. The forecast uses these times.</Hint>
+            <Rows rows={(g.runsheet ?? []).map((r) => ({ t: r.t, what: r.what, where: r.where ?? '' }))} cols={[...RUN.cols]} blank={{ ...RUN.blank }} addLabel="+ Add item" onChange={(runsheet) => set({ ...g, runsheet })} />
+          </Extra>
+          <Extra title="Plan by their answer" now={g.choiceKey ? `By their answer to “${g.choiceKey}”` : 'Everyone sees the same plan'}>
+            <Hint>Guests who answered yes to the activity see the activity plan; everyone else sees the gathering plan.</Hint>
+            <Grid>
+              {f('choiceKey', 'RSVP question key', false, 'ride')}
+              {f('yesAnswer', 'The "yes" answer', false, 'Yes, I will ride')}
+              {f('unsureAnswer', 'The "not sure" answer', false, 'Not sure yet')}
+            </Grid>
+          </Extra>
+          <Extra title="What to bring" now={(g.bring ?? []).filter(Boolean).join(', ') || 'Nothing listed yet'}>
+            <Hint>The packing list guests tick off.</Hint>
+            <Lines items={g.bring ?? []} label="Item" addLabel="+ Add item" onChange={(bring) => set({ ...g, bring })} />
+          </Extra>
+          <Extra title="Dress and sign-off" now={[g.dress, g.signoff].filter((x) => x?.trim()).join(' · ') || 'Not added yet'}>
+            <Grid>
+              {f('dress', 'Dress', false, 'Country casual')}
+              {f('signoff', 'Sign-off', false, 'Happy trails')}
+            </Grid>
+          </Extra>
+          <Extra title="Getting there and home" now={short(g.transport)}>
+            {f('transport', 'Getting there and home', true)}
+          </Extra>
+          {placeExtras(g, set)}
+          {contactsExtra(g, set, 'Who guests can call.')}
+        </ExtrasGrid>
+      </Section>
     </>
   );
 }
