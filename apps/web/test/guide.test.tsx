@@ -137,3 +137,20 @@ describe('design photos (v.asset)', () => {
     expect(assetOf({ lookout: 'javascript:alert(1)' })('lookout.jpg')).toBe('');
   });
 });
+
+describe('the sample guide (/demo/tomorrow)', () => {
+  it('shows the sample wedding’s guide without asking the server', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    render(
+      <MemoryRouter initialEntries={['/demo/tomorrow']}>
+        <Routes>
+          <Route path="/demo/tomorrow" element={<GuidePage sample />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect((await screen.findAllByText('Table 3')).length).toBeGreaterThan(0);
+    expect(screen.getByText('Your meal: Vegetarian')).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});

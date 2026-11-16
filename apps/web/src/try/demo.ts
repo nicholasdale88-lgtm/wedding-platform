@@ -176,6 +176,8 @@ export interface DemoPagesDoc {
   theme: string;
   invitation: Record<string, unknown>;
   texts: Record<string, string>;
+  /** The night-before guide (the sample has one, for the wedding). */
+  guides?: Record<string, unknown>;
 }
 let pagesVersion = 1;
 export function readDemoPages(): Partial<DemoPagesDoc> | null {
@@ -189,6 +191,7 @@ export function readDemoPages(): Partial<DemoPagesDoc> | null {
 async function demoPages(method: string, body: Record<string, unknown>) {
   if (method === 'POST') throw new ApiError(400, 'demo', 'In the sample, there’s no link to share. Start your wedding to share a preview with family.');
   const { SAMPLE_INVITE } = await import('../sales/sample');
+  const { SAMPLE_GUIDE } = await import('../sales/sampleGuide');
   const w = SAMPLE_INVITE.wedding;
   const saved = readDemoPages() ?? {};
   const doc: DemoPagesDoc = {
@@ -196,12 +199,14 @@ async function demoPages(method: string, body: Record<string, unknown>) {
     theme: saved.theme ?? w.theme,
     invitation: saved.invitation ?? (SAMPLE_INVITE.content as Record<string, unknown>),
     texts: saved.texts ?? SAMPLE_INVITE.texts,
+    guides: saved.guides ?? { wedding: SAMPLE_GUIDE },
   };
   if (method === 'PUT') {
     if (body.names) doc.names = body.names as DemoPagesDoc['names'];
     if (typeof body.theme === 'string') doc.theme = body.theme;
     if (body.invitation) doc.invitation = body.invitation as Record<string, unknown>;
     if (body.texts) doc.texts = { ...doc.texts, ...(body.texts as Record<string, string>) };
+    if (body.guides) doc.guides = { ...doc.guides, ...(body.guides as Record<string, unknown>) };
     try {
       sessionStorage.setItem(DEMO_PAGES_KEY, JSON.stringify(doc));
     } catch {
@@ -209,7 +214,7 @@ async function demoPages(method: string, body: Record<string, unknown>) {
     }
     pagesVersion += 1;
   }
-  return { version: pagesVersion, slug: w.slug, share: null, events: [{ key: 'wedding', name: 'The wedding' }], guides: {}, filled: {}, samples: [], ...doc };
+  return { version: pagesVersion, slug: w.slug, share: null, events: [{ key: 'wedding', name: 'The wedding' }], filled: {}, samples: [], ...doc };
 }
 
 // ---------------------------------------------------------------- answering the admin

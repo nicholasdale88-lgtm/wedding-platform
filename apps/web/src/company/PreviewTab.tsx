@@ -61,6 +61,7 @@ const PRODUCT: Group[] = [
       { name: 'Designs', what: `All ${THEME_NAMES.length} designs`, url: '/designs' },
       { name: 'Sample invitation', what: 'A guest’s invitation, with music, questions and where to stay', url: '/demo' },
       ...SIGNATURE_NAMES.map((n) => ({ name: `Sample: ${n}`, what: 'A Signature design, with its opening scene', url: `/demo?theme=${encodeURIComponent(n)}` })),
+      { name: 'Sample night-before guide', what: 'What guests open the evening before: forecast, their table, menu, parking', url: '/demo/tomorrow' },
       { name: 'Sample seating PDF', what: 'What the caterer and venue get', url: '/demo/seating-pdf' },
     ],
   },

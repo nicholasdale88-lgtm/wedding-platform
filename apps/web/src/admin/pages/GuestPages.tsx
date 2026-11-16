@@ -150,7 +150,8 @@ export function GuestPages() {
   const demo = isDemo();
   const pages = useMemo(() => {
     if (!data) return [];
-    if (demo) return [{ key: 'invitation', label: 'Invitation' }] as { key: PageKey; label: string }[];
+    // The sample: its invitation and its night-before guide, both changed for real in this tab.
+    if (demo) return [{ key: 'invitation', label: 'Invitation' }, { key: 'guide:wedding', label: 'Night-before page' }] as { key: PageKey; label: string }[];
     // Each event's own pages. The invitation lives with the first event (the other events have their
     // section and timeline in it); every event has its own photo page.
     const ev = data.events.find((e) => e.key === chosen) ?? data.events[0];
@@ -193,7 +194,7 @@ export function GuestPages() {
   const base = `/w/${data.slug}`;
   const path = page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
   const editingCard = liveEdit && page === 'invitation' && !demo;
-  const previewUrl = demo ? '/demo?embed=1&mine=1' : `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}${asEvents && path === '/' ? `events=${encodeURIComponent(asEvents)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
+  const previewUrl = demo ? (eventKey ? '/demo/tomorrow?mine=1' : '/demo?embed=1&mine=1') : `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}${asEvents && path === '/' ? `events=${encodeURIComponent(asEvents)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
   const shareUrl = `${window.location.origin}${base}${path}${sample ? `?g=${encodeURIComponent(sample.token)}` : ''}`;
 
   const guide = eventKey ? doc.guides[eventKey] : undefined;

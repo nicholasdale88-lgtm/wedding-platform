@@ -17,7 +17,7 @@ import { GuideExtras } from './GuideExtras';
  * /w/:slug/tomorrow[/:event]?g=<token>: the night-before guide, linked from the night-before text.
  * Each event has its own guide, in the design its style names (reception or day-out).
  */
-export function GuidePage() {
+export function GuidePage({ sample = false }: { sample?: boolean } = {}) {
   const { slug = '', event } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
@@ -26,17 +26,25 @@ export function GuidePage() {
   const [data, setData] = useState<GuidePayload | null>(null);
   const [error, setError] = useState('');
 
+  // /demo/tomorrow: the sample wedding's guide, made up here (nothing asked of the server). ?mine=1: as
+  // changed in the sample app's Setup.
+  const mine = params.get('mine') === '1';
   useEffect(() => {
+    if (sample) {
+      void import('../../sales/sampleGuide').then((m) => setData(m.sampleGuide(mine)));
+      return;
+    }
     setData(null);
     guestApi
       .guide(slug, token, event, preview, share)
       .then(setData)
       .catch((e: Error) => setError(e.message));
-  }, [slug, token, event, preview, share]);
+  }, [slug, token, event, preview, share, sample, mine]);
 
   // Live: the forecast, tables and meals refresh while the guide is open (every 15 minutes, and on
   // coming back to it). A failed refresh keeps what is on screen.
   useEffect(() => {
+    if (sample) return;
     let last = Date.now();
     const refresh = () => {
       if (document.visibilityState !== 'visible' || Date.now() - last < 60_000) return;
@@ -55,11 +63,11 @@ export function GuidePage() {
       clearInterval(timer);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [slug, token, event, preview, share]);
+  }, [slug, token, event, preview, share, sample]);
 
   if (error) return <GuestMessage message={error} />;
   if (!data) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
-  return data.guide.style === 'dayout' ? <Dayout data={data} preview={preview} /> : <Reception data={data} preview={preview} />;
+  return data.guide.style === 'dayout' ? <Dayout data={data} preview={preview || sample} /> : <Reception data={data} preview={preview || sample} />;
 }
 
 function usePage(page: string, data: GuidePayload) {

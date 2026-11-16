@@ -127,6 +127,7 @@ function Pages() {
         <Route path="/w/:slug/vendor" element={<VendorPage />} />
         <Route path="/" element={<SalesPage />} />
         <Route path="/demo" element={<DemoPage />} />
+        <Route path="/demo/tomorrow" element={<GuidePage sample />} />
         <Route path="/demo/seating-pdf" element={<SampleSeatingPage />} />
         <Route path="/designs" element={<DesignsPage />} />
         {/* Try the app: the admin for a made-up wedding, answered in the browser (try/demo.ts). */}

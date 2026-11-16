@@ -18,6 +18,16 @@ describe('sample Setup (Company → Preview, Try the app)', () => {
     expect((await demoRequest<P>('/a/w/demo/pages')).invitation.custom?.paper).toBe('#f6f4ec');
   });
 
+  it('has a night-before guide, changeable, that the sample guide page shows', async () => {
+    type G = { guides: Record<string, { style: string; arrive?: string }> };
+    const first = await demoRequest<G>('/a/w/demo/pages');
+    expect(first.guides.wedding?.style).toBe('reception');
+    await demoRequest('/a/w/demo/pages', { method: 'PUT', body: JSON.stringify({ guides: { wedding: { ...first.guides.wedding, arrive: '1:00pm' } } }) });
+    const { sampleGuide } = await import('../src/sales/sampleGuide');
+    expect((sampleGuide(true).guide as { arrive?: string }).arrive).toBe('1:00pm');
+    expect((sampleGuide(false).guide as { arrive?: string }).arrive).toBe('1:30pm');
+  });
+
   it('sharing a preview link says it isn’t in the sample', async () => {
     await expect(demoRequest('/a/w/demo/pages/share', { method: 'POST', body: JSON.stringify({ on: true }) })).rejects.toThrow(/sample/);
   });
