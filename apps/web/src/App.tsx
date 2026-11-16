@@ -70,6 +70,32 @@ function PortalPreviewBanner() {
   );
 }
 
+/**
+ * Opened from Company → Preview: a way back to it on every page (the sample app, the vendor account, a
+ * wedding's portals), since a phone or the installed app has no Back button. Remembered for this tab only,
+ * until they're back in the company portal.
+ */
+const FROM_COMPANY = 'yl.fromCompany';
+function BackToCompany() {
+  const { pathname } = useLocation();
+  let on = false;
+  try {
+    if (pathname.startsWith('/company')) sessionStorage.removeItem(FROM_COMPANY);
+    else on = sessionStorage.getItem(FROM_COMPANY) === '1';
+  } catch {
+    /* storage blocked: no button */
+  }
+  if (!on) return null;
+  return (
+    <a
+      href="/company#preview"
+      className="fixed z-[95] left-2 top-[max(8px,env(safe-area-inset-top))] flex items-center gap-1 py-[7px] px-3 min-h-[36px] rounded-full no-underline text-[13px] font-semibold !text-[#fbf1e8] bg-[#2e2430]/90 shadow-[0_6px_16px_rgba(0,0,0,.25)] backdrop-blur-sm print:hidden"
+    >
+      <span aria-hidden>←</span> Company portal
+    </a>
+  );
+}
+
 function Pages() {
   // Traffic & errors (company portal): the kind of page opened, counted as the address changes.
   const { pathname } = useLocation();
@@ -77,6 +103,7 @@ function Pages() {
   return (
     <Suspense fallback={<div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />}>
       <PortalPreviewBanner />
+      <BackToCompany />
       <Routes>
         <Route path="/admin/reset" element={<ResetPasscode />} />
         <Route path="/company/*" element={<CompanyPortal />} />

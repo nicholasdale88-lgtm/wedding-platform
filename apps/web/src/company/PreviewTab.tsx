@@ -11,6 +11,15 @@ import { SIGNATURE_NAMES, THEME_NAMES } from '../guest/themeKit';
  */
 type Group = { title: string; links: { name: string; what: string; url: string }[] };
 
+/** Each opens here, in this tab, with a "Company portal" button on top to come back (see App's BackToCompany). */
+const comeBack = () => {
+  try {
+    sessionStorage.setItem('yl.fromCompany', '1');
+  } catch {
+    /* storage blocked: the browser's Back still works */
+  }
+};
+
 const card = 'flex flex-col gap-3 p-5 rounded-[14px] border border-[#ecdcd2] bg-white shadow-[0_1px_3px_rgba(27,34,24,.06)]';
 const preview = (url: string) => {
   try {
@@ -28,7 +37,7 @@ function Links({ group, previewing = true }: { group: Group; previewing?: boolea
       <strong className="text-[13px] tracking-[.12em] uppercase text-[#5b6a52] pb-1">{group.title}</strong>
       {group.links.length ? (
         group.links.map((l) => (
-          <a key={l.url} href={previewing ? preview(l.url) : l.url} target="_blank" rel="noopener" className="flex items-center justify-between gap-3 py-[9px] border-t border-[#f0e6dc] first-of-type:border-t-0 no-underline text-[#2e2430] hover:bg-[#fbf3ee]">
+          <a key={l.url} href={previewing ? preview(l.url) : l.url} onClick={comeBack} className="flex items-center justify-between gap-3 py-[9px] border-t border-[#f0e6dc] first-of-type:border-t-0 no-underline text-[#2e2430] hover:bg-[#fbf3ee]">
             <span className="min-w-0">
               <span className="block font-medium truncate">{l.name}</span>
               <span className="block text-[12px] text-[#5b6a52] truncate">{l.what}</span>
@@ -117,7 +126,7 @@ export function PreviewTab() {
     <section className="flex flex-col gap-5">
       <div>
         <h2 className="m-0 text-[22px] font-semibold">Preview</h2>
-        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">Every part of the product as the person using it sees it. Each opens in a new tab.</p>
+        <p className="m-0 mt-1 text-[14px] text-[#5b6a52]">Every part of the product as the person using it sees it. Each opens here, with a Company portal button at the top to come back.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3" onClickCapture={letIn}>
         {PRODUCT.map((g) => (

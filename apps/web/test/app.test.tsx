@@ -14,3 +14,19 @@ describe('routing', () => {
     expect(fetchSpy).not.toHaveBeenCalled(); // nothing asked of the admin API
   });
 });
+
+/** Company → Preview opens pages in the same tab; each has a way back to the company portal. */
+describe('back to the company portal', () => {
+  it('shows only in a tab opened from Company → Preview', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    window.history.pushState({}, '', '/w/nope/nope/nope');
+    const { unmount } = render(<App />);
+    await screen.findByRole('alert');
+    expect(screen.queryByRole('link', { name: /Company portal/ })).toBeNull();
+    unmount();
+    sessionStorage.setItem('yl.fromCompany', '1');
+    render(<App />);
+    expect(await screen.findByRole('link', { name: /Company portal/ })).toHaveAttribute('href', '/company#preview');
+    sessionStorage.clear();
+  });
+});
