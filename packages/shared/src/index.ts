@@ -18,6 +18,7 @@ export * from './seatSuggest';
 export * from './contacts';
 export * from './seatStage';
 export * from './planner';
+export * from './assistant';
 export * from './help';
 export * from './helpSay';
 export * from './companyHelp';

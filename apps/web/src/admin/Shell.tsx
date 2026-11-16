@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { AskAnywhere } from './AskAnywhere';
 import { DemoBar } from '../try/DemoBar';
 import { DEMO_WID } from '../try/demo';
 import { themeOf } from '../guest/themeKit';
@@ -398,6 +399,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         </main>
         {more && <MoreSheet onClose={() => setMore(false)} onSignOut={signOut} />}
         {wid === DEMO_WID ? <DemoBar /> : <FeedbackButton wid={wid} />}
+        <AskAnywhere lift={wid === DEMO_WID} />
       </div>
     );
   }
@@ -434,6 +436,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
         </div>
       </main>
       {wid === DEMO_WID ? <DemoBar /> : <FeedbackButton wid={wid} />}
+        <AskAnywhere lift={wid === DEMO_WID} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
-import type { CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
+import type { AssistantAction, CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
 import { isVendorDemo, vendorDemo } from '../try/vendorDemo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
@@ -728,7 +728,9 @@ export const plannerApi = {
   saveDoc: <T>(wid: string, kind: PlannerKind, scope: string, data: T, version: number) =>
     send<{ data: T; version: number }>('PUT', `${w(wid)}/planner/doc/${kind}${scope ? `/${encodeURIComponent(scope)}` : ''}`, data, version),
   aiStatus: (wid: string) => request<{ on: boolean; readsFiles: boolean }>(`${w(wid)}/planner/ask`),
-  ask: (wid: string, question: string, history: { role: 'user' | 'assistant'; text: string }[]) => send<{ answer: string }>('POST', `${w(wid)}/planner/ask`, { question, history }),
+  /** The personal assistant. `page`: the screen they asked from. Its answer may offer up to two buttons. */
+  ask: (wid: string, question: string, history: { role: 'user' | 'assistant'; text: string }[], page?: string) =>
+    send<{ answer: string; actions?: AssistantAction[] }>('POST', `${w(wid)}/planner/ask`, { question, history, ...(page ? { page } : {}) }),
   /** File a quote (PDF or photo, up to 1.5 MB). */
   uploadFile: async (wid: string, file: File) => {
     const buf = new Uint8Array(await file.arrayBuffer());

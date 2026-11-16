@@ -37,6 +37,13 @@ describe('sample Setup (Company → Preview, Try the app)', () => {
     expect(Object.keys(p.texts).every((k) => k.startsWith('ph.'))).toBe(true);
   });
 
+  it('Ask answers in the sample, with buttons to open a screen or add a task', async () => {
+    expect(await demoRequest<{ on: boolean }>('/a/w/demo/planner/ask')).toMatchObject({ on: true });
+    const r = await demoRequest<{ answer: string; actions: { kind: string }[] }>('/a/w/demo/planner/ask', { method: 'POST', body: JSON.stringify({ question: 'Who still hasn’t replied?', history: [], page: 'guests' }) });
+    expect(r.answer).toMatch(/haven’t replied/);
+    expect(r.actions[0]).toMatchObject({ kind: 'open', screen: 'texts' });
+  });
+
   it('sharing a preview link says it isn’t in the sample', async () => {
     await expect(demoRequest('/a/w/demo/pages/share', { method: 'POST', body: JSON.stringify({ on: true }) })).rejects.toThrow(/sample/);
   });

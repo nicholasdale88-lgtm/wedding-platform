@@ -1,4 +1,4 @@
-import { hasContract, keepPrivateVows, noimStatus, questionnaireProgress, vowsFor, type Ceremony, PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
+import { ASSISTANT_ACTIONS_HELP, ASSISTANT_SCREENS, assistantActions, hasContract, keepPrivateVows, noimStatus, questionnaireProgress, vowsFor, type Ceremony, PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -422,7 +422,12 @@ export function plannerRoutes() {
 
   app.post('/ask', writer, async (c) => {
     const body = z
-      .object({ question: z.string().trim().min(1).max(800), history: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().max(4000) })).max(8).default([]) })
+      .object({
+        question: z.string().trim().min(1).max(800),
+        history: z.array(z.object({ role: z.enum(['user', 'assistant']), text: z.string().max(4000) })).max(8).default([]),
+        /** The screen they asked from (Ask, on every screen), so the answer fits what they're looking at. */
+        page: z.string().max(40).optional(),
+      })
       .strict()
       .safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Ask a question (up to 800 characters).');
@@ -459,7 +464,10 @@ export function plannerRoutes() {
       'Be concise: short paragraphs or a short list, under 220 words unless asked for a draft (vows, speeches, wording). ' +
       'Use the facts below about their wedding; never invent bookings, names, prices or dates that are not there, and say when something is missing. ' +
       'Australian law: the Notice of Intended Marriage must reach the celebrant at least one month (and no more than 18 months) before the wedding. ' +
-      'When useful, point them to the app: Guest planning, Wedding party, SMS, Photos, Setup, Budget, Vendors. For "how do I" questions about the app, answer from the How-to guides below, step by step.\n\nFacts:\n' +
+      'When useful, point them to the app: Guest planning, Wedding party, SMS, Photos, Setup, Budget, Vendors. For "how do I" questions about the app, answer from the How-to guides below, step by step.\n' +
+      (body.data.page ? `They are looking at the "${(ASSISTANT_SCREENS as Record<string, string>)[body.data.page] ?? 'app'}" screen right now.\n` : '') +
+      ASSISTANT_ACTIONS_HELP +
+      '\n\nFacts:\n' +
       facts +
       // The app's own help for what they asked (Account → Help has the same words).
       (guides.length ? `\n\nHow-to guides:\n${guides.map((g) => `${g.title}: ${g.steps.join(' ')}`).join('\n')}` : '');
@@ -469,9 +477,9 @@ export function plannerRoutes() {
         max_tokens: 700,
         temperature: 0.4,
       })) as { response?: string };
-      const answer = (out.response ?? '').trim();
+      const { answer, actions } = assistantActions((out.response ?? '').trim());
       if (!answer) throw new Error('empty');
-      return c.json({ answer });
+      return c.json({ answer, actions });
     } catch {
       return err(c, 502, 'unavailable', 'The assistant is busy right now. Please try again in a minute.');
     }

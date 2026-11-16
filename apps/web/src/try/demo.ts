@@ -1,4 +1,4 @@
-import { countGuests, PLANNER_DOCS } from '@wp/shared';
+import { countGuests, PLANNER_DOCS, type AssistantAction } from '@wp/shared';
 import { ApiError, type EventFull, type EventInfo, type Guest, type GuestDetail, type GuestPatch, type Overview, type RsvpPut, type SeatingData, type SeatTable } from '../lib/api';
 import { coupleVendorDemo } from './vendorDemo';
 
@@ -217,6 +217,22 @@ async function demoPages(method: string, body: Record<string, unknown>) {
   return { version: pagesVersion, slug: w.slug, share: null, events: [{ key: 'wedding', name: 'The wedding' }], filled: {}, samples: [], ...doc };
 }
 
+// ---------------------------------------------------------------- Ask, in the sample
+/** In the sample, Ask gives example answers (the real one answers from your own wedding, on the free allowance). */
+function sampleAnswer(q: string): { answer: string; actions: AssistantAction[] } {
+  const note = '\n\n(In the sample, Ask gives example answers. In your own app it answers from your wedding.)';
+  if (/repl|reminder|rsvp/i.test(q))
+    return { answer: `Six invitations haven’t replied yet. A friendly nudge usually works:\n\n“Hi {first}! Just a reminder to reply to Harriet and Theo’s wedding by 1 February. It takes a minute: {link}”${note}`, actions: [{ kind: 'open', screen: 'texts', label: 'Texts' }] };
+  if (/budget|spend|cost/i.test(q))
+    return { answer: `You’ve committed $31,400 of your $35,000 budget. The florist is $600 over the estimate; catering is $1,200 under. The photographer’s balance is due in three weeks.${note}`, actions: [{ kind: 'open', screen: 'planner', label: 'Wedding planner' }] };
+  if (/speech|best man|toast/i.test(q))
+    return { answer: `A simple shape for the best man’s speech (3–4 minutes):\n1. Who you are and how you know Theo\n2. One short, kind story\n3. Meeting Harriet: what changed\n4. A toast to the two of them${note}`, actions: [{ kind: 'todo', text: 'Best man to send his speech outline' }] };
+  return {
+    answer: `This month, for a wedding in March:\n• Send the invitations (they’re ready in Setup)\n• Book the hair and make-up trial\n• Lodge the Notice of Intended Marriage with your celebrant: it must be at least a month before the day${note}`,
+    actions: [{ kind: 'todo', text: 'Book the hair and make-up trial' }, { kind: 'open', screen: 'pages', label: 'Setup' }],
+  };
+}
+
 // ---------------------------------------------------------------- answering the admin
 const notHere = () => new ApiError(404, 'demo', 'This part isn’t in the sample. Start your wedding to use it: everything you set up stays.');
 const FEATURE_OF: [RegExp, string][] = [
@@ -253,6 +269,8 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
   if (at === '/a/auth/logout') return ok({ ok: true });
   if (!at.startsWith(w)) throw notHere();
   const rest = at.slice(w.length);
+  // Ask (the personal assistant): example answers for the sample wedding, with the same buttons.
+  if (rest === '/planner/ask') return ok(method === 'GET' ? { on: true, readsFiles: false } : sampleAnswer(String(body.question ?? '')));
   // Locked on the sample's plan: the upgrade card shows, exactly as for a real couple.
   for (const [re, feature] of FEATURE_OF) {
     if (re.test(rest) && method !== 'GET' && plan === 'free') {
