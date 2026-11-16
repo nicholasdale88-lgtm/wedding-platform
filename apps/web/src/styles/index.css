@@ -130,3 +130,10 @@
     flex: none;
   }
 }
+
+/* Vendor portal → a couple → Print a day sheet: only that sheet prints. */
+@media print {
+  body.printing-sheet * { visibility: hidden; }
+  body.printing-sheet [data-print-sheet], body.printing-sheet [data-print-sheet] * { visibility: visible; }
+  body.printing-sheet [data-print-sheet] { position: absolute; left: 0; top: 0; width: 100%; }
+}

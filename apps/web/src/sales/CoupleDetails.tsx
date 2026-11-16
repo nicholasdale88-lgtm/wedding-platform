@@ -39,7 +39,29 @@ export function CoupleDetails({ wid, couple }: { wid: string; couple: string }) 
   const card = 'flex flex-col gap-2 p-4 rounded-[14px] border border-[#e2d7bc] bg-white';
   const h = 'm-0 text-[11px] font-semibold tracking-[.16em] uppercase';
   return (
-    <section aria-label={`${couple}: their wedding`} className="flex flex-col gap-3">
+    <section data-print-sheet aria-label={`${couple}: their wedding`} className="flex flex-col gap-3">
+      <div className="flex justify-between items-center gap-3 flex-wrap">
+        <h3 className="m-0 text-[22px] font-medium" style={{ fontFamily: serif, color: INK }}>
+          {couple}: the day
+        </h3>
+        <button
+          type="button"
+          onClick={() => {
+            // Only this sheet prints (see index.css): one page to take on the day.
+            document.body.classList.add('printing-sheet');
+            const done = () => {
+              document.body.classList.remove('printing-sheet');
+              window.removeEventListener('afterprint', done);
+            };
+            window.addEventListener('afterprint', done);
+            window.print();
+          }}
+          className="print:hidden py-2 px-4 min-h-[40px] rounded-full border border-[#c6b794] bg-white text-[14px] font-semibold cursor-pointer"
+          style={{ color: INK }}
+        >
+          Print a day sheet
+        </button>
+      </div>
       <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(120px,1fr))]">
         {[
           ['Coming', x.guests ? String(x.guests.coming) : '–'],

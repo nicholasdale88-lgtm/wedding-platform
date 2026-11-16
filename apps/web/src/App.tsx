@@ -78,6 +78,13 @@ function PortalPreviewBanner() {
 const FROM_COMPANY = 'yl.fromCompany';
 function BackToCompany() {
   const { pathname } = useLocation();
+  // Said in full at first, then just the arrow so it covers as little of the page as it can.
+  const [small, setSmall] = useState(false);
+  useEffect(() => {
+    setSmall(false);
+    const t = setTimeout(() => setSmall(true), 4000);
+    return () => clearTimeout(t);
+  }, [pathname]);
   let on = false;
   try {
     if (pathname.startsWith('/company')) sessionStorage.removeItem(FROM_COMPANY);
@@ -89,9 +96,11 @@ function BackToCompany() {
   return (
     <a
       href="/company#preview"
-      className="fixed z-[95] left-2 top-[max(8px,env(safe-area-inset-top))] flex items-center gap-1 py-[7px] px-3 min-h-[36px] rounded-full no-underline text-[13px] font-semibold !text-[#fbf1e8] bg-[#2e2430]/90 shadow-[0_6px_16px_rgba(0,0,0,.25)] backdrop-blur-sm print:hidden"
+      aria-label="Back to the company portal"
+      className={`fixed z-[95] left-2 top-[max(8px,env(safe-area-inset-top))] flex items-center justify-center gap-1 min-h-[36px] min-w-[36px] ${small ? 'px-0' : 'py-[7px] px-3'} rounded-full no-underline text-[13px] font-semibold !text-[#fbf1e8] bg-[#2e2430]/90 shadow-[0_6px_16px_rgba(0,0,0,.25)] backdrop-blur-sm print:hidden transition-all`}
     >
-      <span aria-hidden>←</span> Company portal
+      <span aria-hidden>←</span>
+      {!small && <span aria-hidden>Company portal</span>}
     </a>
   );
 }
