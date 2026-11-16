@@ -8,6 +8,7 @@ import { AccountBar, PartySignIn } from './PartyAuth';
 import { InstallApp } from '../../lib/InstallApp';
 import { partyGroup, PartyHelp, PartyWelcome } from './PartyWelcome';
 import { Eyebrow, Heading, Ornament, partyLook, SANS, SERIF, type PartyLook } from './look';
+import { WaxSeal } from '../invitation/WaxSeal';
 
 /**
  * /w/:slug/party (signed in to the portal) or ?g=<token> (their private link): a wedding party member's own page.
@@ -18,6 +19,8 @@ import { Eyebrow, Heading, Ornament, partyLook, SANS, SERIF, type PartyLook } fr
  * In the wedding's own colours, in this order: who they are and their role, what needs them, their day
  * (their own moments marked), then who's who.
  */
+
+type Part = 'home' | 'needs' | 'day' | 'people' | 'more' | 'help';
 
 const first = (s: string) => s.trim().split(/\s+/)[0] ?? s;
 const fmtDay = (iso: string) => {
@@ -319,8 +322,17 @@ function NowNext({ data, now, look, isMc }: { data: PartyPayload; now: number; l
 
 export function PartyPage() {
   const { slug = '' } = useParams();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const token = params.get('g') ?? '';
+  // Which part is open: the menu ('home'), or one part (in the address, so Back returns to the menu).
+  const part = (params.get('part') ?? 'home') as Part;
+  const goPart = (to: Part) =>
+    setParams((prev) => {
+      const n = new URLSearchParams(prev);
+      if (to === 'home') n.delete('part');
+      else n.set('part', to);
+      return n;
+    });
   const [data, setData] = useState<PartyPayload | null>(null);
   const [err, setErr] = useState('');
   const [now, setNow] = useState(() => Date.now());
@@ -352,6 +364,9 @@ export function PartyPage() {
   useEffect(() => {
     if (data) document.title = `${data.couple} · wedding party`;
   }, [data]);
+  useEffect(() => {
+    window.scrollTo?.(0, 0);
+  }, [part]);
 
   if (signIn) return <PartySignIn slug={slug} onDone={() => void load()} />;
   if (err) return <GuestMessage message={err} />;
@@ -391,252 +406,312 @@ export function PartyPage() {
   const needsYou = showTodos || calendar || hasOutfit || nights.length > 0;
   const cssVars = { '--pi': ink, '--pg': gold, '--pp': look.paper } as CSSProperties;
 
+  const openTodos = mine.reduce((n, m) => n + m.tasks.filter((t) => !t.done).length, 0);
+  const yourMoments = data.events.reduce((n, e) => n + e.items.filter((it) => forYou(it.who)).length, 0);
+  const hasExtras = !!(data.guests || data.vendors?.length || data.seating?.length);
+  const initials = [data.names.p1, data.names.p2].map((n) => n.trim()[0] ?? '').filter(Boolean).join(' & ');
+  // The menu: each part of their page, opened one at a time (Back, or Menu, returns here).
+  const tiles: { key: Exclude<Part, 'home'>; title: string; sub: string; show: boolean }[] = [
+    { key: 'needs', title: 'What needs you', sub: openTodos ? `${openTodos} to do` : showTodos ? 'All done' : 'Outfit, the night out, your calendar', show: needsYou },
+    { key: 'day', title: data.events.length > 1 ? 'Your days' : 'The day', sub: yourMoments ? `${yourMoments} of your moments marked` : data.events[0] ? fmtDay(data.events[0].startsAt) || 'The run sheet' : 'Coming soon', show: true },
+    { key: 'people', title: 'Who’s who', sub: `${data.party.length} ${data.party.length === 1 ? 'person' : 'people'}, with their numbers`, show: data.party.length > 0 },
+    { key: 'more', title: 'Guests and suppliers', sub: [data.guests && 'Numbers', data.vendors?.length && 'suppliers', data.seating?.length && 'seating'].filter(Boolean).join(', '), show: hasExtras },
+    { key: 'help', title: 'How it works', sub: 'And putting it on your phone', show: true },
+  ];
+  const shown = tiles.filter((t) => t.show);
+  const here = shown.find((t) => t.key === part);
+
   return (
     <main className="min-h-screen overflow-x-hidden" style={{ ...cssVars, background: look.bg, color: ink, fontFamily: SERIF }}>
-      <div className="max-w-[640px] mx-auto px-4 sm:px-5 pt-10 pb-24 flex flex-col gap-8">
-        <header className="text-center flex flex-col items-center gap-3">
-          <Eyebrow color={look.label}>{data.couple}</Eyebrow>
-          <h1 className="m-0 font-normal text-[50px] leading-[1.1] break-words max-w-full" style={{ fontFamily: "'Pinyon Script', cursive" }}>
-            {group.title}
-          </h1>
-          <Ornament gold={gold} />
-        </header>
+      <div className="max-w-[640px] mx-auto px-4 sm:px-5 pt-10 pb-24 flex flex-col gap-6">
+        {!here ? (
+          <>
+            <header className="text-center flex flex-col items-center gap-3">
+              <Eyebrow color={look.label}>{data.couple}</Eyebrow>
+              <h1 className="m-0 font-normal text-[50px] leading-[1.1] break-words max-w-full" style={{ fontFamily: "'Pinyon Script', cursive" }}>
+                {group.title}
+              </h1>
+              <Ornament gold={gold} />
+            </header>
 
-        {/* Who they are, and their part: first. */}
-        <section aria-label="Your role" className="flex flex-col items-center gap-3 px-5 py-6 rounded-[22px] text-center" style={cardStyle(look, { border: `1px solid ${gold}` })}>
-          <Eyebrow color={look.label}>{data.me.length > 1 ? 'You are' : 'You’re'}</Eyebrow>
-          <div className="flex flex-col gap-3 w-full">
-            {data.me.map((m) => (
-              <div key={`${m.name}-${m.role}`} className="flex flex-col items-center gap-2 min-w-0">
-                <div className="text-[34px] leading-[1.1] break-words max-w-full">{m.name}</div>
-                <span className="inline-flex items-center min-h-[32px] px-4 rounded-full text-[15px] tracking-[.12em] uppercase font-semibold" style={{ background: look.wash, color: look.label, fontFamily: SANS, border: `1px solid ${gold}` }}>
-                  {m.role}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="m-0 text-[20px] italic leading-[1.35]">
-            {data.me.map((m) => first(m.name)).join(' & ')}, you're {roles.length === 1 ? `our ${roles[0]!.toLowerCase()}` : `in our wedding party (${roles.join(', ')})`}. Thank you!
-          </p>
-          {link && (
-            <a href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} className="inline-flex items-center min-h-[44px] text-[16px] underline" style={{ color: ink, fontFamily: SANS }}>
-              ← Your invitation
-            </a>
-          )}
-          {data.account && (
-            <AccountBar
-              slug={slug}
-              name={data.account.name}
-              onSignedOut={() => {
-                loaded.current = false;
-                setData(null);
-                setSignIn(true);
-              }}
-            />
-          )}
-        </section>
+            {/* Their invitation, on top: an envelope to tap open. */}
+            {link && <Envelope href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} look={look} initials={initials} />}
 
-        <PartyWelcome
-          storeKey={`wp-party-welcome-${slug}-${data.me.map((m) => m.name).join('-')}`}
-          firstNames={data.me.map((m) => first(m.name)).join(' & ')}
-          word={group.word}
-          couple={data.couple}
-          perms={perms}
-          calendar={calendar}
-          gold={gold}
-          ink={ink}
-          paper={look.card}
-        />
-
-        <nav aria-label="On this page" className="sticky top-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 py-2 flex gap-2 overflow-x-auto [scrollbar-width:none] backdrop-blur" style={{ fontFamily: SANS, background: `${look.paper}f0`, borderBottom: `1px solid ${look.line}` }}>
-          {(
-            [
-              [(!perms || perms.tasks) && mine.some((m) => m.tasks.length || !perms || perms.addTasks), 'todos', 'To-dos'],
-              [hasOutfit, 'outfit', 'Outfit'],
-              [data.events.length > 0, 'runsheet', 'The day'],
-              [true, 'whos-who', 'Who’s who'],
-            ] as const
-          )
-            .filter(([on]) => on)
-            .map(([, id, label]) => (
-              <a key={id} href={`#${id}`} className="flex-none inline-flex items-center min-h-[44px] px-4 rounded-full border no-underline text-[15px]" style={{ borderColor: gold, color: ink, background: look.card }}>
-                {label}
-              </a>
-            ))}
-        </nav>
-
-        <NowNext data={data} now={now} look={look} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
-
-        {note && (
-          <p role="alert" className="m-0 p-3 rounded-[12px] text-[17px]" style={{ background: '#f4dcd2', color: '#7a4a37' }}>
-            {note}
-          </p>
-        )}
-
-        {needsYou && (
-          <div className="flex flex-col gap-4">
-            <Heading kicker="Before the day" title="What needs you" look={look} />
-            {showTodos && mine.map((m) => <Todos key={m.personId} me={m} act={act} look={look} many={mine.length > 1} canAdd={!perms || perms.addTasks} />)}
-            {mine.map((m) => (
-              <Outfit key={`o-${m.personId}`} me={m} look={look} />
-            ))}
-            {nights.map((n) => (
-              <Night key={`${n.title}-${n.date}`} night={n} look={look} />
-            ))}
-            {calendar && (
-              <section aria-label="Your calendar" className="flex flex-col gap-2 p-5 rounded-[18px] text-[17px] leading-[1.45]" style={cardStyle(look)}>
-                <h3 className="m-0 font-normal text-[27px] leading-[1.15]">On your phone</h3>
-                <span>Your jobs (with a reminder the morning before), fittings, the hens or bucks, and your moments on the day, in your phone’s calendar. If anything changes, it updates by itself.</span>
-                {mine
-                  .filter((m) => m.calendar)
-                  .map((m) => {
-                    const feed = m.calendar!.replace(/^https?:/, 'webcal:');
-                    const android = /android/i.test(navigator.userAgent);
-                    return (
-                      <a
-                        key={m.personId}
-                        href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
-                        {...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                        className={`self-start mt-1 ${pill} whitespace-normal text-center`}
-                        style={{ background: ink, color: look.paper, fontFamily: SANS }}
-                      >
-                        Add {mine.length > 1 ? `${first(m.name)}’s` : 'my'} jobs to my calendar
-                      </a>
-                    );
-                  })}
-              </section>
-            )}
-          </div>
-        )}
-
-        {data.events.map((e) => {
-          const times = e.items.map((it) => at(e.startsAt, it.time));
-          // On the day: the latest line that has started is "now"; the one after it is "next".
-          const current = times.reduce<number>((acc, t, i) => (t !== null && t <= now && new Date(e.startsAt).toDateString() === new Date(now).toDateString() ? i : acc), -1);
-          const anyYours = e.items.some((it) => forYou(it.who));
-          return (
-            <section key={e.key} id={e.key === data.events[0]?.key ? 'runsheet' : undefined} aria-label={e.name} className="scroll-mt-24 flex flex-col gap-4">
-              <Heading kicker={fmtDay(e.startsAt) || 'Your day'} title={e.name} look={look} />
-              {e.note && (
-                <p className="m-0 p-5 rounded-[18px] text-[19px] leading-[1.45] italic whitespace-pre-wrap" style={cardStyle(look)}>
-                  {e.note}
-                </p>
-              )}
-              {anyYours && (
-                <p className="m-0 flex items-center justify-center gap-2 text-[16px] italic">
-                  <span aria-hidden="true" className="inline-block w-[10px] h-[10px] rounded-full" style={{ background: gold }} />
-                  Your own moments are marked.
-                </p>
-              )}
-              {e.items.length > 0 && (
-                <ol className="m-0 p-0 list-none flex flex-col rounded-[18px] overflow-hidden" style={cardStyle(look)}>
-                  {e.items.map((it, i) => {
-                    const yours = forYou(it.who);
-                    const isNow = i === current;
-                    return (
-                      <li
-                        key={i}
-                        className="grid grid-cols-[74px_minmax(0,1fr)] gap-3 py-4 pr-4 pl-3"
-                        style={{
-                          borderTop: i ? `1px solid ${look.line}` : undefined,
-                          background: isNow ? look.nowWash : yours ? look.wash : undefined,
-                          boxShadow: yours || isNow ? `inset 4px 0 0 ${gold}` : undefined,
-                        }}
-                      >
-                        <div className="text-right">
-                          <div className="text-[19px] font-semibold leading-tight">{it.time}</div>
-                          {it.until && <div className="text-[15px] opacity-70">to {it.until}</div>}
-                          {isNow && (
-                            <div className="mt-1 text-[14px] tracking-[.18em] uppercase font-semibold" style={{ color: look.label, fontFamily: SANS }}>
-                              Now
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1 min-w-0">
-                          <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="text-[21px] leading-[1.25] break-words min-w-0">{it.title}</span>
-                            {yours && (
-                              <span className="text-[14px] tracking-[.12em] uppercase font-semibold" style={{ color: look.label, fontFamily: SANS }}>
-                                Yours
-                              </span>
-                            )}
-                          </div>
-                          {it.place && <div className="text-[16px] italic opacity-80">{it.place}</div>}
-                          {it.detail && <div className="text-[17px] leading-[1.45] whitespace-pre-wrap break-words">{it.detail}</div>}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-              {!e.items.length && <p className="m-0 text-center text-[18px] italic opacity-75">The run sheet for this one is coming.</p>}
-              {!!e.holding?.length && (
-                <div className="p-5 rounded-[18px] text-[19px] leading-[1.4]" style={{ background: look.wash, border: `1px solid ${gold}` }}>
-                  <strong className="font-semibold">You’re looking after:</strong> {e.holding.join(', ')}
+            {/* Who they are, and their part. */}
+            <section aria-label="Your role" className="flex flex-col items-center gap-2 px-5 py-5 rounded-[22px] text-center" style={cardStyle(look, { border: `1px solid ${gold}` })}>
+              {data.me.map((m) => (
+                <div key={`${m.name}-${m.role}`} className="flex flex-col items-center gap-2 min-w-0">
+                  <div className="text-[30px] leading-[1.1] break-words max-w-full">{m.name}</div>
+                  <span className="inline-flex items-center min-h-[32px] px-4 rounded-full text-[14px] tracking-[.12em] uppercase font-semibold" style={{ background: look.wash, color: look.label, fontFamily: SANS, border: `1px solid ${gold}` }}>
+                    {m.role}
+                  </span>
                 </div>
+              ))}
+              <p className="m-0 text-[19px] italic leading-[1.35]">Thank you for standing with us.</p>
+              {data.account && (
+                <AccountBar
+                  slug={slug}
+                  name={data.account.name}
+                  onSignedOut={() => {
+                    loaded.current = false;
+                    setData(null);
+                    setSignIn(true);
+                  }}
+                />
               )}
-              {!!e.speeches?.length && (
-                <div className="flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
-                  <div className="pb-2">
-                    <CardTitle>Speeches</CardTitle>
-                  </div>
-                  {e.speeches.map((s, i) => (
-                    <div key={i} className="flex justify-between gap-3 py-2 border-t text-[19px]" style={{ borderColor: look.line }}>
-                      <span className="min-w-0 break-words">
-                        {i + 1}. {s.who}
-                      </span>
-                      <span className="italic opacity-75 whitespace-nowrap">{s.minutes} min</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {mine[0] && (!!e.packing?.length || mine[0].pack.length > 0) && <Packing items={e.packing ?? []} me={mine[0]} act={act} look={look} />}
             </section>
-          );
-        })}
-        {!data.events.length && <p className="m-0 text-center text-[19px] italic">Your run sheet is on its way. Check back closer to the day.</p>}
 
-        <section id="whos-who" aria-label="Who's who" className="scroll-mt-24 flex flex-col gap-4">
-          <div className="text-center flex flex-col gap-1">
-            <Eyebrow color={look.label}>Your people</Eyebrow>
-            <h2 className="m-0 font-normal text-[34px] leading-[1.1]">Who's who</h2>
-            <div className="pt-1">
-              <Ornament gold={gold} width={84} />
+            <NowNext data={data} now={now} look={look} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
+
+            {note && (
+              <p role="alert" className="m-0 p-3 rounded-[12px] text-[17px]" style={{ background: '#f4dcd2', color: '#7a4a37' }}>
+                {note}
+              </p>
+            )}
+
+            <nav aria-label="Your page" className="grid grid-cols-2 gap-3">
+              {shown.map((t, i) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => goPart(t.key)}
+                  className={`flex flex-col items-start justify-between gap-2 min-h-[118px] p-4 rounded-[18px] text-left cursor-pointer ${i === 0 && shown.length % 2 ? 'col-span-2' : ''}`}
+                  style={{ ...cardStyle(look), color: ink, fontFamily: SERIF }}
+                >
+                  <span className="text-[24px] leading-[1.15]">{t.title}</span>
+                  <span className="text-[14px] leading-[1.35]" style={{ color: look.label, fontFamily: SANS }}>
+                    {t.sub} <span aria-hidden>→</span>
+                  </span>
+                </button>
+              ))}
+            </nav>
+            <InstallApp what="your wedding party page" tone="guest" />
+          </>
+        ) : (
+          <>
+            {/* One part at a time, with the way back always in reach. */}
+            <div className="sticky top-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 py-2 flex items-center gap-3 backdrop-blur" style={{ background: `${look.paper}f0`, borderBottom: `1px solid ${look.line}`, fontFamily: SANS }}>
+              <button type="button" onClick={() => goPart('home')} className="inline-flex items-center gap-1 min-h-[44px] px-4 rounded-full border-0 text-[15px] font-semibold cursor-pointer" style={{ background: ink, color: look.paper }}>
+                <span aria-hidden>←</span> Menu
+              </button>
+              <span className="min-w-0 truncate text-[13px] tracking-[.16em] uppercase font-semibold" style={{ color: look.label }}>
+                {data.couple}
+              </span>
             </div>
-          </div>
-          {sides
-            .filter(([, , ps]) => ps.length)
-            .map(([label, who, ps]) => (
-              <div key={label} className="flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
-                <div className="pb-2 text-[14px] tracking-[.18em] uppercase font-semibold" style={{ fontFamily: SANS, color: look.label }}>
-                  {label}
-                  {who ? <span className="normal-case tracking-normal font-normal"> · {who}</span> : null}
-                </div>
-                {ps.map((p) => (
-                  <div key={`${p.name}-${p.role}`} className="flex items-center justify-between gap-3 py-3 border-t flex-wrap" style={{ borderColor: look.line }}>
-                    <div className="min-w-0 text-[19px] leading-[1.25]">
-                      {p.name} <span className="italic opacity-75">· {p.role}</span>
-                    </div>
-                    {p.phone && (
-                      <span className="flex gap-2 flex-none">
-                        <a href={`tel:${digits(p.phone)}`} className={pill} style={{ color: ink, border: `1px solid ${gold}`, fontFamily: SANS }}>
-                          Call
-                        </a>
-                        <a href={`sms:${digits(p.phone)}`} className={pill} style={{ color: ink, border: `1px solid ${gold}`, fontFamily: SANS }}>
-                          Text
-                        </a>
-                      </span>
+            {note && (
+              <p role="alert" className="m-0 p-3 rounded-[12px] text-[17px]" style={{ background: '#f4dcd2', color: '#7a4a37' }}>
+                {note}
+              </p>
+            )}
+            {part === 'needs' && (
+              <div className="flex flex-col gap-4">
+                <Heading kicker="Before the day" title="What needs you" look={look} />
+                {showTodos && mine.map((m) => <Todos key={m.personId} me={m} act={act} look={look} many={mine.length > 1} canAdd={!perms || perms.addTasks} />)}
+                {mine.map((m) => (
+                  <Outfit key={`o-${m.personId}`} me={m} look={look} />
+                ))}
+                {nights.map((n) => (
+                  <Night key={`${n.title}-${n.date}`} night={n} look={look} />
+                ))}
+                {calendar && (
+                  <section aria-label="Your calendar" className="flex flex-col gap-2 p-5 rounded-[18px] text-[17px] leading-[1.45]" style={cardStyle(look)}>
+                    <h3 className="m-0 font-normal text-[27px] leading-[1.15]">On your phone</h3>
+                    <span>Your jobs (with a reminder the morning before), fittings, the hens or bucks, and your moments on the day, in your phone’s calendar. If anything changes, it updates by itself.</span>
+                    {mine
+                      .filter((m) => m.calendar)
+                      .map((m) => {
+                        const feed = m.calendar!.replace(/^https?:/, 'webcal:');
+                        const android = /android/i.test(navigator.userAgent);
+                        return (
+                          <a
+                            key={m.personId}
+                            href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
+                            {...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                            className={`self-start mt-1 ${pill} whitespace-normal text-center`}
+                            style={{ background: ink, color: look.paper, fontFamily: SANS }}
+                          >
+                            Add {mine.length > 1 ? `${first(m.name)}’s` : 'my'} jobs to my calendar
+                          </a>
+                        );
+                      })}
+                  </section>
+                )}
+              </div>
+            )}
+            {part === 'day' && (
+              <>
+              {data.events.map((e) => {
+                const times = e.items.map((it) => at(e.startsAt, it.time));
+                // On the day: the latest line that has started is "now"; the one after it is "next".
+                const current = times.reduce<number>((acc, t, i) => (t !== null && t <= now && new Date(e.startsAt).toDateString() === new Date(now).toDateString() ? i : acc), -1);
+                const anyYours = e.items.some((it) => forYou(it.who));
+                return (
+                  <section key={e.key} id={e.key === data.events[0]?.key ? 'runsheet' : undefined} aria-label={e.name} className="scroll-mt-24 flex flex-col gap-4">
+                    <Heading kicker={fmtDay(e.startsAt) || 'Your day'} title={e.name} look={look} />
+                    {e.note && (
+                      <p className="m-0 p-5 rounded-[18px] text-[19px] leading-[1.45] italic whitespace-pre-wrap" style={cardStyle(look)}>
+                        {e.note}
+                      </p>
                     )}
+                    {anyYours && (
+                      <p className="m-0 flex items-center justify-center gap-2 text-[16px] italic">
+                        <span aria-hidden="true" className="inline-block w-[10px] h-[10px] rounded-full" style={{ background: gold }} />
+                        Your own moments are marked.
+                      </p>
+                    )}
+                    {e.items.length > 0 && (
+                      <ol className="m-0 p-0 list-none flex flex-col rounded-[18px] overflow-hidden" style={cardStyle(look)}>
+                        {e.items.map((it, i) => {
+                          const yours = forYou(it.who);
+                          const isNow = i === current;
+                          return (
+                            <li
+                              key={i}
+                              className="grid grid-cols-[74px_minmax(0,1fr)] gap-3 py-4 pr-4 pl-3"
+                              style={{
+                                borderTop: i ? `1px solid ${look.line}` : undefined,
+                                background: isNow ? look.nowWash : yours ? look.wash : undefined,
+                                boxShadow: yours || isNow ? `inset 4px 0 0 ${gold}` : undefined,
+                              }}
+                            >
+                              <div className="text-right">
+                                <div className="text-[19px] font-semibold leading-tight">{it.time}</div>
+                                {it.until && <div className="text-[15px] opacity-70">to {it.until}</div>}
+                                {isNow && (
+                                  <div className="mt-1 text-[14px] tracking-[.18em] uppercase font-semibold" style={{ color: look.label, fontFamily: SANS }}>
+                                    Now
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-1 min-w-0">
+                                <div className="flex items-baseline gap-2 flex-wrap">
+                                  <span className="text-[21px] leading-[1.25] break-words min-w-0">{it.title}</span>
+                                  {yours && (
+                                    <span className="text-[14px] tracking-[.12em] uppercase font-semibold" style={{ color: look.label, fontFamily: SANS }}>
+                                      Yours
+                                    </span>
+                                  )}
+                                </div>
+                                {it.place && <div className="text-[16px] italic opacity-80">{it.place}</div>}
+                                {it.detail && <div className="text-[17px] leading-[1.45] whitespace-pre-wrap break-words">{it.detail}</div>}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
+                    {!e.items.length && <p className="m-0 text-center text-[18px] italic opacity-75">The run sheet for this one is coming.</p>}
+                    {!!e.holding?.length && (
+                      <div className="p-5 rounded-[18px] text-[19px] leading-[1.4]" style={{ background: look.wash, border: `1px solid ${gold}` }}>
+                        <strong className="font-semibold">You’re looking after:</strong> {e.holding.join(', ')}
+                      </div>
+                    )}
+                    {!!e.speeches?.length && (
+                      <div className="flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
+                        <div className="pb-2">
+                          <CardTitle>Speeches</CardTitle>
+                        </div>
+                        {e.speeches.map((s, i) => (
+                          <div key={i} className="flex justify-between gap-3 py-2 border-t text-[19px]" style={{ borderColor: look.line }}>
+                            <span className="min-w-0 break-words">
+                              {i + 1}. {s.who}
+                            </span>
+                            <span className="italic opacity-75 whitespace-nowrap">{s.minutes} min</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {mine[0] && (!!e.packing?.length || mine[0].pack.length > 0) && <Packing items={e.packing ?? []} me={mine[0]} act={act} look={look} />}
+                  </section>
+                );
+              })}
+              {!data.events.length && <p className="m-0 text-center text-[19px] italic">Your run sheet is on its way. Check back closer to the day.</p>}
+
+              </>
+            )}
+            {part === 'people' && (
+            <section id="whos-who" aria-label="Who's who" className="scroll-mt-24 flex flex-col gap-4">
+              <div className="text-center flex flex-col gap-1">
+                <Eyebrow color={look.label}>Your people</Eyebrow>
+                <h2 className="m-0 font-normal text-[34px] leading-[1.1]">Who's who</h2>
+                <div className="pt-1">
+                  <Ornament gold={gold} width={84} />
+                </div>
+              </div>
+              {sides
+                .filter(([, , ps]) => ps.length)
+                .map(([label, who, ps]) => (
+                  <div key={label} className="flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
+                    <div className="pb-2 text-[14px] tracking-[.18em] uppercase font-semibold" style={{ fontFamily: SANS, color: look.label }}>
+                      {label}
+                      {who ? <span className="normal-case tracking-normal font-normal"> · {who}</span> : null}
+                    </div>
+                    {ps.map((p) => (
+                      <div key={`${p.name}-${p.role}`} className="flex items-center justify-between gap-3 py-3 border-t flex-wrap" style={{ borderColor: look.line }}>
+                        <div className="min-w-0 text-[19px] leading-[1.25]">
+                          {p.name} <span className="italic opacity-75">· {p.role}</span>
+                        </div>
+                        {p.phone && (
+                          <span className="flex gap-2 flex-none">
+                            <a href={`tel:${digits(p.phone)}`} className={pill} style={{ color: ink, border: `1px solid ${gold}`, fontFamily: SANS }}>
+                              Call
+                            </a>
+                            <a href={`sms:${digits(p.phone)}`} className={pill} style={{ color: ink, border: `1px solid ${gold}`, fontFamily: SANS }}>
+                              Text
+                            </a>
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 ))}
-              </div>
-            ))}
-        </section>
-        <Extras data={data} look={look} />
-        <InstallApp what="your wedding party page" tone="guest" />
-        <PartyHelp perms={perms} calendar={calendar} gold={gold} />
+            </section>
+            )}
+            {part === 'more' && <Extras data={data} look={look} />}
+            {part === 'help' && (
+              <>
+                <PartyWelcome
+                  storeKey={`wp-party-welcome-${slug}-${data.me.map((m) => m.name).join('-')}`}
+                  firstNames={data.me.map((m) => first(m.name)).join(' & ')}
+                  word={group.word}
+                  couple={data.couple}
+                  perms={perms}
+                  calendar={calendar}
+                  gold={gold}
+                  ink={ink}
+                  paper={look.card}
+                />
+                <PartyHelp perms={perms} calendar={calendar} gold={gold} />
+                <InstallApp what="your wedding party page" tone="guest" />
+              </>
+            )}
+            <button type="button" onClick={() => goPart('home')} className="self-center inline-flex items-center min-h-[44px] px-5 rounded-full text-[15px] cursor-pointer" style={{ border: `1px solid ${gold}`, background: 'transparent', color: ink, fontFamily: SANS }}>
+              ← Back to the menu
+            </button>
+          </>
+        )}
       </div>
     </main>
+  );
+}
+
+/** Their invitation, at the top of their page: a small sealed envelope in the wedding's colours. Tap to open. */
+function Envelope({ href, look, initials }: { href: string; look: PartyLook; initials: string }) {
+  return (
+    <a href={href} aria-label="Your invitation: tap to open" className="block no-underline" style={{ color: look.ink }}>
+      <span className="relative block w-full aspect-[16/10] max-h-[260px] rounded-[18px] overflow-hidden [clip-path:inset(0_round_18px)]" style={{ background: look.soft, boxShadow: look.shadow, border: `1px solid ${look.line}` }}>
+        <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 100 62" preserveAspectRatio="none">
+          <path d="M0 62 L50 34 L100 62Z" fill="rgba(0,0,0,.04)" />
+          <path d="M0 0 L50 34 L100 0Z" fill={look.card} stroke={look.line} strokeWidth=".4" />
+        </svg>
+        <span className="absolute left-1/2 top-[55%] -translate-x-1/2 -translate-y-1/2" style={{ filter: 'drop-shadow(0 3px 4px rgba(40,25,10,.35))' }}>
+          <WaxSeal colour="Sandstone" words={initials || '♥'} px={64} still />
+        </span>
+        <span className="absolute left-0 right-0 bottom-3 text-center text-[13px] tracking-[.28em] uppercase" style={{ fontFamily: SANS, color: look.label }}>
+          Your invitation · tap to open
+        </span>
+      </span>
+    </a>
   );
 }
 

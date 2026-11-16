@@ -61,11 +61,18 @@ const VendorHomePage = lazy(() => fresh(import('./sales/Directory')).then((m) =>
 const PORTAL_OF: Record<string, string> = { party: 'wedding party', vendor: 'vendor', coordinator: 'coordinator', tasks: 'helper' };
 function PortalPreviewBanner() {
   const { pathname, search } = useLocation();
+  // A slim strip along the top (never over the page's own words), and it can be put away.
+  const [hidden, setHidden] = useState(false);
   const kind = /^\/w\/[^/]+\/(party|vendor|coordinator|tasks)\/?$/.exec(pathname)?.[1];
-  if (!kind || new URLSearchParams(search).get('preview') !== '1') return null;
+  if (hidden || !kind || new URLSearchParams(search).get('preview') !== '1') return null;
   return (
-    <div role="status" className="fixed z-[90] left-1/2 -translate-x-1/2 bottom-[max(12px,env(safe-area-inset-bottom))] max-w-[calc(100%-24px)] py-2 px-4 rounded-full bg-[#2e2430] text-[#fbf1e8] text-[13px] text-center shadow-[0_10px_24px_rgba(0,0,0,.3)]">
-      <strong>Preview:</strong> this is exactly what the {PORTAL_OF[kind]} sees. Looking changes nothing; anything you tap is real.
+    <div role="status" className="fixed z-[90] top-0 left-0 right-0 flex items-center gap-2 pl-[52px] pr-2 pt-[env(safe-area-inset-top)] min-h-[36px] bg-[#2e2430]/95 text-[#fbf1e8] text-[12px] leading-tight shadow-[0_4px_12px_rgba(0,0,0,.2)] print:hidden">
+      <span className="flex-1 min-w-0 py-1">
+        <strong>Preview</strong> of what the {PORTAL_OF[kind]} sees. Anything you tap is real.
+      </span>
+      <button type="button" aria-label="Hide the preview note" onClick={() => setHidden(true)} className="flex-none w-9 h-9 border-0 bg-transparent text-[#fbf1e8] text-[18px] cursor-pointer">
+        ×
+      </button>
     </div>
   );
 }

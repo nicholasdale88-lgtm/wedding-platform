@@ -59,7 +59,7 @@ describe('wedding party page', () => {
     ],
   };
 
-  it('shows who they are first, then what needs them, then their day with their own moments marked', async () => {
+  it('opens on a menu: their invitation to tap, who they are, then each part one at a time', async () => {
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } }));
     render(
       <MemoryRouter initialEntries={[`/w/alex-and-sam/party?g=${TOKEN}`]}>
@@ -71,11 +71,20 @@ describe('wedding party page', () => {
     const role = await screen.findByRole('region', { name: 'Your role' });
     expect(within(role).getByText('Ella Hart')).toBeInTheDocument();
     expect(within(role).getByText('Bridesmaid')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'What needs you' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Your invitation: tap to open' })).toHaveAttribute('href', `/w/alex-and-sam?g=${TOKEN}`);
+    const menu = screen.getByRole('navigation', { name: 'Your page' });
+    expect(within(menu).getByRole('button', { name: /What needs you\s*1 to do/ })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Book the hair trial' })).toBeNull(); // one part at a time
+    fireEvent.click(within(menu).getByRole('button', { name: /What needs you/ }));
+    expect(await screen.findByRole('heading', { name: 'What needs you' })).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Book the hair trial' })).not.toBeChecked();
-    expect(screen.getByText('Hair and makeup').closest('li')).toHaveTextContent('Yours');
+    fireEvent.click(screen.getByRole('button', { name: /Menu/ }));
+    fireEvent.click(within(await screen.findByRole('navigation', { name: 'Your page' })).getByRole('button', { name: /The day\s*1 of your moments/ }));
+    expect((await screen.findByText('Hair and makeup')).closest('li')).toHaveTextContent('Yours');
     expect(screen.getByText('Ceremony').closest('li')).not.toHaveTextContent('Yours');
-    expect(screen.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:0412345678');
+    fireEvent.click(screen.getByRole('button', { name: /Menu/ }));
+    fireEvent.click(within(await screen.findByRole('navigation', { name: 'Your page' })).getByRole('button', { name: /Who’s who/ }));
+    expect(await screen.findByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:0412345678');
     vi.unstubAllGlobals();
   });
 });
