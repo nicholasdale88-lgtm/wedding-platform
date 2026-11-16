@@ -63,6 +63,7 @@ const PRODUCT: Group[] = [
       ...SIGNATURE_NAMES.map((n) => ({ name: `Sample: ${n}`, what: 'A Signature design, with its opening scene', url: `/demo?theme=${encodeURIComponent(n)}` })),
       { name: 'Sample night-before guide', what: 'What guests open the evening before: forecast, their table, menu, parking', url: '/demo/tomorrow' },
       { name: 'Sample photo page', what: 'Guests add photos with your frames and looks; nothing is sent', url: '/demo/photos' },
+      { name: 'Sample message board', what: 'Guests leave messages, hearts and replies; nothing is saved', url: '/demo/board' },
       { name: 'Sample seating PDF', what: 'What the caterer and venue get', url: '/demo/seating-pdf' },
     ],
   },

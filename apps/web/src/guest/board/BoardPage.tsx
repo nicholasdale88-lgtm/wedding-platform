@@ -5,6 +5,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, type BoardPayload, type BoardPost } from '../invitation/api';
+import { sampleBoard } from '../../sales/sampleBoard';
+
+type BoardApi = Pick<typeof guestApi, 'board' | 'boardPost' | 'boardLike' | 'boardRemove'>;
 
 /**
  * /w/:slug/board?g=<token>: the message board. Guests leave messages of support for everyone to read,
@@ -31,7 +34,9 @@ const Pin = () => (
   </svg>
 );
 
-export function BoardPage() {
+/** `sample`: /demo/board, the sample wedding's board (works for this visit, nothing is sent). */
+export function BoardPage({ sample = false }: { sample?: boolean } = {}) {
+  const api: BoardApi = sample ? sampleBoard : guestApi;
   const { slug = '' } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
@@ -43,12 +48,12 @@ export function BoardPage() {
 
   const load = useCallback(async () => {
     try {
-      setData(await guestApi.board(slug, token));
+      setData(await api.board(slug, token));
       setErr('');
     } catch (e) {
       setErr((e as Error).message);
     }
-  }, [slug, token]);
+  }, [slug, token, api]);
   useEffect(() => {
     void load();
     const t = setInterval(() => document.visibilityState === 'visible' && void load(), 30_000);
@@ -71,7 +76,7 @@ export function BoardPage() {
     if (busy) return ''; // already posting: nothing cleared, nothing sent twice
     setBusy(true);
     try {
-      const r = await guestApi.boardPost(slug, token, body, parent);
+      const r = await api.boardPost(slug, token, body, parent);
       if (!parent) setNote(r.pending ? 'Thank you! Your message will appear once the couple has seen it.' : '');
       await load();
       return null;
@@ -140,7 +145,7 @@ export function BoardPage() {
             </section>
 
             {data.posts.map((p) => (
-              <Post key={p.id} p={p} ink={ink} gold={gold} busy={busy} onReply={(body) => post(body, p.id)} slug={slug} token={token} onChanged={load} />
+              <Post key={p.id} p={p} ink={ink} gold={gold} busy={busy} onReply={(body) => post(body, p.id)} slug={slug} token={token} onChanged={load} api={api} />
             ))}
             {!data.posts.length && <p className="text-center text-[19px] italic opacity-75">Be the first to leave a message.</p>}
           </>
@@ -159,6 +164,7 @@ function Post({
   slug,
   token,
   onChanged,
+  api,
 }: {
   p: BoardPost;
   ink: string;
@@ -168,6 +174,7 @@ function Post({
   slug: string;
   token: string;
   onChanged: () => Promise<void>;
+  api: BoardApi;
 }) {
   // The board's count, until a tap of yours changes it (then yours, until the board refreshes).
   const [likes, setLikes] = useState({ n: p.likes, mine: p.liked });
@@ -177,7 +184,7 @@ function Post({
   const [replyErr, setReplyErr] = useState('');
   const like = async () => {
     try {
-      const r = await guestApi.boardLike(slug, token, p.id);
+      const r = await api.boardLike(slug, token, p.id);
       setLikes({ n: r.likes, mine: r.liked });
     } catch {
       /* try again later */
@@ -186,7 +193,7 @@ function Post({
   const remove = async () => {
     if (!window.confirm('Remove your message from the board?')) return;
     try {
-      await guestApi.boardRemove(slug, token, p.id);
+      await api.boardRemove(slug, token, p.id);
       await onChanged();
     } catch {
       /* already gone */

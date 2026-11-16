@@ -44,6 +44,19 @@ describe('sample Setup (Company → Preview, Try the app)', () => {
     expect(r.actions[0]).toMatchObject({ kind: 'open', screen: 'texts' });
   });
 
+  it('the sample message board takes a post, a heart and a reply, for this visit only', async () => {
+    const { sampleBoard } = await import('../src/sales/sampleBoard');
+    const before = await sampleBoard.board();
+    expect(before.posts.length).toBeGreaterThan(0);
+    await sampleBoard.boardPost('s', 't', 'Congratulations!');
+    const after = await sampleBoard.board();
+    expect(after.posts[0]).toMatchObject({ body: 'Congratulations!', mine: true });
+    const liked = await sampleBoard.boardLike('s', 't', after.posts[0]!.id);
+    expect(liked).toEqual({ liked: true, likes: 1 });
+    await sampleBoard.boardPost('s', 't', 'Thank you!', after.posts[0]!.id);
+    expect((await sampleBoard.board()).posts[0]!.replies).toHaveLength(1);
+  });
+
   it('sharing a preview link says it isn’t in the sample', async () => {
     await expect(demoRequest('/a/w/demo/pages/share', { method: 'POST', body: JSON.stringify({ on: true }) })).rejects.toThrow(/sample/);
   });
