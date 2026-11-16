@@ -27,7 +27,7 @@ interface Data {
   payments: { label: string; amount: number; due: string; paid: boolean }[];
   contacts: { name: string; role: string; phone: string }[];
   /** The other suppliers booked for the day. */
-  team: { name: string; category: string; arrival: string; contact: string; phone: string }[];
+  team: { name: string; category: string; arrival: string; contact: string; phone: string; email?: string }[];
   seating?: Seating | null;
   /** The band or DJ: the couple's song list and guests' requests (how many asked, never who). */
   songs: Song[] | null;
@@ -172,15 +172,22 @@ export function VendorPage() {
             <strong>Other suppliers on the day</strong>
             <ul className="m-0 p-0 list-none flex flex-col">
               {d.team.map((t, i) => (
-                <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-2 border-t border-[#ece3cd] first:border-t-0 text-[15px]">
-                  <span className="min-w-0">
-                    <span className="block font-semibold">{t.name}</span>
-                    <span className="block text-[13px] text-[#5b6a52]">{[t.category, t.contact, t.arrival && `arriving ${t.arrival}`].filter(Boolean).join(' · ')}</span>
-                  </span>
-                  {t.phone && (
-                    <a href={tel(t.phone)} className="self-center text-[#33402f] text-[14px]">
-                      {t.phone}
-                    </a>
+                <li key={i} className="flex flex-col gap-1 py-[10px] border-t border-[#ece3cd] first:border-t-0 text-[15px]">
+                  <span className="block font-semibold">{t.name}</span>
+                  <span className="block text-[13px] text-[#5b6a52]">{[t.category, t.contact && `ask for ${t.contact}`, t.arrival && `arriving ${t.arrival}`].filter(Boolean).join(' · ')}</span>
+                  {(t.phone || t.email) && (
+                    <span className="flex gap-x-4 gap-y-1 flex-wrap text-[14px]">
+                      {t.phone && (
+                        <a href={tel(t.phone)} className="inline-flex items-center min-h-[40px] text-[#33402f]">
+                          Call {t.phone}
+                        </a>
+                      )}
+                      {t.email && (
+                        <a href={`mailto:${t.email}`} className="inline-flex items-center min-h-[40px] text-[#33402f] break-all">
+                          {t.email}
+                        </a>
+                      )}
+                    </span>
                   )}
                 </li>
               ))}

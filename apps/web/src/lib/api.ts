@@ -659,7 +659,7 @@ export interface VendorCoupleDetails {
   dietary: { diet: string; n: number; serious: boolean }[];
   meals: { course: string; choice: string; n: number }[];
   vendorMeals: { name: string; meals: number }[];
-  team: { name: string; category: string; arrival: string; contact: string; phone: string }[];
+  team: { name: string; category: string; arrival: string; contact: string; phone: string; email?: string }[];
   contacts: { name: string; role: string; phone: string }[];
   payments: { label: string; amount: number; due: string; paid: boolean }[];
   files: { dietary: string; day: string; songs: string };

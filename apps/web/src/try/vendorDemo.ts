@@ -164,8 +164,8 @@ function sampleDetails(c: (typeof couples)[number]): VendorCoupleDetails {
     ],
     vendorMeals: [],
     team: [
-      { name: 'Golden Hour Photography', category: 'Photographer', arrival: '12:30pm', contact: '', phone: '' },
-      { name: 'Larkwood Kitchen', category: 'Caterer', arrival: '9:00am', contact: '', phone: '' },
+      { name: 'Golden Hour Photography', category: 'Photographer', arrival: '12:30pm', contact: 'Mia', phone: '0400 111 222', email: 'mia@example.com' },
+      { name: 'Larkwood Kitchen', category: 'Caterer', arrival: '9:00am', contact: 'Sam', phone: '0400 333 444', email: 'kitchen@example.com' },
     ],
     contacts: [{ name: 'Alex', role: 'Coordinator', phone: '0400 000 000' }],
     payments: [],

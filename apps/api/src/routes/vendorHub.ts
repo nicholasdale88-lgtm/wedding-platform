@@ -146,10 +146,11 @@ async function pageOf(db: D1Database, o: Opened) {
     // For the caterer: every booked vendor team's meals on the day, so they cook for them too.
     vendorMeals: shares.seating ? all.filter((x) => x.status === 'booked' && x.meals > 0).map((x) => ({ name: x.name, meals: x.meals })) : [],
     vendor: { name: v.name, category: v.category, arrival: v.arrival, meals: v.meals, confirmedOn: v.confirmedOn ?? '' },
-    // The other suppliers booked for the day, so the photographer can find the band (business contacts only).
+    // The other suppliers booked for the day, so the photographer can find the band: who to ask for, their
+    // phone and email (business contacts only, and only to the other vendors booked for this wedding).
     team: all
       .filter((x) => x.id !== v.id && x.status === 'booked')
-      .map((x) => ({ name: x.name, category: x.category, arrival: x.arrival, contact: x.contact, phone: x.phone }))
+      .map((x) => ({ name: x.name, category: x.category, arrival: x.arrival, contact: x.contact, phone: x.phone, email: x.email }))
       .sort((a, b) => (clockMinutes(a.arrival) ?? 9999) - (clockMinutes(b.arrival) ?? 9999) || a.name.localeCompare(b.name)),
     event: ev ? { name: ev.name, startsAt: ev.starts_at, venue: ev.venue ?? '', address: ev.address ?? '' } : null,
     timezone: w.timezone,

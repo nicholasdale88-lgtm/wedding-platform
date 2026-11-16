@@ -165,11 +165,16 @@ export function CoupleDetails({ wid, couple }: { wid: string; couple: string }) 
           ))}
           {x.team.length > 0 && <span className="text-[12px] pt-1" style={{ color: SOFT }}>The other suppliers on the day</span>}
           {x.team.map((p, i) => (
-            <span key={`t${i}`} className="flex justify-between gap-3 flex-wrap text-[14px]" style={{ color: INK }}>
+            <span key={`t${i}`} className="flex flex-col gap-[2px] py-1 text-[14px]" style={{ color: INK }}>
               <span>
-                {p.name} <span style={{ color: SOFT }}>· {p.category}{p.arrival ? `, from ${p.arrival}` : ''}</span>
+                {p.name} <span style={{ color: SOFT }}>· {p.category}{p.contact ? `, ask for ${p.contact}` : ''}{p.arrival ? `, from ${p.arrival}` : ''}</span>
               </span>
-              {p.phone && <a href={`tel:${p.phone.replace(/\s+/g, '')}`} style={{ color: INK }}>{p.phone}</a>}
+              {(p.phone || p.email) && (
+                <span className="flex gap-x-4 flex-wrap">
+                  {p.phone && <a href={`tel:${p.phone.replace(/\s+/g, '')}`} className="inline-flex items-center min-h-[36px]" style={{ color: INK }}>Call {p.phone}</a>}
+                  {p.email && <a href={`mailto:${p.email}`} className="inline-flex items-center min-h-[36px] break-all" style={{ color: INK }}>{p.email}</a>}
+                </span>
+              )}
             </span>
           ))}
         </div>
