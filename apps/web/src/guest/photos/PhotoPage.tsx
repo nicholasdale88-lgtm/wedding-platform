@@ -105,13 +105,14 @@ const longDate = (iso: string, tz: string | undefined) => {
   }
 };
 
-export function PhotoPage() {
+export function PhotoPage({ sample = false }: { sample?: boolean } = {}) {
   const { slug = '', event = '' } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
   const code = params.get('t') ?? '';
   // The couple's preview (Setup): try everything, send nothing.
-  const preview = params.get('preview') === '1';
+  // /demo/photos: the sample wedding's page, a preview too (nothing is sent).
+  const preview = sample || params.get('preview') === '1';
   const [page, setPage] = useState<PhotoPagePayload | null>(null);
   const [by, setBy] = useState(remembered);
   const [items, setItems] = useState<Item[]>([]);
@@ -127,8 +128,7 @@ export function PhotoPage() {
   useEffect(() => setPageClass('ph'), []);
   useEffect(() => {
     setPage(null);
-    guestApi
-      .photos(slug, token, event, code)
+    (sample ? import('../../sales/sampleGuide').then((m) => m.samplePhotos()) : guestApi.photos(slug, token, event, code))
       .then((p) => {
         setPage(p);
         if (p.name) {
@@ -137,7 +137,7 @@ export function PhotoPage() {
         }
       })
       .catch((e: Error) => setErr(e.message));
-  }, [slug, token, event, code]);
+  }, [slug, token, event, code, sample]);
   useEffect(() => () => itemsRef.current.forEach((it) => URL.revokeObjectURL(it.url)), []);
   useEffect(() => void filterFontsReady(), []);
 

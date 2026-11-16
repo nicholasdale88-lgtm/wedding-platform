@@ -1,7 +1,7 @@
 import type { ReceptionGuide } from '@wp/shared';
 import generic from '../../../../seed/texts.generic.json';
 import dynamic from '../../../../seed/texts.dynamic.json';
-import type { GuidePayload } from '../guest/invitation/api';
+import type { GuidePayload, PhotoPagePayload } from '../guest/invitation/api';
 import { readDemoPages } from '../try/demo';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 
@@ -49,6 +49,26 @@ export const SAMPLE_GUIDE: ReceptionGuide = {
     { q: 'Is there somewhere to leave a gift?', a: 'There’s a table by the barn door. Your company is the real gift.' },
   ],
 };
+
+const all = { ...(generic as Record<string, string>), ...(dynamic as Record<string, string>) };
+
+/** The sample wedding's photo page (/demo/photos): try every frame and look; nothing is sent. */
+export function samplePhotos(): PhotoPagePayload {
+  const w = SAMPLE_INVITE.wedding;
+  const ev = { key: 'wedding', name: 'The wedding', startsAt: SAMPLE_INVITE.events[0]!.startsAt, slot: 0 };
+  return {
+    wedding: { slug: w.slug, name1: w.name1, name2: w.name2, theme: w.theme, monogram: w.monogram, timezone: w.timezone },
+    events: [ev],
+    event: ev,
+    images: {},
+    name: 'Emma',
+    linked: true,
+    open: true,
+    album: false,
+    looks: null,
+    texts: Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('ph.'))),
+  };
+}
 
 const texts = Object.fromEntries(Object.entries({ ...(generic as Record<string, string>), ...(dynamic as Record<string, string>) }).filter(([k]) => k.startsWith('gd.')));
 

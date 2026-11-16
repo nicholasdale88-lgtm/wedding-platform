@@ -28,6 +28,15 @@ describe('sample Setup (Company → Preview, Try the app)', () => {
     expect((sampleGuide(false).guide as { arrive?: string }).arrive).toBe('1:30pm');
   });
 
+  it('the sample photo page is open, for the sample guest, with its own wording', async () => {
+    const { samplePhotos } = await import('../src/sales/sampleGuide');
+    const p = samplePhotos();
+    expect(p.open).toBe(true);
+    expect(p.event?.key).toBe('wedding');
+    expect(Object.keys(p.texts).length).toBeGreaterThan(0);
+    expect(Object.keys(p.texts).every((k) => k.startsWith('ph.'))).toBe(true);
+  });
+
   it('sharing a preview link says it isn’t in the sample', async () => {
     await expect(demoRequest('/a/w/demo/pages/share', { method: 'POST', body: JSON.stringify({ on: true }) })).rejects.toThrow(/sample/);
   });
