@@ -1,8 +1,10 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi } from '../invitation/api';
-import { themeOf } from '../themeKit';
+import '@fontsource/cormorant-garamond/400.css';
+import '@fontsource/cormorant-garamond/400-italic.css';
+import { Ornament, partyLook, SANS, SERIF } from './look';
 
 /**
  * The wedding party portal's doors: sign in (email and password), forgot password (a reset link texted
@@ -10,22 +12,29 @@ import { themeOf } from '../themeKit';
  * account bar (change password, sign out). In the wedding's colours, made for a phone.
  */
 
-const ink = '#33402f';
-const field = 'w-full py-3 px-4 rounded-[12px] border bg-white text-[18px]';
+/** The wedding's ink, set on the page (--pi) by the shell and the party page; the default before it is. */
+const ink = 'var(--pi, #33402f)';
+const field = 'w-full min-h-[48px] py-3 px-4 rounded-[12px] border bg-white text-[18px]';
+const fieldStyle = { borderColor: 'rgba(0,0,0,.15)', color: '#222' };
+/** A quiet text button (Forgot your password?, Sign out): still a full thumb's height. */
+const linkBtn = 'inline-flex items-center min-h-[44px] px-1 border-0 bg-transparent underline cursor-pointer';
 
 function Shell({ couple, theme, title, children }: { couple: string; theme?: string; title: string; children: ReactNode }) {
-  const gold = themeOf(theme).acc ?? '#b39563';
+  const look = partyLook(theme);
+  const vars = { '--pi': look.ink, '--pg': look.gold, '--pp': look.paper } as CSSProperties;
   return (
-    <main className="min-h-screen flex items-center justify-center px-5 py-12" style={{ background: '#f6f0e2', color: ink, fontFamily: "'Cormorant Garamond', Georgia, serif" }}>
-      <div className="w-full max-w-[420px] flex flex-col gap-5">
-        <header className="text-center flex flex-col gap-2">
-          <div className="text-[13px] tracking-[.3em] uppercase font-semibold opacity-80" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-            {couple}
-          </div>
-          <h1 className="m-0 font-normal text-[46px] leading-[1.1]" style={{ fontFamily: "'Pinyon Script', cursive" }}>
+    <main className="min-h-screen flex items-center justify-center px-4 py-12 overflow-x-hidden" style={{ ...vars, background: look.bg, color: look.ink, fontFamily: SERIF }}>
+      <div className="w-full max-w-[420px] flex flex-col gap-5 px-5 py-8 rounded-[24px]" style={{ background: look.card, border: `1px solid ${look.line}`, boxShadow: look.shadow }}>
+        <header className="text-center flex flex-col items-center gap-2">
+          {couple && (
+            <div className="text-[14px] tracking-[.2em] uppercase font-semibold" style={{ fontFamily: SANS, color: look.label }}>
+              {couple}
+            </div>
+          )}
+          <h1 className="m-0 font-normal text-[46px] leading-[1.1] break-words max-w-full" style={{ fontFamily: "'Pinyon Script', cursive" }}>
             {title}
           </h1>
-          <span aria-hidden className="mx-auto w-16 h-[2px]" style={{ background: gold }} />
+          <Ornament gold={look.gold} />
         </header>
         {children}
       </div>
@@ -34,7 +43,7 @@ function Shell({ couple, theme, title, children }: { couple: string; theme?: str
 }
 function Button({ children, busy }: { children: ReactNode; busy?: boolean }) {
   return (
-    <button type="submit" disabled={busy} className="w-full py-3 rounded-full border-0 text-[18px] cursor-pointer text-white disabled:opacity-60" style={{ background: ink, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <button type="submit" disabled={busy} className="w-full min-h-[48px] py-3 rounded-full border-0 text-[18px] cursor-pointer disabled:opacity-60" style={{ background: ink, color: 'var(--pp, #fbf8f2)', fontFamily: SANS }}>
       {children}
     </button>
   );
@@ -82,12 +91,12 @@ export function PartySignIn({ slug, onDone }: { slug: string; onDone: () => void
       <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-[16px]">
           Email
-          <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+          <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} style={fieldStyle} />
         </label>
         {mode === 'in' && (
           <label className="flex flex-col gap-1 text-[16px]">
             Password
-            <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className={field} style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+            <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} className={field} style={fieldStyle} />
           </label>
         )}
         <Alert {...msg} />
@@ -96,7 +105,7 @@ export function PartySignIn({ slug, onDone }: { slug: string; onDone: () => void
       <button type="button" onClick={() => {
           setMode(mode === 'in' ? 'forgot' : 'in');
           setMsg({ text: '' });
-        }} className="self-center p-0 border-0 bg-transparent underline cursor-pointer text-[17px]" style={{ color: ink }}>
+        }} className={`self-center ${linkBtn} text-[17px]`} style={{ color: ink }}>
         {mode === 'in' ? 'Forgot your password?' : 'Back to sign in'}
       </button>
       <p className="m-0 text-center text-[15px] opacity-75">No sign-in yet? The couple will send you an invite link.</p>
@@ -152,16 +161,16 @@ export function PartyLinkPage() {
         {!info.setUp && (
           <label className="flex flex-col gap-1 text-[16px]">
             Your email (you’ll sign in with it)
-            <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+            <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} style={fieldStyle} />
           </label>
         )}
         <label className="flex flex-col gap-1 text-[16px]">
           {info.setUp ? 'New password' : 'Choose a password'} (at least 8 characters)
-          <input type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className={field} style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+          <input type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className={field} style={fieldStyle} />
         </label>
         <label className="flex flex-col gap-1 text-[16px]">
           Once more
-          <input type="password" autoComplete="new-password" required minLength={8} value={again} onChange={(e) => setAgain(e.target.value)} className={field} style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+          <input type="password" autoComplete="new-password" required minLength={8} value={again} onChange={(e) => setAgain(e.target.value)} className={field} style={fieldStyle} />
         </label>
         <Alert text={msg} />
         <Button busy={busy}>{busy ? 'One moment…' : info.setUp ? 'Save and sign in' : 'Set up and sign in'}</Button>
@@ -188,20 +197,20 @@ export function AccountBar({ slug, name, onSignedOut }: { slug: string; name: st
     }
   };
   return (
-    <div className="flex flex-col gap-2 text-[16px]" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <div className="flex justify-center items-center gap-3 flex-wrap opacity-85">
+    <div className="flex flex-col gap-2 w-full text-[16px]" style={{ fontFamily: SANS }}>
+      <div className="flex justify-center items-center gap-x-3 flex-wrap opacity-85">
         <span>Signed in as {name}</span>
-        <button type="button" onClick={() => setOpen(!open)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[15px]" style={{ color: ink }}>
+        <button type="button" onClick={() => setOpen(!open)} className={`${linkBtn} text-[15px]`} style={{ color: ink }}>
           {open ? 'Close' : 'Password'}
         </button>
-        <button type="button" onClick={() => void guestApi.portalLogout(slug).then(onSignedOut, onSignedOut)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[15px]" style={{ color: ink }}>
+        <button type="button" onClick={() => void guestApi.portalLogout(slug).then(onSignedOut, onSignedOut)} className={`${linkBtn} text-[15px]`} style={{ color: ink }}>
           Sign out
         </button>
       </div>
       {open && (
-        <form onSubmit={(e) => void change(e)} className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
-          <input type="password" autoComplete="current-password" placeholder="Current password" required value={cur} onChange={(e) => setCur(e.target.value)} className={field} style={{ borderColor: 'rgba(0,0,0,.15)' }} />
-          <input type="password" autoComplete="new-password" placeholder="New password (8+ characters)" required minLength={8} value={next} onChange={(e) => setNext(e.target.value)} className={field} style={{ borderColor: 'rgba(0,0,0,.15)' }} />
+        <form onSubmit={(e) => void change(e)} className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border text-left" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
+          <input type="password" autoComplete="current-password" placeholder="Current password" required value={cur} onChange={(e) => setCur(e.target.value)} className={field} style={fieldStyle} />
+          <input type="password" autoComplete="new-password" placeholder="New password (8+ characters)" required minLength={8} value={next} onChange={(e) => setNext(e.target.value)} className={field} style={fieldStyle} />
           <Alert {...msg} />
           <Button>Change password</Button>
         </form>

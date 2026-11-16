@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { PartyPayload } from '../invitation/api';
+import { Ornament, SANS } from './look';
 
 /** "The bridal party" for bridesmaids and the maid of honour, "The groomsmen" for groomsmen, the best man and ushers. */
 export function partyGroup(roles: string[]): { title: string; word: string } {
@@ -28,7 +29,7 @@ function tips(perms: Perms, calendar: boolean): [string, string][] {
  * The first time they open their page: a welcome to the bridal party (or the groomsmen) and what the page
  * does, once; afterwards "How your page works" at the bottom brings the same guide back.
  */
-export function PartyWelcome({ storeKey, firstNames, word, couple, perms, calendar, gold, ink }: { storeKey: string; firstNames: string; word: string; couple: string; perms: Perms; calendar: boolean; gold: string; ink: string }) {
+export function PartyWelcome({ storeKey, firstNames, word, couple, perms, calendar, gold, ink, paper = '#fbf8f2' }: { storeKey: string; firstNames: string; word: string; couple: string; perms: Perms; calendar: boolean; gold: string; ink: string; paper?: string }) {
   const seen = (() => {
     try {
       return localStorage.getItem(storeKey) === '1';
@@ -47,20 +48,26 @@ export function PartyWelcome({ storeKey, firstNames, word, couple, perms, calend
   };
   if (!open) return null;
   return (
-    <section aria-label="Welcome" className="flex flex-col gap-3 p-5 rounded-[18px] text-[18px]" style={{ background: '#fbf8f2', border: `1px solid ${gold}`, boxShadow: '0 8px 24px rgba(51,64,47,.12)' }}>
-      <h2 className="m-0 font-normal text-[32px] leading-tight">Welcome to the {word}, {firstNames}!</h2>
+    <section aria-label="Welcome" className="relative flex flex-col gap-4 px-5 pt-6 pb-5 rounded-[22px] text-[18px] leading-[1.45]" style={{ background: paper, border: `1px solid ${gold}`, boxShadow: '0 1px 2px rgba(0,0,0,.04), 0 14px 32px -18px rgba(0,0,0,.3)' }}>
+      <div className="text-center flex flex-col gap-2">
+        <div className="text-[14px] tracking-[.2em] uppercase font-semibold" style={{ fontFamily: SANS, color: ink, opacity: 0.7 }}>
+          Hello
+        </div>
+        <h2 className="m-0 font-normal text-[32px] leading-[1.15]">Welcome to the {word}, {firstNames}!</h2>
+        <Ornament gold={gold} width={84} />
+      </div>
       <p className="m-0">This is your own page for {couple}’s wedding: everything you need, in one place. Here’s what it does:</p>
-      <ul className="m-0 p-0 list-none flex flex-col gap-2">
+      <ul className="m-0 p-0 list-none flex flex-col gap-3">
         {tips(perms, calendar).map(([t, d]) => (
           <li key={t} className="flex gap-3">
-            <span aria-hidden className="mt-[9px] w-2 h-2 rounded-full shrink-0" style={{ background: gold }} />
+            <span aria-hidden="true" className="mt-[10px] w-2 h-2 rotate-45 shrink-0" style={{ background: gold }} />
             <span>
               <strong className="font-semibold">{t}.</strong> {d}
             </span>
           </li>
         ))}
       </ul>
-      <button type="button" onClick={close} className="self-start mt-1 py-2 px-5 rounded-full border-0 cursor-pointer text-[17px]" style={{ background: ink, color: '#fbf8f2', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <button type="button" onClick={close} className="self-center min-h-[44px] px-8 rounded-full border-0 cursor-pointer text-[17px]" style={{ background: ink, color: '#fbf8f2', fontFamily: SANS }}>
         Got it
       </button>
     </section>
@@ -72,11 +79,11 @@ export function PartyHelp({ perms, calendar, gold }: { perms: Perms; calendar: b
   const [open, setOpen] = useState(false);
   return (
     <section aria-label="How your page works" className="flex flex-col gap-2 text-[17px]">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((x) => !x)} className="self-center p-0 border-0 bg-transparent underline cursor-pointer text-[17px]" style={{ color: 'inherit' }}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((x) => !x)} className="self-center inline-flex items-center min-h-[44px] px-2 border-0 bg-transparent underline cursor-pointer text-[17px]" style={{ color: 'inherit' }}>
         {open ? 'Hide the guide' : 'How your page works'}
       </button>
       {open && (
-        <div className="flex flex-col gap-2 p-4 rounded-[14px]" style={{ border: `1px solid ${gold}` }}>
+        <div className="flex flex-col gap-3 p-5 rounded-[18px] leading-[1.45]" style={{ border: `1px solid ${gold}`, background: 'rgba(255,255,255,.55)' }}>
           {tips(perms, calendar).map(([t, d]) => (
             <p key={t} className="m-0">
               <strong className="font-semibold">{t}.</strong> {d}

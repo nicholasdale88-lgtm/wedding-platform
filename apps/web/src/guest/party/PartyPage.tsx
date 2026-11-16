@@ -1,17 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
-import { themeOf } from '../themeKit';
+import '@fontsource/cormorant-garamond/400.css';
+import '@fontsource/cormorant-garamond/400-italic.css';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { GuestMessage } from '../GuestMessage';
 import { guestApi, GuestApiError, type PartyAct, type PartyMine, type PartyPayload } from '../invitation/api';
 import { AccountBar, PartySignIn } from './PartyAuth';
 import { InstallApp } from '../../lib/InstallApp';
 import { partyGroup, PartyHelp, PartyWelcome } from './PartyWelcome';
+import { Eyebrow, Heading, Ornament, partyLook, SANS, SERIF, type PartyLook } from './look';
 
 /**
  * /w/:slug/party (signed in to the portal) or ?g=<token> (their private link): a wedding party member's own page.
  * What they see is what the couple allows (Setup → Wedding party access): their own run sheet. Only the lines meant for them (the
  * whole party, their side, or their role), for the events they're invited to; who's who in the party;
  * the couple's note. On the day, the line happening now is marked.
+ *
+ * In the wedding's own colours, in this order: who they are and their role, what needs them, their day
+ * (their own moments marked), then who's who.
  */
 
 const first = (s: string) => s.trim().split(/\s+/)[0] ?? s;
@@ -33,6 +38,8 @@ const at = (day: string, t: string) => {
   d.setHours(h, Number(m[2] ?? 0), 0, 0);
   return d.getTime();
 };
+/** A run sheet line meant for them in particular (their side or their role), not the whole party. */
+const forYou = (who: string[] | undefined) => !!who?.length && !who.includes('party');
 
 const HOW: Record<string, string> = { buy: 'Buying', hire: 'Hiring', own: 'Wearing your own' };
 const shortDay = (d: string) => {
@@ -42,9 +49,24 @@ const shortDay = (d: string) => {
     return d;
   }
 };
+const digits = (p: string) => p.replace(/[^\d+]/g, '');
+
+/** A paper card. */
+const cardStyle = (look: PartyLook, extra?: CSSProperties): CSSProperties => ({ background: look.card, border: `1px solid ${look.line}`, boxShadow: look.shadow, ...extra });
+/** A small round button-link (Call, Text, Add to calendar): at least 44px tall for a thumb. */
+const pill = 'inline-flex items-center justify-center min-h-[44px] px-4 rounded-full no-underline text-[16px] whitespace-nowrap';
+
+function CardTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
+  return (
+    <div className="flex justify-between items-baseline gap-3 flex-wrap">
+      <h3 className="m-0 font-normal text-[27px] leading-[1.15]">{children}</h3>
+      {aside}
+    </div>
+  );
+}
 
 /** What they're wearing: bought, hired or their own, the look, their size and fitting, and the dates that matter. */
-function Outfit({ me, gold }: { me: PartyMine; gold: string }) {
+function Outfit({ me, look }: { me: PartyMine; look: PartyLook }) {
   const o = me.outfit;
   if (!o || !(o.how || o.what || o.size || o.fitting)) return null;
   const rows: [string, string][] = [
@@ -57,32 +79,34 @@ function Outfit({ me, gold }: { me: PartyMine; gold: string }) {
     ['Return by', o.how === 'hire' && o.returnBy ? shortDay(o.returnBy) : ''],
   ];
   return (
-    <section id="outfit" aria-label="Your outfit" className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border scroll-mt-20" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
-      <div className="flex justify-between items-baseline gap-2">
-        <h2 className="m-0 font-normal text-[28px]">{`${first(me.name)}’s outfit`}</h2>
-        {o.collected && <span className="text-[15px] italic" style={{ color: gold }}>Collected ✓</span>}
-      </div>
-      <dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-1 text-[18px] leading-[1.35]">
+    <section id="outfit" aria-label="Your outfit" className="flex flex-col gap-3 p-5 rounded-[18px] scroll-mt-24" style={cardStyle(look)}>
+      <CardTitle aside={o.collected && <span className="text-[16px] italic" style={{ color: look.label }}>Collected ✓</span>}>{`${first(me.name)}’s outfit`}</CardTitle>
+      <dl className="m-0 grid grid-cols-[100px_minmax(0,1fr)] gap-x-3 text-[18px] leading-[1.35]">
         {rows
           .filter(([, v]) => v)
           .map(([k, v]) => (
             <div key={k} className="contents">
-              <dt className="opacity-70">{k}</dt>
-              <dd className="m-0">{v}</dd>
+              <dt className="py-2 border-t text-[15px] tracking-[.08em] uppercase self-stretch" style={{ borderColor: look.line, color: look.label, fontFamily: SANS }}>
+                {k}
+              </dt>
+              <dd className="m-0 py-2 border-t break-words" style={{ borderColor: look.line }}>
+                {v}
+              </dd>
             </div>
           ))}
       </dl>
-      {o.notes && <p className="m-0 text-[17px] leading-[1.4] whitespace-pre-wrap">{o.notes}</p>}
+      {o.notes && <p className="m-0 text-[17px] leading-[1.45] whitespace-pre-wrap">{o.notes}</p>}
       {o.how === 'hire' && o.returnBy && <p className="m-0 text-[16px] italic opacity-80">Hired: it goes back by {shortDay(o.returnBy)}, so keep the receipt and the bag.</p>}
     </section>
   );
 }
 
 /** Their side's night out (the hens or the bucks). */
-function Night({ night }: { night: NonNullable<PartyMine['night']> }) {
+function Night({ night, look }: { night: NonNullable<PartyMine['night']>; look: PartyLook }) {
   return (
-    <section aria-label={night.title || 'The night out'} className="flex flex-col gap-1 p-4 rounded-[16px] text-[18px]" style={{ background: 'rgba(179,149,99,.14)' }}>
-      <h2 className="m-0 font-normal text-[28px]">{night.title || 'The night out'}</h2>
+    <section aria-label={night.title || 'The night out'} className="flex flex-col gap-1 p-5 rounded-[18px] text-[18px]" style={{ background: look.wash, border: `1px solid ${look.gold}` }}>
+      <Eyebrow color={look.label}>Save the date</Eyebrow>
+      <h3 className="m-0 font-normal text-[27px] leading-[1.15]">{night.title || 'The night out'}</h3>
       {night.date && <span>{fmtDay(`${night.date}T12:00`)}</span>}
       {night.place && <span className="italic">{night.place}</span>}
       {night.organiser && <span className="text-[16px] opacity-80">Organised by {night.organiser}</span>}
@@ -92,111 +116,132 @@ function Night({ night }: { night: NonNullable<PartyMine['night']> }) {
 
 type Act = (body: Omit<PartyAct, 'token'>, apply: (m: PartyMine) => PartyMine) => void;
 
-/** Their packing list: the couple's list for them plus anything they add, ticked off and saved for them. */
-function Packing({ items, me, act, gold }: { items: { text: string }[]; me: PartyMine; act: Act; gold: string }) {
+/** One tickable line: the whole row ticks it (a big target for a thumb); their own ones can be removed. */
+function Tick({ text, done, onToggle, onRemove, look, children }: { text: string; done: boolean; onToggle: () => void; onRemove?: () => void; look: PartyLook; children?: ReactNode }) {
+  return (
+    <div className="flex items-start gap-1 border-t" style={{ borderColor: look.line }}>
+      <label className="flex-1 min-w-0 flex items-start gap-3 py-3 min-h-[44px] cursor-pointer text-[19px] leading-[1.3]">
+        <input type="checkbox" aria-label={text} checked={done} onChange={onToggle} className="mt-[3px] w-[22px] h-[22px] flex-none cursor-pointer" style={{ accentColor: look.gold }} />
+        <span className="flex-1 min-w-0 break-words" style={done ? { textDecoration: 'line-through', opacity: 0.55 } : undefined}>
+          {text}
+          {children}
+        </span>
+      </label>
+      {onRemove && (
+        <button type="button" aria-label={`Remove ${text}`} onClick={onRemove} className="flex-none w-11 h-11 mt-[1px] flex items-center justify-center rounded-full border-0 bg-transparent cursor-pointer opacity-60 text-[22px]" style={{ color: look.ink }}>
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** A one-line box to add their own thing. */
+function AddLine({ label, onAdd, look }: { label: string; onAdd: (text: string) => boolean; look: PartyLook }) {
   const [adding, setAdding] = useState('');
+  return (
+    <form
+      className="flex gap-2 pt-3 border-t"
+      style={{ borderColor: look.line }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const text = adding.trim();
+        if (!text) return;
+        if (onAdd(text)) setAdding('');
+      }}
+    >
+      <input aria-label={label} placeholder={label} value={adding} maxLength={160} onChange={(e) => setAdding(e.target.value)} className="flex-1 min-w-0 min-h-[44px] px-3 rounded-[12px] border bg-white text-[17px]" style={{ borderColor: look.line, color: look.ink }} />
+      <button type="submit" className="flex-none min-h-[44px] px-5 rounded-full border-0 text-[16px] cursor-pointer" style={{ background: look.ink, color: look.paper, fontFamily: SANS }}>
+        Add
+      </button>
+    </form>
+  );
+}
+
+const count = (left: number, total: number, all: string, look: PartyLook) =>
+  total ? (
+    <span className="text-[16px] italic" style={{ color: left ? look.label : look.ink, opacity: left ? 1 : 0.75 }}>
+      {left ? `${left} to go` : all}
+    </span>
+  ) : null;
+
+/** Their packing list: the couple's list for them plus anything they add, ticked off and saved for them. */
+function Packing({ items, me, act, look }: { items: { text: string }[]; me: PartyMine; act: Act; look: PartyLook }) {
   const shared = items.map((i) => ({ text: i.text, done: me.packed.includes(i.text), own: false }));
   const all = [...shared, ...me.pack.map((p) => ({ ...p, own: true }))];
   const left = all.filter((i) => !i.done).length;
   return (
-    <div className="flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
-      <div className="flex justify-between items-baseline">
-        <h3 className="m-0 font-normal text-[26px]">What to pack</h3>
-        <span className="text-[15px] italic opacity-75">{all.length ? (left ? `${left} to go` : 'All packed ✓') : ''}</span>
+    <div className="flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
+      <div className="pb-2">
+        <CardTitle aside={count(left, all.length, 'All packed ✓', look)}>What to pack</CardTitle>
       </div>
       {all.map((i) => (
-        <div key={`${i.own ? 'o' : 's'}-${i.text}`} className="flex items-start gap-3 text-[19px] leading-[1.3]">
-          <input
-            type="checkbox"
-            aria-label={i.text}
-            checked={i.done}
-            onChange={() =>
-              i.own
-                ? act({ personId: me.personId, action: 'own-pack', text: i.text, done: !i.done }, (m) => ({ ...m, pack: m.pack.map((x) => (x.text === i.text ? { ...x, done: !i.done } : x)) }))
-                : act({ personId: me.personId, action: 'packed', text: i.text, done: !i.done }, (m) => ({ ...m, packed: i.done ? m.packed.filter((x) => x !== i.text) : [...m.packed, i.text] }))
-            }
-            className="mt-[5px] w-[20px] h-[20px] flex-none cursor-pointer"
-            style={{ accentColor: gold }}
-          />
-          <span className="flex-1" style={i.done ? { textDecoration: 'line-through', opacity: 0.55 } : undefined}>
-            {i.text}
-          </span>
-          {i.own && (
-            <button type="button" aria-label={`Remove ${i.text}`} onClick={() => act({ personId: me.personId, action: 'remove-pack', text: i.text }, (m) => ({ ...m, pack: m.pack.filter((x) => x.text !== i.text) }))} className="p-0 border-0 bg-transparent cursor-pointer opacity-60 text-[20px]">
-              ×
-            </button>
-          )}
-        </div>
+        <Tick
+          key={`${i.own ? 'o' : 's'}-${i.text}`}
+          text={i.text}
+          done={i.done}
+          look={look}
+          onToggle={() =>
+            i.own
+              ? act({ personId: me.personId, action: 'own-pack', text: i.text, done: !i.done }, (m) => ({ ...m, pack: m.pack.map((x) => (x.text === i.text ? { ...x, done: !i.done } : x)) }))
+              : act({ personId: me.personId, action: 'packed', text: i.text, done: !i.done }, (m) => ({ ...m, packed: i.done ? m.packed.filter((x) => x !== i.text) : [...m.packed, i.text] }))
+          }
+          onRemove={i.own ? () => act({ personId: me.personId, action: 'remove-pack', text: i.text }, (m) => ({ ...m, pack: m.pack.filter((x) => x.text !== i.text) })) : undefined}
+        />
       ))}
-      <form
-        className="flex gap-2 mt-1"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const text = adding.trim();
-          if (!text || all.some((x) => x.text === text)) return;
+      <AddLine
+        label="Add something to pack"
+        look={look}
+        onAdd={(text) => {
+          if (all.some((x) => x.text === text)) return false;
           act({ personId: me.personId, action: 'add-pack', text }, (m) => ({ ...m, pack: [...m.pack, { text, done: false }] }));
-          setAdding('');
+          return true;
         }}
-      >
-        <input aria-label="Add something to pack" placeholder="Add something to pack" value={adding} maxLength={160} onChange={(e) => setAdding(e.target.value)} className="flex-1 min-w-0 py-2 px-3 rounded-[10px] border bg-white text-[17px]" style={{ borderColor: 'rgba(0,0,0,.15)' }} />
-        <button type="submit" className="py-2 px-4 rounded-full border-0 text-[16px] cursor-pointer text-white" style={{ background: '#33402f' }}>
-          Add
-        </button>
-      </form>
+      />
     </div>
   );
 }
 
 /** Their to-dos before the day: their own and their side's, ticked off here (the couple sees it). They can add their own. */
-function Todos({ me, act, gold, many, canAdd }: { me: PartyMine; act: Act; gold: string; many: boolean; canAdd: boolean }) {
-  const [adding, setAdding] = useState('');
+function Todos({ me, act, look, many, canAdd }: { me: PartyMine; act: Act; look: PartyLook; many: boolean; canAdd: boolean }) {
   const left = me.tasks.filter((t) => !t.done).length;
   const fmt = (d: string) => (d ? new Date(`${d}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '');
   return (
-    <section id="todos" aria-label={`${first(me.name)}’s to-dos`} className="scroll-mt-20 flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
-      <div className="flex justify-between items-baseline">
-        <h2 className="m-0 font-normal text-[28px]">{many ? `${first(me.name)}’s to-dos` : 'Your to-dos'}</h2>
-        <span className="text-[15px] italic opacity-75">{me.tasks.length ? (left ? `${left} to go` : 'All done ✓') : ''}</span>
+    <section id="todos" aria-label={`${first(me.name)}’s to-dos`} className="scroll-mt-24 flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
+      <div className="pb-2">
+        <CardTitle aside={count(left, me.tasks.length, 'All done ✓', look)}>{many ? `${first(me.name)}’s to-dos` : 'Your to-dos'}</CardTitle>
       </div>
       {me.tasks.map((t) => (
-        <div key={t.id} className="flex items-start gap-3 text-[19px] leading-[1.3]">
-          <input
-            type="checkbox"
-            aria-label={t.text}
-            checked={t.done}
-            onChange={() => act({ personId: me.personId, action: 'task', id: t.id, done: !t.done }, (m) => ({ ...m, tasks: m.tasks.map((x) => (x.id === t.id ? { ...x, done: !t.done } : x)) }))}
-            className="mt-[5px] w-[20px] h-[20px] flex-none cursor-pointer"
-            style={{ accentColor: gold }}
-          />
-          <span className="flex-1" style={t.done ? { textDecoration: 'line-through', opacity: 0.55 } : undefined}>
-            {t.text}
-            {t.due && <span className="ml-2 text-[15px] italic opacity-75">by {fmt(t.due)}</span>}
-          </span>
-          {t.mine && (
-            <button type="button" aria-label={`Remove ${t.text}`} onClick={() => act({ personId: me.personId, action: 'remove-task', id: t.id }, (m) => ({ ...m, tasks: m.tasks.filter((x) => x.id !== t.id) }))} className="p-0 border-0 bg-transparent cursor-pointer opacity-60 text-[20px]">
-              ×
-            </button>
+        <Tick
+          key={t.id}
+          text={t.text}
+          done={t.done}
+          look={look}
+          onToggle={() => act({ personId: me.personId, action: 'task', id: t.id, done: !t.done }, (m) => ({ ...m, tasks: m.tasks.map((x) => (x.id === t.id ? { ...x, done: !t.done } : x)) }))}
+          onRemove={t.mine ? () => act({ personId: me.personId, action: 'remove-task', id: t.id }, (m) => ({ ...m, tasks: m.tasks.filter((x) => x.id !== t.id) })) : undefined}
+        >
+          {t.due && (
+            <span className="ml-2 inline-block text-[15px] italic whitespace-nowrap" style={{ color: look.label }}>
+              by {fmt(t.due)}
+            </span>
           )}
-        </div>
+        </Tick>
       ))}
-      {!me.tasks.length && <p className="m-0 italic opacity-75">{canAdd ? 'Nothing yet. Add your own below.' : 'Nothing yet.'}</p>}
+      {!me.tasks.length && (
+        <p className="m-0 py-3 border-t italic opacity-75 text-[18px]" style={{ borderColor: look.line }}>
+          {canAdd ? 'Nothing yet. Add your own below.' : 'Nothing yet.'}
+        </p>
+      )}
       {canAdd && (
-      <form
-        className="flex gap-2 mt-1"
-        onSubmit={(e) => {
-          e.preventDefault();
-          const text = adding.trim();
-          if (!text) return;
-          // Added for real once saved (it needs its id from the couple's plan): the page reloads its lists.
-          act({ personId: me.personId, action: 'add-task', text }, (m) => ({ ...m, tasks: [...m.tasks, { id: `new-${Date.now()}`, text, due: '', done: false, mine: true }] }));
-          setAdding('');
-        }}
-      >
-        <input aria-label="Add a to-do" placeholder="Add a to-do" value={adding} maxLength={160} onChange={(e) => setAdding(e.target.value)} className="flex-1 min-w-0 py-2 px-3 rounded-[10px] border bg-white text-[17px]" style={{ borderColor: 'rgba(0,0,0,.15)' }} />
-        <button type="submit" className="py-2 px-4 rounded-full border-0 text-[16px] cursor-pointer text-white" style={{ background: '#33402f' }}>
-          Add
-        </button>
-      </form>
+        <AddLine
+          label="Add a to-do"
+          look={look}
+          onAdd={(text) => {
+            // Added for real once saved (it needs its id from the couple's plan): the page reloads its lists.
+            act({ personId: me.personId, action: 'add-task', text }, (m) => ({ ...m, tasks: [...m.tasks, { id: `new-${Date.now()}`, text, due: '', done: false, mine: true }] }));
+            return true;
+          }}
+        />
       )}
     </section>
   );
@@ -206,7 +251,7 @@ function Todos({ me, act, gold, many, canAdd }: { me: PartyMine; act: Act; gold:
  * On the day: what's happening now and what's next, big, at the top (for the event happening today).
  * The MC also gets a speech timer (3, 5 or 8 minutes) that turns gold, then red, as time runs out.
  */
-function NowNext({ data, now, gold, isMc }: { data: PartyPayload; now: number; gold: string; isMc: boolean }) {
+function NowNext({ data, now, look, isMc }: { data: PartyPayload; now: number; look: PartyLook; isMc: boolean }) {
   const today = data.events.find((e) => new Date(e.startsAt).toDateString() === new Date(now).toDateString());
   const [timer, setTimer] = useState<{ until: number; mins: number } | null>(null);
   const [tick, setTick] = useState(0);
@@ -223,45 +268,46 @@ function NowNext({ data, now, gold, isMc }: { data: PartyPayload; now: number; g
   const left = timer ? Math.max(0, Math.round((timer.until - Date.now()) / 1000)) : 0;
   void tick;
   const mmss = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+  const tag = (t: string) => (
+    <div className="text-[14px] tracking-[.25em] uppercase font-semibold" style={{ fontFamily: SANS, color: look.gold }}>
+      {t}
+    </div>
+  );
   return (
-    <section aria-label="Now and next" className="flex flex-col gap-3 p-5 rounded-[20px] text-[#fbf8f2]" style={{ background: '#33402f' }}>
+    <section aria-label="Now and next" className="flex flex-col gap-4 p-5 rounded-[20px]" style={{ background: look.ink, color: look.paper, boxShadow: look.shadow }}>
       {today && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <div className="text-[12px] tracking-[.25em] uppercase font-semibold opacity-80" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: gold }}>
-              Now
-            </div>
-            <div className="text-[26px] leading-tight">{cur >= 0 ? items[cur]!.title : 'Not started yet'}</div>
+          <div className="min-w-0">
+            {tag('Now')}
+            <div className="text-[27px] leading-tight break-words">{cur >= 0 ? items[cur]!.title : 'Not started yet'}</div>
             {cur >= 0 && items[cur]!.place && <div className="text-[17px] italic opacity-80">{items[cur]!.place}</div>}
           </div>
-          <div>
-            <div className="text-[12px] tracking-[.25em] uppercase font-semibold opacity-80" style={{ fontFamily: "'DM Sans', system-ui, sans-serif", color: gold }}>
-              Next
-            </div>
-            <div className="text-[26px] leading-tight">{next >= 0 ? `${items[next]!.time} · ${items[next]!.title}` : 'That’s the lot!'}</div>
+          <div className="min-w-0 pt-3 border-t sm:pt-0 sm:border-t-0 sm:pl-4 sm:border-l" style={{ borderColor: 'rgba(255,255,255,.2)' }}>
+            {tag('Next')}
+            <div className="text-[27px] leading-tight break-words">{next >= 0 ? `${items[next]!.time} · ${items[next]!.title}` : 'That’s the lot!'}</div>
             {next >= 0 && times[next] !== null && <div className="text-[17px] italic opacity-80">in {Math.max(0, Math.round((times[next]! - now) / 60_000))} minutes</div>}
           </div>
         </div>
       )}
       {isMc && (
-        <div className="flex flex-col gap-2 pt-2 border-t border-white/20">
+        <div className="flex flex-col gap-3 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,.2)' }}>
           <div className="flex justify-between items-center gap-3 flex-wrap">
-            <span className="text-[18px]">Speech timer</span>
-            <span className="flex gap-2">
+            <span className="text-[20px]">Speech timer</span>
+            <span className="flex gap-2 flex-wrap">
               {[3, 5, 8].map((m) => (
-                <button key={m} type="button" onClick={() => setTimer({ until: Date.now() + m * 60_000, mins: m })} className="py-[6px] px-3 rounded-full border border-white/40 bg-transparent text-[#fbf8f2] text-[16px] cursor-pointer">
+                <button key={m} type="button" onClick={() => setTimer({ until: Date.now() + m * 60_000, mins: m })} className="min-h-[44px] px-4 rounded-full border bg-transparent text-[16px] cursor-pointer" style={{ borderColor: 'rgba(255,255,255,.4)', color: look.paper, fontFamily: SANS }}>
                   {m} min
                 </button>
               ))}
               {timer && (
-                <button type="button" onClick={() => setTimer(null)} className="py-[6px] px-3 rounded-full border-0 bg-white/15 text-[#fbf8f2] text-[16px] cursor-pointer">
+                <button type="button" onClick={() => setTimer(null)} className="min-h-[44px] px-4 rounded-full border-0 bg-white/15 text-[16px] cursor-pointer" style={{ color: look.paper, fontFamily: SANS }}>
                   Stop
                 </button>
               )}
             </span>
           </div>
           {timer && (
-            <div role="timer" aria-live="off" className="text-center text-[64px] leading-none tabular-nums font-semibold" style={{ color: left === 0 ? '#e8a08a' : left <= 30 ? gold : '#fbf8f2' }}>
+            <div role="timer" aria-live="off" className="text-center text-[64px] leading-none tabular-nums font-semibold" style={{ color: left === 0 ? '#e8a08a' : left <= 30 ? look.gold : look.paper }}>
               {left === 0 ? 'Time!' : mmss}
             </div>
           )}
@@ -327,9 +373,9 @@ export function PartyPage() {
         setNote(e.message);
       });
   };
-  const theme = themeOf(data.theme);
-  const ink = '#33402f';
-  const gold = theme.acc ?? '#b39563';
+  // The wedding's own colours (its invitation theme).
+  const look = partyLook(data.theme);
+  const { ink, gold } = look;
   const roles = [...new Set(data.me.map((m) => m.role))];
   const group = partyGroup(roles);
   const title = (k: 'p1' | 'p2') => `${data.sides?.[k] || (k === 'p1' ? 'Bride' : 'Groom')}'s side`;
@@ -338,23 +384,42 @@ export function PartyPage() {
     [title('p2'), data.names.p2, data.party.filter((p) => p.side === 'p2')],
     ['Also helping', '', data.party.filter((p) => !p.side)],
   ];
+  const calendar = mine.some((m) => m.calendar);
+  const showTodos = (!perms || perms.tasks) && mine.length > 0;
+  const hasOutfit = mine.some((m) => m.outfit && (m.outfit.how || m.outfit.what || m.outfit.size || m.outfit.fitting));
+  const nights = [...new Map(mine.filter((m) => m.night).map((m) => [JSON.stringify(m.night), m.night!])).values()];
+  const needsYou = showTodos || calendar || hasOutfit || nights.length > 0;
+  const cssVars = { '--pi': ink, '--pg': gold, '--pp': look.paper } as CSSProperties;
 
   return (
-    <main className="min-h-screen" style={{ background: '#f6f0e2', color: ink, fontFamily: "'Cormorant Garamond', Georgia, serif" }}>
-      <div className="max-w-[640px] mx-auto px-5 pt-12 pb-24 flex flex-col gap-7">
-        <header className="text-center flex flex-col gap-2">
-          <div className="text-[13px] tracking-[.3em] uppercase font-semibold opacity-80" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-            {data.couple}
-          </div>
-          <h1 className="m-0 font-normal text-[52px] leading-[1.1]" style={{ fontFamily: "'Pinyon Script', cursive" }}>
+    <main className="min-h-screen overflow-x-hidden" style={{ ...cssVars, background: look.bg, color: ink, fontFamily: SERIF }}>
+      <div className="max-w-[640px] mx-auto px-4 sm:px-5 pt-10 pb-24 flex flex-col gap-8">
+        <header className="text-center flex flex-col items-center gap-3">
+          <Eyebrow color={look.label}>{data.couple}</Eyebrow>
+          <h1 className="m-0 font-normal text-[50px] leading-[1.1] break-words max-w-full" style={{ fontFamily: "'Pinyon Script', cursive" }}>
             {group.title}
           </h1>
-          <span aria-hidden className="mx-auto w-16 h-[2px]" style={{ background: gold }} />
-          <p className="m-0 text-[21px] italic">
+          <Ornament gold={gold} />
+        </header>
+
+        {/* Who they are, and their part: first. */}
+        <section aria-label="Your role" className="flex flex-col items-center gap-3 px-5 py-6 rounded-[22px] text-center" style={cardStyle(look, { border: `1px solid ${gold}` })}>
+          <Eyebrow color={look.label}>{data.me.length > 1 ? 'You are' : 'You’re'}</Eyebrow>
+          <div className="flex flex-col gap-3 w-full">
+            {data.me.map((m) => (
+              <div key={`${m.name}-${m.role}`} className="flex flex-col items-center gap-2 min-w-0">
+                <div className="text-[34px] leading-[1.1] break-words max-w-full">{m.name}</div>
+                <span className="inline-flex items-center min-h-[32px] px-4 rounded-full text-[15px] tracking-[.12em] uppercase font-semibold" style={{ background: look.wash, color: look.label, fontFamily: SANS, border: `1px solid ${gold}` }}>
+                  {m.role}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="m-0 text-[20px] italic leading-[1.35]">
             {data.me.map((m) => first(m.name)).join(' & ')}, you're {roles.length === 1 ? `our ${roles[0]!.toLowerCase()}` : `in our wedding party (${roles.join(', ')})`}. Thank you!
           </p>
           {link && (
-            <a href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} className="text-[16px] underline" style={{ color: ink }}>
+            <a href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} className="inline-flex items-center min-h-[44px] text-[16px] underline" style={{ color: ink, fontFamily: SANS }}>
               ← Your invitation
             </a>
           )}
@@ -369,7 +434,7 @@ export function PartyPage() {
               }}
             />
           )}
-        </header>
+        </section>
 
         <PartyWelcome
           storeKey={`wp-party-welcome-${slug}-${data.me.map((m) => m.name).join('-')}`}
@@ -377,175 +442,217 @@ export function PartyPage() {
           word={group.word}
           couple={data.couple}
           perms={perms}
-          calendar={mine.some((m) => m.calendar)}
+          calendar={calendar}
           gold={gold}
           ink={ink}
+          paper={look.card}
         />
 
-        <nav aria-label="On this page" className="sticky top-0 z-10 -mx-5 px-5 py-2 flex gap-2 overflow-x-auto [scrollbar-width:none] bg-[#f6f0e2]/95 backdrop-blur" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+        <nav aria-label="On this page" className="sticky top-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 py-2 flex gap-2 overflow-x-auto [scrollbar-width:none] backdrop-blur" style={{ fontFamily: SANS, background: `${look.paper}f0`, borderBottom: `1px solid ${look.line}` }}>
           {(
             [
               [(!perms || perms.tasks) && mine.some((m) => m.tasks.length || !perms || perms.addTasks), 'todos', 'To-dos'],
-              [mine.some((m) => m.outfit && (m.outfit.how || m.outfit.what || m.outfit.size || m.outfit.fitting)), 'outfit', 'Outfit'],
+              [hasOutfit, 'outfit', 'Outfit'],
               [data.events.length > 0, 'runsheet', 'The day'],
               [true, 'whos-who', 'Who’s who'],
             ] as const
           )
             .filter(([on]) => on)
             .map(([, id, label]) => (
-              <a key={id} href={`#${id}`} className="flex-none py-[6px] px-4 rounded-full border no-underline text-[14px]" style={{ borderColor: gold, color: ink }}>
+              <a key={id} href={`#${id}`} className="flex-none inline-flex items-center min-h-[44px] px-4 rounded-full border no-underline text-[15px]" style={{ borderColor: gold, color: ink, background: look.card }}>
                 {label}
               </a>
             ))}
         </nav>
 
-        <NowNext data={data} now={now} gold={gold} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
+        <NowNext data={data} now={now} look={look} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
 
         {note && (
           <p role="alert" className="m-0 p-3 rounded-[12px] text-[17px]" style={{ background: '#f4dcd2', color: '#7a4a37' }}>
             {note}
           </p>
         )}
-        {mine.some((m) => m.calendar) && (
-          <section aria-label="Your calendar" className="flex flex-col gap-2 p-4 rounded-[16px] border text-[17px]" style={{ borderColor: gold }}>
-            <strong className="font-semibold">On your phone</strong>
-            <span>Your jobs (with a reminder the morning before), fittings, the hens or bucks, and your moments on the day, in your phone’s calendar. If anything changes, it updates by itself.</span>
-            {mine
-              .filter((m) => m.calendar)
-              .map((m) => {
-                const feed = m.calendar!.replace(/^https?:/, 'webcal:');
-                const android = /android/i.test(navigator.userAgent);
-                return (
-                  <a
-                    key={m.personId}
-                    href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
-                    {...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                    className="self-start py-2 px-4 rounded-full no-underline text-[16px]"
-                    style={{ background: ink, color: '#fbf8f2' }}
-                  >
-                    Add {mine.length > 1 ? `${first(m.name)}’s` : 'my'} jobs to my calendar
-                  </a>
-                );
-              })}
-          </section>
+
+        {needsYou && (
+          <div className="flex flex-col gap-4">
+            <Heading kicker="Before the day" title="What needs you" look={look} />
+            {showTodos && mine.map((m) => <Todos key={m.personId} me={m} act={act} look={look} many={mine.length > 1} canAdd={!perms || perms.addTasks} />)}
+            {mine.map((m) => (
+              <Outfit key={`o-${m.personId}`} me={m} look={look} />
+            ))}
+            {nights.map((n) => (
+              <Night key={`${n.title}-${n.date}`} night={n} look={look} />
+            ))}
+            {calendar && (
+              <section aria-label="Your calendar" className="flex flex-col gap-2 p-5 rounded-[18px] text-[17px] leading-[1.45]" style={cardStyle(look)}>
+                <h3 className="m-0 font-normal text-[27px] leading-[1.15]">On your phone</h3>
+                <span>Your jobs (with a reminder the morning before), fittings, the hens or bucks, and your moments on the day, in your phone’s calendar. If anything changes, it updates by itself.</span>
+                {mine
+                  .filter((m) => m.calendar)
+                  .map((m) => {
+                    const feed = m.calendar!.replace(/^https?:/, 'webcal:');
+                    const android = /android/i.test(navigator.userAgent);
+                    return (
+                      <a
+                        key={m.personId}
+                        href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
+                        {...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        className={`self-start mt-1 ${pill} whitespace-normal text-center`}
+                        style={{ background: ink, color: look.paper, fontFamily: SANS }}
+                      >
+                        Add {mine.length > 1 ? `${first(m.name)}’s` : 'my'} jobs to my calendar
+                      </a>
+                    );
+                  })}
+              </section>
+            )}
+          </div>
         )}
-        {(!perms || perms.tasks) &&
-          mine.map((m) => <Todos key={m.personId} me={m} act={act} gold={gold} many={mine.length > 1} canAdd={!perms || perms.addTasks} />)}
-        {mine.map((m) => (
-          <Outfit key={`o-${m.personId}`} me={m} gold={gold} />
-        ))}
-        {[...new Map(mine.filter((m) => m.night).map((m) => [JSON.stringify(m.night), m.night!])).values()].map((n) => (
-          <Night key={`${n.title}-${n.date}`} night={n} />
-        ))}
 
         {data.events.map((e) => {
           const times = e.items.map((it) => at(e.startsAt, it.time));
           // On the day: the latest line that has started is "now"; the one after it is "next".
           const current = times.reduce<number>((acc, t, i) => (t !== null && t <= now && new Date(e.startsAt).toDateString() === new Date(now).toDateString() ? i : acc), -1);
+          const anyYours = e.items.some((it) => forYou(it.who));
           return (
-            <section key={e.key} id={e.key === data.events[0]?.key ? 'runsheet' : undefined} aria-label={e.name} className="scroll-mt-20 flex flex-col gap-3">
-              <div className="text-center">
-                <h2 className="m-0 font-normal text-[34px]">{e.name}</h2>
-                <div className="text-[17px] opacity-80">{fmtDay(e.startsAt)}</div>
-              </div>
-              {e.note && <p className="m-0 p-4 rounded-[16px] bg-white/70 border text-[19px] leading-[1.4] whitespace-pre-wrap" style={{ borderColor: 'rgba(0,0,0,.08)' }}>{e.note}</p>}
-              <ol className="m-0 p-0 list-none flex flex-col">
-                {e.items.map((it, i) => (
-                  <li key={i} className="grid grid-cols-[86px_minmax(0,1fr)] gap-3 py-3 border-t" style={{ borderColor: 'rgba(0,0,0,.08)', background: i === current ? 'rgba(179,149,99,.14)' : undefined }}>
-                    <div className="text-right pr-1">
-                      <div className="text-[19px] font-semibold">{it.time}</div>
-                      {it.until && <div className="text-[14px] opacity-70">to {it.until}</div>}
-                      {i === current && (
-                        <div className="mt-1 text-[11px] tracking-[.2em] uppercase font-semibold" style={{ color: gold, fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                          Now
+            <section key={e.key} id={e.key === data.events[0]?.key ? 'runsheet' : undefined} aria-label={e.name} className="scroll-mt-24 flex flex-col gap-4">
+              <Heading kicker={fmtDay(e.startsAt) || 'Your day'} title={e.name} look={look} />
+              {e.note && (
+                <p className="m-0 p-5 rounded-[18px] text-[19px] leading-[1.45] italic whitespace-pre-wrap" style={cardStyle(look)}>
+                  {e.note}
+                </p>
+              )}
+              {anyYours && (
+                <p className="m-0 flex items-center justify-center gap-2 text-[16px] italic">
+                  <span aria-hidden="true" className="inline-block w-[10px] h-[10px] rounded-full" style={{ background: gold }} />
+                  Your own moments are marked.
+                </p>
+              )}
+              {e.items.length > 0 && (
+                <ol className="m-0 p-0 list-none flex flex-col rounded-[18px] overflow-hidden" style={cardStyle(look)}>
+                  {e.items.map((it, i) => {
+                    const yours = forYou(it.who);
+                    const isNow = i === current;
+                    return (
+                      <li
+                        key={i}
+                        className="grid grid-cols-[74px_minmax(0,1fr)] gap-3 py-4 pr-4 pl-3"
+                        style={{
+                          borderTop: i ? `1px solid ${look.line}` : undefined,
+                          background: isNow ? look.nowWash : yours ? look.wash : undefined,
+                          boxShadow: yours || isNow ? `inset 4px 0 0 ${gold}` : undefined,
+                        }}
+                      >
+                        <div className="text-right">
+                          <div className="text-[19px] font-semibold leading-tight">{it.time}</div>
+                          {it.until && <div className="text-[15px] opacity-70">to {it.until}</div>}
+                          {isNow && (
+                            <div className="mt-1 text-[14px] tracking-[.18em] uppercase font-semibold" style={{ color: look.label, fontFamily: SANS }}>
+                              Now
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <div className="text-[21px] leading-[1.25]">{it.title}</div>
-                      {it.place && <div className="text-[16px] italic opacity-80">{it.place}</div>}
-                      {it.detail && <div className="text-[17px] leading-[1.4] whitespace-pre-wrap">{it.detail}</div>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              {!e.items.length && <p className="m-0 text-center italic opacity-75">The run sheet for this one is coming.</p>}
+                        <div className="flex flex-col gap-1 min-w-0">
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-[21px] leading-[1.25] break-words min-w-0">{it.title}</span>
+                            {yours && (
+                              <span className="text-[14px] tracking-[.12em] uppercase font-semibold" style={{ color: look.label, fontFamily: SANS }}>
+                                Yours
+                              </span>
+                            )}
+                          </div>
+                          {it.place && <div className="text-[16px] italic opacity-80">{it.place}</div>}
+                          {it.detail && <div className="text-[17px] leading-[1.45] whitespace-pre-wrap break-words">{it.detail}</div>}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+              {!e.items.length && <p className="m-0 text-center text-[18px] italic opacity-75">The run sheet for this one is coming.</p>}
               {!!e.holding?.length && (
-                <div className="p-4 rounded-[16px] text-[19px]" style={{ background: 'rgba(179,149,99,.14)' }}>
+                <div className="p-5 rounded-[18px] text-[19px] leading-[1.4]" style={{ background: look.wash, border: `1px solid ${gold}` }}>
                   <strong className="font-semibold">You’re looking after:</strong> {e.holding.join(', ')}
                 </div>
               )}
               {!!e.speeches?.length && (
-                <div className="flex flex-col gap-1 p-4 rounded-[16px] bg-white/70 border" style={{ borderColor: 'rgba(0,0,0,.08)' }}>
-                  <h3 className="m-0 font-normal text-[26px]">Speeches</h3>
+                <div className="flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
+                  <div className="pb-2">
+                    <CardTitle>Speeches</CardTitle>
+                  </div>
                   {e.speeches.map((s, i) => (
-                    <div key={i} className="flex justify-between text-[19px]">
-                      <span>
+                    <div key={i} className="flex justify-between gap-3 py-2 border-t text-[19px]" style={{ borderColor: look.line }}>
+                      <span className="min-w-0 break-words">
                         {i + 1}. {s.who}
                       </span>
-                      <span className="italic opacity-75">{s.minutes} min</span>
+                      <span className="italic opacity-75 whitespace-nowrap">{s.minutes} min</span>
                     </div>
                   ))}
                 </div>
               )}
-              {mine[0] && (!!e.packing?.length || mine[0].pack.length > 0) && <Packing items={e.packing ?? []} me={mine[0]} act={act} gold={gold} />}
+              {mine[0] && (!!e.packing?.length || mine[0].pack.length > 0) && <Packing items={e.packing ?? []} me={mine[0]} act={act} look={look} />}
             </section>
           );
         })}
         {!data.events.length && <p className="m-0 text-center text-[19px] italic">Your run sheet is on its way. Check back closer to the day.</p>}
 
-        <section id="whos-who" aria-label="Who's who" className="scroll-mt-20 flex flex-col gap-3 pt-2">
-          <h2 className="m-0 font-normal text-[30px] text-center">Who's who</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {sides
-              .filter(([, , ps]) => ps.length)
-              .map(([label, who, ps]) => (
-                <div key={label} className="flex flex-col gap-1">
-                  <div className="text-[12px] tracking-[.2em] uppercase font-semibold opacity-75" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-                    {label}
-                    {who ? <span className="normal-case tracking-normal font-normal"> · {who}</span> : null}
-                  </div>
-                  {ps.map((p) => (
-                    <div key={`${p.name}-${p.role}`} className="text-[18px]">
-                      {p.name} <span className="italic opacity-75">· {p.role}</span>
-                      {p.phone && (
-                        <span className="block text-[15px]">
-                          <a href={`tel:${p.phone.replace(/[^\d+]/g, '')}`} style={{ color: ink }}>
-                            Call
-                          </a>{' '}
-                          ·{' '}
-                          <a href={`sms:${p.phone.replace(/[^\d+]/g, '')}`} style={{ color: ink }}>
-                            Text
-                          </a>
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
+        <section id="whos-who" aria-label="Who's who" className="scroll-mt-24 flex flex-col gap-4">
+          <div className="text-center flex flex-col gap-1">
+            <Eyebrow color={look.label}>Your people</Eyebrow>
+            <h2 className="m-0 font-normal text-[34px] leading-[1.1]">Who's who</h2>
+            <div className="pt-1">
+              <Ornament gold={gold} width={84} />
+            </div>
           </div>
+          {sides
+            .filter(([, , ps]) => ps.length)
+            .map(([label, who, ps]) => (
+              <div key={label} className="flex flex-col p-5 rounded-[18px]" style={cardStyle(look)}>
+                <div className="pb-2 text-[14px] tracking-[.18em] uppercase font-semibold" style={{ fontFamily: SANS, color: look.label }}>
+                  {label}
+                  {who ? <span className="normal-case tracking-normal font-normal"> · {who}</span> : null}
+                </div>
+                {ps.map((p) => (
+                  <div key={`${p.name}-${p.role}`} className="flex items-center justify-between gap-3 py-3 border-t flex-wrap" style={{ borderColor: look.line }}>
+                    <div className="min-w-0 text-[19px] leading-[1.25]">
+                      {p.name} <span className="italic opacity-75">· {p.role}</span>
+                    </div>
+                    {p.phone && (
+                      <span className="flex gap-2 flex-none">
+                        <a href={`tel:${digits(p.phone)}`} className={pill} style={{ color: ink, border: `1px solid ${gold}`, fontFamily: SANS }}>
+                          Call
+                        </a>
+                        <a href={`sms:${digits(p.phone)}`} className={pill} style={{ color: ink, border: `1px solid ${gold}`, fontFamily: SANS }}>
+                          Text
+                        </a>
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
         </section>
-        <Extras data={data} gold={gold} />
+        <Extras data={data} look={look} />
         <InstallApp what="your wedding party page" tone="guest" />
-        <PartyHelp perms={perms} calendar={mine.some((m) => m.calendar)} gold={gold} />
+        <PartyHelp perms={perms} calendar={calendar} gold={gold} />
       </div>
     </main>
   );
 }
 
 /** What the couple lets this member see beyond their part: suppliers on the day, guest numbers, the seating plan. */
-function Extras({ data, gold }: { data: PartyPayload; gold: string }) {
-  const card = 'flex flex-col gap-2 p-4 rounded-[16px] bg-white/70 border';
-  const border = { borderColor: 'rgba(0,0,0,.08)' };
-  const tel = (p: string) => `tel:${p.replace(/[^\d+]/g, '')}`;
+function Extras({ data, look }: { data: PartyPayload; look: PartyLook }) {
+  const card = 'flex flex-col p-5 rounded-[18px]';
+  const style = cardStyle(look);
+  const line = { borderColor: look.line };
   return (
     <>
       {data.guests && (
-        <section aria-label="Guests" className={card} style={border}>
+        <section aria-label="Guests" className={`${card} gap-2`} style={style}>
           <h2 className="m-0 font-normal text-[28px]">Guests</h2>
-          <div className="flex gap-6 flex-wrap text-[19px]">
+          <div className="flex gap-x-6 gap-y-1 flex-wrap items-baseline text-[19px]">
             <span>
-              <strong className="text-[30px] font-semibold" style={{ color: gold }}>
+              <strong className="text-[32px] font-semibold" style={{ color: look.label }}>
                 {data.guests.coming}
               </strong>{' '}
               coming
@@ -556,18 +663,16 @@ function Extras({ data, gold }: { data: PartyPayload; gold: string }) {
         </section>
       )}
       {!!data.vendors?.length && (
-        <section aria-label="Suppliers on the day" className={card} style={border}>
-          <h2 className="m-0 font-normal text-[28px]">Suppliers on the day</h2>
+        <section aria-label="Suppliers on the day" className={card} style={style}>
+          <h2 className="m-0 pb-2 font-normal text-[28px]">Suppliers on the day</h2>
           {data.vendors.map((v) => (
-            <div key={v.name} className="flex justify-between gap-3 py-2 border-t text-[18px]" style={border}>
-              <span className="min-w-0">
+            <div key={v.name} className="flex justify-between items-center gap-3 py-3 border-t text-[18px]" style={line}>
+              <span className="min-w-0 break-words">
                 {v.name}
-                <span className="block text-[15px] italic opacity-75">
-                  {[v.category, v.arrival && `arrives ${v.arrival}`, v.contact].filter(Boolean).join(' · ')}
-                </span>
+                <span className="block text-[15px] italic opacity-75">{[v.category, v.arrival && `arrives ${v.arrival}`, v.contact].filter(Boolean).join(' · ')}</span>
               </span>
               {v.phone && (
-                <a href={tel(v.phone)} className="self-center whitespace-nowrap text-[16px]" style={{ color: '#33402f' }}>
+                <a href={`tel:${digits(v.phone)}`} className={`flex-none ${pill}`} style={{ color: look.ink, border: `1px solid ${look.gold}`, fontFamily: SANS }}>
                   Call
                 </a>
               )}
@@ -576,14 +681,14 @@ function Extras({ data, gold }: { data: PartyPayload; gold: string }) {
         </section>
       )}
       {!!data.seating?.length && (
-        <section aria-label="Seating plan" className={card} style={border}>
+        <section aria-label="Seating plan" className={`${card} gap-3`} style={style}>
           <h2 className="m-0 font-normal text-[28px]">Seating plan</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {data.seating.map((t) => (
-              <div key={t.table} className="text-[17px]">
+              <div key={t.table} className="text-[17px] pt-2 border-t" style={line}>
                 <strong className="font-semibold">{/^\d+$/.test(t.table) ? `Table ${t.table}` : t.table}</strong>
                 <span className="opacity-70"> · {t.people.length}</span>
-                <div className="text-[16px] opacity-85">{t.people.join(', ') || 'No one yet'}</div>
+                <div className="text-[16px] opacity-85 break-words">{t.people.join(', ') || 'No one yet'}</div>
               </div>
             ))}
           </div>
