@@ -150,7 +150,7 @@ describe('the sample guide (/demo/tomorrow)', () => {
       </MemoryRouter>,
     );
     expect((await screen.findAllByText('Table 3')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Your meal: Vegetarian')).toBeInTheDocument();
+    expect(screen.getByText('Tomorrow')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

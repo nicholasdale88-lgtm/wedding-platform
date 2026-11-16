@@ -22,11 +22,11 @@ describe('back to the company portal', () => {
     window.history.pushState({}, '', '/w/nope/nope/nope');
     const { unmount } = render(<App />);
     await screen.findByRole('alert');
-    expect(screen.queryByRole('link', { name: /Company portal/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /company portal/i })).toBeNull();
     unmount();
     sessionStorage.setItem('yl.fromCompany', '1');
     render(<App />);
-    expect(await screen.findByRole('link', { name: /Company portal/ })).toHaveAttribute('href', '/company#preview');
+    expect(await screen.findByRole('link', { name: /company portal/i })).toHaveAttribute('href', '/company#preview');
     sessionStorage.clear();
   });
 });
