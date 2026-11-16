@@ -233,7 +233,7 @@ export function PaperVsPhone({ ink, soft, gold, serif, script, fromPrice }: { in
             {pill('The Yes List', true)}
             <a href="/demo" aria-label="Open the sample invitation" className="block mx-auto my-auto w-[230px] sm:w-[250px] no-underline">
               <span className="relative block p-[10px] rounded-[46px] shadow-[0_40px_70px_rgba(46,30,36,.32),0_10px_20px_rgba(46,30,36,.18)]" style={{ background: 'linear-gradient(145deg,#3a3a3d,#0f0f10 40%,#26262a)' }}>
-                <span className="relative block rounded-[37px] overflow-hidden aspect-[300/640] ring-1 ring-black/60">
+                <span className="relative block rounded-[37px] overflow-hidden [clip-path:inset(0_round_37px)] aspect-[300/640] ring-1 ring-black/60">
                   {/* The envelope every guest actually receives, from the invitation's own parts. */}
                   <RealEnvelope compact className="absolute inset-0" label="The invitation on a phone: a sealed envelope with a gold wax seal pressed with H & T, ready to tap open" />
                   <span aria-hidden className="absolute top-[10px] left-1/2 -translate-x-1/2 w-[34%] h-[22px] rounded-full bg-black" />

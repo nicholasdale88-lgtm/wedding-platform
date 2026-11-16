@@ -43,6 +43,9 @@ export function RealEnvelope({
   const crease = darkPaper ? 'rgba(0,0,0,.35)' : 'rgba(80,60,30,.22)';
   const lit = 'rgba(255,255,255,.55)';
   const seal = compact ? 72 : 112;
+  // The bottom flap's point sits below the names, so its creases never run through the words (on a tall phone
+  // screen a fixed point would cross them).
+  const below = bare ? 0 : Math.round(seal * 1.12 + (compact ? 26 : 38) + 14);
   // Positioned by the caller (absolute inset-0 in a phone) or relative: never both, or it collapses to no height.
   return (
     <div role="img" aria-label={label ?? `A sealed envelope: ${ENVELOPE_PAPER_INFO[paper].label.toLowerCase()} paper and a ${wax.toLowerCase()} wax seal pressed with H & T`} className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative '}overflow-hidden ${className}`} style={{ background: env, containerType: 'size' }}>
@@ -50,8 +53,6 @@ export function RealEnvelope({
       <div className="absolute inset-0" style={{ background: `${GRAIN}, radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.35), rgba(255,255,255,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,.08))` }} />
       {/* The side and bottom flaps, then the top flap to its point at the seal, each with a lit edge and a crisp shadow. */}
       <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <path d="M0 100 L50 62 L100 100Z" fill="rgba(0,0,0,.04)" />
-        <path d="M0 100 L50 62 L100 100" fill="none" stroke={crease} strokeWidth=".35" vectorEffect="non-scaling-stroke" />
         <path d="M0 0 L50 50 L0 100" fill="rgba(255,255,255,.05)" />
         <path d="M100 0 L50 50 L100 100" fill="rgba(0,0,0,.03)" />
         <path d="M0 0 L50 50 L100 0Z" fill={`url(#flap-${paper})`} />
@@ -62,6 +63,12 @@ export function RealEnvelope({
           </linearGradient>
         </defs>
       </svg>
+      <div aria-hidden className="absolute left-0 right-0 bottom-0" style={{ top: `max(62%, calc(50% + ${below}px))` }}>
+        <svg className="block w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d="M0 100 L50 0 L100 100Z" fill="rgba(0,0,0,.04)" />
+          <path d="M0 100 L50 0 L100 100" fill="none" stroke={crease} strokeWidth=".35" vectorEffect="non-scaling-stroke" />
+        </svg>
+      </div>
       <div className="absolute inset-0" style={{ clipPath: 'polygon(0 0,100% 0,50% 50%)', filter: 'drop-shadow(0 3px 3px rgba(40,25,10,.28))' }}>
         <div className="absolute inset-0" style={{ background: env }} />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,.06))' }} />
@@ -99,6 +106,7 @@ export function RealEnvelope({
         Tap to open
       </span>
       <span className="absolute left-0 right-0 text-center" style={{ top: `calc(50% + ${seal * 1.12}px)`, color: names, fontFamily: "'Pinyon Script', cursive", fontSize: compact ? 26 : 38, lineHeight: 1 }}>
+        <span className="text-[.6em] align-middle">for </span>
         {SAMPLE.guests}
       </span>
         </>

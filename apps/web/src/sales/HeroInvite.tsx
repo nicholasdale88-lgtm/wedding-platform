@@ -40,7 +40,7 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true, poster, cove
         style={{ width: 'min(300px, 82vw)' }}
       >
         <span aria-hidden className="absolute z-10 top-[18px] left-1/2 w-[78px] h-[20px] -ml-[39px] rounded-full bg-[#1c1719]" />
-        <div ref={screen} className="relative w-full overflow-hidden rounded-[34px] bg-[#f6f0e2]" style={{ aspectRatio: `${PHONE_W} / ${PHONE_H}` }}>
+        <div ref={screen} className="relative w-full overflow-hidden rounded-[34px] bg-[#f6f0e2] [clip-path:inset(0_round_34px)]" style={{ aspectRatio: `${PHONE_W} / ${PHONE_H}` }}>
           <iframe
             key={`${src}#${run}`}
             src={src}
