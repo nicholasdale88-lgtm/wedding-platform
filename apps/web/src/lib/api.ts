@@ -210,7 +210,8 @@ export const api = {
   login: (email: string, passcode: string) => send<Me>('POST', '/a/auth/login', { email, passcode }),
   logout: () => send<{ ok: true }>('POST', '/a/auth/logout'),
   /** Forgot your passcode: emailed: false when the site can't send email yet. */
-  forgot: (email: string) => send<{ ok: true; emailed: boolean }>('POST', '/a/auth/forgot', { email }),
+  /** `to`: where the emailed link lands once the new passcode is set. */
+  forgot: (email: string, to: 'admin' | 'vendor' | 'company' = 'admin') => send<{ ok: true; emailed: boolean }>('POST', '/a/auth/forgot', to === 'admin' ? { email } : { email, to }),
   reset: (token: string, passcode: string) => send<Me>('POST', '/a/auth/reset', { token, passcode }),
   /** Private: the wedding's pages open only with each guest's own link. */
   setPrivate: (wid: string, on: boolean) => send<{ ok: true; private: boolean }>('PUT', `${w(wid)}/privacy`, { private: on }),

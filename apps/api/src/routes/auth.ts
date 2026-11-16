@@ -195,8 +195,10 @@ export function authRoutes() {
    * The answer is the same whether or not there's an account with that email.
    */
   app.post('/auth/forgot', async (c) => {
-    const body = z.object({ email: z.string().trim().toLowerCase().email().max(200) }).strict().safeParse(await readJson(c.req.raw));
+    // `to`: where the link lands after the new passcode (a vendor's account, the company portal, or the wedding admin).
+    const body = z.object({ email: z.string().trim().toLowerCase().email().max(200), to: z.enum(['admin', 'vendor', 'company']).default('admin') }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Enter the email you sign in with.');
+    const where = { admin: 'your wedding admin', vendor: 'your vendor account', company: 'the company portal' }[body.data.to];
     if (!c.env.SESSION_SECRET) return err(c, 500, 'not_configured', 'Sign-in is not set up yet.');
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
     const email = body.data.email;
@@ -210,10 +212,10 @@ export function authRoutes() {
       await c.env.DB.prepare(`INSERT INTO passcode_reset (hash, user_id, expires_at) VALUES (?, ?, ?)`)
         .bind(await sessionId(`reset:${token}`, c.env.SESSION_SECRET), user.id, new Date(Date.now() + 3_600_000).toISOString())
         .run();
-      const link = `${(c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '')}/admin/reset?t=${token}`;
+      const link = `${(c.env.PUBLIC_BASE_URL ?? new URL(c.req.url).origin).replace(/\/+$/, '')}/admin/reset?t=${token}${body.data.to === 'admin' ? '' : `&to=${body.data.to}`}`;
       const m = buttonEmail({
         heading: 'Set a new passcode',
-        lines: ['Someone (hopefully you) asked to reset the passcode for your wedding admin.', 'The button works once, for the next hour.'],
+        lines: [`Someone (hopefully you) asked to reset the passcode for ${where}.`, 'The button works once, for the next hour.'],
         button: 'Set a new passcode',
         link,
         footer: 'Didn’t ask? You can ignore this: your passcode hasn’t changed.',

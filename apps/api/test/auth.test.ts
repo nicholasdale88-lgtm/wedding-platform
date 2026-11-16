@@ -127,6 +127,11 @@ describe('admin sign-in', () => {
       expect(sent).toHaveLength(0);
       expect(await (await forgot('Owner@Example.com', '7.7.7.9')).json()).toEqual({ ok: true, emailed: true });
       expect(sent[0]!.to).toEqual(['owner@example.com']);
+      // A vendor (or the company portal) asks from their own sign-in: the link lands back there.
+      const viaVendor = await call('/api/a/auth/forgot', { method: 'POST', body: JSON.stringify({ email: 'owner@example.com', to: 'vendor' }), headers: { 'CF-Connecting-IP': '7.7.7.10' } });
+      expect(await viaVendor.json()).toEqual({ ok: true, emailed: true });
+      expect(sent[1]!.text).toMatch(/\/admin\/reset\?t=[\w-]+&to=vendor/);
+      expect(sent[1]!.text).toMatch(/your vendor account/);
       const token = /\/admin\/reset\?t=([\w-]+)/.exec(sent[0]!.text)![1]!;
       const reset = (passcode: string, tok = token) => call('/api/a/auth/reset', { method: 'POST', body: JSON.stringify({ token: tok, passcode }) });
       expect((await reset('short')).status).toBe(400);

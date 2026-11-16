@@ -11,6 +11,10 @@ const pill = 'w-full py-3 px-4 border border-[var(--adm-line,#d3c6a4)] rounded-f
 export function ResetPasscode() {
   const [params] = useSearchParams();
   const token = params.get('t') ?? '';
+  // Where they came from: a vendor's account, the company portal, or (by default) the wedding admin.
+  const to = params.get('to');
+  const home = to === 'vendor' ? '/vendors/me' : to === 'company' ? '/company' : '/admin';
+  const open = to === 'vendor' ? 'Save and open your account' : to === 'company' ? 'Save and open the portal' : 'Save and open admin';
   const [a, setA] = useState('');
   const [b, setB] = useState('');
   const [error, setError] = useState('');
@@ -24,7 +28,7 @@ export function ResetPasscode() {
     setError('');
     try {
       await api.reset(token, a);
-      window.location.assign('/admin');
+      window.location.assign(home);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
       setBusy(false);
@@ -43,9 +47,9 @@ export function ResetPasscode() {
           {error}
         </div>
         <button type="submit" disabled={busy || !token} className="w-full py-3 px-[18px] rounded-full border border-[#5d6b47] bg-[#5d6b47] text-[#fbf8f2] text-[15px] font-medium cursor-pointer hover:bg-[#46543a] disabled:opacity-70">
-          {busy ? 'Saving…' : 'Save and open admin'}
+          {busy ? 'Saving…' : open}
         </button>
-        <a href="/admin" className="text-[14px] !text-[var(--adm-muted,#5b6a52)]">
+        <a href={home} className="text-[14px] !text-[var(--adm-muted,#5b6a52)]">
           Back to sign in
         </a>
       </form>

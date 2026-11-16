@@ -46,7 +46,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
     setBusy(true);
     setError('');
     try {
-      const r = await api.forgot(email);
+      const r = await api.forgot(email, tone === 'company' ? 'company' : 'admin');
       setSent(r.emailed ? `If there’s an account for ${email.trim()}, a link to set a new passcode is on its way. It works for an hour.` : 'Email isn’t switched on for this site yet, so we can’t send a link. Ask the person who runs the site to reset it for you.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');

@@ -721,6 +721,65 @@ function SignIn({ onIn }: { onIn: () => void }) {
   const [passcode, setPasscode] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
+  // Forgot your passcode: a link to set a new one is emailed, and lands back in their vendor account.
+  const [forgot, setForgot] = useState(false);
+  const [sent, setSent] = useState('');
+  if (forgot)
+    return (
+      <Frame title="Vendor sign-in">
+        <form
+          className="max-w-[440px] mx-auto mt-10 flex flex-col gap-3 p-5 rounded-[16px] bg-[#fbf8f0] border border-[#e2d7bc]"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!email.trim()) return setProblem('Enter the email you sign in with.');
+            setBusy(true);
+            setProblem('');
+            api
+              .forgot(email, 'vendor')
+              .then((r) => setSent(r.emailed ? `If there’s an account for ${email.trim()}, a link to set a new passcode is on its way. It works for an hour.` : 'Email isn’t switched on for this site yet, so we can’t send a link. Contact us and we’ll reset it for you.'))
+              .catch((err: Error) => setProblem(err.message))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <h1 className="m-0 text-[32px] font-normal" style={{ fontFamily: serif }}>
+            Forgot your passcode?
+          </h1>
+          <span className="text-[14px]" style={{ color: SOFT }}>
+            We’ll email you a link to set a new one.
+          </span>
+          <label className="flex flex-col gap-1 text-[14px]">
+            Email
+            <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className={field} />
+          </label>
+          {problem && (
+            <p role="alert" className="m-0 text-[#7a4a37]">
+              {problem}
+            </p>
+          )}
+          {sent ? (
+            <p role="status" className="m-0 text-[14px]" style={{ color: INK }}>
+              {sent}
+            </p>
+          ) : (
+            <button type="submit" disabled={busy} className={btn} style={{ background: INK, color: '#fbf8f2' }}>
+              {busy ? 'Sending…' : 'Email me a link'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setForgot(false);
+              setSent('');
+              setProblem('');
+            }}
+            className="self-start py-2 p-0 min-h-[40px] border-0 bg-transparent text-[14px] underline cursor-pointer"
+            style={{ color: INK }}
+          >
+            Back to sign in
+          </button>
+        </form>
+      </Frame>
+    );
   return (
     <Frame title="Vendor sign-in">
       <form
@@ -754,6 +813,17 @@ function SignIn({ onIn }: { onIn: () => void }) {
         )}
         <button type="submit" disabled={busy} className={btn} style={{ background: INK, color: '#fbf8f2' }}>
           {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setForgot(true);
+            setProblem('');
+          }}
+          className="self-start p-0 min-h-[40px] border-0 bg-transparent text-[14px] underline cursor-pointer"
+          style={{ color: INK }}
+        >
+          Forgot your passcode?
         </button>
         <span className="text-[14px]" style={{ color: SOFT }}>
           Not listed yet?{' '}
