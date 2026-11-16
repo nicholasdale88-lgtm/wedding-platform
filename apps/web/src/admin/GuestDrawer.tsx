@@ -41,6 +41,9 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
   // The wedding party section stays open or closed as you left it (it used to snap shut as you typed).
   const [partyOpen, setPartyOpen] = useState<boolean | null>(null);
   const [roleBusy, setRoleBusy] = useState(''); // whose role is saving (their menu waits, no double changes)
+  // The role just chosen, shown at once (the menu never snaps back while it saves), and who's been sent their join email.
+  const [roleDraft, setRoleDraft] = useState<Record<string, string>>({});
+  const [invited, setInvited] = useState<Record<string, boolean>>({});
   const phoneBox = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState('');
   const [table, setTable] = useState('');
@@ -427,37 +430,48 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
                     <span className="truncate">{p.name}</span>
                     <select
                       aria-label={`${p.name}'s wedding party role`}
-                      value={p.role ?? ''}
+                      value={roleDraft[p.id] ?? p.role ?? ''}
                       disabled={roleBusy === p.id}
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const role = e.target.value;
-                        // Joining needs their email (their join invitation goes there): say so and go to the box.
-                        if (role && !p.role && !okMail) {
-                          e.target.value = '';
-                          toast(`Add ${p.name.split(' ')[0]}’s email first: their wedding party invitation goes there.`);
-                          document.getElementById(`party-email-${p.id}`)?.focus();
-                          return;
-                        }
+                        const joining = !!role && !p.role;
+                        setRoleDraft((d) => ({ ...d, [p.id]: role }));
                         setRoleBusy(p.id);
-                        try {
-                          await plannerApi.setRole(wid, p.id, role);
-                          // Joining: straight onto the wedding party page, and the join email goes to them.
-                          let sent = '';
-                          if (role && !p.role && okMail) {
+                        // In line with the drawer's other saves (names still saving, a mobile typed), so nothing
+                        // saves over anything else and nothing jumps back.
+                        queue.current = queue.current
+                          .catch(() => undefined)
+                          .then(async () => {
                             try {
-                              const r = await partyAccountsApi.invite(wid, p.id, mail);
-                              sent = r.emailed ? ` Their join email has gone to ${mail}.` : ' Email isn’t switched on yet: copy their join link from Wedding party.';
+                              await plannerApi.setRole(wid, p.id, role);
+                              // Joining: straight onto the wedding party page; with their email, the join email goes too.
+                              let sent = '';
+                              if (joining && okMail) {
+                                try {
+                                  const r = await partyAccountsApi.invite(wid, p.id, mail);
+                                  setInvited((x) => ({ ...x, [p.id]: true }));
+                                  sent = r.emailed ? ` Their join email has gone to ${mail}.` : ' Email isn’t switched on yet: copy their join link from Wedding party.';
+                                } catch (err) {
+                                  sent = ` ${(err as Error).message}`;
+                                }
+                              } else if (joining) {
+                                setInvited((x) => ({ ...x, [p.id]: false })); // keeps their email box here, to send it
+                                sent = ` Add their email below to send them their page.`;
+                              }
+                              await load();
+                              changedSoon();
+                              toast(role ? `${p.name} is in the wedding party.${sent}` : `${p.name} is no longer in the wedding party`);
                             } catch (err) {
-                              sent = ` ${(err as Error).message}`;
+                              toast((err as Error).message);
+                            } finally {
+                              setRoleDraft((d) => {
+                                const n = { ...d };
+                                delete n[p.id];
+                                return n;
+                              });
+                              setRoleBusy('');
                             }
-                          }
-                          await load();
-                          changedSoon();
-                          toast(role ? `${p.name} is in the wedding party.${sent}` : `${p.name} is no longer in the wedding party`);
-                        } catch (err) {
-                          toast((err as Error).message);
-                        }
-                        setRoleBusy('');
+                          });
                       }}
                       className={`${inputCls} !py-[6px] !text-[14px] w-auto`}
                     >
@@ -469,18 +483,37 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
                       ))}
                     </select>
                   </label>
-                  {!p.role && (
-                    <input
-                      type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      id={`party-email-${p.id}`}
-                      aria-label={`${p.name}'s email, for the wedding party`}
-                      placeholder={`${p.name.split(' ')[0]}’s email (needed for the wedding party)`}
-                      value={partyEmail[p.id] ?? (i === 0 ? (g.email ?? '') : '')}
-                      onChange={(e) => setPartyEmail({ ...partyEmail, [p.id]: e.target.value })}
-                      className={`${inputCls} !py-[6px] !text-[14px]`}
-                    />
+                  {(!p.role || invited[p.id] === false) && (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        id={`party-email-${p.id}`}
+                        aria-label={`${p.name}'s email, for the wedding party`}
+                        placeholder={`${p.name.split(' ')[0]}’s email (to send them their page)`}
+                        value={partyEmail[p.id] ?? (i === 0 ? (g.email ?? '') : '')}
+                        onChange={(e) => setPartyEmail({ ...partyEmail, [p.id]: e.target.value })}
+                        className={`${inputCls} !py-[6px] !text-[14px] flex-1 min-w-0`}
+                      />
+                      {(roleDraft[p.id] ?? p.role) && (
+                        <Pill
+                          kind="outline"
+                          disabled={!okMail || roleBusy === p.id}
+                          onClick={async () => {
+                            try {
+                              const r = await partyAccountsApi.invite(wid, p.id, mail);
+                              setInvited((x) => ({ ...x, [p.id]: true }));
+                              toast(r.emailed ? `Their join email has gone to ${mail}.` : 'Email isn’t switched on yet: copy their join link from Wedding party.');
+                            } catch (err) {
+                              toast((err as Error).message);
+                            }
+                          }}
+                        >
+                          Send their page
+                        </Pill>
+                      )}
+                    </div>
                   )}
                   </div>
                   );

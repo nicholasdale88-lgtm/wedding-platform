@@ -93,16 +93,17 @@ test('a guest left blank is not kept in the list', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Your guest list/);
 });
 
-test('wedding party: the role menu always opens, asks for an email first, then adds them', async ({ page }) => {
+test('wedding party: choosing a role sticks straight away, and their page can be sent once their email is in', async ({ page }) => {
   const drawer = await addGuest(page, 'Priya Nair');
   await drawer.locator('summary', { hasText: 'Wedding party' }).click();
   const role = drawer.getByLabel("Priya Nair's wedding party role");
   await expect(role).toBeEnabled();
   await role.selectOption('Bridesmaid');
-  await expect(page.getByRole('status')).toContainText('email first');
-  await drawer.getByLabel("Priya Nair's email, for the wedding party").fill('priya@example.com');
-  await role.selectOption('Bridesmaid');
+  await expect(role).toHaveValue('Bridesmaid'); // never snaps back
   await expect(page.getByRole('status')).toContainText('is in the wedding party');
+  await drawer.getByLabel("Priya Nair's email, for the wedding party").fill('priya@example.com');
+  await drawer.getByRole('button', { name: 'Send their page' }).click();
+  await expect(role).toHaveValue('Bridesmaid');
 });
 
 test('seating: the couple are there to seat without being guests', async ({ page }) => {

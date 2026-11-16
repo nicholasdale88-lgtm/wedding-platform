@@ -87,4 +87,19 @@ describe('wedding party page', () => {
     expect(await screen.findByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:0412345678');
     vi.unstubAllGlobals();
   });
+
+  it('the best man and maid of honour get a proper thank-you', async () => {
+    const best = { ...payload, me: [{ name: 'Jon Lee', role: 'Best man' }], party: [{ name: 'Jon Lee', role: 'Best man', side: 'p2' as const }], mine: [] };
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify(best), { status: 200, headers: { 'content-type': 'application/json' } }));
+    render(
+      <MemoryRouter initialEntries={[`/w/alex-and-sam/party?g=${TOKEN}`]}>
+        <Routes>
+          <Route path="/w/:slug/party" element={<PartyPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const thanks = await screen.findByRole('region', { name: 'Thank you, our best man' });
+    expect(within(thanks).getByText(/Jon, of everyone we know/)).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
 });
