@@ -85,12 +85,27 @@ describe('launch scale: every feature pushed hard', () => {
     return out;
   };
 
+  /**
+   * POST a guest import, trying again when the server says it's busy (503), as the couple's page does
+   * (apps/web/src/lib/api.ts retries a 503 three times). An import that stops part-way is safe to resend:
+   * anyone already added is skipped. Any other answer fails with the server's own reply, so a flake says why.
+   */
+  const postImport = async (rows: ImportRow[]) => {
+    const go = () => api('/guests/import', { method: 'POST', body: JSON.stringify({ rows }) });
+    let res = await go();
+    for (let i = 0; i < 4 && res.status === 503; i++) {
+      await sleep(400 * (i + 1));
+      res = await go();
+    }
+    const text = await res.text();
+    expect(res.status, `import: ${text.slice(0, 400)} | ${faults.slice(0, 3).join(' | ')}`).toBe(200);
+    return JSON.parse(text) as { added: number; skipped: unknown[]; problems: unknown[] };
+  };
   const importRows = async (rows: ImportRow[]) => {
-    const res = await api('/guests/import', { method: 'POST', body: JSON.stringify({ rows }) });
-    const body = (await res.json()) as { added: number; problems: unknown[] };
-    expect(res.status).toBe(200);
+    const body = await postImport(rows);
     expect(body.problems).toEqual([]);
-    expect(body.added).toBe(rows.length);
+    // A busy first try may have added some before stopping; the retry adds the rest and skips those.
+    expect(body.added + body.skipped.length).toBe(rows.length);
   };
   const guestList = async (): Promise<G[]> => {
     const { results } = await t.db
@@ -159,7 +174,7 @@ describe('launch scale: every feature pushed hard', () => {
     await importRows(rows);
     expect((await one<{ n: number }>(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.wedding_id = ?`, wid)).n).toBe(700);
     // Importing the same list again adds nobody.
-    const again = (await (await api('/guests/import', { method: 'POST', body: JSON.stringify({ rows }) })).json()) as { added: number; skipped: unknown[] };
+    const again = await postImport(rows);
     expect(again.added).toBe(0);
     expect(again.skipped).toHaveLength(300);
 
@@ -916,7 +931,7 @@ describe('launch scale: invitation texts for 300 guests', () => {
       method: 'POST',
       body: JSON.stringify({ rows: Array.from({ length: 300 }, (_, i) => ({ people: i % 2 ? [`Text${i} Guest`, `Plus Text${i}`] : [`Text${i} Guest`], phone: mobile(i) })) }),
     });
-    expect(imp.status).toBe(200);
+    expect(imp.status, (await imp.clone().text()).slice(0, 400)).toBe(200);
     expect(((await imp.json()) as { added: number }).added).toBe(300);
     const sentInvites = async () =>
       (await t.db
