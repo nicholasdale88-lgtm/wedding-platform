@@ -2,7 +2,8 @@ import { regionOf, REGIONS, VENDOR_SEARCH, type Listing, type ListingCard, type 
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
-import { api, ApiError, directoryApi, type MyListing } from '../lib/api';
+import { api, ApiError, directoryApi, vendorCouplesApi, type MyListing, type VendorCouple } from '../lib/api';
+import { EnquiryPipeline, VendorCalendar, VendorOverview } from './VendorDesk';
 import { BRAND } from './SalesPage';
 import { VendorCouples } from './VendorCouples';
 import { isVendorDemo } from '../try/vendorDemo';
@@ -521,9 +522,11 @@ export function VendorJoinPage() {
 // ------------------------------------------------------------------------------------------- a vendor's own home
 
 const VENDOR_TABS = [
+  ['home', 'Overview'],
   ['couples', 'Your couples'],
-  ['recommend', 'Recommend us'],
   ['enquiries', 'Enquiries'],
+  ['calendar', 'Calendar'],
+  ['recommend', 'Recommend us'],
   ['listing', 'Your listing'],
 ] as const;
 type VendorTab = (typeof VENDOR_TABS)[number][0];
@@ -531,9 +534,19 @@ type VendorTab = (typeof VENDOR_TABS)[number][0];
 export function VendorHomePage() {
   const [params, setParams] = useSearchParams();
   const asked = params.get('tab');
-  // Just joined: their listing first (add photos and prices); otherwise their couples.
-  const tab: VendorTab = VENDOR_TABS.some(([k]) => k === asked) ? (asked as VendorTab) : params.get('joined') ? 'listing' : 'couples';
+  // Just joined: their listing first (add photos and prices); otherwise their Overview.
+  const tab: VendorTab = VENDOR_TABS.some(([k]) => k === asked) ? (asked as VendorTab) : params.get('joined') ? 'listing' : 'home';
   const [chatUnread, setChatUnread] = useState(0);
+  // Their couples, for the Overview and the Calendar (the Your couples tab keeps its own, live).
+  const [couples, setCouples] = useState<{ list: VendorCouple[]; unread: number; quotesOpen: number }>({ list: [], unread: 0, quotesOpen: 0 });
+  const loadCouples = () =>
+    vendorCouplesApi
+      .list()
+      .then((r) => {
+        setCouples({ list: r.couples, unread: r.unread, quotesOpen: r.quotesOpen ?? 0 });
+        setChatUnread(r.unread);
+      })
+      .catch(() => undefined);
   const [data, setData] = useState<MyListing | null>(null);
   const [state, setState] = useState<'loading' | 'signed_out' | 'no_listing' | 'ready'>('loading');
   const [f, setF] = useState<ListingFields>(BLANK);
@@ -554,6 +567,9 @@ export function VendorHomePage() {
   useEffect(() => {
     void load();
   }, []); // eslint-disable-line
+  useEffect(() => {
+    if (state === 'ready') void loadCouples();
+  }, [state, tab]); // eslint-disable-line
   const save = async () => {
     setBusy(true);
     setNote('');
@@ -626,14 +642,14 @@ export function VendorHomePage() {
         </div>
       </div>
       {/* Their account: couples first (the everyday place), then how to recommend us, enquiries and the listing. */}
-      <nav aria-label="Your vendor account" className="flex gap-2 flex-wrap pt-5">
+      <nav aria-label="Your vendor account" className="flex gap-2 pt-5 overflow-x-auto pb-1 [scrollbar-width:none]">
         {VENDOR_TABS.map(([k, label]) => (
           <button
             key={k}
             type="button"
             aria-pressed={tab === k}
             onClick={() => setTab(k)}
-            className={`py-2 px-4 rounded-full border text-[15px] cursor-pointer ${tab === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
+            className={`flex-none py-2 px-4 min-h-[40px] rounded-full border text-[15px] cursor-pointer ${tab === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
             style={tab === k ? undefined : { color: INK }}
           >
             {label}
@@ -642,6 +658,28 @@ export function VendorHomePage() {
           </button>
         ))}
       </nav>
+      {tab === 'home' && (
+        <div className="pt-5">
+          <VendorOverview data={data!} couples={couples.list} unread={couples.unread} quotesOpen={couples.quotesOpen} go={setTab} />
+        </div>
+      )}
+      {tab === 'enquiries' && (
+        <div className="pt-5">
+          <EnquiryPipeline data={data!} couples={couples.list} onChanged={load} />
+        </div>
+      )}
+      {tab === 'calendar' && (
+        <div className="pt-5">
+          <VendorCalendar
+            data={data!}
+            couples={couples.list}
+            onBusy={async (busy) => {
+              await directoryApi.setBusy(busy);
+              await load();
+            }}
+          />
+        </div>
+      )}
       {tab === 'couples' && (
         <div className="pt-5">
           <VendorCouples onUnread={setChatUnread} />
@@ -652,7 +690,7 @@ export function VendorHomePage() {
           <VendorKit name={l.name} slug={data.listing.slug} code={data.partner.code} percentOff={data.partner.percentOff} uses={data.partner.uses} />
         </div>
       )}
-      <div className={`grid gap-8 pt-6 ${tab === 'listing' || tab === 'enquiries' ? '' : 'hidden'}`}>
+      <div className={`grid gap-8 pt-6 ${tab === 'listing' ? '' : 'hidden'}`}>
         {tab === 'listing' && (
         <section aria-label="Your listing" className="flex flex-col gap-3 p-5 rounded-[16px] bg-[#fbf8f0] border border-[#e2d7bc]">
           <ListingForm
@@ -667,48 +705,6 @@ export function VendorHomePage() {
           <button type="button" disabled={!dirty || busy} onClick={() => void save()} className={btn} style={{ background: INK, color: '#fbf8f2' }}>
             {busy ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
           </button>
-        </section>
-        )}
-        {tab === 'enquiries' && (
-        <section aria-label="Enquiries" className="flex flex-col gap-3 self-start">
-          <h2 className="m-0 text-[28px] font-normal" style={{ fontFamily: serif }}>
-            Enquiries{unread ? ` · ${unread} new` : ''}
-          </h2>
-          {l.booked > 0 && (
-            <p className="m-0 text-[15px]" style={{ color: SOFT }}>
-              Booked by {l.booked} {l.booked === 1 ? 'couple' : 'couples'} planning with {BRAND}.
-            </p>
-          )}
-          {!data!.enquiries.length && <p className="m-0" style={{ color: SOFT }}>None yet. Couples’ questions about their date will appear here.</p>}
-          {data!.enquiries.map((e) => (
-            <article key={e.id} className={`flex flex-col gap-1 p-4 rounded-[14px] border bg-white ${e.read ? 'border-[#e2d7bc]' : 'border-[#b39563]'}`}>
-              <div className="flex justify-between gap-2 flex-wrap">
-                <strong>{e.name}</strong>
-                <span className="text-[13px]" style={{ color: SOFT }}>
-                  {new Date(e.at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}
-                </span>
-              </div>
-              <span className="text-[13px]" style={{ color: SOFT }}>
-                {[e.date && `Wedding ${new Date(`${e.date}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}`, e.guests ? `about ${e.guests} guests` : ''].filter(Boolean).join(' · ')}
-              </span>
-              <p className="m-0 text-[15px] whitespace-pre-line">{e.message}</p>
-              <div className="flex gap-4 flex-wrap text-[14px] mt-1">
-                <a href={`mailto:${e.email}?subject=${encodeURIComponent(`Your enquiry to ${l.name}`)}`} style={{ color: INK }}>
-                  Reply by email
-                </a>
-                {e.phone && (
-                  <a href={`tel:${e.phone.replace(/[^\d+]/g, '')}`} style={{ color: INK }}>
-                    Call {e.phone}
-                  </a>
-                )}
-                {!e.read && (
-                  <button type="button" onClick={() => void directoryApi.read(e.id).then(load)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[14px]" style={{ color: SOFT }}>
-                    Mark as read
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
         </section>
         )}
       </div>

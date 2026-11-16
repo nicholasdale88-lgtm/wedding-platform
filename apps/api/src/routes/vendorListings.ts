@@ -1,5 +1,6 @@
 import { Enquiry, ListingFields, ListingJoin, Promos, regionOf, REGIONS, type Listing, type ListingCard } from '@wp/shared';
 import { Hono, type Context } from 'hono';
+import { z } from 'zod';
 import { hashPasscode, passcodeProblem } from '../lib/auth';
 import { cellOf, kmBetween } from '../lib/directory';
 import { buttonEmail, sendEmail } from '../lib/email';
@@ -198,6 +199,28 @@ export function directoryRoutes() {
   return app;
 }
 
+/** Where an enquiry is in the vendor's sales pipeline. */
+const STAGES = ['new', 'replied', 'quoted', 'booked', 'lost'] as const;
+type Stage = (typeof STAGES)[number];
+const stageOf = (s: string): Stage => ((STAGES as readonly string[]).includes(s) ? (s as Stage) : 'new');
+const EnquiryUpdate = z
+  .object({ stage: z.enum(STAGES).optional(), note: z.string().max(2000, 'That note is too long.').optional() })
+  .strict()
+  .refine((v) => v.stage !== undefined || v.note !== undefined, 'Send a stage or a note.');
+const BusyDates = z
+  .object({
+    dates: z
+      .array(z.object({ date: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Dates look like 2027-03-14.'), note: z.string().max(120, 'Keep each note short.').optional() }).strict())
+      .max(400, 'That’s too many dates.'),
+  })
+  .strict();
+
+/** A listing's busy dates, earliest first. */
+async function busyOf(db: D1Database, listingId: string) {
+  const { results } = await db.prepare(`SELECT date, note FROM vendor_busy WHERE listing_id = ? ORDER BY date ASC`).bind(listingId).all<{ date: string; note: string }>();
+  return results.map((b) => ({ date: b.date, note: b.note }));
+}
+
 /** A vendor's own listing and enquiries, signed in. */
 export function vendorAccountRoutes() {
   const app = new Hono<AdminEnv>();
@@ -208,17 +231,61 @@ export function vendorAccountRoutes() {
   app.get('/', async (c) => {
     const r = await mine(c);
     if (!r) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
-    const { results } = await c.env.DB.prepare(`SELECT id, name, email, phone, date, guests, message, read, created_at FROM vendor_enquiry WHERE listing_id = ? ORDER BY created_at DESC LIMIT 200`)
+    const { results } = await c.env.DB.prepare(
+      `SELECT id, name, email, phone, date, guests, message, read, stage, note, created_at FROM vendor_enquiry WHERE listing_id = ? ORDER BY created_at DESC LIMIT 200`,
+    )
       .bind(r.id)
-      .all<{ id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: number; created_at: string }>();
+      .all<{ id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: number; stage: string; note: string; created_at: string }>();
     const codes = await readSetting(c.env.DB, 'promos', Promos);
     const code = codes.codes.find((p) => p.note === `vendor:${r.id}`)?.code ?? '';
     const uses = code ? ((await promoUses(c.env.DB))[code] ?? 0) : 0;
     return c.json({
       partner: code ? { code, percentOff: 10, uses } : null,
       listing: { ...full(r), email: r.email, hidden: !!r.hidden },
-      enquiries: results.map((e) => ({ id: e.id, name: e.name, email: e.email, phone: e.phone, date: e.date, guests: e.guests, message: e.message, read: !!e.read, at: e.created_at })),
+      enquiries: results.map((e) => ({
+        id: e.id, name: e.name, email: e.email, phone: e.phone, date: e.date, guests: e.guests, message: e.message, read: !!e.read, stage: stageOf(e.stage), note: e.note, at: e.created_at,
+      })),
+      busy: await busyOf(c.env.DB, r.id),
     });
+  });
+
+  /** Move an enquiry along the pipeline, or keep a note on it (either way it's been read). */
+  app.put('/enquiries/:id', async (c) => {
+    const r = await mine(c);
+    if (!r) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
+    const b = EnquiryUpdate.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the form.');
+    const sets = ['read = 1'];
+    const args: (string | number)[] = [];
+    if (b.data.stage !== undefined) {
+      sets.push('stage = ?');
+      args.push(b.data.stage);
+    }
+    if (b.data.note !== undefined) {
+      sets.push('note = ?');
+      args.push(b.data.note);
+    }
+    const res = await c.env.DB.prepare(`UPDATE vendor_enquiry SET ${sets.join(', ')} WHERE id = ? AND listing_id = ?`)
+      .bind(...args, c.req.param('id'), r.id)
+      .run();
+    if (!res.meta.changes) return err(c, 404, 'not_found', 'That enquiry isn’t here any more.');
+    return c.json({ ok: true });
+  });
+
+  /** The dates they're already booked or away: replaces the whole list. */
+  app.put('/busy', async (c) => {
+    const r = await mine(c);
+    if (!r) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
+    const b = BusyDates.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the dates.');
+    const byDate = new Map<string, string>();
+    for (const d of b.data.dates) if (!byDate.has(d.date)) byDate.set(d.date, (d.note ?? '').trim());
+    const db = c.env.DB;
+    await db.batch([
+      db.prepare(`DELETE FROM vendor_busy WHERE listing_id = ?`).bind(r.id),
+      ...[...byDate].map(([date, note]) => db.prepare(`INSERT INTO vendor_busy (listing_id, date, note) VALUES (?, ?, ?)`).bind(r.id, date, note)),
+    ]);
+    return c.json({ ok: true, busy: await busyOf(db, r.id) });
   });
 
   app.put('/', async (c) => {

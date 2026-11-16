@@ -601,8 +601,12 @@ export interface MyListing {
   /** Their partner code: their couples get this much off The Yes List; how many have used it. */
   partner?: { code: string; percentOff: number; uses: number } | null;
   listing: Listing & { email: string; hidden: boolean };
-  enquiries: { id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: boolean; at: string }[];
+  enquiries: { id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: boolean; at: string; stage?: EnquiryStage; note?: string }[];
+  /** Days they've marked unavailable (yyyy-mm-dd). */
+  busy?: { date: string; note: string }[];
 }
+/** Where an enquiry is up to, in the vendor's pipeline. */
+export type EnquiryStage = 'new' | 'replied' | 'quoted' | 'booked' | 'lost';
 export const directoryApi = {
   browse: (p: { category?: string; region?: string; q?: string }) =>
     request<{ results: ListingCard[] }>(`/directory?${new URLSearchParams(Object.entries(p).filter(([, v]) => !!v) as [string, string][]).toString()}`),
@@ -612,6 +616,10 @@ export const directoryApi = {
   mine: () => request<MyListing>('/a/vendor'),
   save: (f: ListingFields) => send<{ ok: true; slug: string }>('PUT', '/a/vendor', f),
   read: (id: string) => send<{ ok: true }>('POST', `/a/vendor/enquiries/${encodeURIComponent(id)}/read`),
+  /** Move an enquiry along the pipeline, or keep a private note on it. */
+  updateEnquiry: (id: string, patch: { stage?: EnquiryStage; note?: string }) => send<{ ok: true }>('PUT', `/a/vendor/enquiries/${encodeURIComponent(id)}`, patch),
+  /** Their unavailable days: the whole list each time. */
+  setBusy: (dates: { date: string; note: string }[]) => send<{ ok: true; busy: { date: string; note: string }[] }>('PUT', '/a/vendor/busy', { dates }),
 };
 
 /** A message between a vendor and a couple. */

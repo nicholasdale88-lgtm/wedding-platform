@@ -111,6 +111,45 @@ describe('vendor directory', () => {
     expect(((await (await call('/directory')).json()) as { results: unknown[] }).results).toEqual([]);
   });
 
+  it('a vendor moves enquiries along their pipeline with a note, and keeps the dates they are busy (only their own)', async () => {
+    const res = await join();
+    const vendor = cookieOf(res);
+    const { slug } = (await res.json()) as { slug: string };
+    const ask = { name: 'Alex & Sam', email: 'alex@example.com', phone: '', date: '2027-03-14', guests: 90, message: 'Are you free for our garden wedding?', company: '' };
+    expect((await call(`/directory/v/${slug}/enquire`, { method: 'POST', body: JSON.stringify(ask) })).status).toBe(200);
+    type Mine = { enquiries: { id: string; stage: string; note: string; read: boolean }[]; busy: { date: string; note: string }[] };
+    const get = async () => (await (await call('/a/vendor', {}, vendor)).json()) as Mine;
+    const before = await get();
+    expect(before.enquiries[0]).toMatchObject({ stage: 'new', note: '', read: false });
+    expect(before.busy).toEqual([]);
+    const id = before.enquiries[0]!.id;
+    const put = (body: unknown, cookie = vendor) => call(`/a/vendor/enquiries/${id}`, { method: 'PUT', body: JSON.stringify(body) }, cookie);
+
+    expect((await put({ stage: 'quoted', note: 'Sent the garden package.' })).status).toBe(200);
+    expect((await get()).enquiries[0]).toMatchObject({ stage: 'quoted', note: 'Sent the garden package.', read: true });
+
+    // Bad changes are refused.
+    expect((await put({ stage: 'maybe' })).status).toBe(400);
+    expect((await put({})).status).toBe(400);
+    expect((await put({ note: 'x'.repeat(2001) })).status).toBe(400);
+    expect((await call('/a/vendor/enquiries/nope', { method: 'PUT', body: JSON.stringify({ stage: 'booked' }) }, vendor)).status).toBe(404);
+
+    // Another vendor can't touch it.
+    const other = cookieOf(await join({ email: 'b@example.com', name: 'Other Blooms' }, '5.5.5.5'));
+    expect((await put({ stage: 'lost' }, other)).status).toBe(404);
+    expect((await get()).enquiries[0]!.stage).toBe('quoted');
+
+    // Busy dates: replaced as a whole, de-duplicated and sorted.
+    const busy = await call('/a/vendor/busy', { method: 'PUT', body: JSON.stringify({ dates: [{ date: '2027-05-01', note: 'Smith wedding' }, { date: '2027-03-14' }, { date: '2027-05-01' }] }) }, vendor);
+    expect(busy.status).toBe(200);
+    const want = [{ date: '2027-03-14', note: '' }, { date: '2027-05-01', note: 'Smith wedding' }];
+    expect(((await busy.json()) as { busy: unknown }).busy).toEqual(want);
+    expect((await get()).busy).toEqual(want);
+    expect((await call('/a/vendor/busy', { method: 'PUT', body: JSON.stringify({ dates: [{ date: '14/03/2027' }] }) }, vendor)).status).toBe(400);
+    // The other vendor's list is their own.
+    expect(((await (await call('/a/vendor', {}, other)).json()) as Mine).busy).toEqual([]);
+  });
+
   it("the planner's finder shows listed vendors working near the venue first, and leaves the map out when asked", async () => {
     const owner = cookieOf(await call('/a/auth/login', { method: 'POST', body: JSON.stringify({ email: 'owner@example.com', passcode: 'valley-2027' }) }));
     const me = (await (await call('/a/me', {}, owner)).json()) as { weddings: { id: string }[] };

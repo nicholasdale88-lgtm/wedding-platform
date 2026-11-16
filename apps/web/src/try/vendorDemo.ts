@@ -66,9 +66,14 @@ const listing: MyListing = {
     hidden: false,
   },
   enquiries: [
-    { id: 'e1', name: 'Grace Wu', email: 'grace@example.com', phone: '', date: at(300).slice(0, 10), guests: 90, message: 'Hi! Do you travel to the Blue Mountains? We’d love a meadow-style arbour.', read: false, at: at(-1) },
-    { id: 'e2', name: 'Tom Reid', email: 'tom@example.com', phone: '', date: at(180).slice(0, 10), guests: 60, message: 'Looking for bouquets and buttonholes only. What would that start at?', read: true, at: at(-8) },
+    { id: 'e1', name: 'Grace Wu', email: 'grace@example.com', phone: '', date: at(300).slice(0, 10), guests: 90, message: 'Hi! Do you travel to the Blue Mountains? We’d love a meadow-style arbour.', read: false, at: at(-1), stage: 'new', note: '' },
+    { id: 'e2', name: 'Tom Reid', email: 'tom@example.com', phone: '', date: at(180).slice(0, 10), guests: 60, message: 'Looking for bouquets and buttonholes only. What would that start at?', read: true, at: at(-8), stage: 'quoted', note: 'Sent the bouquet package, $950. Follow up next week.' },
+    { id: 'e3', name: 'Ava Brooks', email: 'ava@example.com', phone: '0400 555 010', date: at(38).slice(0, 10), guests: 120, message: 'Are you free on our date? Big reception, lots of candles and greenery.', read: false, at: at(-2), stage: 'new', note: '' },
+    { id: 'e4', name: 'Noah Patel', email: 'noah@example.com', phone: '', date: at(150).slice(0, 10), guests: 45, message: 'Small garden wedding, just the bouquet and a few posies.', read: true, at: at(-15), stage: 'replied', note: 'Wants pastel. Sent the gallery link.' },
+    { id: 'e5', name: 'Zoe Martin', email: 'zoe@example.com', phone: '', date: at(95).slice(0, 10), guests: 80, message: 'Loved your arbour at the Boathouse!', read: true, at: at(-60), stage: 'booked', note: 'Deposit paid.' },
+    { id: 'e6', name: 'Liam Ford', email: 'liam@example.com', phone: '', date: at(60).slice(0, 10), guests: 150, message: 'Need a quote for a large wedding.', read: true, at: at(-45), stage: 'lost', note: 'Went with someone closer to the venue.' },
   ],
+  busy: [{ date: at(52).slice(0, 10), note: 'Family holiday' }],
 };
 
 const withLast = (c: VendorCouple): VendorCouple => {
@@ -107,6 +112,18 @@ export function vendorDemo(path: string, method: string, body: Record<string, un
     if (!c) return null;
     if (c.id === 'c3') return { couple: c.couple, inPlanner: false, details: null }; // only asked for a quote so far
     return { couple: c.couple, inPlanner: true, details: sampleDetails(c) };
+  }
+  // The pipeline: an enquiry's stage and note, and the days they're unavailable (this visit only).
+  const st = /^\/a\/vendor\/enquiries\/([^/]+)$/.exec(path);
+  if (st && method === 'PUT') {
+    const q = listing.enquiries.find((x) => x.id === decodeURIComponent(st[1]!));
+    if (q) Object.assign(q, { read: true }, body.stage ? { stage: body.stage } : {}, typeof body.note === 'string' ? { note: body.note } : {});
+    return { ok: true };
+  }
+  if (path === '/a/vendor/busy' && method === 'PUT') {
+    const dates = (body.dates as { date: string; note?: string }[]) ?? [];
+    listing.busy = [...new Map(dates.map((d) => [d.date, { date: d.date, note: (d.note ?? '').trim() }])).values()].sort((a, b) => a.date.localeCompare(b.date));
+    return { ok: true, busy: listing.busy };
   }
   const e = /^\/a\/vendor\/enquiries\/([^/]+)\/read$/.exec(path);
   if (e) {

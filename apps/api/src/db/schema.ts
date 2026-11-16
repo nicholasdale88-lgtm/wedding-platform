@@ -605,7 +605,21 @@ export const vendorEnquiry = sqliteTable('vendor_enquiry', {
   message: text('message').notNull(),
   read: integer('read').notNull(),
   createdAt: text('created_at').notNull(),
+  /** migration 0051: where it is in the vendor's pipeline, and their private note. */
+  stage: text('stage').notNull().default('new'),
+  note: text('note').notNull().default(''),
 });
+
+/** migration 0051: dates a vendor is already booked or away. */
+export const vendorBusy = sqliteTable(
+  'vendor_busy',
+  {
+    listingId: text('listing_id').notNull(),
+    date: text('date').notNull(),
+    note: text('note').notNull().default(''),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.listingId, t.date] }) }),
+);
 
 /** migration 0029: a person's meal at one event (a special menu by id, and courses changed just for them). */
 export const mealChoice = sqliteTable(
