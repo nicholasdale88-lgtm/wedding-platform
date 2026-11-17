@@ -160,8 +160,30 @@ export function Vendors() {
     ['Manage', `${booked.length} to the day`, 'Your booked vendors until the day: payments due, the final check-in with each, and the day’s contact sheet.'],
   ];
 
+  // Suppliers named on the budget but never added here: booked, but missing from the day's lists, their pages
+  // and Still to book. One tap brings them in as booked (their category from the budget line).
+  const listed = new Set(list.map((v) => v.name.trim().toLowerCase()));
+  const fromBudget = [...new Map(lines.filter((l) => l.vendor.trim() && !listed.has(l.vendor.trim().toLowerCase())).map((l) => [l.vendor.trim().toLowerCase(), l])).values()];
+  const bringIn = () =>
+    void save(
+      [...list, ...fromBudget.map((l) => newVendor({ name: l.vendor.trim(), category: l.category || l.item, status: 'booked' }))],
+      `${fromBudget.length} ${fromBudget.length === 1 ? 'supplier' : 'suppliers'} from your budget added as booked`,
+    );
+
   return (
     <div className="flex flex-col gap-5">
+      {fromBudget.length > 0 && (
+        <section aria-label="On your budget, not here yet" className="flex flex-col gap-2 p-4 rounded-[16px] border border-[#c8a46a] bg-[#fdf6e6]">
+          <strong className="text-[15px]">
+            {fromBudget.length} {fromBudget.length === 1 ? 'supplier is' : 'suppliers are'} on your budget but not on this list
+          </strong>
+          <span className="text-[14px]">{fromBudget.map((l) => `${l.vendor.trim()} (${l.category || l.item})`).join(', ')}</span>
+          <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Add them here so they count as booked, get their own page with your day’s details, and appear on your day-of contact sheet.</span>
+          <Pill kind="primary" className="self-start" onClick={bringIn}>
+            Add {fromBudget.length === 1 ? 'it' : 'them'} as booked
+          </Pill>
+        </section>
+      )}
       <section aria-label="Vendor summary" className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         {[
           ['Vendors', String(list.length)],
