@@ -27,6 +27,11 @@ export function DemoPage() {
   const embed = params.get('embed') === '1';
   const asked = params.get('theme') ?? '';
   const theme = THEME_NAMES.includes(asked) ? asked : undefined;
+  // ?cover=1: the closed envelope as a design's cover still (tools/covers): the couple's names, no "tap" hint.
+  const cover = params.get('cover') === '1';
+  useEffect(() => {
+    if (cover) document.documentElement.dataset.themes = JSON.stringify(THEME_NAMES);
+  }, [cover]);
   useEffect(() => {
     document.title = `Sample invitation · ${BRAND}`;
     // From a vendor's link (?ref=, ?code=): kept for sign-up and their code for upgrading.
@@ -34,8 +39,8 @@ export function DemoPage() {
   }, []);
   return (
     <>
-      <SampleInvitation key={theme ?? ''} theme={theme} play={params.get('play') === '1'} mine={params.get('mine') === '1'} />
-      {!embed && (
+      <SampleInvitation key={theme ?? ''} theme={theme} play={params.get('play') === '1'} mine={params.get('mine') === '1'} cover={cover} />
+      {!embed && !cover && (
         <div
           data-sample-banner
           className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-2 py-[6px] pl-2 pr-[6px] rounded-[26px] text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]"
@@ -58,7 +63,7 @@ export function DemoPage() {
 }
 
 /** The guest invitation for the sample wedding: the generated design view, run by the real invitation logic. */
-export function SampleInvitation({ theme, play = false, mine = false }: { theme?: string; play?: boolean; mine?: boolean } = {}) {
+export function SampleInvitation({ theme, play = false, mine = false, cover = false }: { theme?: string; play?: boolean; mine?: boolean; cover?: boolean } = {}) {
   // ?mine=1: the sample as changed in the sample app's Setup (kept in this tab), for its preview.
   const own = mine ? readDemoPages() : null;
   const base = own
@@ -79,7 +84,9 @@ export function SampleInvitation({ theme, play = false, mine = false }: { theme?
     const ev = eventOfSection(data, label);
     return ev ? calendarControl(data, ev, undefined, true) : undefined;
   };
-  const v = { ...core, after, ...(scene === 'none' ? {} : { envOp: 0, hintOp: 0 }) };
+  const v = { ...core, after, ...(scene === 'none' ? (cover ? { hintOp: 0 } : {}) : { envOp: 0, hintOp: 0 }) };
+  // A cover shows the sample couple, the same as its seal (H&T); the live sample is addressed to its guests.
+  const addressee = cover ? SAMPLE.couple : SAMPLE.guests;
   const th = themeOf(data.wedding.theme, data.content.custom);
   return (
     <>
@@ -93,7 +100,7 @@ export function SampleInvitation({ theme, play = false, mine = false }: { theme?
             phase={phase}
             opts={data.content.envelope ?? {}}
             colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4' }}
-            guestName={SAMPLE.guests}
+            guestName={addressee}
             opening={data.content.opening}
           />
           {seal && <SealOverlay seal={seal} phase={phase} />}
@@ -104,7 +111,7 @@ export function SampleInvitation({ theme, play = false, mine = false }: { theme?
           phase={phase}
           colours={{ paper: th.b1 ?? '#fbf8f2', ink: th.dg ?? '#33402f', accent: th.acc ?? '#c8a46a', soft: th.b2 ?? '#efe6d3', envelope: th.e1 ?? '#e6dcc4' }}
           initials={data.wedding.monogram.replace(/\s*&\s*/, ' & ')}
-          guestName={SAMPLE.guests}
+          guestName={addressee}
           photo={data.content.images?.backdrop}
         />
       )}

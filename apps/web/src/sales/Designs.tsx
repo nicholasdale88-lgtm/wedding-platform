@@ -3,6 +3,7 @@ import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LOOK_LABEL, lookOf, MOOD_OF, MOODS, SIGNATURE, SIGNATURE_NAMES, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
+import { CoverImage } from '../guest/CoverImage';
 import { nearestWax, WaxSeal } from '../guest/invitation/WaxSeal';
 import { Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
@@ -88,19 +89,31 @@ export function DesignsPage() {
                     className="flex flex-col gap-2 p-2 rounded-[14px] border text-left cursor-pointer"
                     style={{ background: t.b1 ?? '#fff', borderColor: on ? INK : '#e2d7bc', boxShadow: on ? `0 0 0 2px ${INK}` : undefined }}
                   >
-                    {SIGNATURE[name] ? (
-                      <span className="relative flex flex-col items-center justify-center gap-1 h-[84px] rounded-[10px]" style={{ background: SIGNATURE[name]!.envelope }}>
+                    {/* The design's cover still: its own closed envelope, Harriet & Theo and their seal. */}
+                    <span className="relative block aspect-[3/4] rounded-[10px] overflow-hidden" style={{ background: SIGNATURE[name]?.envelope ?? t.e1 ?? t.b2 }}>
+                      <CoverImage
+                        name={name}
+                        active={on}
+                        className="h-full"
+                        fallback={
+                          SIGNATURE[name] ? (
+                            <span className="flex flex-col items-center justify-center gap-1 h-full">
+                              <span className="font-script text-[24px] leading-none" style={{ color: t.b1 }}>
+                                Harriet &amp; Theo
+                              </span>
+                              <span className="block w-10 h-px" style={{ background: t.acc ?? '#c8a46a' }} />
+                            </span>
+                          ) : (
+                            <MiniEnvelope t={t} />
+                          )
+                        }
+                      />
+                      {SIGNATURE[name] && (
                         <span className="absolute top-1 left-1 px-2 py-[1px] rounded-full text-[10px] font-semibold tracking-[.08em] uppercase" style={{ background: '#e6cf9e', color: '#1b2218' }}>
                           Signature
                         </span>
-                        <span className="font-script text-[24px] leading-none" style={{ color: t.b1 }}>
-                          H &amp; T
-                        </span>
-                        <span className="block w-10 h-px" style={{ background: t.acc ?? '#c8a46a' }} />
-                      </span>
-                    ) : (
-                      <MiniEnvelope t={t} />
-                    )}
+                      )}
+                    </span>
                     <span className="px-1 text-[14px] font-medium" style={{ color: t.dg ?? INK }}>
                       {themeLabel(name)}
                     </span>

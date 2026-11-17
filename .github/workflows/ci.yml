@@ -370,6 +370,45 @@ jobs:
             apps/e2e/test-results
           retention-days: 7
 
+  # The designs' cover stills (apps/e2e/covers): each design's closed envelope, photographed from the real
+  # sample and committed back as apps/web/public/covers/*.jpg. On a check/ branch, when the commit message
+  # says [covers] (or by hand); the galleries draw a plain tile for any design without one.
+  covers:
+    if: (github.event_name == 'push' && github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[covers]')) || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Install the browser
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+      - name: Start the website (the sample needs no API)
+        run: |
+          cd apps/web
+          nohup pnpm exec vite --port 5173 --strictPort > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:5173/demo > /dev/null && break; sleep 2; done
+      - name: Photograph every design's cover
+        run: cd apps/e2e && BASE=http://localhost:5173 node covers/capture.mjs
+      - name: Commit the covers
+        if: github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/public/covers
+          if git diff --cached --quiet; then echo "No change"; exit 0; fi
+          git commit -m "Design covers (CI)"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
   deploy:
     needs: [check, unit, scenarios, load, smoke]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

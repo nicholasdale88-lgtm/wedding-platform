@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CoverImage } from '../../guest/CoverImage';
 import { isHex, themeLabel, LOOK_LABEL, LOOKS, lookOf, MOOD_OF, MOODS, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
 
 /**
@@ -55,12 +56,21 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
               className={`flex flex-col gap-1 p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#e2d7bc)] hover:border-[#b39563]'}`}
               style={{ background: t.b1 ?? '#fff' }}
             >
-              {/* A tiny invitation in the theme: the names in its ink, a gold rule, its soft tint. */}
-              <span className="flex flex-col items-center justify-center gap-1 h-[64px] rounded-[8px]" style={{ background: t.b2 ?? t.b1 }}>
-                <span className="font-script text-[20px] leading-none" style={{ color: t.dg }}>
-                  A &amp; B
-                </span>
-                <span className="w-8 h-[2px]" style={{ background: t.acc }} />
+              {/* The design's cover still (its closed envelope); a tiny invitation in its colours until there is one. */}
+              <span className="block aspect-[3/4] rounded-[8px] overflow-hidden" style={{ background: t.e1 ?? t.b2 ?? t.b1 }}>
+                <CoverImage
+                  name={name}
+                  active={on}
+                  className="h-full"
+                  fallback={
+                    <span className="flex flex-col items-center justify-center gap-1 h-full" style={{ background: t.b2 ?? t.b1 }}>
+                      <span className="font-script text-[20px] leading-none" style={{ color: t.dg }}>
+                        Harriet &amp; Theo
+                      </span>
+                      <span className="w-8 h-[2px]" style={{ background: t.acc }} />
+                    </span>
+                  }
+                />
               </span>
               <span className="text-[12px] font-medium leading-tight" style={{ color: t.dg }}>
                 {themeLabel(name)}
