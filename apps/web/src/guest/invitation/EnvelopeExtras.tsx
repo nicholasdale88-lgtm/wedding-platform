@@ -211,13 +211,15 @@ export function EnvelopeExtras({ phase, opts, colours, guestName, music = false,
           <g style={{ mixBlendMode: 'multiply' }}>
             <path d="M0 0.5 L50 56.9 L100 0.5" fill="none" stroke="rgba(0,0,0,.2)" strokeWidth=".7" filter="url(#envSoft)" />
             <path d="M0 1.4 L50 58.2 L100 1.4" fill="none" stroke="rgba(0,0,0,.09)" strokeWidth="2.2" filter="url(#envSofter)" />
-            {/* The bottom panel overlaps the sides: a softer shadow just above its edges. */}
-            <path d="M0 99.4 L50 46.4 L100 99.4" fill="none" stroke="rgba(0,0,0,.12)" strokeWidth=".6" filter="url(#envSoft)" />
+            {/* The bottom panel overlaps the sides: the same crisp shadow and soft spread as the top flap's, just
+                above its edges, so the two halves read as one folded envelope. */}
+            <path d="M0 99.1 L50 46.1 L100 99.1" fill="none" stroke="rgba(0,0,0,.2)" strokeWidth=".7" filter="url(#envSoft)" />
+            <path d="M0 98.2 L50 45.2 L100 98.2" fill="none" stroke="rgba(0,0,0,.09)" strokeWidth="2.2" filter="url(#envSofter)" />
           </g>
           {/* Folded paper edges catch the light. */}
           <g style={{ mixBlendMode: 'screen' }}>
             <path d="M0 0 L50 56 L100 0" fill="none" stroke="rgba(255,248,230,.5)" strokeWidth=".35" vectorEffect="non-scaling-stroke" />
-            <path d="M0 100 L50 47 L100 100" fill="none" stroke="rgba(255,248,230,.28)" strokeWidth=".3" vectorEffect="non-scaling-stroke" />
+            <path d="M0 100 L50 47 L100 100" fill="none" stroke="rgba(255,248,230,.5)" strokeWidth=".35" vectorEffect="non-scaling-stroke" />
           </g>
         </svg>
         {/* The seal pressed onto the paper: a contact shadow just below its rim. */}

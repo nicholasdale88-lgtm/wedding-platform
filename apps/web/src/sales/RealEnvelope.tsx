@@ -72,9 +72,12 @@ export function RealEnvelope({
         </defs>
       </svg>
       <div aria-hidden className="absolute left-0 right-0 bottom-0" style={{ top: `max(62%, calc(50% + ${below}px))` }}>
-        <svg className="block w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {/* The bottom flap: the same crisp crease, lit fold and soft shadow as the top flap, so both halves match. */}
+        <svg className="block w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
           <path d="M0 100 L50 0 L100 100Z" fill="rgba(0,0,0,.04)" />
-          <path d="M0 100 L50 0 L100 100" fill="none" stroke={crease} strokeWidth=".35" vectorEffect="non-scaling-stroke" />
+          <path d="M0 100 L50 0 L100 100" fill="none" stroke="rgba(40,25,10,.16)" strokeWidth="6" vectorEffect="non-scaling-stroke" style={{ filter: 'blur(3px)', transform: 'translateY(-2px)' }} />
+          <path d="M0 100 L50 0 L100 100" fill="none" stroke={crease} strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
+          <path d="M.6 100 L50 1.2 L99.4 100" fill="none" stroke={lit} strokeWidth=".9" vectorEffect="non-scaling-stroke" />
         </svg>
       </div>
       <div className="absolute inset-0" style={{ clipPath: 'polygon(0 0,100% 0,50% 50%)', filter: 'drop-shadow(0 3px 3px rgba(40,25,10,.28))' }}>
