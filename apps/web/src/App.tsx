@@ -149,6 +149,7 @@ function Pages() {
         <Route path="/demo/photos" element={<PhotoPage sample />} />
         <Route path="/demo/board" element={<BoardPage sample />} />
         <Route path="/demo/party" element={<PartyPage sample />} />
+        <Route path="/demo/thanks" element={<ThanksPage sample />} />
         <Route path="/demo/seating-pdf" element={<SampleSeatingPage />} />
         <Route path="/designs" element={<DesignsPage />} />
         {/* Try the app: the admin for a made-up wedding, answered in the browser (try/demo.ts). */}

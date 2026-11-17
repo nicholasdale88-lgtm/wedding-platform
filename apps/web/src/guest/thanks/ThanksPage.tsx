@@ -11,18 +11,18 @@ import { themeOf } from '../themeKit';
  * for coming" text). The couple's photo and words, in the wedding's colours; once they say the photos are ready,
  * buttons to everyone's photos and the photographer's gallery; and a way to add their own.
  */
-export function ThanksPage() {
+/** `sample`: /demo/thanks, the sample wedding's thank-you (?mine=1: as changed in the sample app's Setup). */
+export function ThanksPage({ sample = false }: { sample?: boolean } = {}) {
   const { slug = '' } = useParams();
   const [params] = useSearchParams();
   const token = params.get('g') ?? '';
   const [d, setD] = useState<ThanksPayload | null>(null);
   const [err, setErr] = useState('');
   useEffect(() => {
-    guestApi
-      .thanks(slug, token)
+    (sample ? import('../../sales/sampleGuide').then((m) => m.sampleThanks(params.get('mine') === '1')) : guestApi.thanks(slug, token))
       .then(setD)
       .catch((e: Error) => setErr(e.message));
-  }, [slug, token]);
+  }, [slug, token, sample, params]);
   useEffect(() => {
     if (d) document.title = `Thank you · ${first(d.wedding.name1)} & ${first(d.wedding.name2)}`;
   }, [d]);
@@ -66,7 +66,7 @@ export function ThanksPage() {
               </a>
             )}
             {d.addPhotos && (
-              <a href={`/w/${encodeURIComponent(slug)}/photos${q}`} className={btn} style={{ color: ink, border: `1px solid ${gold}` }}>
+              <a href={sample ? '/demo/photos' : `/w/${encodeURIComponent(slug)}/photos${q}`} className={btn} style={{ color: ink, border: `1px solid ${gold}` }}>
                 Add your photos from the day
               </a>
             )}

@@ -1,7 +1,7 @@
 import type { ReceptionGuide } from '@wp/shared';
 import generic from '../../../../seed/texts.generic.json';
 import dynamic from '../../../../seed/texts.dynamic.json';
-import type { GuidePayload, PhotoPagePayload } from '../guest/invitation/api';
+import type { GuidePayload, PhotoPagePayload, ThanksPayload } from '../guest/invitation/api';
 import { readDemoPages } from '../try/demo';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 
@@ -49,6 +49,25 @@ export const SAMPLE_GUIDE: ReceptionGuide = {
     { q: 'Is there somewhere to leave a gift?', a: 'There’s a table by the barn door. Your company is the real gift.' },
   ],
 };
+
+/** The sample wedding's thank-you page (/demo/thanks); `mine`: as changed in the sample app's Setup (this tab). */
+export function sampleThanks(mine = false): ThanksPayload {
+  const own = mine ? readDemoPages() : null;
+  const inv = (own?.invitation ?? SAMPLE_INVITE.content) as { thanks?: { heading?: string; message?: string; signoff?: string; ready?: boolean; gallery?: string }; images?: Record<string, string> };
+  const t = inv.thanks ?? { ready: true };
+  const w = SAMPLE_INVITE.wedding;
+  return {
+    wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: own?.theme ?? w.theme },
+    guest: 'Emma & Tom',
+    heading: t.heading ?? '',
+    message: t.message ?? 'Thank you for celebrating with us among the vines. Having you there made our day, and we’ll remember it always. The photos are back, and we love them: have a look below.',
+    signoff: t.signoff ?? '',
+    photo: inv.images?.thanks ?? '',
+    album: false, // the sample has no shared album: its gallery link is the couple's own (from Setup)
+    gallery: t.ready !== false ? (t.gallery ?? '') : '',
+    addPhotos: true,
+  };
+}
 
 const all = { ...(generic as Record<string, string>), ...(dynamic as Record<string, string>) };
 

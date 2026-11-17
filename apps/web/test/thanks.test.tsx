@@ -49,4 +49,19 @@ describe('the thank-you page', () => {
     expect(await screen.findByRole('link', { name: 'See the professional photos' })).toHaveAttribute('href', 'https://example.com/gallery');
     expect(screen.getByRole('link', { name: 'See everyone’s photos' })).toHaveAttribute('href', `/w/alex-and-sam/album?g=${TOKEN}`);
   });
+
+  it('the sample (/demo/thanks): made here, nothing asked of the server', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    render(
+      <MemoryRouter initialEntries={['/demo/thanks']}>
+        <Routes>
+          <Route path="/demo/thanks" element={<ThanksPage sample />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText(/Dear Emma & Tom/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add your photos from the day' })).toHaveAttribute('href', '/demo/photos');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });
