@@ -75,9 +75,7 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Test
-        # No package prefix on output lines, so failing tests show as annotations on the run page.
-        run: pnpm -r --reporter-hide-prefix test
+      # The unit and integration tests run in the unit job (below), split across machines.
 
       - name: Build the website
         run: |
@@ -191,7 +189,8 @@ jobs:
           curl -sf http://localhost:5173/api/site || { echo "::error::The app didn't start"; tail -50 "$RUNNER_TEMP/api.log"; tail -50 "$RUNNER_TEMP/web.log"; exit 1; }
 
       - name: Tap through it
-        run: pnpm --filter e2e e2e
+        # The release gate's smoke tests run in their own job (smoke, below).
+        run: pnpm --filter e2e e2e --project=iphone --project=desktop
 
       - name: Logs and report (when something failed)
         if: failure()
@@ -209,8 +208,167 @@ jobs:
             apps/e2e/test-results
           retention-days: 7
 
+  # ------------------------------------------------------------------ Release gate
+  # Production deploys only when all of these pass on the commit (deploy needs them): check (guards,
+  # typecheck, lint, build), unit (every unit and integration test, split across machines), the 1,000
+  # wedding scenarios, the burst load test and the phone and computer smoke tests. They run side by side.
+
+  unit:
+    name: Tests (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: api 1/3, pkg: api, args: --shard=1/3 }
+          - { name: api 2/3, pkg: api, args: --shard=2/3 }
+          - { name: api 3/3, pkg: api, args: --shard=3/3 }
+          - { name: web and shared, pkg: web, args: '' }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+      - name: Cache packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Test
+        run: |
+          pnpm --filter ${{ matrix.pkg }} exec vitest run ${{ matrix.args }}
+          if [ "${{ matrix.pkg }}" = web ]; then pnpm --filter @wp/shared exec vitest run; fi
+
+  scenarios:
+    name: Wedding scenarios (${{ matrix.shard }}/4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+      - name: Cache packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: 250 generated weddings (seeded; rerun one with SCENARIO=<n>)
+        working-directory: apps/api
+        run: pnpm exec vitest run --config vitest.scenarios.config.ts --shard=${{ matrix.shard }}/4
+
+  load:
+    name: Burst load (500 replies in 60s)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+      - name: Cache packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Start the API (its own throwaway local database)
+        working-directory: apps/api
+        run: |
+          pnpm exec wrangler d1 migrations apply DB --local
+          nohup pnpm exec wrangler dev --port 8787 --var SESSION_SECRET:load-only-secret-0000000000 --var SUPER_ADMINS:load-platform@example.com > "$RUNNER_TEMP/api.log" 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:8787/api/health > /dev/null && break; sleep 2; done
+          curl -sf http://localhost:8787/api/health || { echo "::error::The API didn't start"; tail -50 "$RUNNER_TEMP/api.log"; exit 1; }
+      - name: 500 replies in 60 seconds (p95 under 300 ms, no 5xx)
+        run: node tests/load/rsvp-burst.mjs http://localhost:8787
+      - name: API log (when something failed)
+        if: failure()
+        run: tail -80 "$RUNNER_TEMP/api.log"
+
+  smoke:
+    name: Smoke (375px phone and computer)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+      - name: Cache packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-${{ runner.os }}-
+      - name: Cache the test browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('apps/e2e/package.json') }}
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Install the test browser
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+      - name: Start the app (local API and database, and the website)
+        # Placeholder Google and Dropbox app keys (never real ones): the Photos panel offers Connect, and
+        # nothing here ever signs in to either.
+        run: |
+          cd apps/api
+          pnpm exec wrangler d1 migrations apply DB --local
+          nohup pnpm exec wrangler dev --port 8787 --var SESSION_SECRET:smoke-only-secret-000000000 --var GOOGLE_CLIENT_ID:smoke-placeholder --var GOOGLE_CLIENT_SECRET:smoke-placeholder --var DROPBOX_APP_KEY:smoke-placeholder --var DROPBOX_APP_SECRET:smoke-placeholder > "$RUNNER_TEMP/api.log" 2>&1 &
+          cd ../web
+          nohup pnpm exec vite --port 5173 --strictPort > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:5173/ > /dev/null && curl -s http://localhost:5173/api/site > /dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:5173/api/site || { echo "::error::The app didn't start"; tail -50 "$RUNNER_TEMP/api.log"; tail -50 "$RUNNER_TEMP/web.log"; exit 1; }
+      - name: Envelope, reply, calendar, dashboard, vendor portal, Photos connect
+        run: pnpm --filter e2e e2e --project=smoke-phone --project=smoke-desktop
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: smoke-report
+          path: |
+            apps/e2e/playwright-report
+            apps/e2e/test-results
+          retention-days: 7
+
   deploy:
-    needs: check
+    needs: [check, unit, scenarios, load, smoke]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 15

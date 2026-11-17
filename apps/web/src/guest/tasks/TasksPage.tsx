@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { isAndroid, subscribeHref } from '../../lib/calendarLinks';
 import { GuestMessage } from '../GuestMessage';
 import { InstallApp } from '../../lib/InstallApp';
 
@@ -86,8 +87,8 @@ export function TasksPage() {
     }
   };
   const onDay = d.day ?? [];
-  const android = /android/i.test(navigator.userAgent);
-  const feed = d.calendar?.replace(/^https?:/, 'webcal:') ?? '';
+  const android = isAndroid();
+  const feed = d.calendar ? subscribeHref(d.calendar) : '';
   const open = d.tasks.filter((t) => t.status !== 'done');
   const done = d.tasks.filter((t) => t.status === 'done');
   const week = plus(d.today, 7);
@@ -155,7 +156,7 @@ export function TasksPage() {
           <section aria-label="Your calendar" className="flex flex-col gap-2 p-4 rounded-[14px] border border-[#c6b794] bg-[#fbf8f0] text-[14px] text-[#5b6a52]">
             <span>Put all of this in your phone’s calendar, with a reminder before each one. If the couple change anything, it updates by itself.</span>
             <a
-              href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
+              href={feed}
               target={android ? '_blank' : undefined}
               rel="noopener"
               className="self-start py-[10px] px-5 rounded-full bg-[#33402f] !text-[#fbf8f2] no-underline font-medium"

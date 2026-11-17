@@ -6,7 +6,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { InvitationView } from '../guest/generated/InvitationView';
 import { EnvelopeExtras } from '../guest/invitation/EnvelopeExtras';
 import { paperHex, SealOverlay } from '../guest/invitation/WaxSeal';
-import { useInvitation } from '../guest/invitation/useInvitation';
+import { calendarControl, eventOfSection, useInvitation } from '../guest/invitation/useInvitation';
 import { lookOf, sceneOf, THEME_NAMES, themeOf } from '../guest/themeKit';
 import { SceneOverlay } from '../guest/invitation/Scene';
 import '../guest/looks.css';
@@ -36,14 +36,19 @@ export function DemoPage() {
     <>
       <SampleInvitation key={theme ?? ''} theme={theme} play={params.get('play') === '1'} mine={params.get('mine') === '1'} />
       {!embed && (
-        <div className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-3 py-2 pl-4 pr-2 rounded-full text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]" style={{ background: 'rgba(51,64,47,.92)' }}>
-          <Link to={params.get('from') === 'designs' ? '/designs' : '/'} className="flex-none py-[7px] px-3 rounded-full no-underline font-semibold !text-[#fbf8f2] border border-[rgba(251,248,242,.4)]">
+        <div
+          data-sample-banner
+          className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-2 py-[6px] pl-2 pr-[6px] rounded-[26px] text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]"
+          style={{ background: 'rgba(51,64,47,.92)' }}
+        >
+          <Link to={params.get('from') === 'designs' ? '/designs' : '/'} className="flex-none inline-flex items-center min-h-[40px] px-3 rounded-full no-underline font-semibold !text-[#fbf8f2] border border-[rgba(251,248,242,.4)]">
             ← {params.get('from') === 'designs' ? 'Designs' : 'Back'}
           </Link>
-          <span className="min-w-0 truncate">
+          {/* Wraps onto two short lines on a phone rather than being cut off. */}
+          <span className="min-w-0 flex-1 text-center text-[13px] leading-[1.25] [overflow-wrap:anywhere]">
             <strong className="font-semibold">A sample.</strong> Replies aren’t saved.
           </span>
-          <Link to="/#start" className="flex-none py-[7px] px-4 rounded-full no-underline font-semibold !text-[#1b2218] bg-[#e6cf9e]">
+          <Link to="/#start" className="flex-none inline-flex items-center min-h-[40px] px-4 rounded-full no-underline font-semibold !text-[#1b2218] bg-[#e6cf9e] whitespace-nowrap">
             Make your own
           </Link>
         </div>
@@ -68,9 +73,13 @@ export function SampleInvitation({ theme, play = false, mine = false }: { theme?
     const id = window.setTimeout(() => openNow(), 2200);
     return () => window.clearTimeout(id);
   }, [play, openNow]);
-  // No "Add to your calendar" links: there's no real wedding behind them.
+  // Under each event: Add to calendar, made here (there's no real wedding behind the sample).
   const scene = sceneOf(data.wedding.theme, data.content.scene);
-  const v = { ...core, after: () => undefined, ...(scene === 'none' ? {} : { envOp: 0, hintOp: 0 }) };
+  const after = (label: string) => {
+    const ev = eventOfSection(data, label);
+    return ev ? calendarControl(data, ev, undefined, true) : undefined;
+  };
+  const v = { ...core, after, ...(scene === 'none' ? {} : { envOp: 0, hintOp: 0 }) };
   const th = themeOf(data.wedding.theme, data.content.custom);
   return (
     <>

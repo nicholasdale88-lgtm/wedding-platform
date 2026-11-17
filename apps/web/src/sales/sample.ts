@@ -88,7 +88,7 @@ export const SAMPLE_INVITE: InvitePayload = {
   },
   texts: { ...(generic as Record<string, string>), ...FILLS },
   // 2:00pm in Sydney (daylight saving time).
-  events: [{ key: 'wedding', name: 'The wedding', startsAt: '2027-03-20T03:00:00.000Z', slot: 0, questions: [] }],
+  events: [{ key: 'wedding', name: 'The wedding', startsAt: '2027-03-20T03:00:00.000Z', slot: 0, questions: [], venue: SAMPLE.venue, address: 'Hunter Valley NSW' }],
   invitation: {
     token: 'sample-olivia-and-james',
     people: [

@@ -138,12 +138,11 @@ function giltBotanical(): string {
     <path d='M96 930 Q150 900 204 930' stroke-width='.8' stroke-opacity='.8'/>`;
 }
 
-/** A wax seal pressed with their initials: an uneven rim with drips, a beaded ring, a sprig either side, and a gloss. */
+/** A wax seal pressed with their initials: a soft, uneven pooled edge (no spiky drips), a raised lip, a beaded ring, a sprig either side, and a gloss. */
 function sealArt(colour: string, initials: string): string {
-  const pts = Array.from({ length: 40 }, (_, i) => {
-    const a = (i / 40) * Math.PI * 2;
-    const drip = [5, 13, 22, 31].includes(i) ? 7 : 0;
-    const r = 96 + (rnd(i, 3) - 0.5) * 8 + drip;
+  const pts = Array.from({ length: 72 }, (_, i) => {
+    const a = (i / 72) * Math.PI * 2;
+    const r = 98 + 3.5 * Math.sin(3 * a + 1.3) + 2.4 * Math.sin(5 * a + 3) + 1.5 * Math.sin(8 * a + 0.9) + Math.max(0, Math.sin(2 * a + 2.2)) ** 6 * 4.8;
     return `${f1(110 + Math.cos(a) * r)},${f1(110 + Math.sin(a) * r)}`;
   }).join(' ');
   const beads = Array.from({ length: 36 }, (_, i) => {
@@ -163,6 +162,7 @@ function sealArt(colour: string, initials: string): string {
     <g filter='url(#sr)'>
       <polygon points='${pts}' fill='#fff' fill-opacity='.35'/>
       <circle cx='110' cy='110' r='84' fill='#fff' fill-opacity='.18'/>
+      <circle cx='110' cy='110' r='70' fill='none' stroke='#fff' stroke-opacity='.45' stroke-width='12'/>
       ${beads}
       <circle cx='110' cy='110' r='64' fill='none' stroke='#fff' stroke-opacity='.75' stroke-width='3'/>
       <circle cx='110' cy='110' r='58' fill='#fff' fill-opacity='.25'/>

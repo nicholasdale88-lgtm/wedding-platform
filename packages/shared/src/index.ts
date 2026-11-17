@@ -28,3 +28,4 @@ export * from './directory';
 export * from './company';
 export * from './budgetImport';
 export * from './ads';
+export * from './calendar';

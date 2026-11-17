@@ -24,6 +24,7 @@ import { HeroInvite } from './HeroInvite';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 import { PaperVsPhone } from './PaperVsPhone';
+import { MobileMenu } from './MobileMenu';
 
 /**
  * The front page (/). Calm on purpose: one idea a section, few words, lots of room. The hero is the real
@@ -297,19 +298,31 @@ export function SalesPage() {
         <Link to="/" aria-label={BRAND} className="no-underline">
           <Wordmark size={22} />
         </Link>
-        <nav className="flex items-center gap-5 text-[15px]">
+        <nav aria-label="Main" className="flex items-center gap-3 sm:gap-5 text-[15px]">
           <a href="#pricing" className="no-underline hidden sm:inline" style={{ color: INK }}>
             Pricing
           </a>
           <Link to="/vendors" className="no-underline hidden sm:inline" style={{ color: INK }}>
             Vendor directory
           </Link>
-          <Link to="/admin" className="no-underline" style={{ color: INK }}>
+          <Link to="/admin" className="no-underline hidden sm:inline" style={{ color: INK }}>
             Sign in
           </Link>
-          <a href="#start" className="py-[9px] px-5 rounded-full no-underline text-[14px] font-semibold" style={{ background: INK, color: '#fbf1e8' }}>
+          <a href="#start" className="inline-flex items-center min-h-[44px] px-5 rounded-full no-underline text-[14px] font-semibold whitespace-nowrap" style={{ background: INK, color: '#fbf1e8' }}>
             Get started
           </a>
+          {/* On a phone, every link above is in the menu. */}
+          <MobileMenu
+            ink={INK}
+            paper={PAPER}
+            title={<Wordmark size={18} />}
+            links={[
+              { label: 'Pricing', to: '#pricing' },
+              { label: 'Vendor directory', to: '/vendors' },
+              { label: 'Sign in', to: '/admin' },
+              { label: 'Get started', to: '#start', primary: true },
+            ]}
+          />
         </nav>
       </header>
 

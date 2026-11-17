@@ -1,4 +1,4 @@
-import { icsFold, icsText, isToken } from '@wp/shared';
+import { icsFor, isToken, weddingCalendarEvent } from '@wp/shared';
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
@@ -12,10 +12,10 @@ import { allow } from '../lib/rateLimit';
  * reaches their calendar by itself, with a reminder the day before and two hours before.
  */
 
-const esc = icsText;
+const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n'); // a lone CR too: some calendar apps read it as a new line
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-/** Lines over 75 octets are folded, as the calendar format asks. */
-const fold = icsFold;
+/** Lines over 75 characters are folded, as the calendar format asks. */
+const fold = (line: string) => line.match(/.{1,74}/g)!.join('\r\n ');
 
 export function calendarRoutes() {
   const app = new Hono<{ Bindings: Env }>();
@@ -77,54 +77,41 @@ export function calendarRoutes() {
 
   app.get('/:file', async (c) => {
     const key = c.req.param('file').replace(/\.ics$/, '');
-    const token = c.req.query('g') ?? '';
     const row = await c.env.DB.prepare(
-      `SELECT e.key, e.name, e.starts_at, e.venue, e.address, w.name1, w.name2, w.slug,
-              CASE WHEN json_valid(w.content) THEN json_extract(w.content, '$.private') ELSE 0 END AS private,
-              EXISTS (SELECT 1 FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = e.id
-                       WHERE i.token = ?3 AND i.wedding_id = w.id AND i.deleted_at IS NULL) AS guest
+      `SELECT e.key, e.name, e.starts_at, e.venue, e.address, w.name1, w.name2, w.slug, w.timezone,
+              CASE WHEN json_valid(w.content) THEN json_extract(w.content, '$.private') ELSE 0 END AS private
          FROM event e JOIN wedding w ON w.id = e.wedding_id
-        WHERE w.slug = ?1 AND w.deleted_at IS NULL AND e.key = ?2 AND e.deleted_at IS NULL`,
+        WHERE w.slug = ? AND w.deleted_at IS NULL AND e.key = ? AND e.deleted_at IS NULL`,
     )
-      .bind(c.req.param('slug'), key, isToken(token) ? token : '')
-      .first<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null; name1: string; name2: string; slug: string; private: number | null; guest: number }>();
-    // A private wedding's times and places only go to its guests: with their own link (the invitation's "Add to
-    // calendar" passes it), and only for an event they're invited to.
-    if (!row || (row.private === 1 && !row.guest)) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    const start = new Date(row.starts_at);
-    if (Number.isNaN(start.getTime())) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
-    const end = new Date(start.getTime() + 6 * 3_600_000); // a sensible length; the invitation has the details
-    const couple = `${row.name1.split(' ')[0]} & ${row.name2.split(' ')[0]}`;
-    const base = c.env.PUBLIC_BASE_URL.replace(/\/$/, '');
-    const where = [row.venue, row.address].filter(Boolean).join(', ');
-    const lines = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//wedding-platform//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      `UID:${row.slug}-${row.key}@wedding-platform`,
-      `DTSTAMP:${stamp(new Date())}`,
-      `DTSTART:${stamp(start)}`,
-      `DTEND:${stamp(end)}`,
-      `SUMMARY:${esc(`${couple}: ${row.name}`)}`,
-      ...(where ? [`LOCATION:${esc(where)}`] : []),
-      `DESCRIPTION:${esc(`Details, timeline and your RSVP: ${base}/w/${row.slug}`)}`,
-      `URL:${base}/w/${row.slug}`,
-      'BEGIN:VALARM',
-      'TRIGGER:-P1D',
-      'ACTION:DISPLAY',
-      `DESCRIPTION:${esc(`Tomorrow: ${row.name}`)}`,
-      'END:VALARM',
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ];
-    return new Response(lines.map(fold).join('\r\n') + '\r\n', {
+      .bind(c.req.param('slug'), key)
+      .first<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null; name1: string; name2: string; slug: string; timezone: string | null; private: number | null }>();
+    // A private wedding's times and places only go to its guests: with their own link (?g=), for an event
+    // they're invited to.
+    if (!row) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    if (row.private === 1) {
+      const g = c.req.query('g') ?? '';
+      const guest = isToken(g)
+        ? await c.env.DB.prepare(
+            `SELECT 1 AS ok FROM invitation i JOIN wedding w ON w.id = i.wedding_id JOIN invite_event ie ON ie.invitation_id = i.id JOIN event e ON e.id = ie.event_id
+              WHERE i.token = ? AND w.slug = ? AND e.key = ? AND i.deleted_at IS NULL AND e.deleted_at IS NULL`,
+          )
+            .bind(g, c.req.param('slug'), key)
+            .first<{ ok: number }>()
+        : null;
+      if (!guest) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    }
+    // In the wedding's own timezone (with its daylight-saving rules): the same file the invitation offers.
+    const ev = weddingCalendarEvent(
+      { slug: row.slug, name1: row.name1, name2: row.name2, timezone: row.timezone ?? undefined },
+      { key: row.key, name: row.name, startsAt: row.starts_at, venue: row.venue ?? '', address: row.address ?? '' },
+      c.env.PUBLIC_BASE_URL,
+    );
+    if (!ev) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    return new Response(icsFor(ev), {
       headers: {
         'content-type': 'text/calendar; charset=utf-8',
         'content-disposition': `attachment; filename="${row.slug}-${row.key}.ics"`,
-        'cache-control': row.private === 1 ? 'private, max-age=300' : 'public, max-age=300',
+        'cache-control': 'public, max-age=300',
       },
     });
   });

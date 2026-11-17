@@ -1,5 +1,7 @@
-import { andList, eventSlotOfPart, fillTags, joinDiet } from '@wp/shared';
+import { andList, eventSlotOfPart, fillTags, icsFor, joinDiet, weddingCalendarEvent } from '@wp/shared';
+import { AddToCalendar } from './AddToCalendar';
 import { themeOf } from '../themeKit';
+import { inAppBrowser, isAndroid, subscribeHref } from '../../lib/calendarLinks';
 import { playerFor } from '../audio';
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { SECTION_PARTS } from '../generated/InvitationView.meta';
@@ -8,7 +10,7 @@ import { previewNow } from '../previewClock';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
 import { openingOf, openingTimes, openingValues, prefersLessMotion } from './openings';
 import { shownRows, TIMELINE_ROWS, TimelineRows } from './Timeline';
-import { initialsOf, isDesignSeal, paperVars, sealDate, sealWords, type SealShown } from './WaxSeal';
+import { initialsOf, paperVars, sealDate, sealWords, type SealShown } from './WaxSeal';
 
 /**
  * The invitation's behaviour, ported from the design's logic (design/extracted/invitation.html, renderVals).
@@ -69,35 +71,35 @@ function formFrom(g: GuestInvitation | null, data: InvitePayload): Form {
   };
 }
 
-/** "Add to your calendar": the calendar file (Apple, Outlook) and Google, in the section's own colours. */
-function calendarLinks(data: InvitePayload, ev: InvitePayload['events'][number]) {
-  const start = new Date(ev.startsAt);
-  if (Number.isNaN(start.getTime())) return null;
-  const z = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const couple = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
-  const google = `https://calendar.google.com/calendar/render?${new URLSearchParams({
-    action: 'TEMPLATE',
-    text: `${couple}: ${ev.name}`,
-    dates: `${z(start)}/${z(new Date(start.getTime() + 6 * 3_600_000))}`,
-    details: `${window.location.origin}/w/${data.wedding.slug}`,
-  }).toString()}`;
-  const link = { color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
+/**
+ * "Add to calendar" for one event: Google, Apple, Outlook.com, Office 365 and a calendar file, in the
+ * wedding's own timezone. A real wedding's file comes from the site (it carries the guest's link, so a
+ * private wedding's file opens for its guests); the sample makes its file here, as nothing is behind it.
+ */
+export function calendarControl(data: InvitePayload, ev: InvitePayload['events'][number], token: string | undefined, sample = false) {
+  if (ev.tbc) return null;
+  const origin = window.location.origin;
+  const event = weddingCalendarEvent(data.wedding, ev, origin);
+  if (!event) return null;
+  if (sample) event.url = `${origin}/demo`;
+  const q = token ? `?g=${encodeURIComponent(token)}` : '';
+  const icsHref = sample ? `data:text/calendar;charset=utf-8,${encodeURIComponent(icsFor(event))}` : `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics${q}`;
   // With their own link: all their events in their phone's calendar, kept up to date (a change of time or
-  // place reaches it by itself). iPhone and Outlook subscribe to webcal; Android through Google Calendar.
-  const token = data.invitation?.token;
-  const feed = token ? `webcal://${window.location.host}/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/mine.ics?g=${encodeURIComponent(token)}` : '';
-  const android = /android/i.test(navigator.userAgent);
-  const subscribe = feed ? (android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed) : '';
-  return createElement(
-    'div',
-    { style: { fontSize: 15, opacity: 0.85, textAlign: 'center' as const, fontFamily: "'Cormorant Garamond', Georgia, serif" } },
-    'Add to your calendar: ',
-    // With their own link (a private wedding's calendar file is only for its guests).
-    createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics${token ? `?g=${encodeURIComponent(token)}` : ''}`, style: link }, 'Apple / Outlook'),
-    ' · ',
-    createElement('a', { href: google, target: '_blank', rel: 'noopener noreferrer', style: link }, 'Google'),
-    ...(subscribe ? [' · ', createElement('a', { href: subscribe, ...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {}), style: link }, 'All my events, kept up to date')] : []),
-  );
+  // place reaches it by itself). iPhone and Outlook subscribe to webcal; Google to https; an in-app browser
+  // (which can't open webcal) gets the https .ics file.
+  const feed = token && !sample ? subscribeHref(`${origin}/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/mine.ics${q}`) : '';
+  return createElement(AddToCalendar, {
+    event,
+    icsHref,
+    fileName: `${data.wedding.slug}-${ev.key}.ics`,
+    ...(feed ? { feed: { href: feed, label: inAppBrowser() ? 'All my events (.ics)' : 'All my events, kept up to date', newTab: isAndroid() } } : {}),
+  });
+}
+
+/** The event a section belongs to (by slot, not position: a guest invited only to the second event is sent just that one). */
+export function eventOfSection(data: InvitePayload, label: string) {
+  const slot = eventSlotOfPart(SECTION_PARTS[label]) ?? (/^02\b/.test(label) ? 0 : undefined); // "02 …" is the first event's details
+  return slot === undefined ? undefined : data.events.find((e) => e.slot === slot);
 }
 
 /** The template's two event places: slot 0 (first event) and slot 1 (second event). */
@@ -160,7 +162,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     return () => audio.current?.stop();
   }, [data.content.audioUrl]);
 
-  // ---------------------------------------------------------------- never show the envelope twice
+  // ---------------------------------------------------------------- the admin's preview stays open after a save
   useEffect(() => {
     if (preview) {
       // The admin's preview reloads after every save (&stay=1): then it stays open, where it was. Opened
@@ -182,20 +184,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       }
       return;
     }
-    try {
-      const o = JSON.parse(store.get(openKey) ?? 'null') as { at: number } | null;
-      if (o && Date.now() - o.at < 90 * 864e5) {
-        setP(4);
-        setMuted(true); // opened before: the music button starts the music
-        setTimeout(() => {
-          const el = document.getElementById('inv-scroll');
-          const y = Number(sessionStorage.getItem(`${openKey}-y`) ?? 0);
-          if (el && y) el.scrollTop = y;
-        }, 120);
-      }
-    } catch {
-      /* ignore */
-    }
+    // Guests: the sealed envelope and the full opening, at the same pace, every time they open it.
   }, [openKey, preview]);
 
   useEffect(() => {
@@ -381,7 +370,10 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     fan[`fw${i}`] = fanSel === i ? 700 : 400;
   }
   const hover = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
-  const cueOn = p >= 4 && cue.sc && !cue.end;
+  // The floating "Scroll for details" pill stays hidden: the card's own hint (under the names, in the
+  // first screen) asks once, and a pill fixed over the page once they've scrolled covered what they were
+  // reading (the FAQ on a phone). It never takes taps while hidden.
+  const cueOn: boolean = false;
   const greetN = guest ? names.length : 1;
   const greetL = guest ? names.join(', ').length : 10;
 
@@ -575,11 +567,9 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     rows: (key: string) => (key === TIMELINE_ROWS && data.content.timeline && shownRows(data.content.timeline).length ? createElement(TimelineRows, { items: data.content.timeline }) : undefined),
     // The end of an event's own section: "Add to your calendar", and (for the second event) its timeline.
     after: (label: string) => {
-      const slot = eventSlotOfPart(SECTION_PARTS[label]) ?? (/^02\b/.test(label) ? 0 : undefined); // "02 …" is the first event's details
-      if (slot === undefined) return undefined;
-      // By slot, not position: a guest invited only to the second event is sent just that one event.
-      const ev = data.events.find((e) => e.slot === slot);
+      const ev = eventOfSection(data, label);
       if (!ev) return undefined;
+      const slot = ev.slot;
       const items = slot ? data.content.timelines?.[ev.key] : undefined; // the first event's timeline is the main one
       const timeline = items && shownRows(items).length ? createElement(TimelineRows, { items, onSection: true }) : null;
       // A shuttle for this event: "Book a seat" (for a guest with their own link).
@@ -596,7 +586,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
             )
           : null;
       const party = slot === 0 && guest ? whosWhoBlock(data) : null;
-      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle, party);
+      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarControl(data, ev, guest?.token), shuttle, party);
     },
   };
   // The couple's choice of how the envelope opens (Setup → Design it your way), over the design's classic lift.
@@ -605,10 +595,10 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     v,
     openingValues(openingOf(data.content.opening), p, { paper: look.b1 ?? '#fbf8f2', ink: look.dg ?? '#33402f', accent: look.acc ?? '#c8a46a', soft: look.b2 ?? '#efe6d3' }, { burst: v.burst }, prefersLessMotion()),
   );
-  // Any seal but the design's own (a newer colour, another design, their own words): drawn over the
-  // envelope by SealOverlay, moving just as the design's would, and the design's one is hidden.
+  // Every seal is the real pressed-wax one, drawn over the envelope by SealOverlay, moving just as the
+  // design's would, and the design's older flat one is hidden.
   let sealShown: SealShown | null = null;
-  if (!isDesignSeal(seal, data.content.sealDesign)) {
+  {
     const date = sealDate((e0 ?? data.events[0])?.startsAt, data.wedding.timezone);
     sealShown = { colour: seal, design: data.content.sealDesign, words: sealWords(data.content.sealDesign, initials, date), t: String(v.sealT), op: Number(v.sealOp), zoom: String(v.envZoom), envOp: Number(v.envOp) };
     v.sealOp = 0;

@@ -5,8 +5,8 @@ import type { Env } from '../env';
 import { SESSION_COOKIE, sessionId } from '../lib/auth';
 import { seal } from '../lib/seal';
 import { readJson } from '../lib/security';
-import { PROVIDER, PROVIDER_NAME, PROVIDERS, providerReady, ProviderError, type ProviderKey } from '../photos/providers';
-import { linkRow, runCopies, SEAL_LABEL, setUpFolders } from '../photos/store';
+import { COUPLE_PROVIDERS, encPath, PROVIDER, PROVIDER_NAME, providerReady, ProviderError, type ProviderKey } from '../photos/providers';
+import { linkRow, primeAccess, runCopies, SEAL_LABEL, setUpFolders, topOf, verifyLink } from '../photos/store';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
 /**
@@ -38,14 +38,20 @@ const queueCopies = (db: D1Database, linkId: string, weddingId: string): D1Prepa
   ];
 };
 
-/** Where the couple can see it in their own storage (Google Drive: the wedding's own folder). */
-const openUrl = (provider: ProviderKey, folders: string | null): string => {
-  if (provider === 'gdrive') {
-    const f = JSON.parse(folders || '{}') as Record<string, string>;
-    const top = Object.entries(f).find(([k]) => k.startsWith('path:') && !k.slice(5).includes('/'))?.[1];
-    return top ? `https://drive.google.com/drive/folders/${encodeURIComponent(top)}` : 'https://drive.google.com/drive/my-drive';
+/**
+ * Where the couple can see it in their own storage: the wedding's own folder. Google Drive goes by the
+ * folder's id; Dropbox by its path inside the site's app folder (Apps/<the app's name>/).
+ */
+const openUrl = (env: Env, provider: ProviderKey, folders: string | null): string => {
+  const f = JSON.parse(folders || '{}') as Record<string, string>;
+  const name = topOf(folders);
+  const top = name ? f[`path:${name}`] : undefined;
+  if (provider === 'gdrive') return top ? `https://drive.google.com/drive/folders/${encodeURIComponent(top)}` : 'https://drive.google.com/drive/my-drive';
+  if (provider === 'dropbox') {
+    const app = encPath(env.DROPBOX_APP_FOLDER || 'The Yes List');
+    return `https://www.dropbox.com/home/Apps/${app}${top?.startsWith('/') ? encPath(top) : ''}`;
   }
-  return provider === 'gphotos' ? 'https://photos.google.com/albums' : provider === 'dropbox' ? 'https://www.dropbox.com/home/Apps' : 'https://onedrive.live.com/';
+  return provider === 'gphotos' ? 'https://photos.google.com/albums' : 'https://onedrive.live.com/';
 };
 
 const randomId = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -77,7 +83,7 @@ export function photoLinkRoutes() {
       redirectUri: redirectUri(c.env),
       // The site's own app setup (Google Cloud, Dropbox, Azure) is for whoever runs the site, never the couple.
       canSetUp: c.get('user').superAdmin,
-      providers: PROVIDERS.map((p) => ({ key: p, name: PROVIDER_NAME[p], ready: providerReady(c.env, p) })),
+      providers: COUPLE_PROVIDERS.map((p) => ({ key: p, name: PROVIDER_NAME[p], ready: providerReady(c.env, p) })),
       links: results.map((r) => ({
         id: r.id,
         provider: r.provider,
@@ -91,7 +97,10 @@ export function photoLinkRoutes() {
         since: r.created_at,
         docs: docs?.l === r.id,
         filed: filed.has(r.id),
-        openUrl: openUrl(r.provider, r.folders),
+        // The welcome file was written into the wedding folder: the link can really save there.
+        verified: !!(JSON.parse(r.folders || '{}') as Record<string, string>)._ok,
+        folder: topOf(r.folders),
+        openUrl: openUrl(c.env, r.provider, r.folders),
       })),
     });
   });
@@ -101,6 +110,8 @@ export function photoLinkRoutes() {
     const body = z.object({ provider: z.enum(['gdrive', 'gphotos', 'dropbox', 'onedrive']) }).strict().safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose where to link.');
     const p = body.data.provider;
+    // Google Photos isn't offered: the site's Google sign-in is for Drive only.
+    if (!COUPLE_PROVIDERS.includes(p)) return err(c, 400, 'invalid', 'Choose Google Drive or Dropbox.');
     if (!providerReady(c.env, p) || !c.env.SESSION_SECRET) return err(c, 503, 'not_set_up', `${PROVIDER_NAME[p]} isn't switched on for this site yet.`);
     const state = randomId();
     const now = new Date();
@@ -142,8 +153,9 @@ export function photoLinkRoutes() {
   });
 
   /**
-   * File everything in this storage: one "<couple> wedding" folder with Photos (a folder per event),
-   * Planning files, Signs and print, and Backups, made now. Photos from now on go there.
+   * Recovery for links made before folders were filed (new links are filed when they connect): one
+   * wedding folder with Photos (a folder per event), Planning files, Signs and print, and Backups, made
+   * now and checked with the welcome file. Photos from now on go there.
    */
   app.post('/:id/folders', writer, async (c) => {
     const link = await linkRow(c.env.DB, wid(c), c.req.param('id'));
@@ -151,6 +163,7 @@ export function photoLinkRoutes() {
     if (link.provider === 'gphotos') return err(c, 400, 'invalid', 'Google Photos keeps an album per event instead of folders.');
     try {
       const folders = await setUpFolders(c.env, link);
+      await verifyLink(c.env, link);
       await audit(c, 'photos.folders', link.id).run();
       return c.json({ ok: true, folders });
     } catch (e) {
@@ -210,16 +223,42 @@ export function oauthRoutes() {
         c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, at) VALUES (?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), row.wedding_id, row.user_id, had ? 'photos.relink' : 'photos.link', id, now),
         // Photos already taken go there too, without anyone having to ask.
         ...queueCopies(c.env.DB, id, row.wedding_id),
+        // Signing in is all it takes: the first storage linked (other than Google Photos, which only takes
+        // photos) keeps the planning files too, unless they've already chosen one.
+        ...(row.provider === 'gphotos'
+          ? []
+          : [c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.docsLink', ?) WHERE id = ? AND json_valid(content) AND json_extract(content, '$.docsLink') IS NULL`).bind(id, row.wedding_id)]),
       ]);
-      c.executionCtx.waitUntil(runCopies(c.env, { linkId: id, limit: 25 }).catch(() => undefined));
-      // Filed straight away: the couple sees the folders in their storage as soon as they look.
+      // Finished before they're sent back: the wedding folder and its shelves are made, and a small welcome
+      // file is written into it to prove the link can really save there. If that fails, the sign-in is
+      // kept (no second sign-in needed) but the link shows as needing a reconnect, never a fake "connected".
       if (row.provider !== 'gphotos') {
-        c.executionCtx.waitUntil(
-          linkRow(c.env.DB, row.wedding_id, id)
-            .then((l) => (l ? setUpFolders(c.env, l) : []))
-            .catch((e) => console.error('link folders', e)),
-        );
+        const l = await linkRow(c.env.DB, row.wedding_id, id);
+        if (l) {
+          primeAccess(l, t.access, t.expires);
+          try {
+            try {
+              await setUpFolders(c.env, l);
+              await verifyLink(c.env, l);
+            } catch (e) {
+              // Connecting again after the folder was deleted or moved: make it afresh (same name) and try once more.
+              if (!had || (e instanceof ProviderError && e.relink)) throw e;
+              const keep = JSON.parse(l.folders || '{}') as Record<string, string>;
+              l.folders = JSON.stringify(Object.fromEntries(Object.entries(keep).filter(([k]) => k.startsWith('_') && k !== '_ok')));
+              await c.env.DB.prepare(`UPDATE photo_link SET folders = ? WHERE id = ?`).bind(l.folders, id).run();
+              await setUpFolders(c.env, l);
+              await verifyLink(c.env, l);
+            }
+          } catch (e) {
+            console.error('link setup', e instanceof Error ? e.message : e);
+            await c.env.DB.prepare(`UPDATE photo_link SET status = 'error', last_error = ? WHERE id = ?`)
+              .bind(`We couldn’t make your wedding folder in ${PROVIDER_NAME[row.provider]}. Tap Reconnect to try again.`, id)
+              .run();
+            return back(`link_error=setup`);
+          }
+        }
       }
+      c.executionCtx.waitUntil(runCopies(c.env, { linkId: id, limit: 25 }).catch(() => undefined));
       return back(`linked=${row.provider}`);
     } catch (e) {
       console.error('photo link', e instanceof ProviderError ? e.message : e);

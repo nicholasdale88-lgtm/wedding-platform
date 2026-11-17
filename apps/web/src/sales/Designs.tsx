@@ -3,6 +3,7 @@ import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LOOK_LABEL, lookOf, MOOD_OF, MOODS, SIGNATURE, SIGNATURE_NAMES, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
+import { nearestWax, WaxSeal } from '../guest/invitation/WaxSeal';
 import { Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { BRAND } from './SalesPage';
@@ -155,11 +156,9 @@ function MiniEnvelope({ t }: { t: ReturnType<typeof themeOf> }) {
       <svg viewBox="0 0 100 84" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
         <path d="M8 0 L44 36 M92 0 L56 36 M10 84 L28 67.7 M90 84 L72 67.7" stroke={acc} strokeWidth="1" vectorEffect="non-scaling-stroke" fill="none" opacity=".9" />
       </svg>
-      {/* The seal. */}
-      <span className="absolute left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2 w-[26px] h-[26px] rounded-full grid place-items-center shadow-[0_2px_4px_rgba(0,0,0,.3)]" style={{ background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), ${acc} 50%, color-mix(in srgb, ${acc} 70%, #000))` }}>
-        <span className="font-script text-[11px] leading-none" style={{ color: 'rgba(255,255,255,.85)' }}>
-          H&amp;T
-        </span>
+      {/* The seal: the same pressed wax as the invitation, in the design's accent. */}
+      <span className="absolute left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2 w-[30px] h-[30px]" style={{ filter: 'drop-shadow(0 1px 1.5px rgba(40,25,10,.45)) drop-shadow(0 3px 4px rgba(40,25,10,.2))' }}>
+        <WaxSeal colour={nearestWax(acc)} words="H & T" px={30} still />
       </span>
     </span>
   );

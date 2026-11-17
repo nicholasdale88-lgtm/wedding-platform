@@ -1,9 +1,38 @@
-import { useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { inputCls, Label, useToast } from '../ui';
 
 /** Form pieces for an event's Setup (design: numbered sections, labelled inputs, row editors with ×). */
 
-export function Section({ n, title, hint, children }: { n: number | string; title: string; hint: string; children: ReactNode }) {
+/**
+ * A numbered Setup section. With `fold`, it's a step that starts rolled up: its title and what's set now, and a
+ * tap opens it (and shows its hint); `fold.start` opens it to begin with (e.g. a link that asks for it).
+ */
+export function Section({ n, title, hint, children, fold }: { n: number | string; title: string; hint: string; children: ReactNode; fold?: { now: string; start?: boolean } }) {
+  const [open, setOpen] = useState(!fold || !!fold.start);
+  useEffect(() => {
+    if (fold?.start) setOpen(true);
+  }, [fold?.start]);
+  if (fold)
+    return (
+      <section className={`flex flex-col gap-[14px] rounded-[16px] border ${open ? 'border-[var(--adm-ink,#33402f)] bg-[var(--adm-card,#fbf8f0)] p-4 sm:p-5' : 'border-[var(--adm-line,#e2d7bc)] bg-white'}`}>
+        <h2 className="m-0">
+          <button
+            type="button"
+            aria-expanded={open}
+            onClick={() => setOpen((x) => !x)}
+            className={`w-full flex items-center gap-3 border-0 bg-transparent text-left cursor-pointer text-[var(--adm-text,#33402f)] ${open ? 'p-0' : 'p-4 min-h-[64px]'}`}
+          >
+            <span className={`w-[30px] h-[30px] rounded-full text-[14px] font-semibold flex items-center justify-center shrink-0 ${open ? 'bg-[#33402f] text-[#f3ecd6]' : 'bg-[var(--adm-tint,#efe7d3)] text-[#33402f]'}`}>{n}</span>
+            <span className="flex flex-col min-w-0 flex-1">
+              <span className="font-display font-medium text-[24px] leading-tight">{title}</span>
+              <span className={`text-[14px] font-sans text-[var(--adm-muted,#5b6a52)] ${open ? '' : 'truncate'}`}>{open ? hint : fold.now}</span>
+            </span>
+            <span className="shrink-0 text-[14px] font-sans underline">{open ? 'Close' : 'Open'}</span>
+          </button>
+        </h2>
+        {open && children}
+      </section>
+    );
   return (
     <section className="flex flex-col gap-[14px] pt-6 border-t border-[var(--adm-line,#e2d7bc)] first:border-t-0 first:pt-0">
       <div className="flex items-baseline gap-3 flex-wrap">

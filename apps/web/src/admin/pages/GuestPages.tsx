@@ -213,12 +213,14 @@ export function GuestPages() {
         }
       : undefined;
 
+  // Step numbers in reading order: each editor numbers its own sections from 1, and the wording comes after them.
+  const before = page === 'invitation' ? 3 : guide ? 2 : 0;
   let n = 0;
   const editor = (
     <div className="flex flex-col gap-6 min-w-0">
-      {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setTexts={(changes) => Object.entries(changes).forEach(([k, v]) => setText(k, v))} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
+      {page === 'invitation' && <InvitationEditor doc={doc} setInv={setInv} setTexts={(changes) => Object.entries(changes).forEach(([k, v]) => setText(k, v))} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
       {page === 'details' && ev && <Events only={ev.key} />}
-      {page === 'thanks' && <ThanksEditor inv={doc.invitation} n={() => ++n} setInv={setInv} Photo={VenuePhoto} />}
+      {page === 'thanks' && <ThanksEditor inv={doc.invitation} setInv={setInv} Photo={VenuePhoto} />}
       {page === 'timeline' && ev && (
         <Section
           n={++n}
@@ -228,10 +230,10 @@ export function GuestPages() {
           <TimelineEditor eventKey={ev.key} slot={evSlot} inv={doc.invitation} texts={doc.texts} setInv={setInv} setText={setText} onCopyToGuide={copyToGuide(ev.key)} />
         </Section>
       )}
-      {guide?.style === 'reception' && <ReceptionEditor g={guide} n={() => ++n} set={setGuide} />}
-      {guide?.style === 'dayout' && <DayoutEditor g={guide} n={() => ++n} set={setGuide} />}
+      {guide?.style === 'reception' && <ReceptionEditor g={guide} set={setGuide} />}
+      {guide?.style === 'dayout' && <DayoutEditor g={guide} set={setGuide} />}
       {(page === 'invitation' || page === 'photos' || guide) && (
-        <Wording n={++n} prefix={page === 'invitation' ? 'inv' : page === 'photos' ? 'ph' : guide?.style === 'dayout' ? 'g30' : 'gd'} texts={doc.texts} filled={doc.filled} onChange={setText} />
+        <Wording n={before + ++n} prefix={page === 'invitation' ? 'inv' : page === 'photos' ? 'ph' : guide?.style === 'dayout' ? 'g30' : 'gd'} texts={doc.texts} filled={doc.filled} onChange={setText} />
       )}
     </div>
   );
@@ -463,19 +465,20 @@ function VenuePhoto({ value, onChange }: { value: string; onChange: (v: string) 
 
 function InvitationEditor({
   doc,
-  n,
   setInv,
   setTexts,
   setNames,
   setTheme,
 }: {
   doc: Doc;
-  n: () => number;
   setInv: (p: Partial<InvitationContent>) => void;
   setTexts: (changes: Record<string, string>) => void;
   setNames: (names: PageNames) => void;
   setTheme: (t: string) => void;
 }) {
+  // This editor's own steps, numbered from 1 in reading order each time it draws.
+  let k = 0;
+  const n = () => ++k;
   const [params] = useSearchParams();
   const openSeal = params.get('open') === 'seal';
   const sealRef = useRef<HTMLDivElement>(null);
@@ -499,11 +502,12 @@ function InvitationEditor({
   const paper = inv.envelope?.paper ? ` · ${ENVELOPE_PAPER_INFO[inv.envelope.paper].label.toLowerCase()} envelope` : '';
   return (
     <>
-      <Section n={n()} title="Design it your way" hint="Start from a template, then mix and match: any look with any names font, envelope, opening and words. The preview follows as it saves.">
+      {/* Rolled up into steps: each says what's set now; tap one to open it. */}
+      <Section n={n()} title="Design it your way" hint="Start from a template, then mix and match: any look with any names font, envelope, opening and words. The preview follows as it saves." fold={{ now: [doc.theme, inv.design?.tone].filter(Boolean).join(' · ') || 'Choose a template to start from' }}>
         <DesignBuilder theme={doc.theme} inv={inv} texts={doc.texts} original={ORIGINAL} initials={initials} setTheme={setTheme} setInv={setInv} setTexts={setTexts} />
       </Section>
 
-      <Section n={n()} title="The essentials" hint="Pick a look, add your names and when replies close. That’s all your invitation needs: everything under Extras is optional.">
+      <Section n={n()} title="The essentials" hint="Pick a look, add your names and when replies close. That’s all your invitation needs: everything under Extras is optional." fold={{ now: [doc.names ? `${doc.names.name1} & ${doc.names.name2}` : '', inv.rsvpBy].filter((x) => x?.trim()).join(' · ') || 'Your names and when replies close' }}>
         <ThemeGallery
           theme={doc.theme}
           custom={inv.custom ?? {}}
@@ -526,7 +530,7 @@ function InvitationEditor({
         <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Event names, dates, times and venues come from each event’s Details.</span>
       </Section>
 
-      <Section n={n()} title="Extras" hint="Each card shows what’s set now. Tap one to make it yours; anything you leave keeps the design’s own.">
+      <Section n={n()} title="Extras" hint="Each card shows what’s set now. Tap one to make it yours; anything you leave keeps the design’s own." fold={{ now: `${SCENE_INFO[(inv.scene ?? 'auto') as Scene].label} · ${inv.seal ?? 'Sandstone'} seal · music, photo, gifts and more`, start: openSeal }}>
         <ExtrasGrid>
           <Extra title="Opening scene" now={SCENE_INFO[(inv.scene ?? 'auto') as Scene].label}>
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">What guests tap to open, in place of the envelope. Drawn in your colours, on every plan.</span>
@@ -832,7 +836,10 @@ function contactsExtra<G extends ReceptionGuide | DayoutGuide>(g: G, set: (g: G)
  * The night-before page, set up like the invitation: the essentials every guest needs first, then
  * everything else as cards (what's set now on each; tap one to change it).
  */
-function ReceptionEditor({ g, n, set }: { g: ReceptionGuide; n: () => number; set: (g: ReceptionGuide) => void }) {
+function ReceptionEditor({ g, set }: { g: ReceptionGuide; set: (g: ReceptionGuide) => void }) {
+  // This editor's own steps, numbered from 1 in reading order each time it draws.
+  let k = 0;
+  const n = () => ++k;
   const f = (key: keyof ReceptionGuide & string, label: string, long = false, ph = '', hint?: string) => (
     <TextField key={key} label={label} long={long} placeholder={ph} hint={hint} value={String(g[key] ?? '')} onChange={(v) => set({ ...g, [key]: v })} />
   );
@@ -892,7 +899,10 @@ function ReceptionEditor({ g, n, set }: { g: ReceptionGuide; n: () => number; se
   );
 }
 
-function DayoutEditor({ g, n, set }: { g: DayoutGuide; n: () => number; set: (g: DayoutGuide) => void }) {
+function DayoutEditor({ g, set }: { g: DayoutGuide; set: (g: DayoutGuide) => void }) {
+  // This editor's own steps, numbered from 1 in reading order each time it draws.
+  let k = 0;
+  const n = () => ++k;
   const f = (key: keyof DayoutGuide & string, label: string, long = false, ph = '') => (
     <TextField key={key} label={label} long={long} placeholder={ph} value={String(g[key] ?? '')} onChange={(v) => set({ ...g, [key]: v })} />
   );
