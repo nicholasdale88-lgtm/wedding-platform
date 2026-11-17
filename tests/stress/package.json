@@ -1,5 +1,5 @@
 {
-  "name": "scenarios",
+  "name": "stress",
   "private": true,
   "type": "module",
   "scripts": {

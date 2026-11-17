@@ -92,7 +92,10 @@ jobs:
   # texting, email, payments, Google Drive, OneDrive and the AI mocked. Fails on any wrong number, lost data,
   # leak between weddings, bad calendar file or server error; each route's speed is reported, never failed on.
   # Split over 8 machines (125 weddings each, 4 at once on each) so the whole run takes about 10 minutes.
+  # The deeper 1,000-wedding stress run (8 machines): on check/ branches and by hand, not every push to main
+  # (main's release gate already runs the 1,000 scenarios).
   stress:
+    if: github.ref != 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
@@ -125,19 +128,19 @@ jobs:
 
       - name: Report (this share)
         if: always()
-        run: node tests/scenarios/report.mjs
+        run: node tests/stress/report.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: stress-report-${{ matrix.shard }}
-          path: tests/scenarios/stress-report
+          path: tests/stress/stress-report
           retention-days: 14
 
   # Every share's report together: weddings passed, checks passed, and the slowest routes (p95).
   stress-report:
     needs: stress
-    if: always()
+    if: always() && needs.stress.result != 'skipped'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -145,10 +148,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: stress-report-*
-          path: tests/scenarios/stress-report
+          path: tests/stress/stress-report
           merge-multiple: true
       - name: The whole run
-        run: node tests/scenarios/report.mjs
+        run: node tests/stress/report.mjs
 
   # Tap-through tests: the app runs here (API with its own throwaway local database, and the website) and a
   # real browser, phone-sized, clicks through what couples and guests do. Never touches the live site.

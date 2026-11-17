@@ -1,5 +1,5 @@
 /* global process, console */
-// The stress run's report, from every part (tests/scenarios/stress-report/part-*.json): weddings passed, checks
+// The stress run's report, from every part (tests/stress/stress-report/part-*.json): weddings passed, checks
 // passed, server errors, and each route's p95 speed, slowest first. Printed to the log, added to the run's
 // summary page, and the headline and slowest routes as notes on the run page.
 import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';

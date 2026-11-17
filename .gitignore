@@ -9,4 +9,4 @@ playwright-report/
 test-results/
 *.log
 .DS_Store
-tests/scenarios/stress-report/
+tests/stress/stress-report/
