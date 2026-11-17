@@ -178,7 +178,7 @@ export function companyRoutes() {
           JOIN invite_event ie ON ie.invitation_id = r.invitation_id AND ie.event_id = r.event_id
           WHERE r.attending IS NOT NULL AND i.deleted_at IS NULL AND w.deleted_at IS NULL AND e.deleted_at IS NULL`,
       ),
-      one(`SELECT COUNT(*) AS n FROM vendor_listing WHERE hidden = 0`),
+      one(`SELECT COUNT(*) AS n FROM vendor_listing WHERE hidden = 0 AND approved_at IS NOT NULL`),
       one(`SELECT COUNT(*) AS n FROM vendor_enquiry`),
       one(`SELECT COUNT(*) AS n FROM user WHERE marketing_opt_in = 1`),
     ]);
@@ -1018,20 +1018,29 @@ export function companyRoutes() {
   /** The directory's vendor listings, newest first, hidden ones included. */
   app.get('/listings', can('vendors'), async (c) => {
     const { results } = await c.env.DB.prepare(
-      `SELECT l.id, l.slug, l.name, l.category, l.region, l.email, l.hidden, l.created_at,
+      `SELECT l.id, l.slug, l.name, l.category, l.region, l.email, l.hidden, l.approved_at, l.created_at,
               (SELECT COUNT(*) FROM vendor_enquiry e WHERE e.listing_id = l.id) AS enquiries
-         FROM vendor_listing l ORDER BY l.created_at DESC LIMIT 300`,
-    ).all<{ id: string; slug: string; name: string; category: string; region: string; email: string; hidden: number; created_at: string; enquiries: number }>();
+         FROM vendor_listing l ORDER BY (l.approved_at IS NULL) DESC, l.created_at DESC LIMIT 300`,
+    ).all<{ id: string; slug: string; name: string; category: string; region: string; email: string; hidden: number; approved_at: string | null; created_at: string; enquiries: number }>();
     const [codes, uses] = await Promise.all([readSetting(c.env.DB, 'promos', Promos), promoUses(c.env.DB)]);
     const codeOf = new Map(codes.codes.filter((p) => p.note.startsWith('vendor:')).map((p) => [p.note.slice(7), p.code]));
-    return c.json({ listings: results.map((r) => ({ ...r, hidden: !!r.hidden, code: codeOf.get(r.id) ?? '', codeUses: uses[codeOf.get(r.id) ?? ''] ?? 0 })) });
+    return c.json({ listings: results.map(({ approved_at, ...r }) => ({ ...r, hidden: !!r.hidden, pending: !approved_at, code: codeOf.get(r.id) ?? '', codeUses: uses[codeOf.get(r.id) ?? ''] ?? 0 })) });
   });
   app.put('/listings/:id', can('vendors'), async (c) => {
-    const b = z.object({ hidden: z.boolean() }).strict().safeParse(await readJson(c.req.raw));
-    if (!b.success) return err(c, 400, 'invalid', 'Hidden or not?');
-    const r = await c.env.DB.prepare(`UPDATE vendor_listing SET hidden = ?, updated_at = ? WHERE id = ?`).bind(b.data.hidden ? 1 : 0, new Date().toISOString(), c.req.param('id')).run();
-    if (!r.meta.changes) return err(c, 404, 'not_found', 'Listing not found.');
-    await logCompany(c, b.data.hidden ? 'company.vendor.hide' : 'company.vendor.show', c.req.param('id'), {});
+    // { approve: true } puts a waiting listing in the directory; { hidden } hides or shows an approved one
+    // (showing a waiting one approves it too).
+    const b = z.union([z.object({ hidden: z.boolean() }).strict(), z.object({ approve: z.literal(true) }).strict()]).safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', 'Approve, or hidden or not?');
+    const hidden = 'hidden' in b.data ? b.data.hidden : false;
+    const now = new Date().toISOString();
+    const id = c.req.param('id');
+    const [r] = await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE vendor_listing SET hidden = ?, approved_at = CASE WHEN ? THEN approved_at ELSE COALESCE(approved_at, ?) END, updated_at = ? WHERE id = ?`).bind(hidden ? 1 : 0, hidden ? 1 : 0, now, now, id),
+      // The planner's finder follows: shown once approved and not hidden.
+      c.env.DB.prepare(`UPDATE vendor_directory SET hidden = (SELECT CASE WHEN l.hidden = 1 OR l.approved_at IS NULL THEN 1 ELSE 0 END FROM vendor_listing l WHERE l.id = ?), updated_at = ? WHERE id = ?`).bind(id, now, `v:${id}`),
+    ]);
+    if (!r!.meta.changes) return err(c, 404, 'not_found', 'Listing not found.');
+    await logCompany(c, 'approve' in b.data ? 'company.vendor.approve' : hidden ? 'company.vendor.hide' : 'company.vendor.show', id, {});
     return c.json({ ok: true });
   });
 

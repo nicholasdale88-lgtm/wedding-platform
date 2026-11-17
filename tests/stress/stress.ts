@@ -1215,6 +1215,13 @@ export function stressPart(part: number, parts: number) {
           if (r.status !== 200) throw new Error(`vendor join: ${r.status} ${r.text}`);
           b.vendors.push({ slug: r.json<{ slug: string }>().slug, email, name, category, cookie: (r.headers.get('set-cookie') ?? '').split(';')[0]!, id: '' });
         }
+        // New listings wait for approval (YL-13): the platform owner approves them in the company portal.
+        const pending = await b.call(-1, 'GET /a/company/listings', 'GET', '/a/company/listings', { cookie: b.platform });
+        if (pending.status !== 200) throw new Error(`company listings: ${pending.status} ${pending.text}`);
+        for (const l of pending.json<{ listings: { id: string; pending?: boolean }[] }>().listings.filter((x) => x.pending)) {
+          const ok = await b.call(-1, 'PUT /a/company/listings/:id', 'PUT', `/a/company/listings/${l.id}`, { cookie: b.platform, body: { approve: true } });
+          if (ok.status !== 200) throw new Error(`approve listing: ${ok.status} ${ok.text}`);
+        }
         const ws = ids.map(generate);
         let next = 0;
         await Promise.all(

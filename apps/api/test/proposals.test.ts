@@ -32,6 +32,8 @@ describe('fee proposals', () => {
       body: JSON.stringify({ name, category: 'florist', region: 'sydney', regions: [], contactName: 'Jess Lee', phone: '0400 000 000', website: '', instagram: '', about: '', priceFrom: 0, photos: [], email, passcode: 'long-enough-1', company: '' }),
     });
     expect(r.status).toBe(200);
+    // New listings wait for approval (YL-13): approved here, as the company portal does.
+    await t.db.prepare(`UPDATE vendor_listing SET approved_at = created_at WHERE email = ?`).bind(email).run();
     return { cookie: cookieOf(r), slug: ((await r.json()) as { slug: string }).slug };
   };
   const signup = async (firstName: string, email: string, ref = '') => {

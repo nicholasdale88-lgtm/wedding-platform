@@ -609,7 +609,8 @@ export type ListedHit = ListingCard & { id: string; km: number; phone: string; w
 export interface MyListing {
   /** Their partner code: their couples get this much off The Yes List; how many have used it. */
   partner?: { code: string; percentOff: number; uses: number } | null;
-  listing: Listing & { email: string; hidden: boolean };
+  /** pending: waiting for the site to approve it (not in the directory yet). */
+  listing: Listing & { email: string; hidden: boolean; pending?: boolean };
   enquiries: { id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: boolean; at: string; stage?: EnquiryStage; note?: string }[];
   /** Days they've marked unavailable (yyyy-mm-dd). */
   busy?: { date: string; note: string }[];
@@ -1178,7 +1179,7 @@ export interface CompanyStats {
   optIns: number;
 }
 export interface CompanyWedding { id: string; slug: string; names: string; plan: string; createdAt: string; requested: string; requestedAt: string; linkSentAt: string; paidCents: number; extraEvents: number; ref: string; day: string; guests: number; email: string }
-export interface CompanyListing { id: string; slug: string; name: string; category: string; region: string; email: string; hidden: boolean; created_at: string; enquiries: number; code?: string; codeUses?: number }
+export interface CompanyListing { id: string; slug: string; name: string; category: string; region: string; email: string; hidden: boolean; pending?: boolean; created_at: string; enquiries: number; code?: string; codeUses?: number }
 export interface VendorProspect { id: string; business: string; contact: string; email: string; category: string; region: string; website: string; status: 'new' | 'invited' | 'joined' | 'stopped'; invitedAt: string; note: string }
 export interface CompanySettings {
   social: { instagram: string; tiktok: string; facebook: string; pinterest: string; youtube: string };
@@ -1249,6 +1250,7 @@ export const companyApi = {
   setPlan: (slug: string, body: { plan?: 'free' | 'basic' | 'essentials' | 'complete'; extraEvents?: number }) => send<{ ok: true }>('PUT', `/a/company/weddings/${encodeURIComponent(slug)}/plan`, body),
   listings: () => request<{ listings: CompanyListing[] }>('/a/company/listings'),
   hideListing: (id: string, hidden: boolean) => send<{ ok: true }>('PUT', `/a/company/listings/${encodeURIComponent(id)}`, { hidden }),
+  approveListing: (id: string) => send<{ ok: true }>('PUT', `/a/company/listings/${encodeURIComponent(id)}`, { approve: true }),
   settings: () => request<CompanySettings>('/a/company/settings'),
   saveSettings: (s: CompanySettings) => send<CompanySettings>('PUT', '/a/company/settings', s),
   promos: () => request<{ codes: CompanyPromo[] }>('/a/company/promos'),

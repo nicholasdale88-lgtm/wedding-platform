@@ -68,6 +68,8 @@ interface Row {
   /** Older rows (before migration 0052) have none. */
   packages?: string;
   hidden: number;
+  /** migration 0055: when the company approved it; null = waiting, not in the directory yet. */
+  approved_at: string | null;
   created_at: string;
   booked?: number;
 }
@@ -103,7 +105,7 @@ function mirror(db: D1Database, id: string, f: { name: string; category: string;
 export async function listedNear(db: D1Database, category: string, lat: number, lon: number, km: number): Promise<(ListingCard & { km: number; id: string; phone: string; website: string })[]> {
   const near = REGIONS.filter((r) => kmBetween(lat, lon, r.lat, r.lon) <= Math.max(km, 60)).map((r) => r.slug);
   if (!near.length) return [];
-  const { results } = await db.prepare(`SELECT l.*, ${BOOKED} AS booked FROM vendor_listing l WHERE l.hidden = 0 AND l.category = ?`).bind(category).all<Row>();
+  const { results } = await db.prepare(`SELECT l.*, ${BOOKED} AS booked FROM vendor_listing l WHERE l.hidden = 0 AND l.approved_at IS NOT NULL AND l.category = ?`).bind(category).all<Row>();
   return results
     .filter((r) => near.includes(r.region) || list(r.regions).some((x) => near.includes(x)))
     .map((r) => {
@@ -124,7 +126,7 @@ export function directoryRoutes() {
     const category = c.req.query('category') ?? '';
     const region = c.req.query('region') ?? '';
     const q = (c.req.query('q') ?? '').trim().toLowerCase().slice(0, 60);
-    const where = ['l.hidden = 0'];
+    const where = ['l.hidden = 0', 'l.approved_at IS NOT NULL'];
     const args: string[] = [];
     if (category) {
       where.push('l.category = ?');
@@ -146,7 +148,7 @@ export function directoryRoutes() {
 
   /** One vendor's page (no email: couples reach them with an enquiry). */
   app.get('/v/:slug', async (c) => {
-    const r = await c.env.DB.prepare(`SELECT l.*, ${BOOKED} AS booked FROM vendor_listing l WHERE l.slug = ? AND l.hidden = 0`).bind(c.req.param('slug')).first<Row>();
+    const r = await c.env.DB.prepare(`SELECT l.*, ${BOOKED} AS booked FROM vendor_listing l WHERE l.slug = ? AND l.hidden = 0 AND l.approved_at IS NOT NULL`).bind(c.req.param('slug')).first<Row>();
     if (!r) return err(c, 404, 'not_found', 'That vendor isn’t listed any more.');
     return c.json(full(r));
   });
@@ -157,7 +159,7 @@ export function directoryRoutes() {
     const b = Enquiry.safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check the form.');
     if (b.data.company) return c.json({ ok: true }); // a bot
-    const l = await c.env.DB.prepare(`SELECT id, name, email FROM vendor_listing WHERE slug = ? AND hidden = 0`).bind(c.req.param('slug')).first<{ id: string; name: string; email: string }>();
+    const l = await c.env.DB.prepare(`SELECT id, name, email FROM vendor_listing WHERE slug = ? AND hidden = 0 AND approved_at IS NOT NULL`).bind(c.req.param('slug')).first<{ id: string; name: string; email: string }>();
     if (!l) return err(c, 404, 'not_found', 'That vendor isn’t listed any more.');
     const e = b.data;
     await c.env.DB.prepare(`INSERT INTO vendor_enquiry (id, listing_id, name, email, phone, date, guests, message, read, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`)
@@ -213,10 +215,11 @@ export function directoryRoutes() {
               ),
             ]),
         db.prepare(
-          `INSERT INTO vendor_listing (id, user_id, slug, name, category, region, regions, contact_name, email, phone, website, instagram, about, price_from, photos, packages, hidden, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+          `INSERT INTO vendor_listing (id, user_id, slug, name, category, region, regions, contact_name, email, phone, website, instagram, about, price_from, photos, packages, hidden, approved_at, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)`,
         ).bind(id, userId, slug, f.name, f.category, f.region, JSON.stringify(regions), f.contactName, f.email, f.phone, f.website, f.instagram.replace(/^@/, ''), f.about, f.priceFrom, JSON.stringify(f.photos), JSON.stringify(f.packages), now, now),
-        mirror(db, id, f, false, now),
+        // Waiting for approval: not in the planner's finder yet either.
+        mirror(db, id, f, true, now),
       ]);
     } catch {
       return err(c, 409, 'exists', 'There is already an account with that email. Sign in instead.');
@@ -276,7 +279,7 @@ export function vendorAccountRoutes() {
     return c.json({
       partner: code ? { code, percentOff: 10, uses } : null,
       // Their own "from" price as they set it (the public card may stand in their cheapest package).
-      listing: { ...full(r), priceFrom: r.price_from, email: r.email, hidden: !!r.hidden },
+      listing: { ...full(r), priceFrom: r.price_from, email: r.email, hidden: !!r.hidden, pending: !r.approved_at },
       enquiries: results.map((e) => ({
         id: e.id, name: e.name, email: e.email, phone: e.phone, date: e.date, guests: e.guests, message: e.message, read: !!e.read, stage: stageOf(e.stage), note: e.note, at: e.created_at,
       })),
@@ -335,7 +338,7 @@ export function vendorAccountRoutes() {
       c.env.DB.prepare(
         `UPDATE vendor_listing SET name = ?, category = ?, region = ?, regions = ?, contact_name = ?, phone = ?, website = ?, instagram = ?, about = ?, price_from = ?, photos = ?, packages = ?, updated_at = ? WHERE id = ?`,
       ).bind(f.name, f.category, f.region, JSON.stringify(regions), f.contactName, f.phone, f.website, f.instagram.replace(/^@/, ''), f.about, f.priceFrom, JSON.stringify(f.photos), JSON.stringify(f.packages), now, r.id),
-      mirror(c.env.DB, r.id, f, !!r.hidden, now),
+      mirror(c.env.DB, r.id, f, !!r.hidden || !r.approved_at, now),
     ]);
     return c.json({ ok: true, slug: r.slug });
   });

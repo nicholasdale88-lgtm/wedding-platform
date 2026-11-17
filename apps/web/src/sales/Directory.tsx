@@ -788,11 +788,17 @@ export function VendorHomePage() {
           A sample vendor account: a made-up florist with couples, messages and enquiries. Everything works here, but nothing is saved or sent.
         </p>
       )}
-      {params.get('joined') && <p className="mt-4 p-4 rounded-[12px] bg-[#e7eedb] text-[15px]">You’re listed. Couples can find you now. Add a few photos and your prices to stand out.</p>}
+      {l.pending ? (
+        <p role="status" className="mt-4 p-4 rounded-[12px] bg-[#f3ecd6] text-[15px]">
+          Your listing is under review. We check every new listing before couples can find it in the directory, usually within a day. Meanwhile, add a few photos and your prices: your couples, messages and enquiries all work already.
+        </p>
+      ) : (
+        params.get('joined') && <p className="mt-4 p-4 rounded-[12px] bg-[#e7eedb] text-[15px]">You’re listed. Couples can find you now. Add a few photos and your prices to stand out.</p>
+      )}
       <div className="flex justify-between items-end gap-3 flex-wrap pt-6">
         <div>
           <span className="text-[13px] tracking-[.14em] uppercase" style={{ color: SOFT }}>
-            Your listing{l.hidden ? ' · hidden by the site' : ''}
+            Your listing{l.pending ? ' · under review' : l.hidden ? ' · hidden by the site' : ''}
           </span>
           <h1 className="m-0 text-[clamp(32px,5vw,46px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
             {l.name}

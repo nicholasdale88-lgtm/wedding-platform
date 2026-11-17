@@ -1030,10 +1030,22 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
       onNote((e as Error).message);
     }
   };
+  // A new listing waits here until it's approved; then couples can find it.
+  const approve = async (l: CompanyListing) => {
+    try {
+      await companyApi.approveListing(l.id);
+      setData({ listings: data!.listings.map((x) => (x.id === l.id ? { ...x, pending: false, hidden: false } : x)) });
+      onNote(`${l.name} approved: it’s in the directory now`);
+    } catch (e) {
+      onNote((e as Error).message);
+    }
+  };
+  const waiting = data?.listings.filter((l) => l.pending).length ?? 0;
   return (
     <section className="flex flex-col gap-3">
       <InviteVendors onNote={onNote} />
-      <H sub="Vendors who listed themselves in the directory. Each gets a partner code: their couples get 10% off, and you see how many used it. Hide anything that shouldn’t be there.">Vendor directory</H>
+      <H sub="Vendors who listed themselves in the directory. New ones wait for your approval before couples can find them. Each gets a partner code: their couples get 10% off, and you see how many used it. Hide anything that shouldn’t be there.">Vendor directory</H>
+      {waiting > 0 && <p className="m-0 text-[14px] font-semibold">{waiting === 1 ? '1 new listing is' : `${waiting} new listings are`} waiting for your approval.</p>}
       {error && <Problem text={error} />}
       {!data ? (
         <p className="text-[#6e6068]">Loading…</p>
@@ -1042,9 +1054,12 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
       ) : (
         <ul className="m-0 p-0 list-none flex flex-col gap-2">
           {data.listings.map((l) => (
-            <li key={l.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-[14px] border ${l.hidden ? 'border-[#e8d6cf] bg-[#f6ece8]' : 'border-[#ecdcd2] bg-white'}`}>
+            <li key={l.id} className={`flex flex-wrap items-center gap-3 p-3 rounded-[14px] border ${l.pending ? 'border-[#d8b46a] bg-[#fbf3e2]' : l.hidden ? 'border-[#e8d6cf] bg-[#f6ece8]' : 'border-[#ecdcd2] bg-white'}`}>
               <span className="flex-1 min-w-[200px]">
-                <strong className="block text-[15px]">{l.name}</strong>
+                <strong className="block text-[15px]">
+                  {l.name}
+                  {l.pending ? <span className="ml-2 text-[12px] font-semibold uppercase tracking-[.08em] text-[#7a5a14]">Waiting for approval</span> : null}
+                </strong>
                 <span className="text-[13px] text-[#6e6068]">
                   {[l.category, l.region, `${l.enquiries} enquiries`, `listed ${day(l.created_at)}`].join(' · ')} ·{' '}
                   <a href={`mailto:${l.email}`} className="!text-[#3a2532]">
@@ -1073,9 +1088,15 @@ function Vendors({ onNote }: { onNote: (s: string) => void }) {
               <a href={`/vendors/${encodeURIComponent(l.slug)}`} target="_blank" rel="noopener" className="text-[13px] !text-[#3a2532]">
                 View
               </a>
-              <button type="button" className={btn} onClick={() => void toggle(l)}>
-                {l.hidden ? 'Show' : 'Hide'}
-              </button>
+              {l.pending ? (
+                <button type="button" className={btn} onClick={() => void approve(l)}>
+                  Approve
+                </button>
+              ) : (
+                <button type="button" className={btn} onClick={() => void toggle(l)}>
+                  {l.hidden ? 'Show' : 'Hide'}
+                </button>
+              )}
             </li>
           ))}
         </ul>

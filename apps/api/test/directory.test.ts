@@ -30,8 +30,19 @@ describe('vendor directory', () => {
     priceFrom: 1800,
     photos: ['https://wildflower.example/a.jpg'],
   };
-  const join = (over: Record<string, unknown> = {}, ip = '1.1.1.1') =>
+  /** Joining as it really is: the new listing waits for the company's approval. */
+  const joinPending = (over: Record<string, unknown> = {}, ip = '1.1.1.1') =>
     call('/directory/join', { method: 'POST', body: JSON.stringify({ ...listing, email: 'jess@wildflower.example', passcode: 'long-enough-1', company: '', ...over }) }, '', ip);
+  /** Joining, then approved straight away (as the company portal's Approve does), for the tests about what comes after. */
+  const join = async (over: Record<string, unknown> = {}, ip = '1.1.1.1') => {
+    const res = await joinPending(over, ip);
+    if (res.status === 200) {
+      const email = String(over.email ?? 'jess@wildflower.example');
+      await t.db.prepare(`UPDATE vendor_listing SET approved_at = '2026-11-18T00:00:00.000Z' WHERE email = ?`).bind(email).run();
+      await t.db.prepare(`UPDATE vendor_directory SET hidden = 0 WHERE id IN (SELECT 'v:' || id FROM vendor_listing WHERE email = ?)`).bind(email).run();
+    }
+    return res;
+  };
 
   beforeEach(async () => {
     t = await testD1();
@@ -41,7 +52,7 @@ describe('vendor directory', () => {
   });
   afterEach(() => t.dispose());
 
-  it('a vendor joins, is listed straight away, and couples find them by what they do and where (never their email)', async () => {
+  it('a vendor joins, is listed once approved, and couples find them by what they do and where (never their email)', async () => {
     const res = await join();
     expect(res.status).toBe(200);
     const { slug } = (await res.json()) as { slug: string };
@@ -66,6 +77,31 @@ describe('vendor directory', () => {
     expect((await join({}, '2.2.2.2')).status).toBe(409);
     const other = (await (await join({ email: 'b@example.com' }, '3.3.3.3')).json()) as { slug: string };
     expect(other.slug).toBe('wildflower-studio-2');
+  });
+
+  it('a new listing waits for approval: not in the directory, its page or enquiries until the company portal approves it (YL-13)', async () => {
+    const res = await joinPending({}, '8.0.0.1');
+    expect(res.status).toBe(200);
+    const vendor = cookieOf(res);
+    const { slug } = (await res.json()) as { slug: string };
+    const listed = async () => ((await (await call('/directory')).json()) as { results: { slug: string }[] }).results.map((r) => r.slug);
+    expect(await listed()).toEqual([]);
+    expect((await call(`/directory/v/${slug}`)).status).toBe(404);
+    expect((await call(`/directory/v/${slug}/enquire`, { method: 'POST', body: JSON.stringify({ name: 'Ava', email: 'ava@example.com', phone: '', date: '2027-05-01', guests: 80, message: 'Free?', company: '' }) })).status).toBe(404);
+    // The vendor sees it's under review.
+    const mine = (await (await call('/a/vendor', {}, vendor)).json()) as { listing: { pending: boolean } };
+    expect(mine.listing.pending).toBe(true);
+    // The company portal lists it first, waiting; Approve puts it in the directory.
+    const owner = cookieOf(await call('/a/auth/login', { method: 'POST', body: JSON.stringify({ email: 'owner@example.com', passcode: 'valley-2027' }) }, '', '8.0.0.2'));
+    const all = (await (await call('/a/company/listings', {}, owner)).json()) as { listings: { id: string; slug: string; pending: boolean }[] };
+    const row = all.listings.find((l) => l.slug === slug)!;
+    expect(row.pending).toBe(true);
+    expect((await call(`/a/company/listings/${row.id}`, { method: 'PUT', body: JSON.stringify({ approve: true }) }, owner)).status).toBe(200);
+    expect(await listed()).toEqual([slug]);
+    expect((await call(`/directory/v/${slug}`)).status).toBe(200);
+    expect(((await (await call('/a/vendor', {}, vendor)).json()) as { listing: { pending: boolean } }).listing.pending).toBe(false);
+    // The vendor can't approve themselves.
+    expect((await call(`/a/company/listings/${row.id}`, { method: 'PUT', body: JSON.stringify({ approve: true }) }, vendor)).status).toBeGreaterThanOrEqual(401);
   });
 
   it('one email can be a couple and a vendor: the same passcode adds the other, both sign-ins work, the switcher shows both (YL-12)', async () => {
