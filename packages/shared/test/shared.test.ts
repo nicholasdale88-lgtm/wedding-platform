@@ -92,6 +92,13 @@ describe('splitDiet / joinDiet (one note per invitation, one per person)', () =>
     expect(splitDiet('Vegetarian, no nuts', ['Ella Thompson'])).toEqual(['Vegetarian, no nuts']);
     expect(splitDiet('  ', two)).toEqual(['', '']);
   });
+  it('finds names in any script, with accents or emoji (stress run: a coeliac went to the wrong person)', () => {
+    expect(splitDiet('Zoë: Coeliac; José: Vegan', ['José García', 'Zoë García'])).toEqual(['Vegan', 'Coeliac']);
+    expect(splitDiet('李小龍: Halal; Renée: Severe nut allergy', ['Renée Chen', '李小龍'])).toEqual(['Severe nut allergy', 'Halal']);
+    expect(splitDiet('🌸: Vegetarian; Mia: No pork', ['Mia Tran', '🌸 Lily Tran'])).toEqual(['No pork', 'Vegetarian']);
+    expect(splitDiet('Ana-María: Kosher; Ana: Dairy free', ['Ana Ruiz', 'Ana-María Ruiz'])).toEqual(['Dairy free', 'Kosher']);
+    expect(splitDiet('Zoë’s vegan', ['Sam Lee', 'Zoë Lee'])).toEqual(['', 'Vegan']);
+  });
   it('text after a name stays with that person until the next name', () => {
     expect(splitDiet('Peter coeliac; also no dairy', two)).toEqual(['', 'Coeliac; Also no dairy']);
   });

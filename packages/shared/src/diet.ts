@@ -5,6 +5,11 @@ export const isSerious = (diet: string | null | undefined): boolean => /allerg|a
 
 const firstName = (s: string) => s.trim().split(/\s+/)[0] ?? s;
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/**
+ * A name as a whole word in any script: "Zoë", "José", "李小龍" or "🌸". (\b only knows a to z, so a first name
+ * ending in é, or written in another script, was never found and the note went to the wrong person.)
+ */
+const asWord = (pattern: string) => String.raw`(?<![\p{L}\p{N}\p{M}_])(${pattern})(?![\p{L}\p{N}\p{M}_])`;
 
 /**
  * Which person a dietary note belongs to: the first person it names, otherwise the main contact (0).
@@ -12,7 +17,7 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  */
 export function attachDiet(diet: string, people: string[]): number {
   if (!diet.trim()) return -1;
-  const i = people.findIndex((p) => new RegExp(`\\b${escape(firstName(p))}\\b`, 'i').test(diet));
+  const i = people.findIndex((p) => new RegExp(asWord(escape(firstName(p))), 'iu').test(diet));
   return i >= 0 ? i : 0;
 }
 
@@ -64,12 +69,13 @@ export function splitDiet(diet: string, people: string[]): string[] {
   const out = people.map(() => [] as string[]);
   const text = diet.trim();
   if (!text || !people.length) return out.map(() => '');
-  const firsts = people.map((p) => escape(firstName(p)));
-  const anyName = new RegExp(String.raw`\b(${firsts.join('|')})\b`, 'gi');
+  // Longest first, so "Ana-María" is found before "Ana".
+  const firsts = people.map((p) => escape(firstName(p))).sort((a, b) => b.length - a.length);
+  const anyName = new RegExp(asWord(firsts.join('|')), 'giu');
   const who = (name: string) => people.findIndex((p) => firstName(p).toLowerCase() === name.toLowerCase());
   const tidy = (s: string, name?: string) => {
     let t = s.trim();
-    if (name) t = t.replace(new RegExp(String.raw`^${escape(name)}('s)?\s*(?:[:\-–—]|\bis\b|\bhas\b|\bneeds\b)?\s*`, 'i'), '');
+    if (name) t = t.replace(new RegExp(String.raw`^${escape(name)}(['’]s)?\s*(?:[:\-–—]|\bis\b|\bhas\b|\bneeds\b)?\s*`, 'iu'), '');
     t = t.replace(/^[\s,;:&-]+|[\s,;:&-]+$/g, '').replace(/\s+and$/i, '').trim();
     return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
   };
