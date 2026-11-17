@@ -1,4 +1,4 @@
-import { Enquiry, ListingFields, ListingJoin, Promos, regionOf, REGIONS, type Listing, type ListingCard } from '@wp/shared';
+import { Enquiry, ListingFields, ListingJoin, ListingPackage, Promos, regionOf, REGIONS, type Listing, type ListingCard } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { hashPasscode, passcodeProblem } from '../lib/auth';
@@ -29,6 +29,26 @@ const list = (s: string): string[] => {
   }
 };
 
+/** A listing's packages from the database, dropping anything that isn't a valid package. */
+const packagesOf = (s: string | undefined): ListingPackage[] => {
+  try {
+    const v = JSON.parse(s ?? '[]') as unknown;
+    if (!Array.isArray(v)) return [];
+    return v.flatMap((x) => {
+      const p = ListingPackage.safeParse(x);
+      return p.success ? [p.data] : [];
+    });
+  } catch {
+    return [];
+  }
+};
+
+/** The lowest priced package's price (0 when none has a price). */
+const cheapest = (ps: ListingPackage[]): number => {
+  const prices = ps.map((p) => p.price).filter((n) => n > 0);
+  return prices.length ? Math.min(...prices) : 0;
+};
+
 interface Row {
   id: string;
   user_id: string;
@@ -45,6 +65,8 @@ interface Row {
   about: string;
   price_from: number;
   photos: string;
+  /** Older rows (before migration 0052) have none. */
+  packages?: string;
   hidden: number;
   created_at: string;
   booked?: number;
@@ -56,11 +78,12 @@ const card = (r: Row): ListingCard => ({
   region: r.region,
   regions: list(r.regions),
   about: r.about.length > 220 ? `${r.about.slice(0, 217).trimEnd()}…` : r.about,
-  priceFrom: r.price_from,
+  // No "from" price set: their cheapest package can stand in.
+  priceFrom: r.price_from || cheapest(packagesOf(r.packages)),
   photo: list(r.photos)[0] ?? '',
   booked: r.booked ?? 0,
 });
-const full = (r: Row): Listing => ({ ...card(r), about: r.about, contactName: r.contact_name, phone: r.phone, website: r.website, instagram: r.instagram.replace(/^@/, ''), photos: list(r.photos) });
+const full = (r: Row): Listing => ({ ...card(r), about: r.about, contactName: r.contact_name, phone: r.phone, website: r.website, instagram: r.instagram.replace(/^@/, ''), photos: list(r.photos), packages: packagesOf(r.packages) });
 const BOOKED = `(SELECT COUNT(*) FROM vendor_use u WHERE u.dir_id = 'v:' || l.id AND u.booked = 1)`;
 
 /** Keep the listing's row in the shared directory in step (at its home region's centre). */
@@ -179,9 +202,9 @@ export function directoryRoutes() {
           userId, f.email, f.contactName || f.name, await hashPasscode(f.passcode), f.contactName.split(' ')[0] ?? '', now, now, now,
         ),
         db.prepare(
-          `INSERT INTO vendor_listing (id, user_id, slug, name, category, region, regions, contact_name, email, phone, website, instagram, about, price_from, photos, hidden, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-        ).bind(id, userId, slug, f.name, f.category, f.region, JSON.stringify(regions), f.contactName, f.email, f.phone, f.website, f.instagram.replace(/^@/, ''), f.about, f.priceFrom, JSON.stringify(f.photos), now, now),
+          `INSERT INTO vendor_listing (id, user_id, slug, name, category, region, regions, contact_name, email, phone, website, instagram, about, price_from, photos, packages, hidden, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        ).bind(id, userId, slug, f.name, f.category, f.region, JSON.stringify(regions), f.contactName, f.email, f.phone, f.website, f.instagram.replace(/^@/, ''), f.about, f.priceFrom, JSON.stringify(f.photos), JSON.stringify(f.packages), now, now),
         mirror(db, id, f, false, now),
       ]);
     } catch {
@@ -241,7 +264,8 @@ export function vendorAccountRoutes() {
     const uses = code ? ((await promoUses(c.env.DB))[code] ?? 0) : 0;
     return c.json({
       partner: code ? { code, percentOff: 10, uses } : null,
-      listing: { ...full(r), email: r.email, hidden: !!r.hidden },
+      // Their own "from" price as they set it (the public card may stand in their cheapest package).
+      listing: { ...full(r), priceFrom: r.price_from, email: r.email, hidden: !!r.hidden },
       enquiries: results.map((e) => ({
         id: e.id, name: e.name, email: e.email, phone: e.phone, date: e.date, guests: e.guests, message: e.message, read: !!e.read, stage: stageOf(e.stage), note: e.note, at: e.created_at,
       })),
@@ -298,8 +322,8 @@ export function vendorAccountRoutes() {
     const regions = [...new Set(f.regions.filter((x) => x !== f.region))];
     await c.env.DB.batch([
       c.env.DB.prepare(
-        `UPDATE vendor_listing SET name = ?, category = ?, region = ?, regions = ?, contact_name = ?, phone = ?, website = ?, instagram = ?, about = ?, price_from = ?, photos = ?, updated_at = ? WHERE id = ?`,
-      ).bind(f.name, f.category, f.region, JSON.stringify(regions), f.contactName, f.phone, f.website, f.instagram.replace(/^@/, ''), f.about, f.priceFrom, JSON.stringify(f.photos), now, r.id),
+        `UPDATE vendor_listing SET name = ?, category = ?, region = ?, regions = ?, contact_name = ?, phone = ?, website = ?, instagram = ?, about = ?, price_from = ?, photos = ?, packages = ?, updated_at = ? WHERE id = ?`,
+      ).bind(f.name, f.category, f.region, JSON.stringify(regions), f.contactName, f.phone, f.website, f.instagram.replace(/^@/, ''), f.about, f.priceFrom, JSON.stringify(f.photos), JSON.stringify(f.packages), now, r.id),
       mirror(c.env.DB, r.id, f, !!r.hidden, now),
     ]);
     return c.json({ ok: true, slug: r.slug });

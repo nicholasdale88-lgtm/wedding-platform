@@ -52,6 +52,19 @@ const link = z
   .max(300)
   .refine((u) => !u || /^https:\/\/[^\s"'<>]+$/i.test(u), 'Links start with https://');
 
+/** How a package is priced. */
+export const PACKAGE_UNITS = ['total', 'per guest', 'per hour'] as const;
+/** One package on a vendor's price list. */
+export const ListingPackage = z.object({
+  name: z.string().trim().min(1, 'Give each package a name.').max(80),
+  /** Whole dollars. */
+  price: z.number().int().min(0, 'Prices can’t be below $0.').max(1_000_000),
+  unit: z.enum(PACKAGE_UNITS).default('total'),
+  includes: z.array(z.string().trim().min(1).max(120)).max(12).default([]),
+  popular: z.boolean().default(false),
+});
+export type ListingPackage = z.infer<typeof ListingPackage>;
+
 /** What a vendor can change on their listing. */
 export const ListingFields = z.object({
   name: z.string().trim().min(2, 'Add your business name.').max(100),
@@ -73,6 +86,8 @@ export const ListingFields = z.object({
   priceFrom: z.number().int().min(0).max(1_000_000).default(0),
   /** Photos by link (from their website or a photo host), up to six. */
   photos: z.array(link.refine((u) => !!u, 'Add a link')).max(6).default([]),
+  /** Their packages (a price list), up to eight. */
+  packages: z.array(ListingPackage).max(8, 'Up to eight packages.').default([]),
 });
 export type ListingFields = z.infer<typeof ListingFields>;
 
@@ -117,4 +132,5 @@ export interface Listing extends ListingCard {
   website: string;
   instagram: string;
   photos: string[];
+  packages: ListingPackage[];
 }

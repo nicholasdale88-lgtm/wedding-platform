@@ -62,6 +62,17 @@ const listing: MyListing = {
     website: '',
     instagram: 'wildflowerstudio',
     photos: [],
+    packages: [
+      { name: 'Ceremony', price: 1200, unit: 'total', includes: ['Bridal bouquet and two bridesmaids’ posies', 'Buttonholes for the groom’s party', 'Aisle flowers'], popular: false },
+      {
+        name: 'Ceremony and reception',
+        price: 2400,
+        unit: 'total',
+        includes: ['Everything in Ceremony', 'Long-table centrepieces', 'Cake flowers', 'Set-up and pack-down on the day'],
+        popular: true,
+      },
+      { name: 'The works', price: 3800, unit: 'total', includes: ['Everything in Ceremony and reception', 'A garden arbour for the ceremony', 'Hanging greenery over the head table', 'A planning meeting at your venue'], popular: false },
+    ],
     email: 'hello@example.com',
     hidden: false,
   },

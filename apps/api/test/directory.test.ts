@@ -150,6 +150,40 @@ describe('vendor directory', () => {
     expect(((await (await call('/a/vendor', {}, other)).json()) as Mine).busy).toEqual([]);
   });
 
+  it('a vendor saves packages (a price list): they see them, couples see them, and bad ones are refused', async () => {
+    const res = await join();
+    const vendor = cookieOf(res);
+    const { slug } = (await res.json()) as { slug: string };
+    // Joined without packages: none yet.
+    expect(((await (await call(`/directory/v/${slug}`)).json()) as { packages: unknown[] }).packages).toEqual([]);
+
+    const packages = [
+      { name: 'Ceremony', price: 1200, includes: ['Bridal bouquet', 'Aisle flowers'] },
+      { name: 'Ceremony and reception', price: 85, unit: 'per guest', includes: ['Everything in Ceremony', 'Centrepieces'], popular: true },
+    ];
+    const save = (body: unknown) => call('/a/vendor', { method: 'PUT', body: JSON.stringify(body) }, vendor);
+    expect((await save({ ...listing, priceFrom: 0, packages })).status).toBe(200);
+    const want = [
+      { name: 'Ceremony', price: 1200, unit: 'total', includes: ['Bridal bouquet', 'Aisle flowers'], popular: false },
+      { name: 'Ceremony and reception', price: 85, unit: 'per guest', includes: ['Everything in Ceremony', 'Centrepieces'], popular: true },
+    ];
+    const mine = (await (await call('/a/vendor', {}, vendor)).json()) as { listing: { packages: unknown; priceFrom: number } };
+    expect(mine.listing.packages).toEqual(want);
+    expect(mine.listing.priceFrom).toBe(0); // their own setting, untouched
+    const page = (await (await call(`/directory/v/${slug}`)).json()) as { packages: unknown; priceFrom: number };
+    expect(page.packages).toEqual(want);
+    expect(page.priceFrom).toBe(85); // no "from" price: the cheapest package stands in
+    const cards = ((await (await call('/directory')).json()) as { results: { priceFrom: number }[] }).results;
+    expect(cards[0]!.priceFrom).toBe(85);
+
+    // Bad packages are refused, and nothing changes.
+    expect((await save({ ...listing, packages: [{ name: 'Ceremony', price: -1 }] })).status).toBe(400);
+    expect((await save({ ...listing, packages: [{ name: '', price: 100 }] })).status).toBe(400);
+    expect((await save({ ...listing, packages: [{ name: 'Ceremony', price: 100, unit: 'per kilo' }] })).status).toBe(400);
+    expect((await save({ ...listing, packages: Array.from({ length: 9 }, (_, i) => ({ name: `P${i}`, price: 100 })) })).status).toBe(400);
+    expect(((await (await call(`/directory/v/${slug}`)).json()) as { packages: unknown }).packages).toEqual(want);
+  });
+
   it("the planner's finder shows listed vendors working near the venue first, and leaves the map out when asked", async () => {
     const owner = cookieOf(await call('/a/auth/login', { method: 'POST', body: JSON.stringify({ email: 'owner@example.com', passcode: 'valley-2027' }) }));
     const me = (await (await call('/a/me', {}, owner)).json()) as { weddings: { id: string }[] };

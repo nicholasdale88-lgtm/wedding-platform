@@ -592,6 +592,8 @@ export const vendorListing = sqliteTable('vendor_listing', {
   hidden: integer('hidden').notNull(),
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
+  /** migration 0052: their packages (price list), JSON. */
+  packages: text('packages').notNull().default('[]'),
 });
 
 export const vendorEnquiry = sqliteTable('vendor_enquiry', {

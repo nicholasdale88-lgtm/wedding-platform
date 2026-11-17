@@ -1,4 +1,4 @@
-import { regionOf, REGIONS, VENDOR_SEARCH, type Listing, type ListingCard, type ListingFields } from '@wp/shared';
+import { PACKAGE_UNITS, regionOf, REGIONS, VENDOR_SEARCH, type Listing, type ListingCard, type ListingFields, type ListingPackage } from '@wp/shared';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
@@ -26,6 +26,8 @@ const field = 'w-full py-[11px] px-3 rounded-[10px] border border-[#d3c6a4] bg-w
 const btn = 'py-3 px-6 rounded-full border-0 text-[16px] font-medium cursor-pointer disabled:opacity-60';
 const STATES = ['NSW', 'ACT', 'VIC', 'QLD', 'SA', 'WA', 'TAS', 'NT'] as const;
 const aud = (n: number) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }).format(n);
+/** A package's price as couples read it: "$2,400", "$85 per guest". */
+export const packagePrice = (p: Pick<ListingPackage, 'price' | 'unit'>) => (p.unit === 'total' ? aud(p.price) : `${aud(p.price)} ${p.unit}`);
 const what = (k: string) => (VENDOR_SEARCH[k]?.label ?? k).replace(/s$/, '');
 const where = (slug: string) => regionOf(slug)?.name ?? slug;
 
@@ -250,6 +252,7 @@ export function ListingPage() {
               Also travels to {v.regions.map(where).join(', ')}.
             </p>
           )}
+          <Packages list={v.packages ?? []} />
           <div className="flex gap-3 flex-wrap">
             {v.phone && (
               <a href={`tel:${v.phone.replace(/[^\d+]/g, '')}`} className="py-[10px] px-5 rounded-full border no-underline" style={{ borderColor: INK, color: INK }}>
@@ -271,6 +274,48 @@ export function ListingPage() {
         <EnquiryForm slug={v.slug} name={v.name} />
       </div>
     </Frame>
+  );
+}
+
+/** A vendor's price list on their page: one card each, the popular one picked out. */
+function Packages({ list }: { list: ListingPackage[] }) {
+  if (!list.length) return null;
+  return (
+    <section aria-labelledby="packages-h" className="flex flex-col gap-3">
+      <h2 id="packages-h" className="m-0 text-[28px] font-normal" style={{ fontFamily: serif }}>
+        Packages
+      </h2>
+      <ul className="m-0 p-0 list-none grid gap-3 sm:grid-cols-2">
+        {list.map((p, i) => (
+          <li
+            key={`${i}-${p.name}`}
+            className={`flex flex-col gap-2 p-4 rounded-[14px] min-w-0 ${p.popular ? 'bg-[#fbf8f0] border-2 border-[#33402f]' : 'bg-white border border-[#e2d7bc]'}`}
+          >
+            {p.popular && (
+              <span className="self-start text-[12px] tracking-[.12em] uppercase py-[3px] px-[10px] rounded-full" style={{ background: INK, color: '#fbf8f2' }}>
+                Most popular
+              </span>
+            )}
+            <strong className="text-[22px] font-normal leading-tight break-words" style={{ fontFamily: serif }}>
+              {p.name}
+            </strong>
+            <span className="text-[18px] font-semibold">{packagePrice(p)}</span>
+            {p.includes.length > 0 && (
+              <ul className="m-0 p-0 list-none flex flex-col gap-1 text-[15px]">
+                {p.includes.map((x, j) => (
+                  <li key={j} className="flex gap-2 items-start break-words min-w-0">
+                    <span aria-hidden="true" style={{ color: SOFT }}>
+                      ✓
+                    </span>
+                    <span className="min-w-0">{x}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -348,7 +393,111 @@ function EnquiryForm({ slug, name }: { slug: string; name: string }) {
 
 // ------------------------------------------------------------------------------------------- the listing form
 
-const BLANK: ListingFields = { name: '', category: '', region: '', regions: [], contactName: '', phone: '', website: '', instagram: '', about: '', priceFrom: 0, photos: [] };
+const BLANK: ListingFields = { name: '', category: '', region: '', regions: [], contactName: '', phone: '', website: '', instagram: '', about: '', priceFrom: 0, photos: [], packages: [] };
+const MAX_PACKAGES = 8;
+/** Before saving: blank "included" lines dropped. */
+const tidy = (f: ListingFields): ListingFields => ({ ...f, packages: f.packages.map((p) => ({ ...p, includes: p.includes.map((x) => x.trim()).filter(Boolean) })) });
+const NEW_PACKAGE: ListingPackage = { name: '', price: 0, unit: 'total', includes: [], popular: false };
+const small = 'min-h-[40px] min-w-[40px] px-3 rounded-full border border-[#d3c6a4] bg-white text-[14px] cursor-pointer disabled:opacity-40';
+
+/** The vendor's packages: one card each, with what's included, which is most popular, and their order. */
+function PackagesEditor({ value, onChange }: { value: ListingPackage[]; onChange: (v: ListingPackage[]) => void }) {
+  const put = (i: number, p: Partial<ListingPackage>) => onChange(value.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  const move = (i: number, by: number) => {
+    const next = [...value];
+    const [p] = next.splice(i, 1);
+    if (!p) return;
+    next.splice(i + by, 0, p);
+    onChange(next);
+  };
+  return (
+    <fieldset className="m-0 p-0 border-0 flex flex-col gap-3 min-w-0">
+      <legend className="p-0 text-[16px] font-semibold">Your packages</legend>
+      <p className="m-0 text-[14px]" style={{ color: SOFT }}>
+        A clear price list helps couples compare, and looks professional. Up to {MAX_PACKAGES}.
+      </p>
+      {value.map((p, i) => (
+        <div key={i} role="group" aria-label={`Package ${i + 1}`} className="flex flex-col gap-3 p-3 rounded-[12px] border border-[#d3c6a4] bg-white min-w-0">
+          <label className="flex flex-col gap-1 text-[14px]">
+            Package name
+            <input required value={p.name} maxLength={80} placeholder="Ceremony and reception" onChange={(e) => put(i, { name: e.target.value })} className={field} />
+          </label>
+          <div className="grid gap-3 grid-cols-2">
+            <label className="flex flex-col gap-1 text-[14px] min-w-0">
+              Price ($)
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={1000000}
+                value={p.price || ''}
+                onChange={(e) => put(i, { price: Math.max(0, Math.min(1_000_000, Math.round(Number(e.target.value) || 0))) })}
+                className={field}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-[14px] min-w-0">
+              Priced
+              <select value={p.unit} onChange={(e) => put(i, { unit: e.target.value as ListingPackage['unit'] })} className={field}>
+                {PACKAGE_UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {u === 'total' ? 'in total' : u}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-[14px]">What’s included</span>
+            {p.includes.map((x, j) => (
+              <div key={j} className="flex gap-2 items-center min-w-0">
+                <input
+                  value={x}
+                  maxLength={120}
+                  aria-label={`Included, line ${j + 1}`}
+                  onChange={(e) => put(i, { includes: p.includes.map((y, k) => (k === j ? e.target.value : y)) })}
+                  className={`${field} min-w-0`}
+                />
+                <button type="button" aria-label={`Remove line ${j + 1}`} onClick={() => put(i, { includes: p.includes.filter((_, k) => k !== j) })} className={small}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            {p.includes.length < 12 && (
+              <button type="button" onClick={() => put(i, { includes: [...p.includes, ''] })} className={`${small} self-start`}>
+                + Add a line
+              </button>
+            )}
+          </div>
+          <label className="flex items-center gap-2 text-[14px] cursor-pointer min-h-[40px]">
+            <input
+              type="checkbox"
+              checked={p.popular}
+              onChange={(e) => onChange(value.map((x, j) => ({ ...x, popular: j === i ? e.target.checked : e.target.checked ? false : x.popular })))}
+              className="w-5 h-5 accent-[#33402f]"
+            />
+            Most popular
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            <button type="button" aria-label={`Move package ${i + 1} up`} disabled={i === 0} onClick={() => move(i, -1)} className={small}>
+              ↑ Up
+            </button>
+            <button type="button" aria-label={`Move package ${i + 1} down`} disabled={i === value.length - 1} onClick={() => move(i, 1)} className={small}>
+              ↓ Down
+            </button>
+            <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))} className={`${small} ml-auto`}>
+              Remove package
+            </button>
+          </div>
+        </div>
+      ))}
+      {value.length < MAX_PACKAGES && (
+        <button type="button" onClick={() => onChange([...value, { ...NEW_PACKAGE }])} className={`${small} self-start`}>
+          + Add a package
+        </button>
+      )}
+    </fieldset>
+  );
+}
 
 function ListingForm({ value, onChange }: { value: ListingFields; onChange: (v: ListingFields) => void }) {
   const set = <K extends keyof ListingFields>(k: K, v: ListingFields[K]) => onChange({ ...value, [k]: v });
@@ -439,6 +588,7 @@ function ListingForm({ value, onChange }: { value: ListingFields; onChange: (v: 
           className={`${field} resize-y`}
         />
       </label>
+      <PackagesEditor value={value.packages} onChange={(v) => set('packages', v)} />
     </>
   );
 }
@@ -461,7 +611,7 @@ export function VendorJoinPage() {
     if (acct.passcode.length < 8) return setProblem('Use at least 8 characters for your passcode.');
     setBusy(true);
     try {
-      await directoryApi.join({ ...f, ...acct });
+      await directoryApi.join({ ...tidy(f), ...acct });
       nav('/vendors/me?joined=1');
     } catch (err) {
       setProblem((err as Error).message);
@@ -559,7 +709,7 @@ export function VendorHomePage() {
       .then((d) => {
         setData(d);
         const l = d.listing;
-        setF({ name: l.name, category: l.category, region: l.region, regions: l.regions, contactName: l.contactName, phone: l.phone, website: l.website, instagram: l.instagram, about: l.about, priceFrom: l.priceFrom, photos: l.photos });
+        setF({ name: l.name, category: l.category, region: l.region, regions: l.regions, contactName: l.contactName, phone: l.phone, website: l.website, instagram: l.instagram, about: l.about, priceFrom: l.priceFrom, photos: l.photos, packages: l.packages ?? [] });
         setDirty(false);
         setState('ready');
       })
@@ -574,7 +724,7 @@ export function VendorHomePage() {
     setBusy(true);
     setNote('');
     try {
-      await directoryApi.save(f);
+      await directoryApi.save(tidy(f));
       setNote('Saved: couples see it now.');
       await load();
     } catch (e) {

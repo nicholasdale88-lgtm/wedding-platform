@@ -55,6 +55,7 @@ export function listingStrength(l: MyListing['listing']) {
   const checks: [boolean, string][] = [
     [l.photos.length >= 3, 'Add at least 3 photos of your work'],
     [!!l.priceFrom, 'Add a “from” price: couples filter by it'],
+    [(l.packages ?? []).some((p) => p.price > 0), 'Add at least one package with prices'],
     [l.about.trim().length >= 120, 'Write a few lines about how you work (120+ characters)'],
     [!!l.contactName.trim(), 'Add your name, so couples know who they’re talking to'],
     [!!(l.website.trim() || l.instagram.trim()), 'Add your website or Instagram'],

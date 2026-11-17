@@ -6,7 +6,7 @@ import { EnquiryPipeline, listingStrength, VendorCalendar, VendorOverview } from
 const soon = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
 const data: MyListing = {
   partner: { code: 'BLOOM10', percentOff: 10, uses: 2 },
-  listing: { slug: 's', name: 'Bloom Co', category: 'florist', region: 'sydney', regions: [], about: 'Short', priceFrom: 0, photo: '', booked: 1, contactName: 'Jess Lee', phone: '', website: '', instagram: '', photos: [], email: 'a@example.com', hidden: false },
+  listing: { slug: 's', name: 'Bloom Co', category: 'florist', region: 'sydney', regions: [], about: 'Short', priceFrom: 0, photo: '', booked: 1, contactName: 'Jess Lee', phone: '', website: '', instagram: '', photos: [], packages: [], email: 'a@example.com', hidden: false },
   enquiries: [
     { id: 'e1', name: 'Grace Wu', email: 'g@example.com', phone: '', date: soon(20).slice(0, 10), guests: 90, message: 'Free on our date?', read: false, at: soon(-1), stage: 'new', note: '' },
     { id: 'e2', name: 'Tom Reid', email: 't@example.com', phone: '', date: soon(90).slice(0, 10), guests: 60, message: 'Bouquets only', read: true, at: soon(-5), stage: 'quoted', note: 'Sent $950' },
