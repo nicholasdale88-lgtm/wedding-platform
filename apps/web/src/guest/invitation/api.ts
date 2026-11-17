@@ -148,7 +148,9 @@ export const guestApi = {
   portalLogin: (slug: string, email: string, password: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/login`, { method: 'POST', body: JSON.stringify({ email, password }) }),
   portalLogout: (slug: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/logout`, { method: 'POST', body: '{}' }),
   portalLink: (slug: string, t: string) => call<{ name: string; role: string; couple: string; theme: string; email: string; setUp: boolean }>(`/p/${encodeURIComponent(slug)}/portal/link?t=${encodeURIComponent(t)}`),
-  portalSetPassword: (slug: string, t: string, password: string, email?: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/password-link`, { method: 'POST', body: JSON.stringify({ t, password, ...(email ? { email } : {}) }) }),
+  /** `login`: what they'll sign in with, an email or a mobile. */
+  portalSetPassword: (slug: string, t: string, password: string, login?: string) =>
+    call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/password-link`, { method: 'POST', body: JSON.stringify({ t, password, ...(login ? (login.includes('@') ? { email: login } : { phone: login }) : {}) }) }),
   portalForgot: (slug: string, email: string) => call<{ ok: true; message: string }>(`/p/${encodeURIComponent(slug)}/portal/forgot`, { method: 'POST', body: JSON.stringify({ email }) }),
   portalPassword: (slug: string, current: string, next: string) => call<{ ok: true }>(`/p/${encodeURIComponent(slug)}/portal/password`, { method: 'POST', body: JSON.stringify({ current, next }) }),
   /** A party member ticks or adds their own things (saved with the couple's plan). */

@@ -39,6 +39,7 @@ type Account = {
   wedding_id: string;
   person_id: string;
   email: string | null;
+  phone: string | null;
   pass_hash: string | null;
   perms: string;
   invite_expires: string | null;
@@ -48,12 +49,24 @@ type Account = {
   last_login: string | null;
 };
 const accountOf = (db: D1Database, where: string, ...bind: unknown[]) =>
-  db.prepare(`SELECT id, wedding_id, person_id, email, pass_hash, perms, invite_expires, reset_expires, failed, locked_until, last_login FROM party_account WHERE ${where} AND deleted_at IS NULL`).bind(...bind).first<Account>();
+  db.prepare(`SELECT id, wedding_id, person_id, email, phone, pass_hash, perms, invite_expires, reset_expires, failed, locked_until, last_login FROM party_account WHERE ${where} AND deleted_at IS NULL`).bind(...bind).first<Account>();
 const personOf = (db: D1Database, weddingId: string, personId: string) =>
   db
     .prepare(`SELECT p.id, p.name, p.party_role, p.invitation_id, i.token, i.phone FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE p.id = ? AND i.wedding_id = ? AND p.deleted_at IS NULL AND i.deleted_at IS NULL`)
     .bind(personId, weddingId)
     .first<{ id: string; name: string; party_role: string; invitation_id: string; token: string; phone: string | null }>();
+
+/**
+ * Signed up before mobiles could sign in: their account is found by the mobile on their invitation, when only one
+ * person in the wedding party has it (a shared mobile on a couple's invitation can't tell them apart).
+ */
+async function byInvitationMobile(db: D1Database, weddingId: string, mobile: string): Promise<Account | null> {
+  const { results } = await db
+    .prepare(`SELECT a.id FROM party_account a JOIN person p ON p.id = a.person_id JOIN invitation i ON i.id = p.invitation_id WHERE a.wedding_id = ? AND a.deleted_at IS NULL AND a.phone IS NULL AND i.phone = ?`)
+    .bind(weddingId, mobile)
+    .all<{ id: string }>();
+  return results.length === 1 ? accountOf(db, 'id = ?', results[0]!.id) : null;
+}
 
 /** Who's signed in to the portal on this request (for this wedding), with what they may do. */
 export async function portalWho(c: Context<{ Bindings: Env }>, weddingId: string) {
@@ -109,21 +122,23 @@ export function partyPortalRoutes() {
 
   app.post('/login', async (c) => {
     const b = z.object({ email: z.string().trim().max(200), password: z.string().max(200) }).strict().safeParse(await readJson(c.req.raw));
-    if (!b.success) return err(c, 400, 'invalid', 'Enter your email and password.');
+    if (!b.success) return err(c, 400, 'invalid', 'Enter your email or mobile, and your password.');
     const w = await weddingOf(c);
     if (!w) return err(c, 404, 'not_found', 'Not found');
+    // "email" is what they sign in with: their email or their mobile.
     const email = b.data.email.toLowerCase();
+    const mobile = email.includes('@') ? null : toE164(email);
     const ip = c.req.header('CF-Connecting-IP') ?? 'local';
     const ok = (await allow(c.env.DB, `plogin:ip:${ip}`, 30, 15 * 60_000)) && (await allow(c.env.DB, `plogin:${w.id}:${email}`, 20, 60 * 60_000));
     if (!ok) return err(c, 429, 'slow_down', 'Too many tries. Wait 15 minutes and try again.');
-    const acc = await accountOf(c.env.DB, 'wedding_id = ? AND email = ?', w.id, email);
+    const acc = mobile ? ((await accountOf(c.env.DB, 'wedding_id = ? AND phone = ?', w.id, mobile)) ?? (await byInvitationMobile(c.env.DB, w.id, mobile))) : await accountOf(c.env.DB, 'wedding_id = ? AND email = ?', w.id, email);
     if (acc?.locked_until && acc.locked_until > now()) return err(c, 429, 'locked', 'Too many wrong passwords. Wait 15 minutes, or reset your password.');
     if (!(await verifyPasscode(b.data.password, acc?.pass_hash ?? null)) || !acc) {
       if (acc) {
         const failed = acc.failed + 1;
         await c.env.DB.prepare(`UPDATE party_account SET failed = ?, locked_until = ? WHERE id = ?`).bind(failed >= 5 ? 0 : failed, failed >= 5 ? new Date(Date.now() + 15 * 60_000).toISOString() : null, acc.id).run();
       }
-      return err(c, 401, 'bad_login', 'That email and password don’t match.');
+      return err(c, 401, 'bad_login', mobile ? 'That mobile and password don’t match.' : 'That email and password don’t match.');
     }
     const setup = (await readDoc(c.env.DB, w.id, 'party-setup', '')).data;
     if (setup.access[acc.person_id] === false) return err(c, 403, 'paused', 'Your page is paused for now. The couple will let you know when it’s back.');
@@ -152,7 +167,7 @@ export function partyPortalRoutes() {
 
   /** Accept an invite, or use a reset link: set the password (and the email, the first time); signed in. */
   app.post('/password-link', async (c) => {
-    const b = z.object({ t: z.string().max(100), email: z.string().trim().max(200).optional(), password: z.string().max(200) }).strict().safeParse(await readJson(c.req.raw));
+    const b = z.object({ t: z.string().max(100), email: z.string().trim().max(200).optional(), phone: z.string().trim().max(40).optional(), password: z.string().max(200) }).strict().safeParse(await readJson(c.req.raw));
     if (!b.success) return err(c, 400, 'invalid', 'Choose a password.');
     const w = await weddingOf(c);
     if (!w) return err(c, 404, 'not_found', 'Not found');
@@ -163,13 +178,19 @@ export function partyPortalRoutes() {
     if (!acc) return err(c, 404, 'no_link', 'This link has expired or been used. Ask the couple for a new one.');
     const problem = passcodeProblem(b.data.password);
     if (problem) return err(c, 400, 'weak', problem);
-    const email = (b.data.email ?? acc.email ?? '').toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return err(c, 400, 'email', 'Enter your email: it’s how you’ll sign in.');
-    const taken = await accountOf(c.env.DB, 'wedding_id = ? AND email = ? AND id != ?', w.id, email, acc.id);
-    if (taken) return err(c, 409, 'email_taken', 'Someone in the wedding party already signs in with that email.');
+    // They sign in with an email or a mobile (either is fine; both if they like).
+    const typedEmail = (b.data.email ?? '').toLowerCase();
+    if (typedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typedEmail)) return err(c, 400, 'email', 'That email doesn’t look right.');
+    if (b.data.phone && !toE164(b.data.phone)) return err(c, 400, 'phone', 'That mobile doesn’t look right: an Australian mobile, like 0412 345 678.');
+    const email = typedEmail || acc.email || null;
+    const phone = (b.data.phone ? toE164(b.data.phone) : null) ?? acc.phone ?? null;
+    if (!email && !phone) return err(c, 400, 'email', 'Enter your email or mobile: it’s how you’ll sign in.');
+    if (email && (await accountOf(c.env.DB, 'wedding_id = ? AND email = ? AND id != ?', w.id, email, acc.id))) return err(c, 409, 'email_taken', 'Someone in the wedding party already signs in with that email.');
+    if (phone && (await accountOf(c.env.DB, 'wedding_id = ? AND phone = ? AND id != ?', w.id, phone, acc.id))) return err(c, 409, 'phone_taken', 'Someone in the wedding party already signs in with that mobile.');
     await c.env.DB.batch([
-      c.env.DB.prepare(`UPDATE party_account SET email = ?, pass_hash = ?, invite_hash = NULL, invite_expires = NULL, reset_hash = NULL, reset_expires = NULL, failed = 0, locked_until = NULL, updated_at = ? WHERE id = ?`).bind(
+      c.env.DB.prepare(`UPDATE party_account SET email = ?, phone = ?, pass_hash = ?, invite_hash = NULL, invite_expires = NULL, reset_hash = NULL, reset_expires = NULL, failed = 0, locked_until = NULL, updated_at = ? WHERE id = ?`).bind(
         email,
+        phone,
         await hashPasscode(b.data.password),
         now(),
         acc.id,
@@ -184,7 +205,7 @@ export function partyPortalRoutes() {
   /** Forgot it: a reset link is texted to the mobile on their invitation (no answer says whether the email exists). */
   app.post('/forgot', async (c) => {
     const b = z.object({ email: z.string().trim().max(200) }).strict().safeParse(await readJson(c.req.raw));
-    if (!b.success) return err(c, 400, 'invalid', 'Enter your email.');
+    if (!b.success) return err(c, 400, 'invalid', 'Enter your email or mobile.');
     const w = await weddingOf(c);
     if (!w) return err(c, 404, 'not_found', 'Not found');
     const email = b.data.email.toLowerCase();
@@ -192,10 +213,11 @@ export function partyPortalRoutes() {
     if (!(await allow(c.env.DB, `pforgot:ip:${ip}`, 10, 60 * 60_000)) || !(await allow(c.env.DB, `pforgot:${w.id}:${email}`, 3, 60 * 60_000))) {
       return err(c, 429, 'slow_down', 'Too many tries. Wait an hour, or ask the couple for a reset link.');
     }
-    const acc = await accountOf(c.env.DB, 'wedding_id = ? AND email = ?', w.id, email);
+    const mobile = email.includes('@') ? null : toE164(email);
+    const acc = mobile ? await accountOf(c.env.DB, 'wedding_id = ? AND phone = ?', w.id, mobile) : await accountOf(c.env.DB, 'wedding_id = ? AND email = ?', w.id, email);
     const person = acc ? await personOf(c.env.DB, w.id, acc.person_id) : null;
-    const phone = toE164(person?.phone ?? '');
-    const byEmail = emailReady(c.env);
+    const phone = acc?.phone ?? toE164(person?.phone ?? '');
+    const byEmail = emailReady(c.env) && !!acc?.email;
     if (acc && person && (phone || byEmail)) {
       const t = newSessionToken();
       await c.env.DB.prepare(`UPDATE party_account SET reset_hash = ?, reset_expires = ?, updated_at = ? WHERE id = ?`).bind(await hashOf(c.env, t), new Date(Date.now() + RESET_HOURS * 3_600_000).toISOString(), now(), acc.id).run();
@@ -203,7 +225,7 @@ export function partyPortalRoutes() {
       // By email (to the address they sign in with), and by text to the mobile on their invitation.
       if (byEmail) {
         const m = buttonEmail({ heading: 'Reset your password', lines: [`Here’s a link to choose a new password for ${couple(w)}’s wedding party page. It works for 48 hours.`], button: 'Choose a new password', link, footer: 'Didn’t ask for this? Ignore it: your password stays the same.' });
-        await sendEmail(c.env, { to: email, subject: `${couple(w)}’s wedding party: reset your password`, ...m });
+        await sendEmail(c.env, { to: acc.email!, subject: `${couple(w)}’s wedding party: reset your password`, ...m });
       }
       const d = engineDeps(c.env);
       const ctx = phone ? await d.store.wedding(w.id) : null;
@@ -215,9 +237,7 @@ export function partyPortalRoutes() {
     }
     return c.json({
       ok: true,
-      message: byEmail
-        ? 'If that email signs in here, we’ve emailed it a reset link (and texted the mobile on your invitation). Nothing? Ask the couple to send you one.'
-        : 'If that email signs in here, we’ve texted a reset link to the mobile on your invitation. No text? Ask the couple to send you one.',
+      message: 'If that signs in here, we’ve sent a reset link to your email and texted your mobile. Nothing? Ask the couple to send you one.',
     });
   });
 

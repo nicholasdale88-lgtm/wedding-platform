@@ -87,11 +87,11 @@ export function PartySignIn({ slug, onDone }: { slug: string; onDone: () => void
   };
   return (
     <Shell couple={me.couple} theme={me.theme} title="Wedding party">
-      <p className="m-0 text-center text-[19px] italic">{mode === 'in' ? 'Sign in to see your part of the day, your to-dos and your packing list.' : 'Enter the email you sign in with. We’ll text a reset link to the mobile on your invitation.'}</p>
+      <p className="m-0 text-center text-[19px] italic">{mode === 'in' ? 'Sign in to see your part of the day, your to-dos and your packing list.' : 'Enter the email or mobile you sign in with. We’ll send you a link to choose a new password.'}</p>
       <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-[16px]">
-          Email
-          <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} style={fieldStyle} />
+          Email or mobile
+          <input type="text" inputMode="email" autoComplete="username" autoCapitalize="none" required value={email} placeholder="you@example.com or 0412 345 678" onChange={(e) => setEmail(e.target.value)} className={field} style={fieldStyle} />
         </label>
         {mode === 'in' && (
           <label className="flex flex-col gap-1 text-[16px]">
@@ -160,8 +160,8 @@ export function PartyLinkPage() {
       <form onSubmit={(e) => void submit(e)} className="flex flex-col gap-3">
         {!info.setUp && (
           <label className="flex flex-col gap-1 text-[16px]">
-            Your email (you’ll sign in with it)
-            <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className={field} style={fieldStyle} />
+            Your email or mobile (you’ll sign in with it)
+            <input type="text" inputMode="email" autoComplete="username" autoCapitalize="none" required value={email} placeholder="you@example.com or 0412 345 678" onChange={(e) => setEmail(e.target.value)} className={field} style={fieldStyle} />
           </label>
         )}
         <label className="flex flex-col gap-1 text-[16px]">

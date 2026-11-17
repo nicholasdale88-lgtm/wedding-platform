@@ -481,6 +481,7 @@ export const partyAccount = sqliteTable('party_account', {
   email: text('email'),
   passHash: text('pass_hash'),
   perms: text('perms').notNull(),
+  phone: text('phone'),
   inviteHash: text('invite_hash'),
   inviteExpires: text('invite_expires'),
   resetHash: text('reset_hash'),
