@@ -23,7 +23,9 @@ describe('photo links', () => {
   const call = (path: string, init: RequestInit = {}, ck = cookie) => app.request(`/api${path}`, { ...init, headers: { 'content-type': 'application/json', cookie: ck, ...init.headers } }, env, ctx);
   const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7, 7, 7, 7]);
   let dropboxDown = false;
+  let tokenRevoked = false;
   const sent: { url: string; arg?: string }[] = [];
+  const TOP = /^\/The Yes List – [^/]+ & [^/]+/;
 
   beforeEach(async () => {
     t = await testD1();
@@ -40,13 +42,14 @@ describe('photo links', () => {
     cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     wid = ((await res.json()) as { weddings: { id: string }[] }).weddings[0]!.id;
     dropboxDown = false;
+    tokenRevoked = false;
     sent.length = 0;
     vi.stubGlobal('fetch', async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input instanceof Request ? input.url : input);
       const arg = (init?.headers as Record<string, string> | undefined)?.['Dropbox-API-Arg'];
       sent.push({ url, arg });
       const ok = (o: unknown) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
-      if (url.includes('/oauth2/token')) return ok({ access_token: 'access-1', refresh_token: 'refresh-secret-1' });
+      if (url.includes('/oauth2/token')) return tokenRevoked ? new Response('{"error":"invalid_grant"}', { status: 400 }) : ok({ access_token: 'access-1', refresh_token: 'refresh-secret-1' });
       if (url.includes('get_current_account')) return ok({ email: 'couple@example.com' });
       if (url.includes('/files/upload')) return dropboxDown ? new Response('busy', { status: 503 }) : ok({ id: `id:${sent.length}` });
       if (url.includes('/files/download')) return new Response(JPEG, { status: 200 });
@@ -100,8 +103,9 @@ describe('photo links', () => {
     await link();
     const up = await call(`/p/sophie-and-nicholas/photos?g=${g}&event=wedding`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-By': 'Ella' }, body: JPEG });
     expect(up.status).toBe(200);
-    const arg = JSON.parse(sent.find((s) => s.url.includes('/files/upload'))!.arg!) as { path: string };
-    expect(arg.path).toMatch(/^\/[^/]+ wedding\/Photos\/[^/]+\/\d{4}-\d\d-\d\d \d\d-\d\d Ella\.jpg$/);
+    const arg = JSON.parse(sent.find((s) => s.url.includes('/files/upload') && s.arg?.includes('Ella'))!.arg!) as { path: string };
+    expect(arg.path).toMatch(TOP);
+    expect(arg.path).toMatch(/\/Photos\/[^/]+\/\d{4}-\d\d-\d\d \d\d-\d\d Ella\.jpg$/);
     const list = (await (await call(`/a/w/${wid}/photos`)).json()) as { enabled: boolean; items: { url: string }[] };
     expect(list.enabled).toBe(true);
     const img = await call(list.items[0]!.url.replace('/api', ''));
@@ -156,25 +160,37 @@ describe('photo links', () => {
     expect(row!.remote).toMatch(/^link:/);
     expect(row!.n).toBe(0); // nothing kept on the site
     const arg = JSON.parse(sent.filter((s) => s.url.includes('/files/upload')).pop()!.arg!) as { path: string };
-    expect(arg.path).toMatch(/ wedding\/Planning files\/Florist quote\.pdf$/);
+    expect(arg.path).toMatch(TOP);
+    expect(arg.path).toMatch(/\/Planning files\/Florist quote\.pdf$/);
     expect((await call(`/a/w/${wid}/planner/files/${id}`)).status).toBe(200);
   });
 
-  it('a new link is filed straight away (Photos per event, Planning files, Signs and print, Backups), and a backup goes to Backups', async () => {
+  it('signing in alone finishes the setup: "The Yes List – A & B" folder, its shelves and a welcome file, before the couple is sent back', async () => {
+    const res = await link(); // nothing else: no "set up folders", no second step
+    expect(res.headers.get('location')).toBe(`https://example.com/admin/${wid}/photos?linked=dropbox`);
+    const made = sent.filter((x) => x.url.includes('create_folder_v2'));
+    expect(made.length).toBeGreaterThanOrEqual(5);
+    const paths = sent.filter((x) => x.arg).map((x) => JSON.parse(x.arg!) as { path: string; mode?: string });
+    const welcome = paths.find((p) => p.path.endsWith('/Welcome to The Yes List.txt'))!;
+    expect(welcome.path).toMatch(TOP);
+    expect(welcome.mode).toBe('overwrite'); // connecting again never makes a second one
+    const { links } = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { id: string; ok: boolean; filed: boolean; verified: boolean; docs: boolean; folder: string; openUrl: string }[] };
+    expect(links[0]).toMatchObject({ ok: true, filed: true, verified: true, docs: true });
+    expect(links[0]!.folder).toMatch(/^The Yes List – .+ & .+$/);
+    expect(links[0]!.openUrl).toBe(`https://www.dropbox.com/home/Apps/The%20Yes%20List/${encodeURIComponent(links[0]!.folder)}`);
+    // Its folder is the one the welcome file went into.
+    expect(welcome.path).toBe(`/${links[0]!.folder}/Welcome to The Yes List.txt`);
+  });
+
+  it('a filed link puts a backup in Backups', async () => {
     await link();
-    const { links } = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { id: string; filed: boolean }[] };
-    const made = (await (await call(`/a/w/${wid}/photo-links/${links[0]!.id}/folders`, { method: 'POST', body: '{}' })).json()) as { folders: string[] };
-    expect(made.folders).toEqual(expect.arrayContaining(['Photos', 'Planning files', 'Signs and print', 'Backups']));
-    expect(made.folders[0]).toMatch(/ wedding$/);
-    const folders = sent.filter((x) => x.url.includes('create_folder_v2')).length;
-    expect(folders).toBeGreaterThanOrEqual(5);
-    expect(((await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { filed: boolean }[] }).links[0]!.filed).toBe(true);
     const st = (await (await call(`/a/w/${wid}/settings/backups`)).json()) as { linked: string | null };
     expect(st.linked).toBe('Dropbox');
     const now = await call(`/a/w/${wid}/settings/backups/now`, { method: 'POST', body: '{}' });
     expect(now.status).toBe(200);
     const arg = JSON.parse(sent.filter((x) => x.url.includes('/files/upload')).pop()!.arg!) as { path: string };
-    expect(arg.path).toMatch(/ wedding\/Backups\/\d{4}-\d\d-\d\d sophie-and-nicholas backup\.json$/);
+    expect(arg.path).toMatch(TOP);
+    expect(arg.path).toMatch(/\/Backups\/\d{4}-\d\d-\d\d sophie-and-nicholas backup\.json$/);
     expect(((await (await call(`/a/w/${wid}/settings/backups`)).json()) as { last: string | null }).last).not.toBeNull();
     // The cron doesn't back up again the same day.
     const { runBackups } = await import('../src/lib/backup');
@@ -190,7 +206,7 @@ describe('photo links', () => {
     const after = (await (await call(`/a/w/${wid}/settings/check`)).json()) as Check;
     const storage = after.items.find((i) => i.key.startsWith('storage:'))!;
     expect(storage.state).toBe('ok');
-    expect(storage.detail).toMatch(/ wedding”: Photos, .*Planning files, Signs and print, Backups\./);
+    expect(storage.detail).toMatch(/“The Yes List – .+”: Photos, .*Planning files, Signs and print, Backups\./);
     expect(sent.filter((x) => x.url.includes('create_folder_v2')).length).toBeGreaterThanOrEqual(5);
     expect(after.items.find((i) => i.key === 'backups')?.state).toBe('warn'); // linked, no backup yet
     // Storage that can't be reached is flagged, with what to do.
@@ -220,7 +236,74 @@ describe('photo links', () => {
     const d = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { canSetUp: boolean; links: { ok: boolean; openUrl: string }[] };
     expect(d.canSetUp).toBe(false); // the couple never sees the site's app setup
     expect(d.links).toHaveLength(1);
-    expect(d.links[0]).toMatchObject({ ok: true, openUrl: 'https://www.dropbox.com/home/Apps' });
+    expect(d.links[0]).toMatchObject({ ok: true, verified: true });
+    expect(d.links[0]!.openUrl).toMatch(/^https:\/\/www\.dropbox\.com\/home\/Apps\/The%20Yes%20List\/The%20Yes%20List%20/);
+    // Still one wedding folder and one welcome file, however often they connect.
+    const tops = new Set(sent.filter((x) => x.arg?.includes('Welcome')).map((x) => (JSON.parse(x.arg!) as { path: string }).path));
+    expect(tops.size).toBe(1);
+  });
+
+  it('if the folder can’t be made, the link is not shown as connected: it needs a reconnect, and the sign-in is kept', async () => {
+    dropboxDown = true;
+    const res = await link();
+    expect(res.headers.get('location')).toBe(`https://example.com/admin/${wid}/photos?link_error=setup`);
+    const row = (await t.db.prepare(`SELECT status, last_error, refresh_enc FROM photo_link`).first<{ status: string; last_error: string; refresh_enc: string }>())!;
+    expect(row.status).toBe('error');
+    expect(row.last_error).toMatch(/Reconnect/);
+    expect(await unseal(env.SESSION_SECRET!, 'photo-link', row.refresh_enc)).toBe('refresh-secret-1');
+    const d = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { ok: boolean; verified: boolean; problem: string }[] };
+    expect(d.links[0]).toMatchObject({ ok: false, verified: false });
+    expect(d.links[0]!.problem).toMatch(/Reconnect/);
+    // Reconnecting once Dropbox is back mends it (the same link, no second one).
+    dropboxDown = false;
+    expect((await link()).headers.get('location')).toContain('linked=dropbox');
+    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM photo_link WHERE status = 'ok'`).first<{ n: number }>())!.n).toBe(1);
+    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM photo_link`).first<{ n: number }>())!.n).toBe(1);
+  });
+
+  it('access that was removed or has expired shows as Reconnect, in plain words', async () => {
+    await link();
+    tokenRevoked = true;
+    // A different sealed token (as after a while): the next use has to refresh it, and Dropbox says no.
+    await t.db.prepare(`UPDATE photo_link SET refresh_enc = ?`).bind(await seal(env.SESSION_SECRET!, 'photo-link', 'refresh-secret-2')).run();
+    await call(`/a/w/${wid}/settings/check`);
+    const d = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { ok: boolean; problem: string }[] };
+    expect(d.links[0]!.ok).toBe(false);
+    expect(d.links[0]!.problem).toMatch(/Reconnect/);
+    expect(d.links[0]!.problem).not.toMatch(/invalid_grant|token|OAuth/i);
+  });
+
+  it('declined access, signing out part-way and a reused state all come back with a reason', async () => {
+    const start = async () => new URL(((await (await call(`/a/w/${wid}/photo-links/connect`, { method: 'POST', body: JSON.stringify({ provider: 'dropbox' }) })).json()) as { url: string }).url).searchParams.get('state')!;
+    expect((await call(`/oauth/callback?error=access_denied&state=${await start()}`)).headers.get('location')).toBe(`https://example.com/admin/${wid}/photos?link_error=declined`);
+    expect((await call(`/oauth/callback?code=abc&state=${await start()}`, {}, '')).headers.get('location')).toContain('link_error=signed_out');
+    expect((await call(`/oauth/callback?code=abc&state=made-up`)).headers.get('location')).toContain('link_error=expired');
+    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM photo_link`).first<{ n: number }>())!.n).toBe(0);
+  });
+
+  it('Google Photos is never offered to couples (the site’s Google sign-in is for Drive)', async () => {
+    env.GOOGLE_CLIENT_ID = 'gid';
+    env.GOOGLE_CLIENT_SECRET = 'gsecret';
+    const d = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { providers: { key: string; ready: boolean }[] };
+    expect(d.providers.map((p) => p.key)).not.toContain('gphotos');
+    expect(d.providers.find((p) => p.key === 'gdrive')!.ready).toBe(true);
+    expect((await call(`/a/w/${wid}/photo-links/connect`, { method: 'POST', body: JSON.stringify({ provider: 'gphotos' }) })).status).toBe(400);
+    const g = (await (await call(`/a/w/${wid}/photo-links/connect`, { method: 'POST', body: JSON.stringify({ provider: 'gdrive' }) })).json()) as { url: string };
+    const scope = new URL(g.url).searchParams.get('scope')!;
+    expect(scope).toContain('auth/drive.file');
+    expect(scope).not.toContain('photoslibrary');
+    expect(new URL(g.url).searchParams.get('redirect_uri')).toBe('https://example.com/api/oauth/callback');
+  });
+
+  it('a link filed before the new name keeps its old wedding folder (nothing is moved or renamed)', async () => {
+    await link();
+    // As an older filed link: no remembered top folder.
+    await t.db.prepare(`UPDATE photo_link SET folders = '{"_v":"2"}'`).run();
+    sent.length = 0;
+    const up = await call(`/p/sophie-and-nicholas/photos?g=${await guestToken()}&event=wedding`, { method: 'PUT', headers: { 'content-type': 'image/jpeg', 'X-Photo-By': 'Ella' }, body: JPEG });
+    expect(up.status).toBe(200);
+    const arg = JSON.parse(sent.find((s) => s.url.includes('/files/upload'))!.arg!) as { path: string };
+    expect(arg.path).toMatch(/^\/[^/]+ & [^/]+ wedding\/Photos\//);
   });
 
   it('a token sealed under another secret is useless', async () => {

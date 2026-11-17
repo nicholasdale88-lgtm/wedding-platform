@@ -1,6 +1,7 @@
 import { zipSync } from 'fflate';
 import { isLook, LOOKS } from '../../guest/photos/looks';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { photosApi, type PhotosData } from '../../lib/api';
 import { fmtWhen } from '../../lib/format';
 import { useAdmin, useSectionName } from '../Shell';
@@ -24,6 +25,9 @@ export function Photos() {
   const { wid, overview, event: chosen } = useAdmin();
   const section = useSectionName();
   const toast = useToast();
+  // Back from connecting Google Drive or Dropbox: Photo settings opens on how it went.
+  const [params] = useSearchParams();
+  const [backFromSignIn] = useState(() => params.has('linked') || params.has('link_error'));
   const [all, setData] = useState<PhotosData | null>(null);
   // Each event's own album (photos added before albums were split show in every event); Account shows all.
   const one = overview?.events.some((e) => e.key === chosen) ?? false;
@@ -212,7 +216,7 @@ export function Photos() {
       )}
 
       {/* Set once: where photos are kept, the photo looks, the live wall, sharing the album, WhatsApp import. */}
-      <Disclosure title="Photo settings" sub="Storage, looks, live wall, sharing, WhatsApp import" defaultOpen={!data.enabled || !data.items.length}>
+      <Disclosure title="Photo settings" sub="Where photos are saved, looks, live wall, sharing, WhatsApp import" defaultOpen={!data.enabled || !data.items.length || backFromSignIn}>
         <PhotoLinksPanel onChanged={() => void load()} />
         <LooksPanel />
         <LiveWallPanel />

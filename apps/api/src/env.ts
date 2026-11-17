@@ -34,6 +34,8 @@ export interface Env {
   DROPBOX_APP_SECRET?: string;
   MS_CLIENT_ID?: string;
   MS_CLIENT_SECRET?: string;
+  /** The Dropbox app's name (its folder is Apps/<name>/), for the Open in Dropbox link. Default "The Yes List". */
+  DROPBOX_APP_FOLDER?: string;
   /** Email through Resend (lib/email.ts): the API key, and who it's from ("Name <hello@your-domain>"). */
   RESEND_API_KEY?: string;
   EMAIL_FROM?: string;

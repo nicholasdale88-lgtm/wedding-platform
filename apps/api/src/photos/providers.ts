@@ -39,6 +39,11 @@ export interface Provider {
   upload(token: string, u: Upload): Promise<string>;
   /** The file (or the part asked for with a Range header, for videos). */
   download(token: string, id: string, range?: string): Promise<Response>;
+  /**
+   * Writes a small text file into a folder, replacing one of the same name (connecting again never makes
+   * a second copy). Used to prove a new link can really save there. Google Photos has no files.
+   */
+  note?(token: string, folder: string, name: string, text: string): Promise<void>;
 }
 
 export class ProviderError extends Error {
@@ -173,6 +178,20 @@ const gdrive: Provider = {
     return r.id;
   },
   download: async (token, id, range) => ok(await fetch(`${DRIVE}/files/${encodeURIComponent(id)}?alt=media`, { headers: bearer(token, range ? { range } : {}) }), 'Opening the photo'),
+  async note(token, folder, name, text) {
+    const q = `name = '${name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}' and '${folder}' in parents and trashed = false`;
+    const found = await json<{ files: { id: string }[] }>(await fetch(`${DRIVE}/files?${form({ q, fields: 'files(id)', pageSize: '1' })}`, { headers: bearer(token) }), 'Checking the folder');
+    const bytes = new TextEncoder().encode(text);
+    if (found.files[0]) {
+      await ok(
+        await fetch(`https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(found.files[0].id)}?uploadType=media`, { method: 'PATCH', headers: bearer(token, { 'content-type': 'text/plain; charset=UTF-8' }), body: bytes }),
+        'Saving to Google Drive',
+      );
+      return;
+    }
+    const m = multipart({ name, parents: [folder] }, bytes, 'text/plain; charset=UTF-8');
+    await ok(await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: bearer(token, { 'content-type': m.type }), body: m.body }), 'Saving to Google Drive');
+  },
 };
 
 const PHOTOS = 'https://photoslibrary.googleapis.com/v1';
@@ -269,6 +288,16 @@ const dropbox: Provider = {
   },
   download: async (token, id, range) =>
     ok(await fetch('https://content.dropboxapi.com/2/files/download', { method: 'POST', headers: bearer(token, { 'Dropbox-API-Arg': dbxArg({ path: id }), ...(range ? { range } : {}) }) }), 'Opening the photo'),
+  async note(token, folder, name, text) {
+    await ok(
+      await fetch('https://content.dropboxapi.com/2/files/upload', {
+        method: 'POST',
+        headers: bearer(token, { 'content-type': 'application/octet-stream', 'Dropbox-API-Arg': dbxArg({ path: `${folder}/${name}`, mode: 'overwrite', autorename: false, mute: true }) }),
+        body: new TextEncoder().encode(text),
+      }),
+      'Saving to Dropbox',
+    );
+  },
 };
 
 // ---------------------------------------------------------------- OneDrive (Microsoft Graph)
@@ -324,10 +353,15 @@ const onedrive: Provider = {
     return r.id;
   },
   download: async (token, id, range) => ok(await fetch(`${GRAPH}/me/drive/items/${encodeURIComponent(id)}/content`, { headers: bearer(token, range ? { range } : {}) }), 'Opening the photo'),
+  async note(token, folder, name, text) {
+    // A simple upload replaces a file of the same name.
+    const path = `${encPath(folder.replace(/^\//, ''))}/${encodeURIComponent(name)}`;
+    await ok(await fetch(`${GRAPH}/me/drive/special/approot:/${path}:/content`, { method: 'PUT', headers: bearer(token, { 'content-type': 'text/plain' }), body: new TextEncoder().encode(text) }), 'Saving to OneDrive');
+  },
 };
 
 /** A folder path with each part encoded (the slashes kept). */
-function encPath(p: string) {
+export function encPath(p: string) {
   return p
     .split('/')
     .map((x) => (x ? encodeURIComponent(x) : ''))
@@ -335,6 +369,12 @@ function encPath(p: string) {
 }
 
 export const PROVIDER: Record<ProviderKey, Provider> = { gdrive, gphotos, dropbox, onedrive };
+
+/**
+ * What couples are offered. Google Photos stays in the code (older links keep working) but isn't offered:
+ * the site's Google sign-in is set up for Drive only, and Photos can't hold planning files, signs or backups.
+ */
+export const COUPLE_PROVIDERS: ProviderKey[] = ['gdrive', 'dropbox', 'onedrive'];
 
 /** Whether the site has this provider's app keys (set once, in the deploy secrets). */
 export const providerReady = (env: Env, p: ProviderKey) =>

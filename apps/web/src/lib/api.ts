@@ -544,8 +544,12 @@ export interface PhotoLink {
   since: string;
   /** Planning files (quotes, contracts, menus) are kept here too. */
   docs?: boolean;
-  /** Everything is filed in one "<couple> wedding" folder (Photos, Planning files, Signs and print, Backups). */
+  /** Everything is filed in one wedding folder (Photos, Planning files, Signs and print, Backups). */
   filed?: boolean;
+  /** A welcome file was saved in the wedding folder when it connected: the link really can save there. */
+  verified?: boolean;
+  /** The wedding folder's name in their storage ("The Yes List – A & B"). */
+  folder?: string | null;
   /** Where to see it in their own storage (Google Drive: the wedding's folder). */
   openUrl?: string;
 }

@@ -54,6 +54,15 @@ const linkError = (env: Env, id: string, message: string) =>
 const accessCache = new Map<string, { access: string; until: number; sealed: string }>();
 const forget = (link: LinkRow) => accessCache.delete(link.id);
 
+/** The access token a sign-in just gave (so setting up straight after doesn't refresh it again). */
+export function primeAccess(link: LinkRow, access: string, seconds = 3600) {
+  if (accessCache.size > 500) accessCache.clear();
+  accessCache.set(link.id, { access, until: Date.now() + Math.max(60, seconds - 300) * 1000, sealed: link.refresh_enc });
+}
+
+/** What a couple sees when their link stops working: plain words, one thing to do. */
+export const RECONNECT = 'Access was removed or has expired. Tap Reconnect and sign in again: everything carries on where it left off.';
+
 /** A fresh access token (refresh tokens that rotate are saved again). A revoked link is marked broken. */
 async function accessFor(env: Env, link: LinkRow): Promise<string> {
   const hit = accessCache.get(link.id);
@@ -61,8 +70,8 @@ async function accessFor(env: Env, link: LinkRow): Promise<string> {
   const secret = env.SESSION_SECRET ?? '';
   const refresh = await unseal(secret, SEAL_LABEL, link.refresh_enc);
   if (!refresh) {
-    await linkError(env, link.id, 'This link needs connecting again.');
-    throw new ProviderError(401, 'This link needs connecting again.', true);
+    await linkError(env, link.id, RECONNECT);
+    throw new ProviderError(401, RECONNECT, true);
   }
   try {
     const t = await PROVIDER[link.provider].refresh(env, refresh);
@@ -75,22 +84,39 @@ async function accessFor(env: Env, link: LinkRow): Promise<string> {
     accessCache.set(link.id, { access: t.access, until: Date.now() + Math.max(60, (t.expires ?? 3600) - 300) * 1000, sealed: link.refresh_enc });
     return t.access;
   } catch (e) {
-    if (e instanceof ProviderError && (e.relink || e.status === 400)) await linkError(env, link.id, 'Access was removed or has expired. Connect it again.');
+    if (e instanceof ProviderError && (e.relink || e.status === 400)) await linkError(env, link.id, RECONNECT);
     throw e;
   }
 }
 
 /**
- * The couple's linked storage, filed: one "<A & B> wedding" folder, and in it Photos (a folder per
- * event), Planning files, Signs and print, and Backups. Set up as soon as a link is made (older links
- * when the couple taps Set up folders); Google Photos keeps an album per event instead.
+ * The couple's linked storage, filed: one "The Yes List – <A> & <B>" folder, and in it Photos (a folder
+ * per event), Planning files, Signs and print, and Backups. Set up (and checked with a small welcome
+ * file) before the couple is sent back from signing in; Google Photos keeps an album per event instead.
  */
 export const SHELVES = { photos: 'Photos', docs: 'Planning files', signs: 'Signs and print', backups: 'Backups' } as const;
 export type Shelf = keyof typeof SHELVES;
 const filed = (link: LinkRow) => (JSON.parse(link.folders || '{}') as Record<string, string>)._v === '2';
-const topName = async (env: Env, weddingId: string) => {
-  const w = await env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(weddingId).first<{ name1: string; name2: string }>();
-  return safeName(`${(w?.name1 ?? '').split(' ')[0]} & ${(w?.name2 ?? '').split(' ')[0]} wedding`);
+export const newTopName = (name1: string, name2: string) => safeName(`The Yes List – ${name1.trim()} & ${name2.trim()}`);
+/**
+ * The link's top folder, decided once and kept on the link (so renaming the couple later never makes a
+ * second one). Links filed before the new name keep the folder they already have.
+ */
+async function topName(env: Env, link: LinkRow): Promise<string> {
+  const f = JSON.parse(link.folders || '{}') as Record<string, string>;
+  if (f._top) return f._top;
+  const made = Object.keys(f).find((k) => k.startsWith('path:') && !k.slice(5).includes('/'))?.slice(5);
+  const w = await env.DB.prepare(`SELECT name1, name2 FROM wedding WHERE id = ?`).bind(link.wedding_id).first<{ name1: string; name2: string }>();
+  const name =
+    made ?? (f._v === '2' ? safeName(`${(w?.name1 ?? '').split(' ')[0]} & ${(w?.name2 ?? '').split(' ')[0]} wedding`) : newTopName(w?.name1 ?? '', w?.name2 ?? ''));
+  await env.DB.prepare(`UPDATE photo_link SET folders = json_set(COALESCE(NULLIF(folders, ''), '{}'), '$._top', ?) WHERE id = ?`).bind(name, link.id).run();
+  link.folders = JSON.stringify({ ...f, _top: name });
+  return name;
+}
+/** The top folder's name, if the link has one yet (for the panel). */
+export const topOf = (folders: string | null) => {
+  const f = JSON.parse(folders || '{}') as Record<string, string>;
+  return f._top ?? Object.keys(f).find((k) => k.startsWith('path:') && !k.slice(5).includes('/'))?.slice(5) ?? null;
 };
 
 /** A folder by its path from the top (made the first time, remembered on the link under `key`). */
@@ -113,8 +139,8 @@ async function folderAt(env: Env, link: LinkRow, token: string, key: string, pat
 
 /** A shelf of the filed layout (the link becomes filed if it wasn't). */
 export async function shelfFolder(env: Env, link: LinkRow, token: string, shelf: Shelf, sub?: string): Promise<string> {
+  const top = await topName(env, link);
   if (!filed(link)) await markFiled(env, link);
-  const top = await topName(env, link.wedding_id);
   return folderAt(env, link, token, sub === undefined ? `shelf:${shelf}` : `shelf:${shelf}:${sub}`, sub === undefined ? [top, SHELVES[shelf]] : [top, SHELVES[shelf], safeName(sub)]);
 }
 async function markFiled(env: Env, link: LinkRow) {
@@ -130,12 +156,44 @@ async function markFiled(env: Env, link: LinkRow) {
 export async function setUpFolders(env: Env, link: LinkRow): Promise<string[]> {
   if (link.provider === 'gphotos') return [];
   const token = await accessFor(env, link);
-  const top = await topName(env, link.wedding_id);
+  const top = await topName(env, link);
   const { results: events } = await env.DB.prepare(`SELECT key, name FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort`).bind(link.wedding_id).all<{ key: string; name: string }>();
   for (const s of Object.keys(SHELVES) as Shelf[]) await shelfFolder(env, link, token, s);
   for (const e of events) await shelfFolder(env, link, token, 'photos', e.name);
   return [top, ...Object.values(SHELVES).flatMap((s) => (s === SHELVES.photos ? [s, ...events.map((e) => `${s} / ${safeName(e.name)}`)] : [s]))];
 }
+export const WELCOME_FILE = 'Welcome to The Yes List.txt';
+const welcome = (top: string) =>
+  [
+    `This is your wedding folder: ${top}.`,
+    '',
+    'The Yes List saves everything here for you:',
+    '- Photos: every photo your guests share, in a folder for each event.',
+    '- Planning files: quotes, contracts and menus you add in the planner.',
+    '- Signs and print: signs and cards you make.',
+    '- Backups: a copy of your wedding details, once a day.',
+    '',
+    'The Yes List can only see the folders it makes here, nothing else in your account.',
+    'To stop, open Photos, then Photo settings, and tap Disconnect. Everything here stays yours.',
+    '',
+  ].join('\r\n');
+
+/**
+ * Proves the link really works: writes the welcome file into the wedding folder (the same file again on
+ * reconnect, never a second one) and records when. Throws if it can't.
+ */
+export async function verifyLink(env: Env, link: LinkRow): Promise<void> {
+  const p = PROVIDER[link.provider];
+  if (link.provider === 'gphotos' || !p.note) return;
+  const token = await accessFor(env, link);
+  const top = await topName(env, link);
+  const at = (JSON.parse(link.folders || '{}') as Record<string, string>)[`path:${top}`] ?? (await folderAt(env, link, token, `path:${top}`, [top]));
+  await p.note(token, at, WELCOME_FILE, welcome(top));
+  const when = new Date().toISOString();
+  await env.DB.prepare(`UPDATE photo_link SET folders = json_set(COALESCE(NULLIF(folders, ''), '{}'), '$._ok', ?) WHERE id = ?`).bind(when, link.id).run();
+  link.folders = JSON.stringify({ ...(JSON.parse(link.folders || '{}') as Record<string, string>), _ok: when });
+}
+
 export async function linkRow(db: D1Database, weddingId: string, id: string) {
   return db.prepare(`SELECT id, wedding_id, provider, account, refresh_enc, folders FROM photo_link WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(id, weddingId).first<LinkRow>();
 }
