@@ -71,7 +71,7 @@ function CardTitle({ children, aside }: { children: ReactNode; aside?: ReactNode
 /** What they're wearing: bought, hired or their own, the look, their size and fitting, and the dates that matter. */
 function Outfit({ me, look }: { me: PartyMine; look: PartyLook }) {
   const o = me.outfit;
-  if (!o || !(o.how || o.what || o.size || o.fitting)) return null;
+  if (!o || !(o.how || o.payer || o.what || o.size || o.fitting)) return null;
   const rows: [string, string][] = [
     ['How', HOW[o.how] ?? ''],
     ['The look', [o.what, o.colour].filter(Boolean).join(', ')],
@@ -81,9 +81,25 @@ function Outfit({ me, look }: { me: PartyMine; look: PartyLook }) {
     [o.how === 'hire' ? 'Pick up by' : 'Order by', o.orderBy ? shortDay(o.orderBy) : ''],
     ['Return by', o.how === 'hire' && o.returnBy ? shortDay(o.returnBy) : ''],
   ];
+  // Who's paying: said plainly at the top, a thank-you when the couple are.
+  const kind = /bridesmaid|maid|matron|flower girl|bride/i.test(me.role) ? 'dress' : /suit|groom|best man|page|ring/i.test(me.role) ? 'suit' : 'outfit';
+  const cost = o.each ? `$${o.each.toLocaleString('en-AU')}` : '';
+  const paying =
+    o.payer === 'us'
+      ? `Your ${kind} is our gift to you. Thank you for wearing it.`
+      : o.payer === 'them'
+        ? `You’re paying for your own ${kind}${cost ? `: about ${cost}` : ''}.`
+        : o.payer === 'split'
+          ? `We’re going halves on your ${kind}${o.each ? `: your half is about $${Math.round(o.each / 2).toLocaleString('en-AU')}` : ''}.`
+          : '';
   return (
     <section id="outfit" aria-label="Your outfit" className="flex flex-col gap-3 p-5 rounded-[18px] scroll-mt-24" style={cardStyle(look)}>
       <CardTitle aside={o.collected && <span className="text-[16px] italic" style={{ color: look.label }}>Collected ✓</span>}>{`${first(me.name)}’s outfit`}</CardTitle>
+      {paying && (
+        <p className="m-0 p-4 rounded-[14px] text-[19px] leading-[1.4]" style={{ background: o.payer === 'us' ? look.wash : 'transparent', border: `1px solid ${look.gold}` }}>
+          {paying}
+        </p>
+      )}
       <dl className="m-0 grid grid-cols-[100px_minmax(0,1fr)] gap-x-3 text-[18px] leading-[1.35]">
         {rows
           .filter(([, v]) => v)

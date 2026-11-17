@@ -50,7 +50,7 @@ export function sampleParty(as: string | null): PartyPayload {
           { text: 'Phone charger', done: false },
           { text: p1 ? 'Emergency kit (pins, plasters, tissues)' : 'The rings (best man)', done: false },
         ],
-        outfit: { how: p1 ? 'buy' : 'hire', what: p1 ? 'Sage chiffon dress' : 'Navy suit', colour: p1 ? 'Sage' : 'Navy', where: p1 ? 'Bridal Rooms, Sydney' : 'Suit Hire Co', orderBy: day(40, 9).slice(0, 10), returnBy: '', notes: '', size: '', fitting: day(60, 11).slice(0, 10), collected: false },
+        outfit: { how: p1 ? 'buy' : 'hire', payer: p1 ? 'us' : 'them', each: p1 ? 320 : 180, what: p1 ? 'Sage chiffon dress' : 'Navy suit', colour: p1 ? 'Sage' : 'Navy', where: p1 ? 'Bridal Rooms, Sydney' : 'Suit Hire Co', orderBy: day(40, 9).slice(0, 10), returnBy: '', notes: '', size: '', fitting: day(60, 11).slice(0, 10), collected: false },
         night: { title: p1 ? 'The hens day' : 'The bucks day', date: day(45, 12).slice(0, 10), place: p1 ? 'High tea in the Blue Mountains' : 'Golf, then dinner', organiser: p1 ? 'Olivia' : 'James' },
       },
     ],

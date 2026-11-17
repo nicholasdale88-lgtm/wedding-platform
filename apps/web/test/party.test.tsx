@@ -119,4 +119,28 @@ describe('wedding party page', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
+
+  it('their outfit says who’s paying: the couple’s gift, or theirs with the cost', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/demo/party?as=bridesmaid']}>
+        <Routes>
+          <Route path="/demo/party" element={<PartyPage sample />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(within(await screen.findByRole('navigation', { name: 'Your page' })).getByRole('button', { name: /What needs you/ }));
+    expect(await screen.findByText('Your dress is our gift to you. Thank you for wearing it.')).toBeInTheDocument();
+    unmount();
+    render(
+      <MemoryRouter initialEntries={['/demo/party?as=groomsman']}>
+        <Routes>
+          <Route path="/demo/party" element={<PartyPage sample />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    fireEvent.click(within(await screen.findByRole('navigation', { name: 'Your page' })).getByRole('button', { name: /What needs you/ }));
+    expect(await screen.findByText('You’re paying for your own suit: about $180.')).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
 });

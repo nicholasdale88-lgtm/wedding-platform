@@ -153,6 +153,8 @@ export const SideParty = z.object({
  */
 export const SideAttire = z.object({
   how: z.enum(['', 'buy', 'hire', 'own']).default(''),
+  /** Who pays for them: the couple ('us'), each person ('them'), or half each ('split'); '' not decided. */
+  payer: z.enum(['', 'us', 'them', 'split']).default(''),
   what: s(120),
   colour: s(60),
   where: s(160),

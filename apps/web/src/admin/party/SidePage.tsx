@@ -151,6 +151,19 @@ export function SidePage({ side, d, setD, sideName, go }: { side: 'p1' | 'p2'; d
               <option value="own">They’re wearing their own</option>
             </select>
           </Label>
+          {(doc.attire.how === 'buy' || doc.attire.how === 'hire') && (
+            <Label text="Who’s paying for them?">
+              <select aria-label="Who’s paying" value={doc.attire.payer ?? ''} onChange={(e) => set({ attire: { ...doc.attire, payer: e.target.value as typeof doc.attire.payer } }, true)} className={inputCls}>
+                <option value="">Choose…</option>
+                <option value="us">We are (our gift to them)</option>
+                <option value="them">They each pay for their own</option>
+                <option value="split">Half each</option>
+              </select>
+            </Label>
+          )}
+          {doc.attire.payer && doc.attire.how !== 'own' && (
+            <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Shown on each of their wedding party pages, with the cost each when they’re paying.</p>
+          )}
           {doc.attire.how && (
           <div className="grid gap-2 sm:grid-cols-2">
             <input aria-label="The look" placeholder={side === 'p1' ? 'The look, e.g. Floor-length satin' : 'The look, e.g. Three-piece suit'} value={doc.attire.what} maxLength={120} onChange={(e) => set({ attire: { ...doc.attire, what: e.target.value } })} className={inputCls} />

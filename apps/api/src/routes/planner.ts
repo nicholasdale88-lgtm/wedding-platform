@@ -829,7 +829,7 @@ export function partyGuestRoutes() {
         pack: perms.packing ? (p?.pack ?? []) : [],
         // What they're wearing (their side's look, and their own size and fitting) and their side's night out.
         outfit: side
-          ? { how: doc.attire.how, what: doc.attire.what, colour: doc.attire.colour, where: doc.attire.where, orderBy: doc.attire.orderBy, returnBy: doc.attire.returnBy, notes: doc.attire.notes, size: p?.size ?? '', fitting: p?.fitting ?? '', collected: !!p?.collected }
+          ? { how: doc.attire.how, payer: doc.attire.payer ?? '', each: doc.attire.each, what: doc.attire.what, colour: doc.attire.colour, where: doc.attire.where, orderBy: doc.attire.orderBy, returnBy: doc.attire.returnBy, notes: doc.attire.notes, size: p?.size ?? '', fitting: p?.fitting ?? '', collected: !!p?.collected }
           : null,
         night: side && (doc.party.date || doc.party.place) ? { title: doc.party.title, date: doc.party.date, place: doc.party.place, organiser: doc.party.organiser } : null,
         // Their own calendar to subscribe to: their jobs, fittings, the hens or bucks, and their moments on the day.
