@@ -803,3 +803,24 @@ export const vendorMessage = sqliteTable('vendor_message', {
   createdAt: text('created_at').notNull(),
   readAt: text('read_at'),
 });
+
+/** Fee proposals a vendor sends to a linked couple or an enquiry, answered by link (migrations/0054). */
+export const vendorProposal = sqliteTable('vendor_proposal', {
+  id: text('id').primaryKey(),
+  listingId: text('listing_id').notNull(),
+  weddingId: text('wedding_id'),
+  enquiryId: text('enquiry_id'),
+  token: text('token').notNull().unique(),
+  title: text('title').notNull(),
+  lines: text('lines').notNull().default('[]'),
+  deposit: integer('deposit').notNull().default(0),
+  validUntil: text('valid_until').notNull().default(''),
+  note: text('note').notNull().default(''),
+  status: text('status').notNull().default('sent'),
+  revision: integer('revision').notNull().default(1),
+  versions: text('versions').notNull().default('[]'),
+  requests: text('requests').notNull().default('[]'),
+  createdAt: text('created_at').notNull(),
+  revisedAt: text('revised_at'),
+  answeredAt: text('answered_at'),
+});

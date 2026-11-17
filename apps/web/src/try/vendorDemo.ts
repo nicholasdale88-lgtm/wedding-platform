@@ -1,3 +1,4 @@
+import type { ProposalSummary } from '@wp/shared';
 import type { LinkedVendor, MyListing, VendorChatMessage, VendorCouple, VendorCoupleDetails } from '../lib/api';
 
 /**
@@ -87,6 +88,41 @@ const listing: MyListing = {
   busy: [{ date: at(52).slice(0, 10), note: 'Family holiday' }],
 };
 
+// Fee proposals: one accepted by a couple, one waiting on an enquiry, and one a couple asked to change. The
+// sample link opens a made-up proposal (/proposal/sample).
+const sampleLink = () => `${typeof window === 'undefined' ? '' : window.location.origin}/proposal/sample`;
+type Sent = { title: string; lines: { what: string; amount: number }[]; deposit: number; validUntil: string; note: string };
+const sampleProposal = (id: string, to: string, kind: 'couple' | 'enquiry', status: ProposalSummary['status'], days: number, s: Sent, extra: Partial<ProposalSummary> = {}): ProposalSummary => ({
+  id,
+  to,
+  kind,
+  status,
+  revision: 1,
+  ...s,
+  total: s.lines.reduce((a, l) => a + l.amount, 0),
+  at: at(days),
+  sentAt: at(days),
+  answeredAt: status === 'accepted' || status === 'declined' ? at(days + 3) : '',
+  link: '',
+  request: null,
+  ...extra,
+});
+const proposals: ProposalSummary[] = [
+  sampleProposal('p3', 'Mia & Jordan', 'couple', 'changes', -2, { title: 'Chapel and reception flowers', lines: [{ what: 'Bridal bouquet', amount: 450 }, { what: 'Pew ends (12)', amount: 600 }, { what: 'Centrepieces (14)', amount: 1680 }], deposit: 500, validUntil: at(28).slice(0, 10), note: 'Soft whites and greenery.' }, {
+    request: { revision: 1, message: 'Could we do pew ends on every second row instead, to bring it down a little?', at: at(-1) },
+  }),
+  sampleProposal('p2', 'Tom Reid', 'enquiry', 'sent', -8, { title: 'Bouquets and buttonholes', lines: [{ what: 'Bridal bouquet', amount: 450 }, { what: 'Bridesmaids’ posies (3)', amount: 360 }, { what: 'Buttonholes (4)', amount: 140 }], deposit: 200, validUntil: at(20).slice(0, 10), note: '' }),
+  sampleProposal('p1', 'Priya & Sam', 'couple', 'accepted', -95, { title: 'Ceremony and reception flowers', lines: [{ what: 'Ceremony and reception package', amount: 2400 }], deposit: 600, validUntil: '', note: 'Includes set-up and pack-down.' }),
+];
+const proposalBody = (body: Record<string, unknown>): Sent => ({
+  title: String(body.title ?? ''),
+  lines: (Array.isArray(body.lines) ? (body.lines as { what?: string; amount?: number }[]) : []).map((l) => ({ what: String(l.what ?? ''), amount: Number(l.amount) || 0 })),
+  deposit: Number(body.deposit) || 0,
+  validUntil: String(body.validUntil ?? ''),
+  note: String(body.note ?? ''),
+});
+
+
 const withLast = (c: VendorCouple): VendorCouple => {
   const t = threads[c.id] ?? [];
   const last = t[t.length - 1];
@@ -106,6 +142,33 @@ export function vendorDemo(path: string, method: string, body: Record<string, un
     return { couples: list, unread: list.reduce((a, c) => a + c.unread, 0), quotesOpen: 1 };
   }
   if (path === '/a/vendor/couples/invite') return { sent: false };
+  if (path === '/a/vendor/proposals' && method === 'POST') {
+    const to = (body.to ?? {}) as { couple?: string; enquiry?: string };
+    const who = to.couple ? couples.find((c) => c.id === to.couple)?.couple : listing.enquiries.find((e) => e.id === to.enquiry)?.name;
+    if (!who) return null;
+    const id = `p${proposals.length + 1}`;
+    const p = sampleProposal(id, who, to.couple ? 'couple' : 'enquiry', 'sent', 0, proposalBody(body));
+    proposals.unshift(p);
+    const q = listing.enquiries.find((e) => e.id === to.enquiry);
+    if (q && q.stage !== 'booked') Object.assign(q, { stage: 'quoted', read: true });
+    if (to.couple) (threads[to.couple] ??= []).push(msg(true, `New fee proposal: ${p.title}, $${p.total.toLocaleString('en-AU')}`, 0));
+    return { id, link: sampleLink(), emailed: false };
+  }
+  const rv = /^\/a\/vendor\/proposals\/([^/]+)\/revise$/.exec(path);
+  if (rv && method === 'POST') {
+    const p = proposals.find((x) => x.id === decodeURIComponent(rv[1]!));
+    if (!p || p.status === 'accepted' || p.status === 'declined') return null;
+    const was = p.total;
+    Object.assign(p, proposalBody(body), { status: 'sent', revision: p.revision + 1, at: new Date().toISOString(), request: null });
+    p.total = p.lines.reduce((a, l) => a + l.amount, 0);
+    const c = couples.find((x) => x.couple === p.to);
+    if (p.kind === 'couple' && c) (threads[c.id] ??= []).push(msg(true, `Revised fee proposal: ${p.title}, $${p.total.toLocaleString('en-AU')} (was $${was.toLocaleString('en-AU')})`, 0));
+    return { id: p.id, link: sampleLink(), revision: p.revision, emailed: false };
+  }
+  if (path === '/a/vendor/proposals') {
+    const list = proposals.map((p) => ({ ...p, link: sampleLink() }));
+    return { proposals: list, waiting: list.filter((p) => p.status === 'sent').length, changes: list.filter((p) => p.status === 'changes').length };
+  }
   const m = /^\/a\/vendor\/couples\/([^/]+)\/messages$/.exec(path);
   if (m) {
     const id = decodeURIComponent(m[1]!);

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { directoryApi, type EnquiryStage, type MyListing, type VendorCouple } from '../lib/api';
+import { FeeProposalBuilder } from './FeeProposal';
 
 /**
  * The vendor's desk: their Overview (what needs them, what's coming up, their season, how strong their listing
@@ -15,7 +16,7 @@ const card = 'flex flex-col gap-3 p-5 rounded-[16px] bg-white border border-[#e2
 const h = 'm-0 text-[12px] font-semibold tracking-[.16em] uppercase';
 
 type Enquiry = MyListing['enquiries'][number];
-export type DeskGo = 'couples' | 'enquiries' | 'calendar' | 'recommend' | 'listing';
+export type DeskGo = 'couples' | 'enquiries' | 'proposals' | 'calendar' | 'recommend' | 'listing';
 
 const day = (iso: string) => iso.slice(0, 10);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -67,7 +68,7 @@ export function listingStrength(l: MyListing['listing']) {
 
 // ---------------------------------------------------------------------------------------------- Overview
 
-export function VendorOverview({ data, couples, unread, quotesOpen, go }: { data: MyListing; couples: VendorCouple[]; unread: number; quotesOpen: number; go: (t: DeskGo) => void }) {
+export function VendorOverview({ data, couples, unread, quotesOpen, changes = [], go }: { data: MyListing; couples: VendorCouple[]; unread: number; quotesOpen: number; changes?: { to: string; title: string; message: string }[]; go: (t: DeskGo) => void }) {
   const l = data.listing;
   const now = today();
   const ahead = couples.filter((c) => c.status === 'booked' && day(c.date) >= now).sort((a, b) => a.date.localeCompare(b.date));
@@ -80,6 +81,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, go }: { data
   // What needs them, most pressing first.
   const needs: { text: string; detail: string; to: DeskGo; urgent?: boolean }[] = [];
   for (const c of couples.filter((x) => x.unread)) needs.push({ text: `${c.couple} wrote to you`, detail: c.last?.body ?? '', to: 'couples', urgent: true });
+  for (const p of changes) needs.push({ text: `${p.to} asked for changes`, detail: `${p.title}: ${p.message}`.slice(0, 160), to: 'proposals', urgent: true });
   for (const e of newEnq) needs.push({ text: `New enquiry from ${e.name}`, detail: [e.date && longDate(e.date), e.guests ? `${e.guests} guests` : ''].filter(Boolean).join(' · '), to: 'enquiries', urgent: true });
   for (const c of couples)
     for (const q of c.quotes ?? [])
@@ -418,6 +420,7 @@ export function VendorCalendar({ data, couples, onBusy }: { data: MyListing; cou
 export function EnquiryPipeline({ data, couples, onChanged }: { data: MyListing; couples: VendorCouple[]; onChanged: () => Promise<void> }) {
   const [filter, setFilter] = useState<EnquiryStage | 'open' | 'all'>('open');
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [proposing, setProposing] = useState<string | null>(null);
   const [problem, setProblem] = useState('');
   const l = data.listing;
   const list = useMemo(
@@ -547,7 +550,18 @@ export function EnquiryPipeline({ data, couples, onChanged }: { data: MyListing;
                     Call {e.phone}
                   </a>
                 )}
+                {proposing !== e.id && (
+                  <button type="button" onClick={() => setProposing(e.id)} className="inline-flex items-center min-h-[40px] p-0 border-0 bg-transparent underline cursor-pointer text-[14px] font-semibold" style={{ color: INK }}>
+                    Send a fee proposal
+                  </button>
+                )}
               </div>
+              {proposing === e.id && (
+                <FeeProposalBuilder key={e.id} to={{ enquiry: e.id }} toName={e.name} packages={l.packages ?? []} onClose={() => {
+                    setProposing(null);
+                    void onChanged();
+                  }} />
+              )}
             </article>
           );
         })}

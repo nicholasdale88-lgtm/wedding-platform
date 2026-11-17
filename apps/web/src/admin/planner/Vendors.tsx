@@ -1171,6 +1171,12 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
                 {q.excludes && <div className="text-[13px]"><strong className="font-semibold">Not included:</strong> {q.excludes}</div>}
                 {q.notes && <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{q.notes}</div>}
                 <div className="flex gap-3 flex-wrap text-[13px] mt-1">
+                  {/* A vendor's fee proposal: accept it, or ask for changes, on its own page. */}
+                  {/https?:\/\/\S+\/proposal\/[A-Za-z0-9_-]+/.exec(q.notes)?.[0] && (
+                    <a href={/https?:\/\/\S+\/proposal\/[A-Za-z0-9_-]+/.exec(q.notes)![0]} target="_blank" rel="noopener" className="font-semibold !text-[var(--adm-ink,#33402f)]">
+                      Open the proposal (accept or ask for changes)
+                    </a>
+                  )}
                   {q.fileId && (
                     <a href={plannerApi.fileUrl(wid, q.fileId)} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)]">
                       Open {q.fileName || 'the quote'}

@@ -44,6 +44,7 @@ import { myTaskRoutes } from './routes/myTasks';
 import { helpRoutes } from './routes/help';
 import { directoryRoutes, vendorAccountRoutes } from './routes/vendorListings';
 import { coupleVendorChatRoutes, vendorCoupleRoutes } from './routes/vendorCouples';
+import { proposalPublicRoutes, vendorProposalRoutes } from './routes/vendorProposals';
 import { manifestRoutes } from './routes/manifest';
 import { partyAccountRoutes, partyPortalRoutes } from './routes/partyPortal';
 import { boardAdminRoutes, boardGuestRoutes } from './routes/board';
@@ -68,8 +69,10 @@ export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   app.route('/hooks/stripe', stripeHookRoutes());
   app.route('/hooks', hookRoutes(deps));
   // The vendor directory (public) and a vendor's own listing: before the admin's /a routes.
+  app.route('/directory/proposal', proposalPublicRoutes());
   app.route('/directory', directoryRoutes());
   app.route('/a/vendor/couples', vendorCoupleRoutes());
+  app.route('/a/vendor/proposals', vendorProposalRoutes());
   app.route('/a/vendor', vendorAccountRoutes());
   app.route('/a/signup', signupRoutes());
   app.route('/a/company', companyRoutes());

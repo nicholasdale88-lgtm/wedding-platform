@@ -1,5 +1,5 @@
 import type { AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
-import type { AssistantAction, CompanyHelpPack, DayChecklist, Enquiry, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
+import type { AssistantAction, CompanyHelpPack, DayChecklist, Enquiry, FeeProposal, FeeProposalRevision, ProposalSummary, ProposalView, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
 import { isVendorDemo, vendorDemo } from '../try/vendorDemo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
@@ -654,6 +654,15 @@ export const vendorCouplesApi = {
   send: (wid: string, body: string) => send<{ messages: VendorChatMessage[] }>('POST', `/a/vendor/couples/${encodeURIComponent(wid)}/messages`, { body }),
   invite: (name: string, email: string) => send<{ sent: boolean }>('POST', '/a/vendor/couples/invite', { name, email }),
   details: (wid: string) => request<{ couple: string; inPlanner: boolean; details: VendorCoupleDetails | null }>(`/a/vendor/couples/${encodeURIComponent(wid)}/details`),
+};
+/** Fee proposals: a vendor's priced proposals to their couples and enquiries, and the couple's view by link. */
+export const proposalsApi = {
+  list: () => request<{ proposals: ProposalSummary[]; waiting: number; changes?: number }>('/a/vendor/proposals'),
+  /** The next revision of a proposal not yet answered. */
+  revise: (id: string, p: FeeProposalRevision) => send<{ id: string; link: string; revision: number; emailed: boolean }>('POST', `/a/vendor/proposals/${encodeURIComponent(id)}/revise`, p),
+  send: (p: FeeProposal) => send<{ id: string; link: string; emailed: boolean }>('POST', '/a/vendor/proposals', p),
+  view: (token: string) => request<ProposalView>(`/directory/proposal/${encodeURIComponent(token)}`),
+  answer: (token: string, answer: 'accept' | 'decline' | 'changes', revision: number, message = '') => send<{ status: ProposalView['status'] }>('POST', `/directory/proposal/${encodeURIComponent(token)}/answer`, { answer, revision, message }),
 };
 /** What a couple shares with a vendor in their planner, as the vendor's portal shows it (counts, never guests' names). */
 export interface VendorCoupleDetails {

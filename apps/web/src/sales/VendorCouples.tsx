@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ChatThread } from '../lib/ChatThread';
 import { CoupleDetails } from './CoupleDetails';
 import { vendorCouplesApi, type VendorChatMessage, type VendorCouple } from '../lib/api';
+import type { ListingPackage } from '@wp/shared';
+import { FeeProposalBuilder } from './FeeProposal';
 
 const INK = '#33402f';
 const SOFT = '#5b6a52';
@@ -19,7 +21,7 @@ const toPrice = (c: VendorCouple) => (c.quotes ?? []).filter((x) => !x.answered 
  * their date, days to go, how many are coming, and a conversation in the app; the couple's details page
  * (what the couple shares with this vendor) when they have them in their planner. Invite a couple by email.
  */
-export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) {
+export function VendorCouples({ onUnread, packages = [] }: { onUnread?: (n: number) => void; packages?: ListingPackage[] }) {
   const [couples, setCouples] = useState<VendorCouple[] | null>(null);
   const [problem, setProblem] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -28,6 +30,8 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
   const [q, setQ] = useState('');
   // A couple opens on their wedding details, or on the conversation when they've written.
   const [view, setView] = useState<'details' | 'messages'>('details');
+  // The fee proposal builder, open for this couple.
+  const [proposing, setProposing] = useState<string | null>(null);
   const load = () =>
     vendorCouplesApi
       .list()
@@ -144,6 +148,13 @@ export function VendorCouples({ onUnread }: { onUnread?: (n: number) => void }) 
                     </a>
                   )}
                 </div>
+                {proposing === chosen.id ? (
+                  <FeeProposalBuilder key={chosen.id} to={{ couple: chosen.id }} toName={chosen.couple} packages={packages} onSent={() => void load()} onClose={() => setProposing(null)} />
+                ) : (
+                  <button type="button" onClick={() => setProposing(chosen.id)} className="self-start py-2 px-4 min-h-[40px] rounded-full border border-[#b39563] bg-[#fbf3e1] text-[14px] font-semibold cursor-pointer" style={{ color: INK }}>
+                    Send a fee proposal
+                  </button>
+                )}
                 {(chosen.quotes ?? []).length > 0 && (
                   <div aria-label="Their quote requests" role="group" className="flex flex-col gap-2 p-3 rounded-[14px] border border-[#b39563] bg-[#fbf3e1]">
                     <strong className="text-[14px]" style={{ color: INK }}>Their quote requests</strong>

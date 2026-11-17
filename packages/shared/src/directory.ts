@@ -134,3 +134,106 @@ export interface Listing extends ListingCard {
   photos: string[];
   packages: ListingPackage[];
 }
+
+/** One line of a fee proposal: what it is and what it costs (whole dollars). */
+export const ProposalLine = z.object({
+  what: z.string().trim().min(1, 'Say what each line is for.').max(200, 'Keep each line short.'),
+  amount: z.number().int('Whole dollars only.').min(0, 'Amounts can’t be below $0.').max(1_000_000, 'That amount is too big.'),
+});
+export type ProposalLine = z.infer<typeof ProposalLine>;
+
+/** A vendor's fee proposal to one of their couples or to an enquiry. */
+export const FeeProposal = z
+  .object({
+    to: z.union([z.object({ couple: z.string().min(1).max(60) }).strict(), z.object({ enquiry: z.string().min(1).max(60) }).strict()]),
+    title: z.string().trim().min(1, 'Give the proposal a title.').max(120, 'Keep the title shorter.'),
+    lines: z.array(ProposalLine).min(1, 'Add at least one line.').max(30, 'Up to 30 lines.'),
+    deposit: z.number().int('Whole dollars only.').min(0, 'The deposit can’t be below $0.').max(1_000_000).default(0),
+    validUntil: z.union([z.literal(''), z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/, 'Dates look like 2027-03-14.')]).default(''),
+    note: z.string().trim().max(2000, 'That note is too long.').default(''),
+  })
+  .strict();
+export type FeeProposal = z.infer<typeof FeeProposal>;
+
+/** A revision of a proposal (the vendor's answer to a request for changes): the same, without who it's to. */
+export const FeeProposalRevision = FeeProposal.omit({ to: true });
+export type FeeProposalRevision = z.infer<typeof FeeProposalRevision>;
+
+/** The couple's answer: accept or decline the latest revision, or ask for changes (with what they'd like). */
+export const ProposalAnswer = z
+  .object({
+    answer: z.enum(['accept', 'decline', 'changes']),
+    /** The revision they were looking at: a stale page can't answer an older one. */
+    revision: z.number().int().min(1).max(1000).optional(),
+    message: z.string().trim().max(2000, 'Keep your message under 2,000 characters.').default(''),
+  })
+  .strict()
+  .refine((v) => v.answer !== 'changes' || v.message.length > 0, { message: 'Say what you’d like changed.', path: ['message'] });
+
+/** What a proposal adds up to. */
+export const proposalTotal = (lines: { amount: number }[]) => lines.reduce((a, l) => a + (Number.isFinite(l.amount) ? l.amount : 0), 0);
+
+/** Where a proposal is up to: sent, the couple asked for changes, or final (accepted or declined). */
+export type ProposalStatus = 'sent' | 'changes' | 'accepted' | 'declined';
+
+/** One revision of a proposal, as it was sent. */
+export interface ProposalVersion {
+  revision: number;
+  title: string;
+  lines: ProposalLine[];
+  total: number;
+  deposit: number;
+  validUntil: string;
+  note: string;
+  at: string;
+}
+
+/** A couple's request for changes, against the revision they were looking at. */
+export interface ProposalRequest {
+  revision: number;
+  message: string;
+  at: string;
+}
+
+/** A proposal as the couple sees it by its link: the latest revision, the earlier ones and their requests. */
+export interface ProposalView extends ProposalVersion {
+  vendor: { name: string; category: string; slug: string; contactName: string; phone: string };
+  status: ProposalStatus;
+  to: string;
+  /** Earlier revisions, oldest first. */
+  versions: ProposalVersion[];
+  requests: ProposalRequest[];
+}
+
+/** A proposal in the vendor's list: the latest revision, with the couple's latest request. */
+export interface ProposalSummary extends ProposalVersion {
+  id: string;
+  to: string;
+  kind: 'couple' | 'enquiry';
+  status: ProposalStatus;
+  sentAt: string;
+  answeredAt: string;
+  link: string;
+  /** The couple's latest request for changes (when they asked). */
+  request: ProposalRequest | null;
+}
+
+/** What changed between two revisions, in a few plain lines (lines added, removed or repriced; the total). */
+export function proposalChanges(before: Pick<ProposalVersion, 'lines' | 'deposit' | 'validUntil'>, after: Pick<ProposalVersion, 'lines' | 'deposit' | 'validUntil'>): string[] {
+  const aud = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
+  const key = (s: string) => s.trim().toLowerCase();
+  const was = new Map(before.lines.map((l) => [key(l.what), l]));
+  const now = new Map(after.lines.map((l) => [key(l.what), l]));
+  const out: string[] = [];
+  for (const l of after.lines) {
+    const b = was.get(key(l.what));
+    if (!b) out.push(`Added: ${l.what}, ${aud(l.amount)}`);
+    else if (b.amount !== l.amount) out.push(`${l.what}: ${aud(b.amount)} → ${aud(l.amount)}`);
+  }
+  for (const l of before.lines) if (!now.has(key(l.what))) out.push(`Removed: ${l.what} (${aud(l.amount)})`);
+  if (before.deposit !== after.deposit) out.push(`Deposit: ${aud(before.deposit)} → ${aud(after.deposit)}`);
+  if (before.validUntil !== after.validUntil && after.validUntil) out.push(`Now valid until ${after.validUntil}`);
+  const diff = proposalTotal(after.lines) - proposalTotal(before.lines);
+  out.push(diff === 0 ? 'The total is the same.' : `The total is ${aud(Math.abs(diff))} ${diff < 0 ? 'less' : 'more'} (${aud(proposalTotal(before.lines))} → ${aud(proposalTotal(after.lines))}).`);
+  return out;
+}

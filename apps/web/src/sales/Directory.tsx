@@ -2,12 +2,13 @@ import { PACKAGE_UNITS, regionOf, REGIONS, VENDOR_SEARCH, type Listing, type Lis
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
-import { api, ApiError, directoryApi, vendorCouplesApi, type MyListing, type VendorCouple } from '../lib/api';
+import { api, ApiError, directoryApi, proposalsApi, vendorCouplesApi, type MyListing, type VendorCouple } from '../lib/api';
 import { EnquiryPipeline, VendorCalendar, VendorOverview } from './VendorDesk';
 import { BRAND } from './SalesPage';
 import { VendorCouples } from './VendorCouples';
 import { isVendorDemo } from '../try/vendorDemo';
 import { VendorKit } from './VendorKit';
+import { VendorProposals } from './FeeProposal';
 
 /**
  * The vendor directory on the public site: wedding vendors who've signed up and listed themselves (free).
@@ -675,6 +676,7 @@ const VENDOR_TABS = [
   ['home', 'Overview'],
   ['couples', 'Your couples'],
   ['enquiries', 'Enquiries'],
+  ['proposals', 'Proposals'],
   ['calendar', 'Calendar'],
   ['recommend', 'Recommend us'],
   ['listing', 'Your listing'],
@@ -689,6 +691,7 @@ export function VendorHomePage() {
   const [chatUnread, setChatUnread] = useState(0);
   // Their couples, for the Overview and the Calendar (the Your couples tab keeps its own, live).
   const [couples, setCouples] = useState<{ list: VendorCouple[]; unread: number; quotesOpen: number }>({ list: [], unread: 0, quotesOpen: 0 });
+  const [changes, setChanges] = useState<{ to: string; title: string; message: string }[]>([]);
   const loadCouples = () =>
     vendorCouplesApi
       .list()
@@ -718,7 +721,14 @@ export function VendorHomePage() {
     void load();
   }, []); // eslint-disable-line
   useEffect(() => {
-    if (state === 'ready') void loadCouples();
+    if (state === 'ready') {
+      void loadCouples();
+      // Proposals the couple asked to change: waiting on the vendor (Needs you).
+      proposalsApi
+        .list()
+        .then((r) => setChanges(r.proposals.filter((p) => p.status === 'changes').map((p) => ({ to: p.to, title: p.title, message: p.request?.message ?? '' }))))
+        .catch(() => undefined);
+    }
   }, [state, tab]); // eslint-disable-line
   const save = async () => {
     setBusy(true);
@@ -805,17 +815,23 @@ export function VendorHomePage() {
             {label}
             {k === 'couples' && chatUnread ? ` · ${chatUnread} new` : ''}
             {k === 'enquiries' && unread ? ` · ${unread} new` : ''}
+            {k === 'proposals' && changes.length ? ` · ${changes.length} to revise` : ''}
           </button>
         ))}
       </nav>
       {tab === 'home' && (
         <div className="pt-5">
-          <VendorOverview data={data!} couples={couples.list} unread={couples.unread} quotesOpen={couples.quotesOpen} go={setTab} />
+          <VendorOverview data={data!} couples={couples.list} unread={couples.unread} quotesOpen={couples.quotesOpen} changes={changes} go={setTab} />
         </div>
       )}
       {tab === 'enquiries' && (
         <div className="pt-5">
           <EnquiryPipeline data={data!} couples={couples.list} onChanged={load} />
+        </div>
+      )}
+      {tab === 'proposals' && (
+        <div className="pt-5">
+          <VendorProposals packages={l.packages ?? []} />
         </div>
       )}
       {tab === 'calendar' && (
@@ -832,7 +848,7 @@ export function VendorHomePage() {
       )}
       {tab === 'couples' && (
         <div className="pt-5">
-          <VendorCouples onUnread={setChatUnread} />
+          <VendorCouples onUnread={setChatUnread} packages={l.packages ?? []} />
         </div>
       )}
       {tab === 'recommend' && data?.partner && (

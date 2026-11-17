@@ -38,7 +38,7 @@ const thread = async (db: D1Database, listingId: string, weddingId: string): Pro
   ).results.map((m) => ({ id: m.id, fromVendor: !!m.from_vendor, body: m.body, at: m.created_at, read: !!m.read_at }));
 
 /** Writes a message; emails the other side unless this side already wrote in the last half hour. */
-async function post(env: Env, listingId: string, weddingId: string, fromVendor: boolean, body: string, notify: () => Promise<void>) {
+export async function post(env: Env, listingId: string, weddingId: string, fromVendor: boolean, body: string, notify: () => Promise<void>) {
   const now = new Date();
   const recent = await env.DB.prepare(`SELECT 1 FROM vendor_message WHERE listing_id = ? AND wedding_id = ? AND from_vendor = ? AND created_at > ? LIMIT 1`)
     .bind(listingId, weddingId, fromVendor ? 1 : 0, new Date(now.getTime() - 30 * 60_000).toISOString())
@@ -62,7 +62,7 @@ export async function linkByEmail(db: D1Database, listingId: string, email: stri
 const mineIn = <V extends { id: string; dirId?: string; email?: string }>(list: V[], listing: { id: string; email: string }) =>
   list.filter((v) => v.dirId === `v:${listing.id}` || (!!v.email?.trim() && v.email.trim().toLowerCase() === listing.email.trim().toLowerCase()));
 
-const firstNames = (a: string, b: string) => [a, b].map((n) => n.trim().split(' ')[0]).filter(Boolean).join(' & ');
+export const firstNames = (a: string, b: string) => [a, b].map((n) => n.trim().split(' ')[0]).filter(Boolean).join(' & ');
 
 /** The vendor's side (signed in with their listing's account). */
 export function vendorCoupleRoutes() {
