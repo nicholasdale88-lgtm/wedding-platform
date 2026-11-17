@@ -1,5 +1,6 @@
 import { andList, eventSlotOfPart, fillTags, joinDiet } from '@wp/shared';
 import { themeOf } from '../themeKit';
+import { inAppBrowser, isAndroid, subscribeHref } from '../../lib/calendarLinks';
 import { playerFor } from '../audio';
 import { createElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type MouseEvent, type UIEvent } from 'react';
 import { SECTION_PARTS } from '../generated/InvitationView.meta';
@@ -83,19 +84,23 @@ function calendarLinks(data: InvitePayload, ev: InvitePayload['events'][number])
   }).toString()}`;
   const link = { color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
   // With their own link: all their events in their phone's calendar, kept up to date (a change of time or
-  // place reaches it by itself). iPhone and Outlook subscribe to webcal; Android through Google Calendar.
+  // place reaches it by itself). iPhone and Outlook subscribe to webcal; Google to https; an in-app browser
+  // (which can't open webcal) gets the https .ics file. The event file carries their link too, so a private
+  // wedding's file opens for its guests.
   const token = data.invitation?.token;
-  const feed = token ? `webcal://${window.location.host}/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/mine.ics?g=${encodeURIComponent(token)}` : '';
-  const android = /android/i.test(navigator.userAgent);
-  const subscribe = feed ? (android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed) : '';
+  const q = token ? `?g=${encodeURIComponent(token)}` : '';
+  const feed = token ? `${window.location.origin}/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/mine.ics${q}` : '';
+  const android = isAndroid();
+  const inApp = inAppBrowser();
+  const subscribe = feed ? subscribeHref(feed) : '';
   return createElement(
     'div',
     { style: { fontSize: 15, opacity: 0.85, textAlign: 'center' as const, fontFamily: "'Cormorant Garamond', Georgia, serif" } },
     'Add to your calendar: ',
-    createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics`, style: link }, 'Apple / Outlook'),
+    createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics${q}`, style: link }, 'Apple / Outlook'),
     ' · ',
     createElement('a', { href: google, target: '_blank', rel: 'noopener noreferrer', style: link }, 'Google'),
-    ...(subscribe ? [' · ', createElement('a', { href: subscribe, ...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {}), style: link }, 'All my events, kept up to date')] : []),
+    ...(subscribe ? [' · ', createElement('a', { href: subscribe, ...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {}), style: link }, inApp ? 'All my events (.ics)' : 'All my events, kept up to date')] : []),
   );
 }
 

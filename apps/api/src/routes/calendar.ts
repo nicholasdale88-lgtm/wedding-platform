@@ -85,8 +85,21 @@ export function calendarRoutes() {
     )
       .bind(c.req.param('slug'), key)
       .first<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null; name1: string; name2: string; slug: string; private: number | null }>();
-    // A private wedding's times and places only go to its guests (their own calendar, mine.ics).
-    if (!row || row.private === 1) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    // A private wedding's times and places only go to its guests: with their own link (?g=), for an event
+    // they're invited to.
+    if (!row) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    if (row.private === 1) {
+      const g = c.req.query('g') ?? '';
+      const guest = isToken(g)
+        ? await c.env.DB.prepare(
+            `SELECT 1 AS ok FROM invitation i JOIN wedding w ON w.id = i.wedding_id JOIN invite_event ie ON ie.invitation_id = i.id JOIN event e ON e.id = ie.event_id
+              WHERE i.token = ? AND w.slug = ? AND e.key = ? AND i.deleted_at IS NULL AND e.deleted_at IS NULL`,
+          )
+            .bind(g, c.req.param('slug'), key)
+            .first<{ ok: number }>()
+        : null;
+      if (!guest) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    }
     const start = new Date(row.starts_at);
     if (Number.isNaN(start.getTime())) return c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
     const end = new Date(start.getTime() + 6 * 3_600_000); // a sensible length; the invitation has the details

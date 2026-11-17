@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { plannerCalendarApi } from '../../lib/api';
+import { googleSubscribe } from '../../lib/calendarLinks';
 import { useAdmin } from '../Shell';
 import { Pill, useToast } from '../ui';
 
@@ -45,7 +46,7 @@ export function CalendarCard() {
             <a href={webcal} className="py-[7px] px-[14px] rounded-full bg-[#33402f] no-underline !text-[#f3ecd6]">
               Add to iPhone or Outlook
             </a>
-            <a href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-[#5d6b47] no-underline !text-[var(--adm-ink,#33402f)]">
+            <a href={googleSubscribe(url)} target="_blank" rel="noopener" className="py-[7px] px-[14px] rounded-full border border-[#5d6b47] no-underline !text-[var(--adm-ink,#33402f)]">
               Add to Google Calendar
             </a>
             <button type="button" onClick={() => void navigator.clipboard?.writeText(url).then(() => toast('Link copied'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[var(--adm-ink,#33402f)]">

@@ -54,4 +54,15 @@ describe('calendar file', () => {
     expect((await app.request('/api/p/sophie-and-nicholas/calendar/mine.ics', {}, env, ctx)).status).toBe(404);
     expect((await app.request(`/api/p/sophie-and-nicholas/calendar/mine.ics?g=${'a'.repeat(22)}`, {}, env, ctx)).status).toBe(404);
   });
+
+  it('a private wedding: the event file opens only with a guest’s own link, for an event they’re invited to', async () => {
+    await t.db.prepare(`UPDATE wedding SET content = json_set(COALESCE(content, '{}'), '$.private', 1)`).run();
+    const path = '/api/p/sophie-and-nicholas/calendar/wedding.ics';
+    expect((await app.request(path, {}, env, ctx)).status).toBe(404);
+    expect((await app.request(`${path}?g=${'a'.repeat(22)}`, {}, env, ctx)).status).toBe(404);
+    const inv = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id JOIN event e ON e.id = ie.event_id WHERE e.key = 'wedding' LIMIT 1`).first<{ token: string }>())!;
+    const res = await app.request(`${path}?g=${inv.token}`, {}, env, ctx);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toMatch(/BEGIN:VEVENT/);
+  });
 });

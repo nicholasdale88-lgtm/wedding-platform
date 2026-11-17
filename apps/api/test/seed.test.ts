@@ -101,4 +101,10 @@ describe('seed', () => {
   it('rejects a malformed seed file before writing anything', () => {
     expect(() => buildSeed({ wedding: {} }, { ownerEmail: 'a@b.c', ownerPassHash: 'x' })).toThrow();
   });
+
+  it('every invitation token in the seed file meets the 22-character rule', () => {
+    const tokens = (seedJson as { sampleGuests: { token?: string }[] }).sampleGuests.map((g) => g.token ?? '');
+    expect(tokens.length).toBeGreaterThan(0);
+    expect(tokens.every((tk) => /^[A-Za-z0-9_-]{22,64}$/.test(tk))).toBe(true);
+  });
 });

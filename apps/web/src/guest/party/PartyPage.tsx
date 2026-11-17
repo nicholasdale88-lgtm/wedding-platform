@@ -9,6 +9,7 @@ import { InstallApp } from '../../lib/InstallApp';
 import { partyGroup, PartyHelp, PartyWelcome } from './PartyWelcome';
 import { Eyebrow, Heading, Ornament, partyLook, SANS, SERIF, type PartyLook } from './look';
 import { RealEnvelope } from '../../sales/RealEnvelope';
+import { isAndroid, subscribeHref } from '../../lib/calendarLinks';
 
 /**
  * /w/:slug/party (signed in to the portal) or ?g=<token> (their private link): a wedding party member's own page.
@@ -552,12 +553,11 @@ export function PartyPage({ sample = false }: { sample?: boolean } = {}) {
                     {mine
                       .filter((m) => m.calendar)
                       .map((m) => {
-                        const feed = m.calendar!.replace(/^https?:/, 'webcal:');
-                        const android = /android/i.test(navigator.userAgent);
+                        const android = isAndroid();
                         return (
                           <a
                             key={m.personId}
-                            href={android ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feed)}` : feed}
+                            href={subscribeHref(m.calendar!)}
                             {...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                             className={`self-start mt-1 ${pill} whitespace-normal text-center`}
                             style={{ background: ink, color: look.paper, fontFamily: SANS }}
