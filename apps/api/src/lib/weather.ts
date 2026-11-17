@@ -1,13 +1,16 @@
-import { localParts, weatherWords, type Forecast } from '@wp/shared';
+import { localParts, type Forecast } from '@wp/shared';
 
 /**
- * Live forecast for a guide (Open-Meteo: free, no key). Only within its 16-day range; cached per
- * event for 30 minutes in D1 so a busy night-before costs one request. Any failure means "no forecast"
+ * Live forecast for a guide from MET Norway's Locationforecast (api.met.no): free, no key, commercial
+ * use allowed under CC BY 4.0 with credit (on the Terms page). Their terms ask for an identifying
+ * User-Agent, at most four decimals of lat/lon, and caching: cached per event for 30 minutes in D1 so
+ * a busy night-before costs one request. Only within its ~9-day range. Any failure means "no forecast"
  * and the guide says so; it never shows invented weather.
  */
 
 const TTL_MS = 30 * 60 * 1000;
-const RANGE_DAYS = 15;
+const RANGE_DAYS = 9;
+const USER_AGENT = 'TheYesList/1.0 (+https://wedding-platform-nd.pages.dev)';
 
 export interface WeatherQuery {
   eventId: string;
@@ -50,30 +53,82 @@ export function hourOf(t: string): number | null {
 }
 
 async function fetchForecast(q: WeatherQuery, now: Date, fetcher: Fetcher): Promise<Forecast | null> {
-  const p = localParts(new Date(q.startsAt), q.timezone);
-  const day = `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
-  const url =
-    `https://api.open-meteo.com/v1/forecast?latitude=${q.lat}&longitude=${q.lon}` +
-    `&hourly=temperature_2m,precipitation_probability&daily=weather_code,temperature_2m_max` +
-    `&timezone=${encodeURIComponent(q.timezone)}&start_date=${day}&end_date=${day}`;
-  const res = await fetcher(url, { signal: AbortSignal.timeout(3000) });
-  if (!res.ok) return null;
-  const j = (await res.json()) as {
-    hourly?: { time: string[]; temperature_2m: (number | null)[]; precipitation_probability: (number | null)[] };
-    daily?: { weather_code: (number | null)[]; temperature_2m_max: (number | null)[] };
+  const dayKey = (d: Date) => {
+    const p = localParts(d, q.timezone);
+    return { key: `${p.year}-${p.month}-${p.day}`, hour: p.hour % 24 };
   };
-  const code = j.daily?.weather_code[0];
-  const max = j.daily?.temperature_2m_max[0];
-  if (code == null || max == null || !j.hourly) return null;
+  const day = dayKey(new Date(q.startsAt)).key;
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${+q.lat.toFixed(4)}&lon=${+q.lon.toFixed(4)}`;
+  const res = await fetcher(url, { signal: AbortSignal.timeout(3000), headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' } });
+  if (!res.ok) return null;
+  const j = (await res.json()) as { properties?: { timeseries?: MetStep[] } };
+
+  // The steps on the event's local day (hourly for the first couple of days, then every six hours).
+  const steps = (j.properties?.timeseries ?? [])
+    .map((s) => ({ s, ...dayKey(new Date(s.time)) }))
+    .filter((x) => x.key === day && typeof x.s.data?.instant?.details?.air_temperature === 'number');
+  if (!steps.length) return null;
+
+  const temps = steps.map((x) => x.s.data.instant.details.air_temperature as number);
+  const maxes = steps.map((x) => x.s.data.next_6_hours?.details?.air_temperature_max).filter((n): n is number => typeof n === 'number');
+  const max = Math.max(...temps, ...maxes);
+
+  // The day's look: the most common symbol between 9am and 9pm (the worse one on a tie).
+  const tally = new Map<string, number>();
+  for (const x of steps) {
+    if (x.hour < 9 || x.hour > 21) continue;
+    const w = symbolWords(x.s.data.next_1_hours?.summary?.symbol_code ?? x.s.data.next_6_hours?.summary?.symbol_code);
+    if (w) tally.set(w, (tally.get(w) ?? 0) + 1);
+  }
+  const summary = [...tally].sort((a, b) => b[1] - a[1] || SEVERITY.indexOf(b[0]) - SEVERITY.indexOf(a[0]))[0]?.[0];
+  if (!summary) return null;
+
   const hours: Forecast['hours'] = [];
   for (const t of q.times) {
     const h = hourOf(t);
     if (h === null) continue;
-    const temp = j.hourly.temperature_2m[h];
-    const rain = j.hourly.precipitation_probability[h];
-    if (temp == null) continue;
-    hours.push({ label: t.replace(/:00/, ''), temp: `${Math.round(temp)}°`, rain: `${Math.round(rain ?? 0)}` });
+    // That hour's step, or the nearest within three hours once the forecast goes six-hourly.
+    const near = steps.reduce<(typeof steps)[number] | null>((best, x) => (!best || Math.abs(x.hour - h) < Math.abs(best.hour - h) ? x : best), null);
+    if (!near || Math.abs(near.hour - h) > 3) continue;
+    const d = near.s.data;
+    hours.push({ label: t.replace(/:00/, ''), temp: `${Math.round(d.instant.details.air_temperature as number)}°`, rain: `${rainChance(d)}` });
     if (hours.length === 4) break;
   }
-  return { summary: weatherWords(code), detail: '', max: Math.round(max), hours, updated: now.toISOString() };
+  return { summary, detail: '', max: Math.round(max), hours, updated: now.toISOString() };
+}
+
+interface MetPeriod {
+  summary?: { symbol_code?: string };
+  details?: { precipitation_amount?: number; probability_of_precipitation?: number; air_temperature_max?: number };
+}
+interface MetStep {
+  time: string;
+  data: { instant: { details: { air_temperature?: number } }; next_1_hours?: MetPeriod; next_6_hours?: MetPeriod; next_12_hours?: MetPeriod };
+}
+
+/** Chance of rain (%): MET's own probability where it gives one, else read from the expected amount. */
+function rainChance(d: MetStep['data']): number {
+  const pop = d.next_1_hours?.details?.probability_of_precipitation ?? d.next_6_hours?.details?.probability_of_precipitation ?? d.next_12_hours?.details?.probability_of_precipitation;
+  if (typeof pop === 'number') return Math.round(pop);
+  const mm = d.next_1_hours?.details?.precipitation_amount ?? (d.next_6_hours?.details?.precipitation_amount ?? 0) / 6;
+  return mm <= 0 ? 0 : mm < 0.5 ? 30 : mm < 2 ? 60 : 80;
+}
+
+/** Mildest first: a tie in the day's tally goes to the later one. */
+const SEVERITY = ['Sunny', 'Mostly sunny', 'Cloudy', 'Foggy', 'Drizzle', 'Showers', 'Rain', 'Snow', 'Storms'];
+
+/** MET Norway symbol ("lightrainshowers_day") -> a word or two. */
+export function symbolWords(code: string | undefined): string | null {
+  if (!code) return null;
+  const c = code.replace(/_(day|night|polartwilight)$/, '');
+  if (c.includes('thunder')) return 'Storms';
+  if (c.includes('snow') || c.includes('sleet')) return 'Snow';
+  if (c.includes('showers')) return 'Showers';
+  if (c === 'lightrain') return 'Drizzle';
+  if (c.includes('rain')) return 'Rain';
+  if (c === 'fog') return 'Foggy';
+  if (c === 'cloudy') return 'Cloudy';
+  if (c === 'clearsky') return 'Sunny';
+  if (c === 'fair' || c === 'partlycloudy') return 'Mostly sunny';
+  return null;
 }

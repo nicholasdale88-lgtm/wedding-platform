@@ -18,7 +18,7 @@ const Common = {
   mapUrl: s(1000),
   bomUrl: s(1000),
   transport: s(),
-  /** For the live forecast (Open-Meteo); find them by right-clicking the venue in Google Maps. */
+  /** For the live forecast (MET Norway); find them by right-clicking the venue in Google Maps. */
   lat: z.number().min(-90).max(90),
   lon: z.number().min(-180).max(180),
   runsheet: z.array(Row).max(30),
