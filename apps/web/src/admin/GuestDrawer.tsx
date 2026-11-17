@@ -417,7 +417,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
             </summary>
             <div className="flex flex-col gap-3 px-3 pb-3">
               <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">
-                Choose a role to add them to the wedding party page. Their email comes first: they’re sent a Yes List email with your details and a button to join their page.
+                Choose a role to add them to the wedding party. Add their email too and tap Send their page: they’re emailed a button to open their own wedding party page.
               </span>
               {g.people
                 .filter((p) => p.name.trim())

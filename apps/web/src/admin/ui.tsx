@@ -309,6 +309,9 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
     };
   }, []);
   return (
+    <>
+    {/* Phones: a solid sheet under the panel, so the list behind never shows through while the keyboard moves. */}
+    <div aria-hidden className="sm:hidden fixed inset-0 z-20 bg-[var(--adm-card,#f6f0e2)]" />
     <div ref={box} className="fixed inset-0 z-20 flex justify-end">
       <div onClick={onClose} className="yl-backdrop absolute inset-0 bg-[rgba(51,64,47,.32)]" />
       <aside
@@ -320,6 +323,7 @@ export function Drawer({ onClose, label, children }: { onClose: () => void; labe
         {children}
       </aside>
     </div>
+    </>
   );
 }
 
