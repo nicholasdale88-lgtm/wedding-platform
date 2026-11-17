@@ -108,6 +108,8 @@ async function main() {
     replied: ov.replied,
   };
   console.log(JSON.stringify(summary, null, 2));
+  // The headline numbers as a check annotation too, readable without signing in to GitHub.
+  if (process.env.GITHUB_ACTIONS) console.log(`::notice title=Burst load::p50 ${summary.p50} ms, p95 ${summary.p95} ms (limit ${P95_MS}), max ${summary.max} ms, ${summary.non200} non-200, ${summary.fiveXX} 5xx`);
   if (process.env.GITHUB_STEP_SUMMARY) {
     const { appendFileSync } = await import('node:fs');
     appendFileSync(
