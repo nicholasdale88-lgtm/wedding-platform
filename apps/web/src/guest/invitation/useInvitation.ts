@@ -164,7 +164,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     return () => audio.current?.stop();
   }, [data.content.audioUrl]);
 
-  // ---------------------------------------------------------------- never show the envelope twice
+  // ---------------------------------------------------------------- the admin's preview stays open after a save
   useEffect(() => {
     if (preview) {
       // The admin's preview reloads after every save (&stay=1): then it stays open, where it was. Opened
@@ -186,23 +186,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       }
       return;
     }
-    try {
-      // Asked for the envelope (their wedding party page's "Your invitation · tap to open"): it waits, sealed,
-      // and opens the full way on their tap, even if they've opened it before.
-      if (new URLSearchParams(window.location.search).get('envelope') === '1') return;
-      const o = JSON.parse(store.get(openKey) ?? 'null') as { at: number } | null;
-      if (o && Date.now() - o.at < 90 * 864e5) {
-        setP(4);
-        setMuted(true); // opened before: the music button starts the music
-        setTimeout(() => {
-          const el = document.getElementById('inv-scroll');
-          const y = Number(sessionStorage.getItem(`${openKey}-y`) ?? 0);
-          if (el && y) el.scrollTop = y;
-        }, 120);
-      }
-    } catch {
-      /* ignore */
-    }
+    // Guests: the sealed envelope and the full opening, at the same pace, every time they open it.
   }, [openKey, preview]);
 
   useEffect(() => {

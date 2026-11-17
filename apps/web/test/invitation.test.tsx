@@ -62,6 +62,13 @@ describe('invitation page', () => {
     expect(JSON.parse(localStorage.getItem(`wp-inv-opened-${TOKEN}`)!).at).toBeGreaterThan(0);
   });
 
+  it('opened before: the sealed envelope and the full opening again, every time', async () => {
+    localStorage.setItem(`wp-inv-opened-${TOKEN}`, JSON.stringify({ at: Date.now() - 60_000 }));
+    renderAt(`/w/alex-and-blair?g=${TOKEN}`, payload());
+    expect(await screen.findByRole('button', { name: 'Open invitation' })).toBeInTheDocument();
+    expect(screen.getByText('Tap to open')).toBeInTheDocument();
+  });
+
   it('RSVP: one tap per event, then Send posts exactly their answers', async () => {
     let sent: unknown;
     renderAt(`/w/alex-and-blair?g=${TOKEN}`, payload(), (b) => (sent = b));
