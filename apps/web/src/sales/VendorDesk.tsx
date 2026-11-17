@@ -1,3 +1,4 @@
+import { dateIn, localParts } from '@wp/shared';
 import { useMemo, useState } from 'react';
 import { directoryApi, type EnquiryStage, type MyListing, type VendorCouple } from '../lib/api';
 import { FeeProposalBuilder } from './FeeProposal';
@@ -18,8 +19,27 @@ const h = 'm-0 text-[12px] font-semibold tracking-[.16em] uppercase';
 type Enquiry = MyListing['enquiries'][number];
 export type DeskGo = 'couples' | 'enquiries' | 'proposals' | 'calendar' | 'recommend' | 'listing';
 
-const day = (iso: string) => iso.slice(0, 10);
-const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * Vendors work in Australian time: "today", day counts, the calendar's month and the season's months are all
+ * Sydney's, never UTC's (before 11am AEDT, UTC is still on yesterday). A wedding's ISO time is read as the
+ * Sydney day it falls on; a plain date stays as it is.
+ */
+export const DESK_TZ = 'Australia/Sydney';
+export const deskDay = (iso: string) => (iso.length > 10 ? dateIn(DESK_TZ, new Date(iso)) : iso.slice(0, 10));
+export const deskToday = (now: Date = new Date()) => dateIn(DESK_TZ, now);
+/** The next twelve months from this Sydney month: keys (YYYY-MM) and short names. */
+export function deskMonths(now: Date = new Date()) {
+  const [y, m] = deskToday(now).split('-').map(Number) as [number, number];
+  return Array.from({ length: 12 }, (_, i) => {
+    const t = new Date(Date.UTC(y, m - 1 + i, 15));
+    return { key: t.toISOString().slice(0, 7), label: t.toLocaleDateString('en-AU', { month: 'short', timeZone: 'UTC' }) };
+  });
+}
+const day = deskDay;
+const today = () => deskToday();
+/** Day of the month and short month name of a wedding, on its Sydney day. */
+const dayNum = (iso: string) => Number(day(iso).slice(8, 10));
+const monShort = (iso: string) => new Date(`${day(iso)}T12:00:00Z`).toLocaleDateString('en-AU', { month: 'short', timeZone: 'UTC' });
 const longDate = (d: string) => {
   try {
     return new Date(`${d.slice(0, 10)}T12:00`).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
@@ -27,7 +47,7 @@ const longDate = (d: string) => {
     return d;
   }
 };
-const daysTo = (d: string) => Math.round((Date.parse(`${d.slice(0, 10)}T12:00`) - Date.parse(`${today()}T12:00`)) / 86_400_000);
+const daysTo = (d: string) => Math.round((Date.parse(`${day(d)}T12:00:00Z`) - Date.parse(`${today()}T12:00:00Z`)) / 86_400_000);
 const inDays = (n: number) => (n === 0 ? 'today' : n === 1 ? 'tomorrow' : n > 0 ? `in ${n} days` : `${-n} days ago`);
 const first = (s: string) => s.trim().split(/\s+/)[0] ?? s;
 
@@ -75,7 +95,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
   const openEnq = data.enquiries.filter(open);
   const newEnq = data.enquiries.filter((e) => stageOf(e) === 'new');
   const strength = listingStrength(l);
-  const hour = new Date().getHours();
+  const hour = localParts(new Date(), DESK_TZ).hour % 24;
   const hello = `${hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'}${l.contactName ? `, ${first(l.contactName)}` : ''}`;
 
   // What needs them, most pressing first.
@@ -94,18 +114,12 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
   if (strength.score < 100) needs.push({ text: `Your listing is ${strength.score}% complete`, detail: strength.todo[0] ?? '', to: 'listing' });
 
   // The next twelve months: weddings booked, and enquiries pencilled, per month.
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() + i);
-    const key = d.toISOString().slice(0, 7);
-    return {
-      key,
-      label: d.toLocaleDateString('en-AU', { month: 'short' }),
-      booked: couples.filter((c) => c.status === 'booked' && c.date.slice(0, 7) === key).length,
-      pencilled: data.enquiries.filter((e) => open(e) && e.date.slice(0, 7) === key).length,
-    };
-  });
+  const months = deskMonths().map(({ key, label }) => ({
+    key,
+    label,
+    booked: couples.filter((c) => c.status === 'booked' && day(c.date).slice(0, 7) === key).length,
+    pencilled: data.enquiries.filter((e) => open(e) && day(e.date).slice(0, 7) === key).length,
+  }));
   const top = Math.max(1, ...months.map((m) => m.booked + m.pencilled));
 
   const stats: [string, string | number, DeskGo, string][] = [
@@ -122,7 +136,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
           {hello}
         </h2>
         <p className="m-0 text-[15px]" style={{ color: SOFT }}>
-          {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })}
+          {new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', timeZone: DESK_TZ })}
           {data.partner ? ` · ${data.partner.uses} ${data.partner.uses === 1 ? 'couple has' : 'couples have'} used your code ${data.partner.code}` : ''}
         </p>
       </div>
@@ -177,9 +191,9 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
           {ahead.slice(0, 5).map((c) => (
             <button key={c.id} type="button" onClick={() => go('couples')} className="grid grid-cols-[54px_minmax(0,1fr)] gap-3 items-center py-2 border-t border-[#efe6d0] first-of-type:border-t-0 bg-transparent text-left cursor-pointer">
               <span className="flex flex-col items-center justify-center h-[54px] rounded-[12px] bg-[#f3ecd6]" style={{ color: INK }}>
-                <span className="text-[11px] font-semibold uppercase tracking-[.1em]">{new Date(c.date).toLocaleDateString('en-AU', { month: 'short' })}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-[.1em]">{monShort(c.date)}</span>
                 <span className="text-[22px] leading-none" style={{ fontFamily: serif }}>
-                  {new Date(c.date).getDate()}
+                  {dayNum(c.date)}
                 </span>
               </span>
               <span className="min-w-0">
@@ -359,17 +373,17 @@ export function VendorCalendar({ data, couples, onBusy }: { data: MyListing; cou
               This month
             </h3>
             {couples
-              .filter((c) => c.date.slice(0, 7) === month)
+              .filter((c) => day(c.date).slice(0, 7) === month)
               .sort((a, b) => a.date.localeCompare(b.date))
               .map((c) => (
                 <span key={c.id} className="flex justify-between gap-3 text-[15px]" style={{ color: INK }}>
                   <span>
                     {c.couple} <span style={{ color: SOFT }}>· {c.status === 'booked' ? 'booked' : 'considering you'}</span>
                   </span>
-                  <span style={{ color: SOFT }}>{new Date(c.date).getDate()}</span>
+                  <span style={{ color: SOFT }}>{dayNum(c.date)}</span>
                 </span>
               ))}
-            {!couples.some((c) => c.date.slice(0, 7) === month) && <p className="m-0 text-[14px]" style={{ color: SOFT }}>No weddings this month.</p>}
+            {!couples.some((c) => day(c.date).slice(0, 7) === month) && <p className="m-0 text-[14px]" style={{ color: SOFT }}>No weddings this month.</p>}
             <p className="m-0 text-[13px]" style={{ color: SOFT }}>
               Tap a day to see it, or to mark it unavailable (couples enquiring for that date are told you’re booked).
             </p>

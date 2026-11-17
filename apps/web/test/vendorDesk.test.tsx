@@ -1,15 +1,15 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MyListing, VendorCouple } from '../src/lib/api';
-import { EnquiryPipeline, listingStrength, VendorCalendar, VendorOverview } from '../src/sales/VendorDesk';
+import { deskDay, deskMonths, deskToday, EnquiryPipeline, listingStrength, VendorCalendar, VendorOverview } from '../src/sales/VendorDesk';
 
 const soon = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString();
 const data: MyListing = {
   partner: { code: 'BLOOM10', percentOff: 10, uses: 2 },
   listing: { slug: 's', name: 'Bloom Co', category: 'florist', region: 'sydney', regions: [], about: 'Short', priceFrom: 0, photo: '', booked: 1, contactName: 'Jess Lee', phone: '', website: '', instagram: '', photos: [], packages: [], email: 'a@example.com', hidden: false },
   enquiries: [
-    { id: 'e1', name: 'Grace Wu', email: 'g@example.com', phone: '', date: soon(20).slice(0, 10), guests: 90, message: 'Free on our date?', read: false, at: soon(-1), stage: 'new', note: '' },
-    { id: 'e2', name: 'Tom Reid', email: 't@example.com', phone: '', date: soon(90).slice(0, 10), guests: 60, message: 'Bouquets only', read: true, at: soon(-5), stage: 'quoted', note: 'Sent $950' },
+    { id: 'e1', name: 'Grace Wu', email: 'g@example.com', phone: '', date: deskDay(soon(20)), guests: 90, message: 'Free on our date?', read: false, at: soon(-1), stage: 'new', note: '' },
+    { id: 'e2', name: 'Tom Reid', email: 't@example.com', phone: '', date: deskDay(soon(90)), guests: 60, message: 'Bouquets only', read: true, at: soon(-5), stage: 'quoted', note: 'Sent $950' },
   ],
   busy: [],
 };
@@ -49,5 +49,37 @@ describe('the vendor’s desk', () => {
     fireEvent.click(free!);
     fireEvent.click(screen.getByRole('button', { name: 'Mark this day unavailable' }));
     expect(onBusy).toHaveBeenCalledWith([expect.objectContaining({ date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) })]);
+  });
+});
+
+describe('the vendor’s desk runs on Sydney time, not UTC', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('8am AEDT on the 17th is the 17th (UTC is still on the 16th): today, day counts and the calendar month', () => {
+    const at = new Date('2026-11-16T21:00:00Z'); // 8:00am AEDT, 17 November
+    expect(deskToday(at)).toBe('2026-11-17');
+    expect(deskDay('2026-11-17T00:30:00.000Z')).toBe('2026-11-17'); // an 11:30am wedding is that day, not the 16th
+    expect(deskDay('2026-11-17')).toBe('2026-11-17');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(at);
+    const wedding: VendorCouple = { ...couples[0]!, date: '2026-11-18T00:30:00.000Z', unread: 0 }; // tomorrow 11:30am Sydney
+    render(<VendorOverview data={{ ...data, enquiries: [] }} couples={[wedding]} unread={0} quotesOpen={0} go={vi.fn()} />);
+    expect(screen.getByText(/Good morning/)).toBeInTheDocument();
+    expect(screen.getAllByText(/17 November/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Ella & Kai’s wedding is tomorrow/)).toBeInTheDocument();
+  });
+
+  it('8am AEDT on the 1st: the calendar opens on the new month and the season starts there', () => {
+    const at = new Date('2026-11-30T21:00:00Z'); // 8:00am AEDT, 1 December
+    expect(deskToday(at)).toBe('2026-12-01');
+    const months = deskMonths(at);
+    expect(months).toHaveLength(12);
+    expect(months[0]).toEqual({ key: '2026-12', label: 'Dec' });
+    expect(months[1]!.key).toBe('2027-01');
+    expect(months[11]!.key).toBe('2027-11');
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(at);
+    render(<VendorCalendar data={{ ...data, enquiries: [] }} couples={[]} onBusy={vi.fn()} />);
+    expect(screen.getAllByText('December 2026').length).toBeGreaterThan(0);
   });
 });
