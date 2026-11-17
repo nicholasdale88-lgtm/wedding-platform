@@ -300,7 +300,7 @@ export const HELP: HelpArticle[] = [
     title: 'Guests’ photos and the table QR code',
     group: 'On the day',
     steps: [
-      'Open Photos → Photo settings, and connect your Google Drive, Dropbox or OneDrive: everything is filed there in folders.',
+      'Open Photos → Photo settings, and connect your Google Drive or Dropbox: everything is filed there in folders.',
       'Print table numbers or Snap & share cards (Wedding planner → The day → Cards & signs): each has a QR code.',
       'Guests scan it, give their name, pick a frame, and take photos straight into your album. No app needed.',
     ],
@@ -350,7 +350,7 @@ export const HELP: HelpArticle[] = [
     title: 'Backups and keeping everything safe',
     group: 'Your account',
     steps: [
-      'Connect your Google Drive, Dropbox or OneDrive (Photos → Photo settings). A full backup goes to its Backups folder every day.',
+      'Connect your Google Drive or Dropbox (Photos → Photo settings). A full backup goes to its Backups folder every day.',
       'Account → Settings → Backup: Back up now, or download everything as one file.',
       'Each wedding is kept completely separate; only people you invite can see yours.',
     ],
@@ -466,7 +466,7 @@ export const HELP_SCENES: Record<string, HelpScene[]> = {
     { at: ['Photos'], rows: ['⚠ Google Drive needs reconnecting'], tap: 'Reconnect', then: 'Carries on where it left off ✓' },
   ],
   photos: [
-    { at: ['Photos', 'Photo settings'], rows: ['Google Drive', 'Dropbox', 'OneDrive'], tap: 'Connect Google Drive', then: '“Alex & Sam wedding” folder made ✓' },
+    { at: ['Photos', 'Photo settings'], rows: ['Google Drive', 'Dropbox'], tap: 'Connect Google Drive', then: '“Alex & Sam wedding” folder made ✓' },
     { at: ['Wedding planner', 'The day'], rows: ['Table numbers · with QR code', 'Snap & share cards'], tap: 'Print', then: 'Each card has your QR code' },
     { at: ['Guest’s phone'], fields: [['Your name', 'Priya']], rows: ['Frame: Instant print'], tap: 'Take a photo', then: 'In your album and your Drive ✓' },
   ],

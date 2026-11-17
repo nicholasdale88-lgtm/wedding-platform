@@ -227,7 +227,7 @@ export function Backup() {
           </>
         ) : (
           <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">
-            Link your Google Drive, Dropbox or OneDrive (under{' '}
+            Link your Google Drive or Dropbox (under{' '}
             <a href={path('photos')} className="!text-[var(--adm-ink,#33402f)]">
               Photos → Where photos are saved
             </a>

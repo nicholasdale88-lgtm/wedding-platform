@@ -37,7 +37,7 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
     { done: o.events.length > 0, title: 'Your events', detail: 'Each celebration, with its date and place.', go: () => document.getElementById('your-events')?.scrollIntoView({ behavior: 'smooth' }) },
     { done: o.nav.guests > 0, title: 'Your guests', detail: 'Import your list, or add guests one by one.', go: () => to('guests', first) },
     { done: o.nav.smsLive, title: 'Texting', detail: 'How invitations go: free from your own phone or by email, or a texting number.', go: () => settings('texting') },
-    { done: photos, title: 'Where guests’ photos go', detail: 'Link Google Drive, Dropbox or OneDrive (free).', go: () => to('photos', first) },
+    { done: photos, title: 'Where guests’ photos go', detail: 'Link Google Drive or Dropbox (free).', go: () => to('photos', first) },
     { done: members ? owners > 1 || members.invites.length > 0 : null, title: 'Add your partner or a helper', detail: 'So you can both run it, each with your own sign-in.', go: () => to('settings?view=people&invite=1', ALL_EVENTS) },
     { done: !!o.wedding.private, title: 'Keep it private', detail: 'Pages open only with each guest’s own link.', go: () => settings('privacy') },
   ];

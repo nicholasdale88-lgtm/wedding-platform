@@ -91,7 +91,7 @@ export function SignStudio({ palette, vars, tables }: { palette: Palette; vars: 
       const r = await plannerApi.uploadFile(wid, file);
       const where = r.where ?? '';
       live.update((d) => ({ ...d, saved: [{ id: r.id, sign: sel, name: r.name, at: new Date().toISOString(), where }, ...d.saved].slice(0, 100) }), true);
-      toast(where ? `Saved to your ${WHERE[where] ?? 'linked storage'} ✓` : 'Saved here. Link Google Drive, Dropbox or OneDrive in Photos → Linked storage (planning files on) to save there.');
+      toast(where ? `Saved to your ${WHERE[where] ?? 'linked storage'} ✓` : 'Saved here. Link Google Drive or Dropbox in Photos → Linked storage (planning files on) to save there.');
     } catch (e) {
       toast((e as Error).message);
     } finally {

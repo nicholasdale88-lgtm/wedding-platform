@@ -163,7 +163,7 @@ export const HELP_SAY: Record<string, HelpSay> = {
   photos: {
     intro: 'Here’s how guests share their photos with you.',
     steps: [
-      'Open Photos, then Photo settings, and connect Google Drive, Dropbox, or OneDrive. Everything gets filed in folders for you.',
+      'Open Photos, then Photo settings, and connect Google Drive or Dropbox. Everything gets filed in folders for you.',
       'Next, print your table numbers, or the Snap and share cards. Each one has a QR code.',
       'Guests scan it, pop in their name, pick a frame, and snap away. Straight into your album. No app needed.',
     ],
@@ -201,7 +201,7 @@ export const HELP_SAY: Record<string, HelpSay> = {
   backup: {
     intro: 'Here’s how your wedding is kept safe.',
     steps: [
-      'Connect Google Drive, Dropbox, or OneDrive, in Photo settings. A full backup goes to your Backups folder every day.',
+      'Connect Google Drive or Dropbox, in Photo settings. A full backup goes to your Backups folder every day.',
       'In Settings, then Backup, you can back up any time, or download everything as one file.',
       'Each wedding is kept completely separate. Only the people you invite can see yours.',
     ],
