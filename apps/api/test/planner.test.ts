@@ -342,6 +342,31 @@ describe('planner: wedding party', () => {
     expect(rows).toContain('"Guests coming"');
   });
 
+  it('the caterer’s page is the wedding’s, even when only another event (a birthday) has a seating plan (stress run)', async () => {
+    const admin = (path: string, init: RequestInit = {}) => app.request(`/api/a/w/${wid}${path}`, { ...init, headers: { 'content-type': 'application/json', cookie, ...init.headers } }, env, ctx);
+    const [wed, other] = (await t.db.prepare(`SELECT id, key, name FROM event ORDER BY sort`).all<{ id: string; key: string; name: string }>()).results as [{ id: string; key: string; name: string }, { id: string; key: string; name: string }];
+    await t.db.prepare(`UPDATE event SET has_seating = 0 WHERE id = ?`).bind(wed.id).run();
+    await t.db.prepare(`UPDATE seat_table SET deleted_at = '2027-01-01' WHERE event_id = ?`).bind(wed.id).run();
+    await t.db.prepare(`DELETE FROM seat_publish WHERE event_id = ?`).bind(wed.id).run();
+    // The other event's plan, with a meal for someone there.
+    const s0 = (await (await admin(`/seating?event=${other.key}`)).json()) as { version: number; people: { id: string }[] };
+    const T = '33333333-3333-4333-8333-333333333333';
+    const seats = Object.fromEntries(s0.people.map((p) => [p.id, T]));
+    expect((await admin('/seating', { method: 'PUT', headers: { 'If-Match': String(s0.version) }, body: JSON.stringify({ event: other.key, aspect: '4 / 3', tables: [{ id: T, name: 'Bar', shape: 'long', dir: 'h', len: 30, x: 50, y: 50, seats: 40 }], areas: [], seats }) })).status).toBe(200);
+    await t.db.prepare(`INSERT INTO meal_choice (person_id, event_id, menu_id, entree, main, dessert, updated_at) VALUES (?, ?, '', '', 'Birthday burger', '', '2027-01-01')`).bind(s0.people[0]!.id, other.id).run();
+    const list = [{ id: 'cat', name: 'Feast Catering', category: 'Caterer', status: 'booked', shareSeating: true }];
+    expect((await call('/doc/vendors', { method: 'PUT', headers: { 'If-Match': '0' }, body: JSON.stringify({ list }) })).status).toBe(200);
+    const { url } = (await (await call('/vendors/cat/hub')).json()) as { url: string };
+    const u = new URL(url);
+    const page = (await (await app.request(`/api/p/sophie-and-nicholas/vendor/${u.searchParams.get('v')}/${u.searchParams.get('k')}`, {}, env, ctx)).json()) as {
+      event: { name: string }; seating: { event: string; tables: unknown[] }; meals: { choice: string }[];
+    };
+    expect(page.event.name).toBe(wed.name);
+    expect(page.seating.event).toBe(wed.name);
+    expect(page.seating.tables).toEqual([]);
+    expect(page.meals.map((m) => m.choice)).not.toContain('Birthday burger');
+  });
+
   it('the band or DJ sees the song list (never who asked); others do not; a vendor can confirm, and their calendar is live', async () => {
     const inv = await t.db.prepare(`SELECT id FROM invitation WHERE wedding_id = ? AND deleted_at IS NULL LIMIT 2`).bind(wid).all<{ id: string }>();
     const [a, b] = inv.results;

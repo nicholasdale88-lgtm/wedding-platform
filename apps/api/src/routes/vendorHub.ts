@@ -1,4 +1,4 @@
-import { clockMinutes, dateIn, dropControls, guidesOf, isSerious, isVendorMoment, scheduleOf, VENDOR_PAGE_NOTE as FROM_PAGE, vendorShares, zonedToUtc, type Vendor } from '@wp/shared';
+import { clockMinutes, dateIn, dropControls, guidesOf, icsFold, icsText, isSerious, isVendorMoment, scheduleOf, VENDOR_PAGE_NOTE as FROM_PAGE, vendorShares, zonedToUtc, type Vendor } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -102,8 +102,9 @@ async function pageOf(db: D1Database, o: Opened) {
   const guide = ev ? (guidesOf(safeJson(w.guide, {}), [ev.key])[ev.key] as Record<string, unknown> | undefined) : undefined;
   const contacts = (guide?.contacts as { name: string; role: string; phone: string }[] | undefined) ?? [];
 
-  // The seating, read once: meal choice counts for everyone, and the caterer's table plan when shared.
-  const s = ev ? await loadSeating(db, w.id) : null;
+  // The seating, read once: meal choice counts for everyone, and the caterer's table plan when shared. The same
+  // event as the numbers above (the wedding): never another event's plan because only it has seating.
+  const s = ev ? await loadSeating(db, w.id, ev.key) : null;
   const meals: { course: string; choice: string; n: number }[] = [];
   if (s) {
     const coming = [...s.view.couple, ...s.view.people].filter((p) => p.coming);
@@ -205,25 +206,10 @@ const csv = (name: string, rows: (string | number)[][]) =>
     headers: { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `inline; filename="${name}"`, 'cache-control': 'private, max-age=60', 'x-robots-tag': 'noindex' },
   });
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
+const esc = icsText;
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-/** Lines over 75 characters are folded (by whole characters). */
-const fold = (line: string) => {
-  const rows: string[] = [];
-  let cur = '';
-  let n = 0;
-  for (const ch of line) {
-    if (n === 72) {
-      rows.push(cur);
-      cur = ' ';
-      n = 1;
-    }
-    cur += ch;
-    n++;
-  }
-  rows.push(cur);
-  return rows.join('\r\n');
-};
+/** Lines over 75 octets are folded (never through a character). */
+const fold = icsFold;
 
 type Page = Awaited<ReturnType<typeof pageOf>>;
 
