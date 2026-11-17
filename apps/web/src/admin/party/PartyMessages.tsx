@@ -28,7 +28,7 @@ export function PartyMessages({ d }: { d: PartyData }) {
     const k = sideDoc(side);
     const cur = docsRef.current[k];
     if (!cur || (cur.data.people[personId]?.message ?? '') === message) return;
-    const person = { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '', message: '', packed: [], pack: [], ...cur.data.people[personId], message };
+    const person = { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '', packed: [], pack: [], ...cur.data.people[personId], message };
     const data = { ...cur.data, people: { ...cur.data.people, [personId]: person } };
     try {
       const r = await plannerApi.saveDoc(wid, k, '', data, cur.version);
