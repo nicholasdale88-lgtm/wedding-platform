@@ -6,7 +6,7 @@ import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const dir = join(import.meta.dirname, 'stress-report');
-const files = existsSync(dir) ? readdirSync(dir).filter((f) => /^part-\d+\.json$/.test(f)) : [];
+const files = existsSync(dir) ? readdirSync(dir).filter((f) => /^part-[\d-]+\.json$/.test(f)) : [];
 if (!files.length) {
   console.log('No stress report found.');
   process.exit(0);

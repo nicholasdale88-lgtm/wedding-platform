@@ -93,9 +93,14 @@ jobs:
   # The stress run (tests/scenarios): 1,000 randomised weddings through the real API and a local database, with
   # texting, email, payments, Google Drive, OneDrive and the AI mocked. Fails on any wrong number, lost data,
   # leak between weddings, bad calendar file or server error; each route's speed is reported, never failed on.
+  # Split over 8 machines (125 weddings each, 4 at once on each) so the whole run takes about 10 minutes.
   stress:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v5
 
@@ -112,22 +117,40 @@ jobs:
       - name: Install
         run: pnpm install --no-frozen-lockfile
 
-      - name: 1,000 weddings
+      - name: 1,000 weddings (this machine's share)
         run: pnpm stress
         env:
-          STRESS_WEDDINGS: 40
+          STRESS_WEDDINGS: 1000
           STRESS_FORKS: 4
+          STRESS_SHARD: ${{ matrix.shard }}
+          STRESS_SHARDS: 8
 
-      - name: Report (speed per route, and the totals)
+      - name: Report (this share)
         if: always()
         run: node tests/scenarios/report.mjs
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: stress-report
+          name: stress-report-${{ matrix.shard }}
           path: tests/scenarios/stress-report
           retention-days: 14
+
+  # Every share's report together: weddings passed, checks passed, and the slowest routes (p95).
+  stress-report:
+    needs: stress
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: stress-report-*
+          path: tests/scenarios/stress-report
+          merge-multiple: true
+      - name: The whole run
+        run: node tests/scenarios/report.mjs
 
   # Tap-through tests: the app runs here (API with its own throwaway local database, and the website) and a
   # real browser, phone-sized, clicks through what couples and guests do. Never touches the live site.

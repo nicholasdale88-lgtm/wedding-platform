@@ -1136,7 +1136,11 @@ async function crossProbes(b: Batch, ws: Wed[], check: (i: number) => Check) {
 // ------------------------------------------------------------------------------------------------ the parts
 
 export function stressPart(part: number, parts: number) {
-  const mine = Array.from({ length: TOTAL }, (_, i) => i).filter((i) => (ONLY.length ? ONLY.includes(i) : i % parts === part - 1));
+  // CI splits the run over several machines too (STRESS_SHARD of STRESS_SHARDS, from 1): each takes every n-th wedding.
+  const shards = Number(process.env.STRESS_SHARDS ?? 1);
+  const shard = Number(process.env.STRESS_SHARD ?? 1);
+  const slot = (shard - 1) * parts + (part - 1);
+  const mine = Array.from({ length: TOTAL }, (_, i) => i).filter((i) => (ONLY.length ? ONLY.includes(i) && i % parts === part - 1 : i % (parts * shards) === slot));
 
   describe(`stress part ${part} of ${parts}`, () => {
     afterAll(() => {
@@ -1216,12 +1220,12 @@ export function stressPart(part: number, parts: number) {
       const dir = join(HERE, 'stress-report');
       mkdirSync(dir, { recursive: true });
       writeFileSync(
-        join(dir, `part-${part}.json`),
+        join(dir, `part-${shard}-${part}.json`),
         JSON.stringify({ part, parts, seed: SEED, weddings: mine.length, passed, checks, failed: failures.length, seconds: Math.round((Date.now() - started) / 1000), failures: failures.slice(0, 500), serverErrors: serverErrors.slice(0, 200), latency: Object.fromEntries([...lat].map(([k, xs]) => [k, xs.map((x) => Math.round(x))])) }),
       );
 
       const summary = [
-        `Part ${part}/${parts} (seed ${SEED}): ${passed}/${mine.length} weddings passed, ${failures.length} of ${checks} checks failed, ${serverErrors.length} server errors.`,
+        `Shard ${shard}/${shards}, part ${part}/${parts} (seed ${SEED}): ${passed}/${mine.length} weddings passed, ${failures.length} of ${checks} checks failed, ${serverErrors.length} server errors.`,
         ...[...byCheck].map(([k, fs]) => `- ${fs.length}x ${k} (e.g. wedding ${fs[0]!.wedding}: ${fs[0]!.detail.slice(0, 220)})`),
         ...[...by5].map(([k, es]) => `- ${es.length}x ${k}: ${es[0]!.body.slice(0, 160)} ${es[0]!.logged.slice(0, 160)}`),
       ].join('\n');
