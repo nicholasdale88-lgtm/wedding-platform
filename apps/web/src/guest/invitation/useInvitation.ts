@@ -187,6 +187,9 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
       return;
     }
     try {
+      // Asked for the envelope (their wedding party page's "Your invitation · tap to open"): it waits, sealed,
+      // and opens the full way on their tap, even if they've opened it before.
+      if (new URLSearchParams(window.location.search).get('envelope') === '1') return;
       const o = JSON.parse(store.get(openKey) ?? 'null') as { at: number } | null;
       if (o && Date.now() - o.at < 90 * 864e5) {
         setP(4);

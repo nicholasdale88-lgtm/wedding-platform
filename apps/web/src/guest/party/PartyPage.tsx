@@ -453,7 +453,7 @@ export function PartyPage({ sample = false }: { sample?: boolean } = {}) {
             </header>
 
             {/* Their invitation, on top: an envelope to tap open. */}
-            {(link || sample) && <Envelope href={sample ? '/demo' : `/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} initials={initials} names={data.me.map((m) => first(m.name)).join(' & ')} />}
+            {(link || sample) && <Envelope href={sample ? '/demo' : `/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}&envelope=1`} initials={initials} names={data.me.map((m) => first(m.name)).join(' & ')} />}
 
             {/* Who they are, and their part. */}
             <section aria-label="Your role" className="flex flex-col items-center gap-2 px-5 py-5 rounded-[22px] text-center" style={cardStyle(look, { border: `1px solid ${gold}` })}>

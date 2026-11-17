@@ -71,7 +71,7 @@ describe('wedding party page', () => {
     const role = await screen.findByRole('region', { name: 'Your role' });
     expect(within(role).getByText('Ella Hart')).toBeInTheDocument();
     expect(within(role).getByText('Bridesmaid')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Your invitation: tap to open' })).toHaveAttribute('href', `/w/alex-and-sam?g=${TOKEN}`);
+    expect(screen.getByRole('link', { name: 'Your invitation: tap to open' })).toHaveAttribute('href', `/w/alex-and-sam?g=${TOKEN}&envelope=1`);
     const menu = screen.getByRole('navigation', { name: 'Your page' });
     expect(within(menu).getByRole('button', { name: /What needs you\s*1 to do/ })).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Book the hair trial' })).toBeNull(); // one part at a time
