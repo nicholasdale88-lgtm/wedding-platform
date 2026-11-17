@@ -79,7 +79,7 @@ export const STARTERS: Starter[] = [
   {
     key: 'after',
     name: () => 'Thank you for coming',
-    body: 'Thank you for celebrating with us, {first}! It meant so much to have you there. Love, {couple}',
+    body: 'Thank you for celebrating with us, {first}! It meant so much to have you there. A little thank-you from us, with the photos: {thanks} Love, {couple}',
     mode: 'dates',
     trigger: null,
     audience: (ev) => ({ attending: ev }),

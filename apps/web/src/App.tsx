@@ -29,6 +29,7 @@ const AdminRoot = lazy(() => fresh(import('./admin/AdminRoot')).then((m) => ({ d
 const ResetPasscode = lazy(() => fresh(import('./admin/ResetPasscode')).then((m) => ({ default: m.ResetPasscode })));
 const InvitationPage = lazy(() => fresh(import('./guest/invitation/InvitationPage')).then((m) => ({ default: m.InvitationPage })));
 const GuidePage = lazy(() => fresh(import('./guest/guide/GuidePage')).then((m) => ({ default: m.GuidePage })));
+const ThanksPage = lazy(() => fresh(import('./guest/thanks/ThanksPage')).then((m) => ({ default: m.ThanksPage })));
 const PhotoPage = lazy(() => fresh(import('./guest/photos/PhotoPage')).then((m) => ({ default: m.PhotoPage })));
 const BoardPage = lazy(() => fresh(import('./guest/board/BoardPage')).then((m) => ({ default: m.BoardPage })));
 const PartyPage = lazy(() => fresh(import('./guest/party/PartyPage')).then((m) => ({ default: m.PartyPage })));
@@ -128,6 +129,7 @@ function Pages() {
         <Route path="/w/:slug/tomorrow" element={<GuidePage />} />
         <Route path="/w/:slug/tomorrow/:event" element={<GuidePage />} />
         <Route path="/w/:slug/photos" element={<PhotoPage />} />
+        <Route path="/w/:slug/thanks" element={<ThanksPage />} />
         <Route path="/w/:slug/photos/:event" element={<PhotoPage />} />
         <Route path="/w/:slug/board" element={<BoardPage />} />
         <Route path="/w/:slug/party" element={<PartyPage />} />

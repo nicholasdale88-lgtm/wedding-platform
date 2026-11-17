@@ -136,6 +136,8 @@ export const guestApi = {
     ),
   photos: (slug: string, token: string, event = '', code = '') =>
     call<PhotoPagePayload>(`/p/${encodeURIComponent(slug)}/photos?g=${encodeURIComponent(token)}${event ? `&event=${encodeURIComponent(event)}` : ''}${code ? `&t=${encodeURIComponent(code)}` : ''}`),
+  /** The thank-you page, after the day (their words, and the photos once ready). */
+  thanks: (slug: string, token: string) => call<ThanksPayload>(`/p/${encodeURIComponent(slug)}/thanks${token ? `?g=${encodeURIComponent(token)}` : ''}`),
   /** Their conversation with the couple (needs their own link). */
   messages: (slug: string, token: string) =>
     call<{ couple: string; messages: { id: string; from: 'guest' | 'couple'; kind: string; body: string; at: string }[] }>(`/p/${encodeURIComponent(slug)}/messages?g=${encodeURIComponent(token)}`),
@@ -264,6 +266,21 @@ export interface PartyPayload {
     speeches?: { who: string; minutes: number }[];
     holding?: string[];
   }[];
+}
+export interface ThanksPayload {
+  wedding: { slug: string; name1: string; name2: string; monogram: string; theme: string };
+  /** Their first names (with their own link). */
+  guest: string;
+  heading: string;
+  message: string;
+  signoff: string;
+  photo: string;
+  /** The shared album is open to them (the couple said the photos are ready). */
+  album: boolean;
+  /** The photographer's gallery, once ready. */
+  gallery: string;
+  /** They can add their own photos (their own link). */
+  addPhotos: boolean;
 }
 export interface BoardPayload {
   on: boolean;

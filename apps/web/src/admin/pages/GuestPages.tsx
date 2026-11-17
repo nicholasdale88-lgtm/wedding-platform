@@ -13,6 +13,7 @@ import { Eyebrow, inputCls, Label, Pill, subNavCls, tabCls, useMedia, useToast }
 import { Extra, ExtrasGrid } from './ExtrasGrid';
 import { Grid, Lines, Rows, Section, TextField } from './fields';
 import { TimelineEditor } from './TimelineEditor';
+import { ThanksEditor } from './ThanksEditor';
 import { Events } from '../events/Events';
 import { LISTS as INV_LISTS, SECTIONS as INV_SECTIONS } from '../../guest/generated/InvitationView.meta';
 import { ORIGINAL, Wording } from './Wording';
@@ -29,7 +30,7 @@ import { isDemo } from '../../try/demo';
  */
 
 type Doc = Pick<PagesData, 'names' | 'theme' | 'invitation' | 'guides' | 'texts' | 'filled'>;
-type PageKey = 'invitation' | 'photos' | 'details' | 'timeline' | `guide:${string}`;
+type PageKey = 'invitation' | 'photos' | 'thanks' | 'details' | 'timeline' | `guide:${string}`;
 const SAVE_AFTER_MS = 700;
 
 export function GuestPages() {
@@ -161,6 +162,8 @@ export function GuestPages() {
     list.push({ key: 'details', label: 'Details' }, { key: 'timeline', label: 'Timeline' });
     if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
     list.push({ key: 'photos', label: 'Photo page' });
+    // After the day: the thank-you page (with the photos once they're ready), with the first event.
+    if (data.events.indexOf(ev) === 0) list.push({ key: 'thanks', label: 'Thank-you page' });
     return list;
   }, [data, doc, chosen, demo]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
@@ -192,7 +195,7 @@ export function GuestPages() {
       { replace: k !== 'page' },
     );
   const base = `/w/${data.slug}`;
-  const path = page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
+  const path = page === 'thanks' ? '/thanks' : page === 'photos' ? `/photos${ev ? `/${ev.key}` : ''}` : eventKey ? `/tomorrow/${eventKey}` : '/';
   const editingCard = liveEdit && page === 'invitation' && !demo;
   const previewUrl = demo ? (eventKey ? '/demo/tomorrow?mine=1' : '/demo?embed=1&mine=1') : `${base}${path}?${sample ? `g=${encodeURIComponent(sample.token)}&` : ''}${asEvents && path === '/' ? `events=${encodeURIComponent(asEvents)}&` : ''}preview=1${editingCard ? '&edit=1' : ''}`;
   const shareUrl = `${window.location.origin}${base}${path}${sample ? `?g=${encodeURIComponent(sample.token)}` : ''}`;
@@ -215,6 +218,7 @@ export function GuestPages() {
     <div className="flex flex-col gap-6 min-w-0">
       {page === 'invitation' && <InvitationEditor doc={doc} n={() => ++n} setInv={setInv} setTexts={(changes) => Object.entries(changes).forEach(([k, v]) => setText(k, v))} setNames={(names) => mark('names', (d) => ({ ...d, names }))} setTheme={(theme) => mark('theme', (d) => ({ ...d, theme }))} />}
       {page === 'details' && ev && <Events only={ev.key} />}
+      {page === 'thanks' && <ThanksEditor inv={doc.invitation} n={() => ++n} setInv={setInv} Photo={VenuePhoto} />}
       {page === 'timeline' && ev && (
         <Section
           n={++n}

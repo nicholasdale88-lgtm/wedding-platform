@@ -205,6 +205,38 @@ export function guestRoutes(deps: (env: Env) => EngineDeps = engineDeps) {
     });
   });
 
+  /**
+   * The thank-you page, sent after the day: the couple's words and photo, and (with the guest's own link) the
+   * buttons to the photos once the couple says they're ready. The couple, signed in, can preview it.
+   */
+  app.get('/thanks', async (c) => {
+    const w = await wedding(c);
+    if (!w) return err(c, 404, 'not_found', 'We could not find this page.');
+    const token = c.req.query('g') ?? '';
+    const who = isToken(token)
+      ? await c.env.DB.prepare(`SELECT i.id FROM invitation i WHERE i.token = ? AND i.wedding_id = ? AND i.deleted_at IS NULL`).bind(token, w.id).first<{ id: string }>()
+      : null;
+    const admin = !who && (await isAdminOf(c, w.id));
+    if (!who && !admin && isPrivate(w)) return PRIVATE(c);
+    const people = who ? (await c.env.DB.prepare(`SELECT name FROM person WHERE invitation_id = ? AND deleted_at IS NULL AND name != '' ORDER BY idx`).bind(who.id).all<{ name: string }>()).results : [];
+    const content = json<Record<string, unknown>>(w.content, {});
+    const inv = InvitationContent.safeParse(content.invitation ?? {});
+    const thanks = (inv.success && inv.data.thanks) || {};
+    const ready = !!thanks.ready && (!!who || admin);
+    return c.json({
+      wedding: { slug: w.slug, name1: w.name1, name2: w.name2, monogram: w.monogram, theme: w.theme },
+      guest: people.map((p) => p.name.trim().split(/\s+/)[0]).join(' & '),
+      heading: thanks.heading ?? '',
+      message: thanks.message ?? '',
+      signoff: thanks.signoff ?? '',
+      photo: imagesOf(content).thanks ?? '',
+      // The photos, once ready: everyone's (the shared album), the photographer's gallery, and adding their own.
+      album: ready && content.albumShared === true,
+      gallery: ready ? (thanks.gallery ?? '') : '',
+      addPhotos: !!who || admin,
+    });
+  });
+
   app.get('/invite', async (c) => {
     const w = await wedding(c);
     if (!w) return err(c, 404, 'not_found', 'We could not find this invitation.');

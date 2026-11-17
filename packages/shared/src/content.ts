@@ -109,6 +109,19 @@ export const InvitationContent = z
     timelineClock: z.enum(['12h', '24h']),
     /** Each other event's own timeline, by event key, shown at the end of that event's section of the invitation. */
     timelines: z.record(z.string().max(40), z.array(TimelineItem).max(30)),
+    /**
+     * The thank-you page (/w/:slug/thanks), sent after the day: their words, and the photos when they're ready
+     * (`ready`: show the photo buttons; `gallery`: the photographer's gallery link). Its photo is images.thanks.
+     */
+    thanks: z
+      .object({
+        heading: z.string().max(120),
+        message: z.string().max(2000),
+        signoff: z.string().max(120),
+        ready: z.boolean(),
+        gallery: z.union([z.literal(''), z.string().max(500).regex(/^https:\/\/\S+$/)]),
+      })
+      .partial(),
   })
   .partial();
 export type InvitationContent = z.infer<typeof InvitationContent>;

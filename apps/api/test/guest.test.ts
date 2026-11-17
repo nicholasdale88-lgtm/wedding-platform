@@ -59,6 +59,19 @@ describe('guest API', () => {
     expect(opened!.opened_at).toBeNull();
   });
 
+  it('the thank-you page: their words for everyone with a link; the photo buttons only once the couple says they are ready', async () => {
+    const tok = await tokenOf('Ella Thompson');
+    const set = (thanks: unknown, shared: boolean) =>
+      t.db.prepare(`UPDATE wedding SET content = json_set(json_set(COALESCE(content, '{}'), '$.invitation.thanks', json(?)), '$.albumShared', json(?))`).bind(JSON.stringify(thanks), shared ? 'true' : 'false').run();
+    await set({ heading: 'Thank you', message: 'What a day.', ready: false, gallery: 'https://example.com/gallery' }, true);
+    type T = { guest: string; message: string; album: boolean; gallery: string; addPhotos: boolean };
+    let r = (await (await get(`/thanks?g=${tok}`)).json()) as T;
+    expect(r).toMatchObject({ guest: 'Ella', message: 'What a day.', album: false, gallery: '', addPhotos: true });
+    await set({ heading: 'Thank you', message: 'What a day.', ready: true, gallery: 'https://example.com/gallery' }, true);
+    r = (await (await get(`/thanks?g=${tok}`)).json()) as T;
+    expect(r).toMatchObject({ album: true, gallery: 'https://example.com/gallery' });
+  });
+
   it('a guest not invited to the 30th never receives its event or its wording (docs/09 §J)', async () => {
     const res = await get(`/invite?g=${await tokenOf('Ella Thompson')}`); // wedding only
     const p = (await res.json()) as Payload;
