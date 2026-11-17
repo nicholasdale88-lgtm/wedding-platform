@@ -130,3 +130,15 @@ test('the sample: its banner is never cut off, the scroll hint never covers the 
   expect(await sideways(page)).toBeLessThanOrEqual(1);
   expect(problems).toEqual([]);
 });
+
+// OneDrive isn't switched on yet, so no page a visitor can reach claims it (Google Drive and Dropbox are live).
+test('visitor pages only promise the photo storage that works', async ({ page }) => {
+  for (const path of ['/', '/try', '/privacy', '/terms', '/vendors']) {
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    const text = await page.evaluate(() => document.documentElement.innerHTML);
+    expect(text, path).not.toMatch(/one\s?drive/i);
+  }
+  await page.goto('/');
+  await expect(page.getByText('Photos and backups save to your own Google Drive or Dropbox').first()).toBeAttached();
+});

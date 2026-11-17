@@ -155,7 +155,7 @@ export function PrivacyPage() {
 
       <H2>Photos and files in your own storage</H2>
       <P>
-        If the couple connects their own Google Drive, Dropbox or OneDrive, guests’ photos, documents and daily backups are saved straight into the couple’s account,
+        If the couple connects their own Google Drive or Dropbox, guests’ photos, documents and daily backups are saved straight into the couple’s account,
         in folders. Those files then belong to the couple and are covered by that provider’s own terms and privacy policy. We only ask for access to the folder the app
         uses, and the couple can disconnect it at any time.
       </P>
@@ -245,14 +245,14 @@ export function TermsPage() {
 
       <H2>Your own storage</H2>
       <P>
-        If you connect Google Drive, Dropbox or OneDrive, files are saved into your account there. That provider’s terms apply to those files, and keeping enough
+        If you connect Google Drive or Dropbox, files are saved into your account there. That provider’s terms apply to those files, and keeping enough
         space is up to you.
       </P>
 
       <H2>Credits</H2>
       <P>
         Weather forecasts: data from MET Norway (the Norwegian Meteorological Institute), used under CC BY 4.0. Vendor and place data © OpenStreetMap contributors, available under the Open Database Licence. Fonts are open-licence
-        fonts used under the SIL Open Font License. Other product names mentioned (such as Google Drive, Dropbox, OneDrive, YouTube and WhatsApp) belong to their owners and
+        fonts used under the SIL Open Font License. Other product names mentioned (such as Google Drive, Dropbox, YouTube and WhatsApp) belong to their owners and
         are used only to say what {BRAND} works with; we aren’t affiliated with or endorsed by them.
       </P>
 

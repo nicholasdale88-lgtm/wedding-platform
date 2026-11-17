@@ -24,7 +24,7 @@ const FEATURES: Record<string, { title: string; plan: 'free' | 'essentials' | 'c
   photos: {
     title: 'Guests’ photos',
     plan: 'complete',
-    points: ['A QR code on each table: guests add their photos and videos from their phones', 'A live photo wall for the reception', 'Everything saved to your own Google Drive, Dropbox or OneDrive'],
+    points: ['A QR code on each table: guests add their photos and videos from their phones', 'A live photo wall for the reception', 'Everything saved to your own Google Drive or Dropbox'],
   },
   party: {
     title: 'Wedding party',
