@@ -1,7 +1,7 @@
 import type { InvitationContent, SealColour } from '@wp/shared';
 import type { CSSProperties } from 'react';
 import { isHex, NAMES_STYLES, type NamesStyle } from '../../guest/themeKit';
-import { sealSwatch } from '../../guest/invitation/WaxSeal';
+import { sealSwatch, WaxSeal } from '../../guest/invitation/WaxSeal';
 
 /**
  * Mood boards: a vision board meets an interior designer's sample board. Each board is a collage pinned to the
@@ -121,8 +121,9 @@ export function Collage({ b, names }: { b: Board; names: [string, string] }) {
         </span>
         <span className="block w-[30%] h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${b.accent}, transparent)` }} />
       </span>
-      <span className="absolute z-[6] left-[59%] top-[60%] w-[10%] aspect-square rounded-full shadow-[0_3px_5px_rgba(0,0,0,.3)]" style={{ background: `radial-gradient(circle at 35% 30%, #ffffff66, ${sealSwatch(b.seal)} 55%)` }}>
-        <span className="absolute inset-[18%] rounded-full" style={{ boxShadow: 'inset 0 0 0 1.5px rgba(0,0,0,.18)' }} />
+      {/* The wax seal, the same pressed wax as the invitation. */}
+      <span className="absolute z-[6] left-[59%] top-[60%] w-[11%] aspect-square" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.3))' }}>
+        <WaxSeal colour={b.seal} words={`${names[0].trim().charAt(0)} & ${names[1].trim().charAt(0)}`} px={30} still />
       </span>
     </span>
   );

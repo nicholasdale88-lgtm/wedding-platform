@@ -118,20 +118,20 @@ describe('the seal on the invitation', () => {
   };
   beforeEach(() => localStorage.clear());
 
-  it('the design own seal by default (nothing drawn over it)', async () => {
+  it('the real pressed-wax seal by default, with their initials', async () => {
     open(payload({ seal: 'Sandstone' }));
     await screen.findByText('Tap to open');
-    expect(screen.queryByTestId('wax-seal')).toBeNull();
+    expect(within(screen.getByTestId('wax-seal')).getAllByText('A')[0]).toBeInTheDocument();
   });
   it('a date seal in gold reads the wedding day, on a navy envelope', async () => {
     open(payload({ seal: 'Gold', sealDesign: { style: 'date' }, envelope: { paper: 'navy' } }));
     await screen.findByText('Tap to open');
-    expect(within(screen.getByTestId('wax-seal')).getByText('06.03.27')).toBeInTheDocument();
+    expect(within(screen.getByTestId('wax-seal')).getAllByText('06.03.27')[0]).toBeInTheDocument();
     expect(document.documentElement.style.getPropertyValue('--e1')).toBe('#24334f');
   });
   it('their own words on the seal', async () => {
     open(payload({ seal: 'Sandstone', sealDesign: { text: 'Hart', letters: 'serif' } }));
     await screen.findByText('Tap to open');
-    expect(within(screen.getByTestId('wax-seal')).getByText('Hart')).toBeInTheDocument();
+    expect(within(screen.getByTestId('wax-seal')).getAllByText('Hart')[0]).toBeInTheDocument();
   });
 });

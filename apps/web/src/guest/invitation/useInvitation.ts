@@ -9,7 +9,7 @@ import { previewNow } from '../previewClock';
 import { guestApi, GuestApiError, type GuestInvitation, type InvitePayload, type RsvpBody } from './api';
 import { openingOf, openingTimes, openingValues, prefersLessMotion } from './openings';
 import { shownRows, TIMELINE_ROWS, TimelineRows } from './Timeline';
-import { initialsOf, isDesignSeal, paperVars, sealDate, sealWords, type SealShown } from './WaxSeal';
+import { initialsOf, paperVars, sealDate, sealWords, type SealShown } from './WaxSeal';
 
 /**
  * The invitation's behaviour, ported from the design's logic (design/extracted/invitation.html, renderVals).
@@ -596,10 +596,10 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     v,
     openingValues(openingOf(data.content.opening), p, { paper: look.b1 ?? '#fbf8f2', ink: look.dg ?? '#33402f', accent: look.acc ?? '#c8a46a', soft: look.b2 ?? '#efe6d3' }, { burst: v.burst }, prefersLessMotion()),
   );
-  // Any seal but the design's own (a newer colour, another design, their own words): drawn over the
-  // envelope by SealOverlay, moving just as the design's would, and the design's one is hidden.
+  // Every seal is the real pressed-wax one, drawn over the envelope by SealOverlay, moving just as the
+  // design's would, and the design's older flat one is hidden.
   let sealShown: SealShown | null = null;
-  if (!isDesignSeal(seal, data.content.sealDesign)) {
+  {
     const date = sealDate((e0 ?? data.events[0])?.startsAt, data.wedding.timezone);
     sealShown = { colour: seal, design: data.content.sealDesign, words: sealWords(data.content.sealDesign, initials, date), t: String(v.sealT), op: Number(v.sealOp), zoom: String(v.envZoom), envOp: Number(v.envOp) };
     v.sealOp = 0;

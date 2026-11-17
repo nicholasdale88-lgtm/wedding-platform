@@ -3,11 +3,10 @@ import { useId, type CSSProperties, type ReactNode } from 'react';
 import { mix } from '../themeKit';
 
 /**
- * The wax seal, drawn in CSS and SVG (no pictures to download): an uneven drip edge, the pressed disc with
- * light and shade, a gloss (a brighter sheen on the metallic finishes), and what's pressed into it: the
- * couple's initials, a flower, initials in a wreath, one letter, a heart or the date. Also the envelope's
- * paper colours. The design's own seal (the three original colours with classic italic initials) is still
- * drawn by the generated view; anything else is drawn here, over it, moving exactly as it would.
+ * The wax seal, drawn as one lit SVG (no pictures to download): the wax pooled in a soft uneven puddle, a
+ * raised lip, the pressed well, and what's pressed into it: the couple's initials, a flower, initials in a
+ * wreath, one letter, a heart or the date. Used for every seal: the invitation, the front page, the swatches.
+ * Also the envelope's paper colours.
  */
 
 interface Wax {
@@ -41,6 +40,21 @@ export const WAX: Record<SealColour, Wax> = {
   Terracotta: { drip: '#a2573a', body: ['#e9a684', '#bf6a48', '#77361f'], inner: ['#c9795a', '#b8664a', '#9c5238'], ink: '#fff0e4' },
   Lilac: { drip: '#a594bc', body: ['#e5dbf1', '#b8a7cf', '#786793'], inner: ['#c4b5d8', '#b0a0c8', '#9a8ab4'], ink: '#ffffff' },
 };
+
+/** The wax finish nearest a colour (for a design shown in its accent colour). */
+export function nearestWax(hex: string): SealColour {
+  const n = parseInt(hex.replace('#', '').slice(0, 6), 16);
+  if (Number.isNaN(n)) return 'Sandstone';
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  let best: SealColour = 'Sandstone';
+  let d0 = Infinity;
+  for (const [k, w] of Object.entries(WAX) as [SealColour, Wax][]) {
+    const m = parseInt(w.body[1].slice(1), 16);
+    const d = (((m >> 16) & 255) - c[0]!) ** 2 + (((m >> 8) & 255) - c[1]!) ** 2 + ((m & 255) - c[2]!) ** 2;
+    if (d < d0) [best, d0] = [k, d];
+  }
+  return best;
+}
 
 /** The colour a swatch shows for each finish. */
 export const sealSwatch = (c: SealColour) => (WAX[c] ?? WAX.Sandstone).body[1];
@@ -111,34 +125,27 @@ export function paperVars(paper: string | undefined, ink: string): Record<string
   };
 }
 
-// The drips around the edge (the design's own shapes): left, top, width, height, corners.
-const DRIPS: [string, string, string, string, string][] = [
-  ['-3%', '18%', '30%', '26%', '58% 42% 50% 50% / 46% 54% 46% 54%'],
-  ['68%', '-2%', '28%', '24%', '44% 56% 52% 48% / 55% 45% 55% 45%'],
-  ['76%', '60%', '24%', '26%', '52% 48% 40% 60% / 50% 50% 50% 50%'],
-  ['14%', '78%', '28%', '22%', '46% 54% 60% 40% / 40% 60% 40% 60%'],
-  ['44%', '85%', '16%', '14%', '50% 50% 46% 54% / 60% 40% 60% 40%'],
-  ['-2%', '54%', '14%', '18%', '56% 44% 50% 50% / 50% 50% 50% 50%'],
-];
+/**
+ * The wax as it pools under the stamp: one soft, uneven outline (a few gentle swells, never stuck-on blobs),
+ * the same for every seal so it looks like the same wax everywhere.
+ */
+const PUDDLE = (() => {
+  const n = 36;
+  const pts = Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    const r = 44.5 + 1.6 * Math.sin(3 * a + 1.3) + 1.1 * Math.sin(5 * a + 3) + 0.7 * Math.sin(8 * a + 0.9) + Math.max(0, Math.sin(2 * a + 2.2)) ** 6 * 2.2;
+    return [50 + Math.cos(a) * r, 50 + Math.sin(a) * r] as const;
+  });
+  const f = (v: number) => v.toFixed(2);
+  let d = `M${f(pts[0]![0])} ${f(pts[0]![1])}`;
+  for (let i = 0; i < n; i++) {
+    const [p0, p1, p2, p3] = [pts[(i - 1 + n) % n]!, pts[i]!, pts[(i + 1) % n]!, pts[(i + 2) % n]!];
+    d += ` C${f(p1[0] + (p2[0] - p0[0]) / 6)} ${f(p1[1] + (p2[1] - p0[1]) / 6)} ${f(p2[0] - (p3[0] - p1[0]) / 6)} ${f(p2[1] - (p3[1] - p1[1]) / 6)} ${f(p2[0])} ${f(p2[1])}`;
+  }
+  return `${d}Z`;
+})();
 
 const abs = (s: CSSProperties): CSSProperties => ({ position: 'absolute', ...s });
-
-/** A motif raised out of the wax: lit from the top left, shaded bottom right. */
-function Raised({ children, fill }: { children: ReactNode; fill: string }) {
-  return (
-    <>
-      <g transform="translate(.8 .9)" fill="rgba(0,0,0,.42)" stroke="rgba(0,0,0,.42)" strokeWidth={0}>
-        {children}
-      </g>
-      <g transform="translate(-.6 -.6)" fill="rgba(255,255,255,.4)" stroke="rgba(255,255,255,.4)" strokeWidth={0}>
-        {children}
-      </g>
-      <g fill={fill} stroke={fill} strokeWidth={0}>
-        {children}
-      </g>
-    </>
-  );
-}
 
 const leaf = (x: number, y: number, a: number, rx = 4.2, ry = 1.9) => <ellipse key={`${x}-${y}-${a}`} cx={x} cy={y} rx={rx} ry={ry} transform={`rotate(${a} ${x} ${y})`} />;
 
@@ -192,42 +199,50 @@ function Wreath() {
 
 const HEART = 'M50 68 C 44 62, 32 55, 32 45 C 32 38, 37 33, 43 33 C 46.5 33, 49 35, 50 38 C 51 35, 53.5 33, 57 33 C 63 33, 68 38, 68 45 C 68 55, 56 62, 50 68 Z';
 
-/** Words on the seal; "&" set smaller, as on the design's seal. */
-function Words({ words, letters, size, ink, k = 1 }: { words: string; letters: SealLetters; size: string; ink: string; k?: number }) {
+const rgb = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+
+/** About how many screen pixels the seal is drawn across (the light and shade are worked out in pixels). */
+const shownPx = (px?: number) => {
+  if (px) return px;
+  if (typeof window === 'undefined') return 130;
+  return Math.max(96, Math.min(150, 0.24 * Math.min(window.innerWidth || 600, window.innerHeight || 600)));
+};
+
+/** The words, as SVG text: "&" set smaller, as on a real stamp. */
+function SealText({ words, letters, size }: { words: string; letters: SealLetters; size: number }) {
   const parts = words.split('&');
+  const serif = letters === 'serif';
   return (
-    <div
-      style={abs({
-        inset: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        whiteSpace: 'nowrap',
-        fontFamily: "'Cormorant Garamond', Georgia, serif",
-        fontStyle: letters === 'serif' ? 'normal' : 'italic',
-        fontWeight: letters === 'serif' ? 600 : 500,
-        textTransform: letters === 'serif' ? 'uppercase' : undefined,
-        letterSpacing: letters === 'serif' ? '.05em' : '.02em',
-        fontSize: size,
-        lineHeight: 1,
-        backgroundImage: `linear-gradient(150deg, #ffffff 0%, ${ink} 40%, ${ink} 70%, ${mix(ink, '#000000', 0.12)} 100%)`,
-        WebkitBackgroundClip: 'text',
-        backgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        color: 'transparent',
-        filter: `drop-shadow(${-k}px ${-k}px 0 rgba(255,255,255,.3)) drop-shadow(${k}px ${k}px ${k}px rgba(0,0,0,.5))`,
-      })}
+    <text
+      x={50}
+      y={50 + size * (serif ? 0.36 : 0.32)}
+      textAnchor="middle"
+      fontFamily="'Cormorant Garamond', Georgia, serif"
+      fontStyle={serif ? 'normal' : 'italic'}
+      fontWeight={serif ? 700 : 600}
+      fontSize={size}
+      letterSpacing={serif ? size * 0.05 : 0}
+      style={serif ? { textTransform: 'uppercase' } : undefined}
     >
       {parts.map((p, i) => (
-        <span key={i}>
-          {i > 0 && <span style={{ fontSize: '.7em', margin: `0 ${(3 * k).toFixed(1)}px` }}>&amp;</span>}
+        <tspan key={i}>
+          {i > 0 && <tspan fontSize={size * 0.68}>{' & '}</tspan>}
           {p.trim()}
-        </span>
+        </tspan>
       ))}
-    </div>
+    </text>
   );
 }
 
+/**
+ * A real pressed wax seal, drawn as one SVG: the wax pooled in a soft uneven puddle, a raised lip where the
+ * stamp squeezed it out, the pressed well, and the initials (or flower, wreath, heart, date) standing up in
+ * it. The colour is the wax's own; a height map of all of it is then lit from the top left, so every edge has
+ * real light and shade, with a tight gloss (brighter on the metallic finishes).
+ */
 export function WaxSeal({
   colour,
   design,
@@ -247,98 +262,100 @@ export function WaxSeal({
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const w = WAX[colour] ?? WAX.Sandstone;
   const style = design?.style ?? 'classic';
-  // Drawn small (a swatch, the header): the light and shade shrink with it so it stays crisp, and the letters
-  // are clear capitals, a little larger (a fine script can't be read at that size).
-  const k = px ? Math.min(1, px / 110) : 1;
+  // Drawn small (a swatch, the header): clear capitals, a little larger (a fine script can't be read that small).
   const small = !!px && px < 64;
   const letters = small ? 'serif' : (design?.letters ?? 'script');
   const [hi, mid, lo] = w.body;
-  const [i1, i2, i3] = w.inner;
   const len = Math.max(1, words.replace(/\s/g, '').length);
   const scale = (style === 'single' ? 1.7 : style === 'date' ? 0.62 : style === 'wreath' ? 0.78 : 1) * Math.min(1, (style === 'date' ? 8 : 3.4) / Math.max(style === 'date' ? 8 : 3, len));
-  const size = px ? `${(px * (small ? 0.27 : 0.22) * scale).toFixed(1)}px` : `calc(clamp(20px,5.4vmin,34px) * ${scale.toFixed(3)})`;
+  const size = 22 * scale * (small ? 1.2 : 1);
   const rings = style === 'classic' || style === 'single' || style === 'heart';
-  const fill = `url(#wx${id})`;
-  return (
-    <div aria-hidden style={abs({ inset: 0 })}>
-      {DRIPS.map(([left, top, width, height, borderRadius], i) => (
-        <div key={i} style={abs({ left, top, width, height, borderRadius, background: w.drip })} />
-      ))}
-      <div
-        style={abs({
-          left: '4%',
-          top: '4%',
-          width: '92%',
-          height: '92%',
-          borderRadius: '48% 52% 46% 54% / 53% 47% 55% 45%',
-          background: `radial-gradient(circle at 32% 28%, ${hi} 0%, ${mid} 45%, ${lo} 100%)`,
-          boxShadow: `inset ${-3 * k}px ${-4 * k}px ${7 * k}px rgba(0,0,0,.28),inset ${2 * k}px ${2 * k}px ${5 * k}px rgba(255,255,255,.22)`,
-        })}
-      />
-      <div style={abs({ inset: '15%', borderRadius: '50%', background: `radial-gradient(circle, ${i1} 0%, ${i2} 70%, ${i3} 100%)` })} />
-      {/* A metallic finish catches the light round its rim. */}
-      {w.metal && (
-        <div
-          style={abs({
-            left: '4%',
-            top: '4%',
-            width: '92%',
-            height: '92%',
-            borderRadius: '48% 52% 46% 54% / 53% 47% 55% 45%',
-            mixBlendMode: 'soft-light',
-            background: 'conic-gradient(from 200deg, rgba(255,255,255,0) 0deg, rgba(255,255,255,.75) 45deg, rgba(255,255,255,0) 95deg, rgba(0,0,0,.18) 150deg, rgba(255,255,255,0) 200deg, rgba(255,255,255,.55) 250deg, rgba(255,255,255,0) 300deg)',
-          })}
-        />
-      )}
-      {/* The wax's gloss. */}
-      <div style={abs({ left: '16%', top: '11%', width: '30%', height: '15%', borderRadius: '50%', transform: 'rotate(-28deg)', background: `radial-gradient(closest-side, rgba(255,255,255,${w.metal ? 0.7 : 0.45}), rgba(255,255,255,0))` })} />
-      <div style={abs({ inset: '15%', borderRadius: '50%', boxShadow: `inset ${3 * k}px ${4 * k}px ${7 * k}px rgba(0,0,0,.45),inset ${-2 * k}px ${-2 * k}px ${4 * k}px rgba(255,255,255,.28),0 0 0 ${2 * k}px rgba(255,255,255,.12),0 0 0 ${4 * k}px rgba(0,0,0,.12)` })} />
-      {rings && (
+  // The lighting works in device pixels, so its depth follows the size it's shown at.
+  const dpr = typeof window === 'undefined' ? 1 : Math.min(3, window.devicePixelRatio || 1);
+  const depth = ((3.6 * shownPx(px) * dpr) / 100).toFixed(2);
+  const sh = rgb(lo).map((v) => ((v * 0.45) / 255).toFixed(3));
+  const motif = (
+    <>
+      {style === 'floral' && <Bloom />}
+      {style === 'wreath' && <Wreath />}
+      {style === 'heart' && <path d={HEART} />}
+      {style === 'date' && (
         <>
-          <div
-            style={abs({
-              inset: '19%',
-              borderRadius: '50%',
-              background: 'repeating-conic-gradient(rgba(255,255,255,.32) 0 4deg, transparent 4deg 12deg)',
-              WebkitMaskImage: 'radial-gradient(circle, transparent 0 66%, #000 67% 72%, transparent 73%)',
-              maskImage: 'radial-gradient(circle, transparent 0 66%, #000 67% 72%, transparent 73%)',
-            })}
-          />
-          {style !== 'single' && <div style={abs({ inset: '27%', borderRadius: '50%', border: '1px solid rgba(255,255,255,.22)', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.15)' })} />}
+          <circle cx={50} cy={50} r={25.5} fill="none" strokeWidth={0.8} />
+          {[-1, 1].map((d) => (
+            <g key={d}>
+              <path d={`M ${50 - 9} ${50 + d * 12} L ${50 + 9} ${50 + d * 12}`} fill="none" strokeWidth={0.8} />
+              <circle cx={50} cy={50 + d * 12} r={1.4} />
+            </g>
+          ))}
         </>
       )}
-      {(style === 'floral' || style === 'wreath' || style === 'heart' || style === 'date') && (
-        <svg viewBox="0 0 100 100" style={abs({ inset: 0, width: '100%', height: '100%', overflow: 'visible' })}>
-          <defs>
-            <linearGradient id={`wx${id}`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#ffffff" />
-              <stop offset=".4" stopColor={w.ink} />
-              <stop offset="1" stopColor={mix(w.ink, '#000000', 0.15)} />
-            </linearGradient>
-          </defs>
-          <Raised fill={fill}>
-            {style === 'floral' && <Bloom />}
-            {style === 'wreath' && <Wreath />}
-            {style === 'heart' && <path d={HEART} />}
-            {style === 'date' && (
+      {words && style !== 'floral' && style !== 'heart' && <SealText words={words} letters={letters} size={size} />}
+    </>
+  );
+  return (
+    <div aria-hidden style={abs({ inset: 0 })}>
+      <svg viewBox="0 0 100 100" style={abs({ inset: 0, width: '100%', height: '100%', overflow: 'visible' })}>
+        <defs>
+          <radialGradient id={`wb${id}`} cx=".36" cy=".3" r=".85">
+            <stop offset="0" stopColor={hi} />
+            <stop offset=".5" stopColor={mid} />
+            <stop offset="1" stopColor={lo} />
+          </radialGradient>
+          <radialGradient id={`ww${id}`} cx=".6" cy=".66" r=".75">
+            <stop offset="0" stopColor={mid} />
+            <stop offset="1" stopColor={lo} stopOpacity=".9" />
+          </radialGradient>
+          <filter id={`wr${id}`} x="-8%" y="-8%" width="116%" height="116%" colorInterpolationFilters="sRGB">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="h" />
+            <feDiffuseLighting in="h" surfaceScale={depth} diffuseConstant={0.7071} lightingColor="#fff" result="l">
+              <feDistantLight azimuth={225} elevation={45} />
+            </feDiffuseLighting>
+            <feColorMatrix in="l" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  2.2 0 0 0 -1.1" result="hl" />
+            <feColorMatrix in="l" type="matrix" values={`0 0 0 0 ${sh[0]}  0 0 0 0 ${sh[1]}  0 0 0 0 ${sh[2]}  -2.2 0 0 0 1.05`} result="sh" />
+            <feSpecularLighting in="h" surfaceScale={depth} specularConstant={w.metal ? 1 : 0.75} specularExponent={w.metal ? 18 : 34} lightingColor="#fff" result="sp">
+              <feDistantLight azimuth={225} elevation={50} />
+            </feSpecularLighting>
+            <feComposite in="sp" in2="SourceAlpha" operator="in" result="sp2" />
+            <feMerge>
+              <feMergeNode in="sh" />
+              <feMergeNode in="hl" />
+              <feMergeNode in="sp2" />
+            </feMerge>
+          </filter>
+          <filter id={`we${id}`} x="-10%" y="-10%" width="120%" height="120%">
+            <feGaussianBlur stdDeviation="1.8" />
+          </filter>
+          <clipPath id={`wc${id}`}>
+            <path d={PUDDLE} />
+          </clipPath>
+        </defs>
+        {/* The wax's colour: the puddle, the pressed well a little deeper, and the motif catching the light. */}
+        <path d={PUDDLE} fill={`url(#wb${id})`} />
+        <circle cx={50} cy={50} r={29.6} fill={`url(#ww${id})`} opacity={0.9} />
+        <g fill={hi} stroke={hi} strokeWidth={0} opacity={0.55}>
+          {motif}
+        </g>
+        {/* Its shape, lit: the rounded edge, the lip, the rings and the raised motif. */}
+        <g clipPath={`url(#wc${id})`}>
+          <g filter={`url(#wr${id})`} fill="#fff" stroke="#fff" strokeWidth={0}>
+            <path d={PUDDLE} fillOpacity={0.6} filter={`url(#we${id})`} />
+            <circle cx={50} cy={50} r={31.6} fill="none" strokeOpacity={0.9} strokeWidth={5.5} />
+            {rings && (
               <>
-                <circle cx={50} cy={50} r={29} fill="none" strokeWidth={0.8} />
-                <circle cx={50} cy={50} r={26.5} fill="none" strokeWidth={0.4} />
-                {[-1, 1].map((d) => (
-                  <g key={d}>
-                    <path d={`M ${50 - 9} ${50 + d * 12} L ${50 + 9} ${50 + d * 12}`} fill="none" strokeWidth={0.7} />
-                    <circle cx={50} cy={50 + d * 12} r={1.4} />
-                  </g>
-                ))}
+                <circle cx={50} cy={50} r={26.6} fill="none" strokeOpacity={0.35} strokeWidth={1} />
+                {style !== 'single' && <circle cx={50} cy={50} r={24.3} fill="none" strokeOpacity={0.3} strokeWidth={0.9} strokeDasharray=".05 2" strokeLinecap="round" />}
               </>
             )}
-          </Raised>
-        </svg>
-      )}
-      {words && style !== 'floral' && style !== 'heart' && <Words words={words} letters={letters} size={size} ink={w.ink} k={k} />}
+            <g fillOpacity={0.95} strokeOpacity={0.95}>
+              {motif}
+            </g>
+          </g>
+        </g>
+      </svg>
       {/* A slow gleam across the face (transform only; none for those who ask for less motion). */}
       {!still && (
-        <div style={abs({ left: '4%', top: '4%', width: '92%', height: '92%', borderRadius: '50%', overflow: 'hidden' })}>
+        <div style={abs({ left: '6%', top: '6%', width: '88%', height: '88%', borderRadius: '50%', overflow: 'hidden' })}>
           <div className="wax-gleam" style={abs({ top: 0, bottom: 0, left: '-70%', width: '60%', mixBlendMode: 'soft-light', background: `linear-gradient(105deg, rgba(255,255,255,0), rgba(255,255,255,${w.metal ? 0.85 : 0.5}), rgba(255,255,255,0))` })} />
         </div>
       )}
