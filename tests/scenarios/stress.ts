@@ -1068,8 +1068,9 @@ async function checkAll(
     const guest = sample.find((h) => isInvited(w, h, e.key)) ?? H.find((h) => isInvited(w, h, e.key));
     const bare = await call('GET /p/:slug/calendar/:event.ics', 'GET', `/p/${w.slug}/calendar/${encodeURIComponent(e.key)}.ics`, { ip: b.ip() });
     check(bare.status === (w.isPublic ? 200 : 404), 'an event’s calendar file is public only for public weddings', () => `${bare.status} (public ${w.isPublic})`);
+    // (Nobody invited to this event yet: on a private wedding there's no one to open it.)
     const mineCal = guest ? await call('GET /p/:slug/calendar/:event.ics?g', 'GET', `/p/${w.slug}/calendar/${encodeURIComponent(e.key)}.ics?g=${guest.token}`, { ip: b.ip() }) : bare;
-    check(mineCal.status === 200, 'a guest can add their event to their calendar', () => `${mineCal.status} (public ${w.isPublic})`);
+    if (guest || w.isPublic) check(mineCal.status === 200, 'a guest can add their event to their calendar', () => `${mineCal.status} (public ${w.isPublic})`);
     if (mineCal.status === 200) {
       const ics = icsProblems(mineCal.text);
       check(!ics.problems.length, 'event calendar file is valid', () => `${e.key}: ${ics.problems.slice(0, 3).join('; ')}`);
