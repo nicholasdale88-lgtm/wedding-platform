@@ -273,6 +273,15 @@ const p95 = (xs: number[]) => {
   return s[Math.min(s.length - 1, Math.floor(s.length * 0.95))] ?? 0;
 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/**
+ * Plain ASCII for the job log and its annotations: anything else written as \u{…}. (Half an emoji, cut by a
+ * slice, crashes the CI runner's own logging.)
+ */
+const ascii = (s: string) =>
+  s
+    .replace(/[’‘]/g, "'")
+    .replace(/[—–]/g, '-')
+    .replace(/[^\x20-\x7e\n]/gu, (c) => `\\u{${(c.codePointAt(0) ?? 0).toString(16)}}`);
 
 // ------------------------------------------------------------------------------------------------ one database, several weddings
 
@@ -1145,7 +1154,7 @@ export function stressPart(part: number, parts: number) {
         if (logged.length > 50) logged.splice(0, logged.length - 50);
       });
       vi.spyOn(console, 'log').mockImplementation(() => {}); // the cron's and app's own logs
-      const say = (s: string) => process.stdout.write(`${s}\n`);
+      const say = (s: string) => process.stdout.write(`${ascii(s)}\n`);
 
       for (let s = 0; s < mine.length; s += BATCH) {
         const ids = mine.slice(s, s + BATCH);
@@ -1216,7 +1225,7 @@ export function stressPart(part: number, parts: number) {
         ...[...byCheck].map(([k, fs]) => `- ${fs.length}x ${k} (e.g. wedding ${fs[0]!.wedding}: ${fs[0]!.detail.slice(0, 220)})`),
         ...[...by5].map(([k, es]) => `- ${es.length}x ${k}: ${es[0]!.body.slice(0, 160)} ${es[0]!.logged.slice(0, 160)}`),
       ].join('\n');
-      expect(failures.length + serverErrors.length, summary).toBe(0);
+      expect(failures.length + serverErrors.length, ascii(summary)).toBe(0);
     });
   });
 }
