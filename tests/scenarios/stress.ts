@@ -329,6 +329,8 @@ class Batch {
         head: async (k: string) => (bucket.has(k) ? { size: bucket.get(k)!.byteLength } : null),
         delete: async (k: string) => void bucket.delete(k),
       } as unknown as R2Bucket,
+      STRIPE_SECRET_KEY: 'sk_test_stress_only',
+      STRIPE_WEBHOOK_SECRET: 'whsec_stress_only',
       AI: { run: async () => ({ response: 'Start with the venue and the date, then the guest list.' }) },
     };
   }
@@ -537,6 +539,11 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
   w.cookie = (su.headers.get('set-cookie') ?? '').split(';')[0]!;
   // Couples can't choose a time zone in the app yet (every sign-up is Sydney): set as the platform would.
   await b.t.db.prepare(`UPDATE wedding SET timezone = ? WHERE id = ?`).bind(w.tz, w.id).run();
+  // Some pay by card (Stripe mocked): the card page opens; the plan is switched on below, as the webhook would.
+  if (rng.chance(0.2)) {
+    const pay = await call('POST /a/w/:wid/plan/checkout', 'POST', `/a/w/${w.id}/plan/checkout`, { cookie: w.cookie, body: { what: w.plan, textsAck: true } });
+    check(pay.status === 200 && pay.json<{ url: string }>().url.startsWith('https://'), 'paying by card opens the card page', () => `${pay.status} ${pay.text.slice(0, 150)}`);
+  }
   const included = w.plan === 'complete' ? 2 : 1;
   await must(call('PUT /a/super/plan', 'PUT', '/a/super/plan', { cookie: b.platform, body: { slug: w.slug, plan: w.plan, extraEvents: Math.max(0, w.events.length - included) } }), 200, 'plan');
   if (w.isPublic) await must(call('PUT /a/w/:wid/privacy', 'PUT', `/a/w/${w.id}/privacy`, { cookie: w.cookie, body: { private: false } }), 200, 'privacy');
@@ -867,6 +874,12 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
         check(r.status === 200, 'an enquiry proposal can be declined', () => `${r.status}`);
       }
     }
+  }
+
+  // The planning assistant (the AI mocked).
+  if (w.plan !== 'basic' && rng.chance(0.1)) {
+    const ask = await admin('/planner/ask', 'POST', '/planner/ask', { question: 'What should we book first?' });
+    check(ask.status === 200 && !!ask.json<{ answer: string }>().answer, 'the planning assistant answers', () => `${ask.status} ${ask.text.slice(0, 120)}`);
   }
 
   // 12. Late changes, after the seating, meals and vendor are set: a few say no, change how many, change their needs.
