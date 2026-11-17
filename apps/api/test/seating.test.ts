@@ -44,6 +44,43 @@ describe('seating API', () => {
     expect(s.people.some((p) => p.tableId)).toBe(true);
   });
 
+  it('a save that hits a busy database can simply be tried again: never "updated elsewhere" for your own save (stress run)', async () => {
+    const s = await get();
+    const someone = s.people.find((p) => p.coming)!;
+    const other = s.tables.find((x) => x.id !== someone.tableId)!;
+    // The database is busy for the plan's batch (after the version was claimed).
+    const real = env.DB;
+    let failed = false;
+    let claimed = false;
+    env.DB = new Proxy(real, {
+      get(target, prop) {
+        if (prop === 'prepare')
+          return (sql: string) => {
+            if (/^UPDATE wedding SET version = version \+ 1/.test(sql)) claimed = true;
+            return target.prepare(sql);
+          };
+        if (prop === 'batch')
+          return async (stmts: D1PreparedStatement[]) => {
+            if (claimed && !failed) {
+              failed = true;
+              throw new Error('D1_ERROR: database is busy');
+            }
+            return target.batch(stmts);
+          };
+        const v = Reflect.get(target, prop) as unknown;
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const busy = await put(s, { seats: { [someone.id]: other.id } });
+    expect(busy.status).toBe(503);
+    expect(failed).toBe(true);
+    env.DB = real;
+    // The page tries again with the same version: it saves.
+    const again = await put(s, { seats: { [someone.id]: other.id } });
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as Seating).people.find((p) => p.id === someone.id)!.tableId).toBe(other.id);
+  });
+
   it('adds, moves and removes tables, seats people, and the guide shows it', async () => {
     const s = await get();
     const gone = s.tables[0]!;

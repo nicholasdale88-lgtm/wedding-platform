@@ -201,6 +201,26 @@ export async function loadSeating(db: D1Database, weddingId: string, eventKey?: 
     };
 }
 
+/**
+ * The changes after a version claim (UPDATE wedding SET version = version + 1). If they fail (the database briefly
+ * busy), the claim is given back: the page's automatic retry then saves, instead of being told "Updated
+ * elsewhere" and losing the couple's edit (found by the stress run).
+ */
+async function afterClaim(db: D1Database, weddingId: string, version: number, stmts: D1PreparedStatement[]) {
+  try {
+    await db.batch(stmts);
+  } catch (e) {
+    await db.prepare(`UPDATE wedding SET version = ? WHERE id = ? AND version = ?`).bind(version, weddingId, version + 1).run().catch(() => undefined);
+    throw e;
+  }
+}
+
+/** The plan as saved. Its baseline is a nicety: the save already stands, so a busy moment there never fails it. */
+async function savedView(db: D1Database, weddingId: string, eventKey: string) {
+  const kept = await keepBaseline(db, weddingId, eventKey).catch(() => null);
+  return (kept ?? (await loadSeating(db, weddingId, eventKey)))!.view;
+}
+
 /** Remember who is on the plan now (after a save), so the next visit can say what changed since. */
 export async function keepBaseline(db: D1Database, weddingId: string, eventKey: string) {
   const s = await loadSeating(db, weddingId, eventKey);
@@ -305,8 +325,8 @@ export function seatingRoutes() {
       ),
     );
 
-    await db.batch(stmts);
-    return c.json((await keepBaseline(db, wid(c), b.event))!.view);
+    await afterClaim(db, wid(c), v, stmts);
+    return c.json(await savedView(db, wid(c), b.event));
   });
 
   /**
@@ -354,7 +374,7 @@ export function seatingRoutes() {
     const now = new Date().toISOString();
     const claim = await db.prepare(`UPDATE wedding SET version = version + 1, updated_at = ? WHERE id = ? AND version = ?`).bind(now, wid(c), v).run();
     if (!claim.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
-    await db.batch([
+    await afterClaim(db, wid(c), v, [
       db
         .prepare(`INSERT INTO seat_publish (event_id, snapshot, published_at, published_by) VALUES (?1, ?2, ?3, ?4) ON CONFLICT (event_id) DO UPDATE SET snapshot = ?2, published_at = ?3, published_by = ?4`)
         .bind(loaded.eventId, JSON.stringify(loaded.publishable), now, c.get('user').id),
@@ -498,8 +518,8 @@ export function seatingRoutes() {
     }
     stmts.push(unseatEveryoneNotComing(db, ev));
     stmts.push(db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'seating.current', ?, ?, ?)`).bind(crypto.randomUUID(), wid(c), c.get('user').id, v.key, JSON.stringify({ name: v.name }), now));
-    await db.batch(stmts);
-    return c.json((await keepBaseline(db, wid(c), v.key))!.view);
+    await afterClaim(db, wid(c), ver, stmts);
+    return c.json(await savedView(db, wid(c), v.key));
   });
 
   return app;
