@@ -140,10 +140,14 @@ describe('photo links', () => {
     expect((await t.db.prepare(`SELECT status FROM photo_copy`).first<{ status: string }>())!.status).toBe('done');
   });
 
-  it('planning files go to the linked Dropbox when chosen (and still open from the planner)', async () => {
+  it('signing in is all it takes: planning files go to the linked Dropbox straight away (and still open from the planner)', async () => {
     await link();
-    const { links } = (await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { id: string; docs: boolean }[] };
-    expect(links[0]!.docs).toBe(false);
+    const list = async () => ((await (await call(`/a/w/${wid}/photo-links`)).json()) as { links: { id: string; docs: boolean }[] }).links;
+    const links = await list();
+    expect(links[0]!.docs).toBe(true); // on from the start, no extra step
+    // They can still keep planning files on the site instead, and turn it back on.
+    expect((await call(`/a/w/${wid}/photo-links/${links[0]!.id}/docs`, { method: 'PUT', body: JSON.stringify({ on: false }) })).status).toBe(200);
+    expect((await list())[0]!.docs).toBe(false);
     expect((await call(`/a/w/${wid}/photo-links/${links[0]!.id}/docs`, { method: 'PUT', body: JSON.stringify({ on: true }) })).status).toBe(200);
     const up = await call(`/a/w/${wid}/planner/files`, { method: 'POST', body: JSON.stringify({ name: 'Florist quote.pdf', type: 'application/pdf', data: btoa('%PDF-1.4 quote') }) });
     expect(up.status).toBe(200);

@@ -111,9 +111,11 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
     }
   };
   const drive = d.providers.find((p) => p.key === 'gdrive');
+  // Switched on for the site, Google Drive first.
+  const ready = d.providers.filter((p) => p.ready).sort((a, b) => Number(b.key === 'gdrive') - Number(a.key === 'gdrive'));
   const notReady = d.providers.filter((p) => !p.ready);
   // Google Drive first; the others (and Drive too, once something else is linked) under "somewhere else".
-  const elsewhere = d.providers.filter((p) => p.ready && !d.links.some((l) => l.provider === p.key) && (p.key !== 'gdrive' || d.links.length > 0));
+  const elsewhere = d.links.length ? d.providers.filter((p) => p.ready && !d.links.some((l) => l.provider === p.key)) : [];
 
   return (
     <section aria-label="Where photos are saved" className="flex flex-col gap-3 p-4 rounded-[14px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
@@ -186,16 +188,18 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
         </div>
       ))}
 
-      {!d.links.length && drive?.ready && (
-        <div className="flex flex-col gap-2 py-3 px-3 rounded-[10px] bg-white border border-[var(--adm-line,#e2d7bc)]">
-          <ol className="m-0 pl-5 flex flex-col gap-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">
-            <li>Tap Connect and choose your Google account.</li>
-            <li>Allow access. This site can only see the folder it makes, nothing else in your Drive.</li>
-            <li>That’s it: your folders appear in your Drive, and photos start arriving.</li>
-          </ol>
-          <Pill kind="primary" className="self-start" disabled={!!busy} onClick={() => void connect('gdrive')}>
-            {busy === 'gdrive' ? 'Opening Google…' : 'Connect Google Drive'}
-          </Pill>
+      {/* Nothing linked yet: every service that's switched on, side by side. Sign in, allow, done. */}
+      {!d.links.length && ready.length > 0 && (
+        <div className="flex flex-col gap-3 py-3 px-3 rounded-[10px] bg-white border border-[var(--adm-line,#e2d7bc)]">
+          <span className="text-[14px]">Choose where, sign in and allow access. That’s all: your folders are made and photos start arriving straight away.</span>
+          <div className="grid gap-2 grid-cols-[repeat(auto-fill,minmax(min(100%,180px),1fr))]">
+            {ready.map((p, i) => (
+              <Pill key={p.key} kind={i === 0 ? 'primary' : 'outline'} disabled={!!busy} onClick={() => void connect(p.key)}>
+                {busy === p.key ? 'Opening…' : `Sign in to ${p.name}`}
+              </Pill>
+            ))}
+          </div>
+          <span className="text-[12px] text-[#7a7466]">This site only ever sees the folder it makes for you, nothing else in your account.</span>
         </div>
       )}
       {!d.links.length && drive && !drive.ready && !d.canSetUp && (
@@ -205,7 +209,7 @@ export function PhotoLinksPanel({ onChanged }: { onChanged: () => void }) {
       {elsewhere.length > 0 && (
         <div className="flex flex-col gap-2">
           <button type="button" aria-expanded={others} onClick={() => setOthers((x) => !x)} className="self-start p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-muted,#5b6a52)]">
-            {d.links.length ? 'Also save somewhere else' : `Use ${elsewhere.map((p) => p.name).join(', ')} instead`}
+            Also save somewhere else
           </button>
           {others && (
             <div className="flex gap-2 flex-wrap">

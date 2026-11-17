@@ -210,6 +210,11 @@ export function oauthRoutes() {
         c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, at) VALUES (?, ?, ?, ?, ?, ?)`).bind(crypto.randomUUID(), row.wedding_id, row.user_id, had ? 'photos.relink' : 'photos.link', id, now),
         // Photos already taken go there too, without anyone having to ask.
         ...queueCopies(c.env.DB, id, row.wedding_id),
+        // Signing in is all it takes: the first storage linked (other than Google Photos, which only takes
+        // photos) keeps the planning files too, unless they've already chosen one.
+        ...(row.provider === 'gphotos'
+          ? []
+          : [c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.docsLink', ?) WHERE id = ? AND json_valid(content) AND json_extract(content, '$.docsLink') IS NULL`).bind(id, row.wedding_id)]),
       ]);
       c.executionCtx.waitUntil(runCopies(c.env, { linkId: id, limit: 25 }).catch(() => undefined));
       // Filed straight away: the couple sees the folders in their storage as soon as they look.
