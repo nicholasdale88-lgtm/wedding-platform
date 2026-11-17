@@ -210,8 +210,20 @@ async function afterClaim(db: D1Database, weddingId: string, version: number, st
   try {
     await db.batch(stmts);
   } catch (e) {
-    await db.prepare(`UPDATE wedding SET version = ? WHERE id = ? AND version = ?`).bind(version, weddingId, version + 1).run().catch(() => undefined);
+    await giveBack(() => db.prepare(`UPDATE wedding SET version = ? WHERE id = ? AND version = ?`).bind(version, weddingId, version + 1).run());
     throw e;
+  }
+}
+
+/** Gives a claimed version back, trying a few times (it is usually still busy for a moment). */
+export async function giveBack(run: () => Promise<unknown>) {
+  for (let i = 0; i < 4; i++) {
+    try {
+      await run();
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 50 * (i + 1)));
+    }
   }
 }
 

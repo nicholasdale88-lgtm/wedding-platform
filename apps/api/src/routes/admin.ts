@@ -10,6 +10,7 @@ import type { Env } from '../env';
 import { estimate, sendNow, type EngineDeps } from '../sms/engine';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 import { plannerNeedsYou } from './planner';
+import { giveBack } from './seating';
 
 /** The invitation's wax seal: its colour and design, read one field at a time so one odd field never hides the rest. */
 function sealOf(invitation: unknown) {
@@ -105,7 +106,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       await c.env.DB.batch(stmts);
     } catch (e) {
       const v = Number(c.req.header('If-Match'));
-      await c.env.DB.prepare(`UPDATE invitation SET version = ? WHERE id = ? AND wedding_id = ? AND version = ?`).bind(v, invitationId, wid(c), v + 1).run().catch(() => undefined);
+      await giveBack(() => c.env.DB.prepare(`UPDATE invitation SET version = ? WHERE id = ? AND wedding_id = ? AND version = ?`).bind(v, invitationId, wid(c), v + 1).run());
       throw e;
     }
   }
