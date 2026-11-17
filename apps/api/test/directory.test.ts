@@ -68,6 +68,41 @@ describe('vendor directory', () => {
     expect(other.slug).toBe('wildflower-studio-2');
   });
 
+  it('one email can be a couple and a vendor: the same passcode adds the other, both sign-ins work, the switcher shows both (YL-12)', async () => {
+    const couple = { firstName: 'Jess', partnerName: 'Sam', email: 'jess@wildflower.example', passcode: 'long-enough-1', date: '2027-03-14', plan: 'essentials', marketing: false, website: '' };
+    const signup = (over: Record<string, unknown> = {}, ip = '6.0.0.1') => call('/a/signup', { method: 'POST', body: JSON.stringify({ ...couple, ...over }) }, '', ip);
+    expect((await signup()).status).toBe(200);
+    // Joining as a vendor with that email: not with a different passcode (that would take over the account).
+    const wrong = await join({ passcode: 'someone-else-9' }, '6.0.0.2');
+    expect(wrong.status).toBe(409);
+    expect(((await wrong.json()) as { error: { message: string } }).error.message).toMatch(/passcode/);
+    // With the account's own passcode: the listing is added to the same account.
+    const ok = await join({}, '6.0.0.3');
+    expect(ok.status).toBe(200);
+    expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM user WHERE email = 'jess@wildflower.example'`).first<{ n: number }>())!.n).toBe(1);
+    // One sign-in reaches both: the wedding and the listing.
+    const login = await call('/a/auth/login', { method: 'POST', body: JSON.stringify({ email: 'jess@wildflower.example', passcode: 'long-enough-1' }) }, '', '6.0.0.4');
+    expect(login.status).toBe(200);
+    const me = (await (await call('/a/me', {}, cookieOf(login))).json()) as { weddings: { slug: string }[]; vendor: { slug: string } | null };
+    expect(me.weddings.map((w) => w.slug)).toEqual(['jess-and-sam']);
+    expect(me.vendor?.slug).toBe('wildflower-studio');
+    // A second listing, or a second wedding, still signs in instead.
+    expect((await join({}, '6.0.0.5')).status).toBe(409);
+    expect((await signup({}, '6.0.0.6')).status).toBe(409);
+  });
+
+  it('a vendor can add their own wedding with the same email and passcode (YL-12)', async () => {
+    expect((await join({ email: 'kai@example.com' }, '7.0.0.1')).status).toBe(200);
+    const signup = (passcode: string, ip: string) =>
+      call('/a/signup', { method: 'POST', body: JSON.stringify({ firstName: 'Kai', partnerName: 'Ari', email: 'kai@example.com', passcode, date: '', plan: 'free', marketing: false, website: '' }) }, '', ip);
+    expect((await signup('not-the-same-1', '7.0.0.2')).status).toBe(409);
+    const res = await signup('long-enough-1', '7.0.0.3');
+    expect(res.status).toBe(200);
+    const me = (await (await call('/a/me', {}, cookieOf(res))).json()) as { weddings: { slug: string }[]; vendor: { slug: string } | null };
+    expect(me.weddings.map((w) => w.slug)).toEqual(['kai-and-ari']);
+    expect(me.vendor?.slug).toBe('wildflower-studio');
+  });
+
   it('refuses bad listings, ignores bots, and limits joining from one place', async () => {
     expect((await join({ region: 'atlantis' }, '4.0.0.1')).status).toBe(400);
     expect((await join({ category: 'astrologer' }, '4.0.0.2')).status).toBe(400);

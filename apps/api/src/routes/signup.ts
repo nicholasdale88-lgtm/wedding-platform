@@ -1,7 +1,7 @@
 import { cleanRef, zonedToUtc } from '@wp/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { hashPasscode, passcodeProblem } from '../lib/auth';
+import { hashPasscode, passcodeProblem, verifyPasscode } from '../lib/auth';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { addressFree, inboxDomain } from '../lib/weddingMail';
@@ -60,8 +60,13 @@ export function signupRoutes() {
     const weak = passcodeProblem(b.passcode);
     if (weak) return err(400, 'weak_passcode', weak);
     const db = c.env.DB;
-    if (await db.prepare(`SELECT 1 FROM user WHERE email = ?`).bind(b.email).first()) {
-      return err(409, 'exists', 'There is already an account with that email. Sign in instead.');
+    // One email can be a vendor and a couple: an account with no wedding yet (a vendor's) gets one added,
+    // once its own passcode is given here. An account that already has a wedding signs in instead.
+    const existing = await db.prepare(`SELECT id, pass_hash FROM user WHERE email = ?`).bind(b.email).first<{ id: string; pass_hash: string | null }>();
+    if (existing) {
+      if (await db.prepare(`SELECT 1 FROM membership WHERE user_id = ?`).bind(existing.id).first()) return err(409, 'exists', 'There is already an account with that email. Sign in instead.');
+      if (!(await verifyPasscode(b.passcode, existing.pass_hash)))
+        return err(409, 'exists', 'There is already an account with that email (your vendor listing’s, perhaps). Use that account’s passcode here to add your wedding to it, or sign in.');
     }
     const tz = 'Australia/Sydney';
     // The wedding's address: "alex-and-sam", made unique.
@@ -71,7 +76,7 @@ export function signupRoutes() {
     let slug = base;
     for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
     const now = new Date().toISOString();
-    const userId = crypto.randomUUID();
+    const userId = existing?.id ?? crypto.randomUUID();
     const weddingId = crypto.randomUUID();
     // The wedding day at 3pm where they are (they set the real time in Setup).
     const startsAt = b.date ? zonedToUtc(`${b.date}T15:00`, tz).toISOString() : zonedToUtc(`${new Date().getUTCFullYear() + 1}-01-01T15:00`, tz).toISOString();
@@ -85,9 +90,13 @@ export function signupRoutes() {
     const inbox = domain && (await addressFree(db, `${slug}@${domain}`, weddingId)) ? { inbox: { address: `${slug}@${domain}` } } : {};
     const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...inbox, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
     const stmts: D1PreparedStatement[] = [
-      db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
-        userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
-      ),
+      ...(existing
+        ? []
+        : [
+            db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+              userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
+            ),
+          ]),
       // Staging only (no texts, emails or payments there): every feature, to try it all.
       db.prepare(`INSERT INTO wedding (id, slug, name1, name2, monogram, timezone, content, plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '${c.env.STAGING === '1' ? 'complete' : 'free'}', ?, ?)`).bind(
         weddingId, slug, b.firstName, b.partnerName, monogram, tz, content, now, now,

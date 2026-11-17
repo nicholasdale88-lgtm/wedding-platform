@@ -1,7 +1,7 @@
 import { Enquiry, ListingFields, ListingJoin, ListingPackage, Promos, regionOf, REGIONS, type Listing, type ListingCard } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { hashPasscode, passcodeProblem } from '../lib/auth';
+import { hashPasscode, passcodeProblem, verifyPasscode } from '../lib/auth';
 import { cellOf, kmBetween } from '../lib/directory';
 import { buttonEmail, sendEmail } from '../lib/email';
 import { allow } from '../lib/rateLimit';
@@ -186,21 +186,32 @@ export function directoryRoutes() {
     const weak = passcodeProblem(f.passcode);
     if (weak) return err(c, 400, 'weak_passcode', weak);
     const db = c.env.DB;
-    if (await db.prepare(`SELECT 1 FROM user WHERE email = ?`).bind(f.email).first()) return err(c, 409, 'exists', 'There is already an account with that email. Sign in instead.');
+    // One email can be a couple and a vendor: an account that has no listing yet (a couple's) gets one added,
+    // once its own passcode is given here. Never a second listing, and never without the passcode.
+    const existing = await db.prepare(`SELECT id, pass_hash FROM user WHERE email = ?`).bind(f.email).first<{ id: string; pass_hash: string | null }>();
+    if (existing) {
+      if (await db.prepare(`SELECT 1 FROM vendor_listing WHERE user_id = ?`).bind(existing.id).first()) return err(c, 409, 'exists', 'That email already has a listing. Sign in to it instead.');
+      if (!(await verifyPasscode(f.passcode, existing.pass_hash)))
+        return err(c, 409, 'exists', 'There is already an account with that email (your wedding’s, perhaps). Use that account’s passcode here to add your listing to it, or sign in.');
+    }
     const base = slugPart(f.name);
     const { results: taken } = await db.prepare(`SELECT slug FROM vendor_listing WHERE slug = ? OR slug LIKE ?`).bind(base, `${base}-%`).all<{ slug: string }>();
     const used = new Set(taken.map((r) => r.slug));
     let slug = base;
     for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
     const now = new Date().toISOString();
-    const userId = crypto.randomUUID();
+    const userId = existing?.id ?? crypto.randomUUID();
     const id = crypto.randomUUID();
     const regions = [...new Set(f.regions.filter((r) => r !== f.region))];
     try {
       await db.batch([
-        db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`).bind(
-          userId, f.email, f.contactName || f.name, await hashPasscode(f.passcode), f.contactName.split(' ')[0] ?? '', now, now, now,
-        ),
+        ...(existing
+          ? []
+          : [
+              db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`).bind(
+                userId, f.email, f.contactName || f.name, await hashPasscode(f.passcode), f.contactName.split(' ')[0] ?? '', now, now, now,
+              ),
+            ]),
         db.prepare(
           `INSERT INTO vendor_listing (id, user_id, slug, name, category, region, regions, contact_name, email, phone, website, instagram, about, price_from, photos, packages, hidden, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
