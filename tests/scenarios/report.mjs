@@ -19,8 +19,8 @@ const pct = (xs, q) => {
   return s[Math.min(s.length - 1, Math.floor(s.length * q))] ?? 0;
 };
 const routes = [...lat].map(([route, xs]) => ({ route, n: xs.length, p50: pct(xs, 0.5), p95: pct(xs, 0.95), max: Math.max(...xs) })).sort((a, b) => b.p95 - a.p95);
-const sum = (k) => parts.reduce((a, p) => a + p[k], 0);
-const head = `Stress (seed ${parts[0].seed}): ${sum('passed')}/${sum('weddings')} weddings passed; ${sum('checks') - sum('failed')}/${sum('checks')} checks passed; ${parts.reduce((a, p) => a + p.serverErrors.length, 0)} server errors; slowest part ${Math.max(...parts.map((p) => p.seconds))} s`;
+const sum = (k) => parts.reduce((a, p) => a + (p[k] ?? 0), 0);
+const head = `Stress (seed ${parts[0].seed}): ${sum('passed')}/${sum('weddings')} weddings passed; ${sum('checks') - sum('failed')}/${sum('checks')} checks passed; ${parts.reduce((a, p) => a + p.serverErrors.length, 0)} server errors; ${sum('rerunBatches')} batches re-run (test database bridge broke); slowest part ${Math.max(...parts.map((p) => p.seconds))} s`;
 console.log(head);
 console.log('p95 ms   p50 ms   max ms   calls   route');
 for (const r of routes) console.log(`${String(r.p95).padStart(6)} ${String(r.p50).padStart(8)} ${String(r.max).padStart(8)} ${String(r.n).padStart(7)}   ${r.route}`);

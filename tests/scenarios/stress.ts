@@ -261,6 +261,9 @@ interface ServerError {
   logged: string;
 }
 const lat = new Map<string, number[]>();
+/** Miniflare's Node-to-workerd proxy losing track of a message: "AssertionError ... (message?.id === id)". */
+const TRANSPORT = /message\?\.id === id/;
+let rerunBatches = 0;
 const failures: Failure[] = [];
 const serverErrors: ServerError[] = [];
 let checks = 0;
@@ -303,6 +306,8 @@ class Batch {
   platform = '';
   vendors: { slug: string; email: string; name: string; category: string; cookie: string; id: string }[] = [];
   outbound: string[] = [];
+  lat = new Map<string, number[]>();
+  transport = false;
 
   ip() {
     const n = ++this.ipN;
@@ -353,9 +358,12 @@ class Batch {
         await sleep(100 + attempt * 150);
         continue;
       }
-      let arr = lat.get(label);
-      if (!arr) lat.set(label, (arr = []));
+      let arr = this.lat.get(label);
+      if (!arr) this.lat.set(label, (arr = []));
       arr.push(ms);
+      // The local database bridge itself breaking under load (Miniflare's proxy losing track of its messages):
+      // the test's own plumbing, not the app. The whole batch is run again on a fresh database.
+      if (r.status >= 500 && logged.slice(-3).some((l) => TRANSPORT.test(l))) this.transport = true;
       if (r.status >= 500) serverErrors.push({ wedding: w, route: label, status: r.status, body: text.slice(0, 300), logged: logged.slice(-2).join(' | ').slice(0, 300) });
       return {
         status: r.status,
@@ -1174,8 +1182,9 @@ export function stressPart(part: number, parts: number) {
       vi.spyOn(console, 'log').mockImplementation(() => {}); // the cron's and app's own logs
       const say = (s: string) => process.stdout.write(`${ascii(s)}\n`);
 
-      for (let s = 0; s < mine.length; s += BATCH) {
+      for (let s = 0, attempt = 0; s < mine.length; ) {
         const ids = mine.slice(s, s + BATCH);
+        const snap = { failures: failures.length, errors: serverErrors.length, checks };
         const b = new Batch();
         await b.open(ids[0]!);
         const checkFor =
@@ -1214,8 +1223,22 @@ export function stressPart(part: number, parts: number) {
         await crossProbes(b, ws, checkFor);
         for (const w of ws) if (failures.some((f) => f.wedding === w.i) || serverErrors.some((x) => x.wedding === w.i)) weddingResults.set(w.i, false);
         await b.close();
+        if (b.transport && attempt < 2) {
+          // Not the app: the test's database bridge broke. Forget this batch and run it again, fresh.
+          say(`  batch of weddings ${ids[0]}..: the local database bridge broke (Miniflare), running it again`);
+          failures.length = snap.failures;
+          serverErrors.length = snap.errors;
+          checks = snap.checks;
+          for (const i of ids) weddingResults.delete(i);
+          rerunBatches++;
+          attempt++;
+          continue;
+        }
+        for (const [k, xs] of b.lat) lat.set(k, [...(lat.get(k) ?? []), ...xs]);
+        s += BATCH;
+        attempt = 0;
         const passed = [...weddingResults.values()].filter(Boolean).length;
-        say(`  ${Math.min(s + BATCH, mine.length)}/${mine.length} weddings, ${passed} passed, ${failures.length} failed checks, ${serverErrors.length} server errors, ${Math.round((Date.now() - started) / 1000)} s`);
+        say(`  ${Math.min(s, mine.length)}/${mine.length} weddings, ${passed} passed, ${failures.length} failed checks, ${serverErrors.length} server errors, ${Math.round((Date.now() - started) / 1000)} s`);
       }
 
       // The report: speed per route (p95, sorted), and what failed.
@@ -1226,7 +1249,7 @@ export function stressPart(part: number, parts: number) {
       for (const f of failures) byCheck.set(f.check, [...(byCheck.get(f.check) ?? []), f]);
       const by5 = new Map<string, ServerError[]>();
       for (const e of serverErrors) by5.set(`${e.status} ${e.route}`, [...(by5.get(`${e.status} ${e.route}`) ?? []), e]);
-      say(`\nStress part ${part}/${parts}, seed ${SEED}: ${passed}/${mine.length} weddings passed; ${checks - failures.length}/${checks} checks passed; ${serverErrors.length} server errors; ${Math.round((Date.now() - started) / 1000)} s`);
+      say(`\nStress part ${part}/${parts}, seed ${SEED}: ${passed}/${mine.length} weddings passed; ${checks - failures.length}/${checks} checks passed; ${serverErrors.length} server errors; ${rerunBatches} batches run again (database bridge); ${Math.round((Date.now() - started) / 1000)} s`);
       say('Slowest routes (p95 ms):');
       for (const r of routes.slice(0, 25)) say(`  ${String(r.p95).padStart(6)}  p50 ${String(r.p50).padStart(5)}  max ${String(r.max).padStart(6)}  n ${String(r.n).padStart(6)}  ${r.route}`);
       for (const [k, fs] of byCheck) say(`FAILED ${fs.length}x ${k}: wedding ${fs[0]!.wedding}: ${fs[0]!.detail}`);
@@ -1235,7 +1258,7 @@ export function stressPart(part: number, parts: number) {
       mkdirSync(dir, { recursive: true });
       writeFileSync(
         join(dir, `part-${shard}-${part}.json`),
-        JSON.stringify({ part, parts, seed: SEED, weddings: mine.length, passed, checks, failed: failures.length, seconds: Math.round((Date.now() - started) / 1000), failures: failures.slice(0, 500), serverErrors: serverErrors.slice(0, 200), latency: Object.fromEntries([...lat].map(([k, xs]) => [k, xs.map((x) => Math.round(x))])) }),
+        JSON.stringify({ part, parts, seed: SEED, weddings: mine.length, passed, checks, failed: failures.length, rerunBatches, seconds: Math.round((Date.now() - started) / 1000), failures: failures.slice(0, 500), serverErrors: serverErrors.slice(0, 200), latency: Object.fromEntries([...lat].map(([k, xs]) => [k, xs.map((x) => Math.round(x))])) }),
       );
 
       const summary = [
