@@ -153,7 +153,7 @@ function MiniEnvelope({ t }: { t: ReturnType<typeof themeOf> }) {
       <span className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${flap[0]}, ${flap[2]})`, clipPath: 'polygon(0 0, 100% 0, 50% 62%)' }} />
       {/* The foil rule, just inside the flap's edges. */}
       <svg viewBox="0 0 100 84" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-        <path d="M8 0 L44 36 M92 0 L56 36" stroke={acc} strokeWidth="1" vectorEffect="non-scaling-stroke" fill="none" opacity=".9" />
+        <path d="M8 0 L44 36 M92 0 L56 36 M10 84 L28 67.7 M90 84 L72 67.7" stroke={acc} strokeWidth="1" vectorEffect="non-scaling-stroke" fill="none" opacity=".9" />
       </svg>
       {/* The seal. */}
       <span className="absolute left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2 w-[26px] h-[26px] rounded-full grid place-items-center shadow-[0_2px_4px_rgba(0,0,0,.3)]" style={{ background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,.55), ${acc} 50%, color-mix(in srgb, ${acc} 70%, #000))` }}>

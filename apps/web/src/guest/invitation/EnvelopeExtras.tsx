@@ -132,6 +132,14 @@ function FoilRule({ vw, vh, seal }: { vw: number; vh: number; seal: number }) {
   const dx = inset / Math.sin(Math.atan2(tip, vw / 2));
   const stop = tip - seal * 0.95;
   const x = (vw / 2) * (stop / tip) + dx;
+  // The bottom flap's edges run from the bottom corners up to its point (47% down); the rule sits the same
+  // distance inside them, and ends below the seal, "Tap to open" and the names.
+  const rise = vh * 0.53;
+  const slope = rise / (vw / 2);
+  const dy = inset / Math.cos(Math.atan(slope));
+  const by1 = Math.max(vh * 0.8, tip + seal * 1.35 + 40);
+  const bx0 = dy / slope;
+  const bx1 = (vh + dy - by1) / slope;
   return (
     <svg width={vw} height={vh} viewBox={`0 0 ${vw} ${vh}`} className="absolute inset-0">
       <defs>
@@ -148,6 +156,15 @@ function FoilRule({ vw, vh, seal }: { vw: number; vh: number; seal: number }) {
         <path d={`M${(vw - dx).toFixed(1)} 0 L${(vw - x).toFixed(1)} ${stop.toFixed(1)}`} fill="none" />
         <circle cx={x} cy={stop} r="2.2" stroke="none" />
         <circle cx={vw - x} cy={stop} r="2.2" stroke="none" />
+        {/* The same rule along the bottom flap, from each corner up its edge, stopping well below the names. */}
+        {by1 < vh - 40 && (
+          <>
+        <path d={`M${bx0.toFixed(1)} ${vh} L${bx1.toFixed(1)} ${by1.toFixed(1)}`} fill="none" />
+        <path d={`M${(vw - bx0).toFixed(1)} ${vh} L${(vw - bx1).toFixed(1)} ${by1.toFixed(1)}`} fill="none" />
+        <circle cx={bx1} cy={by1} r="2.2" stroke="none" />
+        <circle cx={vw - bx1} cy={by1} r="2.2" stroke="none" />
+          </>
+        )}
       </g>
     </svg>
   );
