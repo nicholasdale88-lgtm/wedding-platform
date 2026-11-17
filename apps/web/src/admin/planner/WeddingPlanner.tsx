@@ -1,4 +1,4 @@
-import { allPayments, bookingTimeline, dateIn, moneyOf, withSchedules, daysUntil, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
+import { allPayments, bookedInBudget, bookingTimeline, dateIn, moneyOf, withSchedules, daysUntil, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { plannerApi } from '../../lib/api';
@@ -129,7 +129,13 @@ function Glance({ go }: { go: (v: View) => void }) {
   const [budget, setBudget] = useState<BudgetDoc | null>(null);
   const [vendors, setVendors] = useState<VendorsDoc['list'] | null>(null);
   const [plan, setPlan] = useState<PlanChecklist['tasks']>([]);
+  // The celebrant chosen in the wedding party counts as booked.
+  const [celebrants, setCelebrants] = useState<string[]>([]);
   useEffect(() => {
+    plannerApi
+      .party(wid)
+      .then((r) => setCelebrants(r.members.filter((m) => /celebrant/i.test(m.role)).map((m) => m.name)))
+      .catch(() => setCelebrants([]));
     plannerApi
       .doc<PlanChecklist>(wid, 'checklist')
       .then((r) => setPlan(r.data.tasks))
@@ -152,10 +158,16 @@ function Glance({ go }: { go: (v: View) => void }) {
   const lines = withSchedules(budget.lines, vendors);
   const named = new Set(lines.map((l) => l.vendor.trim().toLowerCase()).filter(Boolean));
   const extra = booked.filter((v) => !named.has(v.name.trim().toLowerCase()));
+  // Suppliers named only in the budget (never added to the vendors list) are booked too.
+  const listed = new Set(vendors.map((v) => v.name.trim().toLowerCase()));
+  const budgetOnly = [...named].filter((n) => !listed.has(n));
   const committed = lines.reduce((a, l) => a + (l.quote || l.estimate), 0) + extra.reduce((a, v) => a + moneyOf(v).total, 0);
   const paid = lines.reduce((a, l) => a + l.paid, 0) + extra.reduce((a, v) => a + moneyOf(v).paid, 0);
   // Still to book: the usual suppliers not booked yet, soonest "book by" first (the time most couples have booked by).
-  const missing = bookingTimeline(vendors, first ? Date.parse(dateIn(tz, new Date(first.startsAt))) : Date.now() + 400 * 86_400_000, Date.now(), !!first?.venue).filter((r) => r.state !== 'booked').sort((a, b) => a.bookBy.localeCompare(b.bookBy));
+  // Booked counts from everywhere they record it: the vendors list, the budget (who each line is with) and the
+  // celebrant in the wedding party.
+  const elsewhere = [...bookedInBudget(budget.lines), ...celebrants.map((name) => ({ what: 'Celebrant', name }))];
+  const missing = bookingTimeline(vendors, first ? Date.parse(dateIn(tz, new Date(first.startsAt))) : Date.now() + 400 * 86_400_000, Date.now(), !!first?.venue, elsewhere).filter((r) => r.state !== 'booked').sort((a, b) => a.bookBy.localeCompare(b.bookBy));
   const today = dateIn(tz);
   const payments = allPayments(budget.lines, vendors)
     .filter((p) => !p.paid && p.due && p.amount > 0)
@@ -192,8 +204,8 @@ function Glance({ go }: { go: (v: View) => void }) {
         <button type="button" onClick={() => go('vendors')} className="flex flex-col gap-1 p-4 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)] text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
           <span className="text-[12px] font-semibold tracking-[.14em] uppercase text-[var(--adm-muted,#5b6a52)]">Vendors booked</span>
           <span className="font-display text-[34px] leading-none">
-            {booked.length}
-            <span className="text-[16px] text-[#7a7466]"> of {vendors.length}</span>
+            {booked.length + budgetOnly.length}
+            <span className="text-[16px] text-[#7a7466]"> of {vendors.length + budgetOnly.length}</span>
           </span>
         </button>
       </section>

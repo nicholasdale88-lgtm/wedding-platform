@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealWarning, menuFit, servedMeal } from '../src/planner';
-import { budgetFit, linkToBudget, suggestedTasks, vendorKind, negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { bookedInBudget, budgetFit, linkToBudget, suggestedTasks, vendorKind, negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -199,6 +199,19 @@ describe('when to book', () => {
   });
   it('a wedding with a venue set counts the venue as booked', () => {
     expect(bookingTimeline([], day, day, true).find((r) => r.what === 'Venue')).toMatchObject({ state: 'booked', late: false });
+    // Booked outside the vendors list: the budget names who it's with (or it's paid), or the party has a celebrant.
+    const budgetOnly = bookedInBudget([
+      { category: 'Celebrant', item: 'Celebrant', estimate: 900, quote: 0, paid: 0, due: '', vendor: 'Married by the Beard', note: '', payer: '', perHead: 0 },
+      { category: 'Cake', item: 'Wedding cake', estimate: 600, quote: 0, paid: 200, due: '', vendor: '', note: '', payer: '', perHead: 0 },
+      { category: 'Flowers', item: 'Bouquets', estimate: 800, quote: 0, paid: 0, due: '', vendor: '', note: '', payer: '', perHead: 0 },
+    ]);
+    const rows2 = bookingTimeline([], day, day, false, budgetOnly);
+    expect(rows2.find((r) => r.what === 'Celebrant')).toMatchObject({ state: 'booked', vendor: 'Married by the Beard', late: false });
+    expect(rows2.find((r) => r.what === 'Cake')).toMatchObject({ state: 'booked' });
+    expect(rows2.find((r) => r.what === 'Florist')!.state).toBe('none'); // only an estimate: not booked
+    expect(bookingTimeline([], day, day, false, [{ what: 'Celebrant', name: 'Jo Lee' }]).find((r) => r.what === 'Celebrant')!.state).toBe('booked');
+    // A vendor whose only clue is their name: "Married by…" is a celebrant.
+    expect(vendorKind({ category: '', name: 'Married by the Beard' })).toBe('Celebrant');
   });
 });
 

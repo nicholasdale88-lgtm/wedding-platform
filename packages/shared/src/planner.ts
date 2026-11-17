@@ -828,7 +828,7 @@ export const BOOKING_TIMELINE: { what: string; months: number; match: RegExp }[]
   { what: 'Band or DJ', months: 9, match: /\bband\b|\bdj\b|music|singer|string|entertain|photo ?booth/i },
   { what: 'Photographer', months: 12, match: /photog|\bphotos?\b/i },
   { what: 'Videographer', months: 10, match: /video|film/i },
-  { what: 'Celebrant', months: 10, match: /celebrant|officiant|minister|priest/i },
+  { what: 'Celebrant', months: 10, match: /celebrant|officiant|minister|priest|\bvicar\b|\brabbi\b|\bimam\b|married by|marriage (?:cert|fee|licen)|registry office/i },
   { what: 'Catering', months: 10, match: /cater/i },
   { what: 'Hair and makeup', months: 6, match: /\bhair|make-?up|beauty/i },
   { what: 'Attire', months: 9, match: /dress|gown|bridal(?! suite)|\bsuits?\b|tailor|attire/i },
@@ -841,6 +841,15 @@ export const BOOKING_TIMELINE: { what: string; months: number; match: RegExp }[]
   { what: 'Rings', months: 3, match: /\brings?\b|jewel/i },
 ];
 export type BookingRow = { what: string; months: number; bookBy: string; state: 'booked' | 'looking' | 'none'; vendor: string; late: boolean };
+/** Something booked outside the vendors list: what it is (a budget line's category and item) and who with. */
+export type BookedElsewhere = { what: string; name: string };
+
+/**
+ * What the budget says is booked: every line with who it's with (the couple only name a supplier once they've
+ * chosen them), or with money already paid. The vendor's name helps match it ("Married by…" is the celebrant).
+ */
+export const bookedInBudget = (lines: BudgetLine[]): BookedElsewhere[] =>
+  lines.filter((l) => l.vendor.trim() || l.paid > 0).map((l) => ({ what: `${l.category} ${l.item}`.trim(), name: l.vendor.trim() || l.item || l.category }));
 
 /**
  * Each supplier type against when couples usually book it: booked (and who), looking (on your list, not
@@ -848,15 +857,21 @@ export type BookingRow = { what: string; months: number; bookBy: string; state: 
  * `day`: the wedding's date (midnight UTC of its local date). `venueSet`: the wedding already has a venue
  * (counts as booked without a supplier for it).
  */
-export function bookingTimeline(list: Vendor[], day: number, now: number, venueSet = false): BookingRow[] {
+export function bookingTimeline(list: Vendor[], day: number, now: number, venueSet = false, alsoBooked: BookedElsewhere[] = []): BookingRow[] {
   const found = new Map<string, Vendor[]>();
   for (const v of list) {
     const hit = BOOKING_TIMELINE.find((b) => b.match.test(v.category)) ?? BOOKING_TIMELINE.find((b) => b.match.test(v.name));
     if (hit) found.set(hit.what, [...(found.get(hit.what) ?? []), v]);
   }
+  // Booked but not on the vendors list: a budget line with who it's with, the celebrant in the wedding party…
+  const elsewhere = new Map<string, string>();
+  for (const a of alsoBooked) {
+    const hit = BOOKING_TIMELINE.find((b) => b.match.test(a.what)) ?? BOOKING_TIMELINE.find((b) => b.match.test(a.name));
+    if (hit && !elsewhere.has(hit.what)) elsewhere.set(hit.what, a.name);
+  }
   return BOOKING_TIMELINE.map((b) => {
     const vs = found.get(b.what) ?? [];
-    const booked = vs.find((v) => v.status === 'booked');
+    const booked = vs.find((v) => v.status === 'booked') ?? (elsewhere.has(b.what) ? ({ name: elsewhere.get(b.what)! } as Vendor) : undefined);
     // The same day so many months before (the month's last day when it's shorter: 31 Oct less 8 months is 28 Feb).
     const d = new Date(day);
     const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - b.months + 1, 0)).getUTCDate();
