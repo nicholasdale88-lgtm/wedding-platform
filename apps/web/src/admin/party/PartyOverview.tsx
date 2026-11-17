@@ -5,7 +5,8 @@ import { ApiError, plannerApi, type PartyData, type PartyMember } from '../../li
 import { Ring } from '../checklists/PhasedChecklist';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
-import { Members, SideNames, type PartyView, type SideName } from './Party';
+import { SideNames, type PartyView, type SideName } from './Party';
+import { PartyBuilder } from './PartyBuilder';
 
 const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]';
 const EMPTY: PartySide = { tasks: [], glam: { finish: '', hairArtists: 1, makeupArtists: 1, people: [] }, people: {}, party: { title: '', date: '', place: '', organiser: '', budget: 0, notes: '' }, attire: { how: '', what: '', colour: '', where: '', each: 0, orderBy: '', returnBy: '', notes: '' } };
@@ -27,10 +28,11 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
   }, [wid]);
   const today = dateIn(overview?.wedding.timezone);
   const items = d.runsheet?.data.items ?? [];
-  const helpers = d.members.filter((m) => !m.side);
 
   return (
     <div className="flex flex-col gap-6">
+      <PartyBuilder d={d} setD={setD} />
+
       <div className="grid gap-4 lg:grid-cols-2">
         {(['p1', 'p2'] as const).map((side) => {
           const doc = sides[side];
@@ -104,9 +106,6 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
           </Link>
         </section>
       </div>
-
-      <Members d={d} sideName={sideName} only="" onChange={(members) => setD({ ...d, members })} />
-      {!helpers.length && <p className="-mt-4 m-0 text-[13px] text-[#7a7466]">The MC, ushers, readers and the celebrant go here.</p>}
 
       <section aria-label="Settings" className="flex flex-col gap-2 pt-2 border-t border-[var(--adm-line,#e2d7bc)]">
         <SideNames d={d} onSaved={(setup) => setD({ ...d, setup })} />
@@ -234,7 +233,7 @@ function Jobs({ d, sides, setSides, today }: { d: PartyData; sides: Sides; setSi
           )}
         </>
       ) : (
-        <p className="m-0 text-[14px] text-[#7a7466]">Add bridesmaids and groomsmen to the wedding party first (on each side&rsquo;s page), then give them jobs here.</p>
+        <p className="m-0 text-[14px] text-[#7a7466]">Add bridesmaids and groomsmen to the wedding party first (in Your wedding party, at the top), then give them jobs here.</p>
       )}
     </section>
   );
