@@ -1,4 +1,4 @@
-import { icsFor, isToken, weddingCalendarEvent } from '@wp/shared';
+import { icsFold, icsFor, icsText, isToken, weddingCalendarEvent } from '@wp/shared';
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
@@ -12,10 +12,10 @@ import { allow } from '../lib/rateLimit';
  * reaches their calendar by itself, with a reminder the day before and two hours before.
  */
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n'); // a lone CR too: some calendar apps read it as a new line
+const esc = icsText;
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-/** Lines over 75 characters are folded, as the calendar format asks. */
-const fold = (line: string) => line.match(/.{1,74}/g)!.join('\r\n ');
+/** Lines over 75 octets (not characters: accents, other scripts, emoji) are folded, as the format asks. */
+const fold = icsFold;
 
 export function calendarRoutes() {
   const app = new Hono<{ Bindings: Env }>();
@@ -111,7 +111,8 @@ export function calendarRoutes() {
       headers: {
         'content-type': 'text/calendar; charset=utf-8',
         'content-disposition': `attachment; filename="${row.slug}-${row.key}.ics"`,
-        'cache-control': 'public, max-age=300',
+        // A private wedding's file was opened with a guest's own link: never kept in a shared cache.
+        'cache-control': row.private === 1 ? 'private, max-age=300' : 'public, max-age=300',
       },
     });
   });
