@@ -229,8 +229,12 @@ function SealText({ words, letters, size }: { words: string; letters: SealLetter
     >
       {parts.map((p, i) => (
         <tspan key={i}>
-          {i > 0 && <tspan fontSize={size * 0.68}>{' & '}</tspan>}
-          {p.trim()}
+          {i > 0 && (
+            <tspan fontSize={size * 0.68} dx={size * 0.12}>
+              &amp;
+            </tspan>
+          )}
+          {i > 0 ? <tspan dx={size * 0.12}>{p.trim()}</tspan> : p.trim()}
         </tspan>
       ))}
     </text>
