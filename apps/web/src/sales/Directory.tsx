@@ -39,18 +39,19 @@ function Frame({ children, title }: { children: ReactNode; title: string }) {
   return (
     <div className="min-h-screen bg-[#f6f0e2]" style={{ color: INK, fontFamily: sans }}>
       <header className="max-w-[1100px] mx-auto px-4 py-4 flex justify-between items-center gap-3 flex-wrap">
-        <Link to="/" className="text-[26px] no-underline" style={{ fontFamily: serif, color: INK }}>
+        {/* Every header link is at least 44px tall: an easy tap on a phone. */}
+        <Link to="/" className="text-[26px] no-underline inline-flex items-center min-h-[44px]" style={{ fontFamily: serif, color: INK }}>
           {BRAND}
         </Link>
         <nav className="flex items-center gap-4 text-[15px] flex-wrap">
-          <Link to="/vendors" className="no-underline" style={{ color: INK }}>
+          <Link to="/vendors" className="no-underline inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             Vendor directory
           </Link>
-          <Link to="/vendors/me" className="no-underline" style={{ color: INK }}>
+          <Link to="/vendors/me" className="no-underline inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             Vendor sign-in
           </Link>
           <ProfileSwitch here="vendor" tone="light" />
-          <Link to="/vendors/join" className="py-[9px] px-4 rounded-full no-underline" style={{ background: INK, color: '#fbf8f2' }}>
+          <Link to="/vendors/join" className="px-4 rounded-full no-underline inline-flex items-center min-h-[44px]" style={{ background: INK, color: '#fbf8f2' }}>
             List your business
           </Link>
         </nav>
