@@ -8,7 +8,7 @@ import { AccountBar, PartySignIn } from './PartyAuth';
 import { InstallApp } from '../../lib/InstallApp';
 import { partyGroup, PartyHelp, PartyWelcome } from './PartyWelcome';
 import { Eyebrow, Heading, Ornament, partyLook, SANS, SERIF, type PartyLook } from './look';
-import { WaxSeal } from '../invitation/WaxSeal';
+import { RealEnvelope } from '../../sales/RealEnvelope';
 
 /**
  * /w/:slug/party (signed in to the portal) or ?g=<token> (their private link): a wedding party member's own page.
@@ -452,7 +452,7 @@ export function PartyPage({ sample = false }: { sample?: boolean } = {}) {
             </header>
 
             {/* Their invitation, on top: an envelope to tap open. */}
-            {(link || sample) && <Envelope href={sample ? '/demo' : `/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} look={look} initials={initials} />}
+            {(link || sample) && <Envelope href={sample ? '/demo' : `/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} initials={initials} names={data.me.map((m) => first(m.name)).join(' & ')} />}
 
             {/* Who they are, and their part. */}
             <section aria-label="Your role" className="flex flex-col items-center gap-2 px-5 py-5 rounded-[22px] text-center" style={cardStyle(look, { border: `1px solid ${gold}` })}>
@@ -750,22 +750,11 @@ function Honour({ name, role, couple, look, note = '' }: { name: string; role: s
   );
 }
 
-/** Their invitation, at the top of their page: a small sealed envelope in the wedding's colours. Tap to open. */
-function Envelope({ href, look, initials }: { href: string; look: PartyLook; initials: string }) {
+/** Their invitation, at the top of their page: the same sealed envelope as on our front page, with their initials. */
+function Envelope({ href, initials, names }: { href: string; initials: string; names: string }) {
   return (
-    <a href={href} aria-label="Your invitation: tap to open" className="block no-underline" style={{ color: look.ink }}>
-      <span className="relative block w-full aspect-[16/10] max-h-[260px] rounded-[18px] overflow-hidden [clip-path:inset(0_round_18px)]" style={{ background: look.soft, boxShadow: look.shadow, border: `1px solid ${look.line}` }}>
-        <svg aria-hidden className="absolute inset-0 w-full h-full" viewBox="0 0 100 62" preserveAspectRatio="none">
-          <path d="M0 62 L50 34 L100 62Z" fill="rgba(0,0,0,.04)" />
-          <path d="M0 0 L50 34 L100 0Z" fill={look.card} stroke={look.line} strokeWidth=".4" />
-        </svg>
-        <span className="absolute left-1/2 top-[55%] -translate-x-1/2 -translate-y-1/2" style={{ filter: 'drop-shadow(0 3px 4px rgba(40,25,10,.35))' }}>
-          <WaxSeal colour="Sandstone" words={initials || '♥'} px={64} still />
-        </span>
-        <span className="absolute left-0 right-0 bottom-3 text-center text-[13px] tracking-[.28em] uppercase" style={{ fontFamily: SANS, color: look.label }}>
-          Your invitation · tap to open
-        </span>
-      </span>
+    <a href={href} aria-label="Your invitation: tap to open" className="block no-underline rounded-[22px] overflow-hidden [clip-path:inset(0_round_22px)] shadow-[0_18px_40px_rgba(46,30,36,.18)]">
+      <RealEnvelope compact paper="cream" wax="Sandstone" initials={initials || '♥'} names={names} caption="Your invitation · tap to open" className="w-full aspect-[4/3] max-h-[340px]" />
     </a>
   );
 }

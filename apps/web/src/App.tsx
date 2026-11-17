@@ -41,6 +41,7 @@ const LivePage = lazy(() => fresh(import('./guest/live/LivePage')).then((m) => (
 const ShuttlePage = lazy(() => fresh(import('./guest/shuttle/ShuttlePage')).then((m) => ({ default: m.ShuttlePage })));
 const AlbumPage = lazy(() => fresh(import('./guest/album/AlbumPage')).then((m) => ({ default: m.AlbumPage })));
 const QuotePage = lazy(() => fresh(import('./guest/quote/QuotePage')).then((m) => ({ default: m.QuotePage })));
+const ProposalPage = lazy(() => fresh(import('./guest/proposal/ProposalPage')).then((m) => ({ default: m.ProposalPage })));
 const TrialPage = lazy(() => fresh(import('./try/TrialPage')).then((m) => ({ default: m.TrialPage })));
 const SalesPage = lazy(() => fresh(import('./sales/SalesPage')).then((m) => ({ default: m.SalesPage })));
 // The front page's sample invitation and its footer pages (privacy, terms, contact).
@@ -67,6 +68,9 @@ function PortalPreviewBanner() {
   const kind = /^\/w\/[^/]+\/(party|vendor|coordinator|tasks)\/?$/.exec(pathname)?.[1];
   if (hidden || !kind || new URLSearchParams(search).get('preview') !== '1') return null;
   return (
+    <>
+    {/* Room for the strip, so it never covers the top of the page. */}
+    <div aria-hidden className="h-[calc(44px+env(safe-area-inset-top))]" />
     <div role="status" className="fixed z-[90] top-0 left-0 right-0 flex items-center gap-2 pl-[52px] pr-2 pt-[env(safe-area-inset-top)] min-h-[36px] bg-[#2e2430]/95 text-[#fbf1e8] text-[12px] leading-tight shadow-[0_4px_12px_rgba(0,0,0,.2)] print:hidden">
       <span className="flex-1 min-w-0 py-1">
         <strong>Preview</strong> of what the {PORTAL_OF[kind]} sees. Anything you tap is real.
@@ -75,6 +79,7 @@ function PortalPreviewBanner() {
         ×
       </button>
     </div>
+    </>
   );
 }
 
@@ -162,6 +167,7 @@ function Pages() {
         <Route path="/vendors/join" element={<VendorJoinPage />} />
         <Route path="/vendors/me" element={<VendorHomePage />} />
         <Route path="/vendors/:slug" element={<ListingPage />} />
+        <Route path="/proposal/:token" element={<ProposalPage />} />
         {/* Old or mistyped guest links get a gentle message, never the sign-in screen. */}
         <Route path="*" element={<GuestNotFound />} />
       </Routes>

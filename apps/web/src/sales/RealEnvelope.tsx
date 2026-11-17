@@ -1,6 +1,5 @@
 import { ENVELOPE_PAPER_INFO, type EnvelopePaper, type SealColour } from '@wp/shared';
 import { WaxSeal } from '../guest/invitation/WaxSeal';
-import { SAMPLE } from './sample';
 
 /**
  * The envelope a guest actually opens, for the front page: drawn from the invitation's own parts (the same
@@ -24,6 +23,9 @@ export function RealEnvelope({
   className = '',
   compact = false,
   bare = false,
+  names = 'Emma & Tom',
+  initials = 'H & T',
+  caption = 'Tap to open',
 }: {
   paper?: EnvelopePaper;
   wax?: SealColour;
@@ -35,6 +37,12 @@ export function RealEnvelope({
   compact?: boolean;
   /** Just the envelope and seal, without "Tap to open" and the names (when a caption sits over it). */
   bare?: boolean;
+  /** Who it's for (on the front, after "for"); the sample guests unless given. */
+  names?: string;
+  /** What's pressed into the seal; the sample couple's unless given. */
+  initials?: string;
+  /** The small capitals under the seal. */
+  caption?: string;
 }) {
   const env = ENVELOPE_PAPER_INFO[paper].hex;
   const darkPaper = ['navy', 'midnight', 'eucalyptus', 'terracotta'].includes(paper);
@@ -48,7 +56,7 @@ export function RealEnvelope({
   const below = bare ? 0 : Math.round(seal * 1.12 + (compact ? 26 : 38) + 14);
   // Positioned by the caller (absolute inset-0 in a phone) or relative: never both, or it collapses to no height.
   return (
-    <div role="img" aria-label={label ?? `A sealed envelope: ${ENVELOPE_PAPER_INFO[paper].label.toLowerCase()} paper and a ${wax.toLowerCase()} wax seal pressed with H & T`} className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative '}overflow-hidden ${className}`} style={{ background: env, containerType: 'size' }}>
+    <div role="img" aria-label={label ?? `A sealed envelope: ${ENVELOPE_PAPER_INFO[paper].label.toLowerCase()} paper and a ${wax.toLowerCase()} wax seal pressed with ${initials}`} className={`${/\b(absolute|fixed)\b/.test(className) ? '' : 'relative '}overflow-hidden ${className}`} style={{ background: env, containerType: 'size' }}>
       {/* Fine paper: a soft, irregular grain and the light from the top left. */}
       <div className="absolute inset-0" style={{ background: `${GRAIN}, radial-gradient(120% 80% at 20% 0%, rgba(255,255,255,.35), rgba(255,255,255,0) 60%), linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,.08))` }} />
       {/* The side and bottom flaps, then the top flap to its point at the seal, each with a lit edge and a crisp shadow. */}
@@ -98,16 +106,16 @@ export function RealEnvelope({
       </svg>
       {/* The wax seal: the invitation's own. */}
       <div className="absolute left-1/2 top-1/2" style={{ width: seal, height: seal, marginLeft: -seal / 2, marginTop: -seal / 2, filter: 'drop-shadow(0 2px 2px rgba(40,25,10,.45)) drop-shadow(0 10px 14px rgba(40,25,10,.25))' }}>
-        <WaxSeal colour={wax} words="H & T" px={seal} still />
+        <WaxSeal colour={wax} words={initials} px={seal} still />
       </div>
       {!bare && (
         <>
       <span className="absolute left-0 right-0 text-center uppercase" style={{ top: `calc(50% + ${seal * 0.62}px)`, color: text, fontFamily: "'Cormorant Garamond', Georgia, serif", letterSpacing: '.32em', fontSize: compact ? 11 : 14 }}>
-        Tap to open
+        {caption}
       </span>
       <span className="absolute left-0 right-0 text-center" style={{ top: `calc(50% + ${seal * 1.12}px)`, color: names, fontFamily: "'Pinyon Script', cursive", fontSize: compact ? 26 : 38, lineHeight: 1 }}>
         <span className="text-[.6em] align-middle">for </span>
-        {SAMPLE.guests}
+        {names}
       </span>
         </>
       )}
