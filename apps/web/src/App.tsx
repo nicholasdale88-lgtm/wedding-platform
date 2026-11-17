@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { createBrowserRouter, Route, RouterProvider, Routes, useLocation } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Route, RouterProvider, Routes, useLocation } from 'react-router-dom';
 import { countPage } from './lib/stats';
 import { GuestNotFound } from './guest/GuestMessage';
 
@@ -149,6 +149,8 @@ function Pages() {
         <Route path="/w/:slug/quote" element={<QuotePage />} />
         <Route path="/w/:slug/vendor" element={<VendorPage />} />
         <Route path="/" element={<SalesPage />} />
+        {/* Pricing is a section of the front page; a typed or shared /pricing goes there instead of "not found". */}
+        <Route path="/pricing" element={<Navigate to="/#pricing" replace />} />
         <Route path="/demo" element={<DemoPage />} />
         <Route path="/demo/tomorrow" element={<GuidePage sample />} />
         <Route path="/demo/photos" element={<PhotoPage sample />} />

@@ -84,6 +84,19 @@ test('front page header: every link reachable, through a menu on a phone', async
   expect(problems).toEqual([]);
 });
 
+test('vendor pages: every header link is an easy tap (44px or more)', async ({ page }) => {
+  await page.goto('/vendors');
+  const links = page.locator('header a');
+  await expect(links.first()).toBeVisible();
+  for (const l of await links.all()) if (await l.isVisible()) expect((await l.boundingBox())!.height, (await l.textContent()) ?? '').toBeGreaterThanOrEqual(43.5);
+});
+
+test('/pricing goes to the pricing on the front page, not "not found"', async ({ page }) => {
+  await page.goto('/pricing');
+  await expect(page).toHaveURL(/\/#pricing$/);
+  await expect(page.locator('#pricing')).toBeAttached();
+});
+
 test('the sample: its banner is never cut off, the scroll hint never covers the page, and Add to calendar works', async ({ page }) => {
   const problems = await watch(page);
   await page.goto('/demo');
