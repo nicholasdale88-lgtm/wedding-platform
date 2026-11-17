@@ -45,6 +45,21 @@ describe('admin sign-in', () => {
   });
   afterEach(() => t.dispose());
 
+  it('public pages ask who is signed in without a 401: { me: null } when signed out, the account when in', async () => {
+    const out = await call('/api/a/session');
+    expect(out.status).toBe(200);
+    expect(await out.json()).toEqual({ me: null });
+    expect(out.headers.get('cache-control')).toBe('no-store');
+    // A stale or made-up cookie is signed out too, still a 200.
+    const stale = await call('/api/a/session', {}, 'wp_session=not-a-real-session');
+    expect(stale.status).toBe(200);
+    expect(await stale.json()).toEqual({ me: null });
+    const cookie = cookieOf(await login('owner@example.com', 'valley-2027'));
+    const inside = (await (await call('/api/a/session', {}, cookie)).json()) as { me: { user: { email: string }; weddings: unknown[] } };
+    expect(inside.me.user.email).toBe('owner@example.com');
+    expect(inside.me).toEqual(await (await call('/api/a/me', {}, cookie)).json());
+  });
+
   it('signs in with a secure HttpOnly cookie and lists the weddings', async () => {
     const res = await login(' Owner@Example.com ', 'valley-2027');
     expect(res.status).toBe(200);

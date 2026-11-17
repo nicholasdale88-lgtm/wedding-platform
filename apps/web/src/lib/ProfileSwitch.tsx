@@ -18,7 +18,8 @@ export function ProfileSwitch({ here, tone = 'dark' }: { here: Place['kind'] | s
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    meCache ??= api.me().catch(() => null);
+    // A signed-out visitor is answered quietly (no 401), so public pages keep a clean console.
+    meCache ??= api.session().then((s) => s.me, () => null);
     let live = true;
     void meCache.then((m) => live && m && setPlaces(placesOf(m)));
     return () => {

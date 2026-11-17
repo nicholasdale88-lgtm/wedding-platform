@@ -155,7 +155,8 @@ async function invitePayload(c: C, w: WeddingRow, invId: string | null) {
     // Music is the link set in Setup (MP3 or YouTube): there are no uploaded music files to point at.
     content: { ...(inv.success ? inv.data : {}), lists: listsFor(inv.success ? inv.data.lists : undefined, slots) },
     texts: textsFor('inv', withDefaults(content.texts as Record<string, string> | undefined, { tz: w.timezone, events: content.dateToBeSet ? events.map((e) => ({ ...e, starts_at: '' })) : events, rsvpClose: inv.success ? inv.data.rsvpClose : undefined }), slots),
-    events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []), shuttles: shuttles.has(e.key) })),
+    // Where and when, for Add to calendar (no calendar while the date is still to be set).
+    events: visibleEvents.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, slot: events.indexOf(e), questions: json(e.questions, []), shuttles: shuttles.has(e.key), venue: e.venue ?? '', address: e.address ?? '', ...(content.dateToBeSet ? { tbc: true } : {}) })),
     invitation,
     // Only for a guest opening their own link (not the public page).
     party: invitation ? await whosWho(c.env.DB, w.id) : null,

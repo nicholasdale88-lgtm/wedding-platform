@@ -25,7 +25,9 @@ describe('calendar file', () => {
     expect(res.headers.get('content-type')).toContain('text/calendar');
     const body = await res.text();
     expect(body).toMatch(/^BEGIN:VCALENDAR\r\n/);
-    expect(body).toMatch(/DTSTART:\d{8}T\d{6}Z/);
+    // In the wedding's own timezone, with that zone's rules in the file.
+    expect(body).toMatch(/DTSTART;TZID=[A-Za-z_]+\/[A-Za-z_]+:\d{8}T\d{6}\r\n/);
+    expect(body).toContain('BEGIN:VTIMEZONE');
     expect(body).toContain('TRIGGER:-P1D');
     expect(body).toContain('URL:https://example.com/w/sophie-and-nicholas');
     expect(body.split('\r\n').every((l) => l.length <= 75)).toBe(true);

@@ -191,6 +191,23 @@ export function authRoutes() {
   app.get('/me', requireUser, async (c) => c.json(await me(c.env, c.get('user'))));
 
   /**
+   * Who's signed in, for public pages (the directory's header, the vendor home): the same as /me, but a
+   * signed-out visitor gets { me: null } with a 200, never a 401 (so public pages keep a clean console).
+   * No cookie at all is answered without touching the database.
+   */
+  app.get('/session', async (c) => {
+    c.header('cache-control', 'no-store');
+    const token = getCookie(c, SESSION_COOKIE);
+    if (!token || !c.env.SESSION_SECRET) return c.json({ me: null });
+    const row = await c.env.DB.prepare(
+      `SELECT u.id, u.email, st.role AS staff_role FROM session s JOIN user u ON u.id = s.user_id LEFT JOIN staff st ON st.user_id = u.id WHERE s.id = ? AND s.expires_at > ?`,
+    )
+      .bind(await sessionId(token, c.env.SESSION_SECRET), new Date().toISOString())
+      .first<{ id: string; email: string; staff_role: string | null }>();
+    return c.json({ me: row ? await me(c.env, await asUser(c.env, row)) : null });
+  });
+
+  /**
    * Forgot your passcode: a link to set a new one is emailed to the account (works once, for an hour).
    * The answer is the same whether or not there's an account with that email.
    */

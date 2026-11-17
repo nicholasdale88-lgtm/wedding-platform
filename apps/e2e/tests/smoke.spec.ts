@@ -71,12 +71,14 @@ test('a guest opens the envelope, replies, and adds the day to their calendar', 
   await page.getByText('Send RSVP').click();
   await expect(page.getByText('We have your reply and cannot wait to celebrate with you.')).toBeVisible();
 
-  const google = page.getByRole('link', { name: 'Google' }).first();
-  await expect(google).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?.*dates=\d{8}T\d{6}Z%2F\d{8}T\d{6}Z/);
-  const ics = await page.getByRole('link', { name: 'Apple / Outlook' }).first().getAttribute('href');
+  await page.getByRole('button', { name: 'Add to calendar' }).first().click();
+  const google = page.getByRole('link', { name: 'Google Calendar' }).first();
+  await expect(google).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?.*dates=\d{8}T\d{6}Z%2F\d{8}T\d{6}Z.*ctz=/);
+  await expect(page.getByRole('link', { name: 'Outlook.com' }).first()).toHaveAttribute('href', /^https:\/\/outlook\.live\.com\//);
+  const ics = await page.getByRole('link', { name: 'Apple Calendar' }).first().getAttribute('href');
   const file = await page.request.get(ics!);
   expect(file.status()).toBe(200);
-  expect(await file.text()).toMatch(/^BEGIN:VCALENDAR[\s\S]*BEGIN:VEVENT/);
+  expect(await file.text()).toMatch(/^BEGIN:VCALENDAR[\s\S]*BEGIN:VTIMEZONE[\s\S]*DTSTART;TZID=/);
 });
 
 test('the couple’s dashboard opens with their wedding', async ({ page }) => {

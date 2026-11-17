@@ -44,7 +44,7 @@ export interface InvitePayload {
     timelines?: Record<string, TimelineItem[]>;
   };
   texts: Record<string, string>;
-  events: { key: string; name: string; startsAt: string; slot: number; questions: { key: string; label: string; type: string; options?: string[] }[]; shuttles?: boolean }[];
+  events: { key: string; name: string; startsAt: string; slot: number; questions: { key: string; label: string; type: string; options?: string[] }[]; shuttles?: boolean; venue?: string; address?: string; /** The date is still to be set: no Add to calendar. */ tbc?: boolean }[];
   invitation: GuestInvitation | null;
   /** "Who's who" in the wedding party, when the couple shows it (side '' is neither side). */
   party?: { sides: { p1: string; p2: string }; people: { name: string; role: string; side: 'p1' | 'p2' | '' }[] } | null;

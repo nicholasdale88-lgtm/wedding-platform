@@ -706,9 +706,14 @@ export function VendorHomePage() {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  // Signed out: the sign-in form straight away, without asking for a listing first (no 401 in the console).
+  const signedIn = () => (isVendorDemo() ? Promise.resolve(true) : api.session().then((s) => !!s.me));
   const load = () =>
-    directoryApi
-      .mine()
+    signedIn()
+      .then((yes) => {
+        if (!yes) throw new ApiError(401, 'signed_out', 'Please sign in.');
+        return directoryApi.mine();
+      })
       .then((d) => {
         setData(d);
         const l = d.listing;

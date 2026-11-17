@@ -1,4 +1,5 @@
-import { andList, eventSlotOfPart, fillTags, joinDiet } from '@wp/shared';
+import { andList, eventSlotOfPart, fillTags, icsFor, joinDiet, weddingCalendarEvent } from '@wp/shared';
+import { AddToCalendar } from './AddToCalendar';
 import { themeOf } from '../themeKit';
 import { inAppBrowser, isAndroid, subscribeHref } from '../../lib/calendarLinks';
 import { playerFor } from '../audio';
@@ -70,38 +71,35 @@ function formFrom(g: GuestInvitation | null, data: InvitePayload): Form {
   };
 }
 
-/** "Add to your calendar": the calendar file (Apple, Outlook) and Google, in the section's own colours. */
-function calendarLinks(data: InvitePayload, ev: InvitePayload['events'][number]) {
-  const start = new Date(ev.startsAt);
-  if (Number.isNaN(start.getTime())) return null;
-  const z = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const couple = `${data.wedding.name1.split(' ')[0]} & ${data.wedding.name2.split(' ')[0]}`;
-  const google = `https://calendar.google.com/calendar/render?${new URLSearchParams({
-    action: 'TEMPLATE',
-    text: `${couple}: ${ev.name}`,
-    dates: `${z(start)}/${z(new Date(start.getTime() + 6 * 3_600_000))}`,
-    details: `${window.location.origin}/w/${data.wedding.slug}`,
-  }).toString()}`;
-  const link = { color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 };
+/**
+ * "Add to calendar" for one event: Google, Apple, Outlook.com, Office 365 and a calendar file, in the
+ * wedding's own timezone. A real wedding's file comes from the site (it carries the guest's link, so a
+ * private wedding's file opens for its guests); the sample makes its file here, as nothing is behind it.
+ */
+export function calendarControl(data: InvitePayload, ev: InvitePayload['events'][number], token: string | undefined, sample = false) {
+  if (ev.tbc) return null;
+  const origin = window.location.origin;
+  const event = weddingCalendarEvent(data.wedding, ev, origin);
+  if (!event) return null;
+  if (sample) event.url = `${origin}/demo`;
+  const q = token ? `?g=${encodeURIComponent(token)}` : '';
+  const icsHref = sample ? `data:text/calendar;charset=utf-8,${encodeURIComponent(icsFor(event))}` : `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics${q}`;
   // With their own link: all their events in their phone's calendar, kept up to date (a change of time or
   // place reaches it by itself). iPhone and Outlook subscribe to webcal; Google to https; an in-app browser
-  // (which can't open webcal) gets the https .ics file. The event file carries their link too, so a private
-  // wedding's file opens for its guests.
-  const token = data.invitation?.token;
-  const q = token ? `?g=${encodeURIComponent(token)}` : '';
-  const feed = token ? `${window.location.origin}/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/mine.ics${q}` : '';
-  const android = isAndroid();
-  const inApp = inAppBrowser();
-  const subscribe = feed ? subscribeHref(feed) : '';
-  return createElement(
-    'div',
-    { style: { fontSize: 15, opacity: 0.85, textAlign: 'center' as const, fontFamily: "'Cormorant Garamond', Georgia, serif" } },
-    'Add to your calendar: ',
-    createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics${q}`, style: link }, 'Apple / Outlook'),
-    ' · ',
-    createElement('a', { href: google, target: '_blank', rel: 'noopener noreferrer', style: link }, 'Google'),
-    ...(subscribe ? [' · ', createElement('a', { href: subscribe, ...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {}), style: link }, inApp ? 'All my events (.ics)' : 'All my events, kept up to date')] : []),
-  );
+  // (which can't open webcal) gets the https .ics file.
+  const feed = token && !sample ? subscribeHref(`${origin}/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/mine.ics${q}`) : '';
+  return createElement(AddToCalendar, {
+    event,
+    icsHref,
+    fileName: `${data.wedding.slug}-${ev.key}.ics`,
+    ...(feed ? { feed: { href: feed, label: inAppBrowser() ? 'All my events (.ics)' : 'All my events, kept up to date', newTab: isAndroid() } } : {}),
+  });
+}
+
+/** The event a section belongs to (by slot, not position: a guest invited only to the second event is sent just that one). */
+export function eventOfSection(data: InvitePayload, label: string) {
+  const slot = eventSlotOfPart(SECTION_PARTS[label]) ?? (/^02\b/.test(label) ? 0 : undefined); // "02 …" is the first event's details
+  return slot === undefined ? undefined : data.events.find((e) => e.slot === slot);
 }
 
 /** The template's two event places: slot 0 (first event) and slot 1 (second event). */
@@ -372,7 +370,10 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     fan[`fw${i}`] = fanSel === i ? 700 : 400;
   }
   const hover = typeof window !== 'undefined' && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
-  const cueOn = p >= 4 && cue.sc && !cue.end;
+  // The floating "Scroll for details" pill stays hidden: the card's own hint (under the names, in the
+  // first screen) asks once, and a pill fixed over the page once they've scrolled covered what they were
+  // reading (the FAQ on a phone). It never takes taps while hidden.
+  const cueOn: boolean = false;
   const greetN = guest ? names.length : 1;
   const greetL = guest ? names.join(', ').length : 10;
 
@@ -566,11 +567,9 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
     rows: (key: string) => (key === TIMELINE_ROWS && data.content.timeline && shownRows(data.content.timeline).length ? createElement(TimelineRows, { items: data.content.timeline }) : undefined),
     // The end of an event's own section: "Add to your calendar", and (for the second event) its timeline.
     after: (label: string) => {
-      const slot = eventSlotOfPart(SECTION_PARTS[label]) ?? (/^02\b/.test(label) ? 0 : undefined); // "02 …" is the first event's details
-      if (slot === undefined) return undefined;
-      // By slot, not position: a guest invited only to the second event is sent just that one event.
-      const ev = data.events.find((e) => e.slot === slot);
+      const ev = eventOfSection(data, label);
       if (!ev) return undefined;
+      const slot = ev.slot;
       const items = slot ? data.content.timelines?.[ev.key] : undefined; // the first event's timeline is the main one
       const timeline = items && shownRows(items).length ? createElement(TimelineRows, { items, onSection: true }) : null;
       // A shuttle for this event: "Book a seat" (for a guest with their own link).
@@ -587,7 +586,7 @@ export function useInvitation(slug: string, data: InvitePayload, preview: boolea
             )
           : null;
       const party = slot === 0 && guest ? whosWhoBlock(data) : null;
-      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarLinks(data, ev), shuttle, party);
+      return createElement('div', { style: { width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 } }, timeline, calendarControl(data, ev, guest?.token), shuttle, party);
     },
   };
   // The couple's choice of how the envelope opens (Setup → Design it your way), over the design's classic lift.
