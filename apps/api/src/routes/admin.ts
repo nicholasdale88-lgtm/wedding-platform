@@ -96,6 +96,19 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const exists = await c.env.DB.prepare(`SELECT 1 FROM invitation WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(invitationId, wid(c)).first();
     return exists ? 'conflict' : 'missing';
   }
+  /**
+   * The change after a claimed version. If it fails (the database briefly busy), the version is given back, so the
+   * page's automatic retry saves instead of being told "Updated elsewhere" (found by the stress run).
+   */
+  async function afterClaim(c: C, invitationId: string, stmts: D1PreparedStatement[]) {
+    try {
+      await c.env.DB.batch(stmts);
+    } catch (e) {
+      const v = Number(c.req.header('If-Match'));
+      await c.env.DB.prepare(`UPDATE invitation SET version = ? WHERE id = ? AND wedding_id = ? AND version = ?`).bind(v, invitationId, wid(c), v + 1).run().catch(() => undefined);
+      throw e;
+    }
+  }
   const versionError = (c: C, r: 'missing' | 'conflict' | 'no-version') =>
     r === 'missing'
       ? err(c, 404, 'not_found', 'That guest no longer exists.')
@@ -544,7 +557,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (p.seatsHeld !== undefined || p.people)
       stmts.push(db.prepare(`UPDATE invitation SET seats_held = MIN(60, MAX(seats_held, (SELECT COUNT(*) FROM person WHERE invitation_id = ?1 AND deleted_at IS NULL AND trim(name) != ''))) WHERE id = ?1`).bind(invId));
     stmts.push(audit(c, 'guest.edit', invId, p));
-    await db.batch(stmts);
+    await afterClaim(c, invId, stmts);
     return c.json(await guestJson(c, invId));
   });
 
@@ -554,11 +567,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     if (!body.success) return err(c, 400, 'invalid', 'Check the reply and try again.');
     const r = body.data;
     const invId = c.req.param('id');
-    const v = await claimVersion(c, invId);
-    if (v !== 'ok') return versionError(c, v);
-
     const db = c.env.DB;
     const t = now();
+    // Read first, then claim the version just before the change (nothing between them can fail half-way).
     const { results: events } = await db
       .prepare(`SELECT e.id, e.key FROM invite_event ie JOIN event e ON e.id = ie.event_id WHERE ie.invitation_id = ? AND e.deleted_at IS NULL ORDER BY e.sort`)
       .bind(invId)
@@ -598,7 +609,9 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     stmts.push(clearMealsIfDeclined(db, invId)); // and their meals at the events they said no to
     stmts.push(clearDietIfDeclinedAll(db, invId)); // not coming to anything: no dietary on any list
     stmts.push(audit(c, 'guest.rsvp', invId, r));
-    await db.batch(stmts);
+    const v = await claimVersion(c, invId);
+    if (v !== 'ok') return versionError(c, v);
+    await afterClaim(c, invId, stmts);
     return c.json(await guestJson(c, invId));
   });
 

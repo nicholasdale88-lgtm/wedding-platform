@@ -41,6 +41,48 @@ describe('admin API', () => {
     return guests.find((g) => g.people[0]!.name === name)!;
   };
 
+  it('a guest edit or reply that hits a busy database saves when the page tries again, never "updated elsewhere" (stress run)', async () => {
+    const real = env.DB;
+    // Busy for the batch right after the invitation's version is claimed.
+    const busyOnce = () => {
+      let claimed = false;
+      let failed = false;
+      env.DB = new Proxy(real, {
+        get(target, prop) {
+          if (prop === 'prepare')
+            return (sql: string) => {
+              if (/^\s*UPDATE invitation SET version = version \+ 1/.test(sql)) claimed = true;
+              return target.prepare(sql);
+            };
+          if (prop === 'batch')
+            return async (stmts: D1PreparedStatement[]) => {
+              if (claimed && !failed) {
+                failed = true;
+                throw new Error('D1_ERROR: database is busy');
+              }
+              return target.batch(stmts);
+            };
+          const v = Reflect.get(target, prop) as unknown;
+          return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+        },
+      });
+    };
+    const g = await guestNamed('Ella Thompson');
+    const patch = () => call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ party: 'Uni friends' }) });
+    busyOnce();
+    expect((await patch()).status).toBe(503);
+    env.DB = real;
+    const again = await patch();
+    expect(again.status).toBe(200);
+    const v = (await json<{ guest: { version: number; party: string } }>(again)).guest;
+    expect(v.party).toBe('Uni friends');
+    const reply = () => call(`/guests/${g.id}/rsvp`, { method: 'PUT', headers: { 'If-Match': String(v.version) }, body: JSON.stringify({ events: { wedding: { attending: true } }, count: 1 }) });
+    busyOnce();
+    expect((await reply()).status).toBe(503);
+    env.DB = real;
+    expect((await reply()).status).toBe(200);
+  });
+
   it('overview: counts, per-event figures and Needs you from the real seed', async () => {
     const o = await json<ReturnType<typeof buildOverview>>(await call('/overview'));
     expect(o.total).toBe(22);
