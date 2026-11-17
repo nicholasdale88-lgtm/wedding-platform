@@ -90,6 +90,45 @@ jobs:
           SEED_OWNER_EMAIL=ci@example.com SEED_OWNER_PASSCODE=ci-only-passcode pnpm seed:sql ../../seed/sophie-nicholas.json "$RUNNER_TEMP/seed.sql"
           test "$(wc -l < "$RUNNER_TEMP/seed.sql")" -gt 100
 
+  # The stress run (tests/scenarios): 1,000 randomised weddings through the real API and a local database, with
+  # texting, email, payments, Google Drive, OneDrive and the AI mocked. Fails on any wrong number, lost data,
+  # leak between weddings, bad calendar file or server error; each route's speed is reported, never failed on.
+  stress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 1,000 weddings
+        run: pnpm stress
+        env:
+          STRESS_WEDDINGS: 40
+          STRESS_FORKS: 4
+
+      - name: Report (speed per route, and the totals)
+        if: always()
+        run: node tests/scenarios/report.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stress-report
+          path: tests/scenarios/stress-report
+          retention-days: 14
+
   # Tap-through tests: the app runs here (API with its own throwaway local database, and the website) and a
   # real browser, phone-sized, clicks through what couples and guests do. Never touches the live site.
   e2e:
