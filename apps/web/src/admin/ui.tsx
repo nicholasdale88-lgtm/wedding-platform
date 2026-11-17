@@ -364,9 +364,10 @@ export function useAutoRefresh(refresh: () => unknown, ms = 120_000, enabled = t
 
 /**
  * A roll-up: one setting (or a step of a setup) that shows what's set now, and opens on Change. Steps
- * get their number; `start` opens it to begin with (a step still to do).
+ * get their number; `start` opens it to begin with (a step still to do). `verbs` swaps Change/Done for a
+ * step that's read through rather than set (Open/Close, like the other setup steps).
  */
-export function Rollup({ title, now, step, start = false, children }: { title: string; now: string; step?: number; start?: boolean; children: ReactNode }) {
+export function Rollup({ title, now, step, start = false, verbs = ['Change', 'Done'], children }: { title: string; now: string; step?: number; start?: boolean; verbs?: [string, string]; children: ReactNode }) {
   const [open, setOpen] = useState(start);
   return (
     <div className="rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white">
@@ -378,7 +379,7 @@ export function Rollup({ title, now, step, start = false, children }: { title: s
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)] truncate">{now}</span>
           </span>
         </span>
-        <span className="text-[13px] underline shrink-0">{open ? 'Done' : 'Change'}</span>
+        <span className="text-[13px] underline shrink-0">{open ? verbs[1] : verbs[0]}</span>
       </button>
       {open && <div className="flex flex-col gap-[14px] px-4 pb-4">{children}</div>}
     </div>

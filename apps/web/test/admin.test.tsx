@@ -604,7 +604,9 @@ describe('guest pages tab', () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, { ...pages, texts: { 'inv.dyn.greetAnon': 'Hello friend' } }) });
     renderAt('/admin/w1/wedding/pages');
     // Rolled up, it says what's changed; opened, the wording reads as guests see it.
-    await userEvent.click(await screen.findByRole('button', { name: /Every word guests read\s*1 changed · \d+ sentences/ }));
+    const everyWord = await screen.findByRole('button', { name: /Every word guests read\s*1 changed · [1-9]\d* sentences.*Open$/ });
+    await userEvent.click(everyWord);
+    expect(everyWord).toHaveTextContent(/Close$/);
     await userEvent.click(screen.getByLabelText(/Changed only \(1\)/));
     expect(await screen.findByText('Hello friend')).toBeInTheDocument();
     expect(screen.getByText(/^Was: /)).toBeInTheDocument(); // the original shows only once changed

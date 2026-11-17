@@ -62,7 +62,13 @@ export function Wording({ n, prefix, texts, filled = {}, onChange }: { n: number
   const blanks = sections.reduce((a, [, ss]) => a + ss.filter(isBlank).length, 0);
 
   return (
-    <Rollup step={n} title="Every word guests read" now={`${edited ? `${edited} changed` : 'The design’s own wording'} · ${total} sentences${blanks ? ` · ${blanks} still to fill in` : ''}`}>
+    <Rollup
+      step={n}
+      title="Every word guests read"
+      verbs={['Open', 'Close']}
+      // Until the page has been read there's no count to give (it said "0 sentences").
+      now={found ? `${edited ? `${edited} changed` : 'The design’s own wording'} · ${total} sentences${blanks ? ` · ${blanks} still to fill in` : ''}` : 'Reading the page…'}
+    >
       <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">Tap any sentence to change it. Grey chips are filled in for each guest.</p>
       <div className="flex gap-[10px] items-center flex-wrap">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a word or sentence" className={`${inputCls} flex-1 min-w-[200px]`} aria-label="Search wording" />
