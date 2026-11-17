@@ -14,7 +14,10 @@ type Thanks = NonNullable<InvitationContent['thanks']>;
  * Setup → Thank-you page: what guests open after the day (from the "Thank you for coming" text). Their words
  * first, then the photo, the photos when they're ready, and how it's sent. Laid out like the invitation.
  */
-export function ThanksEditor({ inv, n, setInv, Photo }: { inv: InvitationContent; n: () => number; setInv: (p: Partial<InvitationContent>) => void; Photo: ComponentType<{ value: string; onChange: (v: string) => void }> }) {
+export function ThanksEditor({ inv, setInv, Photo }: { inv: InvitationContent; setInv: (p: Partial<InvitationContent>) => void; Photo: ComponentType<{ value: string; onChange: (v: string) => void }> }) {
+  // This editor's own steps, numbered from 1 in reading order each time it draws.
+  let k = 0;
+  const n = () => ++k;
   const { wid, path } = useAdmin();
   const toast = useToast();
   const t: Thanks = inv.thanks ?? {};
