@@ -102,4 +102,21 @@ describe('wedding party page', () => {
     expect(within(thanks).getByText(/Jon, of everyone we know/)).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
+
+  it('the sample page (/demo/party?as=best): the menu and the best man’s thank-you, with nothing asked of the server', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    render(
+      <MemoryRouter initialEntries={['/demo/party?as=best']}>
+        <Routes>
+          <Route path="/demo/party" element={<PartyPage sample />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('region', { name: 'Thank you, our best man' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Your invitation: tap to open' })).toHaveAttribute('href', '/demo');
+    expect(screen.getByRole('navigation', { name: 'Your page' })).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
 });

@@ -320,7 +320,8 @@ function NowNext({ data, now, look, isMc }: { data: PartyPayload; now: number; l
   );
 }
 
-export function PartyPage() {
+/** `sample`: /demo/party, the sample wedding's party page (?as=best | maid | bridesmaid | groomsman); nothing is sent. */
+export function PartyPage({ sample = false }: { sample?: boolean } = {}) {
   const { slug = '' } = useParams();
   const [params, setParams] = useSearchParams();
   const token = params.get('g') ?? '';
@@ -342,8 +343,7 @@ export function PartyPage() {
   const loaded = useRef(false);
 
   const load = () =>
-    guestApi
-      .party(slug, token)
+    (sample ? import('../../sales/sampleParty').then((m) => m.sampleParty(params.get('as'))) : guestApi.party(slug, token))
       .then((d) => {
         setData(d);
         loaded.current = true;
@@ -378,6 +378,7 @@ export function PartyPage() {
     const before = mine;
     setMine((ms) => ms.map((m) => (m.personId === body.personId ? apply(m) : m)));
     setNote('');
+    if (sample) return; // the sample: shown, kept for this visit only
     guestApi
       .partyAct(slug, { ...body, token })
       .then(() => {
@@ -435,7 +436,7 @@ export function PartyPage() {
             </header>
 
             {/* Their invitation, on top: an envelope to tap open. */}
-            {link && <Envelope href={`/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} look={look} initials={initials} />}
+            {(link || sample) && <Envelope href={sample ? '/demo' : `/w/${encodeURIComponent(slug)}?g=${encodeURIComponent(link)}`} look={look} initials={initials} />}
 
             {/* Who they are, and their part. */}
             <section aria-label="Your role" className="flex flex-col items-center gap-2 px-5 py-5 rounded-[22px] text-center" style={cardStyle(look, { border: `1px solid ${gold}` })}>
