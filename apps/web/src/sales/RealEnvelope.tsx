@@ -47,7 +47,7 @@ export function RealEnvelope({
   const env = ENVELOPE_PAPER_INFO[paper].hex;
   const darkPaper = ['navy', 'midnight', 'eucalyptus', 'terracotta'].includes(paper);
   const text = darkPaper ? mix(env, '#ffffff', 0.78) : mix(env, '#000000', 0.55);
-  const names = darkPaper ? mix(env, '#ffffff', 0.85) : ink;
+  const namesInk = darkPaper ? mix(env, '#ffffff', 0.85) : ink;
   const crease = darkPaper ? 'rgba(0,0,0,.35)' : 'rgba(80,60,30,.22)';
   const lit = 'rgba(255,255,255,.55)';
   const seal = compact ? 72 : 112;
@@ -113,7 +113,7 @@ export function RealEnvelope({
       <span className="absolute left-0 right-0 text-center uppercase" style={{ top: `calc(50% + ${seal * 0.62}px)`, color: text, fontFamily: "'Cormorant Garamond', Georgia, serif", letterSpacing: '.32em', fontSize: compact ? 11 : 14 }}>
         {caption}
       </span>
-      <span className="absolute left-0 right-0 text-center" style={{ top: `calc(50% + ${seal * 1.12}px)`, color: names, fontFamily: "'Pinyon Script', cursive", fontSize: compact ? 26 : 38, lineHeight: 1 }}>
+      <span className="absolute left-0 right-0 text-center" style={{ top: `calc(50% + ${seal * 1.12}px)`, color: namesInk, fontFamily: "'Pinyon Script', cursive", fontSize: compact ? 26 : 38, lineHeight: 1 }}>
         <span className="text-[.6em] align-middle">for </span>
         {names}
       </span>
