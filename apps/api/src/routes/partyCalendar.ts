@@ -42,12 +42,22 @@ const next = (ymd: string) => new Date(Date.parse(`${ymd}T00:00:00Z`) + 86_400_0
 export function partyCalendarRoutes() {
   const app = new Hono<{ Bindings: Env }>();
   app.get('/:pid/:file', async (c) => {
-    const none = () => c.json({ error: { code: 'not_found', message: 'Not found' } }, 404);
+    // Opened in a browser (not a calendar app), it says why in words; the code says which check refused it.
+    const none = (code: 'bad_link' | 'not_in_party' | 'paused') =>
+      c.text(
+        code === 'paused'
+          ? 'Your wedding party page is paused for now, so its calendar is too. The couple will let you know when it’s back.'
+          : code === 'not_in_party'
+            ? 'This calendar is for someone in the wedding party. If you are, open your wedding party page again and tap Add to my calendar.'
+            : 'This calendar link isn’t working. Open your wedding party page again and tap Add to my calendar.',
+        404,
+        { 'content-type': 'text/plain; charset=utf-8', 'x-calendar-refused': code },
+      );
     if (!(await allow(c.env.DB, `party-cal:${c.req.header('CF-Connecting-IP') ?? 'local'}`, 240, 3_600_000))) return c.json({ error: { code: 'slow_down', message: 'Please wait a minute.' } }, 429);
     const secret = c.env.SESSION_SECRET;
     const pid = c.req.param('pid');
     const key = c.req.param('file').replace(/\.ics$/, '');
-    if (!secret || key.length !== 24 || key !== (await partyCalKey(secret, pid))) return none();
+    if (!secret || key.length !== 24 || key !== (await partyCalKey(secret, pid))) return none('bad_link');
     const db = c.env.DB;
     const p = await db
       .prepare(
@@ -56,9 +66,9 @@ export function partyCalendarRoutes() {
       )
       .bind(pid, c.req.param('slug'))
       .first<{ id: string; name: string; party_role: string; wid: string; slug: string; timezone: string; name1: string; name2: string }>();
-    if (!p) return none();
+    if (!p) return none('not_in_party');
     const setup = (await readDoc(db, p.wid, 'party-setup', '')).data;
-    if (setup.access[p.id] === false) return none(); // their page is paused
+    if (setup.access[p.id] === false) return none('paused'); // their page is paused
     const ev = await db.prepare(`SELECT key, name, starts_at FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(p.wid).first<{ key: string; name: string; starts_at: string }>();
     const couple = `${p.name1.split(' ')[0]} & ${p.name2.split(' ')[0]}`;
     const side = sideOf(p.party_role);
