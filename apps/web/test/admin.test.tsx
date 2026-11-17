@@ -572,6 +572,7 @@ describe('guest pages tab', () => {
       },
     });
     renderAt('/admin/w1/wedding/pages');
+    await userEvent.click(await screen.findByRole('button', { name: /^2\s*The essentials/ }));
     const field = await screen.findByLabelText('Reply-by line');
     await userEvent.clear(field);
     await userEvent.type(field, 'Reply by 2 May');
@@ -581,11 +582,17 @@ describe('guest pages tab', () => {
     expect(await screen.findByText('All changes saved')).toBeInTheDocument();
   });
 
-  it('the invitation: the essentials up front; each extra shows what is set now, and opens on Change', async () => {
+  it('the invitation: rolled up into steps that say what’s set; each opens on a tap, and each extra opens on Change', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
     renderAt('/admin/w1/wedding/pages');
-    expect(await screen.findByRole('heading', { name: 'The essentials' })).toBeInTheDocument();
+    // Rolled up: each step's title and what's set now, nothing open.
+    const essentials = await screen.findByRole('button', { name: /^2\s*The essentials/ });
+    expect(essentials).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: /^1\s*Design it your way/ })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Reply-by line')).toBeNull();
+    await userEvent.click(essentials);
     expect(screen.getByLabelText('Reply-by line')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /^3\s*Extras/ }));
     const music = screen.getByRole('button', { name: /^Music\s*No music/ });
     expect(screen.queryByLabelText(/^Music link/)).toBeNull(); // folded away until wanted
     await userEvent.click(music);

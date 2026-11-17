@@ -499,11 +499,12 @@ function InvitationEditor({
   const paper = inv.envelope?.paper ? ` · ${ENVELOPE_PAPER_INFO[inv.envelope.paper].label.toLowerCase()} envelope` : '';
   return (
     <>
-      <Section n={n()} title="Design it your way" hint="Start from a template, then mix and match: any look with any names font, envelope, opening and words. The preview follows as it saves.">
+      {/* Rolled up into steps: each says what's set now; tap one to open it. */}
+      <Section n={n()} title="Design it your way" hint="Start from a template, then mix and match: any look with any names font, envelope, opening and words. The preview follows as it saves." fold={{ now: [doc.theme, inv.design?.tone].filter(Boolean).join(' · ') || 'Choose a template to start from' }}>
         <DesignBuilder theme={doc.theme} inv={inv} texts={doc.texts} original={ORIGINAL} initials={initials} setTheme={setTheme} setInv={setInv} setTexts={setTexts} />
       </Section>
 
-      <Section n={n()} title="The essentials" hint="Pick a look, add your names and when replies close. That’s all your invitation needs: everything under Extras is optional.">
+      <Section n={n()} title="The essentials" hint="Pick a look, add your names and when replies close. That’s all your invitation needs: everything under Extras is optional." fold={{ now: [doc.names ? `${doc.names.name1} & ${doc.names.name2}` : '', inv.rsvpBy].filter((x) => x?.trim()).join(' · ') || 'Your names and when replies close' }}>
         <ThemeGallery
           theme={doc.theme}
           custom={inv.custom ?? {}}
@@ -526,7 +527,7 @@ function InvitationEditor({
         <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">Event names, dates, times and venues come from each event’s Details.</span>
       </Section>
 
-      <Section n={n()} title="Extras" hint="Each card shows what’s set now. Tap one to make it yours; anything you leave keeps the design’s own.">
+      <Section n={n()} title="Extras" hint="Each card shows what’s set now. Tap one to make it yours; anything you leave keeps the design’s own." fold={{ now: `${SCENE_INFO[(inv.scene ?? 'auto') as Scene].label} · ${inv.seal ?? 'Sandstone'} seal · music, photo, gifts and more`, start: openSeal }}>
         <ExtrasGrid>
           <Extra title="Opening scene" now={SCENE_INFO[(inv.scene ?? 'auto') as Scene].label}>
             <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">What guests tap to open, in place of the envelope. Drawn in your colours, on every plan.</span>
