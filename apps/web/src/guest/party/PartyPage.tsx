@@ -481,7 +481,16 @@ export function PartyPage({ sample = false }: { sample?: boolean } = {}) {
             {data.me
               .filter((m) => HONOUR.test(m.role))
               .map((m) => (
-                <Honour key={`h-${m.name}`} name={first(m.name)} role={m.role} couple={data.couple} look={look} />
+                <Honour key={`h-${m.name}`} name={first(m.name)} role={m.role} couple={data.couple} look={look} note={mine.find((x) => x.name === m.name)?.message ?? ''} />
+              ))}
+            {/* The couple's own words to each of them (the best man's and maid of honour's are in their thank-you above). */}
+            {mine
+              .filter((m) => m.message?.trim() && !HONOUR.test(m.role))
+              .map((m) => (
+                <section key={`n-${m.personId}`} aria-label={`A note for ${first(m.name)}`} className="flex flex-col items-center gap-3 px-6 py-6 rounded-[22px] text-center" style={cardStyle(look, { border: `1px solid ${gold}` })}>
+                  <Eyebrow color={look.label}>A note from {data.couple}</Eyebrow>
+                  <p className="m-0 text-[21px] leading-[1.45] italic whitespace-pre-line max-w-[460px]">{m.message}</p>
+                </section>
               ))}
 
             <NowNext data={data} now={now} look={look} isMc={roles.some((r) => /\bmc\b|master of ceremonies/i.test(r))} />
@@ -721,7 +730,7 @@ export function PartyPage({ sample = false }: { sample?: boolean } = {}) {
 /** The two who stand right beside the couple: their page says so, properly. */
 const HONOUR = /\b(best man|best woman|maid of honou?r|matron of honou?r|man of honou?r)\b/i;
 
-function Honour({ name, role, couple, look }: { name: string; role: string; couple: string; look: PartyLook }) {
+function Honour({ name, role, couple, look, note = '' }: { name: string; role: string; couple: string; look: PartyLook; note?: string }) {
   return (
     <section aria-label={`Thank you, our ${role.toLowerCase()}`} className="relative flex flex-col items-center gap-3 px-6 py-8 rounded-[24px] text-center" style={{ background: look.ink, color: look.paper, boxShadow: `0 0 0 1px ${look.gold}, 0 0 0 6px ${look.ink}, 0 0 0 7px ${look.gold}, ${look.shadow}` }}>
       <span className="text-[12px] tracking-[.3em] uppercase font-semibold" style={{ fontFamily: SANS, color: look.gold }}>
@@ -731,8 +740,8 @@ function Honour({ name, role, couple, look }: { name: string; role: string; coup
         Our {role.toLowerCase()}
       </h2>
       <Ornament gold={look.gold} />
-      <p className="m-0 text-[21px] leading-[1.45] italic max-w-[440px]">
-        {name}, of everyone we know, we asked you to stand right beside us. Thank you for everything you’ve already done, and everything you’ll do on the day. We truly couldn’t do this without you.
+      <p className="m-0 text-[21px] leading-[1.45] italic max-w-[440px] whitespace-pre-line">
+        {note.trim() || `${name}, of everyone we know, we asked you to stand right beside us. Thank you for everything you’ve already done, and everything you’ll do on the day. We truly couldn’t do this without you.`}
       </p>
       <span className="text-[26px]" style={{ fontFamily: "'Pinyon Script', cursive", color: look.gold }}>
         With all our love, {couple}

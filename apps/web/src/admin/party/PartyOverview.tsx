@@ -6,6 +6,7 @@ import { Ring } from '../checklists/PhasedChecklist';
 import { useAdmin } from '../Shell';
 import { H2, inputCls, Pill, useToast } from '../ui';
 import { SideNames, type PartyView, type SideName } from './Party';
+import { PartyMessages } from './PartyMessages';
 import { PartyBuilder } from './PartyBuilder';
 
 const card = 'flex flex-col gap-3 p-5 rounded-[18px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]';
@@ -32,6 +33,7 @@ export function PartyOverview({ d, setD, sideName, go }: { d: PartyData; setD: (
   return (
     <div className="flex flex-col gap-6">
       <PartyBuilder d={d} setD={setD} />
+      <PartyMessages d={d} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         {(['p1', 'p2'] as const).map((side) => {

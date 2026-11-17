@@ -40,6 +40,7 @@ export function sampleParty(as: string | null): PartyPayload {
         personId: 'sample-me',
         name: me.name,
         role: me.role,
+        message: me.role === 'Best man' ? 'James, you’ve been my best mate since we were six. There’s no one I’d rather have beside me. Thank you, mate. Theo' : me.role === 'Groomsman' ? 'Sam, thanks for being part of this. Can’t wait to celebrate with you. Theo' : 'Thank you for being part of our day. We love you! Harriet',
         tasks: [
           { id: 't1', text: p1 ? 'Book the hair and make-up trial' : 'Get fitted for your suit', due: day(14, 9).slice(0, 10), done: false, mine: false },
           { id: 't2', text: p1 ? 'Plan the hens day' : 'Plan the bucks day', due: day(30, 9).slice(0, 10), done: false, mine: false },

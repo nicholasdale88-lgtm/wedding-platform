@@ -227,6 +227,8 @@ export interface PartyMine {
   personId: string;
   name: string;
   role: string;
+  /** A personal message from the couple. */
+  message?: string;
   tasks: { id: string; text: string; due: string; done: boolean; mine: boolean }[];
   packed: string[];
   pack: { text: string; done: boolean }[];

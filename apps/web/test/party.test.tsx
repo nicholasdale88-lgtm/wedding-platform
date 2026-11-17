@@ -143,4 +143,26 @@ describe('wedding party page', () => {
     expect(await screen.findByText('You’re paying for your own suit: about $180.')).toBeInTheDocument();
     vi.unstubAllGlobals();
   });
+
+  it('the couple’s own note: on a bridesmaid’s page as a note, and in place of the best man’s standard thank-you', async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/demo/party?as=bridesmaid']}>
+        <Routes>
+          <Route path="/demo/party" element={<PartyPage sample />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('region', { name: 'A note for Priya' })).toHaveTextContent('Thank you for being part of our day');
+    unmount();
+    render(
+      <MemoryRouter initialEntries={['/demo/party?as=best']}>
+        <Routes>
+          <Route path="/demo/party" element={<PartyPage sample />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('region', { name: 'Thank you, our best man' })).toHaveTextContent('best mate since we were six');
+    vi.unstubAllGlobals();
+  });
 });

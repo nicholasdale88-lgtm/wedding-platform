@@ -131,6 +131,8 @@ export const SidePerson = z.object({
   gift: s(120),
   given: z.boolean().default(false),
   notes: s(500),
+  /** A personal message from the couple, at the top of their own page. */
+  message: s(1000),
   /** What they've packed from the shared lists (by wording), ticked on their own page. */
   packed: z.array(z.string().max(160)).max(150).default([]),
   /** Things they added to their own packing list. */

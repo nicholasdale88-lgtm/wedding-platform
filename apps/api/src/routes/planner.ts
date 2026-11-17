@@ -824,6 +824,7 @@ export function partyGuestRoutes() {
         personId: m.id,
         name: m.name,
         role: m.party_role,
+        message: p?.message ?? '',
         tasks: perms.tasks ? doc.tasks.filter((t) => t.person === m.id || (perms.sideTasks && !t.person && side)).map((t) => ({ id: t.id, text: t.text, due: t.due, done: t.done, mine: t.person === m.id })) : [],
         packed: perms.packing ? (p?.packed ?? []) : [],
         pack: perms.packing ? (p?.pack ?? []) : [],
@@ -885,7 +886,7 @@ export function partyGuestRoutes() {
     const setup = (await readDoc(db, w.id, 'party-setup', '')).data;
     if (!me || setup.access[me.id] === false) return c.json({ error: { code: 'not_party', message: 'This page is for the wedding party.' } }, 403);
     const side = sideOf(me.party_role);
-    const person = (d: PartySide) => (d.people[me.id] ??= { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '', packed: [], pack: [] });
+    const person = (d: PartySide) => (d.people[me.id] ??= { outfit: '', size: '', fitting: '', collected: false, paid: false, gift: '', given: false, notes: '', message: '', packed: [], pack: [] });
     let ok = true;
     const saved = await changeSide(db, w.id, sideDoc(side), (d) => {
       switch (a.action) {
