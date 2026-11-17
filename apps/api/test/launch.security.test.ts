@@ -827,7 +827,7 @@ ${pdf}
     expect((await one<{ h: string | null }>(`SELECT pass_hash AS h FROM party_account WHERE person_id = ? AND deleted_at IS NULL`, A.d.pid)).h).toBeNull();
   }, 60_000);
 
-  it('party portal: sign up and sign in with a mobile instead of an email; a mobile can't be used twice', async () => {
+  it('party portal: sign up and sign in with a mobile instead of an email; a mobile can’t be used twice', async () => {
     const { A } = w;
     const a = `/api/a/w/${A.wid}`;
     const p = `/api/p/${SLUG}/portal`;
@@ -836,7 +836,7 @@ ${pdf}
     expect(await statusOf(call('POST', `${p}/password-link`, { body: { t, phone: '0412 345 678', password: 'groomsman-2027' } }))).toBe(200);
     for (const asTyped of ['0412 345 678', '+61412345678', '61412345678']) expect(await statusOf(call('POST', `${p}/login`, { body: { email: asTyped, password: 'groomsman-2027' } })), asTyped).toBe(200);
     expect(await statusOf(call('POST', `${p}/login`, { body: { email: '0412 345 678', password: 'wrong-pass-2027' } }))).toBe(401);
-    // Someone else can't take the same mobile.
+    // Someone else can’t take the same mobile.
     const t2 = tokenOf((await jsonOf<{ link: string }>(call('POST', `${a}/party-accounts/${A.c.pid}/invite`, { cookie: w.owner, body: {} }))).link);
     expect(await statusOf(call('POST', `${p}/password-link`, { body: { t: t2, phone: '0412345678', password: 'bridesmaid-2027' } }))).toBe(409);
   }, 60_000);
