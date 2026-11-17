@@ -225,8 +225,15 @@ function icsProblems(text: string): { problems: string[]; props: { name: string;
       const open = stack.pop();
       if (open !== value) problems.push(`END:${value} closes ${open ?? 'nothing'}`);
     } else if (name === 'DTSTART' || name === 'DTEND' || name === 'DTSTAMP') {
-      const ok = params === ';VALUE=DATE' ? /^\d{8}$/.test(value) : params === '' && /^\d{8}T\d{6}Z$/.test(value);
-      if (!ok) problems.push(`${name}${params} is not a UTC time: ${value}`);
+      // A UTC time, a date, a time in a named zone (TZID, with its VTIMEZONE), or a zone's own rule start.
+      const inZoneRule = ['STANDARD', 'DAYLIGHT'].includes(stack[stack.length - 1] ?? '');
+      const ok =
+        params === ';VALUE=DATE'
+          ? /^\d{8}$/.test(value)
+          : /^;TZID=[A-Za-z_]+(\/[A-Za-z_+-]+)*$/.test(params) || (inZoneRule && params === '')
+            ? /^\d{8}T\d{6}$/.test(value)
+            : params === '' && /^\d{8}T\d{6}Z$/.test(value);
+      if (!ok) problems.push(`${name}${params} is not a valid time: ${value}`);
     } else if (['SUMMARY', 'LOCATION', 'DESCRIPTION', 'X-WR-CALNAME'].includes(name)) {
       for (let i = 0; i < value.length; i++) {
         const ch = value[i]!;
@@ -1095,8 +1102,13 @@ async function checkAll(
     if (mineCal.status === 200) {
       const ics = icsProblems(mineCal.text);
       check(!ics.problems.length, 'event calendar file is valid', () => `${e.key}: ${ics.problems.slice(0, 3).join('; ')}`);
-      const start = ics.props.find((p) => p.name === 'DTSTART')?.value;
-      check(start === stamp(new Date(e.startsAt)), 'event calendar time', () => `${start} want ${stamp(new Date(e.startsAt))} (${w.tz} ${e.local})`);
+      // The event's own start (after BEGIN:VEVENT, not a timezone rule's): in the wedding's zone, or UTC.
+      const vevent = ics.props.findIndex((p) => p.name === 'BEGIN' && p.value === 'VEVENT');
+      const dt = ics.props.slice(vevent + 1).find((p) => p.name === 'DTSTART');
+      const start = dt ? `${dt.params}:${dt.value}` : undefined;
+      const local = `${e.local.replace(/[-:]/g, '')}${/T\d\d:\d\d$/.test(e.local) ? '00' : ''}`;
+      const want = [`;TZID=${w.tz}:${local}`, `:${stamp(new Date(e.startsAt))}`];
+      check(!!start && want.includes(start), 'event calendar time', () => `${start} want ${want.join(' or ')} (${w.tz} ${e.local})`);
       const summary = unescapeIcs(ics.props.find((p) => p.name === 'SUMMARY')?.value ?? '');
       check(summary === `${couple}: ${e.name}`, 'event calendar title', () => `"${summary}" want "${couple}: ${e.name}"`);
     }
