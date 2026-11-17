@@ -126,8 +126,9 @@ sections = [
   ("Meta Business Suite: Facebook page + Instagram", "business.facebook.com", M, 0, "Needed for ads."),
   ("TikTok, Pinterest Business, YouTube", "Each site", O, 0, ""),
   ("Canva + CapCut for ad videos", "canva.com; capcut.com", O, 0, "Free plans are enough."),
-  ("Install Meta pixel / tracking and test a sign-up event", "docs/FACEBOOK_ADS_PLAN.md", M, 0, "Ads can't optimise without it."),
-  ("Run the 4-week ad test (A$10/day, cap A$280)", "Meta Ads Manager", R, 280, "Stop early if CTR < 0.8% or CPC > $2.50 after $15."),
+  ("Meta ad account with a spending limit, connected to the Ads bot", "business.facebook.com → ad account (card + account spending limit) and a system user token; paste token, ad account and Page in Company portal → Settings → Connections", M, 0, "Set the account spending limit to A$280 for the test: Meta never spends past it. The Ads bot can't run until this is done."),
+  ("Install Meta pixel / tracking and test a sign-up event", "docs/FACEBOOK_ADS_PLAN.md", O, 0, "Optional now: the Ads bot counts sign-ups and sales per ad from its own link. A pixel later lets Meta aim for sign-ups instead of clicks."),
+  ("Run the 4-week ad test (A$10/day, cap A$280)", "Company portal → Promote → Ads (approve the drafts; the bot does the rest)", R, 280, "The bot pauses an ad after $25 with no sign-ups, stops everything at A$280, and reports daily in Overview."),
  ]),
  ("9. Final checks before announcing", [
   ("Confirm prices: Basic $50 · Essentials $88 · Deluxe $98 · extra event $39 · texts 8c", "Company portal → Money & tax / plan settings", M, 0, "LAUNCH_CHECKLIST.md still lists old prices."),
@@ -219,6 +220,9 @@ items = [
  ("IT & hosting", "AI: planning assistant, bots, Help voice", "Cloudflare Workers AI", "Monthly", "USD", 0, "Y", "Free daily allowance; usage is capped to stay inside it."),
  ("IT & hosting", "Photo storage", "Couples' own Drive / Dropbox / OneDrive", "Monthly", "AUD", 0, "Y", "R2 stays off — no storage bill."),
  ("IT & hosting", "Weather for guest guides", "Open-Meteo", "Monthly", "AUD", 0, "Y", "Free."),
+ ("Business tools", "Microsoft 365 Business Basic (email + Office online)", "Microsoft", "Monthly", "AUD", 11.88, "Y", "A$10.80 + GST month to month (A$9.00 + GST if you commit to a year). Your own mailbox at your domain, Teams, OneDrive 1 TB. Takes over the domain's email: set INBOX_DOMAIN to a subdomain (e.g. invites.<domain>) so wedding addresses keep working."),
+ ("Business tools", "SuperGrok (Grok premium)", "xAI", "Monthly", "USD", 30, "Y", "US$30/mo on grok.com (SuperGrok Lite US$10). Separate from the Grok API for the bots, which stays off."),
+ ("Business tools", "Claude Team, Standard seats (minimum 2)", "Anthropic", "Monthly", "USD", 50, "Y", "2 seats × US$25/mo month to month (US$20 a seat if paid yearly = US$40). For building and improving the site."),
  ("Subscriptions", "Transactional email (free 3,000/month)", "Resend", "Monthly", "USD", 0, "Y", "Free up to ~100 emails a day."),
  ("Subscriptions", "Resend Pro (when > 100 emails a day)", "Resend", "Monthly", "USD", 20, "Y", "Later, as weddings grow (~3–5 weddings active at once). Then set Resend plan to Paid in Connections."),
  ("Subscriptions", "Amazon SES (only above ~50k emails a month)", "Amazon Web Services", "Monthly", "USD", 5, "N", "Replaces Resend Pro at volume (~US$0.10 per 1,000 emails). Not needed to launch; see docs/GROWTH_PLAN.md."),
@@ -291,7 +295,7 @@ for i, h in enumerate(["Category", "", "", "", "", "", "", "Launch cash (A$)", "
     if h:
         c = cs.cell(r, i, h); c.font = hdr_font; c.fill = hdr_fill; c.border = B
 r += 1
-for cat in ["Business setup", "IT & hosting", "Subscriptions", "Ads & marketing"]:
+for cat in ["Business setup", "IT & hosting", "Business tools", "Subscriptions", "Ads & marketing"]:
     cs.cell(r, 1, cat).border = B
     for col, L in ((8, "H"), (9, "I"), (10, "J")):
         c = cs.cell(r, col, f'=SUMIF($A${first}:$A${lastc},$A{r},{L}${first}:{L}${lastc})'); c.number_format = AUD; c.border = B
@@ -460,6 +464,170 @@ for col, w in zip("ABCDEFG", [40, 26, 26, 16, 16, 15, 56]):
     mp.column_dimensions[col].width = w
 mp.page_setup.orientation = "landscape"; mp.sheet_properties.pageSetUpPr.fitToPage = True
 mp.page_setup.fitToWidth = 1; mp.page_setup.fitToHeight = 0
+
+# ---------------- Tab: Upfront costs (the owner's tool list) ----------------
+ROW_OF = {item: cr for (cr, cat, item, *_r) in ROWMAP}
+CSN = "'Start-up costs'!"
+up = wb.create_sheet("Upfront costs")
+up.sheet_view.showGridLines = False
+up["A1"] = "The Yes List — Upfront costs for your tools"; up["A1"].font = title_font
+up["A2"] = ("What you pay on day one for each tool, then every month. Prices and Include? come from the Start-up costs tab "
+            "(change them there). US$ prices use the exchange rate on that tab and are before any 10% GST the provider adds "
+            "at checkout. Estimates as of Nov 2026 — check each provider's page before paying.")
+up["A2"].font = sub_font; up.merge_cells("A2:H2"); up["A2"].alignment = Alignment(wrap_text=True); up.row_dimensions[2].height = 44
+heads = ["#", "Tool", "Plan", "Billing", "Included?", "Pay up front (A$)", "Then per month (A$)", "First year (A$)", "Notes"]
+UH = 4
+for i, h in enumerate(heads, 1):
+    c = up.cell(UH, i, h); c.font = hdr_font; c.fill = hdr_fill; c.border = B; c.alignment = Alignment(wrap_text=True, vertical="center")
+up.row_dimensions[UH].height = 32
+tools = [
+    ("Microsoft account and email", "Microsoft 365 Business Basic (email + Office online)"),
+    ("Domain + web address (URL)", "Domain name"),
+    ("Grok premium", "SuperGrok (Grok premium)"),
+    ("Claude Team (Standard)", "Claude Team, Standard seats (minimum 2)"),
+    ("GitHub", "Code, CI, nightly backups"),
+    ("Cloudflare — hosting, database, email routing", "Website hosting, database, deploys (Pages, Workers, D1)"),
+    ("Cloudflare — Workers Paid (when Capacity says so)", "Workers Paid plan (when you outgrow free)"),
+]
+extra_note = {
+    "Domain name": "e.g. a .com.au at VentraIP (~A$20/yr, needs your ABN). Connecting it to the site is free in Cloudflare.",
+    "Code, CI, nightly backups": "GitHub Free: the repo, the builds and the nightly backups. GitHub Team (US$4 a person a month) only if you add staff.",
+}
+r = UH + 1; uf = r
+for n, (label, item) in enumerate(tools, 1):
+    cr = ROW_OF[item]
+    vals = [n, label, f"={CSN}C{cr}&\" — \"&{CSN}B{cr}", f"={CSN}D{cr}", f"=UPPER({CSN}G{cr})",
+            f"={CSN}H{cr}", f"={CSN}I{cr}", f"={CSN}J{cr}", extra_note.get(item) or f"={CSN}K{cr}"]
+    for col, v in enumerate(vals, 1):
+        c = up.cell(r, col, v); c.border = B; c.alignment = wrap
+    for col in (6, 7, 8):
+        up.cell(r, col).number_format = AUD
+    r += 1
+ul = r - 1
+up.conditional_formatting.add(f"A{uf}:I{ul}", FormulaRule(formula=[f'$E{uf}="N"'], font=Font(color="A0A0A0", italic=True)))
+up.conditional_formatting.add(f"A{uf}:I{ul}", FormulaRule(formula=['MOD(ROW(),2)=0'], fill=PatternFill("solid", fgColor=CREAM)))
+up.cell(r, 2, "TOTAL — your tools").font = Font(bold=True, color="FFFFFF")
+for col in range(1, 10):
+    up.cell(r, col).fill = PatternFill("solid", fgColor=INK); up.cell(r, col).border = B
+for col, L in ((6, "F"), (7, "G"), (8, "H")):
+    c = up.cell(r, col, f"=SUM({L}{uf}:{L}{ul})"); c.number_format = AUD; c.font = Font(bold=True, color="FFFFFF")
+utot = r; r += 2
+up.cell(r, 2, "Cheaper ways to run the same tools").font = Font(name="Georgia", size=13, bold=True, color=INK); r += 1
+for tip in [
+    "Claude Team paid yearly: US$20 a seat instead of US$25 (saves ~A$185 a year on 2 seats). Claude Pro for one person is cheaper again if you don't need a team.",
+    "Microsoft 365 on a 12-month commitment: A$9.00 + GST instead of A$10.80 + GST. Or skip it: the free hello@ forward to Gmail still works.",
+    "SuperGrok Lite is US$10 a month if you only chat with Grok now and then.",
+    "Cloudflare and GitHub stay free until Overview → Capacity says to upgrade.",
+]:
+    up.cell(r, 2, "• " + tip).alignment = Alignment(wrap_text=True, vertical="top"); up.merge_cells(start_row=r, start_column=2, end_row=r, end_column=9)
+    up.row_dimensions[r].height = 30; r += 1
+for col, w in zip("ABCDEFGHI", [4, 40, 48, 10, 10, 15, 15, 15, 60]):
+    up.column_dimensions[col].width = w
+up.freeze_panes = f"C{UH+1}"
+up.page_setup.orientation = "landscape"; up.sheet_properties.pageSetUpPr.fitToPage = True
+up.page_setup.fitToWidth = 1; up.page_setup.fitToHeight = 0
+
+# ---------------- Tab: Future expansion ----------------
+KEEPX = {}
+if os.path.exists(OUT):
+    try:
+        from openpyxl import load_workbook as _lw2
+        _o = _lw2(OUT)
+        if "Future expansion" in _o.sheetnames:
+            for row in _o["Future expansion"].iter_rows(min_row=6, values_only=True):
+                if row and row[1] and row[6] in ("Y", "N", "y", "n"):
+                    KEEPX[row[1]] = (row[4], row[5], row[6])
+                if row and row[0] == "Average sale (A$)":
+                    KEEPX["_avg"] = row[2]
+    except Exception:
+        pass
+fx = wb.create_sheet("Future expansion")
+fx.sheet_view.showGridLines = False
+fx["A1"] = "The Yes List — Costs as you grow"; fx["A1"].font = title_font
+fx["A2"] = ("Extra monthly costs that switch on as the business grows, on top of the Upfront costs tab. Each stage lists what to add "
+            "and roughly when. Blue cells are yours: change a price or set Include? to N. Rough guides only — check prices when you get there.")
+fx["A2"].font = sub_font; fx.merge_cells("A2:J2"); fx["A2"].alignment = Alignment(wrap_text=True); fx.row_dimensions[2].height = 32
+fx["A3"] = "Average sale (A$)"; fx["A3"].font = Font(bold=True)
+fx["C3"] = KEEPX.get("_avg") or 88; fx["C3"].font = input_font; fx["C3"].number_format = AUD
+fx["D3"] = "Used to work out how many weddings a month pay for each stage (after Stripe's fee)."; fx["D3"].font = sub_font
+fh = ["Stage", "Service", "What it's for", "When to add it", "Currency", "Price a month", "Include? (Y/N)", "Per month (A$)", "Per year (A$)", "Notes"]
+XH = 5
+for i, h in enumerate(fh, 1):
+    c = fx.cell(XH, i, h); c.font = hdr_font; c.fill = hdr_fill; c.border = B; c.alignment = Alignment(wrap_text=True, vertical="center")
+fx.row_dimensions[XH].height = 32
+S1, S2, S3, S4 = ("1. Launch", "2. Growing", "3. Busy", "4. Big")
+grow = [
+ (S2, "Cloudflare Workers Paid", "More requests, 30-day database undo", "~5 weddings live at once, or when Capacity says", "USD", 5, "N", "Already counted on the Upfront costs tab, so N here."),
+ (S2, "Resend Pro email", "50,000 emails a month", "~3–5 weddings sending invites at once (over 100 emails a day)", "USD", 20, "Y", "Then set Resend plan to Paid in Connections."),
+ (S2, "Business insurance (public liability + professional indemnity)", "Cover if a client claims against you", "Before your first paying couples", "AUD", 70, "Y", "Rough guide ~A$600–1,000 a year for an online sole trader. Get a quote."),
+ (S2, "Bookkeeping software", "Track sales and costs for tax", "From your first sales", "AUD", 35, "Y", "e.g. Xero / MYOB starter plans. A free spreadsheet works at the start."),
+ (S2, "Accountant (first tax return, spread over the year)", "Tax return and set-aside check", "Once a year", "AUD", 25, "Y", "~A$300 a year shown monthly."),
+ (S3, "Extra Microsoft 365 mailbox", "An email for a helper", "When someone helps with support", "AUD", 11.88, "Y", "A$10.80 + GST per extra person."),
+ (S3, "Extra Claude Team seat", "A helper or developer working on the site", "When a second person builds with you", "USD", 25, "N", "The 2-seat minimum already covers one helper."),
+ (S3, "Grok API for the business bots", "Stronger AI for ads, help and planning bots", "If the free Cloudflare AI answers feel weak", "USD", 12, "Y", "Pay as you go, ~US$7–12 a month."),
+ (S3, "Cloudflare usage above the Workers Paid allowance", "More traffic and database reads", "~50+ weddings live at once", "USD", 10, "Y", "Pay per use; Overview → Capacity shows it."),
+ (S3, "Canva Pro", "Brand kit, more templates for ads", "When you post ads every week", "AUD", 20, "Y", "Free plan is enough to start."),
+ (S3, "Ongoing ads", "Steady new couples", "After the 4-week test pays for itself", "AUD", 300, "Y", "Set your own amount once you know cost per sale."),
+ (S4, "Amazon SES instead of Resend Pro", "Cheaper email at volume", "Over ~50,000 emails a month", "USD", 10, "N", "~US$0.10 per 1,000 emails. Turn Resend Pro off when this goes on."),
+ (S4, "Photo storage on our own servers (Cloudflare R2)", "Hold guest photos for couples without Drive", "Only if you choose to host photos", "USD", 15, "N", "~US$0.015 per GB a month; 1 TB ≈ US$15."),
+ (S4, "Microsoft 365 Business Standard upgrade", "Desktop Word/Excel/Outlook", "If you want the desktop apps", "AUD", 9, "N", "~A$8–9 more per person than Basic."),
+ (S4, "Part-time support helper (5 hours a week)", "Answer couples' questions in busy season", "Engagement season (Boxing Day – Feb) or 100+ weddings live", "AUD", 800, "N", "Casual wage + super. Only when the sales cover it."),
+ (S4, "GST registration", "Required once sales pass A$75,000 a year", "Within 21 days of reaching A$75k", "AUD", 0, "Y", "Not a bill as such: 1/11 of each sale goes to the ATO. Tick GST in Company portal → Money & tax."),
+]
+r = XH + 1; xf = r
+base_row = r
+# Stage 1 = the upfront tools, pulled from the Upfront tab
+for col, v in enumerate([S1, "Your tools (from Upfront costs tab)", "Microsoft 365, domain, SuperGrok, Claude Team, GitHub, Cloudflare", "Now", "AUD", f"='Upfront costs'!G{utot}", "Y", f"='Upfront costs'!G{utot}", f"='Upfront costs'!G{utot}*12", "Change these on the Start-up costs tab."], 1):
+    c = fx.cell(r, col, v); c.border = B; c.alignment = wrap
+for col in (6, 8, 9):
+    fx.cell(r, col).number_format = AUD
+r += 1
+for row in grow:
+    stage, svc, what, when, cur, price, inc, note = row[:8]
+    if svc in KEEPX:
+        cur, price, inc = (KEEPX[svc][0] or cur), (KEEPX[svc][1] if KEEPX[svc][1] is not None else price), (KEEPX[svc][2] or inc)
+    for col, v in enumerate([stage, svc, what, when, cur, price, inc], 1):
+        c = fx.cell(r, col, v); c.border = B; c.alignment = wrap
+    for col in (5, 6, 7):
+        fx.cell(r, col).font = input_font
+    fx.cell(r, 6).number_format = '#,##0.00'
+    aud = f'F{r}*IF(E{r}="USD",{CSN}$C$3,1)*IF(UPPER(G{r})="Y",1,0)'
+    c = fx.cell(r, 8, f"={aud}"); c.number_format = AUD; c.border = B
+    c = fx.cell(r, 9, f"={aud}*12"); c.number_format = AUD; c.border = B
+    c = fx.cell(r, 10, note); c.border = B; c.alignment = wrap
+    r += 1
+xl = r - 1
+dvx = DataValidation(type="list", formula1='"Y,N"'); fx.add_data_validation(dvx); dvx.add(f"G{xf+1}:G{xl}")
+dvc = DataValidation(type="list", formula1='"AUD,USD"'); fx.add_data_validation(dvc); dvc.add(f"E{xf+1}:E{xl}")
+fx.conditional_formatting.add(f"A{xf}:J{xl}", FormulaRule(formula=[f'UPPER($G{xf})="N"'], font=Font(color="A0A0A0", italic=True)))
+for stage, colr in ((S1, "FBF7F4"), (S2, "F4E1DC"), (S3, "EADCF0"), (S4, "DCE8F4")):
+    fx.conditional_formatting.add(f"A{xf}:A{xl}", CellIsRule(operator="equal", formula=[f'"{stage}"'], fill=PatternFill("solid", fgColor=colr), font=Font(bold=True)))
+
+# Stage summary
+r += 1
+fx.cell(r, 1, "What each stage costs").font = Font(name="Georgia", size=13, bold=True, color=INK); r += 1
+for i, h in enumerate(["Stage", "Roughly when", "", "", "", "", "", "Added a month (A$)", "Running total a month (A$)", "Weddings a month to cover it"], 1):
+    if h:
+        c = fx.cell(r, i, h); c.font = hdr_font; c.fill = hdr_fill; c.border = B; c.alignment = Alignment(wrap_text=True)
+r += 1; sf = r
+whens = {S1: "Launch — 0 to ~5 weddings live", S2: "First paying couples — ~5 to 20 live", S3: "~20 to 100 weddings live", S4: "100+ live / over A$75k a year"}
+for stage in (S1, S2, S3, S4):
+    fx.cell(r, 1, stage).border = B; fx.cell(r, 2, whens[stage]).border = B
+    c = fx.cell(r, 8, f'=SUMIF($A${xf}:$A${xl},A{r},$H${xf}:$H${xl})'); c.number_format = AUD; c.border = B
+    c = fx.cell(r, 9, f"=SUM($H${sf}:H{r})"); c.number_format = AUD; c.border = B; c.font = Font(bold=True)
+    c = fx.cell(r, 10, f"=IFERROR(ROUNDUP(I{r}/($C$3-ROUND($C$3*0.017+0.3,2)),0),0)"); c.number_format = "0"; c.border = B; c.font = Font(bold=True)
+    r += 1
+fx.cell(r, 1, "Weddings a month to cover it = running total ÷ what you keep from an average sale after Stripe's fee (before tax). General figures only — not financial advice.").font = sub_font
+
+for col, w in zip("ABCDEFGHIJ", [12, 40, 36, 36, 9, 11, 10, 15, 16, 58]):
+    fx.column_dimensions[col].width = w
+fx.freeze_panes = f"C{XH+1}"
+fx.page_setup.orientation = "landscape"; fx.sheet_properties.pageSetUpPr.fitToPage = True
+fx.page_setup.fitToWidth = 1; fx.page_setup.fitToHeight = 0
+
+# Put the two new tabs right after the checklist
+order = ["Launch checklist", "Upfront costs", "Future expansion", "Start-up costs", "Monthly payments"]
+wb._sheets.sort(key=lambda s: order.index(s.title) if s.title in order else 99)
 
 wb.save(OUT)
 print("saved", OUT)
