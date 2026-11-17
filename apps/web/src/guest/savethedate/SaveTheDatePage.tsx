@@ -43,7 +43,8 @@ export function SaveTheDatePage() {
   const when = d.event ? new Date(d.event.startsAt) : null;
   const fmt = (o: Intl.DateTimeFormatOptions) => (when ? new Intl.DateTimeFormat('en-AU', { ...o, timeZone: tz }).format(when) : '');
   const where = d.event ? [d.event.venue, d.event.address.split(',').slice(-2).join(',').trim()].filter(Boolean).join(' · ') : '';
-  const ics = d.event ? `/api/p/${encodeURIComponent(slug)}/calendar/${encodeURIComponent(d.event.key)}.ics` : '';
+  // With the guest's own link: a private wedding's calendar file is only for its guests.
+  const ics = d.event ? `/api/p/${encodeURIComponent(slug)}/calendar/${encodeURIComponent(d.event.key)}.ics${token ? `?g=${encodeURIComponent(token)}` : ''}` : '';
   // An all-day entry on the wedding's date (where the wedding is): that day to the next.
   const [y, mo, dd] = [Number(fmt({ year: 'numeric' })), Number(fmt({ month: 'numeric' })), Number(fmt({ day: 'numeric' }))];
   const dayStr = (k: number) => new Date(Date.UTC(y, mo - 1, dd + k)).toISOString().slice(0, 10).replace(/-/g, '');

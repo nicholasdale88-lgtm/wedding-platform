@@ -1,4 +1,4 @@
-import { allPayments, dateIn, randomToken } from '@wp/shared';
+import { allPayments, dateIn, icsFold, icsText, randomToken } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import type { Env } from '../env';
 import { allow } from '../lib/rateLimit';
@@ -13,24 +13,9 @@ import { readDoc } from './planner';
  * Admin: /api/a/w/:wid/planner-calendar (switch on, a new link, off). The feed: /api/cal/:wid/:key.ics
  */
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n'); // a lone CR too: some calendar apps read it as a new line
-/** Lines over 75 characters are folded (by whole characters, so nothing is cut in half). */
-const fold = (line: string) => {
-  const rows: string[] = [];
-  let cur = '';
-  let n = 0;
-  for (const ch of line) {
-    if (n === 72) {
-      rows.push(cur);
-      cur = '';
-      n = 0;
-    }
-    cur += ch;
-    n++;
-  }
-  rows.push(cur);
-  return rows.join('\r\n ');
-};
+const esc = icsText;
+/** Lines over 75 octets are folded (never through a character). */
+const fold = icsFold;
 const ymd = (d: string) => d.replace(/-/g, '');
 const DAY = 86_400_000;
 

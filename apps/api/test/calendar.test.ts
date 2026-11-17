@@ -32,6 +32,31 @@ describe('calendar file', () => {
     expect((await app.request('/api/p/sophie-and-nicholas/calendar/nope.ics', {}, env, ctx)).status).toBe(404);
   });
 
+  it('a private wedding: an event’s file only with a guest’s own link, for an event they’re invited to (stress run)', async () => {
+    await t.db.prepare(`UPDATE wedding SET content = json_set(content, '$.private', json('true'))`).run();
+    const ev = (await t.db.prepare(`SELECT id, key FROM event ORDER BY sort LIMIT 1`).first<{ id: string; key: string }>())!;
+    const inv = (await t.db.prepare(`SELECT i.token FROM invitation i JOIN invite_event ie ON ie.invitation_id = i.id AND ie.event_id = ? LIMIT 1`).bind(ev.id).first<{ token: string }>())!;
+    const out = await t.db.prepare(`SELECT i.token FROM invitation i WHERE NOT EXISTS (SELECT 1 FROM invite_event ie WHERE ie.invitation_id = i.id AND ie.event_id = ?) LIMIT 1`).bind(ev.id).first<{ token: string }>();
+    const file = (g = '') => app.request(`/api/p/sophie-and-nicholas/calendar/${ev.key}.ics${g ? `?g=${g}` : ''}`, {}, env, ctx);
+    expect((await file()).status).toBe(404);
+    const mine = await file(inv.token);
+    expect(mine.status).toBe(200);
+    expect(mine.headers.get('cache-control')).toMatch(/^private/);
+    expect(await mine.text()).toContain('BEGIN:VEVENT');
+    if (out) expect((await file(out.token)).status).toBe(404);
+    expect((await file('a'.repeat(22))).status).toBe(404);
+  });
+
+  it('folds long lines by octets, never through a character (accents, other scripts, emoji)', async () => {
+    await t.db.prepare(`UPDATE event SET name = ?, venue = ? WHERE key = 'wedding'`).bind('Día dos — ceremonia y fiesta ✨ 🎉 李小龍 with a very long name to fill the line up', 'Glasshouse — Rooftop 🌿, Level 2; Kangaroo Valley').run();
+    const body = await (await app.request('/api/p/sophie-and-nicholas/calendar/wedding.ics', {}, env, ctx)).text();
+    expect(body).not.toContain('�');
+    const enc = new TextEncoder();
+    expect(body.split('\r\n').every((l) => enc.encode(l).length <= 75)).toBe(true);
+    const summary = body.split('\r\n').reduce<string[]>((a, l) => (l.startsWith(' ') ? [...a.slice(0, -1), a[a.length - 1] + l.slice(1)] : [...a, l]), []).find((l) => l.startsWith('SUMMARY:'));
+    expect(summary).toContain('Día dos — ceremonia y fiesta ✨ 🎉 李小龍 with a very long name to fill the line up');
+  });
+
   it("a guest's own calendar: every event they're invited to (not ones they said no to), kept up to date, with reminders", async () => {
     const inv = (await t.db.prepare(`SELECT i.id, i.token FROM invitation i WHERE (SELECT COUNT(*) FROM invite_event ie WHERE ie.invitation_id = i.id) > 1 LIMIT 1`).first<{ id: string; token: string }>())!;
     const feed = () => app.request(`/api/p/sophie-and-nicholas/calendar/mine.ics?g=${inv.token}`, {}, env, ctx);

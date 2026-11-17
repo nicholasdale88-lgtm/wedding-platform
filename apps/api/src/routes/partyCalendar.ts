@@ -1,4 +1,4 @@
-import { clockMinutes, itemsFor, sideDoc, sideOf, zonedToUtc } from '@wp/shared';
+import { clockMinutes, icsFold, icsText, itemsFor, sideDoc, sideOf, zonedToUtc } from '@wp/shared';
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import { sessionId } from '../lib/auth';
@@ -17,25 +17,10 @@ export async function partyCalKey(secret: string, personId: string) {
   return (await sessionId(`party-cal:${personId}`, secret)).slice(0, 24);
 }
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
+const esc = icsText;
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-/** Lines over 75 characters are folded (by whole characters). */
-const fold = (line: string) => {
-  const rows: string[] = [];
-  let cur = '';
-  let n = 0;
-  for (const ch of line) {
-    if (n === 72) {
-      rows.push(cur);
-      cur = ' ';
-      n = 1;
-    }
-    cur += ch;
-    n++;
-  }
-  rows.push(cur);
-  return rows.join('\r\n');
-};
+/** Lines over 75 octets are folded (never through a character). */
+const fold = icsFold;
 const day = (ymd: string) => ymd.replace(/-/g, '');
 const next = (ymd: string) => new Date(Date.parse(`${ymd}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
 

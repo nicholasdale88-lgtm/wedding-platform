@@ -6,6 +6,7 @@ export * from './time';
 export * from './sms';
 export * from './templates';
 export * from './diet';
+export * from './ics';
 export * from './content';
 export * from './designs';
 export * from './generated/invScopes';

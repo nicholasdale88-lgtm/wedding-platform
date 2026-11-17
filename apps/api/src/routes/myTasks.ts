@@ -1,4 +1,4 @@
-import { clockMinutes, dateIn, PARTY_PHASES, phaseDate, statusOf, taskDue, WEDDING_PHASES, withStatus, zonedToUtc, type CheckItem } from '@wp/shared';
+import { clockMinutes, dateIn, icsFold, icsText, PARTY_PHASES, phaseDate, statusOf, taskDue, WEDDING_PHASES, withStatus, zonedToUtc, type CheckItem } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -48,24 +48,9 @@ async function dayItems(c: C, w: { id: string; timezone: string }, helperId: str
   return out.sort((a, b) => a.date.localeCompare(b.date) || (clockMinutes(a.time) ?? 0) - (clockMinutes(b.time) ?? 0));
 }
 
-const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
+const esc = icsText;
 const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-const fold = (line: string) => {
-  const rows: string[] = [];
-  let cur = '';
-  let n = 0;
-  for (const ch of line) {
-    if (n === 72) {
-      rows.push(cur);
-      cur = ' ';
-      n = 1;
-    }
-    cur += ch;
-    n++;
-  }
-  rows.push(cur);
-  return rows.join('\r\n');
-};
+const fold = icsFold;
 const ymd = (d: string) => d.replace(/-/g, '');
 const nextDay = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10).replace(/-/g, '');
 

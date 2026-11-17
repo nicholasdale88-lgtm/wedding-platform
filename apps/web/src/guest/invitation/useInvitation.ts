@@ -92,7 +92,8 @@ function calendarLinks(data: InvitePayload, ev: InvitePayload['events'][number])
     'div',
     { style: { fontSize: 15, opacity: 0.85, textAlign: 'center' as const, fontFamily: "'Cormorant Garamond', Georgia, serif" } },
     'Add to your calendar: ',
-    createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics`, style: link }, 'Apple / Outlook'),
+    // With their own link (a private wedding's calendar file is only for its guests).
+    createElement('a', { href: `/api/p/${encodeURIComponent(data.wedding.slug)}/calendar/${encodeURIComponent(ev.key)}.ics${token ? `?g=${encodeURIComponent(token)}` : ''}`, style: link }, 'Apple / Outlook'),
     ' · ',
     createElement('a', { href: google, target: '_blank', rel: 'noopener noreferrer', style: link }, 'Google'),
     ...(subscribe ? [' · ', createElement('a', { href: subscribe, ...(android ? { target: '_blank', rel: 'noopener noreferrer' } : {}), style: link }, 'All my events, kept up to date')] : []),
