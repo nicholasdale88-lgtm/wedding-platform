@@ -1214,7 +1214,10 @@ export function stressPart(part: number, parts: number) {
               try {
                 await runWedding(b, w, checkFor(w.i));
               } catch (e) {
-                failures.push({ wedding: w.i, check: 'the wedding ran to the end', detail: String((e as Error)?.stack ?? e).slice(0, 500) });
+                const detail = String((e as Error)?.stack ?? e);
+                // The test's own link to the local database dropping (undici "fetch failed"), not the app: run the batch again.
+                if (/fetch failed/.test(detail) && /undici/.test(detail)) b.transport = true;
+                failures.push({ wedding: w.i, check: 'the wedding ran to the end', detail: detail.slice(0, 500) });
               }
               weddingResults.set(w.i, failures.slice(before).every((f) => f.wedding !== w.i) && !serverErrors.slice(e5).some((x) => x.wedding === w.i));
             }
