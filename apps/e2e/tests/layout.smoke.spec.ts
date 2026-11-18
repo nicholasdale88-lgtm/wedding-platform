@@ -161,6 +161,7 @@ test('the sample message board: a tap just above or below Reply still hits it (a
   await page.goto('/demo/board');
   const reply = page.getByRole('button', { name: 'Reply', exact: true }).first();
   await expect(reply).toBeVisible({ timeout: 20_000 });
+  await reply.scrollIntoViewIfNeeded();
   const hits = await reply.evaluate((el) => {
     const r = el.getBoundingClientRect();
     const x = r.left + r.width / 2;
@@ -175,6 +176,7 @@ test('the sample app overview: "Add them" and "Set it up" take a tap just above 
   for (const name of ['Add them', 'Set it up']) {
     const b = page.getByRole('button', { name, exact: true }).first();
     await expect(b).toBeVisible({ timeout: 20_000 });
+    await b.scrollIntoViewIfNeeded();
     const hits = await b.evaluate((el) => {
       const r = el.getBoundingClientRect();
       const x = r.left + r.width / 2;
