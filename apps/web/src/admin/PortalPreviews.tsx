@@ -67,7 +67,7 @@ export function PortalPreviews({ to }: { to: (link: string, event?: string) => v
   const none = (text: string, cta: string, go: () => void) => (
     <div className="flex items-center justify-between gap-3 py-[9px] text-[13px] text-[var(--adm-muted,#5b6a52)]">
       <span>{text}</span>
-      <button type="button" onClick={go} className="p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
+      <button type="button" onClick={go} className="relative p-0 border-0 bg-transparent underline cursor-pointer text-[13px] before:content-[''] before:absolute before:-inset-x-2 before:-inset-y-3 text-[var(--adm-ink,#33402f)]">
         {cta}
       </button>
     </div>

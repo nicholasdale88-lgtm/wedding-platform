@@ -168,3 +168,18 @@ test('the sample message board: a tap just above or below Reply still hits it (a
   });
   expect(hits).toEqual([true, true]);
 });
+
+test('the sample app overview: "Add them" and "Set it up" take a tap just above or below the words', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));
+  await page.goto('/admin/demo/wedding/overview');
+  for (const name of ['Add them', 'Set it up']) {
+    const b = page.getByRole('button', { name, exact: true }).first();
+    await expect(b).toBeVisible({ timeout: 20_000 });
+    const hits = await b.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      return [r.top - 9, r.bottom + 9].map((y) => document.elementFromPoint(x, y)?.closest('button') === el);
+    });
+    expect(hits, name).toEqual([true, true]);
+  }
+});
