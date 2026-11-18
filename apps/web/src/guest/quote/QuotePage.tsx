@@ -567,7 +567,7 @@ export function QuotePage() {
 
               <section aria-label="Terms" className={card}>
                 <label className="flex flex-col gap-1 text-[14px]">
-                  Your payment or booking page <span className="text-[13px] text-[#5b6a52]">(optional) {d.couple} get a “Pay or book with {d.vendor}” button that opens it. The Yes List never handles the money.</span>
+                  Your payment or booking page <span className="text-[13px] text-[#5b6a52]">(optional) {d.couple} get a “Pay or book with {d.vendor}” button that opens it. Payment goes straight to you: The Yes List never handles money between you and the couple.</span>
                   <input value={payLink} inputMode="url" placeholder="https://" onChange={(e) => setPayLink(e.target.value)} className={input} />
                   {safeLink(payLink) && <span className="text-[13px] text-[#5b6a52]">Opens {linkHost(safeLink(payLink))}</span>}
                 </label>

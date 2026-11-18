@@ -35,7 +35,7 @@ export function QuoteExtras({ q, vendor, slug, timezone, onChange }: { q: Quote;
       {pay && (
         <a href={pay} target="_blank" rel="noopener noreferrer" className="self-start min-h-[44px] inline-flex flex-col justify-center py-2 px-4 rounded-[12px] bg-[#33402f] no-underline !text-[#fbf8f2]">
           <span className="text-[15px] font-semibold">Pay or book with {vendor} ↗</span>
-          <span className="text-[12px] opacity-80">Opens {linkHost(pay)}: their own site. The Yes List never handles the money.</span>
+          <span className="text-[12px] opacity-80">Opens {linkHost(pay)}: you pay them directly. The Yes List never handles money between you and your vendors.</span>
         </a>
       )}
       {!!s?.photos.length && (
