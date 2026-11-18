@@ -443,7 +443,7 @@ export const MOTION_LABEL: Record<Motion, string> = {
  * Opening scenes: the whole screen is a scene the guest opens with a tap, in place of the envelope (our own
  * artwork: guest/invitation/Scene.tsx). 'auto' is the design's own (the Signature designs have one).
  */
-export const SCENES = ['auto', 'none', 'doors', 'barn', 'book', 'gates', 'beach', 'bow', 'curtain', 'lanterns', 'vellum', 'photo', 'letter'] as const;
+export const SCENES = ['auto', 'none', 'doors', 'barn', 'book', 'gates', 'beach', 'bow', 'curtain', 'lanterns', 'vellum', 'photo', 'letter', 'vineyard', 'arch', 'coastal'] as const;
 export type Scene = (typeof SCENES)[number];
 export const SCENE_INFO: Record<Scene, { label: string; hint: string }> = {
   auto: { label: 'The design’s own', hint: 'The scene that comes with the design (the envelope when it has none)' },
@@ -458,6 +458,9 @@ export const SCENE_INFO: Record<Scene, { label: string; hint: string }> = {
   lanterns: { label: 'Evening lanterns', hint: 'Lanterns rise over a garden at night (for an evening wedding)' },
   vellum: { label: 'Vellum & gold', hint: 'Sheets of frosted vellum lift away one by one to a gilt card' },
   letter: { label: 'A Regency letter', hint: 'A folded letter under wisteria: the wax seal breaks and the letter unfolds' },
+  vineyard: { label: 'Vineyard at sunset', hint: 'Vine rows run to a low gold sun; the light floods in as you pass through the vines' },
+  arch: { label: 'Ivory arch', hint: 'An ivory arch dressed in greenery and blush roses; petals drift as you step through' },
+  coastal: { label: 'Coastal garden', hint: 'A garden path through the dunes to the sea; the grasses part in the breeze' },
   photo: { label: 'Your photograph', hint: 'Your photo develops from pale to full colour, then lifts away to the invitation (uses the photo in Extras → Photo)' },
 };
 

@@ -70,6 +70,10 @@ export const NAMES_STYLES: Record<NamesStyle, { label: string; font: string; var
  * for it. Any design can have any scene (Setup → Extras → Opening scene); these come with theirs.
  */
 export const SIGNATURE: Record<string, Palette & { style: string; mood: string; scene: Exclude<Scene, 'auto' | 'none'> }> = {
+  // The flagships: painted, layered scenes (apps/web/public/themes, drawn by tools/themes/flagships.py).
+  'Hunter Valley Vineyard Sunset': { paper: '#fbf5ea', ink: '#3b2f26', accent: '#c9934e', soft: '#efd9bd', envelope: '#5a4a32', style: 'Late gold light over the vine rows and soft hills', mood: 'Garden & rustic', scene: 'vineyard' },
+  'Botanical Ivory Arch': { paper: '#fbf7f0', ink: '#3e4a3a', accent: '#c4a073', soft: '#f1d7cf', envelope: '#efe4d2', style: 'An ivory arch, greenery and blush roses framing your names', mood: 'Romantic', scene: 'arch' },
+  'Coastal Garden': { paper: '#f8f8f3', ink: '#24474f', accent: '#c7a35e', soft: '#cfe4e1', envelope: '#e9dcc0', style: 'A garden path through the dune grass to the sea', mood: 'Coastal & bright', scene: 'coastal' },
   'Rosewood Doors': { paper: '#fbf3f1', ink: '#4a1f2b', accent: '#c9a27a', soft: '#ecd0cf', envelope: '#5c2a35', style: 'Regency romance: pressed floral doors swing open', mood: 'Romantic', scene: 'doors' },
   'Once Upon a Time': { paper: '#fbf6ee', ink: '#2e3a5c', accent: '#d4af6a', soft: '#e7dcf0', envelope: '#2e3a6b', style: 'Fairytale: a gilded storybook opens', mood: 'Romantic', scene: 'book' },
   'Barn & Eucalyptus': { paper: '#f6f0e4', ink: '#3d3a2c', accent: '#a07b4f', soft: '#cdd6c0', envelope: '#8a6a4a', style: 'Rustic: barn doors roll apart', mood: 'Garden & rustic', scene: 'barn' },

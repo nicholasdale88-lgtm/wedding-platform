@@ -48,6 +48,29 @@ describe('opening scenes', () => {
     }
   });
 
+  it('the flagships: a painted closed scene loads first; the nearer layers only once tapped; less motion stays still', () => {
+    for (const [kind, dir] of [['vineyard', 'vineyard-sunset'], ['arch', 'ivory-arch'], ['coastal', 'coastal-garden']] as const) {
+      expect(Object.values(SIGNATURE).some((d) => d.scene === kind)).toBe(true);
+      const { container, rerender, unmount } = render(<SceneOverlay kind={kind} phase={0} colours={colours} initials="H & T" guestName="Harriet & Theo" />);
+      const html = () => container.innerHTML;
+      expect(html()).toContain(`/themes/${dir}/bg.svg`);
+      expect(html()).not.toContain(`/themes/${dir}/mid.svg`);
+      expect(html()).not.toContain(`/themes/${dir}/fg.svg`);
+      expect(container.textContent).toContain('Harriet & Theo');
+      rerender(<SceneOverlay kind={kind} phase={1} colours={colours} initials="H & T" guestName="Harriet & Theo" />);
+      expect(html()).toContain(`/themes/${dir}/mid.svg`);
+      expect(html()).toContain(`/themes/${dir}/fg.svg`);
+      rerender(<SceneOverlay kind={kind} phase={3} colours={colours} initials="H & T" guestName="Harriet & Theo" />);
+      expect(container.querySelector('[data-scene]')).toBeNull();
+      unmount();
+    }
+  });
+
+  it('a cover still: no "Tap to open"', () => {
+    const { container } = render(<SceneOverlay kind="vineyard" phase={0} colours={colours} initials="H & T" guestName="Harriet & Theo" hint={false} />);
+    expect(container.textContent).not.toContain('Tap to open');
+  });
+
   it('the doors carry a wax seal with the couple’s initials, and two doors lit alike', () => {
     const art = sceneArt('doors', colours, 'H & T');
     expect(decodeURIComponent(art.seal!)).toContain('H &amp; T');

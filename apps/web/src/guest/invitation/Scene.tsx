@@ -1216,13 +1216,26 @@ export function sceneArt(kind: Exclude<Scene, 'auto' | 'none'>, c: SceneColours,
   if (kind === 'beach') return { beach: beachArt(c, initials) };
   if (kind === 'vellum') return { card: vellumCardArt(c, initials), s0: vellumArt(c, 0), s1: vellumArt(c, 1), s2: vellumArt(c, 2) };
   if (kind === 'photo') return { mount: photoMountArt(c) };
+  // The flagships are painted scenes in files: the closed scene (bg), then two nearer layers loaded on the tap.
+  const flag = FLAGSHIP[kind];
+  if (flag) return { bg: `url("/themes/${flag.dir}/bg.svg")`, mid: `url("/themes/${flag.dir}/mid.svg")`, fg: `url("/themes/${flag.dir}/fg.svg")` };
   if (kind === 'letter') return { ground: letterGround(c), top: letterPaper(c, 'top'), mid: letterPaper(c, 'mid'), bottom: letterPaper(c, 'bottom'), wisteria: wisteriaArt(c), seal: sealArt(c.envelope, initials) };
   return { night: nightArt(c) };
 }
 
 const LAYER: CSSProperties = { position: 'absolute', inset: 0, pointerEvents: 'none' };
 /** Scenes on light paper (the name sits in the ink colour on a light scrim). */
-const light3: string[] = ['bow', 'book', 'beach', 'letter'];
+const light3: string[] = ['bow', 'book', 'beach', 'letter', 'arch'];
+
+/**
+ * The flagship scenes: where their layers live and where their light comes from (the focal point the camera
+ * pushes towards and the glow floods out of).
+ */
+const FLAGSHIP: Partial<Record<Scene, { dir: string; focus: string; glow: string }>> = {
+  vineyard: { dir: 'vineyard-sunset', focus: '62% 42%', glow: '255,226,170' },
+  arch: { dir: 'ivory-arch', focus: '50% 44%', glow: '255,248,236' },
+  coastal: { dir: 'coastal-garden', focus: '70% 36%', glow: '255,250,232' },
+};
 
 /** Specks of light drifting up through an opening (each its own path and pace, the same every time). */
 function Motes({ colour, from = 0.5, n = 16 }: { colour: string; from?: number; n?: number }) {
@@ -1284,7 +1297,40 @@ export function SceneOverlay({
   const t = (s: number, delay = 0) => (still ? 'opacity .4s ease' : `transform ${s}s ${ease} ${delay}s, opacity ${Math.min(s, 0.9)}s ease ${delay}s`);
   let body: ReactNode = null;
 
-  if (kind === 'doors') {
+  const flag = FLAGSHIP[kind];
+  if (flag) {
+    // About 2.8 s: a small press, then the camera pushes in towards the light while the near layers (loaded
+    // only now) sweep past and the glow floods out; then the scene clears onto the card. Transform and opacity
+    // only. With less motion: the closed scene, then a plain fade.
+    const moving = open && !still;
+    body = (
+      <div style={{ ...LAYER, transformOrigin: flag.focus, animation: moving ? 'ylPress .42s cubic-bezier(.3,0,.2,1)' : undefined }}>
+        <style>{`@keyframes ylFlagDrift { from { transform: scale(1.02) } to { transform: scale(1.06) translateY(-.6%) } } @keyframes ylFlagMid { 0% { opacity: 0; transform: translateY(4%) scale(1) } 25% { opacity: 1 } 100% { opacity: .9; transform: translateY(-7%) scale(1.14) } } @keyframes ylFlagFg { 0% { opacity: 0; transform: scale(1.02) } 18% { opacity: 1 } 70% { opacity: 1 } 100% { opacity: 0; transform: scale(1.75) } } @keyframes ylFlagGlow { 0% { opacity: 0 } 55% { opacity: .55 } 100% { opacity: .9 } }`}</style>
+        {/* The closed scene breathes very slowly (a held shot), then the camera pushes in. */}
+        <div style={{ ...LAYER, transformOrigin: flag.focus, animation: moving || still ? undefined : 'ylFlagDrift 16s ease-in-out infinite alternate' }}>
+          <div
+            style={{
+              ...LAYER,
+              backgroundImage: art.bg,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              transformOrigin: flag.focus,
+              transform: moving ? 'scale(1.22)' : 'scale(1)',
+              transition: moving ? 'transform 2.8s cubic-bezier(.55,0,.18,1) .12s' : undefined,
+              willChange: 'transform',
+            }}
+          />
+        </div>
+        {moving && (
+          <>
+            <div style={{ ...LAYER, backgroundImage: art.mid, backgroundSize: 'cover', backgroundPosition: 'center', transformOrigin: flag.focus, animation: 'ylFlagMid 2.8s cubic-bezier(.4,0,.2,1) .15s both', willChange: 'transform, opacity' }} />
+            <div style={{ ...LAYER, background: `radial-gradient(60% 45% at ${flag.focus}, rgba(${flag.glow},.95), rgba(${flag.glow},0) 70%)`, animation: 'ylFlagGlow 2.4s ease-in .5s both' }} />
+            <div style={{ ...LAYER, backgroundImage: art.fg, backgroundSize: 'cover', backgroundPosition: 'center', transformOrigin: flag.focus, animation: 'ylFlagFg 2.6s cubic-bezier(.5,0,.25,1) .1s both', willChange: 'transform, opacity' }} />
+          </>
+        )}
+      </div>
+    );
+  } else if (kind === 'doors') {
     // Hinged at the screen's edges, both swinging toward the guest after a small press, the camera easing in.
     const doorStyle = (side: 'left' | 'right'): CSSProperties => ({
       position: 'absolute',
