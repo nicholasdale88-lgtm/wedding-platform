@@ -807,10 +807,10 @@ export function VendorHomePage() {
           </h1>
         </div>
         <div className="flex gap-3 items-center flex-wrap text-[15px]">
-          <Link to={`/vendors/${l.slug}`} style={{ color: INK }}>
+          <Link to={`/vendors/${l.slug}`} className="inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             See your page
           </Link>
-          <button type="button" onClick={() => void api.logout().then(() => setState('signed_out'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[15px]" style={{ color: INK }}>
+          <button type="button" onClick={() => void api.logout().then(() => setState('signed_out'))} className="inline-flex items-center min-h-[44px] p-0 border-0 bg-transparent underline cursor-pointer text-[15px]" style={{ color: INK }}>
             Sign out
           </button>
         </div>

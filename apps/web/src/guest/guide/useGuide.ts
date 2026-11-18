@@ -116,7 +116,7 @@ export function useGuide(data: GuidePayload): ViewValues {
     reception: (G.runsheet ?? []).find((r) => /reception|dinner/i.test(r.what))?.t ?? '',
     wxSummary: W ? W.summary : t('gd.dyn.wxSoon'),
     wxDetail: W ? s('gd.dyn.wxTop', { max: W.max }) : t('gd.dyn.wxSoonDetail'),
-    wxHours: (W?.hours ?? []).map((h) => ({ ...h, rain: s('gd.dyn.wxRain', { n: h.rain }) })),
+    wxHours: (W?.hours ?? []).map((h) => ({ ...h, rain: s('gd.dyn.wxRain', { n: String(h.rain).replace(/%\s*$/, '') }) })),
     wxUpdated: W ? s('gd.dyn.wxUpdated', { time: updatedAt(W, data.wedding.timezone) }) : '',
     wxBom: G.bomUrl ?? '',
     wxTip: t(wet ? 'gd.dyn.wxTipWet' : cold ? 'gd.dyn.wxTipCold' : 'gd.dyn.wxTipMild'), // the wet plan itself: the notice and the quick answers

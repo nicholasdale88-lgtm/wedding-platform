@@ -57,6 +57,11 @@ describe('sample Setup (Company → Preview, Try the app)', () => {
     expect((await sampleBoard.board()).posts[0]!.replies).toHaveLength(1);
   });
 
+  it('the sample forecast gives the chance of rain as a number, like the real forecast (never "0%% rain")', async () => {
+    const { sampleGuide } = await import('../src/sales/sampleGuide');
+    for (const h of sampleGuide(false).weather?.hours ?? []) expect(h.rain).toMatch(/^\d+$/);
+  });
+
   it('sharing a preview link says it isn’t in the sample', async () => {
     await expect(demoRequest('/a/w/demo/pages/share', { method: 'POST', body: JSON.stringify({ on: true }) })).rejects.toThrow(/sample/);
   });

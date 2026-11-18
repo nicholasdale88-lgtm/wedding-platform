@@ -142,3 +142,29 @@ test('visitor pages only promise the photo storage that works', async ({ page })
   await page.goto('/');
   await expect(page.getByText('Photos and backups save to your own Google Drive or Dropbox').first()).toBeAttached();
 });
+
+test('the sample night-before forecast reads "0% rain", never "0%% rain"', async ({ page }) => {
+  await page.goto('/demo/tomorrow');
+  await expect(page.getByText(/^\d+% rain$/).first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(/%%/)).toHaveCount(0);
+});
+
+test('the sample vendor account: See your page and Sign out are easy taps (44px or more)', async ({ page }) => {
+  await page.goto('/vendors/me?sample=1');
+  for (const el of [page.getByRole('link', { name: 'See your page' }), page.getByRole('button', { name: 'Sign out' })]) {
+    await expect(el).toBeVisible({ timeout: 20_000 });
+    expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
+  }
+});
+
+test('the sample message board: a tap just above or below Reply still hits it (a 44px target)', async ({ page }) => {
+  await page.goto('/demo/board');
+  const reply = page.getByRole('button', { name: 'Reply', exact: true }).first();
+  await expect(reply).toBeVisible({ timeout: 20_000 });
+  const hits = await reply.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    return [r.top - 8, r.bottom + 8].map((y) => document.elementFromPoint(x, y)?.closest('button') === el);
+  });
+  expect(hits).toEqual([true, true]);
+});

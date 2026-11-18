@@ -217,14 +217,14 @@ function Post({
       {p.pending && <div className="text-[15px] italic opacity-80">Waiting for the couple to see it. Only you can see it for now.</div>}
       {!p.pending && (
         <div className="flex gap-4 items-center text-[16px]">
-          <button type="button" onClick={() => void like()} aria-pressed={likes.mine} className="p-0 border-0 bg-transparent cursor-pointer text-[17px]" style={{ color: 'inherit' }}>
+          <button type="button" onClick={() => void like()} aria-pressed={likes.mine} className="relative p-0 border-0 bg-transparent cursor-pointer before:content-[''] before:absolute before:-inset-x-2 before:-inset-y-[10px] text-[17px]" style={{ color: 'inherit' }}>
             <Heart on={likes.mine} /> {likes.n || ''}
           </button>
-          <button type="button" onClick={() => setReplying((x) => !x)} className="p-0 border-0 bg-transparent cursor-pointer underline text-[16px]" style={{ color: 'inherit' }}>
+          <button type="button" onClick={() => setReplying((x) => !x)} className="relative p-0 border-0 bg-transparent cursor-pointer before:content-[''] before:absolute before:-inset-x-2 before:-inset-y-[10px] underline text-[16px]" style={{ color: 'inherit' }}>
             Reply
           </button>
           {p.mine && (
-            <button type="button" onClick={() => void remove()} className="p-0 border-0 bg-transparent cursor-pointer underline text-[15px] opacity-75" style={{ color: 'inherit' }}>
+            <button type="button" onClick={() => void remove()} className="relative p-0 border-0 bg-transparent cursor-pointer before:content-[''] before:absolute before:-inset-x-2 before:-inset-y-[10px] underline text-[15px] opacity-75" style={{ color: 'inherit' }}>
               Remove
             </button>
           )}
