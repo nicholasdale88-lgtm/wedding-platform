@@ -17,3 +17,13 @@ Every intentional difference from `design/` is listed here. Nothing else may dif
   sharper and smaller than AVIF/WebP for this art, about 20–25 KB compressed for the closed scene). The
   closed scene loads first; the two nearer layers load on the tap. Opening about 2.8 s, transform and opacity
   only; less motion: the still scene and a fade.
+- **Openings, all scenes** (not the flagships, which have their own): light spills out of the opening as it
+  parts and specks of light drift through; as the scene clears the camera carries on through it onto the card
+  (a small push as it fades). The Signature list leads with the finished scenes (flagships, Doors, Bow,
+  Letter, Curtain, Photograph); Book, Barn, Gates and Beach come last until brought up to the same bar.
+- **Ornaments** (looks.css: Romantic sprig, Garden corner, Luxe corners): fine line art in the design's own
+  foil colour (--fgo), replacing filled ellipse leaves (tools/themes/ornaments.py).
+- **Falling petals and leaves**: three shaded shapes each (masks, recolourable through --yl-p1/2 and
+  --yl-l1/2), turning over as they fall (transform only), replacing rounded blobs.
+- **Textures**: a wax mottle tiled over every seal (public/textures/wax.svg, 96 px) and brushed streaks on the
+  gold-foil liner (public/textures/foil.svg, 120 px). The envelope's timings and flap are unchanged.

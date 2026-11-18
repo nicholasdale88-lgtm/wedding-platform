@@ -36,7 +36,8 @@ const svg = (body: string, w: number, h: number) => `url("data:image/svg+xml,${e
 /** The liner's pattern, in the wedding's colours. */
 function linerBackground(kind: NonNullable<EnvelopeOptions['liner']>, c: Colours): string {
   if (kind === 'stripes') return `repeating-linear-gradient(90deg, ${c.accent} 0 10px, ${c.paper} 10px 22px)`;
-  if (kind === 'foil') return `linear-gradient(120deg, #a77b2c 0%, #f3dc9a 22%, #b98a36 40%, #f8e7b4 58%, #9c7128 78%, #e9c97c 100%)`;
+  // Brushed foil: fine streaks (a 120px map, public/textures/foil.svg) over the gold's light and shade.
+  if (kind === 'foil') return `url('/textures/foil.svg') 0 0 / 120px 120px, linear-gradient(120deg, #a77b2c 0%, #f3dc9a 22%, #b98a36 40%, #f8e7b4 58%, #9c7128 78%, #e9c97c 100%)`;
   if (kind === 'confetti') {
     const dots = [
       [8, 10, c.accent, 3],

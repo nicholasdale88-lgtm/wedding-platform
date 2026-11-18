@@ -333,6 +333,10 @@ export function WaxSeal({
           <clipPath id={`wc${id}`}>
             <path d={PUDDLE} />
           </clipPath>
+          {/* Wax isn't one flat colour: a fine mottle, tiled from a 96px map (public/textures/wax.svg). */}
+          <pattern id={`wt${id}`} width={18} height={18} patternUnits="userSpaceOnUse">
+            <image href="/textures/wax.svg" width={18} height={18} />
+          </pattern>
         </defs>
         {/* The wax's colour: the puddle, the pressed well a little deeper, and the motif catching the light. */}
         <path d={PUDDLE} fill={`url(#wb${id})`} />
@@ -355,6 +359,7 @@ export function WaxSeal({
               {motif}
             </g>
           </g>
+          <rect x={0} y={0} width={100} height={100} fill={`url(#wt${id})`} opacity={w.metal ? 0.18 : 0.32} style={{ mixBlendMode: 'multiply' }} />
         </g>
       </svg>
       {/* A slow gleam across the face (transform only; none for those who ask for less motion). */}
