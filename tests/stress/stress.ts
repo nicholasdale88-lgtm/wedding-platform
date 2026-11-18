@@ -25,7 +25,9 @@ import { FakeProvider } from '../../apps/api/test/support/fakes';
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SEED = Number(process.env.STRESS_SEED ?? 20261117) >>> 0;
+// Tonight's date in Sydney (e.g. 20261118) unless set: each night covers new weddings, and the seed in the
+// report replays any failure.
+const SEED = Number(process.env.STRESS_SEED || new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney' }).format(new Date()).replace(/-/g, '')) >>> 0;
 const TOTAL = Number(process.env.STRESS_WEDDINGS ?? 1000);
 const BATCH = Number(process.env.STRESS_BATCH ?? 20);
 const PARALLEL = Number(process.env.STRESS_PARALLEL ?? 4);
@@ -838,6 +840,9 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
     const want = w.houses.filter((h) => h.phone && comingN(w, h, 'wedding') > 0).length;
     const got = await b.t.db.prepare(`SELECT COUNT(*) AS n, COUNT(DISTINCT invitation_id) AS d FROM sms_out WHERE campaign_id = ?`).bind(id).first<{ n: number; d: number }>();
     check(got?.n === want && got?.d === want, 'a text goes to everyone coming, once', () => `${got?.n} texts (${got?.d} guests), want ${want}`);
+    // Every placeholder filled in: no guest ever gets "Hi {first}".
+    const raw = await b.t.db.prepare(`SELECT body FROM sms_out WHERE campaign_id = ? AND body LIKE '%{%'`).bind(id).all<{ body: string }>();
+    check(!raw.results.some((x) => /\{[a-z]+\}/i.test(x.body)), 'a text never goes out with a placeholder left in', () => raw.results[0]?.body.slice(0, 120) ?? '');
     const at = new Date(Date.now() + 3 * 86_400_000).toISOString();
     const rem = (await must(admin('/texts', 'POST', '/texts', { name: 'Last call', audience: { awaitingAny: true }, body: 'Hi {first}, please reply: {link}', dates: [at] }), 200, 'reminder')).json<{ id: string }>().id;
     const ov = (await must(admin('/overview', 'GET', '/overview'), 200, 'overview')).json<{ nextUp: { campaignId: string; sendAt: string }[] }>();
@@ -899,6 +904,34 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
 
   // 12. Late changes, after the seating, meals and vendor are set: a few say no, change how many, change their needs.
   await waves(w.houses.filter((h) => Object.keys(h.rsvp).length && rng.chance(0.08)), 10, (h) => reply(h, rng.chance(0.4) ? { decline: true } : { flip: true }));
+
+  // 12b. Guests removed (by mistake, or for good) and put back: their link stops working while removed, their
+  //      seats are freed, and every count below leaves them out (or counts them again once restored).
+  if (w.houses.length > 4 && rng.chance(0.5)) {
+    const gone = w.houses.filter((h) => h.id && rng.chance(0.05)).slice(0, 4);
+    for (const h of gone) {
+      const r = await admin('/guests/:id', 'DELETE', `/guests/${h.id}`);
+      check(r.status === 200, 'a guest is removed', () => `${r.status} ${r.text.slice(0, 120)}`);
+      if (r.status !== 200) continue;
+      for (const e of w.events) for (const pid of h.personIds) delete w.seats[e.key]?.[pid];
+      const ev = w.events[h.invited[0]!]!;
+      const after = await call('POST /p/:slug/rsvp', 'POST', `/p/${w.slug}/rsvp`, { ip: b.ip(), body: { token: h.token, events: { [ev.key]: { attending: true } }, count: 1 } });
+      check(after.status === 404, 'a removed guest’s link no longer replies', () => `${after.status} ${after.text.slice(0, 120)}`);
+      check((await admin('/guests/:id', 'DELETE', `/guests/${h.id}`)).status === 404, 'removing twice is a clean not-found');
+      if (rng.chance(0.5)) {
+        const back = await admin('/guests/:id/restore', 'POST', `/guests/${h.id}/restore`, {});
+        check(back.status === 200, 'a removed guest is put back', () => `${back.status} ${back.text.slice(0, 120)}`);
+        if (back.status === 200) {
+          h.version = back.json<{ guest: { version: number } }>().guest.version;
+          continue;
+        }
+      }
+      // Gone for good: out of the model (and out of what guests and the caterer see on the published plan).
+      w.houses.splice(w.houses.indexOf(h), 1);
+      for (const e of w.events) for (const pid of h.personIds) delete w.published[e.key]?.seats[pid];
+    }
+    check((await admin('/guests/:id/restore', 'POST', `/guests/${crypto.randomUUID()}/restore`, {})).status === 404, 'restoring a stranger is a clean not-found');
+  }
 
   // 13. Everything agrees everywhere.
   await checkAll(b, w, check, guests);
