@@ -39,6 +39,15 @@ async function requestOf(c: C, k: string) {
   return null;
 }
 
+const Samples = z
+  .object({
+    photos: z.array(z.string().max(40)).max(12).default([]),
+    spin: z.array(z.string().max(40)).max(24).default([]),
+    videos: z.array(z.object({ url: z.string().max(500), label: z.string().trim().max(80).default('') })).max(6).default([]),
+    box: z.string().trim().max(1000).default(''),
+  })
+  .strict();
+const Slot = z.object({ id: z.string().max(40).default(''), at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/), mins: z.number().int().min(10).max(180).default(30), link: z.string().max(500).default('') }).strict();
 const money = z.number().min(0).max(10_000_000);
 const Answer = z
   .object({
@@ -63,15 +72,6 @@ const Answer = z
   .strict();
 
 const aud = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
-const Samples = z
-  .object({
-    photos: z.array(z.string().max(40)).max(12).default([]),
-    spin: z.array(z.string().max(40)).max(24).default([]),
-    videos: z.array(z.object({ url: z.string().max(500), label: z.string().trim().max(80).default('') })).max(6).default([]),
-    box: z.string().trim().max(1000).default(''),
-  })
-  .strict();
-const Slot = z.object({ id: z.string().max(40).default(''), at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/), mins: z.number().int().min(10).max(180).default(30), link: z.string().max(500).default('') }).strict();
 /** Sample photos: small (made smaller on their phone first), and only real images. */
 const MAX_SAMPLE = 450_000;
 const SAMPLE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
