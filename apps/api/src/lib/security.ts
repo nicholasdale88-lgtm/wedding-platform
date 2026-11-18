@@ -122,6 +122,22 @@ export async function readBytes(req: Request, max = MAX_BODY): Promise<Uint8Arra
 }
 
 /** A database error that only means "busy for a moment" (try again), not a bug. */
+/**
+ * After a change has saved: a read or follow-up that briefly finds the database busy is tried again here. A "busy,
+ * try again" (503) at that point would make the page send a change that already saved a second time (a proposal
+ * revised twice, a guest edit told "updated elsewhere"), found by the stress run.
+ */
+export async function afterCommit<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (!isBusy(e) || i >= tries - 1) throw e;
+      await new Promise((ok) => setTimeout(ok, 60 * (i + 1)));
+    }
+  }
+}
+
 export function isBusy(e: unknown): boolean {
   return /SQLITE_BUSY|database is locked|D1_ERROR.*(busy|overloaded|reset|timed? ?out)|Network connection lost|storage operation exceeded timeout|fetch failed|other side closed|UND_ERR_SOCKET/i.test(String((e as Error)?.message ?? e));
 }

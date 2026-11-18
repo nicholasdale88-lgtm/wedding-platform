@@ -141,3 +141,19 @@ describe('vendor quotes, samples, tastings, dashboard and the on-the-day pass', 
     expect((await app.request(`${api.replace(/[^/]+$/, 'x'.repeat(24))}/status`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state: 'here' }) }, env, ctx)).status).toBe(404);
   });
 });
+
+describe('after a change has saved', () => {
+  it('a busy moment is tried again, so the page never re-sends a change that already saved; other errors still fail', async () => {
+    const { afterCommit } = await import('../src/lib/security');
+    let n = 0;
+    expect(
+      await afterCommit(async () => {
+        if (++n < 3) throw new Error('D1_ERROR: database is locked: SQLITE_BUSY');
+        return 'read';
+      }),
+    ).toBe('read');
+    expect(n).toBe(3);
+    await expect(afterCommit(async () => Promise.reject(new Error('no such table')))).rejects.toThrow('no such table');
+    await expect(afterCommit(async () => Promise.reject(new Error('SQLITE_BUSY')), 2)).rejects.toThrow('SQLITE_BUSY');
+  });
+});

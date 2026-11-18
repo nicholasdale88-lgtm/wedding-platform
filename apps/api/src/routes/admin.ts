@@ -1,6 +1,6 @@
 import { allows, DELIVERY, GUEST_SIDES, InvitationContent,joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164, contactGaps } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
-import { MAX_IMPORT, readJson } from '../lib/security';
+import { afterCommit, MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -559,7 +559,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       stmts.push(db.prepare(`UPDATE invitation SET seats_held = MIN(60, MAX(seats_held, (SELECT COUNT(*) FROM person WHERE invitation_id = ?1 AND deleted_at IS NULL AND trim(name) != ''))) WHERE id = ?1`).bind(invId));
     stmts.push(audit(c, 'guest.edit', invId, p));
     await afterClaim(c, invId, stmts);
-    return c.json(await guestJson(c, invId));
+    return c.json(await afterCommit(() => guestJson(c, invId)));
   });
 
   /** The couple records or corrects a reply (by phone, in person, on paper). */
@@ -613,7 +613,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const v = await claimVersion(c, invId);
     if (v !== 'ok') return versionError(c, v);
     await afterClaim(c, invId, stmts);
-    return c.json(await guestJson(c, invId));
+    return c.json(await afterCommit(() => guestJson(c, invId)));
   });
 
   app.delete('/guests/:id', writer, async (c) => {
@@ -639,7 +639,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       .run();
     if (!r.meta.changes) return err(c, 404, 'not_found', 'Nothing to restore.');
     await audit(c, 'guest.restore', invId).run();
-    return c.json(await guestJson(c, invId));
+    return c.json(await afterCommit(() => guestJson(c, invId)));
   });
 
   /** Dietary → meals: what the kitchen serves this person, course by course (blank = set menu). */

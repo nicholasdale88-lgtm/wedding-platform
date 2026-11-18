@@ -19,7 +19,7 @@ import type { Env } from '../env';
 import { buttonEmail, emailReady, sendEmail } from '../lib/email';
 import { ownerEmails } from '../lib/quoteRequests';
 import { allow } from '../lib/rateLimit';
-import { readJson } from '../lib/security';
+import { afterCommit, readJson } from '../lib/security';
 import { jsonWritesOnly, requireUser, type AdminEnv } from './auth';
 import { changeDoc } from './planner';
 import { firstNames, post } from './vendorCouples';
@@ -267,11 +267,15 @@ export function vendorProposalRoutes() {
 
     if (p.wedding_id) {
       const wid = p.wedding_id;
-      await toPlanner(db, wid, l, p.id, { revision: next, title: f.title, lines: f.lines, total, deposit: f.deposit, validUntil: f.validUntil, note: f.note, at: now }, link);
-      await post(c.env, l.id, wid, true, said, async () => {
-        const m = buttonEmail({ heading: `${l.name} revised their proposal`, lines: [`${f.title}: ${aud(total)} (was ${aud(before.total)}).`], button: 'Read the revision', link, brand: true });
-        for (const to of await ownerEmails(db, wid)) await sendEmail(c.env, { to, subject: `${l.name} revised their fee proposal`, ...m });
-      });
+      // The revision has saved: what follows is tried again when busy, and never turns it into an error (the
+      // page would send it again, as a third revision).
+      await afterCommit(() => toPlanner(db, wid, l, p.id, { revision: next, title: f.title, lines: f.lines, total, deposit: f.deposit, validUntil: f.validUntil, note: f.note, at: now }, link)).catch((e) => console.error('proposal revise: planner', String(e)));
+      await afterCommit(() =>
+        post(c.env, l.id, wid, true, said, async () => {
+          const m = buttonEmail({ heading: `${l.name} revised their proposal`, lines: [`${f.title}: ${aud(total)} (was ${aud(before.total)}).`], button: 'Read the revision', link, brand: true });
+          for (const to of await ownerEmails(db, wid)) await sendEmail(c.env, { to, subject: `${l.name} revised their fee proposal`, ...m });
+        }),
+      ).catch((e) => console.error('proposal revise: message', String(e)));
       return c.json({ id: p.id, link, revision: next, emailed: false });
     }
     let emailed = false;
