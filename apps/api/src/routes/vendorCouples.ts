@@ -111,12 +111,33 @@ export function vendorCoupleRoutes() {
         const doc = (await readDoc(db, w.id, 'vendors', '')).data;
         const mine = mineIn(doc.list, l);
         if (secret && mine[0]) details = `${base(c.env)}/w/${w.slug}/vendor?v=${encodeURIComponent(mine[0].id)}&k=${await vendorHubKey(secret, w.id, mine[0].id)}`;
-        // Their quote requests to this vendor: leads, each with its own link to price it.
+        // Their quote requests to this vendor (the Quotes area): each with its own link to price it, what they
+        // quoted, a tasting the couple booked, and how it ended (booked them, or decided otherwise).
         const ids = new Set(mine.map((v) => v.id));
         const quotes = doc.rfqs.flatMap((q) =>
           q.vendors
-            .filter((rv) => ids.has(rv.vendorId) && !!rv.key && !q.closed)
-            .map((rv) => ({ id: `${q.id}:${rv.vendorId}`, title: q.title || 'Quote request', lines: q.lines.length, due: q.due, sent: rv.sentOn, answered: !!rv.answeredOn, declined: !!rv.declinedOn, link: requestLink(c.env, w.slug, rv.key) })),
+            .filter((rv) => ids.has(rv.vendorId) && !!rv.key)
+            .map((rv) => {
+              const v = doc.list.find((x) => x.id === rv.vendorId);
+              const given = v?.quotes.find((x) => x.id === rv.quoteId);
+              const t = given?.tastings?.find((x) => x.bookedOn);
+              return {
+                id: `${q.id}:${rv.vendorId}`,
+                title: q.title || 'Quote request',
+                lines: q.lines.length,
+                due: q.due,
+                sent: rv.sentOn,
+                answered: !!rv.answeredOn,
+                answeredOn: rv.answeredOn,
+                declined: !!rv.declinedOn,
+                closed: q.closed,
+                amount: given?.amount ?? 0,
+                won: !!given && v?.status === 'booked' && v.accepted === given.id,
+                samples: !!given?.samples,
+                tasting: t ? { at: t.at, mins: t.mins } : null,
+                link: requestLink(c.env, w.slug, rv.key),
+              };
+            }),
         );
         return {
           id: w.id,
@@ -135,7 +156,7 @@ export function vendorCoupleRoutes() {
         };
       }),
     );
-    const quotesOpen = couples.reduce((n, x) => n + x.quotes.filter((q) => !q.answered && !q.declined).length, 0);
+    const quotesOpen = couples.reduce((n, x) => n + x.quotes.filter((q) => !q.answered && !q.declined && !q.closed).length, 0);
     return c.json({ couples, unread: couples.reduce((n, x) => n + x.unread, 0), quotesOpen });
   });
 

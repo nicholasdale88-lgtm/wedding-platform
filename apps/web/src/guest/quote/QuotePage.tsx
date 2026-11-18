@@ -1,7 +1,9 @@
+import { linkHost, safeLink } from '@wp/shared';
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
-import { base64Of, fileProblem, shrinkFile } from '../../lib/shrinkFile';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { base64Of, fileProblem, samplePhoto, shrinkFile } from '../../lib/shrinkFile';
 import { GuestMessage } from '../GuestMessage';
+import { SpinView } from './SpinView';
 
 /**
  * /w/:slug/quote?k=<key>: a vendor's quote request from a couple. Two ways to answer, whichever suits:
@@ -9,7 +11,13 @@ import { GuestMessage } from '../GuestMessage';
  * (a PDF or a photo). Then the deposit and how long the price holds, and send. It lands in the couple's
  * planner as this vendor's quote, side by side with the others, and the couple get an email. They can
  * change it until the couple decide, or say they can't quote (the couple stop waiting on them).
+ *
+ * Optional, to stand out: virtual samples (photos, a spin view, short videos, what's in the sample box), video
+ * tasting times the couple can book, and their own payment or booking page. After sending it isn't a dead end:
+ * they can save the wedding to their free vendor dashboard, where all their quotes live.
  */
+type Video = { url: string; label: string };
+type Slot = { id: string; at: string; mins: number; link: string; bookedOn: string };
 interface Line {
   id: string;
   label: string;
@@ -38,7 +46,12 @@ interface Data {
     fileId: string;
     fileName: string;
     on: string;
+    payLink: string;
+    samples: { photos: string[]; spin: string[]; videos: Video[]; box: string };
+    tastings: Slot[];
   } | null;
+  /** Signed in to a vendor account on this browser: whether the wedding is on their dashboard. */
+  account: { name: string; saved: boolean } | null;
 }
 const aud = (n: number) => `$${Math.round(n).toLocaleString('en-AU')}`;
 const longDay = (iso: string, tz?: string) => {
@@ -51,6 +64,47 @@ const longDay = (iso: string, tz?: string) => {
 const input = 'w-full py-[10px] px-3 rounded-[10px] border border-[#d3c6a4] bg-white text-[16px] text-[#33402f]';
 const card = 'flex flex-col gap-3 p-4 rounded-[16px] bg-white border border-[#e2d7bc]';
 const REASONS = ['Booked that day', 'Not something we do', 'Too far away'];
+const pill = 'self-start min-h-[44px] py-2 px-4 rounded-full border border-[#c6b794] bg-white text-[15px] cursor-pointer text-[#33402f] disabled:opacity-60';
+
+/**
+ * After sending: keep the wedding. Signed in to a vendor account: save it to the dashboard (their Quotes area);
+ * otherwise, a free account (vendors never pay) or sign in.
+ */
+function Dashboard({ account, couple, onSave }: { account: Data['account']; couple: string; onSave: () => void }) {
+  return (
+    <div className="flex flex-col gap-2 mt-2 pt-3 border-t border-[#efe6d0]">
+      {account?.saved ? (
+        <>
+          <strong className="text-[16px]">{couple} are on your dashboard.</strong>
+          <Link to="/vendors/me?tab=quotes" className="self-start min-h-[44px] inline-flex items-center py-2 px-4 rounded-full bg-[#33402f] text-[#fbf8f2] no-underline text-[15px]">
+            See all your quotes
+          </Link>
+        </>
+      ) : account ? (
+        <>
+          <strong className="text-[16px]">Keep this wedding with your quotes</strong>
+          <span className="text-[14px] text-[#5b6a52]">Save {couple} to {account.name}’s dashboard: every quote, tasting and booking in one place.</span>
+          <button type="button" onClick={onSave} className="self-start min-h-[44px] py-2 px-4 rounded-full border-0 bg-[#33402f] text-[#fbf8f2] text-[15px] cursor-pointer">
+            Save to my dashboard
+          </button>
+        </>
+      ) : (
+        <>
+          <strong className="text-[16px]">All your quotes in one place</strong>
+          <span className="text-[14px] text-[#5b6a52]">A free vendor account keeps every couple’s quote, tasting and booking together. Vendors never pay. Once you’re signed in, open this link again and save {couple} to it.</span>
+          <span className="flex gap-2 flex-wrap">
+            <Link to="/vendors/join" className="min-h-[44px] inline-flex items-center py-2 px-4 rounded-full bg-[#33402f] text-[#fbf8f2] no-underline text-[15px]">
+              Get a free account
+            </Link>
+            <Link to="/vendors/me" className="min-h-[44px] inline-flex items-center py-2 px-4 rounded-full border border-[#c6b794] text-[#33402f] no-underline text-[15px]">
+              Sign in
+            </Link>
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
 
 export function QuotePage() {
   const { slug = '' } = useParams();
@@ -74,8 +128,18 @@ export function QuotePage() {
   const [declining, setDeclining] = useState(false);
   const [why, setWhy] = useState('');
   const [problem, setProblem] = useState('');
+  const [payLink, setPayLink] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [spin, setSpin] = useState<string[]>([]);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [box, setBox] = useState('');
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [adding, setAdding] = useState<'' | 'photos' | 'spin'>('');
   const picker = useRef<HTMLInputElement>(null);
+  const photoPicker = useRef<HTMLInputElement>(null);
+  const spinPicker = useRef<HTMLInputElement>(null);
   const api = `/api/p/${encodeURIComponent(slug)}/rfq`;
+  const img = (id: string) => `${api}/media/${encodeURIComponent(id)}`;
 
   useEffect(() => {
     fetch(`${api}?k=${encodeURIComponent(k)}`)
@@ -101,6 +165,12 @@ export function QuotePage() {
           setExcludes(a.excludes);
           setNotes(a.notes);
           setFile({ id: a.fileId, name: a.fileName });
+          setPayLink(a.payLink ?? '');
+          setPhotos(a.samples?.photos ?? []);
+          setSpin(a.samples?.spin ?? []);
+          setVideos(a.samples?.videos ?? []);
+          setBox(a.samples?.box ?? '');
+          setSlots(a.tastings ?? []);
         }
       })
       .catch((e: Error) => setErr(e.message));
@@ -140,8 +210,46 @@ export function QuotePage() {
       if (picker.current) picker.current.value = '';
     }
   };
+  /** Sample photos (or the frames of a spin view, in the order taken): each made small, then kept with this link. */
+  const addPhotos = async (files: FileList | null, into: 'photos' | 'spin') => {
+    if (!files?.length) return;
+    const room = into === 'photos' ? 12 - photos.length : 24 - spin.length;
+    const list = [...files].slice(0, Math.max(0, room));
+    if (!list.length) return setProblem(into === 'photos' ? 'That’s 12 photos: remove one to add another.' : 'A spin view takes up to 24 photos.');
+    setProblem('');
+    setAdding(into);
+    try {
+      for (const f of list) {
+        const small = await samplePhoto(f, into === 'spin' ? 1000 : 1400);
+        const r = (await post('/media', { k, type: small.type, data: await base64Of(small) })) as { id: string };
+        if (into === 'photos') setPhotos((p) => [...p, r.id]);
+        else setSpin((p) => [...p, r.id]);
+      }
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setAdding('');
+      if (photoPicker.current) photoPicker.current.value = '';
+      if (spinPicker.current) spinPicker.current.value = '';
+    }
+  };
+  const saveToDashboard = async () => {
+    setProblem('');
+    try {
+      await post('/save', { k });
+      setD({ ...d, account: d.account ? { ...d.account, saved: true } : null });
+    } catch (e) {
+      setProblem((e as Error).message);
+    }
+  };
+
   const send = async () => {
     setProblem('');
+    if (payLink.trim() && !safeLink(payLink)) return setProblem('Your payment or booking link doesn’t look like a web address.');
+    const badVideo = videos.find((v) => v.url.trim() && !safeLink(v.url));
+    if (badVideo) return setProblem('One of your video links doesn’t look like a web address.');
+    const badSlot = slots.find((s) => !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s.at));
+    if (badSlot) return setProblem('Pick a day and time for each tasting, or remove it.');
     if (pkg) {
       const n = num(total);
       if (n === null || !Number.isFinite(n) || n <= 0) return setProblem('Add your total price.');
@@ -162,6 +270,9 @@ export function QuotePage() {
         excludes: excludes.trim(),
         notes: notes.trim(),
         fileId: file.id,
+        payLink: payLink.trim(),
+        samples: { photos, spin, videos: videos.filter((v) => v.url.trim()).map((v) => ({ url: v.url.trim(), label: v.label.trim() })), box: box.trim() },
+        tastings: slots.map((s) => ({ id: s.id, at: s.at, mins: s.mins, link: s.link.trim() })),
       });
       setSent('quote');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -221,6 +332,7 @@ export function QuotePage() {
             <button type="button" onClick={() => setSent(null)} className="self-start mt-1 py-2 px-4 rounded-full border border-[#33402f] bg-transparent text-[15px] cursor-pointer text-[#33402f]">
               Change my quote
             </button>
+            <Dashboard account={d.account} couple={d.couple} onSave={() => void saveToDashboard()} />
           </section>
         ) : sent === 'declined' || (d.declined && !declining && !d.closed && !d.answer) ? (
           <section role="status" className={card}>
@@ -355,7 +467,110 @@ export function QuotePage() {
                 <input ref={picker} type="file" hidden accept="application/pdf,image/jpeg,image/png,image/webp,image/heic" onChange={(e) => void attach(e.target.files?.[0])} />
               </section>
 
+              <section aria-label="Samples" className={card}>
+                <h2 className="m-0 text-[18px] font-semibold">
+                  Show your work <span className="font-normal text-[14px] text-[#5b6a52]">(optional)</span>
+                </h2>
+                <span className="text-[13px] text-[#5b6a52]">Couples can’t taste or touch from a screen: photos, a spin view and short videos help them choose you.</span>
+                <div className="flex flex-col gap-2">
+                  <strong className="text-[15px]">Photos</strong>
+                  {photos.length > 0 && (
+                    <ul className="m-0 p-0 list-none grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {photos.map((id) => (
+                        <li key={id} className="relative aspect-square rounded-[10px] overflow-hidden bg-[#efe6d0]">
+                          <img src={img(id)} alt="Your sample" loading="lazy" className="w-full h-full object-cover" />
+                          <button type="button" aria-label="Remove this photo" onClick={() => setPhotos((p) => p.filter((x) => x !== id))} className="absolute top-1 right-1 w-[32px] h-[32px] rounded-full border-0 bg-white/90 text-[16px] cursor-pointer text-[#33402f]">
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button type="button" disabled={!!adding || photos.length >= 12} onClick={() => photoPicker.current?.click()} className={pill}>
+                    {adding === 'photos' ? 'Adding…' : photos.length ? 'Add more photos' : 'Add photos'}
+                  </button>
+                  <input ref={photoPicker} type="file" hidden multiple accept="image/*" onChange={(e) => void addPhotos(e.target.files, 'photos')} />
+                </div>
+                <div className="flex flex-col gap-2 pt-2 border-t border-[#efe6d0]">
+                  <strong className="text-[15px]">Spin view</strong>
+                  <span className="text-[13px] text-[#5b6a52]">Walk around the piece (a cake, a bouquet, a table setting) taking 8 to 24 photos from the same height, then choose them all, in order. Couples turn it with a finger.</span>
+                  {spin.length > 1 && <SpinView frames={spin.map(img)} label="Your spin view" />}
+                  <div className="flex gap-2 flex-wrap">
+                    <button type="button" disabled={!!adding || spin.length >= 24} onClick={() => spinPicker.current?.click()} className={pill}>
+                      {adding === 'spin' ? 'Adding…' : spin.length ? `Add more (${spin.length} so far)` : 'Choose the photos'}
+                    </button>
+                    {spin.length > 0 && (
+                      <button type="button" onClick={() => setSpin([])} className={pill}>
+                        Start again
+                      </button>
+                    )}
+                  </div>
+                  <input ref={spinPicker} type="file" hidden multiple accept="image/*" onChange={(e) => void addPhotos(e.target.files, 'spin')} />
+                </div>
+                <div className="flex flex-col gap-2 pt-2 border-t border-[#efe6d0]">
+                  <strong className="text-[15px]">Short videos</strong>
+                  <span className="text-[13px] text-[#5b6a52]">A link to a short video on your site or a video site.</span>
+                  {videos.map((v, i) => (
+                    <div key={i} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                      <input value={v.url} placeholder="https://" aria-label={`Video ${i + 1} link`} inputMode="url" onChange={(e) => setVideos((x) => x.map((y, j) => (j === i ? { ...y, url: e.target.value } : y)))} className={input} />
+                      <button type="button" aria-label={`Remove video ${i + 1}`} onClick={() => setVideos((x) => x.filter((_, j) => j !== i))} className={pill}>
+                        Remove
+                      </button>
+                      <input value={v.label} maxLength={80} placeholder="What it shows (optional)" aria-label={`Video ${i + 1} title`} onChange={(e) => setVideos((x) => x.map((y, j) => (j === i ? { ...y, label: e.target.value } : y)))} className={`${input} col-span-2`} />
+                    </div>
+                  ))}
+                  {videos.length < 6 && (
+                    <button type="button" onClick={() => setVideos((x) => [...x, { url: '', label: '' }])} className={pill}>
+                      Add a video link
+                    </button>
+                  )}
+                </div>
+                <label className="flex flex-col gap-1 text-[15px] pt-2 border-t border-[#efe6d0]">
+                  <strong>Sample box</strong>
+                  <span className="text-[13px] text-[#5b6a52]">What you can post them to try (and how to ask for it).</span>
+                  <textarea rows={2} maxLength={1000} value={box} onChange={(e) => setBox(e.target.value)} placeholder="e.g. Four cake flavours and two fillings, posted free. Reply here with your address." className={input} />
+                </label>
+              </section>
+
+              <section aria-label="Video tastings" className={card}>
+                <h2 className="m-0 text-[18px] font-semibold">
+                  Video tastings or a chat <span className="font-normal text-[14px] text-[#5b6a52]">(optional)</span>
+                </h2>
+                <span className="text-[13px] text-[#5b6a52]">Offer a few times; {d.couple} book one in a tap. Add your video call link so it’s ready on the day.</span>
+                {slots.map((s, i) => (
+                  <div key={s.id || i} className="flex flex-col gap-2 pb-3 border-b border-[#efe6d0] last:border-0 last:pb-0">
+                    {s.bookedOn && <span className="text-[14px] font-semibold text-[#3d4a2f]">Booked by {d.couple}</span>}
+                    <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-2">
+                      <input type="datetime-local" aria-label={`Tasting ${i + 1} time`} value={s.at} onChange={(e) => setSlots((x) => x.map((y, j) => (j === i ? { ...y, at: e.target.value.slice(0, 16) } : y)))} className={input} />
+                      <select aria-label={`Tasting ${i + 1} length`} value={s.mins} onChange={(e) => setSlots((x) => x.map((y, j) => (j === i ? { ...y, mins: Number(e.target.value) } : y)))} className={input}>
+                        {[15, 20, 30, 45, 60, 90].map((m) => (
+                          <option key={m} value={m}>
+                            {m} min
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                      <input value={s.link} inputMode="url" placeholder="Video call link (optional)" aria-label={`Tasting ${i + 1} call link`} onChange={(e) => setSlots((x) => x.map((y, j) => (j === i ? { ...y, link: e.target.value } : y)))} className={input} />
+                      <button type="button" aria-label={`Remove tasting ${i + 1}`} onClick={() => setSlots((x) => x.filter((_, j) => j !== i))} className={pill}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {slots.length < 12 && (
+                  <button type="button" onClick={() => setSlots((x) => [...x, { id: '', at: '', mins: 30, link: x[x.length - 1]?.link ?? '', bookedOn: '' }])} className={pill}>
+                    Add a time
+                  </button>
+                )}
+              </section>
+
               <section aria-label="Terms" className={card}>
+                <label className="flex flex-col gap-1 text-[14px]">
+                  Your payment or booking page <span className="text-[13px] text-[#5b6a52]">(optional) {d.couple} get a “Pay or book with {d.vendor}” button that opens it. The Yes List never handles the money.</span>
+                  <input value={payLink} inputMode="url" placeholder="https://" onChange={(e) => setPayLink(e.target.value)} className={input} />
+                  {safeLink(payLink) && <span className="text-[13px] text-[#5b6a52]">Opens {linkHost(safeLink(payLink))}</span>}
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex flex-col gap-1 text-[14px]">
                     Deposit to book

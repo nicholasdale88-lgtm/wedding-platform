@@ -14,7 +14,7 @@ const when = (iso: string) => (iso ? new Date(iso).toLocaleDateString('en-AU', {
 const daysTo = (iso: string) => (iso ? Math.ceil((Date.parse(iso) - Date.now()) / DAY) : null);
 const STATUS: Record<VendorCouple['status'], string> = { booked: 'Booked you', considering: 'Considering you', linked: 'Linked' };
 type Filter = 'all' | 'unread' | 'quotes' | 'booked' | 'upcoming';
-const toPrice = (c: VendorCouple) => (c.quotes ?? []).filter((x) => !x.answered && !x.declined).length;
+const toPrice = (c: VendorCouple) => (c.quotes ?? []).filter((x) => !x.answered && !x.declined && !x.closed).length;
 
 /**
  * A vendor's couples: everyone who signed up through their link or added them to their planner. Each with
@@ -163,10 +163,10 @@ export function VendorCouples({ onUnread, packages = [] }: { onUnread?: (n: numb
                         <span>
                           {x.title} · {x.lines} {x.lines === 1 ? 'line' : 'lines'}
                           {x.due ? ` · wanted by ${new Date(`${x.due}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : ''}
-                          {x.answered ? ' · priced ✓' : x.declined ? ' · declined' : ''}
+                          {x.won ? ' · booked you ✓' : x.closed ? ' · decided' : x.answered ? ' · priced ✓' : x.declined ? ' · declined' : ''}
                         </span>
                         <a href={x.link} target="_blank" rel="noreferrer" className="py-[6px] px-4 rounded-full no-underline text-[13px] font-semibold" style={{ background: INK, color: '#fbf8f2' }}>
-                          {x.answered ? 'Change your quote' : 'Price it'}
+                          {x.closed ? 'See it' : x.answered ? 'Change your quote' : 'Price it'}
                         </a>
                       </div>
                     ))}

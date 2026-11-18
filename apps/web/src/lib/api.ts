@@ -641,6 +641,26 @@ export interface VendorChatMessage {
   read: boolean;
 }
 /** One of a vendor's couples: linked by the vendor's link or the couple adding them (counts only, no guest names). */
+/** A couple's quote request to a vendor, as their portal's Quotes area shows it. */
+export interface VendorQuoteLead {
+  id: string;
+  title: string;
+  lines: number;
+  due: string;
+  sent: string;
+  answered: boolean;
+  answeredOn?: string;
+  declined: boolean;
+  /** The couple have decided (booked someone, or closed it). */
+  closed?: boolean;
+  amount?: number;
+  /** They booked this vendor on this quote. */
+  won?: boolean;
+  samples?: boolean;
+  /** A video tasting the couple booked (yyyy-mm-ddThh:mm, the wedding's time). */
+  tasting?: { at: string; mins: number } | null;
+  link: string;
+}
 export interface VendorCouple {
   id: string;
   couple: string;
@@ -656,7 +676,7 @@ export interface VendorCouple {
   /** Their page for this wedding (the details the couple shares), when the couple has them in their planner. */
   details: string;
   /** The couple's quote requests to this vendor (leads), each with its link to price it. */
-  quotes?: { id: string; title: string; lines: number; due: string; sent: string; answered: boolean; declined: boolean; link: string }[];
+  quotes?: VendorQuoteLead[];
 }
 export const vendorCouplesApi = {
   list: () => request<{ couples: VendorCouple[]; unread: number; quotesOpen?: number }>('/a/vendor/couples'),

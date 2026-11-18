@@ -696,6 +696,58 @@ export const BUDGET_SPLIT: { category: string; share: number }[] = [
 /** Where a vendor is at: an idea, contacted, asked for a quote (pricing), quote in, booked, or not going ahead. */
 export const VENDOR_STATUS = ['idea', 'contacted', 'requested', 'quoted', 'booked', 'declined'] as const;
 
+/** A vendor's virtual samples on a quote (images are ids of small stored photos: /api/p/:slug/rfq/media/:id). */
+export const QuoteSamples = z.object({
+  photos: z.array(z.string().max(40)).max(12).default([]),
+  /** Photos taken in a circle around the piece (a cake, a bouquet), shown as a view you turn with a finger. */
+  spin: z.array(z.string().max(40)).max(24).default([]),
+  /** Short videos on their own site or a video site, opened from the quote. */
+  videos: z.array(z.object({ url: z.string().max(500), label: z.string().max(80).default('') })).max(6).default([]),
+  /** What's in the sample box they post, and how to ask for one. */
+  box: z.string().max(1000).default(''),
+});
+export type QuoteSamples = z.infer<typeof QuoteSamples>;
+
+/** A video tasting or consult time a vendor offers on a quote; the couple book one. */
+export const Tasting = z.object({
+  id: z.string().max(40),
+  /** yyyy-mm-ddThh:mm, in the wedding's time zone. */
+  at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/),
+  mins: z.number().int().min(10).max(180).default(30),
+  /** Their video call link (opened at the time). */
+  link: z.string().max(500).default(''),
+  /** Booked by the couple (the day they booked it). */
+  bookedOn: z.string().max(10).default(''),
+});
+export type Tasting = z.infer<typeof Tasting>;
+
+/**
+ * A web address a vendor gave us, made safe to open: https only (http is upgraded), no spaces, no logins in it.
+ * '' when it isn't a web address.
+ */
+export function safeLink(raw: string | undefined): string {
+  const t = (raw ?? '').trim();
+  if (!t || /\s/.test(t)) return '';
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return '';
+    if (u.username || u.password || !u.hostname.includes('.')) return '';
+    u.protocol = 'https:';
+    const out = u.toString();
+    return out.length <= 500 ? out : '';
+  } catch {
+    return '';
+  }
+}
+/** The site a link opens, as people read it (www. dropped): shown on the button so couples know where they're going. */
+export const linkHost = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+};
+
 /** A quote from a vendor: the numbers, what's in and out, and the file it came in (if filed). */
 export const Quote = z.object({
   id: z.string().max(40),
@@ -717,6 +769,18 @@ export const Quote = z.object({
   package: z.boolean().optional(),
   /** Their first price, kept when it changed (after you negotiated): what you saved. */
   before: z.number().min(0).max(10_000_000).optional(),
+  /**
+   * The vendor's own payment or booking page (their site, their booking portal): the couple get a "Pay or book
+   * with …" button that opens it, showing its address. The Yes List never handles the money.
+   */
+  payLink: z.string().max(500).optional(),
+  /** Their virtual samples: photos, a spin view, short videos, and the sample box. */
+  samples: QuoteSamples.optional(),
+  /** Video tasting or consult times the couple can book one of. */
+  tastings: z.array(Tasting).max(12).optional(),
+  /** The couple's own rating of the samples or tasting (1 to 5), and a note to themselves. */
+  rating: z.number().int().min(1).max(5).optional(),
+  ratingNote: z.string().max(500).optional(),
 });
 export type Quote = z.infer<typeof Quote>;
 /** Something to do with a booked vendor (send the shot list, final numbers…), by a date. */
@@ -777,6 +841,10 @@ export const Vendor = z.object({
   wrapped: z.boolean().optional(),
   /** The payment schedule (deposit, instalments, balance), once you've set one; until then it comes from the quote. */
   payments: z.array(Payment).max(12).default([]),
+  /** On the day: how this vendor gets in (loading dock, gate code, where to unload), shown on their pass. */
+  access: z.string().max(600).optional(),
+  /** On the day: they checked in, or they're running late (by about how long), from their pass. */
+  day: z.object({ state: z.enum(['here', 'late']), at: z.string().max(30), mins: z.number().int().min(0).max(600).default(0), note: z.string().max(200).default('') }).optional(),
 });
 export type Vendor = z.infer<typeof Vendor>;
 

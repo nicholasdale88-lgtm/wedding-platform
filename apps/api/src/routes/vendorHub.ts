@@ -21,6 +21,10 @@ import { PLACES, REAL_INVITATION } from '../lib/realGuests';
  * confirm the details (POST /:vid/:key/confirm), which ticks them off in the couple's planner.
  *
  * The key is made from the vendor and the server secret: it can't be guessed, and removing the vendor ends it.
+ *
+ * It is their on-the-day pass: every event's run sheet, place and parking, how they get in (the couple's access
+ * note for them), and on the day they can check in or say they're running late (POST /:vid/:key/status), which
+ * shows in the couple's planner straight away.
  */
 export async function vendorHubKey(secret: string, weddingId: string, vendorId: string) {
   return (await sessionId(`vendor-hub:${weddingId}:${vendorId}`, secret)).slice(0, 24);
@@ -71,6 +75,16 @@ export async function vendorDetailsFor(db: D1Database, secret: string, origin: s
 async function pageOf(db: D1Database, o: Opened) {
   const { w, v, all, ev } = o;
   const shares = vendorShares(v);
+  // Every event of the day(s), each with its own place, parking and run sheet (never added together).
+  const { results: evs } = await db
+    .prepare(`SELECT key, name, starts_at, venue, address FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 12`)
+    .bind(w.id)
+    .all<{ key: string; name: string; starts_at: string; venue: string | null; address: string | null }>();
+  const guides = guidesOf(safeJson(w.guide, {}), evs.map((e) => e.key)) as Record<string, Record<string, unknown> | undefined>;
+  const parkingOf = (g: Record<string, unknown> | undefined) => [g?.parking, g?.parkDirections].filter((x): x is string => typeof x === 'string' && !!x.trim()).join(' ');
+  const runOf = (g: Record<string, unknown> | undefined) =>
+    ((g?.runsheet as { t: string; what: string; where: string }[] | undefined) ?? []).filter((r) => r.t || r.what).map((r) => ({ t: r.t, what: r.what, where: r.where, mine: isVendorMoment(v, `${r.what} ${r.where}`) }));
+  const events = evs.map((e) => ({ key: e.key, name: e.name, startsAt: e.starts_at, venue: e.venue ?? '', address: e.address ?? '', parking: parkingOf(guides[e.key]), timeline: runOf(guides[e.key]) }));
   // How many are coming, and what they can't eat (counts only, never names).
   const counts = ev
     ? await db
@@ -154,6 +168,11 @@ async function pageOf(db: D1Database, o: Opened) {
       .map((x) => ({ name: x.name, category: x.category, arrival: x.arrival, contact: x.contact, phone: x.phone, email: x.email }))
       .sort((a, b) => (clockMinutes(a.arrival) ?? 9999) - (clockMinutes(b.arrival) ?? 9999) || a.name.localeCompare(b.name)),
     event: ev ? { name: ev.name, startsAt: ev.starts_at, venue: ev.venue ?? '', address: ev.address ?? '' } : null,
+    events,
+    /** How they get in (loading dock, gate code), from the couple, for this vendor. */
+    access: v.access ?? '',
+    /** Their check-in on the day, or that they're running late. */
+    day: v.day ?? null,
     timezone: w.timezone,
     parking: [guide?.parking, guide?.parkDirections].filter((x): x is string => typeof x === 'string' && !!x.trim()).join(' '),
     // The day's timeline, with this vendor's own moments marked.
@@ -285,6 +304,35 @@ export function vendorHubRoutes() {
     if (file === 'day.ics') return dayIcs(p, o.v.id, o.v.name);
     if (!p.songs) return none(c);
     return csv(`${slug}-songs.csv`, [['List', 'Song', 'Artist', 'Guests who asked', 'Note'], ...p.songs.map((s) => [SONG_LIST[s.status] ?? s.status, s.title, s.artist, s.asks, s.note])]);
+  });
+
+  /**
+   * On the day: they've arrived (checked in), or they're running late by about how long, or all clear again. Shown
+   * in the couple's planner straight away and kept in that vendor's notes.
+   */
+  app.post('/:vid/:key/status', async (c) => {
+    if (!(await allow(c.env.DB, `vendor-status:${ip(c)}`, 30, 3_600_000))) return slow(c);
+    const body = z
+      .object({ state: z.enum(['here', 'late', 'clear']), mins: z.number().int().min(0).max(600).default(0), note: z.string().trim().max(200).default('') })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!body.success) return c.json({ error: { code: 'invalid', message: 'Please try again.' } }, 400);
+    const o = await open(c);
+    if (!o) return none(c);
+    const today = dateIn(o.w.timezone);
+    const at = new Date().toISOString();
+    const note = dropControls(body.data.note);
+    const { state, mins } = body.data;
+    const time = new Intl.DateTimeFormat('en-AU', { hour: 'numeric', minute: '2-digit', timeZone: o.w.timezone }).format(new Date(at));
+    const said = state === 'here' ? `Checked in at ${time}` : state === 'late' ? `Running ${mins ? `about ${mins} min ` : ''}late (${time})` : `All clear again (${time})`;
+    const ok = await changeDoc(c.env.DB, o.w.id, 'vendors', '', (d) => {
+      const v = d.list.find((x) => x.id === o.v.id);
+      if (!v) return false;
+      v.day = state === 'clear' ? undefined : { state, at, mins: state === 'late' ? mins : 0, note };
+      v.log = [{ id: crypto.randomUUID(), on: today, kind: 'note' as const, text: `${said}${note ? `: ${note}` : ''}` }, ...(v.log ?? [])].slice(0, 200);
+    });
+    if (!ok) return c.json({ error: { code: 'busy', message: 'That didn’t save. Please try again.' } }, 409);
+    return c.json({ ok: true, day: state === 'clear' ? null : { state, at, mins: state === 'late' ? mins : 0, note } });
   });
 
   /** The vendor confirms the details (with a note, if they like): ticked off in the couple's planner, the note in their log. */

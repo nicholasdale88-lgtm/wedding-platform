@@ -216,6 +216,14 @@ test('a band or DJ opens their own page: the song list, their live calendar link
   await v.getByRole('button', { name: 'Confirm the details' }).click();
   await expect(v.getByText(/Thank you. The couple can see/)).toBeVisible();
   await expect(v.getByText(/You confirmed these details on/)).toBeVisible();
+  // On the day: running late in two taps, then checked in; the couple's planner shows it.
+  await v.getByRole('button', { name: 'Running late' }).click();
+  await v.getByRole('button', { name: '20 min' }).click();
+  await expect(v.getByText(/running about 20 min late/)).toBeVisible();
+  await v.getByRole('button', { name: 'I’m here' }).click();
+  await expect(v.getByText(/You checked in at/)).toBeVisible();
+  const after = (await (await page.request.get(`/api/a/w/${wid}/planner/doc/vendors`)).json()) as { data: { list: { day?: { state: string } }[] } };
+  expect(after.data.list[0]!.day?.state).toBe('here');
   await vendor.close();
 });
 

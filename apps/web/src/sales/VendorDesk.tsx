@@ -17,7 +17,7 @@ const card = 'flex flex-col gap-3 p-5 rounded-[16px] bg-white border border-[#e2
 const h = 'm-0 text-[12px] font-semibold tracking-[.16em] uppercase';
 
 type Enquiry = MyListing['enquiries'][number];
-export type DeskGo = 'couples' | 'enquiries' | 'proposals' | 'calendar' | 'recommend' | 'listing';
+export type DeskGo = 'couples' | 'quotes' | 'enquiries' | 'proposals' | 'calendar' | 'recommend' | 'listing';
 
 /**
  * Vendors work in Australian time: "today", day counts, the calendar's month and the season's months are all
@@ -105,7 +105,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
   for (const e of newEnq) needs.push({ text: `New enquiry from ${e.name}`, detail: [e.date && longDate(e.date), e.guests ? `${e.guests} guests` : ''].filter(Boolean).join(' · '), to: 'enquiries', urgent: true });
   for (const c of couples)
     for (const q of c.quotes ?? [])
-      if (!q.answered && !q.declined) needs.push({ text: `Price ${c.couple}’s quote request`, detail: `${q.title}${q.due ? ` · due ${inDays(daysTo(q.due))}` : ''}`, to: 'couples', urgent: !!q.due && daysTo(q.due) <= 7 });
+      if (!q.answered && !q.declined && !q.closed) needs.push({ text: `Price ${c.couple}’s quote request`, detail: `${q.title}${q.due ? ` · due ${inDays(daysTo(q.due))}` : ''}`, to: 'quotes', urgent: !!q.due && daysTo(q.due) <= 7 });
   for (const e of openEnq) {
     const clash = clashOn(e.date, couples, data.busy);
     if (clash) needs.push({ text: `${e.name}’s date clashes`, detail: clash, to: 'enquiries' });
@@ -126,7 +126,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
     ['Weddings ahead', ahead.length, 'calendar', ahead[0] ? `Next ${inDays(daysTo(ahead[0].date))}` : 'None booked yet'],
     ['Open enquiries', openEnq.length, 'enquiries', newEnq.length ? `${newEnq.length} new` : 'All answered'],
     ['Unread messages', unread, 'couples', unread ? 'From your couples' : 'All read'],
-    ['Quote requests', quotesOpen, 'couples', quotesOpen ? 'Waiting for your price' : 'All priced'],
+    ['Quote requests', quotesOpen, 'quotes', quotesOpen ? 'Waiting for your price' : 'All priced'],
   ];
 
   return (

@@ -1,6 +1,7 @@
 import { awaitingReply, beforeOf, dateIn, NEGOTIATION_TIPS, negotiationPlan, negotiationPoints, nextFollowUp, Quote, RFQ_LINES, rfqStage, rfqDraft, searchKeyOf, tenderAnalysis, tenderRows, TENDER_RATINGS, TENDER_WEIGHTS, Vendor, VENDOR_SEARCH, type Rfq, type RfqLine, type RfqVendor, type TenderRating } from '@wp/shared';
 import { useEffect, useState } from 'react';
 import { plannerApi } from '../../lib/api';
+import { ShareButton } from '../ShareButton';
 import { useAdmin } from '../Shell';
 import { inputCls, Label, Pill, useToast } from '../ui';
 import { QuoteFile } from './QuoteFile';
@@ -670,7 +671,7 @@ function RequestCard({
                 <>
                   <span className="flex-1 min-w-[180px]">
                     <strong className="font-semibold">{notSent.length} not sent yet.</strong>{' '}
-                    {siteEmail && emailable(notSent).length ? 'Send it from here in one tap, or use the buttons by each name.' : 'Use Email, Text or Copy link by each name.'}
+                    {siteEmail && emailable(notSent).length ? 'Email them from here in one tap, or Share by each name.' : 'Tap Share by each name: your phone’s share sheet (Messages, WhatsApp, email) with their link ready.'}
                   </span>
                   {siteEmail && emailable(notSent).length > 0 && (
                     <Pill kind="primary" size="sm" disabled={!!busy} onClick={() => void send(emailable(notSent), false, 'all')}>
@@ -724,14 +725,26 @@ function RequestCard({
                         {q ? 'Change' : 'Enter quote'}
                       </Pill>
                     )}
+                    {pending && !rfq.manual && (
+                      <ShareButton
+                        label={rv.sentOn ? 'Share again' : 'Share'}
+                        toast={toast}
+                        onShared={() => !rv.sentOn && markSent(v.id)}
+                        data={() => ({
+                          title: fill(rfq.subject, rv.key) || `${couple}: quote request`,
+                          text: `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''}, it's ${couple}. We'd love a quote for our wedding (${rfq.title || 'our quote request'}): you can price it, add samples and send it here`,
+                          url: linkOf(rv.key),
+                        })}
+                      />
+                    )}
                     {pending && canEmail && !rfq.manual && (
-                      <Pill size="sm" kind={rv.sentOn ? 'secondary' : 'primary'} disabled={!!busy} onClick={() => void send([v.id], !!rv.sentOn, v.id)}>
-                        {busy === v.id ? 'Sending…' : rv.sentOn ? 'Remind' : 'Send'}
+                      <Pill size="sm" kind="secondary" disabled={!!busy} onClick={() => void send([v.id], !!rv.sentOn, v.id)}>
+                        {busy === v.id ? 'Sending…' : rv.sentOn ? 'Email a reminder' : 'Email it'}
                       </Pill>
                     )}
                     {!rfq.closed && (
                       <details className="relative">
-                        <summary className={`${small} list-none [&::-webkit-details-marker]:hidden`}>{canEmail || !pending || rfq.manual ? 'More' : 'Send'} ▾</summary>
+                        <summary className={`${small} list-none [&::-webkit-details-marker]:hidden`}>More ▾</summary>
                         <div className="absolute right-0 z-[5] mt-1 w-[230px] flex flex-col p-1 rounded-[12px] border border-[var(--adm-line,#e2d7bc)] bg-white shadow-[0_8px_24px_rgba(51,64,47,.18)] text-[14px]">
                           {pending && v.email && (
                             <a href={mail} onClick={() => markSent(v.id)} className="py-2 px-3 rounded-[8px] no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[#f3eee2]">

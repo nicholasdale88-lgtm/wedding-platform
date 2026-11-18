@@ -6,6 +6,7 @@ import { api, ApiError, directoryApi, proposalsApi, vendorCouplesApi, type MyLis
 import { EnquiryPipeline, VendorCalendar, VendorOverview } from './VendorDesk';
 import { BRAND } from './SalesPage';
 import { VendorCouples } from './VendorCouples';
+import { VendorQuotes } from './VendorQuotes';
 import { isVendorDemo } from '../try/vendorDemo';
 import { VendorKit } from './VendorKit';
 import { VendorProposals } from './FeeProposal';
@@ -676,6 +677,7 @@ export function VendorJoinPage() {
 const VENDOR_TABS = [
   ['home', 'Overview'],
   ['couples', 'Your couples'],
+  ['quotes', 'Quotes'],
   ['enquiries', 'Enquiries'],
   ['proposals', 'Proposals'],
   ['calendar', 'Calendar'],
@@ -826,6 +828,7 @@ export function VendorHomePage() {
           >
             {label}
             {k === 'couples' && chatUnread ? ` · ${chatUnread} new` : ''}
+            {k === 'quotes' && couples.quotesOpen ? ` · ${couples.quotesOpen} to price` : ''}
             {k === 'enquiries' && unread ? ` · ${unread} new` : ''}
             {k === 'proposals' && changes.length ? ` · ${changes.length} to revise` : ''}
           </button>
@@ -834,6 +837,11 @@ export function VendorHomePage() {
       {tab === 'home' && (
         <div className="pt-5">
           <VendorOverview data={data!} couples={couples.list} unread={couples.unread} quotesOpen={couples.quotesOpen} changes={changes} go={setTab} />
+        </div>
+      )}
+      {tab === 'quotes' && (
+        <div className="pt-5">
+          <VendorQuotes couples={couples.list} />
         </div>
       )}
       {tab === 'enquiries' && (

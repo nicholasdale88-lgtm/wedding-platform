@@ -10,6 +10,9 @@ import { GuestMessage } from '../GuestMessage';
  * When the couple shares the seating (the caterer), the room plan with the tables that have special meals
  * marked, and each special meal by table and seat. The band or DJ gets the song list. Everything also comes
  * as live files for the vendor's own tools (calendar, spreadsheet), and the vendor confirms the details here.
+ *
+ * Their on-the-day pass: every event with its own run sheet, place and parking, how they get in, a check-in and
+ * "running late" button, and a banner the moment anything changes (the page refreshes itself while it's open).
  */
 interface Data {
   couple: string;
@@ -20,6 +23,11 @@ interface Data {
   parking: string;
   /** `mine`: a moment this vendor looks after (it names them, or it's their kind of moment). */
   timeline: { t: string; what: string; where: string; mine?: boolean }[];
+  /** Every event, each with its own place, parking and run sheet. */
+  events?: { key: string; name: string; startsAt: string; venue: string; address: string; parking: string; timeline: { t: string; what: string; where: string; mine?: boolean }[] }[];
+  /** How they get in (from the couple). */
+  access?: string;
+  day?: DayState | null;
   guests: { coming: number; waiting: number } | null;
   dietary: { diet: string; n: number; serious: boolean }[];
   /** Meal choices of everyone coming, by course (counts only). */
@@ -35,6 +43,7 @@ interface Data {
   vendorMeals?: { name: string; meals: number }[];
 }
 type Meal = { e: string; m: string; d: string };
+type DayState = { state: 'here' | 'late'; at: string; mins: number; note: string };
 type Song = { title: string; artist: string; note: string; status: 'must' | 'maybe' | 'no' | 'new'; asks: number };
 interface Seating {
   event: string;
@@ -67,7 +76,23 @@ export function VendorPage() {
       })
       .catch((e: Error) => setErr(e.message));
   }, [api]);
-  const changes = useChanges(d, api);
+  // While the pass is open, it keeps itself current (every minute, and when the phone comes back to it).
+  useEffect(() => {
+    if (!d) return;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      fetch(api)
+        .then(async (r) => (r.ok ? setD((await r.json()) as Data) : undefined))
+        .catch(() => undefined);
+    };
+    const t = window.setInterval(refresh, 60_000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [api, !!d]); // eslint-disable-line
+  const { changes, live } = useChanges(d, api);
   if (err) return <GuestMessage message={err} />;
   if (!d) return <div className="fixed inset-0 bg-[#f6f0e2]" aria-busy="true" />;
   const when = d.event ? new Date(d.event.startsAt) : null;
@@ -91,7 +116,7 @@ export function VendorPage() {
           </span>
         </div>
         <header className="flex flex-col gap-1">
-          <span className="text-[12px] tracking-[.2em] uppercase font-semibold text-[#5b6a52]">For {d.vendor.name}</span>
+          <span className="text-[12px] tracking-[.2em] uppercase font-semibold text-[#5b6a52]">On-the-day pass · {d.vendor.name}</span>
           <h1 className="m-0 text-[34px] leading-[1.1] font-normal" style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}>
             {d.couple}’s wedding
           </h1>
@@ -106,8 +131,8 @@ export function VendorPage() {
         </header>
 
         {changes.length > 0 && (
-          <section role="status" aria-label="Since you last looked" className="flex flex-col gap-1 p-4 rounded-[16px] bg-[#f3e7c9] border border-[#d9c48f] print:hidden">
-            <strong>Since you last looked</strong>
+          <section role="status" aria-label={live ? 'Just updated' : 'Since you last looked'} className="sticky top-2 z-[3] flex flex-col gap-1 p-4 rounded-[16px] bg-[#f3e7c9] border border-[#d9c48f] shadow-[0_6px_18px_rgba(51,64,47,.12)] print:hidden">
+            <strong>{live ? 'Just updated by the couple' : 'Since you last looked'}</strong>
             <ul className="m-0 pl-5 text-[15px]">
               {changes.map((x) => (
                 <li key={x}>{x}</li>
@@ -116,7 +141,19 @@ export function VendorPage() {
           </section>
         )}
 
-        {d.event && (
+        <DayCheckIn api={api} day={d.day ?? null} arrival={d.vendor.arrival} onDone={(day) => setD({ ...d, day })} />
+
+        {(d.access || (d.parking && (d.events?.length ?? 0) <= 1)) && (
+          <section className={card} aria-label="Getting in">
+            <strong>Getting in</strong>
+            {d.access && <span className="whitespace-pre-line">{d.access}</span>}
+            {d.parking && (d.events?.length ?? 0) <= 1 && <span className="text-[14px] text-[#5b6a52]">Parking: {d.parking}</span>}
+          </section>
+        )}
+
+        {(d.events?.length ?? 0) > 1 ? (
+          d.events!.map((e) => <EventCard key={e.key} e={e} timezone={d.timezone} />)
+        ) : d.event && (
           <section className={card} aria-label="The day">
             <strong className="text-[18px]">{fmt({ weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</strong>
             <span>
@@ -128,11 +165,10 @@ export function VendorPage() {
                 {[d.event.venue, d.event.address].filter(Boolean).join(', ')}
               </a>
             )}
-            {d.parking && <span className="text-[14px] text-[#5b6a52]">Parking: {d.parking}</span>}
           </section>
         )}
 
-        {d.timeline.length > 0 && <Timeline rows={d.timeline} />}
+        {(d.events?.length ?? 0) <= 1 && d.timeline.length > 0 && <Timeline rows={d.timeline} />}
 
         {d.guests && (
           <section className={card} aria-label="Guests">
@@ -239,15 +275,118 @@ export function VendorPage() {
   );
 }
 
+/** One event of several: its date and time, place and parking, then its own run sheet. */
+function EventCard({ e, timezone }: { e: NonNullable<Data['events']>[number]; timezone: string }) {
+  const when = new Date(e.startsAt);
+  const fmt = (o: Intl.DateTimeFormatOptions) => {
+    try {
+      return new Intl.DateTimeFormat('en-AU', { ...o, timeZone: timezone }).format(when);
+    } catch {
+      return '';
+    }
+  };
+  const where = [e.venue, e.address].filter(Boolean).join(', ');
+  return (
+    <>
+      <section className={card} aria-label={e.name}>
+        <span className="text-[12px] tracking-[.16em] uppercase font-semibold text-[#5b6a52]">{e.name}</span>
+        <strong className="text-[18px]">{fmt({ weekday: 'long', day: 'numeric', month: 'long' })} · {fmt({ hour: 'numeric', minute: '2-digit' })}</strong>
+        {where && (
+          <a href={`https://maps.google.com/?q=${encodeURIComponent(where)}`} target="_blank" rel="noopener noreferrer" className="text-[#33402f]">
+            {where}
+          </a>
+        )}
+        {e.parking && <span className="text-[14px] text-[#5b6a52]">Parking: {e.parking}</span>}
+      </section>
+      {e.timeline.length > 0 && <Timeline rows={e.timeline} title={`${e.name}: run sheet`} />}
+    </>
+  );
+}
+
+/**
+ * On the day: "I'm here" (checked in), or "Running late" by about how long. The couple see it in their planner
+ * straight away; "All good now" clears it.
+ */
+function DayCheckIn({ api, day, arrival, onDone }: { api: string; day: DayState | null; arrival: string; onDone: (d: DayState | null) => void }) {
+  const [late, setLate] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  const send = async (state: 'here' | 'late' | 'clear', mins = 0) => {
+    setBusy(true);
+    setProblem('');
+    try {
+      const r = await fetch(`${api}/status`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state, mins }) });
+      const b = (await r.json().catch(() => null)) as { day?: DayState | null; error?: { message: string } } | null;
+      if (!r.ok) throw new Error(b?.error?.message ?? 'That didn’t send. Please try again.');
+      onDone(b?.day ?? null);
+      setLate(false);
+    } catch (e) {
+      setProblem((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const time = day ? new Date(day.at).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : '';
+  const big = 'min-h-[48px] py-3 px-5 rounded-full border-0 text-[16px] cursor-pointer disabled:opacity-60';
+  return (
+    <section className={`${card} print:hidden`} aria-label="On the day">
+      <strong>On the day</strong>
+      {day ? (
+        <span role="status" className={`p-3 rounded-[12px] text-[15px] font-semibold ${day.state === 'here' ? 'bg-[#e6ecd8] text-[#3d4a2f]' : 'bg-[#f6e0d4] text-[#7a4a37]'}`}>
+          {day.state === 'here' ? `You checked in at ${time}. The couple can see it.` : `You told the couple you’re running ${day.mins ? `about ${day.mins} min ` : ''}late (${time}).`}
+        </span>
+      ) : (
+        <span className="text-[14px] text-[#5b6a52]">When you arrive, check in here{arrival ? ` (you’re expected ${arrival})` : ''}. Running late? Let them know in one tap.</span>
+      )}
+      {late ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-[14px]">About how late?</span>
+          <div className="flex gap-2 flex-wrap">
+            {[10, 20, 30, 45, 60].map((m) => (
+              <button key={m} type="button" disabled={busy} onClick={() => void send('late', m)} className={`${big} bg-[#7a4a37] text-[#fbf8f2]`}>
+                {m} min
+              </button>
+            ))}
+            <button type="button" onClick={() => setLate(false)} className={btn}>
+              Back
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2 flex-wrap">
+          {day?.state !== 'here' && (
+            <button type="button" disabled={busy} onClick={() => void send('here')} className={`${big} bg-[#33402f] text-[#fbf8f2]`}>
+              I’m here
+            </button>
+          )}
+          <button type="button" disabled={busy} onClick={() => setLate(true)} className={`${big} bg-white border border-[#c6b794] text-[#33402f]`} style={{ border: '1px solid #c6b794' }}>
+            Running late
+          </button>
+          {day && (
+            <button type="button" disabled={busy} onClick={() => void send('clear')} className={btn}>
+              {day.state === 'late' ? 'All good now' : 'Undo check-in'}
+            </button>
+          )}
+        </div>
+      )}
+      {problem && (
+        <span role="alert" className="text-[14px] text-[#7a4a37]">
+          {problem}
+        </span>
+      )}
+    </section>
+  );
+}
+
 /** The day's timeline, this vendor's own moments marked; a tap shows only theirs. */
-function Timeline({ rows }: { rows: Data['timeline'] }) {
+function Timeline({ rows, title = 'The timeline' }: { rows: Data['timeline']; title?: string }) {
   const mine = rows.filter((r) => r.mine).length;
   const [only, setOnly] = useState(false);
   const shown = only ? rows.filter((r) => r.mine) : rows;
   return (
-    <section className={card} aria-label="Timeline">
+    <section className={card} aria-label={title}>
       <div className="flex justify-between items-baseline gap-2 flex-wrap">
-        <strong>The timeline</strong>
+        <strong>{title}</strong>
         {mine > 0 && mine < rows.length && (
           <button type="button" onClick={() => setOnly(!only)} aria-pressed={only} className={btn}>
             {only ? 'Show everything' : `Only my moments (${mine})`}
@@ -274,13 +413,14 @@ function Timeline({ rows }: { rows: Data['timeline'] }) {
  * What changed since this vendor last opened the page (kept on their own device): guest numbers, dietary
  * needs, the timeline, their arrival time, songs. Nothing is shown on a first visit.
  */
-function useChanges(d: Data | null, key: string): string[] {
+function useChanges(d: Data | null, key: string): { changes: string[]; live: boolean } {
   const [changes, setChanges] = useState<string[]>([]);
-  const looked = useRef(false);
+  const [live, setLive] = useState(false);
+  const last = useRef<unknown>(null);
   useEffect(() => {
-    // Once per visit: the first load is compared, later updates (a confirmation) aren't.
-    if (!d || looked.current) return;
-    looked.current = true;
+    // The first load is compared with their last visit (kept on their device); each refresh while the pass is
+    // open is compared with what they were just looking at, and the banner says it was just updated.
+    if (!d) return;
     const now = {
       coming: d.guests?.coming ?? 0,
       diet: d.dietary.map((x) => `${x.diet}:${x.n}`).join('|'),
@@ -289,16 +429,24 @@ function useChanges(d: Data | null, key: string): string[] {
       arrival: d.vendor.arrival,
       songs: d.songs?.length ?? 0,
       special: d.seating?.special.map((r) => `${r.table}${r.seat}${r.name}${r.diet}`).join('|') ?? '',
+      events: (d.events ?? []).map((e) => `${e.name}${e.startsAt}${e.venue}${e.address}`).join('|'),
+      runs: (d.events ?? []).map((e) => e.timeline.map((r) => `${r.t}${r.what}${r.where}`).join(';')).join('|'),
+      access: `${d.access ?? ''}|${d.parking}`,
     };
-    let before: typeof now | null = null;
+    const seen = last.current;
+    let before = seen as typeof now | null;
     try {
-      before = JSON.parse(localStorage.getItem(`vendor-seen:${key}`) ?? 'null') as typeof now | null;
+      if (!seen) before = JSON.parse(localStorage.getItem(`vendor-seen:${key}`) ?? 'null') as typeof now | null;
       localStorage.setItem(`vendor-seen:${key}`, JSON.stringify(now));
     } catch {
-      return;
+      // Private browsing: only changes while it's open.
     }
+    last.current = now;
     if (!before) return;
     const out: string[] = [];
+    if (before.events !== undefined && before.events !== now.events) out.push('An event’s time or place changed');
+    if (before.runs !== undefined && before.runs !== now.runs && before.timeline === now.timeline) out.push('A run sheet changed');
+    if (before.access !== undefined && before.access !== now.access) out.push('How you get in (access or parking) changed');
     if (before.arrival !== now.arrival) out.push(`Your arrival time is now ${now.arrival || 'to be confirmed'}`);
     if (before.coming !== now.coming) out.push(`${now.coming} guests coming (was ${before.coming})`);
     if (before.diet !== now.diet) out.push('Dietary needs changed');
@@ -307,9 +455,12 @@ function useChanges(d: Data | null, key: string): string[] {
     if (before.timeline !== now.timeline) out.push('The timeline changed');
     if (now.songs > before.songs) out.push(`${now.songs - before.songs} new ${now.songs - before.songs === 1 ? 'song' : 'songs'}`);
     else if (before.songs !== now.songs) out.push('The song list changed');
+    // A refresh with nothing new keeps the banner they're reading.
+    if (seen && !out.length) return;
     setChanges(out);
+    setLive(!!seen);
   }, [d, key]);
-  return changes;
+  return { changes, live };
 }
 
 /** Meal choices by course: how many of each, for ordering and prep. */

@@ -783,6 +783,18 @@ export const companyTask = sqliteTable('company_task', {
 });
 
 /** Vendors' couples: linked by the vendor's link or the couple adding them (migrations/0050). */
+/** Vendors' sample photos on a quote (migrations/0056). */
+export const quoteMedia = sqliteTable('quote_media', {
+  id: text('id').primaryKey(),
+  weddingId: text('wedding_id').notNull(),
+  rfqKey: text('rfq_key').notNull(),
+  type: text('type').notNull(),
+  bytes: integer('bytes').notNull(),
+  data: blob('data').notNull(),
+  createdAt: text('created_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
 export const vendorCouple = sqliteTable(
   'vendor_couple',
   {

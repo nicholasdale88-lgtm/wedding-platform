@@ -8,6 +8,8 @@ import { markPaid, ownSchedule } from './paying';
 import { saveContacts } from '../../lib/vcard';
 import { MoneyInput } from './MoneyInput';
 import { useAdmin } from '../Shell';
+import { ShareButton } from '../ShareButton';
+import { QuoteExtras } from './QuoteExtras';
 import { useDocSave } from './useDocSave';
 import { VendorMessages } from './VendorMessages';
 import { H2, inputCls, Pill, useToast } from '../ui';
@@ -1091,7 +1093,7 @@ function CheckIn({ v, ctx, onArrival, onDone, onClose }: { v: Vendor; ctx: Check
 }
 
 function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open: boolean; onToggle: () => void; onChange: (p: Partial<Vendor>, done?: string) => void; onRemove: () => void }) {
-  const { wid } = useAdmin();
+  const { wid, overview } = useAdmin();
   // Text fields save when you leave them; choices save straight away.
   const field = (k: 'name' | 'category' | 'contact' | 'phone' | 'email' | 'website' | 'address' | 'arrival' | 'notes', label: string, long = false) => (
     <label key={k} className={`flex flex-col gap-1 text-[12px] text-[var(--adm-muted,#5b6a52)] ${long ? 'sm:col-span-2' : ''}`}>
@@ -1124,8 +1126,16 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
               .join(' · ')}
           </span>
         </span>
-        <span className="py-[3px] px-[10px] rounded-full text-[12px] font-semibold flex-none" style={{ background: STATUS_COLOUR[v.status] }}>
-          {STATUS_LABEL[v.status]}
+        <span className="flex gap-1 flex-none flex-wrap justify-end">
+          {/* On the day: they checked in, or said they're running late, from their pass. */}
+          {v.day && (
+            <span className={`py-[3px] px-[10px] rounded-full text-[12px] font-semibold ${v.day.state === 'here' ? 'bg-[#dfe8cf] text-[#3d4a2f]' : 'bg-[#f6e0d4] text-[#7a4a37]'}`}>
+              {v.day.state === 'here' ? `Here ${new Date(v.day.at).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}` : `Running ${v.day.mins ? `${v.day.mins} min ` : ''}late`}
+            </span>
+          )}
+          <span className="py-[3px] px-[10px] rounded-full text-[12px] font-semibold" style={{ background: STATUS_COLOUR[v.status] }}>
+            {STATUS_LABEL[v.status]}
+          </span>
         </span>
       </button>
       {open && (
@@ -1170,6 +1180,9 @@ function VendorCard({ v, open, onToggle, onChange, onRemove }: { v: Vendor; open
                 {q.includes && <div className="text-[13px]"><strong className="font-semibold">Includes:</strong> {q.includes}</div>}
                 {q.excludes && <div className="text-[13px]"><strong className="font-semibold">Not included:</strong> {q.excludes}</div>}
                 {q.notes && <div className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{q.notes}</div>}
+                {overview && (
+                  <QuoteExtras q={q} vendor={v.name} slug={overview.wedding.slug} timezone={overview.wedding.timezone} onChange={(nq, msg) => onChange({ quotes: v.quotes.map((x) => (x.id === nq.id ? nq : x)) }, msg)} />
+                )}
                 <div className="flex gap-3 flex-wrap text-[13px] mt-1">
                   {/* A vendor's fee proposal: accept it, or ask for changes, on its own page. */}
                   {/https?:\/\/\S+\/proposal\/[A-Za-z0-9_-]+/.exec(q.notes)?.[0] && (
@@ -1794,13 +1807,37 @@ function TheirPage({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>, 
   const couple = overview ? `${overview.wedding.name1.split(' ')[0]} & ${overview.wedding.name2.split(' ')[0]}` : 'us';
   const shares = vendorShares(v);
   const msg = (u: string) =>
-    `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''}, here are all the details for ${couple}'s wedding, kept up to date (times, guest numbers, dietary needs${shares.songs ? ', the song list' : ''}, who to call on the day). You can add it to your calendar or spreadsheet from there, and confirm once you have everything: ${u}`;
+    `Hi${v.contact ? ` ${v.contact.split(' ')[0]}` : ''}, here's your on-the-day pass for ${couple}'s wedding, kept up to date (every event's run sheet, how to get in, guest numbers, dietary needs${shares.songs ? ', the song list' : ''}, who to call). Check in there when you arrive, or tap Running late: ${u}`;
+  // The link is fetched as the card opens, so Share opens the share sheet straight from the tap.
+  useEffect(() => {
+    void get();
+  }, [v.id]); // eslint-disable-line
+  const [access, setAccess] = useState(v.access ?? '');
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 rounded-[12px] bg-white border border-[var(--adm-line,#e2d7bc)] text-[13px]">
       <span className="flex-1 min-w-[200px] text-[var(--adm-muted,#5b6a52)]">
-        Their page: the day, the timeline, guest numbers, dietary needs and meal choices, the other suppliers, their payments and who to call, always up to date. They can add it to their calendar or spreadsheet and confirm.
+        <strong className="block text-[15px] text-[var(--adm-ink,#33402f)]">On-the-day pass</strong>
+        Their own page: every event’s run sheet, place and parking, how they get in, guest numbers, dietary needs and meal choices, the other suppliers, their payments and who to call, always up to date. They check in there on the day, or tell you they’re running late, and see a banner when anything changes.
         {v.confirmedOn && <strong className="block text-[var(--adm-ink,#33402f)]">They confirmed the details on {new Date(`${v.confirmedOn}T12:00:00Z`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}.</strong>}
       </span>
+      <ShareButton label="Share their pass" toast={toast} data={() => {
+          if (url) return { title: `${couple}'s wedding: your on-the-day pass`, text: msg(url), url };
+          toast('One moment: getting their link');
+          return null;
+        }}
+      />
+      <label className="basis-full flex flex-col gap-1 text-[13px] text-[var(--adm-ink,#33402f)]">
+        How they get in (on their pass)
+        <textarea
+          rows={2}
+          maxLength={600}
+          value={access}
+          placeholder="e.g. Loading dock off Vine Lane, gate code 2468, unload by 2pm"
+          onChange={(e) => setAccess(e.target.value)}
+          onBlur={() => access !== (v.access ?? '') && onChange({ access }, 'Saved to their pass')}
+          className={`${inputCls} resize-y`}
+        />
+      </label>
       <label className="basis-full flex items-start gap-2 cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
         <input
           type="checkbox"
@@ -1849,7 +1886,7 @@ function TheirPage({ v, onChange }: { v: Vendor; onChange: (p: Partial<Vendor>, 
       </button>
       {url && (
         <a href={url} target="_blank" rel="noopener" className="!text-[var(--adm-ink,#33402f)] text-[12px]">
-          Open it
+          Open their pass
         </a>
       )}
     </div>
