@@ -1,3 +1,4 @@
+/* global process, console, document */
 // The designs' cover stills: each design's closed envelope, photographed from the real sample invitation
 // (/demo?embed=1&cover=1&theme=…: Harriet & Theo on the envelope, their H&T seal), saved as a small JPEG in
 // apps/web/public/covers/<slug>.jpg for the galleries. Run in CI (the "covers" job) against the dev server:

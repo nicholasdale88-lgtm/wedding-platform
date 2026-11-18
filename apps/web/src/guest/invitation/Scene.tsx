@@ -1261,6 +1261,7 @@ export function SceneOverlay({
   guestName,
   photo,
   contained = false,
+  hint = true,
 }: {
   kind: Exclude<Scene, 'auto' | 'none'>;
   phase: number;
@@ -1270,6 +1271,8 @@ export function SceneOverlay({
   /** Their photograph (the photo scene; Setup → Extras → Photo). */
   photo?: string;
   contained?: boolean;
+  /** "Tap to open" under the name (not on a design's cover still). */
+  hint?: boolean;
 }) {
   const still = useMemo(() => prefersLessMotion(), []);
   // Drawn once for these colours (the page re-renders as it opens; new pictures would be decoded again).
@@ -1728,7 +1731,7 @@ export function SceneOverlay({
       >
         {/* (The letter has their name written on it already.) */}
         {guestName && kind !== 'letter' && <span style={{ fontFamily: "'Pinyon Script', cursive", fontSize: 'clamp(16px,8cqw,40px)', lineHeight: 1.1 }}>{guestName}</span>}
-        <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(12px,4.8cqw,19px)', letterSpacing: '.06em', animation: still ? undefined : 'ylHint 2.4s ease-in-out infinite' }}>Tap to open</span>
+        {hint && <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontStyle: 'italic', fontSize: 'clamp(12px,4.8cqw,19px)', letterSpacing: '.06em', animation: still ? undefined : 'ylHint 2.4s ease-in-out infinite' }}>Tap to open</span>}
       </div>
     </div>
   );
