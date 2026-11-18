@@ -1,6 +1,6 @@
 import { allows, DELIVERY, GUEST_SIDES, InvitationContent,joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164, contactGaps } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
-import { afterCommit, MAX_IMPORT, readJson } from '../lib/security';
+import { afterCommit, isBusy, MAX_IMPORT, readJson } from '../lib/security';
 import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -88,11 +88,22 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
   async function claimVersion(c: C, invitationId: string): Promise<'ok' | 'missing' | 'conflict' | 'no-version'> {
     const v = Number(c.req.header('If-Match'));
     if (!Number.isInteger(v)) return 'no-version';
-    const r = await c.env.DB.prepare(
-      `UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ? AND wedding_id = ? AND version = ? AND deleted_at IS NULL`,
-    )
-      .bind(now(), invitationId, wid(c), v)
-      .run();
+    const at = now();
+    const claim = () =>
+      c.env.DB.prepare(`UPDATE invitation SET version = version + 1, updated_at = ? WHERE id = ? AND wedding_id = ? AND version = ? AND deleted_at IS NULL`)
+        .bind(at, invitationId, wid(c), v)
+        .run();
+    let r: Awaited<ReturnType<typeof claim>>;
+    try {
+      r = await claim();
+    } catch (e) {
+      if (!isBusy(e)) throw e;
+      // "Busy" can come back after the claim saved. Ours if the version moved on by one with our own time on it;
+      // otherwise it didn't save, and is tried again. (A 503 here made the page's retry say "Updated elsewhere".)
+      const row = await afterCommit(() => c.env.DB.prepare(`SELECT version, updated_at FROM invitation WHERE id = ? AND wedding_id = ?`).bind(invitationId, wid(c)).first<{ version: number; updated_at: string }>());
+      if (row && row.version === v + 1 && row.updated_at === at) return 'ok';
+      r = await afterCommit(claim);
+    }
     if (r.meta.changes) return 'ok';
     const exists = await c.env.DB.prepare(`SELECT 1 FROM invitation WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(invitationId, wid(c)).first();
     return exists ? 'conflict' : 'missing';

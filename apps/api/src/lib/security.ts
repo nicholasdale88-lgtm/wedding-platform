@@ -127,7 +127,7 @@ export async function readBytes(req: Request, max = MAX_BODY): Promise<Uint8Arra
  * try again" (503) at that point would make the page send a change that already saved a second time (a proposal
  * revised twice, a guest edit told "updated elsewhere"), found by the stress run.
  */
-export async function afterCommit<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
+export async function afterCommit<T>(fn: () => Promise<T>, tries = 6): Promise<T> {
   for (let i = 0; ; i++) {
     try {
       return await fn();

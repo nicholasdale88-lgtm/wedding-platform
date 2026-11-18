@@ -83,6 +83,38 @@ describe('admin API', () => {
     expect((await reply()).status).toBe(200);
   });
 
+  it('busy reported after the version claim itself saved: the edit still saves, first time (never 503, then "updated elsewhere")', async () => {
+    const real = env.DB;
+    let failed = false;
+    env.DB = new Proxy(real, {
+      get(target, prop) {
+        if (prop === 'prepare')
+          return (sql: string) => {
+            const st = target.prepare(sql);
+            if (failed || !/^\s*UPDATE invitation SET version = version \+ 1/.test(sql)) return st;
+            return {
+              bind: (...args: unknown[]) => ({
+                run: async () => {
+                  await st.bind(...args).run(); // it saves...
+                  failed = true;
+                  throw new Error('D1_ERROR: Network connection lost.'); // ...but the answer is lost
+                },
+              }),
+            } as unknown as D1PreparedStatement;
+          };
+        const v = Reflect.get(target, prop) as unknown;
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const g = await guestNamed('Ella Thompson');
+    const res = await call(`/guests/${g.id}`, { method: 'PATCH', headers: { 'If-Match': String(g.version) }, body: JSON.stringify({ party: 'Netball' }) });
+    env.DB = real;
+    expect(failed).toBe(true);
+    expect(res.status).toBe(200);
+    const got = (await json<{ guest: { version: number; party: string } }>(res)).guest;
+    expect(got).toMatchObject({ party: 'Netball', version: g.version + 1 });
+  });
+
   it('overview: counts, per-event figures and Needs you from the real seed', async () => {
     const o = await json<ReturnType<typeof buildOverview>>(await call('/overview'));
     expect(o.total).toBe(22);
