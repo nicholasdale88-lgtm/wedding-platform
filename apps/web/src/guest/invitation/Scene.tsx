@@ -1725,10 +1725,21 @@ export function SceneOverlay({
       aria-hidden
       data-scene={kind}
       /* Sized by its box (cqw, cqh): the same scene fills a phone's screen, or a little phone on the front page. */
-      style={{ position: contained ? 'absolute' : 'fixed', inset: 0, zIndex: 25, pointerEvents: 'none', overflow: 'hidden', containerType: 'size', opacity: gone ? 0 : 1, transition: 'opacity .9s ease' }}
+      // As it clears, the camera carries on through the scene onto the card (a small push as it fades).
+      style={{ position: contained ? 'absolute' : 'fixed', inset: 0, zIndex: 25, pointerEvents: 'none', overflow: 'hidden', containerType: 'size', opacity: gone ? 0 : 1, transform: gone && !still ? 'scale(1.06)' : 'none', transition: 'opacity .9s ease, transform 1s cubic-bezier(.4,0,.2,1)' }}
     >
-      <style>{`@keyframes ylBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } } @keyframes ylHint { 0%,100% { opacity: .65 } 50% { opacity: 1 } } @keyframes ylPress { 0% { transform: scale(1) } 35% { transform: scale(.982) } 100% { transform: scale(1) } } @keyframes ylMote { 0% { transform: translate(0,0); opacity: 0 } 20% { opacity: .9 } 100% { transform: translate(var(--dx), -38cqh); opacity: 0 } }`}</style>
+      <style>{`@keyframes ylBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-10px) } } @keyframes ylHint { 0%,100% { opacity: .65 } 50% { opacity: 1 } } @keyframes ylPress { 0% { transform: scale(1) } 35% { transform: scale(.982) } 100% { transform: scale(1) } } @keyframes ylSpill { 0% { opacity: 0; transform: scale(.6) } 60% { opacity: .85 } 100% { opacity: .7; transform: scale(1.5) } } @keyframes ylMote { 0% { transform: translate(0,0); opacity: 0 } 20% { opacity: .9 } 100% { transform: translate(var(--dx), -38cqh); opacity: 0 } }`}</style>
       {body}
+      {/* Light spilling out of the opening as it parts (every scene but the flagships, which have their own),
+          and specks of light drifting through it: the moment reads as lit, not as a slide. */}
+      {!FLAGSHIP[kind] && kind !== 'photo' && open && !still && (
+        <>
+          <div style={{ ...LAYER, zIndex: 1, mixBlendMode: 'screen', background: `radial-gradient(42% 34% at 50% 46%, ${light(c.accent, 0.75)}, ${light(c.accent, 0.4)}66 45%, transparent 75%)`, animation: 'ylSpill 2.2s cubic-bezier(.4,0,.2,1) .35s both' }} />
+          <div style={{ ...LAYER, zIndex: 1 }}>
+            <Motes colour={light(c.accent, 0.7)} from={0.6} n={10} />
+          </div>
+        </>
+      )}
       {/* Light and depth over every scene: a warm key light from the top left and a soft vignette, so it
           reads as a lit place rather than a flat picture. It lifts as the scene opens. */}
       {kind !== 'photo' && (
