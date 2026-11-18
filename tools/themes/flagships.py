@@ -58,16 +58,47 @@ def leaf(x, y, length, width, angle, fill, vein=None, op=1):
     return out
 
 
-def vine_leaf(x, y, s, angle, fill, rim):
-    """A five-lobed grape leaf, its sunlit edge picked out."""
-    pts = []
-    for i in range(10):
-        r = s * (1 if i % 2 == 0 else .55)
-        t = math.radians(angle - 90 + i * 36)
-        pts.append((x + math.cos(t) * r, y + math.sin(t) * r))
-    d = 'M' + ' '.join(f'{f(px)},{f(py)}' for px, py in pts) + 'Z'
-    return (f"<path d='{d}' fill='{fill}' stroke='{rim}' stroke-width='{f(s * .06)}' stroke-linejoin='round'/>"
-            f"<path d='M{f(x)},{f(y)} L{f(pts[0][0])},{f(pts[0][1])} M{f(x)},{f(y)} L{f(pts[4][0])},{f(pts[4][1])} M{f(x)},{f(y)} L{f(pts[6][0])},{f(pts[6][1])}' stroke='{rim}' stroke-width='{f(s * .03)}' opacity='.5'/>")
+def vine_leaf(x, y, s, angle, fill, rim, turn=1.0):
+    """A grape leaf: five rounded, pointed lobes, a deep notch where the stalk joins, curved veins and a soft lit
+    edge. `turn` (0..1) squashes it across, as a leaf seen turning over in the air."""
+    # Points round the leaf (angle from straight up, clockwise; radius as a share of s): base, then lobe tips and
+    # the sinuses between them, then back to the base.
+    ring = [(-150, .34), (-108, .62), (-80, .4), (-52, .86), (-24, .5), (0, 1.0), (24, .5), (52, .86), (80, .4),
+            (108, .62), (150, .34)]
+
+    def at(deg, r):
+        t = math.radians(deg)
+        return (math.sin(t) * r, -math.cos(t) * r)
+    base = (0.0, .1)
+    d = f'M{f(base[0] * 100)},{f(base[1] * 100)}'
+    half = ''
+    seq = [(None, base)] + [((dg, r), at(dg, r)) for dg, r in ring] + [(None, base)]
+    for i in range(1, len(seq)):
+        (k0, p0), (k1, p1) = seq[i - 1], seq[i]
+        if k0 and k1:  # bulge outwards between a sinus and a lobe tip
+            md = (k0[0] + k1[0]) / 2
+            mr = max(k0[1], k1[1]) * .9
+            c = at(md, mr)
+        else:  # the notch at the stalk
+            c = ((p0[0] + p1[0]) / 2 * .5, (p0[1] + p1[1]) / 2 * .5 + .02)
+        d += f' Q{f(c[0] * 100)},{f(c[1] * 100)} {f(p1[0] * 100)},{f(p1[1] * 100)}'
+        if k1 and k1[0] == 0:  # the left half ends at the tip and runs back down the midrib
+            half = d + ' L0,10Z'
+    d += 'Z'
+    veins = ''.join(
+        f"M0,10 Q{f(at(dg, r * .5)[0] * 100 + 4 * math.copysign(1, dg or 1))},{f(at(dg, r * .5)[1] * 100)} "
+        f"{f(at(dg, r * .86)[0] * 100)},{f(at(dg, r * .86)[1] * 100)} "
+        for dg, r in ((-108, .62), (-52, .86), (0, 1.0), (52, .86), (108, .62)))
+    sc = s / 100
+    tr = f"translate({f(x)} {f(y)}) rotate({f(angle)}) scale({sc:.3f} {sc * max(.25, turn):.3f})"
+    return (f"<g transform='{tr}'>"
+            f"<path d='M0,10 L0,40' stroke='{fill}' stroke-width='3.5' stroke-linecap='round'/>"
+            f"<path d='{d}' fill='{fill}'/>"
+            # One half a touch darker: the leaf is folded slightly along its midrib.
+            f"<path d='{half}' fill='#000' opacity='.16'/>"
+            f"<path d='{d}' fill='none' stroke='{rim}' stroke-width='2.2' stroke-linejoin='round' opacity='.45'/>"
+            f"<path d='{veins}' fill='none' stroke='{rim}' stroke-width='1.6' stroke-linecap='round' opacity='.38'/>"
+            f"</g>")
 
 
 def grapes(x, y, s, base, hi):
@@ -195,7 +226,7 @@ def vineyard():
         x, y, r = sunx + R.gauss(0, 220), R.uniform(380, 1250), R.uniform(1.4, 4.2)
         m.append(f"<circle cx='{f(x)}' cy='{f(y)}' r='{f(r)}' fill='#ffe2a0' opacity='{f(R.uniform(.35, .85))}' filter='url(#b2)'/>")
     for _ in range(9):
-        m.append(vine_leaf(R.uniform(80, 820), R.uniform(500, 1300), R.uniform(14, 24), R.uniform(0, 360), '#6f5e26', '#e6b65e'))
+        m.append(vine_leaf(R.uniform(80, 820), R.uniform(500, 1300), R.uniform(22, 34), R.uniform(0, 360), R.choice(['#7d6a2a', '#8a5a26', '#6e6b30']), '#f2c477', turn=R.uniform(.35, 1)))
     write('vineyard-sunset', 'mid.svg', svg(''.join(m), blur('b2', 1.6)))
 
     g = []  # fg: close vine either side, out of focus
