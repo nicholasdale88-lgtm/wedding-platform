@@ -69,57 +69,65 @@ export function signupRoutes() {
         return err(409, 'exists', 'There is already an account with that email (your vendor listing’s, perhaps). Use that account’s passcode here to add your wedding to it, or sign in.');
     }
     const tz = 'Australia/Sydney';
-    // The wedding's address: "alex-and-sam", made unique.
+    // The wedding's address: "alex-and-sam", made unique. Two couples with the same names signing up at the
+    // same moment can both pick the same one: the second save then fails, and tries the next free address.
     const base = `${slugPart(b.firstName)}-and-${slugPart(b.partnerName)}`;
     const { results: taken } = await db.prepare(`SELECT slug FROM wedding WHERE slug = ? OR slug LIKE ?`).bind(base, `${base}-%`).all<{ slug: string }>();
     const used = new Set(taken.map((r) => r.slug));
-    let slug = base;
-    for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
-    const now = new Date().toISOString();
-    const userId = existing?.id ?? crypto.randomUUID();
-    const weddingId = crypto.randomUUID();
-    // The wedding day at 3pm where they are (they set the real time in Setup).
-    const startsAt = b.date ? zonedToUtc(`${b.date}T15:00`, tz).toISOString() : zonedToUtc(`${new Date().getUTCFullYear() + 1}-01-01T15:00`, tz).toISOString();
-    const monogram = `${b.firstName.charAt(0).toUpperCase()}&${b.partnerName.charAt(0).toUpperCase()}`;
-    // Private from the start: their pages open only with each guest's own link.
-    // The person signing up is the main account: the plan and billing are theirs (partners join as owners).
-    // The Accommodation section starts switched off: it was written for camping at a country venue, and
-    // most couples won't need it (Setup → Sections switches it back on).
-    // Their own email address from the start (alex-and-sam@<INBOX_DOMAIN>), when the site has a domain for it.
-    const domain = inboxDomain(c.env);
-    const inbox = domain && (await addressFree(db, `${slug}@${domain}`, weddingId)) ? { inbox: { address: `${slug}@${domain}` } } : {};
-    const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...inbox, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
-    const stmts: D1PreparedStatement[] = [
-      ...(existing
-        ? []
-        : [
-            db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
-              userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
-            ),
-          ]),
-      // Staging only (no texts, emails or payments there): every feature, to try it all.
-      db.prepare(`INSERT INTO wedding (id, slug, name1, name2, monogram, timezone, content, plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '${c.env.STAGING === '1' ? 'complete' : 'free'}', ?, ?)`).bind(
-        weddingId, slug, b.firstName, b.partnerName, monogram, tz, content, now, now,
-      ),
-      db.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES (?, ?, 'owner')`).bind(weddingId, userId),
-      db.prepare(`INSERT INTO event (id, wedding_id, key, name, pending_label, starts_at, sort) VALUES (?, ?, 'wedding', 'The wedding', 'the wedding', ?, 0)`).bind(crypto.randomUUID(), weddingId, startsAt),
-      db.prepare(`INSERT INTO consent_log (id, user_id, kind, granted, source, at) VALUES (?, ?, 'marketing', ?, 'signup', ?)`).bind(crypto.randomUUID(), userId, b.marketing ? 1 : 0, now),
-      db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'account.signup', ?, ?, ?)`).bind(crypto.randomUUID(), weddingId, userId, weddingId, JSON.stringify({ plan: b.plan, ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) }), now),
-      // The usual texts (save the date to the thank-you), all switched off until the couple turns each on.
-      ...starterStatements(db, weddingId, { key: 'wedding', name: 'The wedding' }, { startsAt, tz, rsvpClose: '', dateSet: !!b.date }, new Date(now)),
-      // Came through a vendor's link: that vendor sees them among their couples (the couple can end it).
-      ...(cleanRef(b.ref)
-        ? [db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) SELECT l.id, ?, 'link', 'active', ? FROM vendor_listing l WHERE l.slug = ? AND l.hidden = 0`).bind(weddingId, now, cleanRef(b.ref))]
-        : []),
-    ];
-    try {
-      await db.batch(stmts);
-    } catch {
-      // Two sign-ups with the same email (or address) at once: the second is told to sign in.
-      return err(409, 'exists', 'There is already an account with that email. Sign in instead.');
+    for (let attempt = 0; ; attempt++) {
+      let slug = base;
+      for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
+      const now = new Date().toISOString();
+      const userId = existing?.id ?? crypto.randomUUID();
+      const weddingId = crypto.randomUUID();
+      // The wedding day at 3pm where they are (they set the real time in Setup).
+      const startsAt = b.date ? zonedToUtc(`${b.date}T15:00`, tz).toISOString() : zonedToUtc(`${new Date().getUTCFullYear() + 1}-01-01T15:00`, tz).toISOString();
+      const monogram = `${b.firstName.charAt(0).toUpperCase()}&${b.partnerName.charAt(0).toUpperCase()}`;
+      // Private from the start: their pages open only with each guest's own link.
+      // The person signing up is the main account: the plan and billing are theirs (partners join as owners).
+      // The Accommodation section starts switched off: it was written for camping at a country venue, and
+      // most couples won't need it (Setup → Sections switches it back on).
+      // Their own email address from the start (alex-and-sam@<INBOX_DOMAIN>), when the site has a domain for it.
+      const domain = inboxDomain(c.env);
+      const inbox = domain && (await addressFree(db, `${slug}@${domain}`, weddingId)) ? { inbox: { address: `${slug}@${domain}` } } : {};
+      const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...inbox, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
+      const stmts: D1PreparedStatement[] = [
+        ...(existing
+          ? []
+          : [
+              db.prepare(`INSERT INTO user (id, email, name, pass_hash, first_name, marketing_opt_in, marketing_opt_in_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(
+                userId, b.email, b.firstName, await hashPasscode(b.passcode), b.firstName, b.marketing ? 1 : 0, now, now, now,
+              ),
+            ]),
+        // Staging only (no texts, emails or payments there): every feature, to try it all.
+        db.prepare(`INSERT INTO wedding (id, slug, name1, name2, monogram, timezone, content, plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '${c.env.STAGING === '1' ? 'complete' : 'free'}', ?, ?)`).bind(
+          weddingId, slug, b.firstName, b.partnerName, monogram, tz, content, now, now,
+        ),
+        db.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES (?, ?, 'owner')`).bind(weddingId, userId),
+        db.prepare(`INSERT INTO event (id, wedding_id, key, name, pending_label, starts_at, sort) VALUES (?, ?, 'wedding', 'The wedding', 'the wedding', ?, 0)`).bind(crypto.randomUUID(), weddingId, startsAt),
+        db.prepare(`INSERT INTO consent_log (id, user_id, kind, granted, source, at) VALUES (?, ?, 'marketing', ?, 'signup', ?)`).bind(crypto.randomUUID(), userId, b.marketing ? 1 : 0, now),
+        db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'account.signup', ?, ?, ?)`).bind(crypto.randomUUID(), weddingId, userId, weddingId, JSON.stringify({ plan: b.plan, ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) }), now),
+        // The usual texts (save the date to the thank-you), all switched off until the couple turns each on.
+        ...starterStatements(db, weddingId, { key: 'wedding', name: 'The wedding' }, { startsAt, tz, rsvpClose: '', dateSet: !!b.date }, new Date(now)),
+        // Came through a vendor's link: that vendor sees them among their couples (the couple can end it).
+        ...(cleanRef(b.ref)
+          ? [db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) SELECT l.id, ?, 'link', 'active', ? FROM vendor_listing l WHERE l.slug = ? AND l.hidden = 0`).bind(weddingId, now, cleanRef(b.ref))]
+          : []),
+      ];
+      try {
+        await db.batch(stmts);
+      } catch {
+        // Two sign-ups with the same email at once: the second is told to sign in. Otherwise the address was
+        // taken in the meantime (or the database was busy): the next free address, a few times.
+        const nowExists = await db.prepare(`SELECT 1 FROM user WHERE email = ?`).bind(b.email).first();
+        if (nowExists && !existing) return err(409, 'exists', 'There is already an account with that email. Sign in instead.');
+        used.add(slug);
+        if (attempt < 4) continue;
+        return c.json({ error: { code: 'busy', message: 'We couldn’t finish setting up your wedding just then. Please try again.' } }, 503);
+      }
+      const me = await signIn(c, { id: userId, email: b.email });
+      return c.json({ ...me, weddingId });
     }
-    const me = await signIn(c, { id: userId, email: b.email });
-    return c.json({ ...me, weddingId });
   });
 
   return app;

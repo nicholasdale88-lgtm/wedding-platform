@@ -45,6 +45,32 @@ describe('sign-up and plans', () => {
     expect(again.weddings[0]!.slug).toBe('alex-and-sam-2');
   });
 
+  it('two couples with the same names signing up at the same moment both get in, at different addresses (never told their new email "already has an account")', async () => {
+    expect((await signup({}, '6.6.6.1')).status).toBe(200); // alex-and-sam
+    // The second sign-up looked for free addresses before the first had saved: it picks alex-and-sam too.
+    const real = env.DB;
+    env = {
+      ...env,
+      DB: new Proxy(real, {
+        get(target, key) {
+          if (key !== 'prepare') return Reflect.get(target, key);
+          return (sql: string) => {
+            const st = target.prepare(sql);
+            if (!sql.startsWith('SELECT slug FROM wedding WHERE slug = ? OR slug LIKE ?')) return st;
+            return { bind: () => ({ all: async () => ({ results: [] }) }) } as unknown as D1PreparedStatement;
+          };
+        },
+      }),
+    };
+    const res = await signup({ email: 'second@example.com' }, '6.6.6.2');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { weddings: { slug: string }[] };
+    expect(body.weddings[0]!.slug).toBe('alex-and-sam-2');
+    const users = await real.prepare(`SELECT COUNT(*) AS n FROM user WHERE email IN ('alex@example.com', 'second@example.com')`).first<{ n: number }>();
+    expect(users?.n).toBe(2);
+    env = { ...env, DB: real };
+  });
+
   it("a new wedding's invitation has every word, in neutral wording with [placeholders], and nothing from anyone else's wedding", async () => {
     const res = await signup({}, '4.4.4.4');
     const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
