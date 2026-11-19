@@ -108,5 +108,6 @@ test('the vendor portal opens for a new vendor', async ({ page }) => {
   });
   expect(res.status(), await res.text()).toBe(200);
   await page.goto('/vendors/me');
-  await expect(page.getByText(name).first()).toBeVisible();
+  // The side menu (a computer) or the top bar (a phone) shows their name: whichever is on screen.
+  await expect(page.getByText(name).locator('visible=true').first()).toBeVisible();
 });
