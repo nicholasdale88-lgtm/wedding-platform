@@ -629,15 +629,26 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
 
   app.delete('/guests/:id', writer, async (c) => {
     const invId = c.req.param('id');
-    const r = await c.env.DB.prepare(`UPDATE invitation SET deleted_at = ?, version = version + 1 WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`)
-      .bind(now(), invId, wid(c))
-      .run();
-    if (!r.meta.changes) return err(c, 404, 'not_found', 'That guest no longer exists.');
+    const at = now();
+    const remove = () =>
+      c.env.DB.prepare(`UPDATE invitation SET deleted_at = ?, version = version + 1 WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(at, invId, wid(c)).run();
+    let removed: boolean;
+    try {
+      removed = !!(await remove()).meta.changes;
+    } catch (e) {
+      if (!isBusy(e)) throw e;
+      // "Busy" can come back after the removal saved: ours if it carries our own time. (A 503 here made the
+      // page's retry say "That guest no longer exists" while the guest was in fact removed.)
+      const row = await afterCommit(() => c.env.DB.prepare(`SELECT deleted_at FROM invitation WHERE id = ? AND wedding_id = ?`).bind(invId, wid(c)).first<{ deleted_at: string | null }>());
+      removed = row?.deleted_at === at || !!(await afterCommit(remove)).meta.changes;
+    }
+    if (!removed) return err(c, 404, 'not_found', 'That guest no longer exists.');
+    // Removed: the rest goes through even if the database is briefly busy (each step is safe to repeat).
     // Texts waiting to go to them don't (ones already handed to the provider can't be recalled).
-    await c.env.DB.prepare(`UPDATE sms_out SET status = 'cancelled', error = 'Guest removed' WHERE invitation_id = ? AND status = 'queued' AND batch_key IS NULL`).bind(invId).run();
+    await afterCommit(() => c.env.DB.prepare(`UPDATE sms_out SET status = 'cancelled', error = 'Guest removed' WHERE invitation_id = ? AND status = 'queued' AND batch_key IS NULL`).bind(invId).run());
     // Their seats are free again.
-    await c.env.DB.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?)`).bind(invId).run();
-    await audit(c, 'guest.remove', invId).run();
+    await afterCommit(() => c.env.DB.prepare(`DELETE FROM seat WHERE person_id IN (SELECT id FROM person WHERE invitation_id = ?)`).bind(invId).run());
+    await afterCommit(() => audit(c, 'guest.remove', invId).run());
     return c.json({ ok: true });
   });
 
