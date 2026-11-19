@@ -35,14 +35,15 @@ export class D1SmsStore implements SmsStore {
     // Dated messages up to two days ahead (the pre-flight checks), automatic ones until 30 days after the day.
     const horizon = new Date(now + 49 * 3_600_000).toISOString();
     const cutoff = new Date(now - 30 * 24 * 3_600_000).toISOString();
-    // A slot the texts finished earlier in this run still owes its emails (they're built within a day).
+    // A slot the texts finished earlier in this run still owes its emails (they're built within a day): urgent
+    // until they're built, then it waits its turn behind weddings still waiting (40 a run).
     const lastDay = new Date(now - 24 * 3_600_000).toISOString();
     const rows = await this.all<WeddingRow & { urgent: number }>(
       `SELECT w.*, (SELECT MIN(e.starts_at) FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL) AS first_event,
               (EXISTS (SELECT 1 FROM sms_out o WHERE o.wedding_id = w.id AND o.status IN ('queued', 'sending'))
                 OR EXISTS (SELECT 1 FROM email_out m WHERE m.wedding_id = w.id AND m.status = 'queued')
                 OR EXISTS (SELECT 1 FROM campaign_slot s JOIN campaign c ON c.id = s.campaign_id
-                            WHERE c.wedding_id = w.id AND c.deleted_at IS NULL AND s.send_at <= ?1 AND (s.status IN ('pending', 'claimed') OR (s.status != 'cancelled' AND s.send_at > ?4)))) AS urgent
+                            WHERE c.wedding_id = w.id AND c.deleted_at IS NULL AND s.send_at <= ?1 AND (s.status IN ('pending', 'claimed') OR (s.status != 'cancelled' AND s.send_at > ?4 AND s.mail_built_at IS NULL)))) AS urgent
          FROM wedding w
         WHERE w.deleted_at IS NULL
           AND (EXISTS (SELECT 1 FROM sms_out o WHERE o.wedding_id = w.id AND o.status IN ('queued', 'sending'))

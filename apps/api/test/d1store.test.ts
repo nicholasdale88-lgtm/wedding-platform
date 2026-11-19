@@ -46,6 +46,25 @@ describe('D1 SMS store', () => {
     expect(await store.activeWeddings(now, 0)).toHaveLength(0);
   });
 
+  it('the cron list: a wedding whose send already went out and was built waits behind one still waiting (found by the 500-wedding overnight run)', async () => {
+    const sent = '2027-06-17T23:00:00.000Z';
+    const now = '2027-06-18T01:00:00.000Z';
+    const q = (sql: string, ...p: unknown[]) => t.db.prepare(sql).bind(...p).run();
+    // w1's reminder went out an hour ago (the texts finished it); w2's is due and still waiting.
+    await q(`UPDATE campaign_slot SET status = 'done', send_at = ? WHERE id = 's1'`, sent);
+    await q(`INSERT INTO wedding (id, slug, name1, name2, admin_mobile, sms_optout_footer, created_at, updated_at) SELECT 'w2', 'second-wedding', name1, name2, admin_mobile, sms_optout_footer, created_at, updated_at FROM wedding WHERE id = 'w1'`);
+    await q(`INSERT INTO campaign (id, wedding_id, key, name, body, mode, enabled, trigger, audience, excluded, sort) SELECT 'c2', 'w2', key, name, body, mode, 1, trigger, audience, excluded, sort FROM campaign WHERE id = 'c-reminder'`);
+    await q(`INSERT INTO campaign_slot (id, campaign_id, send_at) VALUES ('s3', 'c2', ?)`, sent);
+    // Until w1's emails are built it's urgent too: both are candidates for the one place.
+    const both = new Set<string>();
+    for (let k = 0; k < 40 && both.size < 2; k++) both.add((await store.activeWeddings(now, 1))[0]!.id);
+    expect([...both].sort()).toEqual(['w1', 'w2']);
+    // Built: w2 always gets the place; w1 is still visited when there's room.
+    await q(`UPDATE campaign_slot SET mail_built_at = ? WHERE id = 's1'`, now);
+    for (let k = 0; k < 20; k++) expect((await store.activeWeddings(now, 1)).map((w) => w.id)).toEqual(['w2']);
+    expect((await store.activeWeddings(now, 40)).map((w) => w.id).sort()).toEqual(['w1', 'w2']);
+  });
+
   it('enqueue ignores duplicate dedupe keys', async () => {
     expect(await store.enqueue([row('a'), row('b')])).toBe(2);
     expect(await store.enqueue([row('a'), row('c')])).toBe(1);

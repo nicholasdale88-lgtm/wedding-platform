@@ -241,6 +241,8 @@ async function queueDue(env: Env, d: EngineDeps, w: WeddingCtx, mail: boolean) {
     const built = async (prefix: string) => !!(await db.prepare(`SELECT 1 FROM email_out WHERE wedding_id = ? AND dedupe_key LIKE ? LIMIT 1`).bind(w.id, `${prefix}%`).first());
     if (mail && !(await built(`slot:${s.id}:`))) queued += await enqueue(db, w.id, campaignRows(w, events, c, emailRecipientsFor(c, recipients, invited), (r) => `slot:${s.id}:${r.id}`));
     if (!(await built(`phone:slot:${s.id}:`))) queued += await enqueue(db, w.id, phoneRows(w, events, c, phoneRecipientsFor(c, recipients, invited), (r) => `slot:${s.id}:${r.id}`));
+    // Built: the wedding no longer jumps the cron's queue for this slot (it's still visited in turn).
+    await db.prepare(`UPDATE campaign_slot SET mail_built_at = ? WHERE id = ? AND mail_built_at IS NULL`).bind(now.toISOString(), s.id).run();
   }
 
   // 2. Automatic: the invitation when a guest is added (from the invitations' date), the thank-you after a reply.

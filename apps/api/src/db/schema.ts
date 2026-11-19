@@ -209,6 +209,7 @@ export const campaignSlot = sqliteTable('campaign_slot', {
   claimedAt: text('claimed_at'),
   attempts: integer('attempts').notNull().default(0),
   lastError: text('last_error'),
+  mailBuiltAt: text('mail_built_at'),
 });
 
 export const smsOut = sqliteTable('sms_out', {

@@ -80,7 +80,9 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
   let env: Env;
   const provider = new FakeProvider();
   const clock = fakeClock('2026-10-20T09:00');
-  const deps = (e: Env): EngineDeps => ({ store: new D1SmsStore(e.DB, e.PUBLIC_BASE_URL), provider, now: clock.now, uuid: () => crypto.randomUUID() });
+  // Two cron ticks a simulated day stand for the 96 real runs (every 15 minutes, 40 weddings each), so one tick
+  // may visit every wedding. The 40-a-run queue order has its own test (d1store: the cron list).
+  const deps = (e: Env): EngineDeps => ({ store: new D1SmsStore(e.DB, e.PUBLIC_BASE_URL), provider, now: clock.now, uuid: () => crypto.randomUUID(), cronWeddings: WEDDINGS + 20 });
   const app = createApp(deps);
   const waits: Promise<unknown>[] = [];
   const ctx = () => ({ waitUntil: (p: Promise<unknown>) => void waits.push(p.catch(() => undefined)), passThroughOnException: () => {}, props: {} }) as unknown as ExecutionContext;

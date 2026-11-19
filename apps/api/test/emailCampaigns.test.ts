@@ -77,9 +77,13 @@ describe('the texts’ messages by email', () => {
     clock.set('2027-06-18T10:05'); // the reminder slot (s1)
     await t.db.prepare(`DELETE FROM rate_limit`).run();
     await t.db.prepare(`INSERT INTO rate_limit (k, n, reset_at) VALUES ('mail:w1', 38, ?)`).bind(new Date(Date.now() + 3_600_000).toISOString()).run();
+    const slotBuilt = async () => (await t.db.prepare(`SELECT mail_built_at FROM campaign_slot WHERE id = 's1'`).first<{ mail_built_at: string | null }>())!.mail_built_at;
+    expect(await slotBuilt()).toBeNull();
     const r = await run();
     expect(r.sent).toBe(2);
     expect(r.waiting).toBe(3);
+    // Built once: the wedding stops jumping the cron's queue for this slot.
+    expect(await slotBuilt()).toBe(clock.now().toISOString());
     expect(sent.every((s) => /gentle reminder/.test(s.text))).toBe(true);
     const waiting = await queued();
     expect(waiting).toHaveLength(3);
