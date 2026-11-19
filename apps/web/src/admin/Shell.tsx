@@ -435,7 +435,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           {children}
         </div>
       </main>
-      {wid === DEMO_WID ? <DemoBar /> : <FeedbackButton wid={wid} />}
+      {wid === DEMO_WID ? <DemoBar beside /> : <FeedbackButton wid={wid} />}
         <AskAnywhere lift={wid === DEMO_WID} />
     </div>
   );
