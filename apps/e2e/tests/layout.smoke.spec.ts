@@ -176,6 +176,13 @@ test('front page questions: each whole row opens its answer (44px or more), not 
   await expect(page.getByText('Nothing renews.', { exact: false }).first()).toBeVisible();
 });
 
+test('front page sign-up: "Already have one? Sign in" is a 44px tap', async ({ page }) => {
+  await page.goto('/');
+  const link = page.locator('form').getByRole('link', { name: 'Sign in', exact: true });
+  await link.scrollIntoViewIfNeeded();
+  expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
+});
+
 test('the sample vendor account: no card runs past the edge of the screen (Needs you and Coming up were cut off on a phone)', async ({ page }) => {
   await page.goto('/vendors/me?sample=1');
   await expect(page.getByRole('region', { name: 'Needs you' })).toBeVisible({ timeout: 20_000 });

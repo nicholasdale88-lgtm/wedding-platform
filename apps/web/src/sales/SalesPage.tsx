@@ -896,7 +896,8 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
       </div>
       <p className="m-0 mt-5 text-[14px] text-center" style={{ color: SOFT }}>
         Already have one?{' '}
-        <Link to="/admin" style={{ color: INK }}>
+        {/* A 44px tap, the line's height unchanged (it was 18px tall on a phone). */}
+        <Link to="/admin" className="inline-block py-[13px] -my-[13px]" style={{ color: INK }}>
           Sign in
         </Link>
       </p>
