@@ -353,9 +353,14 @@ export function proposalPublicRoutes() {
     if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Choose accept, decline or ask for changes.');
     const p = await find(c);
     if (!p) return gone(c);
-    // Final once accepted or declined; and only the latest revision can be answered.
-    if (p.status === 'accepted' || p.status === 'declined') return err(c, 409, 'answered', `This proposal has already been ${p.status}.`);
     const revision = b.data.revision ?? p.revision;
+    // The same answer again within a few minutes is the page trying again after "busy" (the first one may have
+    // been saved before the busy): it finishes what the first may not have (booked in the planner, the vendor's
+    // message) and answers as before, instead of "already accepted".
+    const asked: ProposalStatus | null = b.data.answer === 'accept' ? 'accepted' : b.data.answer === 'decline' ? 'declined' : null;
+    const again = !!asked && p.status === asked && revision === p.revision && !!p.answered_at && Date.now() - Date.parse(p.answered_at) < 10 * 60_000;
+    // Final once accepted or declined; and only the latest revision can be answered.
+    if (!again && (p.status === 'accepted' || p.status === 'declined')) return err(c, 409, 'answered', `This proposal has already been ${p.status}.`);
     if (revision !== p.revision) return err(c, 409, 'stale', 'There’s a newer version of this proposal. Reload the page to see it.');
     const now = new Date().toISOString();
     const who = toOf(p) || 'A couple';
@@ -377,8 +382,10 @@ export function proposalPublicRoutes() {
 
     const status: ProposalStatus = b.data.answer === 'accept' ? 'accepted' : 'declined';
     // Once only: whoever answers first wins (and never an older revision).
-    const res = await c.env.DB.prepare(`UPDATE vendor_proposal SET status = ?, answered_at = ? WHERE id = ? AND revision = ? AND status IN ('sent', 'changes')`).bind(status, now, p.id, revision).run();
-    if (!res.meta.changes) return err(c, 409, 'answered', 'This proposal was just answered or changed. Reload the page to see it.');
+    if (!again) {
+      const res = await c.env.DB.prepare(`UPDATE vendor_proposal SET status = ?, answered_at = ? WHERE id = ? AND revision = ? AND status IN ('sent', 'changes')`).bind(status, now, p.id, revision).run();
+      if (!res.meta.changes) return err(c, 409, 'answered', 'This proposal was just answered or changed. Reload the page to see it.');
+    }
 
     if (p.wedding_id) {
       const wid = p.wedding_id;
@@ -400,10 +407,12 @@ export function proposalPublicRoutes() {
       }
       // The vendor sees the answer in the conversation (and gets an email that a message is waiting).
       const said = status === 'accepted' ? `We accepted your fee proposal: ${p.title}, ${aud(latest.total)}${p.revision > 1 ? ` (revision ${p.revision})` : ''}.` : `We’ve decided not to go ahead with your fee proposal: ${p.title}.`;
-      await post(c.env, p.listing_id, wid, false, said, () => tellVendor(c.env, p, `${who} ${status} your proposal`, [said]));
+      const told = again && (await c.env.DB.prepare(`SELECT 1 FROM vendor_message WHERE listing_id = ? AND wedding_id = ? AND from_vendor = 0 AND body = ? LIMIT 1`).bind(p.listing_id, wid, said).first());
+      if (!told) await post(c.env, p.listing_id, wid, false, said, () => tellVendor(c.env, p, `${who} ${status} your proposal`, [said]));
     } else if (p.enquiry_id) {
       if (status === 'accepted') await c.env.DB.prepare(`UPDATE vendor_enquiry SET stage = 'booked', read = 0 WHERE id = ? AND listing_id = ?`).bind(p.enquiry_id, p.listing_id).run();
-      await tellVendor(c.env, p, `${who} ${status} your proposal`, [`${p.title}: ${aud(latest.total)}.`, status === 'accepted' ? 'Get in touch to confirm the booking and the deposit.' : 'It’s marked declined in your proposals.']);
+      // (The vendor's email once only: on a try-again it may already have gone.)
+      if (!again) await tellVendor(c.env, p, `${who} ${status} your proposal`, [`${p.title}: ${aud(latest.total)}.`, status === 'accepted' ? 'Get in touch to confirm the booking and the deposit.' : 'It’s marked declined in your proposals.']);
     }
     return c.json({ status });
   });

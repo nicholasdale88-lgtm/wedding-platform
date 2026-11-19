@@ -106,6 +106,29 @@ describe('fee proposals', () => {
     expect((await json<{ proposals: { status: string }[] }>(call('/a/vendor/proposals', {}, vendor.cookie))).proposals[0]!.status).toBe('accepted');
   });
 
+  it('accept tried again after "busy" (the first was saved, its follow-ups weren’t): answered as before, booked, the vendor told once; found by the stress run', async () => {
+    const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
+    const couple = await signup('Ava', 'ava@example.com', vendor.slug);
+    const listingId = (await t.db.prepare(`SELECT id FROM vendor_listing WHERE slug = ?`).bind(vendor.slug).first<{ id: string }>())!.id;
+    const sent = (await (await call('/a/vendor/proposals', { method: 'POST', body: JSON.stringify(proposal({ couple: couple.wid })) }, vendor.cookie)).json()) as { id: string; link: string };
+    const token = sent.link.split('/').pop()!;
+    const answer = (a: string) => call(`/directory/proposal/${token}/answer`, { method: 'POST', body: JSON.stringify({ answer: a, revision: 1 }) });
+    // The first accept saved, then the database was busy before the planner and the message: as if it stopped there.
+    await t.db.prepare(`UPDATE vendor_proposal SET status = 'accepted', answered_at = ? WHERE id = ?`).bind(new Date().toISOString(), sent.id).run();
+    expect((await vendorsDoc(couple.wid)).list.find((x) => x.dirId === `v:${listingId}`)!.status).toBe('quoted');
+    // The page tries again: the same answer, finished.
+    expect(await json(answer('accept'))).toEqual({ status: 'accepted' });
+    expect((await vendorsDoc(couple.wid)).list.find((x) => x.dirId === `v:${listingId}`)).toMatchObject({ status: 'booked', accepted: sent.id });
+    // Again: still fine, and the vendor's conversation has the acceptance once.
+    expect(await json(answer('accept'))).toEqual({ status: 'accepted' });
+    const said = await t.db.prepare(`SELECT COUNT(*) AS n FROM vendor_message WHERE listing_id = ? AND wedding_id = ? AND from_vendor = 0 AND body LIKE 'We accepted%'`).bind(listingId, couple.wid).first<{ n: number }>();
+    expect(said!.n).toBe(1);
+    // A different answer is still final, and so is the same one much later.
+    expect((await answer('decline')).status).toBe(409);
+    await t.db.prepare(`UPDATE vendor_proposal SET answered_at = ? WHERE id = ?`).bind(new Date(Date.now() - 3_600_000).toISOString(), sent.id).run();
+    expect((await answer('accept')).status).toBe(409);
+  });
+
   it('negotiating before an answer: the couple asks for changes, the vendor revises, the same quote is updated, and only the latest revision can be accepted', async () => {
     const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
     const couple = await signup('Ava', 'ava@example.com', vendor.slug);
