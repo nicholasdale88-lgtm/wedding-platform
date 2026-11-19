@@ -597,6 +597,18 @@ export const vendorListing = sqliteTable('vendor_listing', {
   packages: text('packages').notNull().default('[]'),
   /** migration 0055: when the company approved it for the directory; null = waiting. */
   approvedAt: text('approved_at'),
+  /** migration 0057: their account's look (colours, menu), JSON; when their logo last changed. */
+  look: text('look').notNull().default('{}'),
+  logoAt: text('logo_at'),
+});
+
+/** A vendor's logo (migrations/0057). */
+export const vendorLogo = sqliteTable('vendor_logo', {
+  listingId: text('listing_id').primaryKey(),
+  type: text('type').notNull(),
+  bytes: integer('bytes').notNull(),
+  data: blob('data').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });
 
 export const vendorEnquiry = sqliteTable('vendor_enquiry', {

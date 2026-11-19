@@ -1,4 +1,4 @@
-import { Enquiry, ListingFields, ListingJoin, ListingPackage, Promos, regionOf, REGIONS, type Listing, type ListingCard } from '@wp/shared';
+import { DEFAULT_VENDOR_LOOK, Enquiry, ListingFields, ListingJoin, ListingPackage, Promos, regionOf, REGIONS, VendorLook, type Listing, type ListingCard } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { hashPasscode, passcodeProblem, verifyPasscode } from '../lib/auth';
@@ -72,7 +72,40 @@ interface Row {
   approved_at: string | null;
   created_at: string;
   booked?: number;
+  /** migration 0057 */
+  look?: string;
+  logo_at?: string | null;
 }
+/** Their saved look, or the default (an older or damaged value never breaks their account). */
+const lookOf = (s: string | undefined): VendorLook => {
+  try {
+    const r = VendorLook.safeParse(JSON.parse(s || '{}'));
+    return r.success ? r.data : DEFAULT_VENDOR_LOOK;
+  } catch {
+    return DEFAULT_VENDOR_LOOK;
+  }
+};
+/** A logo: PNG, JPEG or WebP (never SVG: it can carry script), up to 200 KB. */
+export const MAX_LOGO = 200_000;
+const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+const LogoUpload = z.object({ type: z.enum(LOGO_TYPES), data: z.string().max(Math.ceil(MAX_LOGO * 1.4)) }).strict();
+function imageBytes(data: string, type: (typeof LOGO_TYPES)[number]): Uint8Array | string {
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(data), (ch) => ch.charCodeAt(0));
+  } catch {
+    return 'That image could not be read.';
+  }
+  if (!bytes.byteLength) return 'That image could not be read.';
+  if (bytes.byteLength > MAX_LOGO) return 'That logo is too big. Try a smaller one (under 200 KB).';
+  const head = String.fromCharCode(...bytes.slice(0, 12));
+  const real = type === 'image/jpeg' ? bytes[0] === 0xff && bytes[1] === 0xd8 : type === 'image/png' ? bytes[0] === 0x89 && head.slice(1, 4) === 'PNG' : head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP';
+  return real ? bytes : 'That isn’t the image it says it is. Save your logo as a PNG or JPEG.';
+}
+const imageResponse = (row: { type: string; data: ArrayBuffer | number[] }, cache: string) =>
+  new Response(row.data instanceof ArrayBuffer ? row.data : new Uint8Array(row.data).buffer, {
+    headers: { 'content-type': row.type, 'cache-control': cache, 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" },
+  });
 const card = (r: Row): ListingCard => ({
   slug: r.slug,
   name: r.name,
@@ -85,7 +118,17 @@ const card = (r: Row): ListingCard => ({
   photo: list(r.photos)[0] ?? '',
   booked: r.booked ?? 0,
 });
-const full = (r: Row): Listing => ({ ...card(r), about: r.about, contactName: r.contact_name, phone: r.phone, website: r.website, instagram: r.instagram.replace(/^@/, ''), photos: list(r.photos), packages: packagesOf(r.packages) });
+const full = (r: Row): Listing => ({
+  ...card(r),
+  about: r.about,
+  contactName: r.contact_name,
+  phone: r.phone,
+  website: r.website,
+  instagram: r.instagram.replace(/^@/, ''),
+  photos: list(r.photos),
+  packages: packagesOf(r.packages),
+  ...(r.logo_at ? { logo: `/api/directory/logo/${encodeURIComponent(r.slug)}?v=${encodeURIComponent(r.logo_at)}` } : {}),
+});
 const BOOKED = `(SELECT COUNT(*) FROM vendor_use u WHERE u.dir_id = 'v:' || l.id AND u.booked = 1)`;
 
 /** Keep the listing's row in the shared directory in step (at its home region's centre). */
@@ -151,6 +194,18 @@ export function directoryRoutes() {
     const r = await c.env.DB.prepare(`SELECT l.*, ${BOOKED} AS booked FROM vendor_listing l WHERE l.slug = ? AND l.hidden = 0 AND l.approved_at IS NOT NULL`).bind(c.req.param('slug')).first<Row>();
     if (!r) return err(c, 404, 'not_found', 'That vendor isn’t listed any more.');
     return c.json(full(r));
+  });
+
+  /** A listed vendor's logo (its address changes when they change it, so it can be kept a long time). */
+  app.get('/logo/:slug', async (c) => {
+    if (!(await allow(c.env.DB, `dir-logo:${ipOf(c)}`, 2400, 3_600_000))) return err(c, 429, 'slow_down', 'Please wait a minute.');
+    const row = await c.env.DB.prepare(
+      `SELECT g.type, g.data FROM vendor_logo g JOIN vendor_listing l ON l.id = g.listing_id WHERE l.slug = ? AND l.hidden = 0 AND l.approved_at IS NOT NULL`,
+    )
+      .bind(c.req.param('slug'))
+      .first<{ type: string; data: ArrayBuffer | number[] }>();
+    if (!row) return err(c, 404, 'not_found', 'No logo here.');
+    return imageResponse(row, 'public, max-age=604800');
   });
 
   /** A couple asks a vendor about their wedding: kept for the vendor to read when they sign in. */
@@ -279,7 +334,8 @@ export function vendorAccountRoutes() {
     return c.json({
       partner: code ? { code, percentOff: 10, uses } : null,
       // Their own "from" price as they set it (the public card may stand in their cheapest package).
-      listing: { ...full(r), priceFrom: r.price_from, email: r.email, hidden: !!r.hidden, pending: !r.approved_at },
+      // Their logo comes from their own account (it shows while the listing waits for approval too).
+      listing: { ...full(r), ...(r.logo_at ? { logo: `/api/a/vendor/logo?v=${encodeURIComponent(r.logo_at)}` } : {}), priceFrom: r.price_from, email: r.email, hidden: !!r.hidden, pending: !r.approved_at, look: lookOf(r.look) },
       enquiries: results.map((e) => ({
         id: e.id, name: e.name, email: e.email, phone: e.phone, date: e.date, guests: e.guests, message: e.message, read: !!e.read, stage: stageOf(e.stage), note: e.note, at: e.created_at,
       })),
@@ -341,6 +397,57 @@ export function vendorAccountRoutes() {
       mirror(c.env.DB, r.id, f, !!r.hidden || !r.approved_at, now),
     ]);
     return c.json({ ok: true, slug: r.slug });
+  });
+
+  /** Their account's look: colours, menu style, logo shape, the line under their name, the menu's places. */
+  app.put('/look', async (c) => {
+    const r = await mine(c);
+    if (!r) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
+    const b = VendorLook.safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(c, 400, 'invalid', b.error.issues[0]?.message ?? 'Please check your choices.');
+    const look = { ...b.data, bar: [...new Set(b.data.bar)].filter((k) => !b.data.hidden.includes(k)) };
+    if (look.palette === 'custom' && !look.colour) return err(c, 400, 'invalid', 'Choose your colour.');
+    await c.env.DB.prepare(`UPDATE vendor_listing SET look = ? WHERE id = ?`).bind(JSON.stringify(look), r.id).run();
+    return c.json({ ok: true, look });
+  });
+
+  /** Their logo, for their own menu (while their listing waits for approval too). */
+  app.get('/logo', async (c) => {
+    const r = await mine(c);
+    if (!r) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
+    const row = await c.env.DB.prepare(`SELECT type, data FROM vendor_logo WHERE listing_id = ?`).bind(r.id).first<{ type: string; data: ArrayBuffer | number[] }>();
+    if (!row) return err(c, 404, 'not_found', 'No logo yet.');
+    return imageResponse(row, 'private, max-age=604800');
+  });
+
+  /** Add or change their logo. */
+  app.put('/logo', async (c) => {
+    const r = await mine(c);
+    if (!r) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
+    const b = LogoUpload.safeParse(await readJson(c.req.raw, Math.ceil(MAX_LOGO * 1.4) + 1024));
+    if (!b.success) return err(c, 400, 'invalid', 'Choose your logo as a PNG, JPEG or WebP image.');
+    if (!(await allow(c.env.DB, `vendor-logo:${r.id}`, 30, 3_600_000))) return err(c, 429, 'slow_down', 'That’s a lot of logo changes. Try again in an hour.');
+    const bytes = imageBytes(b.data.data, b.data.type);
+    if (typeof bytes === 'string') return err(c, 400, 'invalid', bytes);
+    const now = new Date().toISOString();
+    const db = c.env.DB;
+    await db.batch([
+      db.prepare(
+        `INSERT INTO vendor_logo (listing_id, type, bytes, data, updated_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (listing_id) DO UPDATE SET type = excluded.type, bytes = excluded.bytes, data = excluded.data, updated_at = excluded.updated_at`,
+      ).bind(r.id, b.data.type, bytes.byteLength, bytes, now),
+      db.prepare(`UPDATE vendor_listing SET logo_at = ? WHERE id = ?`).bind(now, r.id),
+    ]);
+    return c.json({ ok: true, logo: `/api/a/vendor/logo?v=${encodeURIComponent(now)}` });
+  });
+
+  /** Take their logo off (their initials show instead). */
+  app.post('/logo/remove', async (c) => {
+    const r = await mine(c);
+    if (!r) return err(c, 404, 'no_listing', 'This account has no vendor listing.');
+    const db = c.env.DB;
+    await db.batch([db.prepare(`DELETE FROM vendor_logo WHERE listing_id = ?`).bind(r.id), db.prepare(`UPDATE vendor_listing SET logo_at = NULL WHERE id = ?`).bind(r.id)]);
+    return c.json({ ok: true });
   });
 
   app.post('/enquiries/:id/read', async (c) => {

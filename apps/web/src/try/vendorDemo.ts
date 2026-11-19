@@ -136,6 +136,19 @@ export function vendorDemo(path: string, method: string, body: Record<string, un
     return { ok: true, slug: listing.listing.slug };
   }
   if (path === '/a/vendor') return listing;
+  // Their look and logo: kept in this tab only (a logo as a data address).
+  if (path === '/a/vendor/look' && method === 'PUT') {
+    listing.listing.look = body as never;
+    return { ok: true, look: body };
+  }
+  if (path === '/a/vendor/logo' && method === 'PUT') {
+    listing.listing.logo = `data:${String(body.type)};base64,${String(body.data)}`;
+    return { ok: true, logo: listing.listing.logo };
+  }
+  if (path === '/a/vendor/logo/remove') {
+    delete listing.listing.logo;
+    return { ok: true };
+  }
   if (path === '/a/auth/logout') return { ok: true };
   if (path === '/a/vendor/couples') {
     const list = couples.map(withLast);

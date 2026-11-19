@@ -1,4 +1,4 @@
-import { PACKAGE_UNITS, regionOf, REGIONS, VENDOR_SEARCH, type Listing, type ListingCard, type ListingFields, type ListingPackage } from '@wp/shared';
+import { DEFAULT_VENDOR_LOOK, PACKAGE_UNITS, regionOf, REGIONS, VENDOR_MENU, VENDOR_SEARCH, type Listing, type ListingCard, type ListingFields, type ListingPackage, type VendorLook } from '@wp/shared';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
@@ -10,6 +10,8 @@ import { VendorQuotes } from './VendorQuotes';
 import { isVendorDemo } from '../try/vendorDemo';
 import { VendorKit } from './VendorKit';
 import { VendorProposals } from './FeeProposal';
+import { VendorShell, type VendorPlace } from './VendorShell';
+import { VendorLookPanel } from './VendorLookPanel';
 
 /**
  * The vendor directory on the public site: wedding vendors who've signed up and listed themselves (free).
@@ -231,7 +233,12 @@ export function ListingPage() {
       <div className="grid gap-8 md:grid-cols-[1.4fr_1fr] pt-4">
         <section className="flex flex-col gap-4 min-w-0">
           <div>
-            <span className="text-[13px] tracking-[.14em] uppercase" style={{ color: SOFT }}>
+            {v.logo && (
+              <span className="mb-3 inline-flex items-center justify-center bg-white rounded-[14px] p-2 shadow-[0_1px_2px_rgba(0,0,0,.12),0_6px_16px_rgba(0,0,0,.08)]">
+                <img src={v.logo} alt={`${v.name} logo`} className="block max-h-[64px] max-w-[200px] object-contain" />
+              </span>
+            )}
+            <span className="block text-[13px] tracking-[.14em] uppercase" style={{ color: SOFT }}>
               {what(v.category)} · {where(v.region)}
             </span>
             <h1 className="m-0 text-[clamp(34px,6vw,52px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
@@ -674,23 +681,14 @@ export function VendorJoinPage() {
 
 // ------------------------------------------------------------------------------------------- a vendor's own home
 
-const VENDOR_TABS = [
-  ['home', 'Overview'],
-  ['couples', 'Your couples'],
-  ['quotes', 'Quotes'],
-  ['enquiries', 'Enquiries'],
-  ['proposals', 'Proposals'],
-  ['calendar', 'Calendar'],
-  ['recommend', 'Recommend us'],
-  ['listing', 'Your listing'],
-] as const;
-type VendorTab = (typeof VENDOR_TABS)[number][0];
+const VENDOR_TABS: readonly VendorPlace[] = [...VENDOR_MENU, 'look'];
+type VendorTab = VendorPlace;
 
 export function VendorHomePage() {
   const [params, setParams] = useSearchParams();
   const asked = params.get('tab');
   // Just joined: their listing first (add photos and prices); otherwise their Overview.
-  const tab: VendorTab = VENDOR_TABS.some(([k]) => k === asked) ? (asked as VendorTab) : params.get('joined') ? 'listing' : 'home';
+  const tab: VendorTab = VENDOR_TABS.includes(asked as VendorTab) ? (asked as VendorTab) : params.get('joined') ? 'listing' : 'home';
   const [chatUnread, setChatUnread] = useState(0);
   // Their couples, for the Overview and the Calendar (the Your couples tab keeps its own, live).
   const [couples, setCouples] = useState<{ list: VendorCouple[]; unread: number; quotesOpen: number }>({ list: [], unread: 0, quotesOpen: 0 });
@@ -709,6 +707,10 @@ export function VendorHomePage() {
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  // Their look as saved, and as shown (Your look previews a change before it's saved); their logo's address.
+  const [look, setLook] = useState<VendorLook>(DEFAULT_VENDOR_LOOK);
+  const [preview, setPreview] = useState<VendorLook | null>(null);
+  const [logo, setLogo] = useState<string | undefined>(undefined);
   // Signed out: the sign-in form straight away, without asking for a listing first (no 401 in the console).
   const signedIn = () => (isVendorDemo() ? Promise.resolve(true) : api.session().then((s) => !!s.me));
   const load = () =>
@@ -720,6 +722,8 @@ export function VendorHomePage() {
       .then((d) => {
         setData(d);
         const l = d.listing;
+        setLook({ ...DEFAULT_VENDOR_LOOK, ...l.look });
+        setLogo(l.logo);
         setF({ name: l.name, category: l.category, region: l.region, regions: l.regions, contactName: l.contactName, phone: l.phone, website: l.website, instagram: l.instagram, about: l.about, priceFrom: l.priceFrom, photos: l.photos, packages: l.packages ?? [] });
         setDirty(false);
         setState('ready');
@@ -784,78 +788,64 @@ export function VendorHomePage() {
     return n;
   }, { replace: true });
   return (
-    <Frame title="Your listing">
+    <VendorShell
+      listing={{ name: l.name, slug: l.slug, category: l.category, logo, pending: l.pending, hidden: l.hidden }}
+      look={tab === 'look' && preview ? preview : look}
+      place={tab}
+      go={(k) => {
+        if (k !== 'look') setPreview(null);
+        setTab(k);
+      }}
+      badges={{ couples: chatUnread, quotes: couples.quotesOpen, enquiries: unread, proposals: changes.length }}
+      onSignOut={() => void api.logout().then(() => setState('signed_out'))}
+    >
       {isVendorDemo() && (
-        <p role="note" className="mt-4 p-3 rounded-[12px] bg-[#f3ecd6] text-[14px]">
+        <p role="note" className="mb-4 p-3 rounded-[12px] bg-[#f3ecd6] text-[14px]">
           A sample vendor account: a made-up florist with couples, messages and enquiries. Everything works here, but nothing is saved or sent.
         </p>
       )}
       {l.pending ? (
-        <p role="status" className="mt-4 p-4 rounded-[12px] bg-[#f3ecd6] text-[15px]">
+        <p role="status" className="mb-4 p-4 rounded-[12px] bg-[#f3ecd6] text-[15px]">
           Your listing is under review. We check every new listing before couples can find it in the directory, usually within a day. Meanwhile, add a few photos and your prices: your couples, messages and enquiries all work already.
         </p>
       ) : (
-        params.get('joined') && <p className="mt-4 p-4 rounded-[12px] bg-[#e7eedb] text-[15px]">You’re listed. Couples can find you now. Add a few photos and your prices to stand out.</p>
+        params.get('joined') && <p className="mb-4 p-4 rounded-[12px] bg-[#e7eedb] text-[15px]">You’re listed. Couples can find you now. Add a few photos and your prices to stand out.</p>
       )}
-      <div className="flex justify-between items-end gap-3 flex-wrap pt-6">
-        <div>
-          <span className="text-[13px] tracking-[.14em] uppercase" style={{ color: SOFT }}>
-            Your listing{l.pending ? ' · under review' : l.hidden ? ' · hidden by the site' : ''}
-          </span>
-          <h1 className="m-0 text-[clamp(32px,5vw,46px)] leading-[1.05] font-normal" style={{ fontFamily: serif }}>
-            {l.name}
-          </h1>
-        </div>
-        <div className="flex gap-3 items-center flex-wrap text-[15px]">
-          <Link to={`/vendors/${l.slug}`} style={{ color: INK }}>
-            See your page
-          </Link>
-          <button type="button" onClick={() => void api.logout().then(() => setState('signed_out'))} className="p-0 border-0 bg-transparent underline cursor-pointer text-[15px]" style={{ color: INK }}>
-            Sign out
-          </button>
-        </div>
-      </div>
-      {/* Their account: couples first (the everyday place), then how to recommend us, enquiries and the listing. */}
-      <nav aria-label="Your vendor account" className="flex gap-2 pt-5 overflow-x-auto pb-1 [scrollbar-width:none]">
-        {VENDOR_TABS.map(([k, label]) => (
-          <button
-            key={k}
-            type="button"
-            aria-pressed={tab === k}
-            onClick={() => setTab(k)}
-            className={`flex-none py-2 px-4 min-h-[40px] rounded-full border text-[15px] cursor-pointer ${tab === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
-            style={tab === k ? undefined : { color: INK }}
-          >
-            {label}
-            {k === 'couples' && chatUnread ? ` · ${chatUnread} new` : ''}
-            {k === 'quotes' && couples.quotesOpen ? ` · ${couples.quotesOpen} to price` : ''}
-            {k === 'enquiries' && unread ? ` · ${unread} new` : ''}
-            {k === 'proposals' && changes.length ? ` · ${changes.length} to revise` : ''}
-          </button>
-        ))}
-      </nav>
+      {tab === 'look' && (
+        <VendorLookPanel
+          name={l.name}
+          logo={logo}
+          saved={look}
+          onPreview={setPreview}
+          onSaved={(v) => {
+            setLook(v);
+            setPreview(null);
+          }}
+          onLogo={setLogo}
+        />
+      )}
       {tab === 'home' && (
-        <div className="pt-5">
+        <div>
           <VendorOverview data={data!} couples={couples.list} unread={couples.unread} quotesOpen={couples.quotesOpen} changes={changes} go={setTab} />
         </div>
       )}
       {tab === 'quotes' && (
-        <div className="pt-5">
+        <div>
           <VendorQuotes couples={couples.list} />
         </div>
       )}
       {tab === 'enquiries' && (
-        <div className="pt-5">
+        <div>
           <EnquiryPipeline data={data!} couples={couples.list} onChanged={load} />
         </div>
       )}
       {tab === 'proposals' && (
-        <div className="pt-5">
+        <div>
           <VendorProposals packages={l.packages ?? []} />
         </div>
       )}
       {tab === 'calendar' && (
-        <div className="pt-5">
+        <div>
           <VendorCalendar
             data={data!}
             couples={couples.list}
@@ -867,16 +857,16 @@ export function VendorHomePage() {
         </div>
       )}
       {tab === 'couples' && (
-        <div className="pt-5">
+        <div>
           <VendorCouples onUnread={setChatUnread} packages={l.packages ?? []} />
         </div>
       )}
       {tab === 'recommend' && data?.partner && (
-        <div className="pt-5 max-w-[760px]">
+        <div className="max-w-[760px]">
           <VendorKit name={l.name} slug={data.listing.slug} code={data.partner.code} percentOff={data.partner.percentOff} uses={data.partner.uses} />
         </div>
       )}
-      <div className={`grid gap-8 pt-6 ${tab === 'listing' ? '' : 'hidden'}`}>
+      <div className={`grid gap-8 ${tab === 'listing' ? '' : 'hidden'}`}>
         {tab === 'listing' && (
         <section aria-label="Your listing" className="flex flex-col gap-3 p-5 rounded-[16px] bg-[#fbf8f0] border border-[#e2d7bc]">
           <ListingForm
@@ -894,7 +884,7 @@ export function VendorHomePage() {
         </section>
         )}
       </div>
-    </Frame>
+    </VendorShell>
   );
 }
 
