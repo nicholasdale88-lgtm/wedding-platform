@@ -1,4 +1,4 @@
-import { dietCategories, zonedToUtc, localParts } from '@wp/shared';
+import { autoSeat, dietCategories, zonedToUtc, localParts, type RulePerson, type SeatRules } from '@wp/shared';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -931,6 +931,68 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
       for (const e of w.events) for (const pid of h.personIds) delete w.published[e.key]?.seats[pid];
     }
     check((await admin('/guests/:id/restore', 'POST', `/guests/${crypto.randomUUID()}/restore`, {})).status === 404, 'restoring a stranger is a clean not-found');
+  }
+
+  // 12c. Seating rules and auto-seat (as the Seating page's Auto-seat button): a few people kept apart and a pair
+  //      kept together, then auto-seat fills the empty seats. The rules read back as saved; auto-seat never puts
+  //      anyone at a full table, beside someone they're kept apart from, or in a seat when they aren't coming; it
+  //      never moves anyone already seated; and every seat it gave reads back.
+  const ruled = w.events.find((e) => e.hasSeating && Object.keys(w.tables[e.key] ?? {}).length);
+  if (ruled && rng.chance(0.6)) {
+    const key = ruled.key;
+    type RV = { version: number; tables: { id: string; name: string; shape: 'round' | 'long' | 'square'; dir: 'h' | 'v'; len: number; x: number; y: number; seats: number }[]; people: (RulePerson & { tableId: string | null })[]; couple: (RulePerson & { tableId: string | null })[] };
+    const view = async () => (await must(admin('/seating', 'GET', `/seating?event=${encodeURIComponent(key)}`), 200, 'seating')).json<RV>();
+    let v = await view();
+    const yes = v.people.filter((p) => p.coming);
+    const pairOf = () => {
+      const a = rng.pick(yes);
+      const b2 = rng.pick(yes);
+      return a && b2 && a.invitationId !== b2.invitationId ? { a: a.id, b: b2.id } : null;
+    };
+    const pairs: SeatRules['pairs'] = [];
+    if (yes.length > 3) {
+      for (let k = 0; k < rng.int(1, 3); k++) {
+        const p = pairOf();
+        if (p) pairs.push({ ...p, kind: 'apart' });
+      }
+      const t = pairOf();
+      if (t && rng.chance(0.6)) pairs.push({ ...t, kind: 'together' });
+    }
+    const rules: SeatRules = { presets: { invite: true, groups: rng.chance(0.8), head: true, fill: rng.chance(0.7), circles: true, family: true, colleagues: true }, pairs, sides: rng.pick(['', 'mix', 'keep'] as const) };
+    const doc = (await must(admin('/planner/doc/seat-rules/:ev', 'GET', `/planner/doc/seat-rules/${encodeURIComponent(key)}`), 200, 'seat rules')).json<{ version: number }>();
+    const saved = await admin('/planner/doc/seat-rules/:ev', 'PUT', `/planner/doc/seat-rules/${encodeURIComponent(key)}`, rules, { 'If-Match': String(doc.version) });
+    check(saved.status === 200, 'seating rules save', () => `${saved.status} ${saved.text.slice(0, 150)}`);
+    const back = (await must(admin('/planner/doc/seat-rules/:ev', 'GET', `/planner/doc/seat-rules/${encodeURIComponent(key)}`), 200, 'seat rules')).json<{ data: SeatRules }>();
+    check(JSON.stringify(back.data.pairs) === JSON.stringify(pairs) && back.data.sides === rules.sides, 'seating rules read back', () => JSON.stringify(back.data).slice(0, 200));
+    // Auto-seat, the way the Seating page runs it: the couple and the guests, anyone already seated counted in.
+    const everyone = [...v.couple, ...v.people].map((p) => ({ ...p, coming: p.coming || !!p.tableId }));
+    const before = Object.fromEntries(everyone.map((p) => [p.id, p.tableId]));
+    const res = autoSeat(everyone, v.tables, before, rules);
+    const given = Object.fromEntries(Object.entries(res.seats).filter(([id, t]) => t && !before[id])) as Record<string, string>;
+    const moved = Object.entries(res.seats).filter(([id, t]) => before[id] && t !== before[id]);
+    check(!moved.length, 'auto-seat never moves anyone already seated', () => JSON.stringify(moved.slice(0, 3)));
+    const notComing = Object.keys(given).filter((id) => !everyone.find((p) => p.id === id)?.coming);
+    check(!notComing.length, 'auto-seat only seats people coming', () => notComing.slice(0, 3).join(', '));
+    const tableOf = (id: string) => res.seats[id] ?? null;
+    const clash = pairs.filter((r) => r.kind === 'apart' && tableOf(r.a) && tableOf(r.a) === tableOf(r.b) && (given[r.a] || given[r.b]));
+    check(!clash.length, 'auto-seat never seats people kept apart together', () => JSON.stringify(clash));
+    for (const t of v.tables) {
+      const added = Object.values(given).filter((x) => x === t.id).length;
+      const filled = Object.values(res.seats).filter((x) => x === t.id).length;
+      check(!added || filled <= t.seats, 'auto-seat never fills a table past its seats', () => `${t.name}: ${filled} at ${t.seats} seats (${added} added)`);
+    }
+    if (Object.keys(given).length) {
+      const r = await admin('/seating', 'PUT', '/seating', { event: key, aspect: '4 / 3', tables: v.tables.map(({ id, name, shape, dir, len, x, y, seats }) => ({ id, name, shape, dir, len, x, y, seats })), areas: [], seats: given }, { 'If-Match': String(v.version) });
+      check(r.status === 200, 'the auto-seated plan saves', () => `${r.status} ${r.text.slice(0, 150)}`);
+      if (r.status === 200) {
+        const names = Object.fromEntries(v.tables.map((t) => [t.id, t.name]));
+        const ppl = new Set(v.people.map((p) => p.id));
+        for (const [id, t] of Object.entries(given)) if (ppl.has(id)) w.seats[key]![id] = names[t]!;
+        v = await view();
+        const wrong = [...v.couple, ...v.people].filter((p) => given[p.id] && p.tableId !== given[p.id]);
+        check(!wrong.length, 'auto-seat’s seats read back', () => `${wrong.length} not where auto-seat put them`);
+      }
+    }
   }
 
   // 13. Everything agrees everywhere.
