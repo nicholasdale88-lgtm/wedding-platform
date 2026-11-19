@@ -133,7 +133,42 @@ export interface Listing extends ListingCard {
   instagram: string;
   photos: string[];
   packages: ListingPackage[];
+  /** Their logo's address, when they've added one. */
+  logo?: string;
 }
+
+/** The places in a vendor's account menu, in order. */
+export const VENDOR_MENU = ['home', 'couples', 'quotes', 'enquiries', 'proposals', 'calendar', 'recommend', 'listing'] as const;
+export type VendorMenuKey = (typeof VENDOR_MENU)[number];
+/** Colour sets for a vendor's account (or their own brand colour). */
+export const VENDOR_PALETTES = ['forest', 'midnight', 'plum', 'clay', 'ocean', 'charcoal', 'blush', 'custom'] as const;
+const MenuKey = z.enum(VENDOR_MENU);
+/**
+ * How a vendor's account looks: colours (a set, or their own brand colour), a dark or light menu, roomy or
+ * compact, their logo's shape, a line under their name, which places show in the menu (Overview and Your
+ * listing always do) and the four on their phone's bottom bar.
+ */
+export const VendorLook = z
+  .object({
+    palette: z.enum(VENDOR_PALETTES).default('forest'),
+    colour: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/, 'Choose a colour.')
+      .optional(),
+    side: z.enum(['dark', 'light']).default('dark'),
+    compact: z.boolean().default(false),
+    logoShape: z.enum(['round', 'square', 'wide']).default('square'),
+    tagline: z.string().trim().max(60, 'Keep the line under your name short.').default(''),
+    hidden: z
+      .array(MenuKey)
+      .max(6)
+      .default([])
+      .refine((h) => !h.includes('home') && !h.includes('listing'), 'Overview and Your listing always show.'),
+    bar: z.array(MenuKey).max(4).default(['home', 'couples', 'quotes', 'calendar']),
+  })
+  .strict();
+export type VendorLook = z.infer<typeof VendorLook>;
+export const DEFAULT_VENDOR_LOOK: VendorLook = VendorLook.parse({});
 
 /** One line of a fee proposal: what it is and what it costs (whole dollars). */
 export const ProposalLine = z.object({

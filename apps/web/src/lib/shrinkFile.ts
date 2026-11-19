@@ -71,3 +71,30 @@ export async function base64Of(file: File) {
   for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
   return btoa(bin);
 }
+
+/**
+ * A vendor's logo: redrawn at most 512px across as a WebP (which keeps a see-through background; PNG where the
+ * browser can't write WebP), small enough to send (200 KB at most). SVG isn't taken (it can carry script).
+ */
+export const MAX_LOGO = 200_000;
+export async function logoImage(file: File): Promise<{ type: 'image/png' | 'image/jpeg' | 'image/webp'; blob: Blob }> {
+  if (file.type === 'image/svg+xml') throw new Error('Save your logo as a PNG or JPEG first (SVG isn’t taken).');
+  if (!file.type.startsWith('image/')) throw new Error('Choose an image of your logo (PNG, JPEG or WebP).');
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (!bmp) {
+    if (file.size <= MAX_LOGO && ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return { type: file.type as 'image/png', blob: file };
+    throw new Error('That image couldn’t be read. Try a PNG or JPEG.');
+  }
+  for (const edge of [512, 400, 300, 220]) {
+    const k = Math.min(1, edge / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bmp.width * k));
+    canvas.height = Math.max(1, Math.round(bmp.height * k));
+    canvas.getContext('2d')?.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    for (const type of ['image/webp', 'image/png'] as const) {
+      const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, type, 0.9));
+      if (blob && blob.type === type && blob.size <= MAX_LOGO) return { type, blob };
+    }
+  }
+  throw new Error('That logo is too big. Try a smaller image.');
+}

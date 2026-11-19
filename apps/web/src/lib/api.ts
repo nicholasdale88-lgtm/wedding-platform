@@ -1,4 +1,4 @@
-import type { AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
+import type { VendorLook, AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
 import type { AssistantAction, CompanyHelpPack, DayChecklist, Enquiry, FeeProposal, FeeProposalRevision, ProposalSummary, ProposalView, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { demoRequest, isDemo } from '../try/demo';
 import { isVendorDemo, vendorDemo } from '../try/vendorDemo';
@@ -610,7 +610,7 @@ export interface MyListing {
   /** Their partner code: their couples get this much off The Yes List; how many have used it. */
   partner?: { code: string; percentOff: number; uses: number } | null;
   /** pending: waiting for the site to approve it (not in the directory yet). */
-  listing: Listing & { email: string; hidden: boolean; pending?: boolean };
+  listing: Listing & { email: string; hidden: boolean; pending?: boolean; look?: VendorLook };
   enquiries: { id: string; name: string; email: string; phone: string; date: string; guests: number; message: string; read: boolean; at: string; stage?: EnquiryStage; note?: string }[];
   /** Days they've marked unavailable (yyyy-mm-dd). */
   busy?: { date: string; note: string }[];
@@ -630,6 +630,11 @@ export const directoryApi = {
   updateEnquiry: (id: string, patch: { stage?: EnquiryStage; note?: string }) => send<{ ok: true }>('PUT', `/a/vendor/enquiries/${encodeURIComponent(id)}`, patch),
   /** Their unavailable days: the whole list each time. */
   setBusy: (dates: { date: string; note: string }[]) => send<{ ok: true; busy: { date: string; note: string }[] }>('PUT', '/a/vendor/busy', { dates }),
+  /** Their account's look (colours, menu, logo shape, which places show). */
+  setLook: (look: VendorLook) => send<{ ok: true; look: VendorLook }>('PUT', '/a/vendor/look', look),
+  /** Their logo (base64), already made small. */
+  setLogo: (type: string, data: string) => send<{ ok: true; logo: string }>('PUT', '/a/vendor/logo', { type, data }),
+  removeLogo: () => send<{ ok: true }>('POST', '/a/vendor/logo/remove', {}),
 };
 
 /** A message between a vendor and a couple. */

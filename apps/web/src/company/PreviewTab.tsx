@@ -91,6 +91,7 @@ const PRODUCT: Group[] = [
       { name: 'Recommend us (sample)', what: 'Their link, QR, code and counter cards', url: '/vendors/me?sample=1&tab=recommend' },
       { name: 'Vendor enquiries (sample)', what: 'Questions from couples in the directory', url: '/vendors/me?sample=1&tab=enquiries' },
       { name: 'Vendor listing (sample)', what: 'Editing their directory page', url: '/vendors/me?sample=1&tab=listing' },
+      { name: 'Vendor look (sample)', what: 'Their logo, colours and menu', url: '/vendors/me?sample=1&tab=look' },
       { name: 'Couple’s vendor messages (sample)', what: 'The sample couple writing to their florist', url: '/admin/demo/wedding/planner?view=vendors' },
     ],
   },

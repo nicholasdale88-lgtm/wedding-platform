@@ -149,8 +149,10 @@ test('the sample night-before forecast reads "0% rain", never "0%% rain"', async
   await expect(page.getByText(/%%/)).toHaveCount(0);
 });
 
-test('the sample vendor account: See your page and Sign out are easy taps (44px or more)', async ({ page }) => {
+test('the sample vendor account: See your page and Sign out are easy taps (44px or more)', async ({ page }, info) => {
   await page.goto('/vendors/me?sample=1');
+  // On a phone they're under More.
+  if (phone(info.project.name)) await page.getByRole('navigation', { name: 'Quick menu' }).getByRole('button', { name: 'More' }).click();
   for (const el of [page.getByRole('link', { name: 'See your page' }), page.getByRole('button', { name: 'Sign out' })]) {
     await expect(el).toBeVisible({ timeout: 20_000 });
     expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
@@ -222,4 +224,40 @@ test('the sample app overview: "Add them" and "Set it up" take a tap just above 
     });
     expect(hits, name).toEqual([true, true]);
   }
+});
+
+test('the vendor account wears their look: a side menu on a computer, a bottom bar and More on a phone', async ({ page }, info) => {
+  const problems = await watch(page);
+  await page.goto('/vendors/me?sample=1');
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeAttached();
+  if (!phone(info.project.name)) {
+    const side = page.getByRole('navigation', { name: 'Your vendor account' });
+    await expect(side).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Quick menu' })).toBeHidden();
+    await side.getByRole('button', { name: 'Your look' }).click();
+  } else {
+    const bar = page.getByRole('navigation', { name: 'Quick menu' });
+    await expect(bar).toBeVisible();
+    for (const b of await bar.getByRole('button').all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
+    await bar.getByRole('button', { name: 'More' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Your vendor account' });
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await bar.getByRole('button', { name: 'More' }).click();
+    await sheet.getByRole('button', { name: 'Your look' }).click();
+    await expect(sheet).toBeHidden();
+  }
+  await expect(page).toHaveURL(/tab=look/);
+  await expect(page.getByRole('heading', { name: 'Your look', level: 1 })).toBeVisible();
+  // A colour set shows straight away; Save keeps it; hiding a place takes it out of the menu.
+  await page.getByRole('radio', { name: 'Ocean' }).click();
+  await expect(page.getByRole('radio', { name: 'Ocean' })).toHaveAttribute('aria-checked', 'true');
+  const proposals = page.getByRole('listitem').filter({ hasText: 'Proposals' }).getByRole('button', { name: 'In the menu' });
+  await proposals.click();
+  await page.getByRole('button', { name: 'Save your look' }).click();
+  await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+  if (!phone(info.project.name)) await expect(page.getByRole('navigation', { name: 'Your vendor account' }).getByRole('button', { name: 'Proposals' })).toHaveCount(0);
+  expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
+  expect(problems).toEqual([]);
 });
