@@ -678,9 +678,10 @@ export function SalesPage() {
             </h3>
             <div role="group" aria-label={`About ${BRAND}`}>
               {faq(gst).map(([q, a]) => (
-                <details key={q} className="py-4 border-b border-[#ecdcd3]">
-                  <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
-                  <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
+                <details key={q} className="border-b border-[#ecdcd3]">
+                  {/* The row's padding is on the question, so the whole row is the tap (it was 26px tall on a phone). */}
+                  <summary className="cursor-pointer py-4 text-[17px] font-medium">{q}</summary>
+                  <p className="m-0 -mt-2 pb-4 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
                     {a}
                   </p>
                 </details>
@@ -691,9 +692,10 @@ export function SalesPage() {
             </h3>
             <div role="group" aria-label="Wedding invitations, answered">
               {INVITE_FAQ.map(([q, a]) => (
-                <details key={q} className="py-4 border-b border-[#ecdcd3]">
-                  <summary className="cursor-pointer text-[17px] font-medium">{q}</summary>
-                  <p className="m-0 mt-2 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
+                <details key={q} className="border-b border-[#ecdcd3]">
+                  {/* The row's padding is on the question, so the whole row is the tap (it was 26px tall on a phone). */}
+                  <summary className="cursor-pointer py-4 text-[17px] font-medium">{q}</summary>
+                  <p className="m-0 -mt-2 pb-4 text-[15px] leading-[1.65]" style={{ color: SOFT }}>
                     {a}
                   </p>
                 </details>

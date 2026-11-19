@@ -157,6 +157,37 @@ test('the sample vendor account: See your page and Sign out are easy taps (44px 
   }
 });
 
+test('the sample app: Help opens Help (it used to land back on the overview)', async ({ page }) => {
+  const problems = await watch(page);
+  await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));
+  await page.goto('/admin/demo/wedding/overview');
+  await page.getByRole('link', { name: 'Help', exact: true }).first().click();
+  await expect(page.getByRole('heading', { name: 'Help', level: 1 })).toBeVisible({ timeout: 20_000 });
+  expect(new URL(page.url()).pathname).toBe('/admin/demo/account/help');
+  expect(problems).toEqual([]);
+});
+
+test('front page questions: each whole row opens its answer (44px or more), not just the words', async ({ page }) => {
+  await page.goto('/');
+  const q = page.locator('summary', { hasText: 'Is it a subscription?' });
+  await q.scrollIntoViewIfNeeded();
+  expect((await q.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await q.click({ position: { x: 4, y: 4 } });
+  await expect(page.getByText('Nothing renews.', { exact: false }).first()).toBeVisible();
+});
+
+test('the sample vendor account: no card runs past the edge of the screen (Needs you and Coming up were cut off on a phone)', async ({ page }) => {
+  await page.goto('/vendors/me?sample=1');
+  await expect(page.getByRole('region', { name: 'Needs you' })).toBeVisible({ timeout: 20_000 });
+  const past = await page.evaluate(() =>
+    [...document.querySelectorAll('main section')]
+      .map((el) => ({ label: el.getAttribute('aria-label') ?? (el.textContent ?? '').trim().slice(0, 30), r: el.getBoundingClientRect() }))
+      .filter((x) => x.r.width > 0 && x.r.right > window.innerWidth + 1)
+      .map((x) => `${x.label}: ${Math.round(x.r.right)}px`),
+  );
+  expect(past).toEqual([]);
+});
+
 test('the sample message board: a tap just above or below Reply still hits it (a 44px target)', async ({ page }) => {
   await page.goto('/demo/board');
   const reply = page.getByRole('button', { name: 'Reply', exact: true }).first();

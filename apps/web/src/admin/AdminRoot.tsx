@@ -209,6 +209,8 @@ function SectionBody({ section, tab }: { section: string; tab: string }) {
   }
   // Try the app has no Account section: its pages open in the wedding's own section.
   if (wid === DEMO_WID && section === ACCOUNT) {
+    // Except Help (how-to steps, nothing of the account): the header's ? opens it (it used to land back on the overview).
+    if (tab === 'help') return <Help />;
     if (!o?.events[0]) return <Loading />;
     return <Navigate to={path(EVENT_TABS.some((t) => t.key === tab) ? tab : 'overview', o.events[0].key) + search} replace />;
   }
