@@ -1,6 +1,6 @@
 import type { VendorLook, AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
 import type { AssistantAction, CompanyHelpPack, DayChecklist, Enquiry, FeeProposal, FeeProposalRevision, ProposalSummary, ProposalView, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
-import { demoRequest, isDemo } from '../try/demo';
+import { isDemo } from '../try/demoMode';
 import { isVendorDemo, vendorDemo } from '../try/vendorDemo';
 /** Typed client for the Worker API (same origin, cookies included). Errors carry the server's plain-English message. */
 
@@ -19,7 +19,8 @@ export const UPGRADE_EVENT = 'wp:upgrade';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   // Try the app (/admin/demo): a made-up wedding answered in the browser; nothing reaches the server.
-  if (isDemo()) return demoRequest<T>(path, init);
+  // Loaded only here, so guests' pages never download the sample (or the planner's form rules it uses).
+  if (isDemo()) return (await import('../try/demo')).demoRequest<T>(path, init);
   // The sample vendor account (/vendors/me?sample=1): answered in the browser too.
   if (isVendorDemo()) {
     await new Promise((ok) => setTimeout(ok, 120));

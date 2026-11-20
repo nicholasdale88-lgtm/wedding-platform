@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { AskAnywhere } from './AskAnywhere';
 import { DemoBar } from '../try/DemoBar';
-import { DEMO_WID } from '../try/demo';
+import { DEMO_WID } from '../try/demoMode';
 import { themeOf } from '../guest/themeKit';
 import { Link, NavLink, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Overview } from '../lib/api';

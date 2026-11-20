@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType, type ReactNode } from 'react';
-import { DEMO_WID } from '../try/demo';
+import { DEMO_WID } from '../try/demoMode';
 import { trialBooked } from '../try/TrialPage';
 import { DemoFeature, DEMO_HANDS_ON } from '../try/DemoFeature';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';

@@ -2,7 +2,7 @@ import type { ReceptionGuide } from '@wp/shared';
 import generic from '../../../../seed/texts.generic.json';
 import dynamic from '../../../../seed/texts.dynamic.json';
 import type { GuidePayload, PhotoPagePayload, ThanksPayload } from '../guest/invitation/api';
-import { readDemoPages } from '../try/demo';
+import { readDemoPages } from '../try/demoMode';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 
 /**

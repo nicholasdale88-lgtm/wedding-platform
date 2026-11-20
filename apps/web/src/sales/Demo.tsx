@@ -13,7 +13,7 @@ import '../guest/looks.css';
 import { MotionPortal } from '../guest/invitation/Motion';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 import { BRAND } from './SalesPage';
-import { readDemoPages } from '../try/demo';
+import { readDemoPages } from '../try/demoMode';
 
 /**
  * /demo: the real invitation, exactly as a guest sees it on their phone (the same view and behaviour as

@@ -1,16 +1,15 @@
 import { countGuests, PLANNER_DOCS, type AssistantAction } from '@wp/shared';
 import { ApiError, type EventFull, type EventInfo, type Guest, type GuestDetail, type GuestPatch, type Overview, type RsvpPut, type SeatingData, type SeatTable } from '../lib/api';
 import { coupleVendorDemo } from './vendorDemo';
+import { DEMO_PAGES_KEY, DEMO_WID, readDemoPages, type DemoPagesDoc } from './demoMode';
 
 /**
  * "Try the app": the real admin, for a made-up wedding, answered here in the browser instead of by the
  * server. Nothing is saved (a refresh starts again) and nothing is sent. Everything at /admin/demo uses it.
  * Screens the sample doesn't cover say so, with a way to start a real wedding.
  */
-export const DEMO_WID = 'demo';
+export { DEMO_WID, isDemo, DEMO_PAGES_KEY, readDemoPages, type DemoPagesDoc } from './demoMode';
 export type DemoPlan = 'free' | 'essentials' | 'complete';
-
-export const isDemo = () => typeof window !== 'undefined' && window.location.pathname.startsWith(`/admin/${DEMO_WID}`);
 
 const PLAN_KEY = 'yl-try-plan';
 export function demoPlan(): DemoPlan {
@@ -165,29 +164,7 @@ function seating(): SeatingData {
 }
 
 // ---------------------------------------------------------------- Setup: the sample invitation, changeable
-/**
- * The sample's Setup page edits the sample invitation for real (colour boards, the arch photo, wording...).
- * Each change is kept in this tab (sessionStorage), where the preview beside it (/demo?embed=1&mine=1, the
- * same tab's storage) reads it. Closing the tab forgets it; nothing reaches the server.
- */
-export const DEMO_PAGES_KEY = 'yl-try-pages';
-export interface DemoPagesDoc {
-  names: { name1: string; name2: string; monogram: string };
-  theme: string;
-  invitation: Record<string, unknown>;
-  texts: Record<string, string>;
-  /** The night-before guide (the sample has one, for the wedding). */
-  guides?: Record<string, unknown>;
-}
 let pagesVersion = 1;
-export function readDemoPages(): Partial<DemoPagesDoc> | null {
-  try {
-    const s = sessionStorage.getItem(DEMO_PAGES_KEY);
-    return s ? (JSON.parse(s) as Partial<DemoPagesDoc>) : null;
-  } catch {
-    return null;
-  }
-}
 async function demoPages(method: string, body: Record<string, unknown>) {
   if (method === 'POST') throw new ApiError(400, 'demo', 'In the sample, there’s no link to share. Start your wedding to share a preview with family.');
   const { SAMPLE_INVITE } = await import('../sales/sample');

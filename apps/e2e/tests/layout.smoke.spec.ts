@@ -159,6 +159,26 @@ test('the sample vendor account: See your page and Sign out are easy taps (44px 
   }
 });
 
+test('a guest’s invitation never downloads the sample app or the planner’s form rules (about 23 KB it didn’t need)', async ({ page }) => {
+  const scripts: string[] = [];
+  page.on('response', (r) => {
+    if (/\.js(\?|$)/.test(r.url())) scripts.push(new URL(r.url()).pathname);
+  });
+  await page.goto('/demo');
+  await expect(page.getByText('Not you?').first()).toBeAttached({ timeout: 20_000 });
+  await page.waitForLoadState('networkidle');
+  expect(scripts.length).toBeGreaterThan(0);
+  expect(scripts.filter((s) => /\/(planner|demo)-[^/]*\.js$/.test(s))).toEqual([]);
+});
+
+test('the sample app still answers in the browser (its answers load when it opens)', async ({ page }) => {
+  const problems = await watch(page);
+  await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));
+  await page.goto('/admin/demo/wedding/guests');
+  await expect(page.getByText('Priya Nair').first()).toBeVisible({ timeout: 20_000 });
+  expect(problems).toEqual([]);
+});
+
 test('the sample app: Help opens Help (it used to land back on the overview)', async ({ page }) => {
   const problems = await watch(page);
   await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));

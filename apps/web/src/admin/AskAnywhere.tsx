@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { plannerApi } from '../lib/api';
 import { ALL_EVENTS, useAdmin } from './Shell';
-import { DEMO_WID } from '../try/demo';
+import { DEMO_WID } from '../try/demoMode';
 import { inputCls } from './ui';
 
 /**

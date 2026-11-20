@@ -21,7 +21,7 @@ import { DevicePicker, DevicePreview, useDevice } from './DevicePreview';
 import { checkMusic } from '../../guest/audio';
 import { photoData } from '../../guest/invitation/LiveEdit';
 import { SaveToPhone } from '../../lib/SaveToPhone';
-import { isDemo } from '../../try/demo';
+import { isDemo } from '../../try/demoMode';
 
 /**
  * Admin → Setup (Account: the shared invitation and photo page; an event: its details, timeline and night-before page and text). Pick a page (the invitation, each

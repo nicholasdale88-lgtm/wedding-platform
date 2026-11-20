@@ -2,7 +2,7 @@ import type { InvitationContent } from '@wp/shared';
 import { useEffect, useState, type ComponentType } from 'react';
 import { Link } from 'react-router-dom';
 import { albumApi } from '../../lib/api';
-import { isDemo } from '../../try/demo';
+import { isDemo } from '../../try/demoMode';
 import { useAdmin } from '../Shell';
 import { useToast } from '../ui';
 import { Extra, ExtrasGrid } from './ExtrasGrid';
