@@ -66,6 +66,64 @@ describe('guest pages API', () => {
     expect((await call({ method: 'PUT', body: '{}' })).status).toBe(428);
   });
 
+  it('the page’s own retry after a busy moment: the same save again is answered as saved, not "Updated elsewhere"', async () => {
+    const p = (await (await call()).json()) as Pages;
+    const body = { theme: 'Cream & Sage', invitation: { rsvpClose: '2027-01-15' }, names: { name1: 'Harriet', name2: 'Jean-Luc', monogram: '' } };
+    expect((await put(body, p.version)).status).toBe(200);
+    // The retry (same version as the first try): the save already stands.
+    const again = await put(body, p.version);
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as Pages).version).toBe(p.version + 1);
+    // Anything different on the old version is still refused, and so is the same save two versions on.
+    expect((await put({ ...body, theme: 'Forest Green' }, p.version)).status).toBe(409);
+    expect((await put({ theme: 'Forest Green' }, p.version + 1)).status).toBe(200);
+    expect((await put(body, p.version)).status).toBe(409);
+  });
+
+  it('busy just after the save went through: answered as saved (once), not a 503 and then "Updated elsewhere"', async () => {
+    const p = (await (await call()).json()) as Pages;
+    const real = env.DB;
+    let tripped = false;
+    // The database runs the save, then reports busy (as D1 sometimes does).
+    // Methods keep their own object (D1's classes use private fields).
+    const own = <T extends object>(o: T, k: PropertyKey) => {
+      const v = Reflect.get(o, k) as unknown;
+      return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(o) : v;
+    };
+    const trip = (bound: D1PreparedStatement) =>
+      new Proxy(bound, {
+        get: (b, k) =>
+          k === 'run'
+            ? async () => {
+                await b.run();
+                tripped = true;
+                throw new Error('D1_ERROR: database is busy');
+              }
+            : own(b, k),
+      });
+    env = {
+      ...env,
+      DB: new Proxy(real, {
+        get: (target, prop) =>
+          prop !== 'prepare'
+            ? own(target, prop)
+            : (sql: string) => {
+                const st = target.prepare(sql);
+                if (tripped || !sql.startsWith('UPDATE wedding SET content')) return st;
+                return new Proxy(st, { get: (s, k) => (k === 'bind' ? (...args: unknown[]) => trip(s.bind(...args)) : own(s, k)) });
+              },
+      }),
+    };
+    const res = await put({ theme: 'Forest Green' }, p.version);
+    expect(tripped).toBe(true);
+    expect(res.status).toBe(200);
+    const saved = (await res.json()) as Pages;
+    expect(saved.theme).toBe('Forest Green');
+    expect(saved.version).toBe(p.version + 1);
+    env = { ...env, DB: real };
+    expect(((await (await call()).json()) as Pages).version).toBe(p.version + 1); // saved once, not twice
+  });
+
   it('refuses bad input: unknown events, non-guest wording keys, broken guides', async () => {
     const p = (await (await call()).json()) as Pages;
     expect((await put({ guides: { brunch: { style: 'reception' } } }, p.version)).status).toBe(400);

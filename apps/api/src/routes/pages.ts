@@ -1,7 +1,7 @@
 import { GuideContent, guidesOf, InvitationContent } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { readJson } from '../lib/security';
+import { afterCommit, isBusy, readJson } from '../lib/security';
 import { fillsFor } from '../lib/defaultTexts';
 import { jsonWritesOnly, requireMember, requireUser, type AdminEnv } from './auth';
 
@@ -48,6 +48,7 @@ interface WRow {
   content: string;
   guide: string;
   version: number;
+  updated_at: string;
 }
 
 export function pagesRoutes() {
@@ -55,7 +56,7 @@ export function pagesRoutes() {
   app.use('*', jsonWritesOnly, requireUser, requireMember());
 
   const load = (c: C) =>
-    c.env.DB.prepare(`SELECT id, slug, theme, timezone, name1, name2, monogram, content, guide, version FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(c.req.param('wid')).first<WRow>();
+    c.env.DB.prepare(`SELECT id, slug, theme, timezone, name1, name2, monogram, content, guide, version, updated_at FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(c.req.param('wid')).first<WRow>();
 
   async function payload(c: C, w: WRow) {
     const db = c.env.DB;
@@ -134,7 +135,6 @@ export function pagesRoutes() {
     if (!body.success) return err(c, 400, 'invalid', body.error.issues[0]?.message ?? 'Please check the highlighted fields.');
     const w = await load(c);
     if (!w) return err(c, 404, 'not_found', 'Wedding not found.');
-    if (w.version !== v) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
 
     const b = body.data;
     const content = parse<Record<string, unknown>>(w.content, {});
@@ -150,19 +150,50 @@ export function pagesRoutes() {
         guides[k] = g;
       }
     }
+    const next: WRow = {
+      ...w,
+      content: JSON.stringify(content),
+      guide: JSON.stringify(guides),
+      theme: b.theme ?? w.theme,
+      name1: b.names?.name1 ?? w.name1,
+      name2: b.names?.name2 ?? w.name2,
+      monogram: b.names?.monogram ?? w.monogram,
+      version: v + 1,
+    };
+    if (w.version !== v) {
+      // The page's own retry after a busy moment: this save already went through (the version moved on by one,
+      // a few minutes ago at most, and it changes nothing that's there now). Answered as saved, instead of
+      // "Updated elsewhere" for a save that stood (found by the stress run).
+      if (w.version === v + 1 && sameRow(w, next) && Date.now() - Date.parse(w.updated_at) < 5 * 60_000) return c.json(await afterCommit(() => payload(c, w)));
+      return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
+    }
 
     const now = new Date().toISOString();
-    const res = await c.env.DB.prepare(
-      `UPDATE wedding SET content = ?, guide = ?, theme = ?, name1 = ?, name2 = ?, monogram = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?`,
-    )
-      .bind(JSON.stringify(content), JSON.stringify(guides), b.theme ?? w.theme, b.names?.name1 ?? w.name1, b.names?.name2 ?? w.name2, b.names?.monogram ?? w.monogram, now, w.id, v)
-      .run();
-    if (!res.meta.changes) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
-    await c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'pages.save', ?, ?, ?)`)
-      .bind(crypto.randomUUID(), w.id, c.get('user').id, Object.keys(b).join(','), JSON.stringify({ texts: Object.keys(b.texts ?? {}).length }), now)
-      .run();
-    return c.json(await payload(c, { ...w, content: JSON.stringify(content), guide: JSON.stringify(guides), theme: b.theme ?? w.theme, name1: b.names?.name1 ?? w.name1, name2: b.names?.name2 ?? w.name2, monogram: b.names?.monogram ?? w.monogram, version: v + 1 }));
+    const save = () =>
+      c.env.DB.prepare(`UPDATE wedding SET content = ?, guide = ?, theme = ?, name1 = ?, name2 = ?, monogram = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ?`)
+        .bind(next.content, next.guide, next.theme, next.name1, next.name2, next.monogram, now, w.id, v)
+        .run();
+    let saved: boolean;
+    try {
+      saved = !!(await save()).meta.changes;
+    } catch (e) {
+      if (!isBusy(e)) throw e;
+      // "Busy" can come back after the save went through: ours if the version moved on by one with our own time on it.
+      const row = await afterCommit(() => c.env.DB.prepare(`SELECT version, updated_at FROM wedding WHERE id = ?`).bind(w.id).first<{ version: number; updated_at: string }>());
+      saved = row?.version === v + 1 && row.updated_at === now ? true : !!(await afterCommit(save)).meta.changes;
+    }
+    if (!saved) return err(c, 409, 'conflict', 'Updated elsewhere, reloaded.');
+    // The save stands: the audit line and the answer try again through a busy moment rather than failing it.
+    await afterCommit(() =>
+      c.env.DB.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'pages.save', ?, ?, ?)`)
+        .bind(crypto.randomUUID(), w.id, c.get('user').id, Object.keys(b).join(','), JSON.stringify({ texts: Object.keys(b.texts ?? {}).length }), now)
+        .run(),
+    ).catch((e) => console.error('pages.save audit', e));
+    return c.json(await afterCommit(() => payload(c, { ...next, updated_at: now })));
   });
 
   return app;
 }
+
+/** The same pages, names and design (the version and time aside). */
+const sameRow = (a: WRow, b: WRow) => a.content === b.content && a.guide === b.guide && a.theme === b.theme && a.name1 === b.name1 && a.name2 === b.name2 && a.monogram === b.monogram;
