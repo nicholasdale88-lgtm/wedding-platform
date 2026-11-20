@@ -995,6 +995,112 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
     }
   }
 
+  // 12d. Setup: the names edited, a design picked, the couple's own wording, and the reply-by date (already past,
+  //      today, later, or none). The guest's own page shows them, with the reply-by date filled in. After the
+  //      closing day a guest can't change a reply online (a first, late reply still counts) and the couple can
+  //      still record one; on the closing day itself replies are still open.
+  if (rng.chance(0.5)) {
+    const pg = (await must(admin('/pages', 'GET', '/pages'), 200, 'pages')).json<{ version: number; theme: string }>();
+    const today = ymdIn(w.tz, new Date());
+    const closeKind = rng.pick(['past', 'today', 'later', ''] as const);
+    const close = closeKind === 'past' ? addDays(today, -rng.int(1, 30)) : closeKind === 'today' ? today : closeKind === 'later' ? addDays(today, rng.int(1, 200)) : '';
+    const theme = rng.pick(['gallery', 'vineyard', 'arch', 'coastal', pg.theme]);
+    let renamed: string | null = null;
+    if (rng.chance(0.3)) {
+      renamed = rng.pick(['Mary-Kate O’Brien', 'Zoë Ngata', 'Jean-Luc Moreau', 'Ali']);
+      if (first(renamed) === first(w.name1)) renamed = null;
+    }
+    const own: Record<string, string> = rng.chance(0.4) ? { 'inv.5fb81f2d': 'Saturday — our day, at last 💍; bring a jumper' } : {};
+    const put = await admin('/pages', 'PUT', '/pages', { theme, invitation: { rsvpClose: close, rsvpEmail: 'replies@example.com' }, texts: own, ...(renamed ? { names: { name1: w.name1, name2: renamed, monogram: '' } } : {}) }, { 'If-Match': String(pg.version) });
+    check(put.status === 200, 'Setup saves', () => `${put.status} ${put.text.slice(0, 150)}`);
+    if (put.status === 200) {
+      if (renamed) w.name2 = renamed;
+      const h = w.houses.find((x) => x.invited.includes(0)) ?? w.houses[0]!;
+      const page = await call('GET /p/:slug/invite', 'GET', `/p/${w.slug}/invite?g=${h.token}&preview=1`, { ip: b.ip() });
+      const j = page.status === 200 ? page.json<{ wedding: { name1: string; name2: string; theme: string }; content: { rsvpClose?: string }; texts: Record<string, string> }>() : null;
+      check(!!j && j.wedding.name2 === w.name2 && j.wedding.theme === theme && (j.content.rsvpClose ?? '') === close, 'Setup shows on the guest’s page', () => `${page.status} ${JSON.stringify(j?.wedding)} close ${j?.content.rsvpClose} want ${w.name2} ${theme} ${close}`);
+      if (j && h.invited.includes(0)) {
+        const day = close ? new Intl.DateTimeFormat('en-AU', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${close}T12:00:00Z`)) : '[RSVP date]';
+        check(j.texts['inv.ddbb7763'] === day, 'the reply-by date is filled in for guests', () => `"${j.texts['inv.ddbb7763']}" want "${day}"`);
+        const wd = new Date(w.events[0]!.startsAt);
+        const f = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat('en-AU', { timeZone: w.tz, ...o }).format(wd);
+        const want = own['inv.5fb81f2d'] ?? `${f({ weekday: 'long' })} ${f({ day: 'numeric' })} ${f({ month: 'long' })} ${f({ year: 'numeric' })}`;
+        check(j.texts['inv.5fb81f2d'] === want, 'the couple’s own wording (or the date) shows', () => `"${j.texts['inv.5fb81f2d']}" want "${want}"`);
+      }
+      // Replies after the closing day.
+      const replied = w.houses.find((x) => evKeys(w, x).some((k) => x.rsvp[k]?.attending != null));
+      const fresh = w.houses.find((x) => x.invited.length && !evKeys(w, x).some((k) => x.rsvp[k]?.attending != null));
+      if (closeKind === 'past') {
+        if (replied) {
+          const k = evKeys(w, replied)[0]!;
+          const r = await call('POST /p/:slug/rsvp', 'POST', `/p/${w.slug}/rsvp`, { ip: b.ip(), body: { token: replied.token, events: { [k]: { attending: !replied.rsvp[k]?.attending } }, count: 1 } });
+          check(r.status === 403 && r.text.includes('closed'), 'after the closing day a reply can’t be changed online', () => `${r.status} ${r.text.slice(0, 150)}`);
+          // The couple can still record it (by phone, in person).
+          const cur = (await guests()).guests.find((x) => x.id === replied.id);
+          if (cur) {
+            const events = Object.fromEntries(evKeys(w, replied).map((key) => [key, { attending: rng.chance(0.6) }]));
+            const count = rng.int(1, heldOf(replied));
+            const rr = await admin('/guests/:id/rsvp', 'PUT', `/guests/${replied.id}/rsvp`, { events, count }, { 'If-Match': String(cur.version) });
+            check(rr.status === 200, 'after the closing day the couple can still record a reply', () => `${rr.status} ${rr.text.slice(0, 150)}`);
+            if (rr.status === 200) {
+              for (const key of evKeys(w, replied)) replied.rsvp[key] = { attending: events[key]!.attending, count };
+              replied.version = rr.json<{ guest: { version: number } }>().guest.version;
+              settle(w);
+            }
+          }
+        }
+        if (fresh) await reply(fresh); // a first, late reply still counts (reply() checks it's saved)
+      } else if (closeKind === 'today' || closeKind === 'later') {
+        if (replied) await reply(replied, { flip: true }); // still open (reply() checks it's saved)
+      }
+    }
+  }
+
+  // 12e. The wedding party: roles given from the guest list (one taken away again), Who's who on the invitation
+  //      (when switched on). Roles are the wedding's only: another event's seating (a birthday) never shows them.
+  if (w.plan !== 'basic' && rng.chance(0.5)) {
+    const party = (await must(admin('/planner/party', 'GET', '/planner/party'), 200, 'party')).json<{ roles: { role: string }[] }>();
+    const wedHouses = w.houses.filter((h) => h.invited.includes(0));
+    const picks = wedHouses.filter(() => rng.chance(0.1)).slice(0, rng.int(1, 8));
+    const given = new Map<string, { name: string; role: string }>();
+    for (const h of picks) {
+      const idx = rng.int(0, h.people.length - 1);
+      const role = rng.chance(0.9) ? rng.pick(party.roles).role : 'Ring bearer’s helper 🐶';
+      const r = await admin('/planner/people/:pid/role', 'PUT', `/planner/people/${h.personIds[idx]}/role`, { role });
+      check(r.status === 200, 'a wedding party role saves', () => `${r.status} ${r.text.slice(0, 120)}`);
+      if (r.status === 200) given.set(h.personIds[idx]!, { name: h.people[idx]!, role });
+    }
+    // Someone given a role by mistake: taken away again.
+    const undo = [...given.keys()][0];
+    if (undo && rng.chance(0.3)) {
+      const r = await admin('/planner/people/:pid/role', 'PUT', `/planner/people/${undo}/role`, { role: '' });
+      check(r.status === 200, 'a wedding party role is taken away', () => `${r.status}`);
+      if (r.status === 200) given.delete(undo);
+    }
+    // A role for someone from another wedding: refused.
+    check((await admin('/planner/people/:pid/role', 'PUT', `/planner/people/${crypto.randomUUID()}/role`, { role: 'Bridesmaid' })).status === 404, 'no role for a stranger');
+    const members = (await must(admin('/planner/party', 'GET', '/planner/party'), 200, 'party')).json<{ members: { personId: string; role: string }[] }>().members;
+    check(members.length === given.size && members.every((m) => given.get(m.personId)?.role === m.role), 'the wedding party reads back', () => `${JSON.stringify(members).slice(0, 200)} want ${given.size}`);
+    const show = rng.chance(0.7);
+    const sd = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/party-setup'), 200, 'party setup')).json<{ version: number; data: Record<string, unknown> }>();
+    await must(admin('/planner/doc/:kind', 'PUT', '/planner/doc/party-setup', { ...sd.data, showOnInvite: show }, { 'If-Match': String(sd.version) }), 200, 'party setup save');
+    const guest = rng.pick(wedHouses);
+    if (guest) {
+      const page = await call('GET /p/:slug/invite', 'GET', `/p/${w.slug}/invite?g=${guest.token}&preview=1`, { ip: b.ip() });
+      const j = page.status === 200 ? page.json<{ party: { people: { name: string; role: string }[] } | null; invitation: { party: boolean } }>() : null;
+      const want = [...given.values()].map((x) => `${x.name}|${x.role}`).sort();
+      const got = (j?.party?.people ?? []).map((x) => `${x.name}|${x.role}`).sort();
+      check(!!j && JSON.stringify(got) === JSON.stringify(show ? want : []), 'Who’s who on the invitation', () => `${JSON.stringify(got).slice(0, 200)} want ${JSON.stringify(show ? want : []).slice(0, 200)}`);
+      check(!!j && j.invitation.party === guest.personIds.some((pid) => given.has(pid)), 'a party member’s own page knows they’re in the party', () => `${j?.invitation.party}`);
+    }
+    for (const e of w.events.filter((x) => x.hasSeating)) {
+      const sv = (await must(admin('/seating', 'GET', `/seating?event=${encodeURIComponent(e.key)}`), 200, 'seating')).json<{ people: { id: string; role: string }[] }>();
+      const roled = sv.people.filter((p) => p.role);
+      if (e.key === w.events[0]!.key) check(roled.every((p) => given.get(p.id)?.role === p.role), 'the wedding’s seating shows the party’s roles', () => JSON.stringify(roled.slice(0, 3)));
+      else check(!roled.length, 'another event’s seating never shows wedding party roles', () => `${e.name}: ${JSON.stringify(roled.slice(0, 3))}`);
+    }
+  }
+
   // 13. Everything agrees everywhere.
   await checkAll(b, w, check, guests);
   w.done = true;
