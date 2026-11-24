@@ -42,14 +42,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       headers: { ...(init.body ? { 'content-type': 'application/json' } : {}), ...(key ? { 'Idempotency-Key': key } : {}), ...init.headers },
     });
   // Briefly busy (503), slowed down for a moment (429, asked to wait 3 seconds or less), or the connection dropped
-  // (a save only: the same key makes it safe): try again quietly before saying anything.
+  // (a save only, once, quickly: the same key makes it safe): try again quietly before saying anything.
+  let dropped = 0;
   for (let i = 0; i < 4; i++) {
-    if (i) await new Promise((ok) => setTimeout(ok, 400 * i));
+    if (i) await new Promise((ok) => setTimeout(ok, dropped && !res ? 250 : 400 * i));
     try {
       res = await go();
     } catch {
       res = undefined;
-      if (!write || i >= 2) break;
+      if (!write || dropped++ >= 1) break;
       continue;
     }
     const wait = Number(res.headers.get('retry-after'));
