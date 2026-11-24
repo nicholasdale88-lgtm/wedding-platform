@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [react()],
   // `pnpm dev` at the root runs the Worker (wrangler dev, port 8787) alongside this; /api goes to it, so no CORS.
   server: { proxy: { '/api': 'http://localhost:8787' } },
+  // The built site served locally (vite preview, the Screens workflow) talks to the same local API.
+  preview: { proxy: { '/api': 'http://localhost:8787' } },
   test: {
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],

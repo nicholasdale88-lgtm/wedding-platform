@@ -1,0 +1,58 @@
+# Before/after screenshots and phone LCP for a visual batch (docs/screens/<batch>/). Push a branch named
+# screens/<label> (e.g. screens/before, screens/after): the built website is photographed at 390 and 1280 and
+# measured on a throttled mid-range phone (4x CPU, 1.6 Mbps, 150 ms), and the files are committed back to that
+# branch. Nothing is deployed.
+name: Screens
+
+on:
+  push:
+    branches: ['screens/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screens:
+    if: "!contains(github.event.head_commit.message, 'Screens (CI)')"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Install the browser
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+      - name: Build and start the app (local API and database, and the built website)
+        run: |
+          cd apps/api
+          pnpm exec wrangler d1 migrations apply DB --local
+          nohup pnpm exec wrangler dev --port 8787 --var SESSION_SECRET:screens-only-secret-00000000 > "$RUNNER_TEMP/api.log" 2>&1 &
+          cd ../web
+          pnpm exec vite build
+          nohup pnpm exec vite preview --port 5173 --strictPort > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 90); do
+            curl -sf http://localhost:5173/ > /dev/null && curl -s http://localhost:5173/api/site > /dev/null && break
+            sleep 2
+          done
+          curl -sf http://localhost:5173/demo > /dev/null || { echo "::error::The app didn't start"; tail -50 "$RUNNER_TEMP/web.log"; exit 1; }
+      - name: Photograph and measure
+        run: |
+          LABEL="${GITHUB_REF_NAME#screens/}"
+          cd apps/e2e && BASE=http://localhost:5173 LABEL="$LABEL" OUT=../../docs/screens/vs-phase1 node screens/capture.mjs
+      - name: Commit the screens
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screens
+          if git diff --cached --quiet; then echo "No change"; exit 0; fi
+          git commit -m "Screens (CI) ${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

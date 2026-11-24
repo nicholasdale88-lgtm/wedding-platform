@@ -3,6 +3,8 @@ name: CI
 
 on:
   push:
+    # screens/<label> branches only take screenshots (screens.yml).
+    branches-ignore: ['screens/**']
   pull_request:
   workflow_dispatch:
 
