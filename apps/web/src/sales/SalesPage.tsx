@@ -25,6 +25,7 @@ import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 import { PaperVsPhone } from './PaperVsPhone';
 import { MobileMenu } from './MobileMenu';
+import { TOKENS } from './tokens';
 
 /**
  * The front page (/). Calm on purpose: one idea a section, few words, lots of room. The hero is the real
@@ -37,12 +38,14 @@ export const BRAND = 'The Yes List';
 type PlanKey = 'free' | 'essentials' | 'complete';
 
 // Warm ivory and blush, champagne gold, and a deep plum ink: the colours of the day itself, not of an office.
-const INK = '#2e2430';
-const SOFT = '#6e6068';
-const GOLD = '#a8834a';
-const CREAM = '#fbf5f0';
-const PAPER = '#fffcf8';
-const BLUSH = '#f6e6e0';
+// From the shared tokens (./tokens, VS-01): display gold is for large script only; small gold type is GOLD_INK.
+const INK = TOKENS.ink;
+const SOFT = TOKENS.muted;
+const GOLD = TOKENS.gold;
+const GOLD_INK = TOKENS.goldInk;
+const CREAM = TOKENS.paper;
+const PAPER = TOKENS.paperBright;
+const BLUSH = TOKENS.blush;
 const THEME_COUNT = THEME_NAMES.length;
 const serif = "'Cormorant Garamond', Georgia, serif"; // our headings: light and airy (the invitations keep their own lettering)
 const script = "'Great Vibes', 'Pinyon Script', cursive"; // one word at a time, in gold
@@ -74,7 +77,8 @@ function Tiles() {
   const picture = (art: ReactNode, title: string, sub: string, span = '') => (
     <article className={`relative min-h-[300px] rounded-[26px] overflow-hidden shadow-[0_24px_50px_rgba(70,40,40,.14)] ${span}`}>
       {art}
-      <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(46,30,36,.62), rgba(46,30,36,0) 55%)' }} />
+      {/* A scrim deep enough under the words that cream type reads at AA on the palest paper (VS-01). */}
+      <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(40,26,32,.9) 0%, rgba(40,26,32,.8) 50%, rgba(40,26,32,0) 85%)' }} />
       <span className="absolute left-6 right-6 bottom-6 flex flex-col gap-1" style={{ color: '#fffaf3' }}>
         <h3 className="m-0 text-[30px] leading-[1.1] font-medium" style={{ fontFamily: serif }}>
           {title}
@@ -358,7 +362,7 @@ export function SalesPage() {
                 </svg>
                 Australian owned and operated
               </span>
-              <span className="text-[12px] font-semibold tracking-[.28em] uppercase" style={{ color: GOLD }}>
+              <span className="text-[12px] font-semibold tracking-[.28em] uppercase" style={{ color: GOLD_INK }}>
                 Wedding invitations · RSVPs · The whole plan
               </span>
               <h1 className="m-0 text-[clamp(48px,7.6vw,92px)] leading-[1] font-medium tracking-[-.01em]" style={{ fontFamily: serif, color: INK }}>
@@ -407,14 +411,14 @@ export function SalesPage() {
         </section>
 
         {/* The same invitation on paper and on a phone, side by side, and what each is like to live with. */}
-        <PaperVsPhone ink={INK} soft={SOFT} gold={GOLD} serif={serif} script={script} fromPrice={fromPrice} />
+        <PaperVsPhone ink={INK} soft={SOFT} gold={GOLD} goldInk={GOLD_INK} serif={serif} script={script} fromPrice={fromPrice} />
 
         {/* The envelope and its seal, close up: what every guest opens first. */}
         <section aria-labelledby="scenes" className="py-16 md:py-20 px-4 overflow-hidden" style={{ background: `linear-gradient(180deg, ${BLUSH} 0%, ${PAPER} 100%)` }}>
           <div className="max-w-[1100px] mx-auto grid gap-10 md:grid-cols-2 items-center">
             <EnvelopeStill />
             <div className="flex flex-col gap-4 items-center md:items-start text-center md:text-left">
-              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: GOLD }}>
+              <span className="text-[12px] font-semibold tracking-[.26em] uppercase" style={{ color: GOLD_INK }}>
                 The envelope and the seal
               </span>
               <h2 id="scenes" className="m-0 text-[clamp(38px,5.6vw,60px)] leading-[1.02] font-medium" style={{ fontFamily: serif }}>
@@ -457,7 +461,7 @@ export function SalesPage() {
         <section aria-labelledby="how-send" className="py-16 md:py-20 px-4">
           <div className="max-w-[1000px] mx-auto flex flex-col gap-8">
             <div className="text-center flex flex-col gap-4">
-              <p className="m-0 text-[13px] tracking-[.2em] uppercase font-semibold" style={{ color: GOLD }}>
+              <p className="m-0 text-[13px] tracking-[.2em] uppercase font-semibold" style={{ color: GOLD_INK }}>
                 How sending works
               </p>
               <h2 id="how-send" className="m-0 text-[clamp(34px,5.4vw,56px)] leading-[1.06] font-normal" style={{ fontFamily: serif }}>
@@ -516,7 +520,7 @@ export function SalesPage() {
                     {r.usual}
                   </span>
                   <span className="flex gap-2 px-4 pt-2 pb-4 md:pt-4 text-[16px] leading-[1.5]" style={{ color: INK, background: 'rgba(167,184,143,.12)' }}>
-                    <span aria-hidden className="font-bold" style={{ color: '#a8834a' }}>
+                    <span aria-hidden className="font-bold" style={{ color: GOLD_INK }}>
                       ✓
                     </span>
                     <span>{r.ours}</span>
@@ -569,7 +573,7 @@ export function SalesPage() {
                   <ul className="m-0 p-0 list-none flex flex-col gap-2 text-[15px] leading-[1.45] flex-1">
                     {p.items.map((i) => (
                       <li key={i} className="flex gap-2">
-                        <span aria-hidden style={{ color: GOLD }}>
+                        <span aria-hidden style={{ color: GOLD_INK }}>
                           ✓
                         </span>
                         {i}
@@ -836,7 +840,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
                   style={{ borderColor: on ? INK : '#ecdcd3', background: on ? '#fffdf8' : 'rgba(255,253,248,.6)', boxShadow: on ? '0 10px 24px rgba(70,40,48,.12)' : undefined }}
                 >
                   {p.pick && (
-                    <span className="absolute -top-[11px] right-3 py-[2px] px-[10px] rounded-full text-[11px] font-semibold tracking-[.06em]" style={{ background: GOLD, color: '#fff' }}>
+                    <span className="absolute -top-[11px] right-3 py-[2px] px-[10px] rounded-full text-[11px] font-semibold tracking-[.06em]" style={{ background: GOLD_INK, color: '#fff' }}>
                       Most popular
                     </span>
                   )}

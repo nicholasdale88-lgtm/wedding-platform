@@ -4,8 +4,9 @@
  * gold, cream).
  */
 import { useId } from 'react';
+import { TOKENS } from './tokens';
 
-const INK = '#2e2430';
+const INK = TOKENS.ink;
 
 /**
  * The logo mark, as on the app icon: two interlocking gold rings (one with a small diamond) on deep sage,
@@ -61,7 +62,7 @@ export function Wordmark({ size = 22 }: { size?: number }) {
     <span className="inline-flex items-center gap-2" style={{ fontSize: size, color: INK }}>
       <LogoMark size={Math.round(size * 1.55)} />
       <span style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", letterSpacing: '.01em' }}>
-        The <span style={{ color: '#a9843f', fontStyle: 'italic' }}>Yes</span> List
+        The <span style={{ color: TOKENS.goldInk, fontStyle: 'italic' }}>Yes</span> List
       </span>
     </span>
   );

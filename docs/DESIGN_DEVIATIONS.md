@@ -5,6 +5,7 @@ Every intentional difference from `design/` is listed here. Nothing else may dif
 | # | Screen | What differs | Why | Status |
 |---|---|---|---|---|
 | 1 | Admin sign-in (passcode screen) | An **Email** field is added above **Passcode**, in the identical pill style. The heading shows the couple's names once this device has signed in before; on a first visit it reads "Welcome back". | Real accounts for a product sold to many couples: the server needs to know who is signing in, and before sign-in it doesn't know which wedding to name. The prototype's single shared passcode can't work for multiple couples. | Awaiting sign-off |
+| 2 | Marketing (/ , /designs, /try) | Display gold #A8834A kept for large script only. Small gold type and the wordmark “Yes” use gold-ink #7A5C28, so these meet WCAG AA. The picture tiles’ cream captions sit on a deeper scrim. Colours come from one file (apps/web/src/sales/tokens.ts, checked in test/tokens.test.ts). | Small gold on cream was 3.2:1; cream-on-cream cards were 1.02:1 (review 01 P1.6, P2.1). | Awaiting sign-off |
 
 ## 18 Nov 2026: graphics redo (additive; the locked designs untouched)
 

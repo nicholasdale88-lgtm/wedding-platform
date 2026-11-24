@@ -163,7 +163,7 @@ function paperArt(names: [string, string], place: string): string {
 const PAPER_LIST = ['Printing and postage, weeks ahead', 'Replies by phone, text and memory', 'A change means reprinting', 'Dietary needs on scraps of paper'];
 const OURS_LIST = ['Replies land in your guest list', 'Change anything, any time, free', 'Each guest gets their own link', 'Gentle reminders for anyone who hasn’t replied'];
 
-export function PaperVsPhone({ ink, soft, gold, serif, script, fromPrice }: { ink: string; soft: string; gold: string; serif: string; script: string; fromPrice: string }) {
+export function PaperVsPhone({ ink, soft, gold, goldInk, serif, script, fromPrice }: { ink: string; soft: string; gold: string; goldInk: string; serif: string; script: string; fromPrice: string }) {
   const backdrop = useMemo(() => tableTop(), []);
   const paper = useMemo(() => paperArt(['Harriet', 'Theo'], 'LARKWOOD ESTATE · HUNTER VALLEY'), []);
   const pill = (label: string, on: boolean) => (
@@ -199,7 +199,7 @@ export function PaperVsPhone({ ink, soft, gold, serif, script, fromPrice }: { in
       <span aria-hidden className="absolute inset-0" style={{ background: 'radial-gradient(60% 70% at 50% 50%, rgba(251,245,240,.9), rgba(251,245,240,.35) 75%, rgba(251,245,240,0))' }} />
       <div className="relative max-w-[1060px] mx-auto flex flex-col gap-10">
         <div className="text-center flex flex-col items-center gap-4">
-          <span className="text-[12px] font-semibold tracking-[.28em] uppercase" style={{ color: gold }}>
+          <span className="text-[12px] font-semibold tracking-[.28em] uppercase" style={{ color: goldInk }}>
             Paper or The Yes List
           </span>
           <h2 id="paper-or-phone" className="m-0 text-[clamp(38px,6vw,66px)] leading-[1.02] font-medium" style={{ fontFamily: serif, color: ink }}>
@@ -248,7 +248,7 @@ export function PaperVsPhone({ ink, soft, gold, serif, script, fromPrice }: { in
         <div className="flex flex-col items-center gap-4 text-center">
           <span aria-hidden className="w-full max-w-[760px] h-px" style={{ background: `linear-gradient(90deg, transparent, ${gold}, transparent)` }} />
           <p className="m-0 text-[clamp(26px,4vw,40px)] leading-[1.1]" style={{ fontFamily: serif, color: ink }}>
-            From <span style={{ color: gold }}>{fromPrice}</span>, paid once.
+            From <span style={{ color: goldInk }}>{fromPrice}</span>, paid once.
           </p>
           <p className="m-0 text-[15px]" style={{ color: soft }}>
             No subscription · No printing · No postage · Australian owned
