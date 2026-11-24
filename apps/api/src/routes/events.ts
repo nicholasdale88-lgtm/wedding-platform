@@ -166,8 +166,12 @@ export function eventRoutes() {
       .bind(...cols.map(([, val]) => val), c.req.param('id'), wid(c), v)
       .run();
     if (!res.meta.changes) {
-      const there = await c.env.DB.prepare(`SELECT 1 FROM event WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(c.req.param('id'), wid(c)).first();
-      return there ? err(c, 409, 'conflict', 'This event changed elsewhere. Reloaded: check it and try again.') : err(c, 404, 'not_found', 'That event no longer exists.');
+      const there = await c.env.DB.prepare(`SELECT * FROM event WHERE id = ? AND wedding_id = ? AND deleted_at IS NULL`).bind(c.req.param('id'), wid(c)).first<Record<string, unknown>>();
+      if (!there) return err(c, 404, 'not_found', 'That event no longer exists.');
+      // A retry of this very change after it saved (its reply lost or "busy"): one version on, every field as sent.
+      // A success, not "changed elsewhere" (YL-19, found by the stress run).
+      if (there.version === v + 1 && cols.every(([k, val]) => there[k] === val)) return c.json({ events: await list(c) });
+      return err(c, 409, 'conflict', 'This event changed elsewhere. Reloaded: check it and try again.');
     }
     await audit(c, 'event.edit', c.req.param('id'), { fields: cols.map(([k]) => k) }).run();
     // A date set at last: the invitation can show it (it wasn't known at sign-up).
