@@ -82,4 +82,33 @@ describe('importing a budget spreadsheet', () => {
     expect(again.budget.lines).toHaveLength(3);
     expect(again.budget.savings.entries).toHaveLength(2);
   });
+
+  it('keeps a vendor on two lines (a venue on hire and catering) as two lines, paid shared, and again changes nothing', () => {
+    const sheets: Sheet[] = [
+      {
+        name: 'Tracker',
+        rows: [
+          ['Item', 'Vendor', 'Agreed', 'Paid'],
+          ['Venue hire', 'Seaside Hall', 8000, 0],
+          ['Catering', 'Seaside Hall', 12000, 0],
+          ['Flowers', 'Petal Co', 3000, 0],
+        ],
+      },
+      { name: 'Payments', rows: [['Vendor', 'Instalment', 'Amount', 'Paid?'], ['Seaside Hall', 'Deposit', 5000, 'Yes'], ['Seaside Hall', 'Balance', 15000, '']] },
+    ];
+    const r = readBudgetSheets(sheets);
+    expect(r.lines.map((l) => [l.item, l.vendor, l.quote, l.paid])).toEqual([
+      ['Venue hire', 'Seaside Hall', 8000, 2000],
+      ['Catering', 'Seaside Hall', 12000, 3000],
+      ['Flowers', 'Petal Co', 3000, 0],
+    ]);
+    let n = 0;
+    const m = mergeImport(Budget.parse({ total: 0 }), Vendors.parse({}), r, () => `new${++n}`);
+    expect(m.budget.lines.map((l) => [l.item, l.vendor, l.quote, l.paid])).toEqual(r.lines.map((l) => [l.item, l.vendor, l.quote, l.paid]));
+    expect(m.budget.lines.reduce((a, l) => a + l.paid, 0)).toBe(5000);
+    expect(m.budget.total).toBe(23000);
+    const again = mergeImport(m.budget, m.vendors, r, () => `new${++n}`);
+    expect(again.budget.lines).toEqual(m.budget.lines);
+    expect(again.vendors.list).toHaveLength(2);
+  });
 });

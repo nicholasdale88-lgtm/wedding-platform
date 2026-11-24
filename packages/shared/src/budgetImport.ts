@@ -116,10 +116,19 @@ export function readBudgetSheets(sheets: Sheet[]) {
   }
   // A vendor only in the payments sheet: its total is what its payments add up to.
   for (const v of vendors) if (!v.quote) v.quote = Math.round(v.payments.reduce((a, x) => a + x.amount, 0) * 100) / 100;
-  // A booked line's "paid" is what its schedule says is paid.
-  for (const l of lines) {
-    const v = vendors.find((x) => l.vendor && x.name.toLowerCase() === l.vendor.toLowerCase());
-    if (v?.payments.length) l.paid = Math.round(v.payments.filter((x) => x.paid).reduce((a, x) => a + x.amount, 0) * 100) / 100;
+  // A booked line's "paid" is what its schedule says is paid; a vendor on several lines (a venue on "Venue
+  // hire" and "Catering") has it shared between them by their price, so it's never counted twice.
+  for (const v of vendors) {
+    if (!v.payments.length) continue;
+    const mine = lines.filter((l) => l.vendor && l.vendor.toLowerCase() === v.name.toLowerCase());
+    const paid = Math.round(v.payments.filter((x) => x.paid).reduce((a, x) => a + x.amount, 0) * 100) / 100;
+    const whole = mine.reduce((a, l) => a + (l.quote || l.estimate), 0);
+    let left = paid;
+    mine.forEach((l, i) => {
+      const share = i === mine.length - 1 ? left : Math.round((whole > 0 ? (paid * (l.quote || l.estimate)) / whole : paid / mine.length) * 100) / 100;
+      l.paid = Math.round(share * 100) / 100;
+      left = Math.round((left - l.paid) * 100) / 100;
+    });
   }
   const total = Math.round(lines.reduce((a, l) => a + (l.quote || l.estimate), 0) * 100) / 100;
   return { lines, vendors, savings, total };
@@ -147,10 +156,17 @@ export function mergeImport(budget: Budget, doc: Vendors, imp: BudgetImport, new
     }
   }
   let lines = [...budget.lines];
+  // Each imported line replaces at most one line, never one an earlier imported line already took: the same
+  // item first, else (for a vendor on only one line of the sheet) the line naming that vendor. So a venue on
+  // both "Venue hire" and "Catering" keeps both lines, and importing the same sheet twice changes nothing.
+  const taken = new Set<number>();
+  const onlyLine = (vendor: string) => imp.lines.filter((x) => same(x.vendor, vendor)).length === 1;
   for (const l of imp.lines) {
-    const i = lines.findIndex((x) => (l.vendor && same(x.vendor, l.vendor)) || same(x.item, l.item));
+    let i = lines.findIndex((x, k) => !taken.has(k) && same(x.item, l.item));
+    if (i < 0 && l.vendor && onlyLine(l.vendor)) i = lines.findIndex((x, k) => !taken.has(k) && same(x.vendor, l.vendor));
     if (i >= 0) lines[i] = { ...lines[i]!, ...l, note: lines[i]!.note, payer: lines[i]!.payer };
     else lines = [...lines, l];
+    taken.add(i >= 0 ? i : lines.length - 1);
   }
   const had = budget.savings?.entries ?? [];
   const key = (e: SavingsEntry) => `${e.date}|${e.amount}|${e.note.toLowerCase()}`;
