@@ -1,4 +1,24 @@
-import { autoSeat, dietCategories, zonedToUtc, localParts, type RulePerson, type SeatRules } from '@wp/shared';
+import {
+  allPayments,
+  autoSeat,
+  Budget,
+  budgetFit,
+  dietCategories,
+  lineFor,
+  linkToBudget,
+  localParts,
+  mergeImport,
+  moneyOf,
+  readBudgetSheets,
+  standardLines,
+  zonedToUtc,
+  type BudgetLine,
+  type RulePerson,
+  type SeatRules,
+  type Sheet,
+  type Vendor,
+  type Vendors,
+} from '@wp/shared';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -163,6 +183,8 @@ interface Wed {
   meals: Record<string, Record<string, { e: string; m: string; d: string }>>;
   photos: { id: string; bytes: Uint8Array }[];
   vendor: { k: number; entryId: string; proposalId: string; total1: number; total2: number } | null;
+  /** A post on its message board (for the probes from other weddings). */
+  board: string | null;
   done: boolean;
 }
 
@@ -432,7 +454,7 @@ function generate(i: number): Wed {
   while (first(name2) === first(name1)) name2 = rng.pick(COUPLE);
   const w: Wed = {
     i, rng, name1, name2, email: `couple${i}@example.com`, tz, plan, isPublic: rng.chance(0.4), id: '', slug: '', cookie: '', ip: '',
-    events: [], houses: [], seats: {}, tables: {}, published: {}, meals: {}, photos: [], vendor: null, done: false,
+    events: [], houses: [], seats: {}, tables: {}, published: {}, meals: {}, photos: [], vendor: null, board: null, done: false,
   };
 
   // When: yesterday, tomorrow, two years out, a weekend the clocks change, or any time in the next two years.
@@ -1101,6 +1123,231 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
     }
   }
 
+  // 12f. The message board: guests post (some waiting for the couple's OK), reply, heart and take a heart back;
+  //      the couple approves, hides, pins, replies (which approves) and removes. A guest sees what's shown plus
+  //      their own posts still waiting, never anyone else's waiting or hidden post (nor a reply under a hidden
+  //      one); a heart counts once per invitation; a removed post takes its replies and hearts with it; a closed
+  //      board shows and takes nothing.
+  const linked = w.houses.filter((h) => h.token);
+  if (linked.length >= 3 && rng.chance(0.45)) {
+    type BP = { id: string; by: number | null; status: 'shown' | 'pending' | 'hidden'; parent: string | null; likers: Set<number>; body: string; pinned: boolean };
+    const posts: BP[] = [];
+    const approve = rng.chance(0.4);
+    await must(admin('/board/settings', 'PUT', '/board/settings', { on: true, approve }), 200, 'board settings');
+    const g = (label: string, method: string, path: string, body?: unknown) => call(`${method} /p/:slug/board${label}`, method, `/p/${w.slug}/board${path}`, { ip: b.ip(), ...(body !== undefined ? { body } : {}) });
+    type AdminBoard = { pending: number; posts: { id: string; body: string; status: string; author: string; likes: number; replies: { id: string; body: string; status: string; likes: number }[] }[] };
+    const readAdmin = async () => (await must(admin('/board', 'GET', '/board'), 200, 'board')).json<AdminBoard>();
+    const idOf = async (body: string) => {
+      const a = await readAdmin();
+      return a.posts.flatMap((p) => [p, ...p.replies]).find((p) => p.body === body)?.id ?? '';
+    };
+    let seq = 0;
+    const posters = [...linked].sort(() => rng.next() - 0.5).slice(0, rng.int(2, Math.min(8, linked.length)));
+    for (const h of posters) {
+      for (let k = rng.int(1, 2); k > 0; k--) {
+        const body = `Congratulations from household ${h.n} (${++seq}) ${rng.pick(['💐', '🥂', 'xx', '— so happy for you’s!', ''])}`.trim();
+        const r = await g('', 'POST', '', { token: h.token, body });
+        check(r.status === 200 && r.json<{ pending: boolean }>().pending === approve, 'a guest posts on the board', () => `${r.status} ${r.text.slice(0, 120)}`);
+        if (r.status === 200) posts.push({ id: await idOf(body), by: h.n, status: approve ? 'pending' : 'shown', parent: null, likers: new Set(), body, pinned: false });
+      }
+    }
+    check(posts.every((p) => p.id), 'every guest post reaches the couple', () => JSON.stringify(posts.filter((p) => !p.id).map((p) => p.body)));
+    // The couple moderates: approves most waiting posts, hides one or two.
+    for (const p of posts) {
+      const to = p.status === 'pending' ? (rng.chance(0.7) ? 'shown' : rng.chance(0.5) ? 'hidden' : null) : rng.chance(0.12) ? 'hidden' : null;
+      if (!to) continue;
+      const r = await admin('/board/:id', 'PATCH', `/board/${p.id}`, { status: to });
+      check(r.status === 200, 'the couple approves or hides a post', () => `${r.status}`);
+      if (r.status === 200) p.status = to;
+    }
+    const shownTop = () => posts.filter((p) => !p.parent && p.status === 'shown');
+    const hiddenOrWaiting = posts.find((p) => !p.parent && p.status !== 'shown');
+    // Replies: a guest to a shown post; never to a waiting or hidden one.
+    for (const parent of shownTop().slice(0, 3)) {
+      const h = rng.pick(linked);
+      const body = `Reply ${++seq} from household ${h.n}`;
+      const r = await g('', 'POST', '', { token: h.token, body, parent: parent.id });
+      check(r.status === 200, 'a guest replies to a post', () => `${r.status} ${r.text.slice(0, 120)}`);
+      if (r.status === 200) posts.push({ id: await idOf(body), by: h.n, status: approve ? 'pending' : 'shown', parent: parent.id, likers: new Set(), body, pinned: false });
+    }
+    if (hiddenOrWaiting) {
+      const r = await g('', 'POST', '', { token: rng.pick(linked).token, body: 'Sneaky reply', parent: hiddenOrWaiting.id });
+      check(r.status === 404, 'no reply to a post that isn’t shown', () => `${r.status}`);
+      const l = await g('/:id/like', 'POST', `/${hiddenOrWaiting.id}/like`, { token: rng.pick(linked).token });
+      check(l.status === 404, 'no heart on a post that isn’t shown', () => `${l.status}`);
+    }
+    // Hearts: some tapped twice (taken back).
+    for (const p of posts.filter((x) => x.status === 'shown')) {
+      for (const h of linked.filter(() => rng.chance(0.15)).slice(0, 6)) {
+        const times = rng.chance(0.2) ? 2 : 1;
+        for (let t = 0; t < times; t++) {
+          const r = await g('/:id/like', 'POST', `/${p.id}/like`, { token: h.token });
+          if (r.status !== 200) {
+            check(false, 'a heart is given or taken back', () => `${r.status} ${r.text.slice(0, 120)}`);
+            continue;
+          }
+          if (p.likers.has(h.n)) p.likers.delete(h.n);
+          else p.likers.add(h.n);
+          const j = r.json<{ liked: boolean; likes: number }>();
+          check(j.liked === p.likers.has(h.n) && j.likes === p.likers.size, 'a heart counts once per invitation', () => `${JSON.stringify(j)} want ${p.likers.has(h.n)} ${p.likers.size}`);
+        }
+      }
+    }
+    // The couple pins one, replies to a waiting one (approving it), and removes one with its replies.
+    const tops = shownTop();
+    if (tops.length && rng.chance(0.6)) {
+      const pin = rng.pick(tops);
+      check((await admin('/board/:id', 'PATCH', `/board/${pin.id}`, { pinned: true })).status === 200, 'the couple pins a post');
+      pin.pinned = true;
+    }
+    const waiting = posts.find((p) => !p.parent && p.status === 'pending');
+    if (waiting && rng.chance(0.7)) {
+      const body = `Thank you! (${++seq})`;
+      const r = await admin('/board', 'POST', '/board', { body, parent: waiting.id });
+      check(r.status === 200, 'the couple replies', () => `${r.status}`);
+      if (r.status === 200) {
+        waiting.status = 'shown';
+        posts.push({ id: await idOf(body), by: null, status: 'shown', parent: waiting.id, likers: new Set(), body, pinned: false });
+      }
+    }
+    const topsNow = posts.filter((p) => !p.parent);
+    if (topsNow.length && rng.chance(0.5)) {
+      const gone = rng.pick(topsNow);
+      check((await admin('/board/:id', 'DELETE', `/board/${gone.id}`)).status === 200, 'the couple removes a post');
+      for (const p of posts.filter((x) => x === gone || x.parent === gone.id)) posts.splice(posts.indexOf(p), 1);
+    }
+    // A guest removes their own post, and can't remove someone else's.
+    const own = posts.find((p) => p.by !== null && !p.parent);
+    if (own) {
+      const h = w.houses.find((x) => x.n === own.by)!;
+      const other = posts.find((p) => p.by !== null && p.by !== own.by);
+      if (other) check((await g('/:id', 'DELETE', `/${other.id}`, { token: h.token })).status === 404, 'a guest can’t remove someone else’s post');
+      if (rng.chance(0.4)) {
+        check((await g('/:id', 'DELETE', `/${own.id}`, { token: h.token })).status === 200, 'a guest removes their own post');
+        for (const p of posts.filter((x) => x === own || x.parent === own.id)) posts.splice(posts.indexOf(p), 1);
+      }
+    }
+    // What each guest sees.
+    const ids = (xs: { id: string }[]) => xs.map((x) => x.id).sort().join(',');
+    for (const h of new Set([...posters.slice(0, 3), rng.pick(linked)])) {
+      const r = await g('', 'GET', `?g=${h.token}`);
+      if (r.status !== 200) {
+        check(false, 'a guest opens the board', () => `${r.status}`);
+        continue;
+      }
+      const j = r.json<{ posts: { id: string; pinned: boolean; likes: number; liked: boolean; mine: boolean; pending: boolean; replies: { id: string; likes: number; liked: boolean }[] }[] }>();
+      const sees = (p: BP) => p.status === 'shown' || (p.status === 'pending' && p.by === h.n);
+      const topWant = posts.filter((p) => !p.parent && sees(p));
+      check(ids(j.posts) === ids(topWant), 'a guest sees the shown posts and their own waiting ones only', () => `${j.posts.length} want ${topWant.length}`);
+      for (const tp of j.posts) {
+        const m = posts.find((p) => p.id === tp.id);
+        const rWant = posts.filter((p) => p.parent === tp.id && sees(p));
+        check(!!m && tp.likes === m.likers.size && tp.liked === m.likers.has(h.n) && tp.mine === (m.by === h.n) && tp.pending === (m.status === 'pending'), 'a post’s hearts, mine and waiting read right', () => JSON.stringify(tp).slice(0, 160));
+        check(ids(tp.replies) === ids(rWant), 'a post’s replies read right', () => `${tp.replies.length} want ${rWant.length}`);
+      }
+      const firstUnpinned = j.posts.findIndex((p) => !p.pinned);
+      check(firstUnpinned < 0 || j.posts.slice(firstUnpinned).every((p) => !p.pinned), 'pinned posts come first');
+    }
+    const a = await readAdmin();
+    check(a.pending === posts.filter((p) => p.status === 'pending').length, 'the couple’s waiting count', () => `${a.pending} want ${posts.filter((p) => p.status === 'pending').length}`);
+    check(ids(a.posts.flatMap((p) => [p, ...p.replies])) === ids(posts), 'the couple sees every post', () => `${a.posts.length}`);
+    w.board = posts[0]?.id ?? null;
+    // Closed: nothing shown, nothing taken.
+    if (rng.chance(0.3)) {
+      await must(admin('/board/settings', 'PUT', '/board/settings', { on: false, approve }), 200, 'board off');
+      const h = rng.pick(linked);
+      const r = await g('', 'GET', `?g=${h.token}`);
+      check(r.status === 200 && r.json<{ posts: unknown[] }>().posts.length === 0, 'a closed board shows nothing', () => r.text.slice(0, 120));
+      check((await g('', 'POST', '', { token: h.token, body: 'Hello?' })).status === 403, 'a closed board takes no posts');
+    }
+  }
+
+  // 12g. The budget (on the planner's plans): the usual split of the couple's total, a few lines quoted and paid
+  //      (one paid by parents), their own line, a booked vendor put on the budget, and a spreadsheet brought in
+  //      twice. The usual split adds up to the total; it saves and reads back exactly; an old copy can't
+  //      overwrite it; every payment is listed once and a vendor's payments add up to what they cost; importing
+  //      the same sheet again changes nothing. On the free plan it opens but can't be saved.
+  if (rng.chance(0.5)) {
+    type Doc<T> = { version: number; data: T };
+    const bd = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/budget'), 200, 'budget')).json<Doc<Budget>>();
+    const total = rng.int(15, 150) * 1000;
+    const heads = rng.chance(0.3) ? 0 : rng.int(2, 400);
+    const own = rng.chance(0.3);
+    const split: Record<string, number> = own ? { 'Photography and video': 0.15, 'Venue and catering': 0.41 } : {};
+    const lines = standardLines({ total, split, lines: [] }, heads);
+    const sum = lines.reduce((a, l) => a + l.estimate, 0);
+    check(Math.abs(sum - total) <= lines.length * 0.5 + heads * 0.01 + 0.01, 'the usual split adds up to the total', () => `${sum} vs ${total} (${heads} guests)`);
+    if (own) {
+      const photo = lines.filter((l) => l.category === 'Photography and video').reduce((a, l) => a + l.estimate, 0);
+      check(Math.abs(photo - total * 0.15) <= 1, 'the couple’s own split is used', () => `${photo} vs ${total * 0.15}`);
+    }
+    const due = addDays(wed.local.slice(0, 10), -rng.int(10, 90));
+    lines[0] = { ...lines[0]!, quote: lines[0]!.estimate + 500, paid: 1000, due, payer: 'Her parents' };
+    lines.push({ category: 'Other', item: 'Sparklers ✨ & bubbles', estimate: 150, quote: 0, paid: 0, due: '', vendor: '', note: 'For the exit, 8:45pm', payer: '', perHead: 0 });
+    const body: Budget = { total, guests: heads, lines, split };
+    const save = (data: unknown, version: number) => admin('/planner/doc/:kind', 'PUT', '/planner/doc/budget', data, { 'If-Match': String(version) });
+    if (w.plan === 'basic') {
+      check((await save(body, bd.version)).status === 402, 'the free plan can’t save a budget');
+    } else {
+      const s1 = await save(body, bd.version);
+      check(s1.status === 200, 'the budget saves', () => `${s1.status} ${s1.text.slice(0, 160)}`);
+      if (s1.status === 200) {
+        const v1 = s1.json<Doc<Budget>>().version;
+        const stale = await save({ ...body, total: total + 1 }, bd.version);
+        check(stale.status === 409, 'an old copy can’t overwrite the budget', () => `${stale.status}`);
+        const back = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/budget'), 200, 'budget')).json<Doc<Budget>>();
+        check(back.version === v1 && JSON.stringify(back.data.lines) === JSON.stringify(Budget.parse(body).lines) && back.data.total === total, 'the budget reads back exactly', () => JSON.stringify(back.data).slice(0, 200));
+        let cur = back;
+        // A booked vendor goes on its budget line (or one of its own).
+        const vd = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/vendors'), 200, 'vendors doc')).json<Doc<Vendors>>();
+        const booked = vd.data.list.find((x) => x.status === 'booked');
+        if (booked) {
+          const fit = budgetFit(booked, cur.data.lines);
+          const s2 = await save({ ...cur.data, lines: linkToBudget(booked, cur.data.lines, fit.suggest) }, cur.version);
+          check(s2.status === 200, 'a booked vendor goes on the budget', () => `${s2.status}`);
+          if (s2.status === 200) cur = s2.json<Doc<Budget>>();
+        }
+        const payCheck = (ls: BudgetLine[], vs: Vendor[], what: string) => {
+          const pays = allPayments(ls, vs);
+          check(new Set(pays.map((p) => p.key)).size === pays.length && pays.every((p) => p.amount >= 0), `${what}: every payment listed once`, () => JSON.stringify(pays.map((p) => p.key)));
+          for (const v of vs.filter((x) => x.status === 'booked')) {
+            const mine = pays.filter((p) => p.vendorId === v.id).reduce((a, p) => a + p.amount, 0);
+            const m = moneyOf(v, lineFor(v, ls));
+            check(Math.abs(mine - (m.total - m.unscheduled)) < 0.02, `${what}: a vendor’s payments add up to their schedule`, () => `${v.name}: ${mine} vs ${m.total} - ${m.unscheduled}`);
+          }
+        };
+        payCheck(cur.data.lines, vd.data.list, 'budget');
+        // A spreadsheet brought in (a venue on two lines, paid by its schedule), then the same one again.
+        if (rng.chance(0.5)) {
+          const venue = `Seaside Hall ${w.i}`;
+          const secondPaid = rng.chance(0.5);
+          const sheets: Sheet[] = [
+            { name: 'Tracker', rows: [['Item', 'Vendor', 'Agreed', 'Paid'], ['Venue hire', venue, rng.int(4, 12) * 1000, 0], ['Catering', venue, rng.int(8, 30) * 1000, 0], ['Cake', 'Not yet', 0, 0]] },
+            { name: 'Payments', rows: [['Vendor', 'Instalment', 'Amount', 'Paid?'], [venue, 'Deposit', 3000, 'Yes'], [venue, 'Second', 2500, secondPaid ? 'Yes' : ''], [venue, 'Balance', 7000, '']] },
+          ];
+          const imp = readBudgetSheets(sheets);
+          let n = 0;
+          const bring = async (what: string) => {
+            const bb = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/budget'), 200, 'budget')).json<Doc<Budget>>();
+            const vv = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/vendors'), 200, 'vendors doc')).json<Doc<Vendors>>();
+            const m = mergeImport(bb.data, vv.data, imp, () => `imp${w.i}-${++n}`);
+            const a1 = await save(m.budget, bb.version);
+            const a2 = await admin('/planner/doc/:kind', 'PUT', '/planner/doc/vendors', m.vendors, { 'If-Match': String(vv.version) });
+            check(a1.status === 200 && a2.status === 200, `${what}: the import saves`, () => `${a1.status} ${a2.status}`);
+            return { b: (a1.status === 200 ? a1.json<Doc<Budget>>().data : m.budget) as Budget, v: (a2.status === 200 ? a2.json<Doc<Vendors>>().data : m.vendors) as Vendors };
+          };
+          const one = await bring('a budget import');
+          const venueLines = one.b.lines.filter((l) => l.vendor === venue);
+          const paidSched = 3000 + (secondPaid ? 2500 : 0);
+          check(venueLines.length === 2 && Math.abs(venueLines.reduce((a, l) => a + l.paid, 0) - paidSched) < 0.02, 'a venue on two lines keeps both, paid counted once', () => JSON.stringify(venueLines.map((l) => [l.item, l.paid])));
+          payCheck(one.b.lines, one.v.list, 'after an import');
+          const two = await bring('the same import again');
+          check(two.b.lines.length === one.b.lines.length && two.v.list.length === one.v.list.length && JSON.stringify(two.b.lines) === JSON.stringify(one.b.lines), 'importing the same sheet again changes nothing', () => `${one.b.lines.length}->${two.b.lines.length} lines, ${one.v.list.length}->${two.v.list.length} vendors`);
+        }
+      }
+    }
+  }
+
   // 13. Everything agrees everywhere.
   await checkAll(b, w, check, guests);
   w.done = true;
@@ -1361,6 +1608,11 @@ async function crossProbes(b: Batch, ws: Wed[], check: (i: number) => Check) {
     c((await call('PATCH /a/w/:wid/guests/:id', 'PATCH', `/a/w/${a.id}/guests/${h.id}`, { cookie: a.cookie, body: { party: 'Mine now' }, headers: { 'If-Match': '1' } })).status === 404, 'a couple can’t change another wedding’s guest');
     c((await call('PUT /a/w/:wid/people/:pid/meal', 'PUT', `/a/w/${a.id}/people/${h.personIds[0]}/meal`, { cookie: a.cookie, body: { menu: '', entree: '', main: 'x', dessert: '' } })).status === 404, 'a couple can’t give another wedding’s guest a meal');
     if (o.photos[0]) c((await call('GET /a/w/:wid/photos/:id', 'GET', `/a/w/${a.id}/photos/${o.photos[0].id}`, { cookie: a.cookie })).status === 404, 'a couple can’t open another wedding’s photo');
+    if (o.board) {
+      c((await call('POST /p/:slug/board/:id/like', 'POST', `/p/${a.slug}/board/${o.board}/like`, { body: { token: a.houses[0]!.token } })).status === 404, 'no heart on another wedding’s board post');
+      c((await call('PATCH /a/w/:wid/board/:id', 'PATCH', `/a/w/${a.id}/board/${o.board}`, { cookie: a.cookie, body: { status: 'hidden' } })).status === 404, 'a couple can’t hide another wedding’s board post');
+      c((await call('GET /p/:slug/board', 'GET', `/p/${a.slug}/board?g=${h.token}`)).status === 404, 'another wedding’s link opens no board here');
+    }
     if (a.vendor && (!o.vendor || o.vendor.k !== a.vendor.k)) {
       const v = b.vendors[a.vendor.k]!;
       c((await call('GET /a/vendor/couples/:wid/details', 'GET', `/a/vendor/couples/${o.id}/details`, { cookie: v.cookie })).status === 404, 'a vendor can’t open a couple they don’t work with');
