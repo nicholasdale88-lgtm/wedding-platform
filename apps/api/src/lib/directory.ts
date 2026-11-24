@@ -167,8 +167,18 @@ export async function recordUse(db: D1Database, weddingId: string, list: Vendor[
   const now = new Date().toISOString();
   const stmts: D1PreparedStatement[] = [];
   const keep: string[] = [];
+  // A vendor added by hand whose email is a listed vendor's is that listing (the couple's own vendor, on The Yes
+  // List): it counts for them, booked or not, like one added from the directory. (A proposal accepted from such
+  // a vendor books it; without this, the couple's next save of their list took the booking away again.)
+  const emails = [...new Set(list.filter((v) => !v.dirId?.startsWith('v:') && v.email?.trim()).map((v) => v.email.trim().toLowerCase()))].slice(0, 50);
+  const listed = new Map<string, string>();
+  if (emails.length) {
+    const { results } = await db.prepare(`SELECT id, lower(email) AS email FROM vendor_listing WHERE hidden = 0 AND lower(email) IN (${emails.map(() => '?').join(',')})`).bind(...emails).all<{ id: string; email: string }>();
+    for (const l of results) if (!listed.has(l.email)) listed.set(l.email, l.id);
+  }
   for (const v of list) {
-    let dir = v.dirId;
+    const byEmail = !v.dirId && v.email?.trim() ? listed.get(v.email.trim().toLowerCase()) : undefined;
+    let dir = v.dirId || (byEmail ? `v:${byEmail}` : '');
     if (!dir && venue && v.status === 'booked' && (v.phone || v.website || v.email)) {
       const category = searchKeyOf(`${v.category} ${v.name}`);
       if (category) {
@@ -201,12 +211,8 @@ export async function recordUse(db: D1Database, weddingId: string, list: Vendor[
     if (dir.startsWith('v:'))
       stmts.push(db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'added', 'active', ?)`).bind(dir.slice(2), weddingId, now));
   }
-  // A vendor added by hand whose email is a listed vendor's: linked too (the couple's own vendor, on The Yes List).
-  const emails = [...new Set(list.filter((v) => !v.dirId?.startsWith('v:') && v.email?.trim()).map((v) => v.email.trim().toLowerCase()))].slice(0, 50);
-  if (emails.length) {
-    const { results: listed } = await db.prepare(`SELECT id FROM vendor_listing WHERE hidden = 0 AND lower(email) IN (${emails.map(() => '?').join(',')})`).bind(...emails).all<{ id: string }>();
-    for (const l of listed) stmts.push(db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'added', 'active', ?)`).bind(l.id, weddingId, now));
-  }
+  // Linked too when another entry (with a directory id from elsewhere) has a listed vendor's email.
+  for (const id of new Set(listed.values())) stmts.push(db.prepare(`INSERT OR IGNORE INTO vendor_couple (listing_id, wedding_id, source, status, created_at) VALUES (?, ?, 'added', 'active', ?)`).bind(id, weddingId, now));
   // A vendor taken off their list no longer counts for them.
   const { results: had } = await db.prepare(`SELECT dir_id FROM vendor_use WHERE wedding_id = ?`).bind(weddingId).all<{ dir_id: string }>();
   const kept = new Set(keep);

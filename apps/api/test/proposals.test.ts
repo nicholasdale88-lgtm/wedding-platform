@@ -106,6 +106,30 @@ describe('fee proposals', () => {
     expect((await json<{ proposals: { status: string }[] }>(call('/a/vendor/proposals', {}, vendor.cookie))).proposals[0]!.status).toBe('accepted');
   });
 
+  it('a vendor the couple added by hand (by their email) stays booked after the couple saves their vendor list again; found by the stress run', async () => {
+    const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
+    const couple = await signup('Ava', 'ava@example.com');
+    await t.db.prepare(`UPDATE wedding SET plan = 'essentials' WHERE id = ?`).bind(couple.wid).run();
+    const doc = (path: string, body?: unknown, version?: number) =>
+      call(`/a/w/${couple.wid}/planner/doc/${path}`, body === undefined ? {} : { method: 'PUT', body: JSON.stringify(body), headers: { 'If-Match': String(version ?? 0) } }, couple.cookie);
+    const entry = { id: 'v-hand', name: 'Wildflower Studio', category: 'Florist', status: 'contacted', email: 'Jess@Wildflower.example' };
+    expect((await doc('vendors', { list: [entry] }, 0)).status).toBe(200);
+    const sent = await json<{ link: string }>(call('/a/vendor/proposals', { method: 'POST', body: JSON.stringify(proposal({ couple: couple.wid })) }, vendor.cookie));
+    expect(await json(call(`/directory/proposal/${sent.link.split('/').pop()}/answer`, { method: 'POST', body: JSON.stringify({ answer: 'accept' }) }))).toEqual({ status: 'accepted' });
+    const status = async () => (await json<{ couples: { id: string; status: string }[] }>(call('/a/vendor/couples', {}, vendor.cookie))).couples.find((c) => c.id === couple.wid)?.status;
+    expect(await status()).toBe('booked');
+    // The couple adds a payment to their list (any save of it): the vendor still sees them as booked.
+    const cur = await json<{ version: number; data: { list: { id: string; status: string; payments: unknown[] }[] } }>(doc('vendors'));
+    expect(cur.data.list.find((v) => v.id === 'v-hand')?.status).toBe('booked');
+    const list = cur.data.list.map((v) => (v.id === 'v-hand' ? { ...v, payments: [{ id: 'p1', label: 'Deposit', amount: 500, due: '2027-01-10', paid: true, paidOn: '2027-01-02' }] } : v));
+    expect((await doc('vendors', { ...cur.data, list }, cur.version)).status).toBe(200);
+    expect(await status()).toBe('booked');
+    // Taken off their list: no longer counted as booked.
+    const again = await json<{ version: number; data: { list: unknown[] } }>(doc('vendors'));
+    expect((await doc('vendors', { ...again.data, list: [] }, again.version)).status).toBe(200);
+    expect(await status()).not.toBe('booked');
+  });
+
   it('accept tried again after "busy" (the first was saved, its follow-ups weren’t): answered as before, booked, the vendor told once; found by the stress run', async () => {
     const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
     const couple = await signup('Ava', 'ava@example.com', vendor.slug);
