@@ -10,6 +10,7 @@ import { calendarControl, eventOfSection, useInvitation } from '../guest/invitat
 import { lookOf, sceneOf, THEME_NAMES, themeOf } from '../guest/themeKit';
 import { SceneOverlay } from '../guest/invitation/Scene';
 import '../guest/looks.css';
+import './sample.css';
 import { MotionPortal } from '../guest/invitation/Motion';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 import { BRAND } from './SalesPage';
@@ -42,7 +43,6 @@ export function DemoPage() {
   if (embed || cover)
     return (
       <div className="yl-sample-embed contents">
-        <style>{SAMPLE_CSS}</style>
         <SampleInvitation key={theme ?? ''} {...props} />
       </div>
     );
@@ -91,20 +91,6 @@ export function DemoPage() {
 
 /** The sample bar's slot: 56px, below the phone's status bar. */
 const BAR_H = 'calc(56px + env(safe-area-inset-top))';
-
-/**
- * The sample's chrome (VS-02), for the public sample only: real couples' invitations are untouched.
- * - The invitation's own Music pill (fixed over the bottom of the card) is replaced by the one in the bar, and
- *   isn't shown on the front page's phone.
- * - The envelope's layers are clipped to the screen, so flaps swinging open never widen the page.
- * - "Scroll for details" fades once the guest has scrolled.
- */
-const SAMPLE_CSS = `
-.yl-sample [aria-label="Open invitation"] > button, .yl-sample-embed [aria-label="Open invitation"] > button { display: none; }
-.yl-sample [aria-label="Open invitation"] > div:not(#inv-scroll), .yl-sample-embed [aria-label="Open invitation"] > div:not(#inv-scroll) { overflow: hidden; }
-.yl-sample #inv-scroll section[data-screen-label="01 Welcome"] div[style*="cursor: pointer"] { transition: opacity .35s ease !important; }
-.yl-sample[data-scrolled] #inv-scroll section[data-screen-label="01 Welcome"] div[style*="cursor: pointer"] { opacity: 0 !important; pointer-events: none; }
-`;
 
 /** The Music control for the bar. */
 type Music = { on: boolean; label: string; toggle: (e: MouseEvent) => void };
@@ -164,6 +150,14 @@ export function SampleInvitation({
       el?.removeEventListener('scroll', onScroll);
     };
   }, [chrome]);
+  // The opening has finished (the envelope faded out): its layer can go (./sample.css).
+  useEffect(() => {
+    if (!chrome || phase < 4) return;
+    const id = window.setTimeout(() => {
+      if (frame.current) frame.current.dataset.opened = '';
+    }, 3000);
+    return () => window.clearTimeout(id);
+  }, [chrome, phase]);
   const music: Music | null = core.hasAudio ? { on: core.musicIcon === t('inv.dyn.musicOn'), label: core.musicIcon, toggle: (e) => core.toggleMusic(e) } : null;
   const body = (
     <>
@@ -198,7 +192,6 @@ export function SampleInvitation({
   if (!chrome) return body;
   return (
     <>
-      <style>{SAMPLE_CSS}</style>
       <div ref={frame} className="yl-sample fixed left-0 right-0 bottom-0 overflow-hidden" style={{ top: BAR_H, transform: 'translateZ(0)' }}>
         {body}
       </div>

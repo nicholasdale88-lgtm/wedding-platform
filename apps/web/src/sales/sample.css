@@ -1,0 +1,26 @@
+/*
+ * The public sample's chrome (/demo, VS-02); real couples' invitations are untouched.
+ * - The invitation's own Music pill (fixed over the bottom of the card) is replaced by the one in the bar, and
+ *   isn't shown on the front page's phone.
+ * - The envelope's layers are clipped to the screen, so flaps swinging open never widen the page; once the
+ *   opening has finished, the faded envelope (left zoomed to 1.16) is taken out altogether.
+ * - "Scroll for details" fades once the guest has scrolled.
+ */
+.yl-sample [aria-label="Open invitation"] > button,
+.yl-sample-embed [aria-label="Open invitation"] > button {
+  display: none;
+}
+.yl-sample [aria-label="Open invitation"] > div:not(#inv-scroll),
+.yl-sample-embed [aria-label="Open invitation"] > div:not(#inv-scroll) {
+  overflow: hidden;
+}
+.yl-sample[data-opened] [aria-label="Open invitation"] > div:not(#inv-scroll):not(#inv-cue) {
+  display: none;
+}
+.yl-sample #inv-scroll section[data-screen-label="01 Welcome"] div[style*="cursor: pointer"] {
+  transition: opacity 0.35s ease !important;
+}
+.yl-sample[data-scrolled] #inv-scroll section[data-screen-label="01 Welcome"] div[style*="cursor: pointer"] {
+  opacity: 0 !important;
+  pointer-events: none;
+}

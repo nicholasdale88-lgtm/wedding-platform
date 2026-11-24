@@ -339,7 +339,9 @@ test('VS-02: on the sample, the bar and Music never cover the card, the reply or
   expect(frame.y, 'the invitation starts below the bar').toBeGreaterThanOrEqual(bar.y + bar.height - 1);
   await page.getByRole('button', { name: 'Open invitation' }).click();
   await expect(page.getByRole('button', { name: 'Add to calendar' }).first()).toBeAttached({ timeout: 20_000 });
-  await page.waitForTimeout(4500);
+  // The opening has finished and settled (the faded envelope is taken out).
+  await expect(page.locator('.yl-sample[data-opened]')).toBeAttached({ timeout: 20_000 });
+  await page.waitForTimeout(800);
   const covered = async (sel: string) => {
     const el = page.locator(sel).first();
     await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
