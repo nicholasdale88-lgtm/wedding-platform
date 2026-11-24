@@ -385,7 +385,7 @@ export function VendorCalendar({ data, couples, onBusy }: { data: MyListing; cou
               ))}
             {!couples.some((c) => day(c.date).slice(0, 7) === month) && <p className="m-0 text-[14px]" style={{ color: SOFT }}>No weddings this month.</p>}
             <p className="m-0 text-[13px]" style={{ color: SOFT }}>
-              Tap a day to see it, or to mark it unavailable (couples enquiring for that date are told you’re booked).
+              Tap a day to see it, or to mark it unavailable.
             </p>
           </>
         ) : (

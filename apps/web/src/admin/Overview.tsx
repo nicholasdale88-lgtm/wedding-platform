@@ -185,13 +185,13 @@ function Today({ o, to, event }: { o: NonNullable<ReturnType<typeof useAdmin>['o
     { label: 'Share the invitation', run: () => void share() },
   ];
   return (
-    <section aria-label="Quick actions" className="flex gap-2 overflow-x-auto [scrollbar-width:none] -mx-4 px-4 min-[760px]:mx-0 min-[760px]:px-0 min-[760px]:flex-wrap">
+    <section aria-label="Quick actions" className="grid grid-cols-2 gap-2 min-[760px]:flex min-[760px]:flex-wrap">
       {actions.map((a) => (
         <button
           key={a.label}
           type="button"
           onClick={a.run}
-          className="flex-none flex items-center gap-2 py-[9px] px-4 min-h-[44px] rounded-full border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[14px] font-medium cursor-pointer whitespace-nowrap hover:bg-[var(--adm-tint,#efe7d3)]"
+          className="min-w-0 flex-none flex items-center justify-center text-center gap-2 py-[9px] px-3 min-[760px]:px-4 min-h-[44px] rounded-full border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[14px] leading-tight font-medium cursor-pointer min-[760px]:whitespace-nowrap hover:bg-[var(--adm-tint,#efe7d3)]"
         >
           {a.label}
           {!!a.badge && <span className="min-w-[20px] h-[20px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[12px] leading-[20px] text-center">{a.badge}</span>}

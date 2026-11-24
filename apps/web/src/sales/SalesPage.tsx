@@ -299,13 +299,13 @@ export function SalesPage() {
           <Wordmark size={22} />
         </Link>
         <nav aria-label="Main" className="flex items-center gap-3 sm:gap-5 text-[15px]">
-          <a href="#pricing" className="no-underline hidden sm:inline" style={{ color: INK }}>
+          <a href="#pricing" className="no-underline hidden sm:inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             Pricing
           </a>
-          <Link to="/vendors" className="no-underline hidden sm:inline" style={{ color: INK }}>
+          <Link to="/vendors" className="no-underline hidden sm:inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             Vendor directory
           </Link>
-          <Link to="/admin" className="no-underline hidden sm:inline" style={{ color: INK }}>
+          <Link to="/admin" className="no-underline hidden sm:inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             Sign in
           </Link>
           <a href="#start" className="inline-flex items-center min-h-[44px] px-5 rounded-full no-underline text-[14px] font-semibold whitespace-nowrap" style={{ background: INK, color: '#fbf1e8' }}>
@@ -705,33 +705,33 @@ export function SalesPage() {
         </section>
       </main>
 
-      <footer className="py-8 px-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px]" style={{ color: SOFT }}>
+      <footer className="py-8 px-4 flex flex-wrap justify-center gap-x-6 gap-y-0 items-center text-[13px]" style={{ color: SOFT }}>
         <span>
           © {new Date().getFullYear()} {BRAND}. All rights reserved: our designs, templates and software are protected by copyright. Australian owned and operated.
         </span>
-        <Link to="/admin" style={{ color: SOFT }}>
+        <Link to="/admin" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
           Sign in
         </Link>
-        <Link to="/vendors" style={{ color: SOFT }}>
+        <Link to="/vendors" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
           Vendor directory
         </Link>
-        <Link to="/vendors/join" style={{ color: SOFT }}>
+        <Link to="/vendors/join" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
           Wedding vendor? List your business free
         </Link>
-        <Link to="/privacy" style={{ color: SOFT }}>
+        <Link to="/privacy" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
           Privacy
         </Link>
-        <Link to="/terms" style={{ color: SOFT }}>
+        <Link to="/terms" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
           Terms
         </Link>
-        <Link to="/contact" style={{ color: SOFT }}>
+        <Link to="/contact" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
           Contact
         </Link>
         {site &&
           (Object.entries(site.social) as [string, string][])
             .filter(([, u]) => /^https:\/\//.test(u))
             .map(([k, u]) => (
-              <a key={k} href={u} target="_blank" rel="noopener noreferrer" style={{ color: SOFT }}>
+              <a key={k} href={u} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
                 {k === 'tiktok' ? 'TikTok' : k === 'youtube' ? 'YouTube' : k.charAt(0).toUpperCase() + k.slice(1)}
               </a>
             ))}

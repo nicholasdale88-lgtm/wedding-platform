@@ -162,7 +162,7 @@ export function DirectoryPage() {
           <span style={{ color: SOFT }}>The directory is new and growing. Try anywhere in Australia, or all vendors.</span>
           <span style={{ color: SOFT }}>
             Are you a wedding vendor?{' '}
-            <Link to="/vendors/join" style={{ color: INK }}>
+            <Link to="/vendors/join" className="inline-flex items-center min-h-[44px]" style={{ color: INK }}>
               List your business free
             </Link>
             .
@@ -408,7 +408,7 @@ const MAX_PACKAGES = 8;
 /** Before saving: blank "included" lines dropped. */
 const tidy = (f: ListingFields): ListingFields => ({ ...f, packages: f.packages.map((p) => ({ ...p, includes: p.includes.map((x) => x.trim()).filter(Boolean) })) });
 const NEW_PACKAGE: ListingPackage = { name: '', price: 0, unit: 'total', includes: [], popular: false };
-const small = 'min-h-[40px] min-w-[40px] px-3 rounded-full border border-[#d3c6a4] bg-white text-[14px] cursor-pointer disabled:opacity-40';
+const small = 'min-h-[44px] min-w-[44px] px-3 rounded-full border border-[#d3c6a4] bg-white text-[14px] cursor-pointer disabled:opacity-40';
 
 /** The vendor's packages: one card each, with what's included, which is most popular, and their order. */
 function PackagesEditor({ value, onChange }: { value: ListingPackage[]; onChange: (v: ListingPackage[]) => void }) {
@@ -478,7 +478,7 @@ function PackagesEditor({ value, onChange }: { value: ListingPackage[]; onChange
               </button>
             )}
           </div>
-          <label className="flex items-center gap-2 text-[14px] cursor-pointer min-h-[40px]">
+          <label className="flex items-center gap-2 text-[14px] cursor-pointer min-h-[44px]">
             <input
               type="checkbox"
               checked={p.popular}
@@ -538,10 +538,10 @@ function ListingForm({ value, onChange }: { value: ListingFields; onChange: (v: 
         </label>
       </div>
       <details className="rounded-[10px] border border-[#d3c6a4] bg-white">
-        <summary className="cursor-pointer py-[10px] px-3 text-[14px]">Also travel to{value.regions.length ? `: ${value.regions.map(where).join(', ')}` : ' (optional)'}</summary>
+        <summary className="cursor-pointer min-h-[44px] flex items-center py-[10px] px-3 text-[14px]">Also travel to{value.regions.length ? `: ${value.regions.map(where).join(', ')}` : ' (optional)'}</summary>
         <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2 px-3 pb-3">
           {REGIONS.filter((r) => r.slug !== value.region).map((r) => (
-            <label key={r.slug} className="flex items-center gap-2 text-[14px] cursor-pointer">
+            <label key={r.slug} className="flex items-center gap-2 text-[14px] cursor-pointer min-h-[44px]">
               <input
                 type="checkbox"
                 checked={value.regions.includes(r.slug)}
@@ -999,7 +999,7 @@ function SignIn({ onIn }: { onIn: () => void }) {
         </button>
         <span className="text-[14px]" style={{ color: SOFT }}>
           Not listed yet?{' '}
-          <Link to="/vendors/join" style={{ color: INK }}>
+          <Link to="/vendors/join" className="inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             List your business free
           </Link>
         </span>

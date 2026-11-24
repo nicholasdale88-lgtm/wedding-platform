@@ -24,6 +24,9 @@ const markBooked = () => {
   }
 };
 
+const NO_NAME = 'Please add your first name.';
+const BAD_EMAIL = 'Please check your email address.';
+const EMAIL = /^\S+@\S+\.\S+$/;
 const INK = '#3a2532';
 const SOFT = '#6e6068';
 const field = 'w-full py-3 px-4 rounded-[12px] border border-[#e3cfc6] bg-white text-[16px] text-[#3a2532] outline-none focus:border-[#3a2532]';
@@ -39,8 +42,8 @@ export function TrialPage() {
   }, [go]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!f.name1.trim()) return setProblem('Please add your first name.');
-    if (!/^\S+@\S+\.\S+$/.test(f.email.trim())) return setProblem('Please check your email address.');
+    if (!f.name1.trim()) return setProblem(NO_NAME);
+    if (!EMAIL.test(f.email.trim())) return setProblem(BAD_EMAIL);
     setBusy(true);
     setProblem('');
     try {
@@ -56,10 +59,10 @@ export function TrialPage() {
     <div className="min-h-screen" style={{ background: 'radial-gradient(120% 90% at 85% 0%, #5e2c3c 0%, #3d2634 55%, #2a1c26 100%)', color: '#f3ecd6' }}>
       <div style={{ background: '#fffcf8' }}>
         <header className="max-w-[1100px] mx-auto px-4 py-5 flex justify-between items-center">
-          <Link to="/" aria-label="The Yes List" className="no-underline">
+          <Link to="/" aria-label="The Yes List" className="no-underline inline-flex items-center min-h-[44px]">
             <Wordmark size={22} />
           </Link>
-          <Link to="/" className="text-[15px] no-underline" style={{ color: INK }}>
+          <Link to="/" className="text-[15px] no-underline inline-flex items-center min-h-[44px] px-2" style={{ color: INK }}>
             ← Back
           </Link>
         </header>
@@ -86,7 +89,7 @@ export function TrialPage() {
             <div className="grid grid-cols-2 gap-3">
               <label className="flex flex-col gap-1 text-[14px] font-semibold">
                 Your first name
-                <input className={field} autoComplete="given-name" value={f.name1} onChange={(e) => setF({ ...f, name1: e.target.value })} placeholder="Harriet" maxLength={60} />
+                <input className={field} autoComplete="given-name" value={f.name1} onChange={(e) => { setF({ ...f, name1: e.target.value }); if (e.target.value.trim() && problem === NO_NAME) setProblem(''); }} placeholder="Harriet" maxLength={60} />
               </label>
               <label className="flex flex-col gap-1 text-[14px] font-semibold">
                 Your partner’s
@@ -95,7 +98,7 @@ export function TrialPage() {
             </div>
             <label className="flex flex-col gap-1 text-[14px] font-semibold">
               Email
-              <input className={field} type="email" inputMode="email" autoComplete="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="you@example.com" maxLength={200} />
+              <input className={field} type="email" inputMode="email" autoComplete="email" value={f.email} onChange={(e) => { setF({ ...f, email: e.target.value }); if (problem === BAD_EMAIL && EMAIL.test(e.target.value.trim())) setProblem(''); }} placeholder="you@example.com" maxLength={200} />
             </label>
             <label className="flex flex-col gap-1 text-[14px] font-semibold">
               Wedding date <span className="font-normal" style={{ color: SOFT }}>(if you know it)</span>
@@ -116,7 +119,14 @@ export function TrialPage() {
               {busy ? 'Opening your trial…' : 'Start my free trial'}
             </button>
             <span className="text-[12px] text-center" style={{ color: SOFT }}>
-              We keep your details private and never sell them. <Link to="/privacy" style={{ color: SOFT }}>Privacy</Link>
+              We keep your details private and never sell them.{' '}
+              <Link to="/privacy" className="inline-flex items-center min-h-[44px] px-1" style={{ color: SOFT }}>
+                Privacy
+              </Link>
+              {' · '}
+              <Link to="/terms" className="inline-flex items-center min-h-[44px] px-1" style={{ color: SOFT }}>
+                Terms
+              </Link>
             </span>
           </form>
         </div>

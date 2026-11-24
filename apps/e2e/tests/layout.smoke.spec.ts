@@ -281,3 +281,47 @@ test('the vendor account wears their look: a side menu on a computer, a bottom b
   expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
   expect(problems).toEqual([]);
 });
+
+test('Sentinel retest: vendor links, /try and the demo bar are 44px taps; the sample shows no [placeholders]', async ({ page }, info) => {
+  const tall = async (loc: ReturnType<Page['locator']>, what: string) => {
+    await loc.scrollIntoViewIfNeeded();
+    expect((await loc.boundingBox())!.height, what).toBeGreaterThanOrEqual(43.5);
+  };
+  await page.goto('/');
+  const foot = page.locator('footer').last();
+  await tall(foot.getByRole('link', { name: 'Vendor directory', exact: true }), 'footer Vendor directory');
+  await tall(foot.getByRole('link', { name: 'Wedding vendor? List your business free' }), 'footer List your business');
+  if (!phone(info.project.name)) await tall(page.locator('header').first().getByRole('link', { name: 'Vendor directory', exact: true }), 'header Vendor directory');
+  await page.goto('/vendors/join');
+  await tall(page.locator('summary', { hasText: 'Also travel to' }), 'Also travel to');
+  await page.locator('summary', { hasText: 'Also travel to' }).click();
+  await tall(page.locator('details label').first(), 'a region checkbox');
+  await tall(page.getByRole('button', { name: '+ Add a package' }), '+ Add a package');
+  // /try: the stale error clears once the name is in; every link a 44px tap; Terms is there.
+  await page.goto('/try');
+  await page.getByRole('button', { name: 'Start my free trial' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Please add your first name.');
+  await page.getByLabel('Your first name').fill('Harriet');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await tall(page.getByRole('link', { name: 'The Yes List' }).first(), '/try wordmark');
+  await tall(page.getByRole('link', { name: 'Privacy' }), '/try Privacy');
+  await tall(page.getByRole('link', { name: 'Terms' }), '/try Terms');
+  // The sample app's bar.
+  await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));
+  await page.goto('/admin/demo/wedding/overview');
+  const bar = page.getByRole('region', { name: 'Sample wedding' });
+  await expect(bar).toBeVisible({ timeout: 20_000 });
+  await tall(bar.getByRole('link', { name: 'Back to The Yes List' }), 'demo Back');
+  for (const r of await bar.getByRole('radio').all()) await tall(r, 'plan pill');
+  await tall(bar.getByRole('link', { name: /Start/ }), 'Start yours');
+  if (phone(info.project.name)) {
+    await expect(bar.getByText('Sample, nothing is sent')).toBeVisible();
+    const share = page.getByRole('button', { name: 'Share the invitation' });
+    const box = (await share.boundingBox())!;
+    expect(box.x + box.width, 'Share the invitation fits').toBeLessThanOrEqual(page.viewportSize()!.width);
+  }
+  // No [placeholder] in what a guest reads on the sample invitation.
+  await page.goto('/demo');
+  await expect(page.getByRole('button', { name: 'Open invitation' })).toBeVisible({ timeout: 20_000 });
+  expect(await page.evaluate(() => document.body.innerText.includes('['))).toBe(false);
+});

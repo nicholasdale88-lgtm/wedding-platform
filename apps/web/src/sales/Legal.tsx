@@ -38,10 +38,10 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-h-screen bg-[#f6f0e2] flex flex-col" style={{ color: INK, fontFamily: sans }}>
       <header className="max-w-[1100px] w-full mx-auto px-4 py-4 flex justify-between items-center gap-3">
-        <Link to="/" aria-label={`${BRAND} home`} className="no-underline">
+        <Link to="/" aria-label={`${BRAND} home`} className="no-underline inline-flex items-center min-h-[44px]">
           <Wordmark size={22} />
         </Link>
-        <Link to="/admin" className="no-underline text-[15px]" style={{ color: INK }}>
+        <Link to="/admin" className="no-underline text-[15px] inline-flex items-center min-h-[44px]" style={{ color: INK }}>
           Sign in
         </Link>
       </header>
@@ -62,20 +62,20 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
 /** The footer shared by the legal pages (the front page has its own, with the same links). */
 function LegalFooter() {
   return (
-    <footer className="border-t border-[#e2d7bc] py-6 px-4 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[13px]" style={{ color: SOFT }}>
+    <footer className="border-t border-[#e2d7bc] py-6 px-4 flex flex-wrap justify-center gap-x-6 gap-y-0 items-center text-[13px]" style={{ color: SOFT }}>
       <span>
         © {new Date().getFullYear()} {BRAND}. All rights reserved. Australian owned and operated.
       </span>
-      <Link to="/" style={{ color: SOFT }}>
+      <Link to="/" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
         Home
       </Link>
-      <Link to="/privacy" style={{ color: SOFT }}>
+      <Link to="/privacy" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
         Privacy
       </Link>
-      <Link to="/terms" style={{ color: SOFT }}>
+      <Link to="/terms" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
         Terms
       </Link>
-      <Link to="/contact" style={{ color: SOFT }}>
+      <Link to="/contact" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
         Contact
       </Link>
     </footer>

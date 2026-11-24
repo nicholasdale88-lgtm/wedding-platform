@@ -3,7 +3,7 @@ import generic from '../../../../seed/texts.generic.json';
 import dynamic from '../../../../seed/texts.dynamic.json';
 import type { GuidePayload, PhotoPagePayload, ThanksPayload } from '../guest/invitation/api';
 import { readDemoPages } from '../try/demoMode';
-import { SAMPLE, SAMPLE_INVITE } from './sample';
+import { fillSample, SAMPLE, SAMPLE_INVITE } from './sample';
 
 /**
  * The sample wedding's night-before guide (/demo/tomorrow): what Emma and Tom open the evening before, with
@@ -69,7 +69,7 @@ export function sampleThanks(mine = false): ThanksPayload {
   };
 }
 
-const all = { ...(generic as Record<string, string>), ...(dynamic as Record<string, string>) };
+const all = fillSample({ ...(generic as Record<string, string>), ...(dynamic as Record<string, string>) });
 
 /** The sample wedding's photo page (/demo/photos): try every frame and look; nothing is sent. */
 export function samplePhotos(): PhotoPagePayload {
@@ -89,7 +89,7 @@ export function samplePhotos(): PhotoPagePayload {
   };
 }
 
-const texts = Object.fromEntries(Object.entries({ ...(generic as Record<string, string>), ...(dynamic as Record<string, string>) }).filter(([k]) => k.startsWith('gd.')));
+const texts = Object.fromEntries(Object.entries(fillSample({ ...(generic as Record<string, string>), ...(dynamic as Record<string, string>) })).filter(([k]) => k.startsWith('gd.')));
 
 /** The guide as Emma and Tom see it; `mine`: with the sample app's Setup changes (this tab only). */
 export function sampleGuide(mine = false): GuidePayload {

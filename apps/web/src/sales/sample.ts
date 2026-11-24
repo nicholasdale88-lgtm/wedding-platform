@@ -17,6 +17,87 @@ export const SAMPLE = {
   date: 'Saturday 20 March 2027',
 } as const;
 
+/**
+ * The sample's own values for every [placeholder] left in the starting wording (YL-016): a guest of Harriet and
+ * Theo's never sees a bracket. Any placeholder added later and not listed here shows its words without brackets.
+ */
+export const SAMPLE_PLACEHOLDERS: Record<string, string> = {
+  '(about how long)': '(about 2 hours 30 minutes)',
+  'A line about places to stay nearby.': 'There are guesthouses and cottages within ten minutes of the estate.',
+  'A line about your second celebration.': 'Join us the next morning for a slow brunch on the verandah.',
+  'A short line about this hotel': 'Boutique guesthouse with breakfast on the verandah',
+  'Anything guests need to buy or book to get in.': 'Nothing to book: just tell us when you reply.',
+  'Anything to know on the drive: tolls, roadworks.': 'There are tolls on the M1; the last 10 km are winding country roads.',
+  'Arrival details.': 'Arrive from 10:30am; coffee is on.',
+  'Ceremony venue': SAMPLE.venue,
+  'Date and session time': 'Sunday 21 March, 10:30am',
+  'Day, date': 'Saturday, 20 March 2027',
+  Day: 'Saturday',
+  Days: 'Saturday and Sunday',
+  'Food or shops nearby, and their hours: ': 'Pokolbin General Store, open 7am to 6pm: ',
+  'Hotel 1': 'Vine Cottage Guesthouse',
+  'Hotel 2': 'Ridgeline Lodge',
+  'Hotel 3': 'Old Dairy Cottages',
+  'How far it is from the nearest town and the city': '10 minutes from Cessnock, about 2 hours 30 minutes from Sydney',
+  'How guests book it.': 'Tell us when you reply; we’ll save you a place.',
+  'How guests book the activity, and when.': 'Tick it when you reply, by 1 February.',
+  'How long it takes': 'About 2 hours 30 minutes',
+  'How to book a campsite, if there is one.': 'There’s no camping at the estate.',
+  'How to book it.': 'Tick it when you reply.',
+  'How to book': 'Booking',
+  'Is the phone reception good there?': 'Phone reception is good across the estate.',
+  'Places to stay at or near the venue.': 'Guesthouses and cottages within ten minutes of the estate.',
+  'RSVP date': '1 February 2027',
+  'Reception venue': SAMPLE.venue,
+  'Second celebration: day and date': 'Sunday, 21 March 2027',
+  'Session time': '10:30am',
+  'Taxi company': 'Valley Cabs',
+  'The activity': 'A vineyard walk',
+  'The nearest supermarket, and how far it is.': 'The nearest supermarket is in Cessnock, 10 minutes away.',
+  'The venue': SAMPLE.venue,
+  'Time and place. What to bring.': '10:30am at the cellar door. Bring comfortable shoes.',
+  'Town, State': 'Pokolbin, NSW',
+  'Venue address': `${SAMPLE.venue}, 12 Vineyard Road, Pokolbin NSW`,
+  'What a taxi costs from the nearest town.': 'About $35 from Cessnock.',
+  'What to bring.': 'Comfortable shoes and a hat.',
+  'What to know for the second celebration.': 'Brunch is relaxed: come as you are.',
+  "What's on site.": 'A cellar door, a café and the ceremony lawn.',
+  "What's on": 'Brunch on the verandah',
+  'Where guests can stay at the venue, if they can.': 'The estate has six guest rooms; we’ve kept them for family.',
+  'Where': 'The verandah',
+  'Who has the rooms at the venue, if anyone.': 'Family are staying in the estate’s rooms.',
+  'Your date': '20 March 2027',
+  'Your options for staying at or near the venue.': 'Guesthouses and cottages a few minutes from the estate.',
+  'a taxi or transfer, and its number': 'Valley Cabs on 02 4900 0000',
+  distance: '10 km',
+  exit: 'the Cessnock exit',
+  'how far, and how long a drive': '10 km, a 10-minute drive',
+  'how long': '30 minutes',
+  name: 'Harriet',
+  'nearest town': 'Cessnock',
+  phone: '0400 000 000',
+  'second celebration': 'Sunday brunch',
+  'the best route by car': 'the M1 north',
+  'the date, written out, and the time': 'Saturday 20 March 2027, at 2:00pm',
+  'the date': '20 March 2027',
+  'the reception venue': SAMPLE.venue,
+  'the train line': 'the Hunter line',
+  "the venue's address": `${SAMPLE.venue}, 12 Vineyard Road, Pokolbin NSW`,
+  "the venue's road": 'Vineyard Road',
+  'the venue': SAMPLE.venue,
+  'the wet-weather spot': 'the barrel room',
+  'then directions to the venue': 'then follow the signs to Pokolbin and Vineyard Road',
+  'what follows': 'drinks on the verandah',
+  "what's happening": 'the ceremony',
+  where: 'the lawn',
+  'your email': 'harriet.and.theo@example.com',
+  'your mobile': '0400 000 000',
+};
+/** The starting wording with every [placeholder] filled in for the sample. */
+export function fillSample(texts: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(texts).map(([k, v]) => [k, v.replace(/\[([^\[\]]{1,80})\]/g, (_, p: string) => SAMPLE_PLACEHOLDERS[p] ?? p)]));
+}
+
 const FILLS: Record<string, string> = {
   // The welcome
   'inv.78ae6f0c': 'Saturday',
@@ -86,7 +167,7 @@ export const SAMPLE_INVITE: InvitePayload = {
       ],
     },
   },
-  texts: { ...(generic as Record<string, string>), ...FILLS },
+  texts: fillSample({ ...(generic as Record<string, string>), ...FILLS }),
   // 2:00pm in Sydney (daylight saving time).
   events: [{ key: 'wedding', name: 'The wedding', startsAt: '2027-03-20T03:00:00.000Z', slot: 0, questions: [], venue: SAMPLE.venue, address: 'Hunter Valley NSW' }],
   invitation: {

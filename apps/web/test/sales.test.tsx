@@ -145,4 +145,19 @@ describe('sample invitation (/demo)', () => {
     // Our own music, never someone else's recording.
     expect(SAMPLE_INVITE.content.audioUrl).toBe(MUSIC_BOX);
   });
+
+  it('never shows a [placeholder]: every one in the starting wording has a Harriet & Theo value (YL-016)', async () => {
+    // The wording itself: the invitation, the night-before guide and the photo page.
+    for (const [k, v] of Object.entries(SAMPLE_INVITE.texts)) expect(v, k).not.toMatch(/\[|\]/);
+    const { sampleGuide, samplePhotos } = await import('../src/sales/sampleGuide');
+    for (const [k, v] of Object.entries({ ...sampleGuide().texts, ...samplePhotos().texts })) expect(v, k).not.toMatch(/\[|\]/);
+    // And what a guest reads on the page.
+    render(
+      <MemoryRouter initialEntries={['/demo']}>
+        <DemoPage />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Dear Emma & Tom');
+    expect(document.body.textContent).not.toContain('[');
+  });
 });

@@ -25,12 +25,13 @@ export function DemoBar({ beside = false }: { beside?: boolean }) {
   return (
     <div role="region" aria-label="Sample wedding" className={`fixed z-[25] ${beside ? 'left-[236px]' : 'left-0'} right-0 bottom-0 px-3 pt-2 pb-[calc(8px+env(safe-area-inset-bottom))] bg-[#2a1c26] text-[#f3ecd6] shadow-[0_-8px_24px_rgba(0,0,0,.2)] print:hidden`}>
       <div className="max-w-[1100px] mx-auto flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-2 text-[13px]">
-        <a href="/" aria-label="Back to The Yes List" className="py-[6px] px-3 rounded-full border border-[rgba(243,236,214,.35)] no-underline !text-[#f3ecd6]">
+        <a href="/" aria-label="Back to The Yes List" className="inline-flex items-center min-h-[44px] min-w-[44px] justify-center py-[6px] px-3 rounded-full border border-[rgba(243,236,214,.35)] no-underline !text-[#f3ecd6]">
           ←<span className="hidden sm:inline"> The Yes List</span>
         </a>
         <span className="hidden sm:inline">
           <strong>A sample wedding.</strong> Try anything: nothing is saved or sent.
         </span>
+        <strong className="sm:hidden text-[12px] font-semibold">Sample, nothing is sent</strong>
         <span role="radiogroup" aria-label="Plan to try" className="inline-flex p-[3px] rounded-full bg-[rgba(243,236,214,.12)]">
           {PLANS.map(([k, name]) => (
             <button
@@ -39,13 +40,13 @@ export function DemoBar({ beside = false }: { beside?: boolean }) {
               role="radio"
               aria-checked={plan === k}
               onClick={() => choose(k)}
-              className={`py-[5px] px-2 sm:px-3 rounded-full border-0 text-[12px] sm:text-[13px] font-semibold cursor-pointer ${plan === k ? 'bg-[#d6b780] text-[#2a1c26]' : 'bg-transparent text-[#f3ecd6]'}`}
+              className={`min-h-[44px] py-[5px] px-2 sm:px-3 rounded-full border-0 text-[12px] sm:text-[13px] font-semibold cursor-pointer ${plan === k ? 'bg-[#d6b780] text-[#2a1c26]' : 'bg-transparent text-[#f3ecd6]'}`}
             >
               {name}
             </button>
           ))}
         </span>
-        <a href="/#start" className="ml-auto py-[7px] px-3 sm:px-4 rounded-full no-underline font-semibold whitespace-nowrap !text-[#2a1c26] bg-[#d6b780]">
+        <a href="/#start" className="ml-auto inline-flex items-center min-h-[44px] py-[7px] px-3 sm:px-4 rounded-full no-underline font-semibold whitespace-nowrap !text-[#2a1c26] bg-[#d6b780]">
           Start <span className="hidden sm:inline">your wedding</span>
           <span className="sm:hidden">yours</span>
         </a>
