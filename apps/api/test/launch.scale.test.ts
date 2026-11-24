@@ -475,7 +475,7 @@ describe('launch scale: every feature pushed hard', () => {
     // Ten different saves from the same version at once: exactly one wins. (The same save sent again is a retry,
     // answered as saved: YL-19.)
     const race = await Promise.all(
-      Array.from({ length: 10 }, (_, i) => put('/planner/doc/checklist', 2, { ...got.data, tasks: got.data.tasks.map((t, j) => (j === i + 1 ? { ...t, done: !t.done } : t)) })),
+      Array.from({ length: 10 }, (_, i) => put('/planner/doc/checklist', 2, { ...got.data, tasks: got.data.tasks.map((t, j) => (j === i + 1 ? { ...t, note: `Tab ${i + 1}` } : t)) })),
     );
     expect(race.map((r) => r.status).sort()).toEqual([200, ...Array.from({ length: 9 }, () => 409)]);
     // Over the maximum: refused with a 400, and the saved copy is untouched.
