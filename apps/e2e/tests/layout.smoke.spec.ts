@@ -325,3 +325,49 @@ test('Sentinel retest: vendor links, /try and the demo bar are 44px taps; the sa
   await expect(page.getByRole('button', { name: 'Open invitation' })).toBeVisible({ timeout: 20_000 });
   expect(await page.evaluate(() => document.body.innerText.includes('['))).toBe(false);
 });
+
+test('VS-02: on the sample, the bar and Music never cover the card, the reply or the timeline; the invitation never widens', async ({ page }) => {
+  const problems = await watch(page);
+  await page.goto('/demo');
+  // The bar's taps are 44px.
+  for (const link of await page.locator('[data-sample-banner] a, [data-sample-banner] button').all()) {
+    expect((await link.boundingBox())!.height, (await link.textContent()) ?? '').toBeGreaterThanOrEqual(44);
+  }
+  // The closed envelope's seal area is below the bar.
+  const bar = (await page.locator('[data-sample-banner]').boundingBox())!;
+  const frame = (await page.locator('.yl-sample').boundingBox())!;
+  expect(frame.y, 'the invitation starts below the bar').toBeGreaterThanOrEqual(bar.y + bar.height - 1);
+  await page.getByRole('button', { name: 'Open invitation' }).click();
+  await expect(page.getByRole('button', { name: 'Add to calendar' }).first()).toBeAttached({ timeout: 20_000 });
+  await page.waitForTimeout(4500);
+  const covered = async (sel: string) => {
+    const el = page.locator(sel).first();
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+    await page.waitForTimeout(300);
+    return el.evaluate((e) => {
+      const r = e.getBoundingClientRect();
+      const t = { top: Math.max(r.top, 0), bottom: Math.min(r.bottom, window.innerHeight) };
+      return [...document.querySelectorAll('[data-sample-banner], button, #inv-cue')]
+        .filter((c) => !c.closest('#inv-scroll') && !c.closest('[data-sample-banner] *'))
+        .filter((c) => {
+          const s = getComputedStyle(c);
+          return s.display !== 'none' && s.visibility !== 'hidden' && Number(s.opacity) > 0 && (c.matches('[data-sample-banner], #inv-cue') || /music/i.test(`${c.textContent} ${c.getAttribute('aria-label')}`));
+        })
+        .filter((c) => {
+          const b = c.getBoundingClientRect();
+          return b.width > 0 && b.top < t.bottom && b.bottom > t.top && b.left < r.right && b.right > r.left;
+        })
+        .map((c) => (c.getAttribute('aria-label') || c.textContent || c.tagName).trim().slice(0, 30));
+    });
+  };
+  expect(await covered('#inv-scroll [data-add-to-calendar]'), 'Add to calendar').toEqual([]);
+  expect(await covered('#inv-scroll >> text=/can.t make it/i'), 'the decline reply').toEqual([]);
+  expect(await covered('#inv-scroll section[data-screen-label="03 Timeline"] h2, #inv-scroll section[data-screen-label="03 Timeline"] div'), 'the timeline').toEqual([]);
+  const wide = await page.evaluate(() => {
+    const r = document.querySelector('[aria-label="Open invitation"]')!;
+    return [r.scrollWidth, r.clientWidth, document.documentElement.scrollWidth, document.documentElement.clientWidth];
+  });
+  expect(wide[0], 'the open invitation never widens').toBe(wide[1]);
+  expect(wide[2], 'the page never widens').toBe(wide[3]);
+  expect(problems).toEqual([]);
+});

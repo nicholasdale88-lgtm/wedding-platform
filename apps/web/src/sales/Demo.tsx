@@ -1,6 +1,6 @@
 import '@fontsource/cormorant-garamond/400.css';
 import '@fontsource/cormorant-garamond/400-italic.css';
-import { useEffect } from 'react';
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react';
 import { rememberRef } from '../lib/site';
 import { Link, useSearchParams } from 'react-router-dom';
 import { InvitationView } from '../guest/generated/InvitationView';
@@ -37,33 +37,86 @@ export function DemoPage() {
     // From a vendor's link (?ref=, ?code=): kept for sign-up and their code for upgrading.
     rememberRef();
   }, []);
+  const props = { theme, play: params.get('play') === '1', mine: params.get('mine') === '1', cover };
+  // The front page's phone and the cover stills: the invitation alone (no bar), and no Music pill in the hero.
+  if (embed || cover)
+    return (
+      <div className="yl-sample-embed contents">
+        <style>{SAMPLE_CSS}</style>
+        <SampleInvitation key={theme ?? ''} {...props} />
+      </div>
+    );
+  const back = params.get('from') === 'designs';
   return (
-    <>
-      <SampleInvitation key={theme ?? ''} theme={theme} play={params.get('play') === '1'} mine={params.get('mine') === '1'} cover={cover} />
-      {!embed && !cover && (
+    <SampleInvitation
+      key={theme ?? ''}
+      {...props}
+      chrome={(music) => (
+        // The bar has its own slot at the top (VS-02): the invitation starts below it, so it never covers the
+        // seal, the names or Add to calendar. Music lives here too, never over the reply or the timeline.
         <div
           data-sample-banner
-          className="fixed z-[60] top-[max(12px,env(safe-area-inset-top))] left-3 right-3 mx-auto max-w-[520px] flex items-center justify-between gap-2 py-[6px] pl-2 pr-[6px] rounded-[26px] text-[#fbf8f2] text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.18)]"
-          style={{ background: 'rgba(51,64,47,.92)' }}
+          className="fixed z-[60] top-0 left-0 right-0 flex items-end text-[#fbf8f2] text-[14px]"
+          style={{ height: BAR_H, paddingTop: 'env(safe-area-inset-top)', background: '#33402f' }}
         >
-          <Link to={params.get('from') === 'designs' ? '/designs' : '/'} className="flex-none inline-flex items-center min-h-[40px] px-3 rounded-full no-underline font-semibold !text-[#fbf8f2] border border-[rgba(251,248,242,.4)]">
-            ← {params.get('from') === 'designs' ? 'Designs' : 'Back'}
-          </Link>
-          {/* Wraps onto two short lines on a phone rather than being cut off. */}
-          <span className="min-w-0 flex-1 text-center text-[13px] leading-[1.25] [overflow-wrap:anywhere]">
-            <strong className="font-semibold">A sample.</strong> Replies aren’t saved.
-          </span>
-          <Link to="/#start" className="flex-none inline-flex items-center min-h-[40px] px-4 rounded-full no-underline font-semibold !text-[#1b2218] bg-[#e6cf9e] whitespace-nowrap">
-            Make your own
-          </Link>
+          <div className="w-full max-w-[560px] mx-auto h-[56px] flex items-center justify-between gap-2 px-2">
+            <Link to={back ? '/designs' : '/'} className="flex-none inline-flex items-center min-h-[44px] px-3 rounded-full no-underline font-semibold !text-[#fbf8f2] border border-[rgba(251,248,242,.4)] whitespace-nowrap">
+              ← {back ? 'Designs' : 'Back'}
+            </Link>
+            {/* Wraps onto short lines on a phone rather than being cut off. */}
+            <span className="min-w-0 flex-1 text-center text-[12.5px] leading-[1.2] [overflow-wrap:anywhere]">
+              <strong className="font-semibold">A sample.</strong> Replies aren’t saved.
+            </span>
+            {music && (
+              <button
+                type="button"
+                onClick={music.toggle}
+                aria-label={music.label}
+                aria-pressed={music.on}
+                title={music.label}
+                className="flex-none inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-full border border-[rgba(251,248,242,.4)] bg-transparent !text-[#fbf8f2] text-[18px] cursor-pointer"
+              >
+                <span aria-hidden style={{ opacity: music.on ? 1 : 0.55 }}>♪</span>
+              </button>
+            )}
+            <Link to="/#start" className="flex-none inline-flex items-center min-h-[44px] px-4 rounded-full no-underline font-semibold !text-[#1b2218] bg-[#e6cf9e] whitespace-nowrap">
+              Make your own
+            </Link>
+          </div>
         </div>
       )}
-    </>
+    />
   );
 }
 
+/** The sample bar's slot: 56px, below the phone's status bar. */
+const BAR_H = 'calc(56px + env(safe-area-inset-top))';
+
+/**
+ * The sample's chrome (VS-02), for the public sample only: real couples' invitations are untouched.
+ * - The invitation's own Music pill (fixed over the bottom of the card) is replaced by the one in the bar, and
+ *   isn't shown on the front page's phone.
+ * - The envelope's layers are clipped to the screen, so flaps swinging open never widen the page.
+ * - "Scroll for details" fades once the guest has scrolled.
+ */
+const SAMPLE_CSS = `
+.yl-sample [aria-label="Open invitation"] > button, .yl-sample-embed [aria-label="Open invitation"] > button { display: none; }
+.yl-sample [aria-label="Open invitation"] > div:not(#inv-scroll), .yl-sample-embed [aria-label="Open invitation"] > div:not(#inv-scroll) { overflow: hidden; }
+.yl-sample #inv-scroll section[data-screen-label="01 Welcome"] div[style*="cursor: pointer"] { transition: opacity .35s ease !important; }
+.yl-sample[data-scrolled] #inv-scroll section[data-screen-label="01 Welcome"] div[style*="cursor: pointer"] { opacity: 0 !important; pointer-events: none; }
+`;
+
+/** The Music control for the bar. */
+type Music = { on: boolean; label: string; toggle: (e: MouseEvent) => void };
+
 /** The guest invitation for the sample wedding: the generated design view, run by the real invitation logic. */
-export function SampleInvitation({ theme, play = false, mine = false, cover = false }: { theme?: string; play?: boolean; mine?: boolean; cover?: boolean } = {}) {
+export function SampleInvitation({
+  theme,
+  play = false,
+  mine = false,
+  cover = false,
+  chrome,
+}: { theme?: string; play?: boolean; mine?: boolean; cover?: boolean; chrome?: (music: Music | null) => ReactNode } = {}) {
   // ?mine=1: the sample as changed in the sample app's Setup (kept in this tab), for its preview.
   const own = mine ? readDemoPages() : null;
   const base = own
@@ -88,7 +141,31 @@ export function SampleInvitation({ theme, play = false, mine = false, cover = fa
   // A cover shows the sample couple, the same as its seal (H&T); the live sample is addressed to its guests.
   const addressee = cover ? SAMPLE.couple : SAMPLE.guests;
   const th = themeOf(data.wedding.theme, data.content.custom);
-  return (
+  // With the bar (/demo): the whole invitation sits in the space below it. The transform makes this box the
+  // frame for the invitation's fixed layers (the card, the envelope, the seal), so they fill it, not the screen.
+  const frame = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!chrome) return;
+    let el: HTMLElement | null = null;
+    let timer = 0;
+    const onScroll = () => {
+      if (!el || !frame.current) return;
+      if (el.scrollTop > 100) frame.current.dataset.scrolled = '';
+      else delete frame.current.dataset.scrolled;
+    };
+    const find = () => {
+      el = document.getElementById('inv-scroll');
+      if (el) el.addEventListener('scroll', onScroll, { passive: true });
+      else timer = window.setTimeout(find, 250);
+    };
+    find();
+    return () => {
+      window.clearTimeout(timer);
+      el?.removeEventListener('scroll', onScroll);
+    };
+  }, [chrome]);
+  const music: Music | null = core.hasAudio ? { on: core.musicIcon === t('inv.dyn.musicOn'), label: core.musicIcon, toggle: (e) => core.toggleMusic(e) } : null;
+  const body = (
     <>
       <div className={`dz yl-look-${lookOf(data.wedding.theme, data.content.custom)}`}>
         <InvitationView v={v} t={t} />
@@ -116,6 +193,16 @@ export function SampleInvitation({ theme, play = false, mine = false, cover = fa
           photo={data.content.images?.backdrop}
         />
       )}
+    </>
+  );
+  if (!chrome) return body;
+  return (
+    <>
+      <style>{SAMPLE_CSS}</style>
+      <div ref={frame} className="yl-sample fixed left-0 right-0 bottom-0 overflow-hidden" style={{ top: BAR_H, transform: 'translateZ(0)' }}>
+        {body}
+      </div>
+      {chrome(music)}
     </>
   );
 }
