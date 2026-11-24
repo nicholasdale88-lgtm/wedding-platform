@@ -1,0 +1,171 @@
+{
+  "label": "before",
+  "at": "2026-11-24T18:44:04.391Z",
+  "lcp": {
+    "home": {
+      "median": 2115,
+      "element": "H1 The invitation they’ll never forget.",
+      "runs": [
+        2102,
+        2115,
+        2164
+      ]
+    },
+    "demo": {
+      "median": 2761,
+      "element": "text H&T",
+      "runs": [
+        2757,
+        2761,
+        2772
+      ]
+    },
+    "designs": {
+      "median": 1771,
+      "element": "P 55 designs, each the real invitation you",
+      "runs": [
+        1768,
+        1771,
+        1772
+      ]
+    }
+  },
+  "overflow": {
+    "home-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": null
+    },
+    "home-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": null
+    },
+    "designs-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": null
+    },
+    "designs-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": null
+    },
+    "try-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": null
+    },
+    "try-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": null
+    },
+    "demo-closed-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": [
+        413,
+        390
+      ]
+    },
+    "demo-closed-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": [
+        1357,
+        1280
+      ]
+    },
+    "demo-open-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": [
+        748,
+        390
+      ]
+    },
+    "demo-open-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": [
+        2040,
+        1280
+      ]
+    }
+  },
+  "demo": {
+    "390": {
+      "calendar": {
+        "box": [
+          400,
+          444
+        ],
+        "coveredBy": []
+      },
+      "decline": {
+        "box": [
+          398,
+          446
+        ],
+        "coveredBy": []
+      },
+      "timeline": {
+        "box": [
+          -171,
+          1014
+        ],
+        "coveredBy": [
+          "Music on",
+          "← BackA sample. Replies aren’t"
+        ]
+      }
+    },
+    "1280": {
+      "calendar": {
+        "box": [
+          378,
+          422
+        ],
+        "coveredBy": []
+      },
+      "decline": {
+        "box": [
+          376,
+          424
+        ],
+        "coveredBy": []
+      },
+      "timeline": {
+        "box": [
+          -118,
+          917
+        ],
+        "coveredBy": [
+          "Music on",
+          "← BackA sample. Replies aren’t"
+        ]
+      }
+    }
+  }
+}
