@@ -83,9 +83,10 @@ describe('front page', () => {
     expect(within(list).getByText(/Free, as often as you like/)).toBeInTheDocument();
   });
 
-  it('leads with the real envelope and wax seal, opening by itself in the phone', () => {
+  it('leads with the real envelope and wax seal, opening by itself in the phone', async () => {
     page();
-    const phone = screen.getByTitle(/^Sample invitation for/);
+    // The live invitation loads just after the page (its cover paints first).
+    const phone = await screen.findByTitle(/^Sample invitation for/);
     expect(phone.tagName).toBe('IFRAME');
     expect(phone).toHaveAttribute('src', '/demo?embed=1&play=1');
     // Every envelope pictured is the one guests get: the invitation's own wax seal and envelope papers.

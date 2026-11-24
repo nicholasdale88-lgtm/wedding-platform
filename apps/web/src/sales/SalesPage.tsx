@@ -267,6 +267,8 @@ function RecommendedBy() {
 
 export function SalesPage() {
   const [plan, setPlan] = useState<PlanKey>('essentials');
+  // Less motion asked for: the hero's envelope stays closed until it's tapped.
+  const [calm] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const site = useSite();
   // Prices name GST only once the business is registered for it (company portal → Money).
   const gst = !!site?.gst;
@@ -333,9 +335,10 @@ export function SalesPage() {
       <main>
         {/* The hero: what we do that a pretty invitation alone doesn't. Guests answer by text, and the list,
             dietary needs and seating fill themselves in. */}
+        {/* On a phone the blush wash sits behind the invitation, never under the gold script word (VS-01). */}
         <section
-          className="relative overflow-hidden px-4 pt-10 pb-20 md:pt-16 md:pb-24"
-          style={{ background: `radial-gradient(70% 60% at 85% 15%, #f6dcd6 0%, rgba(246,220,214,0) 70%), radial-gradient(60% 55% at 5% 95%, #f1e3cc 0%, rgba(241,227,204,0) 70%), ${CREAM}` }}
+          className="relative overflow-hidden px-4 pt-6 pb-20 md:pt-16 md:pb-24 [--wash:85%_78%] md:[--wash:85%_15%]"
+          style={{ background: `radial-gradient(70% 60% at var(--wash), #f6dcd6 0%, rgba(246,220,214,0) 70%), radial-gradient(60% 55% at 5% 95%, #f1e3cc 0%, rgba(241,227,204,0) 70%), ${CREAM}` }}
         >
           {/* Fine gold botanical line work in the corners, our own. */}
           <svg aria-hidden className="absolute -top-6 -left-10 w-[340px] opacity-[.35] pointer-events-none" viewBox="0 0 200 200" fill="none" stroke={GOLD} strokeWidth="1">
@@ -350,8 +353,11 @@ export function SalesPage() {
               <ellipse key={t} cx={20 + t * 0.9} cy={180 - t * 0.85} rx="10" ry="4" transform={`rotate(${i % 2 ? -50 : 40} ${20 + t * 0.9} ${180 - t * 0.85})`} />
             ))}
           </svg>
-          <div className="relative max-w-[1140px] mx-auto grid gap-14 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] items-center">
-            <div className="flex flex-col gap-6 text-center md:text-left items-center md:items-start">
+          {/* On a phone the invitation comes straight after the headline and the buttons, so it's in the first
+              screen (VS-03); the rest of the words follow it. On a computer, words left and the phone right. */}
+          <div className="relative max-w-[1140px] mx-auto flex flex-col items-center gap-5 text-center md:grid md:gap-14 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] md:text-left">
+            <div className="contents md:flex md:flex-col md:gap-6 md:items-start">
+              <div className="order-1 md:order-none flex flex-col items-center md:items-start gap-2 md:gap-6">
               <span
                 data-testid="aussie-badge"
                 className="inline-flex items-center gap-2 py-[6px] px-[14px] rounded-full text-[13px] font-semibold"
@@ -365,37 +371,40 @@ export function SalesPage() {
               <span className="text-[12px] font-semibold tracking-[.28em] uppercase" style={{ color: GOLD_INK }}>
                 Wedding invitations · RSVPs · The whole plan
               </span>
-              <h1 className="m-0 text-[clamp(48px,7.6vw,92px)] leading-[1] font-medium tracking-[-.01em]" style={{ fontFamily: serif, color: INK }}>
+              </div>
+              <h1 className="order-2 md:order-none m-0 text-[clamp(48px,7.6vw,92px)] leading-[1] font-medium tracking-[-.01em]" style={{ fontFamily: serif, color: INK }}>
                 The invitation they’ll{' '}
                 <span className="font-normal" style={{ fontFamily: script, color: GOLD, fontSize: '1.08em' }}>
                   never
                 </span>{' '}
                 forget.
               </h1>
-              <p className="m-0 text-[clamp(17px,2.1vw,20px)] leading-[1.6] max-w-[520px]" style={{ color: SOFT }}>
+              <p className="order-5 md:order-none m-0 text-[clamp(17px,2.1vw,20px)] leading-[1.6] max-w-[520px]" style={{ color: SOFT }}>
                 Opened like a gift on every guest’s phone. They reply in seconds, by text or a tap, and your guest list, dietary list and seating plan fill themselves in.
               </p>
-              <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-1">
-                <a href="#start" className="py-[15px] px-8 rounded-full no-underline text-[17px] font-semibold shadow-[0_14px_30px_rgba(46,36,48,.25)]" style={{ background: INK, color: '#fbf1e8' }}>
+              <div className="order-3 md:order-none flex flex-wrap justify-center md:justify-start gap-3 md:pt-1">
+                <a href="#start" className="inline-flex items-center min-h-[48px] py-[12px] px-4 md:py-[15px] md:px-8 rounded-full no-underline text-[15px] md:text-[17px] font-semibold shadow-[0_14px_30px_rgba(46,36,48,.25)]" style={{ background: INK, color: '#fbf1e8' }}>
                   Start your wedding
                 </a>
-                <a href="/try" className="py-[15px] px-7 rounded-full no-underline text-[17px] font-semibold border bg-white/60" style={{ color: INK, borderColor: '#dcc2b4' }}>
+                <a href="/try" className="inline-flex items-center min-h-[48px] py-[12px] px-4 md:py-[15px] md:px-7 rounded-full no-underline text-[15px] md:text-[17px] font-semibold border bg-white/60" style={{ color: INK, borderColor: '#dcc2b4' }}>
                   Book a free trial
                 </a>
               </div>
-              <ul className="m-0 p-0 list-none flex flex-wrap justify-center md:justify-start gap-x-5 gap-y-2 text-[14px]" style={{ color: SOFT }}>
+              <ul className="order-6 md:order-none m-0 p-0 list-none flex flex-wrap justify-center md:justify-start gap-x-5 gap-y-2 text-[14px]" style={{ color: SOFT }}>
                 <li>✓ From {fromPrice}, paid once</li>
                 <li>✓ No subscription</li>
                 <li>✓ Set up in an evening</li>
               </ul>
-              <span className="text-[13px]" style={{ color: SOFT }}>
+              <span className="order-7 md:order-none text-[13px]" style={{ color: SOFT }}>
                 Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Australian dollars, {gstWords(gst)}.
               </span>
             </div>
-            <div className="relative flex justify-center py-6">
-              {/* The real invitation: the envelope and its wax seal, which breaks and opens by itself. */}
+            <div className="order-4 md:order-none relative flex justify-center py-1 md:py-6 [--hero-phone:min(264px,70vw)] md:[--hero-phone:min(300px,82vw)]">
+              {/* The real invitation: the envelope and its wax seal, which breaks and opens by itself (not for a
+                  guest who asks for less motion: it waits for a tap). The cover paints first; the live
+                  invitation loads after the page has. */}
               <span className="relative z-10">
-                <HeroInvite src="/demo?embed=1&play=1" caption={false} cover={<RealEnvelope paper="cream" wax="Sandstone" className="absolute inset-0" />} />
+                <HeroInvite src={calm ? '/demo?embed=1' : '/demo?embed=1&play=1'} caption={false} defer cover={<RealEnvelope paper="cream" wax="Sandstone" className="absolute inset-0" />} />
               </span>
               <Bubble from="us" className="top-[6%] left-0 md:-left-6 hidden sm:block">
                 Harriet &amp; Theo would love you to celebrate with them. Your invitation and RSVP: <u>tap here</u>

@@ -371,3 +371,20 @@ test('VS-02: on the sample, the bar and Music never cover the card, the reply or
   expect(wide[2], 'the page never widens').toBe(wide[3]);
   expect(problems).toEqual([]);
 });
+
+test('VS-03: the live invitation is in the first screen of the front page, on a phone too', async ({ page }) => {
+  const problems = await watch(page);
+  await page.goto('/');
+  const frame = page.getByTitle(/^Sample invitation for/);
+  await expect(frame).toBeAttached({ timeout: 20_000 });
+  // The phone's screen (the envelope's flaps and seal are in its top half) starts inside the first screen,
+  // with at least its top 40% showing.
+  const screenBox = (await frame.locator('xpath=..').boundingBox())!;
+  const fold = page.viewportSize()!.height;
+  expect(screenBox.y + screenBox.height * 0.4, 'the envelope is above the fold').toBeLessThanOrEqual(fold);
+  for (const name of ['Start your wedding', 'Book a free trial']) {
+    expect((await page.getByRole('link', { name }).first().boundingBox())!.height, name).toBeGreaterThanOrEqual(44);
+  }
+  expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
+  expect(problems).toEqual([]);
+});
