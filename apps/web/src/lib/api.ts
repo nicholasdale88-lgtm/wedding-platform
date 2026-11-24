@@ -28,25 +28,35 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (r === null) throw new ApiError(400, 'demo', 'In the sample, that isn’t saved or sent.');
     return r as T;
   }
-  let res: Response;
-  try {
-    const go = () =>
-      fetch(`/api${path}`, {
-        credentials: 'same-origin',
-        // On a bad connection a request gives up after 30 seconds (and says so) instead of hanging.
-        ...(init.signal || typeof AbortSignal === 'undefined' || !('timeout' in AbortSignal) ? {} : { signal: AbortSignal.timeout(30_000) }),
-        ...init,
-        headers: { ...(init.body ? { 'content-type': 'application/json' } : {}), ...init.headers },
-      });
-    res = await go();
-    // Briefly busy (503): nothing was saved, so try again quietly before saying anything.
-    for (let i = 0; i < 3 && res.status === 503; i++) {
-      await new Promise((ok) => setTimeout(ok, 400 * (i + 1)));
+  let res: Response | undefined;
+  // A save carries one Idempotency-Key for this action, sent again on each automatic retry: if the first try saved
+  // and only its reply was lost or came back busy, the server answers with that result instead of saving twice.
+  const write = ['POST', 'PUT', 'PATCH', 'DELETE'].includes((init.method ?? 'GET').toUpperCase());
+  const key = write ? idempotencyKey() : '';
+  const go = () =>
+    fetch(`/api${path}`, {
+      credentials: 'same-origin',
+      // On a bad connection a request gives up after 30 seconds (and says so) instead of hanging.
+      ...(init.signal || typeof AbortSignal === 'undefined' || !('timeout' in AbortSignal) ? {} : { signal: AbortSignal.timeout(30_000) }),
+      ...init,
+      headers: { ...(init.body ? { 'content-type': 'application/json' } : {}), ...(key ? { 'Idempotency-Key': key } : {}), ...init.headers },
+    });
+  // Briefly busy (503), slowed down for a moment (429, asked to wait 3 seconds or less), or the connection dropped
+  // (a save only: the same key makes it safe): try again quietly before saying anything.
+  for (let i = 0; i < 4; i++) {
+    if (i) await new Promise((ok) => setTimeout(ok, 400 * i));
+    try {
       res = await go();
+    } catch {
+      res = undefined;
+      if (!write || i >= 2) break;
+      continue;
     }
-  } catch {
-    throw new ApiError(0, 'offline', "Can't reach the server. Check your connection and try again.");
+    const wait = Number(res.headers.get('retry-after'));
+    if (i < 3 && (res.status === 503 || (res.status === 429 && write && wait > 0 && wait <= 3))) continue;
+    break;
   }
+  if (!res) throw new ApiError(0, 'offline', "Can't reach the server. Check your connection and try again.");
   const body = (await res.json().catch(() => null)) as { error?: { code: string; message: string; feature?: string } } | null;
   if (!res.ok) {
     // Not in the wedding's plan: the admin shows the Upgrade card for it (admin/Upgrade.tsx, UpgradeWhenRefused).
@@ -56,6 +66,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(res.status, body?.error?.code ?? 'error', body?.error?.message ?? 'Something went wrong. Please try again.');
   }
   return body as T;
+}
+
+/** A fresh key for one save (randomUUID where the browser has it). */
+function idempotencyKey() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `k${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
 
 const send = <T>(method: string, path: string, body?: unknown, version?: number) =>

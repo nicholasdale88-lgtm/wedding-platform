@@ -54,11 +54,14 @@ import { ownPhoneRoutes } from './routes/ownPhone';
 import { testSendRoutes } from './routes/testSend';
 import { rehearsalRoutes } from './routes/rehearsal';
 import { sweepInbound } from './sms/inbound';
+import { idempotency } from './lib/idempotency';
 
 /** The app, with dependencies injectable for tests. */
 export function createApp(deps: (env: Env) => EngineDeps = engineDeps) {
   const app = new Hono<{ Bindings: Env }>().basePath('/api');
   app.use('*', hardening());
+  // A write sent again with the same Idempotency-Key gets the first answer back instead of saving twice (YL-19).
+  app.use('*', idempotency());
   // The site's connections pasted in the company portal (Google, Dropbox, Stripe, Resend, texting), over env.
   app.use('*', async (c, next) => {
     await applyConnections(c.env);

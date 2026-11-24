@@ -121,6 +121,28 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       throw e;
     }
   }
+  /**
+   * A retry that arrives with the version it started from, after its own change already saved (the reply was lost
+   * or came back "busy"): the invitation moved on by exactly one version, and that version's change is this very
+   * change (the audit keeps it). Then it's a success, not "Updated elsewhere" (YL-19; a children's update said so).
+   */
+  async function alreadySaved(c: C, invitationId: string, action: string, detail: unknown): Promise<boolean> {
+    const v = Number(c.req.header('If-Match'));
+    if (!Number.isInteger(v)) return false;
+    const row = await afterCommit(() =>
+      c.env.DB.prepare(
+        `SELECT i.version, (SELECT a.detail FROM audit a WHERE a.action = ? AND a.target = ?2 AND a.wedding_id = ?3 ORDER BY a.at DESC LIMIT 1) AS detail,
+                (SELECT a.at FROM audit a WHERE a.target = ?2 AND a.wedding_id = ?3 ORDER BY a.at DESC LIMIT 1) AS last_at,
+                (SELECT a.action FROM audit a WHERE a.target = ?2 AND a.wedding_id = ?3 ORDER BY a.at DESC LIMIT 1) AS last_action
+           FROM invitation i WHERE i.id = ?2 AND i.wedding_id = ?3 AND i.deleted_at IS NULL`,
+      )
+        .bind(action, invitationId, wid(c))
+        .first<{ version: number; detail: string | null; last_at: string | null; last_action: string | null }>(),
+    );
+    if (!row || row.version !== v + 1 || row.last_action !== action || row.detail !== JSON.stringify(detail)) return false;
+    // Only a recent change counts as this one (a page left open for a day isn't a retry).
+    return !!row.last_at && Date.now() - Date.parse(row.last_at) < 15 * 60_000;
+  }
   const versionError = (c: C, r: 'missing' | 'conflict' | 'no-version') =>
     r === 'missing'
       ? err(c, 404, 'not_found', 'That guest no longer exists.')
@@ -489,6 +511,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     }
 
     const v = await claimVersion(c, invId);
+    if (v === 'conflict' && (await alreadySaved(c, invId, 'guest.edit', p))) return c.json(await afterCommit(() => guestJson(c, invId)));
     if (v !== 'ok') return versionError(c, v);
 
     const db = c.env.DB;
@@ -622,6 +645,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     stmts.push(clearDietIfDeclinedAll(db, invId)); // not coming to anything: no dietary on any list
     stmts.push(audit(c, 'guest.rsvp', invId, r));
     const v = await claimVersion(c, invId);
+    if (v === 'conflict' && (await alreadySaved(c, invId, 'guest.rsvp', r))) return c.json(await afterCommit(() => guestJson(c, invId)));
     if (v !== 'ok') return versionError(c, v);
     await afterClaim(c, invId, stmts);
     return c.json(await afterCommit(() => guestJson(c, invId)));

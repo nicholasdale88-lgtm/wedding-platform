@@ -358,6 +358,8 @@ class Batch {
       body = JSON.stringify(o.body);
       headers['content-type'] ??= 'application/json';
     } else if (method !== 'GET') headers['content-type'] ??= 'application/json';
+    // A save carries one Idempotency-Key, sent again on each retry, as the pages do (YL-19).
+    if (method !== 'GET' && !o.bytes) headers['Idempotency-Key'] ??= crypto.randomUUID();
     for (let attempt = 0; ; attempt++) {
       const t0 = performance.now();
       const r = await this.app.request(`/api${path}`, { method, headers, ...(body !== undefined ? { body } : {}) }, this.env, this.ctx);

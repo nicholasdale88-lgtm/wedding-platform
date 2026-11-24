@@ -65,8 +65,10 @@ export function scenarioPart(partNo: number, numbers: number[]) {
       return res;
     };
     const rsvp = async (w: W, body: Record<string, unknown>) => {
+      // One Idempotency-Key for the reply, sent again on each retry, as the page does (YL-19).
+      const key = crypto.randomUUID();
       for (let i = 0; ; i++) {
-        const r = await send(`/p/${w.slug}/rsvp`, { method: 'POST', body: JSON.stringify(body) });
+        const r = await send(`/p/${w.slug}/rsvp`, { method: 'POST', body: JSON.stringify(body), headers: { 'Idempotency-Key': key } });
         if (r.status !== 503 || i === 5) return r;
         seen.pop(); // "busy, try again": the page retries, as here; only the final answer counts
         await new Promise((res) => setTimeout(res, 100 + i * 150));

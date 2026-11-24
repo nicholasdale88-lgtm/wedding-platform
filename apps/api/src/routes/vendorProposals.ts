@@ -252,6 +252,19 @@ export function vendorProposalRoutes() {
     if (!(await allow(db, `vendor-proposal:${l.id}`, 60, 3_600_000))) return err(c, 429, 'slow_down', 'That’s a lot of proposals. Try again in a little while.');
 
     const before = latestOf(p);
+    // Sent again after it saved (the reply was lost or came back "busy"): the latest revision is already exactly
+    // this one, made in the last few minutes. Answer with it instead of making another (YL-19: it jumped to rev 3).
+    if (
+      p.revision > 1 &&
+      p.revised_at &&
+      Date.now() - Date.parse(p.revised_at) < 15 * 60_000 &&
+      before.title === f.title &&
+      JSON.stringify(before.lines) === JSON.stringify(f.lines) &&
+      before.deposit === f.deposit &&
+      before.validUntil === f.validUntil &&
+      before.note === f.note
+    )
+      return c.json({ id: p.id, link: linkOf(c.env, p.token), revision: p.revision, emailed: false });
     const versions = [...versionsOf(p.versions), before].slice(-20);
     const now = new Date().toISOString();
     const total = proposalTotal(f.lines);

@@ -631,7 +631,8 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     const b1 = await put(w, '/planner/doc/budget', 0, budget);
     expect(b1.status).toBe(200);
     expect((await read<Doc<Budget>>(b1)).version).toBe(1);
-    expect((await put(w, '/planner/doc/budget', 0, budget)).status).toBe(409); // already made
+    expect((await put(w, '/planner/doc/budget', 0, budget)).status).toBe(200); // the same save retried: a success
+    expect((await put(w, '/planner/doc/budget', 0, { ...budget, total: budget.total + 1 })).status).toBe(409); // already made
 
     const quote = (id: string, amount: number, deposit: number, includes: string) => ({ id, amount, deposit, date: day(-10), validUntil: day(60), includes });
     const vendors = {
@@ -657,7 +658,9 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     ];
     const booked = await put(w, '/planner/doc/vendors', v1.version, v1.data);
     expect(booked.status).toBe(200);
-    expect((await put(w, '/planner/doc/vendors', v1.version, v1.data)).status).toBe(409);
+    // The same save retried on the old version: a success. A different change on it: refused.
+    expect((await put(w, '/planner/doc/vendors', v1.version, v1.data)).status).toBe(200);
+    expect((await put(w, '/planner/doc/vendors', v1.version, { ...v1.data, list: v1.data.list.slice(1) })).status).toBe(409);
 
     // The whole-wedding payments: the photographer's schedule, and each budget line that's agreed.
     const b = await doc<Budget>(w, 'budget');
@@ -822,7 +825,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     const fix = await put(w, `/guests/${g4.id}/rsvp`, g4.version, { events: { wedding: { attending: !answers.get(4) } } });
     expect(fix.status).toBe(200);
     answers.set(4, !answers.get(4)!);
-    expect((await put(w, `/guests/${g4.id}/rsvp`, g4.version, { events: { wedding: { attending: true } } })).status).toBe(409); // stale
+    expect((await put(w, `/guests/${g4.id}/rsvp`, g4.version, { events: { wedding: { attending: !answers.get(4) } } })).status).toBe(409); // stale and different
 
     now = await stored();
     for (const [i, yes] of answers) expect(now.get(rows[i]!.people[0]!), rows[i]!.people[0]).toBe(yes);

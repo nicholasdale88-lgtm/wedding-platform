@@ -9,6 +9,8 @@ export async function purgeExpired(db: D1Database, now = new Date()) {
     db.prepare(`DELETE FROM rate_limit WHERE reset_at <= ?`).bind(iso),
     db.prepare(`DELETE FROM session WHERE expires_at <= ?`).bind(iso),
     db.prepare(`DELETE FROM oauth_state WHERE created_at <= ?`).bind(new Date(now.getTime() - 3_600_000).toISOString()),
+    // Idempotency-Key results are kept 24 hours (lib/idempotency.ts).
+    db.prepare(`DELETE FROM idempotency WHERE created_at <= ?`).bind(new Date(now.getTime() - 24 * 3_600_000).toISOString()),
   ]);
 }
 

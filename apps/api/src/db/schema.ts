@@ -603,6 +603,18 @@ export const vendorListing = sqliteTable('vendor_listing', {
   logoAt: text('logo_at'),
 });
 
+/** Idempotency-Key results, kept 24 hours (migrations/0059, lib/idempotency.ts). */
+export const idempotency = sqliteTable('idempotency', {
+  scope: text('scope').notNull(),
+  key: text('key').notNull(),
+  method: text('method').notNull(),
+  path: text('path').notNull(),
+  status: integer('status'),
+  body: text('body'),
+  contentType: text('content_type'),
+  createdAt: text('created_at').notNull(),
+});
+
 /** A vendor's logo (migrations/0058). */
 export const vendorLogo = sqliteTable('vendor_logo', {
   listingId: text('listing_id').primaryKey(),

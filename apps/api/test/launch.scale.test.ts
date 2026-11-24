@@ -456,7 +456,9 @@ describe('launch scale: every feature pushed hard', () => {
     const c1 = await put('/planner/doc/checklist', 0, checklist(300, 40));
     expect(c1.status).toBe(200);
     expect(((await c1.json()) as { version: number }).version).toBe(1);
-    expect((await put('/planner/doc/checklist', 0, checklist(300, 40))).status).toBe(409); // someone made it first
+    // The same save again (a retry after its reply was lost) is a success; a different one is refused (someone made it first).
+    expect((await put('/planner/doc/checklist', 0, checklist(300, 40))).status).toBe(200);
+    expect((await put('/planner/doc/checklist', 0, checklist(299, 40))).status).toBe(409);
     // The whole document as the page has it (every field filled in) goes back in one save.
     const got = (await (await api('/planner/doc/checklist')).json()) as { data: PlanChecklist; version: number };
     expect(got.data.tasks).toHaveLength(300);

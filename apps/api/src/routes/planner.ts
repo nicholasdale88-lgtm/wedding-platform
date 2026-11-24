@@ -705,7 +705,14 @@ export function plannerRoutes() {
         : await c.env.DB.prepare(`UPDATE planner_doc SET data = ?, version = version + 1, updated_at = ? WHERE wedding_id = ? AND kind = ? AND scope = ? AND version = ?`)
             .bind(data, now, wid(c), kind, scope, v)
             .run();
-    if (!res.meta.changes) return c.json({ error: { code: 'conflict', message: 'Changed elsewhere, so this has been reloaded. Make your change again.' }, current: shown(c, kind, await readDoc(c.env.DB, wid(c), kind, scope)) }, 409);
+    if (!res.meta.changes) {
+      const cur = await readDoc(c.env.DB, wid(c), kind, scope);
+      // A retry of a save that already went in (the version moved on by one, to exactly this content): a success,
+      // not "Changed elsewhere" (YL-19).
+      const row = await c.env.DB.prepare(`SELECT data, version FROM planner_doc WHERE wedding_id = ? AND kind = ? AND scope = ?`).bind(wid(c), kind, scope).first<{ data: string; version: number }>();
+      if (row && row.version === v + 1 && row.data === data) return c.json(shown(c, kind, cur));
+      return c.json({ error: { code: 'conflict', message: 'Changed elsewhere, so this has been reloaded. Make your change again.' }, current: shown(c, kind, cur) }, 409);
+    }
     await audit(c, `planner.${kind}`, scope).run();
     if (kind === 'vendors') {
       // The shared directory learns which of its vendors couples add and book (and what they paid); never stops the save.
