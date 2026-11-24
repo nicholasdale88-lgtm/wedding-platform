@@ -3,15 +3,19 @@ import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { LOOK_LABEL, lookOf, MOOD_OF, MOODS, SIGNATURE, SIGNATURE_NAMES, THEME_NAMES, themeLabel, themeOf } from '../guest/themeKit';
-import { CoverImage } from '../guest/CoverImage';
-import { nearestWax, WaxSeal } from '../guest/invitation/WaxSeal';
+import { CoverImage, EnvelopePortrait } from '../guest/CoverImage';
 import { Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
 import { BRAND } from './SalesPage';
+import { TOKENS } from './tokens';
 
-const INK = '#33402f';
+const INK = TOKENS.sage;
 const SOFT = '#5b6a52';
 const PAPER = '#fbf8f2';
+/** The tiles: a card of bright paper whatever the design's colours, so names are always ink (VS-04). */
+const CARD = TOKENS.paperBright;
+/** Three a row on most screens: the first two rows load straight away, the rest as they scroll near. */
+const EAGER = 6;
 const serif = "'Cormorant Garamond', Georgia, serif";
 
 /**
@@ -33,14 +37,14 @@ export function DesignsPage() {
     <div className="min-h-screen" style={{ background: PAPER, color: INK, fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" }}>
       <header className="max-w-[1100px] mx-auto px-4 py-5 flex justify-between items-center gap-3">
         <span className="flex items-center gap-3">
-          <Link to="/" className="no-underline py-2 px-3 rounded-full border text-[14px]" style={{ color: INK, borderColor: '#d3c6a4' }}>
+          <Link to="/" className="no-underline inline-flex items-center min-h-[44px] px-4 rounded-full border text-[14px]" style={{ color: INK, borderColor: '#d3c6a4' }}>
             ← Home
           </Link>
-          <Link to="/" aria-label={`${BRAND} home`} className="no-underline hidden sm:inline">
+          <Link to="/" aria-label={`${BRAND} home`} className="no-underline hidden sm:inline-flex items-center min-h-[44px]">
             <Wordmark size={22} />
           </Link>
         </span>
-        <Link to="/#start" className="py-[10px] px-5 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
+        <Link to="/#start" className="inline-flex items-center min-h-[44px] px-5 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
           Start your wedding
         </Link>
       </header>
@@ -64,7 +68,7 @@ export function DesignsPage() {
                   type="button"
                   aria-pressed={mood === m}
                   onClick={() => setMood(m)}
-                  className="px-4 py-2 rounded-full border text-[14px] cursor-pointer"
+                  className="inline-flex items-center min-h-[44px] px-4 rounded-full border text-[14px] cursor-pointer"
                   style={mood === m ? { background: INK, borderColor: INK, color: PAPER } : { background: 'transparent', borderColor: '#d3c6a4', color: INK }}
                 >
                   {m}
@@ -72,7 +76,7 @@ export function DesignsPage() {
               ))}
             </div>
             <div role="radiogroup" aria-label="Designs" className="grid gap-3 grid-cols-2 sm:grid-cols-3">
-              {shown.map((name) => {
+              {shown.map((name, i) => {
                 const t = themeOf(name);
                 const on = name === theme;
                 return (
@@ -87,34 +91,19 @@ export function DesignsPage() {
                       if (window.innerWidth < 768) document.getElementById('design-phone')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }}
                     className="flex flex-col gap-2 p-2 rounded-[14px] border text-left cursor-pointer"
-                    style={{ background: t.b1 ?? '#fff', borderColor: on ? INK : '#e2d7bc', boxShadow: on ? `0 0 0 2px ${INK}` : undefined }}
+                    style={{ background: CARD, borderColor: on ? INK : '#e2d7bc', boxShadow: on ? `0 0 0 2px ${INK}` : undefined }}
                   >
-                    {/* The design's cover still: its own closed envelope, Harriet & Theo and their seal. */}
+                    {/* The design as a 3:4 portrait: its own closed envelope or opening scene, Harriet & Theo and
+                        their seal. The box holds its shape while the still loads (no jump). */}
                     <span className="relative block aspect-[3/4] rounded-[10px] overflow-hidden" style={{ background: SIGNATURE[name]?.envelope ?? t.e1 ?? t.b2 }}>
-                      <CoverImage
-                        name={name}
-                        active={on}
-                        className="h-full"
-                        fallback={
-                          SIGNATURE[name] ? (
-                            <span className="flex flex-col items-center justify-center gap-1 h-full">
-                              <span className="font-script text-[24px] leading-none" style={{ color: t.b1 }}>
-                                Harriet &amp; Theo
-                              </span>
-                              <span className="block w-10 h-px" style={{ background: t.acc ?? '#c8a46a' }} />
-                            </span>
-                          ) : (
-                            <MiniEnvelope t={t} />
-                          )
-                        }
-                      />
+                      <CoverImage name={name} active={on} eager={i < EAGER} className="h-full" fallback={<EnvelopePortrait t={t} />} />
                       {SIGNATURE[name] && (
                         <span className="absolute top-1 left-1 px-2 py-[1px] rounded-full text-[10px] font-semibold tracking-[.08em] uppercase" style={{ background: '#e6cf9e', color: '#1b2218' }}>
                           Signature
                         </span>
                       )}
                     </span>
-                    <span className="px-1 text-[14px] font-medium" style={{ color: t.dg ?? INK }}>
+                    <span className="px-1 text-[15px] font-medium" style={{ color: INK, fontFamily: serif }}>
                       {themeLabel(name)}
                     </span>
                     <span className="px-1 -mt-2 text-[12px]" style={{ color: SOFT }}>
@@ -136,10 +125,10 @@ export function DesignsPage() {
               {SIGNATURE[theme] ? 'Tap anywhere to open it.' : 'Tap the seal to open it.'}
             </span>
             <div className="flex gap-3 flex-wrap justify-center">
-              <a href={`/demo?theme=${encodeURIComponent(theme)}&from=designs`} className="py-[10px] px-5 rounded-full no-underline text-[15px] border" style={{ color: INK, borderColor: '#c6b794' }}>
+              <a href={`/demo?theme=${encodeURIComponent(theme)}&from=designs`} className="inline-flex items-center min-h-[44px] px-5 rounded-full no-underline text-[15px] border" style={{ color: INK, borderColor: '#c6b794' }}>
                 Open full screen
               </a>
-              <Link to="/#start" className="py-[10px] px-5 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
+              <Link to="/#start" className="inline-flex items-center min-h-[44px] px-5 rounded-full no-underline text-[15px] font-semibold" style={{ background: INK, color: PAPER }}>
                 Use this design
               </Link>
             </div>
@@ -147,32 +136,5 @@ export function DesignsPage() {
         </div>
       </main>
     </div>
-  );
-}
-
-/**
- * A design as a little envelope in its own colours: the paper, the top flap folded over it with its shadow, a
- * fine foil rule along the flap, and the wax seal where the flap meets.
- */
-function MiniEnvelope({ t }: { t: ReturnType<typeof themeOf> }) {
-  const env = [t.e1 ?? t.b2 ?? '#e6dcc4', t.e2 ?? t.b2 ?? '#d9cdb0', t.e3 ?? '#c6b794'];
-  const flap = [t.t1 ?? env[0], t.t2 ?? env[1], t.t3 ?? env[2]];
-  const acc = t.acc ?? '#c8a46a';
-  return (
-    <span aria-hidden className="relative block h-[84px] rounded-[10px] overflow-hidden shadow-[inset_0_0_0_1px_rgba(0,0,0,.05)]" style={{ background: `linear-gradient(0deg, ${env[2]}, ${env[0]})` }}>
-      {/* The bottom panel and sides, folded in. */}
-      <span className="absolute inset-0" style={{ background: `linear-gradient(0deg, ${env[1]}, ${env[0]})`, clipPath: 'polygon(0 100%, 50% 46%, 100% 100%)' }} />
-      {/* The top flap, with its shadow below. */}
-      <span className="absolute inset-0" style={{ background: 'rgba(40,28,14,.16)', clipPath: 'polygon(0 0, 100% 0, 50% 64%)', filter: 'blur(1.5px)', transform: 'translateY(2px)' }} />
-      <span className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${flap[0]}, ${flap[2]})`, clipPath: 'polygon(0 0, 100% 0, 50% 62%)' }} />
-      {/* The foil rule, just inside the flap's edges. */}
-      <svg viewBox="0 0 100 84" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">
-        <path d="M8 0 L44 36 M92 0 L56 36 M10 84 L28 67.7 M90 84 L72 67.7" stroke={acc} strokeWidth="1" vectorEffect="non-scaling-stroke" fill="none" opacity=".9" />
-      </svg>
-      {/* The seal: the same pressed wax as the invitation, in the design's accent. */}
-      <span className="absolute left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2 w-[30px] h-[30px]" style={{ filter: 'drop-shadow(0 1px 1.5px rgba(40,25,10,.45)) drop-shadow(0 3px 4px rgba(40,25,10,.2))' }}>
-        <WaxSeal colour={nearestWax(acc)} words="H & T" px={30} still />
-      </span>
-    </span>
   );
 }

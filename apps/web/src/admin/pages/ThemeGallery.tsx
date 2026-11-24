@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CoverImage } from '../../guest/CoverImage';
+import { CoverImage, EnvelopePortrait } from '../../guest/CoverImage';
 import { isHex, themeLabel, LOOK_LABEL, LOOKS, lookOf, MOOD_OF, MOODS, NAMES_STYLES, paletteOf, PRESETS, THEME_NAMES, themeOf, type NamesStyle, type ThemeCustom } from '../../guest/themeKit';
 
 /**
@@ -35,7 +35,7 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
             type="button"
             aria-pressed={mood === m}
             onClick={() => setMood(m)}
-            className={`px-3 py-[5px] rounded-full border text-[12px] cursor-pointer ${mood === m ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[var(--adm-line,#d3c6a4)] text-[var(--adm-ink,#33402f)] hover:border-[#b39563]'}`}
+            className={`inline-flex items-center min-h-[44px] px-3 rounded-full border text-[12px] cursor-pointer ${mood === m ? 'bg-[#33402f] border-[#33402f] text-[#fbf8f0]' : 'bg-transparent border-[var(--adm-line,#d3c6a4)] text-[var(--adm-ink,#33402f)] hover:border-[#b39563]'}`}
           >
             {m}
             {m !== 'All' && <span className="opacity-70"> · {THEME_NAMES.filter((n) => MOOD_OF[n] === m).length}</span>}
@@ -43,7 +43,7 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
         ))}
       </div>
       <div role="radiogroup" aria-label="Theme" className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-        {shown.map((name) => {
+        {shown.map((name, i) => {
           const t = themeOf(name);
           const on = name === theme;
           return (
@@ -54,29 +54,18 @@ export function ThemeGallery({ theme, custom, onTheme, onCustom }: { theme: stri
               aria-checked={on}
               onClick={() => onTheme(name)}
               className={`flex flex-col gap-1 p-2 rounded-[12px] border text-left cursor-pointer ${on ? 'border-[#33402f] shadow-[0_0_0_2px_#33402f]' : 'border-[var(--adm-line,#e2d7bc)] hover:border-[#b39563]'}`}
-              style={{ background: t.b1 ?? '#fff' }}
+              style={{ background: '#fffcf8' }}
             >
-              {/* The design's cover still (its closed envelope); a tiny invitation in its colours until there is one. */}
+              {/* The design as a 3:4 portrait (its closed envelope or scene); its envelope drawn in its colours until
+                  there is a still. The card is bright paper whatever the design, so the name is always ink (VS-04). */}
               <span className="block aspect-[3/4] rounded-[8px] overflow-hidden" style={{ background: t.e1 ?? t.b2 ?? t.b1 }}>
-                <CoverImage
-                  name={name}
-                  active={on}
-                  className="h-full"
-                  fallback={
-                    <span className="flex flex-col items-center justify-center gap-1 h-full" style={{ background: t.b2 ?? t.b1 }}>
-                      <span className="font-script text-[20px] leading-none" style={{ color: t.dg }}>
-                        Harriet &amp; Theo
-                      </span>
-                      <span className="w-8 h-[2px]" style={{ background: t.acc }} />
-                    </span>
-                  }
-                />
+                <CoverImage name={name} active={on} eager={i < 8} className="h-full" fallback={<EnvelopePortrait t={t} />} />
               </span>
-              <span className="text-[12px] font-medium leading-tight" style={{ color: t.dg }}>
+              <span className="text-[12px] font-medium leading-tight" style={{ color: '#33402f' }}>
                 {themeLabel(name)}
                 {on ? ' ✓' : ''}
               </span>
-              {PRESETS[name] && <span className="text-[11px] leading-tight opacity-75" style={{ color: t.dg }}>{PRESETS[name]!.style}</span>}
+              {PRESETS[name] && <span className="text-[11px] leading-tight" style={{ color: '#5b6a52' }}>{PRESETS[name]!.style}</span>}
             </button>
           );
         })}

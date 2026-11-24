@@ -10,4 +10,12 @@ export const coverSlug = (name: string) =>
     .replace(/&/g, 'and')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-export const coverOf = (name: string) => `/covers/${coverSlug(name)}.jpg`;
+/**
+ * Designs whose new portrait cover (the artwork brief's, apps/web/public/themes/covers/<slug>.webp) has landed:
+ * add a slug here when its file is committed. Every other design keeps its still in /covers.
+ */
+export const NEW_COVERS: ReadonlySet<string> = new Set<string>([]);
+export const coverOf = (name: string) => {
+  const slug = coverSlug(name);
+  return NEW_COVERS.has(slug) ? `/themes/covers/${slug}.webp` : `/covers/${slug}.jpg`;
+};

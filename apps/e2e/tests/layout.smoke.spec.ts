@@ -388,3 +388,21 @@ test('VS-03: the live invitation is in the first screen of the front page, on a 
   expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
   expect(problems).toEqual([]);
 });
+
+test('VS-04: the designs are 3:4 portraits with ink names, the filter chips are 44px, nothing sideways', async ({ page }) => {
+  const problems = await watch(page);
+  await page.goto('/designs');
+  const chips = page.getByRole('group', { name: 'Moods' }).getByRole('button');
+  for (const chip of await chips.all()) expect((await chip.boundingBox())!.height, (await chip.textContent()) ?? '').toBeGreaterThanOrEqual(44);
+  expect((await page.getByRole('link', { name: '← Home' }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const tiles = page.getByRole('radiogroup', { name: 'Designs' }).getByRole('radio');
+  expect(await tiles.count()).toBeGreaterThan(20);
+  for (const tile of (await tiles.all()).slice(0, 6)) {
+    const art = (await tile.locator('span').first().boundingBox())!;
+    expect(Math.abs(art.width / art.height - 0.75), 'a 3:4 portrait').toBeLessThan(0.03);
+    const name = tile.locator('span').nth(-2);
+    expect(await name.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(51, 64, 47)');
+  }
+  expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
+  expect(problems).toEqual([]);
+});
