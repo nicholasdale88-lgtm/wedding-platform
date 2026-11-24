@@ -95,7 +95,7 @@ export const SAMPLE_PLACEHOLDERS: Record<string, string> = {
 };
 /** The starting wording with every [placeholder] filled in for the sample. */
 export function fillSample(texts: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(texts).map(([k, v]) => [k, v.replace(/\[([^\[\]]{1,80})\]/g, (_, p: string) => SAMPLE_PLACEHOLDERS[p] ?? p)]));
+  return Object.fromEntries(Object.entries(texts).map(([k, v]) => [k, v.replace(/\[([^[\]]{1,80})\]/g, (_, p: string) => SAMPLE_PLACEHOLDERS[p] ?? p)]));
 }
 
 const FILLS: Record<string, string> = {
