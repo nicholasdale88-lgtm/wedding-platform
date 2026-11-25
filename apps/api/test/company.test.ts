@@ -134,8 +134,8 @@ describe('company portal', () => {
     const list = (await (await call('/a/company/promos', {}, boss.cookie)).json()) as { codes: { code: string; used: number }[] };
     expect(list.codes.find((c) => c.code === 'FRIEND')!.used).toBe(1);
     expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'essentials', code: 'FRIEND' }) }, a.cookie)).json()) as { error: { message: string } }).error.message).toMatch(/used up/);
-    // Not for Deluxe.
-    expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'complete', code: 'YES20' }) }, a.cookie)).json()) as { cents: number }).cents).toBe(7840);
+    // One plan: the same $87 less 20% whichever old plan key is asked for.
+    expect(((await (await call(`/a/w/${a.wid}/plan/promo`, { method: 'POST', body: JSON.stringify({ what: 'complete', code: 'YES20' }) }, a.cookie)).json()) as { cents: number }).cents).toBe(6960);
     const stats = (await (await call('/a/company/stats', {}, boss.cookie)).json()) as { revenue: { payments: number } };
     expect(stats.revenue.payments).toBe(1);
   });
