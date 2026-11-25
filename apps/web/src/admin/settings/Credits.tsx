@@ -16,7 +16,7 @@ const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
  * number, quiet hours, automatic replies) follow underneath.
  */
 export function CreditsSection() {
-  const { wid } = useAdmin();
+  const { wid, overview } = useAdmin();
   const tools = useTools();
   const [s, setS] = useState<SettingsData | null>(null);
   const [history, setHistory] = useState<{ at: string; credits: number; cents: number | null }[] | null>(null);
@@ -60,7 +60,7 @@ export function CreditsSection() {
             <tbody>
               {history.map((h) => (
                 <tr key={h.at} className="border-t border-[var(--adm-line,#e2d7bc)]">
-                  <td className="py-2 pr-3">{fmtWhen(h.at)}</td>
+                  <td className="py-2 pr-3">{fmtWhen(h.at, overview?.wedding.timezone ?? 'Australia/Sydney')}</td>
                   <td className="py-2 pr-3 tabular-nums">{h.credits.toLocaleString('en-AU')}</td>
                   <td className="py-2 tabular-nums">{h.cents === null ? '—' : money(h.cents)}</td>
                 </tr>

@@ -106,7 +106,7 @@ describe('text credits', () => {
     // The Texting screen says texts aren't included, and what's left.
     const s = (await (await call(`/a/w/${wid}/settings`, {}, cookie)).json()) as { credits: number; connected: boolean; canBuy: boolean; costNote: string };
     expect(s).toMatchObject({ credits: 720, connected: true, canBuy: true });
-    expect(s.costNote).toMatch(/not included in any plan/);
+    expect(s.costNote).toMatch(/not included in the plan/);
   });
 
   it('Settings: tools start off on a new wedding; buying credits switches texts on at once, and each top-up is in the history', async () => {
