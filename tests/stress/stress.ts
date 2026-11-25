@@ -1103,6 +1103,67 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
     }
   }
 
+  // 12f. The budget, the booked suppliers and the checklist. The budget reads back exactly as saved (amounts to
+  //      the cent); a save from a stale copy is "Changed elsewhere" (never a crash, never lost); the same save
+  //      sent twice is a success. A celebrant booked under any of the names couples give the category ticks
+  //      "Book the celebrant" (and only what's booked: "Book the florist" stays to do unless a florist is).
+  //      A free plan can open the budget but can't save it.
+  if (rng.chance(0.6)) {
+    type Doc<T> = { version: number; data: T };
+    const bud = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/budget'), 200, 'budget')).json<Doc<{ lines: unknown[] }>>();
+    const cats = ['Venue', 'Catering', 'Photography', 'Flowers', 'Attire', 'Music', 'Stationery', 'Other'];
+    const lines = Array.from({ length: rng.int(1, 30) }, (_, k) => {
+      const estimate = rng.int(0, 2_000_000) / 100;
+      const paid = rng.chance(0.4) ? rng.int(0, Math.round(estimate * 100)) / 100 : 0;
+      return {
+        category: rng.pick(cats), item: `${rng.pick(['Deposit', 'Balance', 'Hire', 'Extras — late night', 'Grazing table 🧀'])} ${k + 1}`,
+        estimate, quote: rng.chance(0.5) ? estimate : 0, paid, due: rng.chance(0.5) ? addDays(ymdIn(w.tz, new Date()), rng.int(-30, 300)) : '',
+        vendor: rng.chance(0.3) ? rng.pick(['Harbour Lights Band', 'J. Ng Photography', 'The Terrace Kitchen']) : '', note: '', payer: rng.chance(0.2) ? 'Her parents' : '', perHead: 0,
+      };
+    });
+    const body = { total: rng.int(0, 120_000), guests: 0, lines, split: {} };
+    const saved = await admin('/planner/doc/:kind', 'PUT', '/planner/doc/budget', body, { 'If-Match': String(bud.version) });
+    if (w.plan === 'basic') {
+      check(saved.status >= 400 && saved.status < 500 && saved.json<{ error?: { code: string } }>().error?.code === 'upgrade', 'a free plan can’t save the budget (asked to upgrade, not a crash)', () => `${saved.status} ${saved.text.slice(0, 120)}`);
+    } else {
+      check(saved.status === 200, 'the budget saves', () => `${saved.status} ${saved.text.slice(0, 160)}`);
+      const back = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/budget'), 200, 'budget')).json<Doc<{ total: number; lines: typeof lines }>>();
+      const sum = (xs: typeof lines, k: 'estimate' | 'paid') => Math.round(xs.reduce((a, l) => a + l[k], 0) * 100);
+      check(back.data.lines.length === lines.length && sum(back.data.lines, 'paid') === sum(lines, 'paid') && sum(back.data.lines, 'estimate') === sum(lines, 'estimate') && back.data.total === body.total, 'the budget reads back to the cent', () => `${back.data.lines.length}/${lines.length} lines, paid ${sum(back.data.lines, 'paid')} vs ${sum(lines, 'paid')}`);
+      // The same save again (a retry after a dropped connection): fine. From the copy before: Changed elsewhere.
+      const retry = await admin('/planner/doc/:kind', 'PUT', '/planner/doc/budget', body, { 'If-Match': String(bud.version) });
+      check(retry.status === 200, 'a budget save sent twice is a success', () => `${retry.status} ${retry.text.slice(0, 120)}`);
+      const stale = await admin('/planner/doc/:kind', 'PUT', '/planner/doc/budget', { ...body, total: body.total + 1 }, { 'If-Match': String(bud.version) });
+      check(stale.status === 409, 'a budget save from a stale copy is Changed elsewhere', () => `${stale.status} ${stale.text.slice(0, 120)}`);
+
+      // The checklist with two "Book the…" items, then a celebrant booked (and sometimes a florist).
+      const cl = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/checklist'), 200, 'checklist')).json<Doc<{ tasks: { id: string; text: string; done: boolean }[]; helpers: unknown[] }>>();
+      const mine = [
+        { id: `st-cel-${w.i}`, text: 'Book the celebrant', before: 400, done: false, status: 'todo' },
+        { id: `st-flo-${w.i}`, text: 'Book the florist', before: 240, done: false, status: 'todo' },
+      ];
+      const keep = cl.data.tasks.filter((t) => !/^book the (celebrant|florist)\b/i.test(t.text));
+      await must(admin('/planner/doc/:kind', 'PUT', '/planner/doc/checklist', { ...cl.data, tasks: [...keep, ...mine] }, { 'If-Match': String(cl.version) }), 200, 'checklist save');
+      const vd = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/vendors'), 200, 'vendors doc')).json<Doc<{ list: { category: string; status: string; name: string }[] }>>();
+      const florist = rng.chance(0.4);
+      const add = [
+        { id: `st-c${w.i}`, name: rng.pick(['Ruth Okafor', 'Celebrations by Jo', 'M. Tran JP']), category: rng.pick(['Celebrant', 'Celebrant & MC', 'Officiant', 'JP / celebrant', 'Ceremony — celebrant']), status: 'booked' },
+        ...(florist ? [{ id: `st-f${w.i}`, name: 'Petal & Stem', category: rng.pick(['Florist', 'Flowers', 'Florals & styling']), status: 'booked' }] : []),
+      ];
+      await must(admin('/planner/doc/:kind', 'PUT', '/planner/doc/vendors', { list: [...vd.data.list, ...add] }, { 'If-Match': String(vd.version) }), 200, 'vendors booked');
+      const after = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/checklist'), 200, 'checklist')).json<Doc<{ tasks: { id: string; done: boolean; status: string }[] }>>();
+      const cel = after.data.tasks.find((t) => t.id === mine[0]!.id);
+      const flo = after.data.tasks.find((t) => t.id === mine[1]!.id);
+      check(!!cel?.done && cel.status === 'done', 'a booked celebrant ticks “Book the celebrant”', () => `${add[0]!.category}: ${JSON.stringify(cel)}`);
+      // Anything that could count as a florist (a Flowers budget line with a supplier or money paid, any vendor
+      // filed as flowers): only assert "still to do" when there's none of it.
+      const maybeFlorist = vd.data.list.some((v) => /flor|flower|bouquet|styl/i.test(`${v.category} ${v.name}`)) || lines.some((l) => l.category === 'Flowers');
+      if (florist) check(!!flo?.done, 'a booked florist ticks “Book the florist”', () => `${add[1]!.category}: ${JSON.stringify(flo)}`);
+      else if (!maybeFlorist) check(!!flo && !flo.done, '“Book the florist” stays to do while no florist is booked', () => JSON.stringify(flo));
+      check(after.data.tasks.length === keep.length + 2, 'the checklist keeps every task through the ticking', () => `${after.data.tasks.length} vs ${keep.length + 2}`);
+    }
+  }
+
   // 13. Everything agrees everywhere.
   await checkAll(b, w, check, guests);
   w.done = true;
