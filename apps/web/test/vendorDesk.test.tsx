@@ -16,10 +16,12 @@ const data: MyListing = {
 const couples: VendorCouple[] = [{ id: 'w1', couple: 'Ella & Kai', date: soon(20), venue: 'The Barn', coming: 80, invited: 90, status: 'booked', via: '', since: soon(-30), unread: 1, last: { body: 'Hi!', at: soon(-1) }, details: '' }];
 
 describe('the vendor’s desk', () => {
-  it('Overview: what needs them first, what’s coming up, and how strong their listing is', () => {
+  it('Overview: the next three things first, what’s coming up, and how strong their listing is (folded)', () => {
     const go = vi.fn();
     render(<VendorOverview data={data} couples={couples} unread={1} quotesOpen={0} go={go} />);
-    const needs = screen.getByRole('region', { name: 'Needs you' });
+    const needs = screen.getByRole('region', { name: 'Next 3 things' });
+    expect(within(needs).getAllByRole('button').filter((b) => !/All requests/.test(b.textContent ?? '')).length).toBeLessThanOrEqual(3);
+    expect(screen.getByRole('region', { name: 'Your season' }).closest('details')).not.toBeNull();
     expect(within(needs).getByText('Ella & Kai wrote to you')).toBeInTheDocument();
     expect(within(needs).getByText('New enquiry from Grace Wu')).toBeInTheDocument();
     expect(within(needs).getByText('Grace Wu’s date clashes')).toBeInTheDocument(); // booked with Ella & Kai that day

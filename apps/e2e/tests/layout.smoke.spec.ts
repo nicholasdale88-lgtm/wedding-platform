@@ -157,8 +157,8 @@ test('the sample photo page names the couple in the browser tab (it was blank)',
 
 test('the sample vendor account: See your page and Sign out are easy taps (44px or more)', async ({ page }, info) => {
   await page.goto('/vendors/me?sample=1');
-  // On a phone they're under More.
-  if (phone(info.project.name)) await page.getByRole('navigation', { name: 'Quick menu' }).getByRole('button', { name: 'More' }).click();
+  // On a phone they're in the account sheet (the header's menu button).
+  if (phone(info.project.name)) await page.getByRole('button', { name: 'Open the menu' }).click();
   for (const el of [page.getByRole('link', { name: 'See your page' }), page.getByRole('button', { name: 'Sign out' })]) {
     await expect(el).toBeVisible({ timeout: 20_000 });
     expect((await el.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
@@ -213,7 +213,7 @@ test('front page sign-up: "Already have one? Sign in" is a 44px tap', async ({ p
 
 test('the sample vendor account: no card runs past the edge of the screen (Needs you and Coming up were cut off on a phone)', async ({ page }) => {
   await page.goto('/vendors/me?sample=1');
-  await expect(page.getByRole('region', { name: 'Needs you' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('region', { name: 'Next 3 things' })).toBeVisible({ timeout: 20_000 });
   const past = await page.evaluate(() =>
     [...document.querySelectorAll('main section')]
       .map((el) => ({ label: el.getAttribute('aria-label') ?? (el.textContent ?? '').trim().slice(0, 30), r: el.getBoundingClientRect() }))
@@ -252,7 +252,7 @@ test('the sample app overview: "Add them" and "Set it up" take a tap just above 
   }
 });
 
-test('the vendor account wears their look: a side menu on a computer, a bottom bar and More on a phone', async ({ page }, info) => {
+test('the vendor account wears their look: five places down the side on a computer, along the bottom on a phone', async ({ page }, info) => {
   const problems = await watch(page);
   await page.goto('/vendors/me?sample=1');
   await expect(page.getByRole('heading', { name: 'Overview' })).toBeAttached();
@@ -260,20 +260,24 @@ test('the vendor account wears their look: a side menu on a computer, a bottom b
     const side = page.getByRole('navigation', { name: 'Your vendor account' });
     await expect(side).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Quick menu' })).toBeHidden();
-    await side.getByRole('button', { name: 'Your look' }).click();
+    await expect(side.getByRole('button')).toHaveCount(5);
+    await side.getByRole('button', { name: 'Your listing' }).click();
   } else {
     const bar = page.getByRole('navigation', { name: 'Quick menu' });
     await expect(bar).toBeVisible();
+    await expect(bar.getByRole('button')).toHaveCount(5);
+    await expect(bar.getByRole('button', { name: 'More' })).toHaveCount(0);
     for (const b of await bar.getByRole('button').all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
-    await bar.getByRole('button', { name: 'More' }).click();
+    // The header's menu button still opens the account sheet (Escape closes it).
+    await page.getByRole('button', { name: 'Open the menu' }).click();
     const sheet = page.getByRole('dialog', { name: 'Your vendor account' });
     await expect(sheet).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(sheet).toBeHidden();
-    await bar.getByRole('button', { name: 'More' }).click();
-    await sheet.getByRole('button', { name: 'Your look' }).click();
-    await expect(sheet).toBeHidden();
+    await bar.getByRole('button', { name: /^Listing/ }).click();
   }
+  // Your look sits inside Your listing.
+  await page.getByRole('navigation', { name: 'Your listing' }).getByRole('button', { name: 'Your look' }).click();
   await expect(page).toHaveURL(/tab=look/);
   await expect(page.getByRole('heading', { name: 'Your look', level: 1 })).toBeVisible();
   // A colour set shows straight away; Save keeps it; hiding a place takes it out of the menu.

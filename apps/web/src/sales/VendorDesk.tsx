@@ -158,12 +158,12 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start">
-        <section aria-label="Needs you" className={card}>
+        <section aria-label="Next 3 things" className={card}>
           <h3 className={h} style={{ color: SOFT }}>
-            Needs you{needs.length ? ` · ${needs.length}` : ''}
+            Next 3 things
           </h3>
           {!needs.length && <p className="m-0 text-[20px] italic" style={{ fontFamily: serif, color: INK }}>All caught up.</p>}
-          {needs.slice(0, 8).map((n, i) => (
+          {needs.slice(0, 3).map((n, i) => (
             <button key={i} type="button" onClick={() => go(n.to)} className="flex items-start gap-3 py-2 border-t border-[#efe6d0] first-of-type:border-t-0 bg-transparent text-left cursor-pointer min-h-[44px]">
               <span aria-hidden className="mt-[6px] flex-none w-[9px] h-[9px] rounded-full" style={{ background: n.urgent ? '#a4553c' : GOLD }} />
               <span className="min-w-0 flex-1">
@@ -181,6 +181,11 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
               </span>
             </button>
           ))}
+          {needs.length > 0 && (
+            <button type="button" onClick={() => go('enquiries')} className="self-start inline-flex items-center min-h-[44px] p-0 border-0 bg-transparent underline cursor-pointer text-[14px]" style={{ color: INK }}>
+              All requests ({needs.length})
+            </button>
+          )}
         </section>
 
         <section aria-label="Coming up" className={card}>
@@ -209,7 +214,12 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
         </section>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start">
+      {/* Folded: the twelve-month chart and the listing's strength (not on the first screen). */}
+      <details className="flex flex-col gap-4">
+        <summary className="inline-flex items-center min-h-[44px] cursor-pointer text-[14px] font-medium" style={{ color: SOFT }}>
+          More: your season and your listing
+        </summary>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start pt-3">
         <section aria-label="Your season" className={card}>
           <div className="flex justify-between items-baseline gap-3 flex-wrap">
             <h3 className={h} style={{ color: SOFT }}>
@@ -270,6 +280,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
           </button>
         </section>
       </div>
+      </details>
     </div>
   );
 }

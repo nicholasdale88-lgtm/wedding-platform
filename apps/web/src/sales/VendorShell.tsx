@@ -5,9 +5,8 @@ import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { BRAND } from './brand';
 
 /**
- * A vendor's own account, in their colours with their logo: a menu down the side on a computer (grouped: Today,
- * Your work, Grow) and, on a phone, their logo at the top and a bottom bar of the four places they choose, with
- * everything else under More. The look is theirs to set under Your look (colours, a dark or light menu, roomy or
+ * A vendor's own account, in their colours with their logo: five places (Overview, Couples, Requests, Calendar,
+ * Your listing) down the side on a computer and along the bottom on a phone, their logo at the top. The look is theirs to set under Your look (colours, a dark or light menu, roomy or
  * compact, the logo's shape, a line under their name, which places show).
  */
 
@@ -27,14 +26,28 @@ export const PLACE_LABEL: Record<VendorPlace, string> = {
   listing: 'Your listing',
   look: 'Your look',
 };
-/** Short names for the phone's bottom bar. */
-const SHORT: Record<VendorPlace, string> = { ...PLACE_LABEL, couples: 'Couples', recommend: 'Recommend', listing: 'Listing', look: 'Look' };
 const GROUPS: { name: string; keys: VendorPlace[] }[] = [
   { name: 'Today', keys: ['home'] },
   { name: 'Your work', keys: ['couples', 'quotes', 'enquiries', 'proposals', 'calendar'] },
   { name: 'Grow', keys: ['recommend', 'listing'] },
   { name: 'Your account', keys: ['look'] },
 ];
+
+/**
+ * The vendor's menu (launch simplification, Job 8): five places, the same on a phone and a computer. Requests
+ * holds enquiries, quotes and proposals (a place is kept for documents later); Your listing holds Your look
+ * and Recommend us. Every old place is still there, opened under its own.
+ */
+type TopKey = 'home' | 'couples' | 'requests' | 'calendar' | 'listing';
+const TOP: { key: TopKey; label: string; short: string; icon: VendorPlace; opens: VendorPlace; places: VendorPlace[] }[] = [
+  { key: 'home', label: 'Overview', short: 'Overview', icon: 'home', opens: 'home', places: ['home'] },
+  { key: 'couples', label: 'Couples', short: 'Couples', icon: 'couples', opens: 'couples', places: ['couples'] },
+  { key: 'requests', label: 'Requests', short: 'Requests', icon: 'enquiries', opens: 'enquiries', places: ['enquiries', 'quotes', 'proposals'] },
+  { key: 'calendar', label: 'Calendar', short: 'Calendar', icon: 'calendar', opens: 'calendar', places: ['calendar'] },
+  { key: 'listing', label: 'Your listing', short: 'Listing', icon: 'listing', opens: 'listing', places: ['listing', 'look', 'recommend'] },
+];
+/** Which of the five a place sits under. */
+export const topOf = (k: VendorPlace) => TOP.find((t) => t.places.includes(k))!;
 /** Places whose own page starts with its title: the bar above it shows the group only (the title stays for screen readers). */
 const OWN_TITLE: VendorPlace[] = ['home', 'couples', 'quotes', 'enquiries', 'proposals', 'recommend'];
 export const groupOf = (k: VendorPlace) => GROUPS.find((g) => g.keys.includes(k))?.name ?? '';
@@ -164,9 +177,9 @@ export function VendorShell({
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [place]);
-  const shown = (k: VendorPlace) => k === 'home' || k === 'listing' || k === 'look' || !look.hidden.includes(k);
-  const groups = GROUPS.map((g) => ({ ...g, keys: g.keys.filter(shown) })).filter((g) => g.keys.length);
-  const bar = (look.bar.length ? look.bar : DEFAULT_VENDOR_LOOK.bar).filter(shown).slice(0, 4);
+  const here = topOf(place);
+  // Requests' badge: everything waiting there, together.
+  const badgeOf = (t: (typeof TOP)[number]) => t.places.reduce((n, p) => n + (badges[p] ?? 0), 0);
   const status = listing.pending ? 'Under review' : listing.hidden ? 'Hidden by the site' : 'Live in the directory';
   const pick = (k: VendorPlace) => {
     setMore(false);
@@ -198,9 +211,10 @@ export function VendorShell({
       </div>
     </div>
   );
-  const item = (k: VendorPlace, onPick: (k: VendorPlace) => void, inSheet = false) => {
-    const on = place === k;
-    const n = badges[k] ?? 0;
+  const item = (t: (typeof TOP)[number], onPick: (k: VendorPlace) => void, inSheet = false) => {
+    const k = t.icon;
+    const on = here.key === t.key;
+    const n = badgeOf(t);
     const tone: CSSProperties = inSheet
       ? on
         ? { background: c.tint, color: c.side }
@@ -211,16 +225,16 @@ export function VendorShell({
           : { background: c.tint, color: c.side, boxShadow: `inset 3px 0 0 ${c.accent}` }
         : { color: 'inherit' };
     return (
-      <li key={k}>
+      <li key={t.key}>
         <button
           type="button"
           aria-current={on ? 'page' : undefined}
-          onClick={() => onPick(k)}
+          onClick={() => onPick(t.opens)}
           className={`w-full flex items-center gap-3 px-3 rounded-[12px] border-0 bg-transparent text-left cursor-pointer transition-colors duration-150 ${look.compact ? 'text-[14px]' : 'text-[15px]'} ${on ? 'font-semibold' : 'hover:bg-[rgba(127,127,127,.12)]'}`}
           style={{ minHeight: rowH, ...tone }}
         >
           <Icon k={k} size={look.compact ? 18 : 20} />
-          <span className="flex-1 min-w-0 truncate">{PLACE_LABEL[k]}</span>
+          <span className="flex-1 min-w-0 truncate">{t.label}</span>
           {n > 0 && (
             <span className="min-w-[22px] h-[22px] px-[6px] rounded-full inline-flex items-center justify-center text-[12px] font-semibold" style={{ background: '#e3c88f', color: '#2b2418' }} aria-label={`${n} waiting`}>
               {n > 99 ? '99+' : n}
@@ -238,14 +252,7 @@ export function VendorShell({
       <aside className="hidden lg:flex flex-col gap-6 sticky top-0 h-screen overflow-y-auto [scrollbar-width:thin] px-4 pt-7 pb-5" style={side}>
         <div className="px-2">{brand(look.logoShape === 'wide' ? 56 : 64)}</div>
         <nav aria-label="Your vendor account" className="flex flex-col gap-4">
-          {groups.map((g) => (
-            <div key={g.name} className="flex flex-col gap-1">
-              <span className="px-3 text-[11px] tracking-[.16em] uppercase font-semibold" style={{ color: muted }}>
-                {g.name}
-              </span>
-              <ul className="m-0 p-0 list-none flex flex-col gap-[2px]">{g.keys.map((k) => item(k, go))}</ul>
-            </div>
-          ))}
+          <ul className="m-0 p-0 list-none flex flex-col gap-[2px]">{TOP.map((t) => item(t, go))}</ul>
         </nav>
         <div className="mt-auto flex flex-col gap-[2px] pt-4" style={{ borderTop: `1px solid ${dark ? 'rgba(246,240,226,.16)' : mix(c.tint, 0, 0.08)}` }}>
           <Link to={`/vendors/${listing.slug}`} className={footLink} style={{ color: 'inherit' }}>
@@ -285,32 +292,51 @@ export function VendorShell({
         <main className="w-full max-w-[1120px] mx-auto px-4 lg:px-10 pt-5 lg:pt-9 pb-28 lg:pb-16 min-w-0">
           <div className="flex flex-col gap-1 pb-4">
             <span className="text-[12px] tracking-[.16em] uppercase font-semibold" style={{ color: c.accent }}>
-              {groupOf(place)}
+              {here.label}
             </span>
             <h1 className={OWN_TITLE.includes(place) ? 'sr-only' : 'm-0 text-[clamp(30px,4.5vw,44px)] leading-[1.05] font-normal'} style={{ fontFamily: serif }}>
               {title}
             </h1>
           </div>
+          {/* Inside Requests and Your listing: their parts, one tap each. */}
+          {here.places.length > 1 && (
+            <nav aria-label={here.label} className="flex gap-2 flex-wrap pb-4">
+              {here.places.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  aria-current={p === place ? 'page' : undefined}
+                  onClick={() => go(p)}
+                  className="inline-flex items-center gap-2 min-h-[44px] px-4 rounded-full border text-[14px] cursor-pointer"
+                  style={p === place ? { background: c.side, borderColor: c.side, color: '#f6f0e2', fontWeight: 600 } : { background: '#fffdf8', borderColor: mix(c.tint, 0, 0.12), color: INK }}
+                >
+                  {PLACE_LABEL[p]}
+                  {(badges[p] ?? 0) > 0 && <span className="min-w-[20px] h-[20px] px-[5px] rounded-full inline-flex items-center justify-center text-[11px] font-semibold" style={{ background: '#e3c88f', color: '#2b2418' }}>{badges[p]}</span>}
+                </button>
+              ))}
+            </nav>
+          )}
           {children}
         </main>
 
-        {/* A phone: the four places they chose, and More. */}
-        <nav aria-label="Quick menu" className="lg:hidden fixed bottom-0 inset-x-0 z-30 grid border-t" style={{ gridTemplateColumns: `repeat(${bar.length + 1}, minmax(0, 1fr))`, background: '#fffdf8', borderColor: mix(c.tint, 0, 0.1), paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -4px 18px rgba(0,0,0,.08)' }}>
-          {[...bar, 'more' as const].map((k) => {
-            const on = k === 'more' ? more : place === k && !more;
-            const n = k === 'more' ? 0 : (badges[k] ?? 0);
+        {/* A phone: the same five along the bottom (no More). */}
+        <nav aria-label="Quick menu" className="lg:hidden fixed bottom-0 inset-x-0 z-30 grid border-t" style={{ gridTemplateColumns: `repeat(${TOP.length}, minmax(0, 1fr))`, background: '#fffdf8', borderColor: mix(c.tint, 0, 0.1), paddingBottom: 'env(safe-area-inset-bottom)', boxShadow: '0 -4px 18px rgba(0,0,0,.08)' }}>
+          {TOP.map((t) => {
+            const k = t.icon;
+            const on = here.key === t.key && !more;
+            const n = badgeOf(t);
             return (
               <button
-                key={k}
+                key={t.key}
                 type="button"
-                aria-current={on && k !== 'more' ? 'page' : undefined}
-                onClick={() => (k === 'more' ? setMore(true) : pick(k))}
+                aria-current={on ? 'page' : undefined}
+                onClick={() => pick(t.opens)}
                 className="relative flex flex-col items-center justify-center gap-[2px] min-h-[58px] px-1 border-0 bg-transparent cursor-pointer text-[11px]"
                 style={{ color: on ? c.accent : '#6b7464', fontWeight: on ? 600 : 400 }}
               >
                 <span aria-hidden className="absolute top-0 left-1/2 -translate-x-1/2 h-[3px] w-8 rounded-b-full" style={{ background: on ? c.accent : 'transparent' }} />
                 <Icon k={k} size={22} />
-                <span className="max-w-full truncate">{k === 'more' ? 'More' : SHORT[k]}</span>
+                <span className="max-w-full truncate">{t.short}</span>
                 {n > 0 && (
                   <span className="absolute top-[6px] left-[calc(50%+6px)] min-w-[18px] h-[18px] px-[5px] rounded-full inline-flex items-center justify-center text-[10px] font-semibold" style={{ background: '#c0553f', color: '#fff' }} aria-label={`${n} waiting`}>
                     {n > 99 ? '99+' : n}
@@ -321,7 +347,7 @@ export function VendorShell({
           })}
         </nav>
       </div>
-      {more && <MoreSheet listing={listing} look={look} brand={brand} groups={groups} item={(k) => item(k, pick, true)} onClose={() => setMore(false)} onSignOut={onSignOut} />}
+      {more && <MoreSheet listing={listing} look={look} brand={brand} groups={[{ name: 'Your account', keys: TOP.map((t) => t.icon) }]} item={(k) => item(TOP.find((t) => t.icon === k)!, pick, true)} onClose={() => setMore(false)} onSignOut={onSignOut} />}
     </div>
   );
 }

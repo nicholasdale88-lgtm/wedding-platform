@@ -801,7 +801,8 @@ export function VendorHomePage() {
     >
       {isVendorDemo() && (
         <p role="note" className="mb-4 p-3 rounded-[12px] bg-[#f3ecd6] text-[14px]">
-          A sample vendor account: a made-up florist with couples, messages and enquiries. Everything works here, but nothing is saved or sent.
+          <span className="sm:hidden">A sample: nothing is saved or sent.</span>
+          <span className="hidden sm:inline">A sample vendor account: a made-up florist with couples, messages and enquiries. Everything works here, but nothing is saved or sent.</span>
         </p>
       )}
       {l.pending ? (
