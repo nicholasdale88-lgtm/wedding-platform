@@ -17,4 +17,6 @@ export const DEMO_POSTER_HEAD =
   '<style>@media (min-width: 600px){[data-demo-poster]{display:none}}</style>';
 
 /** Into #root, first: the still itself, full screen, under where the live envelope will draw. */
-export const DEMO_POSTER_ROOT = `<img data-demo-poster alt="" aria-hidden="true" src="${DEMO_POSTER_SRC}" width="390" height="844" fetchpriority="high" style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center;z-index:0">`;
+// Below the sample bar's slot, as the live invitation is: a picture filling the whole screen would be taken for a
+// background and not count as the page's paint.
+export const DEMO_POSTER_ROOT = `<img data-demo-poster alt="" aria-hidden="true" src="${DEMO_POSTER_SRC}" width="390" height="788" fetchpriority="high" style="position:fixed;left:0;right:0;bottom:0;top:calc(56px + env(safe-area-inset-top));width:100%;height:calc(100% - 56px - env(safe-area-inset-top));object-fit:cover;object-position:top center;z-index:0">`;
