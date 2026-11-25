@@ -32,6 +32,11 @@ jobs:
         run: |
           if [ -n "$CF_ACC" ]; then export CLOUDFLARE_ACCOUNT_ID="$CF_ACC"; fi
           OUT="$GITHUB_WORKSPACE/diag-out.txt"
+          ACC="${CLOUDFLARE_ACCOUNT_ID:-$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" https://api.cloudflare.com/client/v4/accounts | jq -r '.result[0].id')}"
+          export CLOUDFLARE_ACCOUNT_ID="$ACC"
+          # The database's real id (wrangler.toml holds a placeholder; deploy.sh fills it in the same way).
+          DB_ID=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$ACC/d1/database?name=wedding-db" | jq -r '.result[] | select(.name == "wedding-db") | .uuid' | head -n1)
+          sed -i "s/00000000-0000-0000-0000-000000000000/$DB_ID/" apps/api/wrangler.toml
           cd apps/api
           set +e
           pnpm exec wrangler d1 execute wedding-db --remote --json --command "SELECT d.kind, d.scope, d.version, d.updated_at, d.data FROM planner_doc d JOIN wedding w ON w.id = d.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND d.kind IN ('vendors','budget','checklist','ceremony','party') ORDER BY d.kind" > "$RUNNER_TEMP/docs.json" 2> "$RUNNER_TEMP/err.txt"
