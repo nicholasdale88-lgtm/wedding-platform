@@ -35,7 +35,9 @@ jobs:
           cd apps/api
           set +e
           pnpm exec wrangler d1 execute wedding-db --remote --json --command "SELECT d.kind, d.scope, d.version, d.updated_at, d.data FROM planner_doc d JOIN wedding w ON w.id = d.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND d.kind IN ('vendors','budget','checklist','ceremony','party') ORDER BY d.kind" > "$RUNNER_TEMP/docs.json" 2> "$RUNNER_TEMP/err.txt"
-          echo "wrangler exit $?" > "$OUT"
+          CODE=$?
+          echo "wrangler exit $CODE" > "$OUT"
+          if [ "$CODE" != 0 ]; then head -c 500 "$RUNNER_TEMP/docs.json" | tr -s '[:space:]' ' ' >> "$OUT"; echo >> "$OUT"; echo "account id given: $([ -n "$CF_ACC" ] && echo yes || echo no)" >> "$OUT"; fi
           grep -iE "error|not found|auth|permission" "$RUNNER_TEMP/err.txt" | grep -viE "sophie|@" | head -5 >> "$OUT"
           node ../../scripts/diag/booked.mjs < "$RUNNER_TEMP/docs.json" >> "$OUT" 2>&1
           echo "node exit $?" >> "$OUT"
