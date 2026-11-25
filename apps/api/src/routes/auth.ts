@@ -116,11 +116,14 @@ export const requireMember =
 
 export async function me(env: Env, user: SessionUser) {
   const { results } = await env.DB.prepare(
-    `SELECT w.id, w.slug, w.name1, w.name2, m.role FROM membership m JOIN wedding w ON w.id = m.wedding_id
+    `SELECT w.id, w.slug, w.name1, w.name2, m.role,
+            (SELECT e.name FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL ORDER BY e.sort LIMIT 1) AS event,
+            (SELECT e.starts_at FROM event e WHERE e.wedding_id = w.id AND e.deleted_at IS NULL ORDER BY e.sort LIMIT 1) AS date
+       FROM membership m JOIN wedding w ON w.id = m.wedding_id
       WHERE m.user_id = ? AND w.deleted_at IS NULL ORDER BY w.created_at`,
   )
     .bind(user.id)
-    .all<{ id: string; slug: string; name1: string; name2: string; role: Role }>();
+    .all<{ id: string; slug: string; name1: string; name2: string; role: Role; event: string | null; date: string | null }>();
   // Their vendor listing, if they have one: one sign-in reaches it too.
   const vendor = await env.DB.prepare(`SELECT slug, name FROM vendor_listing WHERE user_id = ? ORDER BY created_at LIMIT 1`)
     .bind(user.id)

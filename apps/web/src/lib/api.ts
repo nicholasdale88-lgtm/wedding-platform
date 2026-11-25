@@ -86,7 +86,7 @@ export type Role = 'owner' | 'editor' | 'viewer';
 export interface Me {
   /** staff: their role in the company portal, when they work on the app. */
   user: { id: string; email: string; superAdmin: boolean; staff?: string | null; perms?: string[]; staffName?: string };
-  weddings: { id: string; slug: string; name1: string; name2: string; role: Role }[];
+  weddings: { id: string; slug: string; name1: string; name2: string; role: Role; event?: string | null; date?: string | null }[];
   /** Their vendor listing (the directory), when they have one. */
   vendor?: { slug: string; name: string } | null;
 }
@@ -270,6 +270,8 @@ export const api = {
   importGuests: (wid: string, rows: unknown[], dry: boolean) => send<ImportResult>('POST', `${w(wid)}/guests/import${dry ? '?dry=1' : ''}`, { rows }),
   setAdminLook: (wid: string, look: { palette: string; eventColours: boolean; large: boolean }) => send<{ ok: true }>('PUT', `${w(wid)}/look`, look),
   setTools: (wid: string, patch: Partial<Tools>) => send<{ chosen: Tools }>('PUT', `${w(wid)}/tools`, patch),
+  moveCredits: (wid: string, to: string, credits: number) => send<{ ok: true; left: number }>('POST', `${w(wid)}/texts/move`, { to, credits }),
+  anotherEvent: (b: { name1: string; name2: string; event: string; date: string }) => send<{ weddingId: string; slug: string }>('POST', '/a/signup/another', b),
   textPurchases: (wid: string) => request<{ purchases: { at: string; credits: number; cents: number | null }[] }>(`${w(wid)}/texts/purchases`),
   setAdminName: (wid: string, name: string) => send<{ ok: true; name: string }>('PUT', `${w(wid)}/admin-name`, { name }),
   /** A person's meal at an event: a special menu (id, '' the set menu) and courses changed just for them. */

@@ -48,6 +48,58 @@ export const slugPart = (s: string) =>
 export function signupRoutes() {
   const app = new Hono<AdminEnv>();
 
+  /**
+   * Another event on this account (the event switcher's "+ Create new event"): an engagement party, then the
+   * wedding. Its own plan, tools and text credits, made the way sign-up makes one, for the signed-in person.
+   */
+  app.post('/another', requireUser, async (c) => {
+    const err = (status: 400 | 429 | 503, code: string, message: string) => c.json({ error: { code, message } }, status);
+    const user = c.get('user');
+    if (!(await allow(c.env.DB, `another:${user.id}`, 10, 3_600_000))) return err(429, 'slow_down', 'That’s a lot of new events. Try again in an hour.');
+    const b = z
+      .object({
+        name1: z.string().trim().min(1, 'Add your first name.').max(60),
+        name2: z.string().trim().min(1, "Add your partner's first name.").max(60),
+        event: z.string().trim().max(60).default(''),
+        date: z.string().regex(/^(\d{4}-\d{2}-\d{2})?$/).default(''),
+      })
+      .strict()
+      .safeParse(await readJson(c.req.raw));
+    if (!b.success) return err(400, 'invalid', b.error.issues[0]?.message ?? 'Please check the form.');
+    const db = c.env.DB;
+    const tz = 'Australia/Sydney';
+    const eventName = b.data.event || 'The wedding';
+    const key = slugPart(eventName) === 'the-wedding' ? 'wedding' : slugPart(eventName);
+    const base = `${slugPart(b.data.name1)}-and-${slugPart(b.data.name2)}${key === 'wedding' ? '' : `-${key}`}`;
+    const { results: taken } = await db.prepare(`SELECT slug FROM wedding WHERE slug = ? OR slug LIKE ?`).bind(base, `${base}-%`).all<{ slug: string }>();
+    const used = new Set(taken.map((r) => r.slug));
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let slug = base;
+      for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
+      const now = new Date().toISOString();
+      const weddingId = crypto.randomUUID();
+      const startsAt = b.data.date ? zonedToUtc(`${b.data.date}T15:00`, tz).toISOString() : zonedToUtc(`${new Date().getUTCFullYear() + 1}-01-01T15:00`, tz).toISOString();
+      const monogram = `${b.data.name1.charAt(0).toUpperCase()}&${b.data.name2.charAt(0).toUpperCase()}`;
+      const content = JSON.stringify({ private: true, tools: ALL_TOOLS_OFF, mainAccount: user.id, invitation: { hidden: { '08 Accommodation': true } }, ...(b.data.date ? {} : { dateToBeSet: true }) });
+      try {
+        await db.batch([
+          db.prepare(`INSERT INTO wedding (id, slug, name1, name2, monogram, timezone, content, plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, '${c.env.STAGING === '1' ? 'complete' : 'free'}', ?, ?)`).bind(
+            weddingId, slug, b.data.name1, b.data.name2, monogram, tz, content, now, now,
+          ),
+          db.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES (?, ?, 'owner')`).bind(weddingId, user.id),
+          db.prepare(`INSERT INTO event (id, wedding_id, key, name, pending_label, starts_at, sort) VALUES (?, ?, ?, ?, ?, ?, 0)`).bind(crypto.randomUUID(), weddingId, key, eventName, eventName.toLowerCase(), startsAt),
+          db.prepare(`INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at) VALUES (?, ?, ?, 'account.another', ?, ?, ?)`).bind(crypto.randomUUID(), weddingId, user.id, weddingId, JSON.stringify({ event: eventName }), now),
+          ...starterStatements(db, weddingId, { key, name: eventName }, { startsAt, tz, rsvpClose: '', dateSet: !!b.data.date }, new Date(now)),
+        ]);
+      } catch {
+        used.add(slug);
+        continue;
+      }
+      return c.json({ weddingId, slug });
+    }
+    return err(503, 'busy', 'We couldn’t make that event just then. Please try again.');
+  });
+
   app.post('/', async (c) => {
     const err = (status: 400 | 409 | 429 | 500, code: string, message: string) => c.json({ error: { code, message } }, status);
     if (!c.env.SESSION_SECRET) return err(500, 'not_configured', 'Sign-up is not set up yet.');

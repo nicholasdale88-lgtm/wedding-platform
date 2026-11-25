@@ -255,6 +255,31 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     return c.json({ chosen: next });
   });
 
+  /**
+   * Settings → Text credits: move unused credits to another of this person's events (the engagement party's
+   * left over go to the wedding). Owners of both only; never more than this event has.
+   */
+  app.post('/texts/move', requireMember('owner'), async (c) => {
+    const b = z.object({ to: z.string().min(1).max(60), credits: z.number().int().min(1).max(1_000_000) }).strict().safeParse(await readJson(c.req.raw));
+    if (!b.success || b.data.to === wid(c)) return err(c, 400, 'invalid', 'Choose an event and how many credits to move.');
+    const user = c.get('user');
+    const mine = await c.env.DB.prepare(`SELECT 1 FROM membership WHERE wedding_id = ? AND user_id = ? AND role = 'owner'`).bind(b.data.to, user.id).first();
+    if (!mine) return err(c, 404, 'not_found', 'You can move credits only to an event you own.');
+    const src = await c.env.DB.prepare(`SELECT wallet_credits AS n FROM wedding WHERE id = ?`).bind(wid(c)).first<{ n: number | null }>();
+    const have = src?.n ?? 0;
+    if (src?.n == null || have < b.data.credits) return err(c, 400, 'not_enough', `This event has ${Math.max(0, have)} credits to move.`);
+    const at = new Date().toISOString();
+    const left = have - b.data.credits;
+    const [taken] = await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE wedding SET wallet_credits = ?, updated_at = ? WHERE id = ? AND wallet_credits = ?`).bind(left, at, wid(c), have),
+      // Added only if they were taken (the same moment's other move changes nothing twice).
+      c.env.DB.prepare(`UPDATE wedding SET wallet_credits = COALESCE(wallet_credits, 0) + ?, updated_at = ? WHERE id = ? AND (SELECT wallet_credits FROM wedding WHERE id = ?) = ?`).bind(b.data.credits, at, b.data.to, wid(c), left),
+      audit(c, 'texts.moved', b.data.to, { credits: b.data.credits }),
+    ]);
+    if (!taken?.meta.changes) return err(c, 409, 'conflict', 'Your credits changed just then. Please try again.');
+    return c.json({ ok: true, left });
+  });
+
   /** Settings → Text credits: every purchase, newest first (date, credits, what was paid). */
   app.get('/texts/purchases', async (c) => {
     const { results } = await c.env.DB.prepare(`SELECT at, detail FROM audit WHERE wedding_id = ? AND action = 'texts.paid' ORDER BY at DESC LIMIT 100`).bind(wid(c)).all<{ at: string; detail: string }>();
