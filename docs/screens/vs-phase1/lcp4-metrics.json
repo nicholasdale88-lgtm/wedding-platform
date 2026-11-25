@@ -1,0 +1,198 @@
+{
+  "label": "lcp4",
+  "at": "2026-11-25T05:16:05.583Z",
+  "lcp": {
+    "home": {
+      "median": 2470,
+      "element": "H1 The invitation they’ll never forget.",
+      "runs": [
+        2450,
+        2470,
+        2520
+      ],
+      "detail": {
+        "ms": 2470,
+        "el": "H1 The invitation they’ll never forget.",
+        "all": [
+          "2470 H1"
+        ],
+        "poster": false,
+        "fcp": 2470
+      }
+    },
+    "demo": {
+      "median": 543,
+      "element": "IMG ",
+      "runs": [
+        537,
+        543,
+        562
+      ],
+      "detail": {
+        "ms": 543,
+        "el": "IMG ",
+        "all": [
+          "543 IMG"
+        ],
+        "poster": true,
+        "fcp": 543
+      }
+    },
+    "designs": {
+      "median": 2005,
+      "element": "P 55 designs, each the real invitation you",
+      "runs": [
+        1999,
+        2005,
+        2051
+      ],
+      "detail": {
+        "ms": 2005,
+        "el": "P 55 designs, each the real invitation you",
+        "all": [
+          "2005 P"
+        ],
+        "poster": false,
+        "fcp": 2005
+      }
+    }
+  },
+  "overflow": {
+    "home-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": null
+    },
+    "home-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": null
+    },
+    "designs-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": null
+    },
+    "designs-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": null
+    },
+    "try-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": null
+    },
+    "try-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": null
+    },
+    "demo-closed-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": [
+        390,
+        390
+      ]
+    },
+    "demo-closed-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": [
+        1280,
+        1280
+      ]
+    },
+    "demo-open-390": {
+      "doc": [
+        390,
+        390
+      ],
+      "invite": [
+        421,
+        390
+      ]
+    },
+    "demo-open-1280": {
+      "doc": [
+        1280,
+        1280
+      ],
+      "invite": [
+        1280,
+        1280
+      ]
+    }
+  },
+  "demo": {
+    "390": {
+      "calendar": {
+        "box": [
+          428,
+          472
+        ],
+        "coveredBy": []
+      },
+      "decline": {
+        "box": [
+          426,
+          474
+        ],
+        "coveredBy": []
+      },
+      "timeline": {
+        "box": [
+          -143,
+          1042
+        ],
+        "coveredBy": [
+          "← BackA sample. Replies aren’t",
+          "Music on"
+        ]
+      }
+    },
+    "1280": {
+      "calendar": {
+        "box": [
+          406,
+          450
+        ],
+        "coveredBy": []
+      },
+      "decline": {
+        "box": [
+          404,
+          452
+        ],
+        "coveredBy": []
+      },
+      "timeline": {
+        "box": [
+          -90,
+          945
+        ],
+        "coveredBy": [
+          "← BackA sample. Replies aren’t",
+          "Music on"
+        ]
+      }
+    }
+  }
+}
