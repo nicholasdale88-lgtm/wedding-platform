@@ -94,7 +94,7 @@ function Planner() {
             ← Planner overview
           </button>
         )}
-        <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Wedding planner</h1>
+        <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Plan</h1>
       </header>
       {/* The same menu as every page's: pills in a soft bar (scrolling sideways on a phone). */}
       <nav aria-label="Wedding planner" className={subNavCls}>

@@ -45,7 +45,7 @@ export function Overview() {
     { label: 'Coming', value: n.coming, sub: `guests · ${inv(n.invitationsYes)} said yes`, go: () => to(ev ? `guests?filter=attending:${ev.key}` : 'guests?show=all', ev?.key ?? home) },
     { label: 'Still to reply', value: n.awaiting, sub: `guests · ${inv(n.invitationsAwaiting)}`, go: () => to(`guests?${all}filter=awaiting`, home), warn: false },
     { label: 'Can’t come', value: n.cantCome, sub: `guests · ${inv(n.invitationsNo)} said no`, go: () => to(`guests?${all}filter=declined`, home) },
-    { label: 'Dietary', value: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, go: () => to('dietary', o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home), warn: o.diet.serious > 0 && o.diet.mealsSet < o.diet.people },
+    { label: 'Meals & allergies', value: o.diet.people, sub: `${o.diet.serious} serious · ${o.diet.mealsSet} meals set`, go: () => to('dietary', o.focus ?? o.perEvent?.find((e) => e.catered !== false)?.key ?? home), warn: o.diet.serious > 0 && o.diet.mealsSet < o.diet.people },
   ];
   const isWedding = o.focus === o.events[0]?.key;
   const first1 = o.wedding.name1.split(' ')[0] || o.wedding.name1;

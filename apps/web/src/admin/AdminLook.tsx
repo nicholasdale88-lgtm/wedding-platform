@@ -98,8 +98,8 @@ export function AdminLook({ embedded = false }: { embedded?: boolean }) {
     <div className="flex flex-col gap-6 max-w-[860px]">
       {!embedded && (
       <header>
-        <Eyebrow>Account · Admin look</Eyebrow>
-        <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Admin look</h1>
+        <Eyebrow>Settings · Colours</Eyebrow>
+        <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Colours</h1>
         <p className="m-0 mt-1 text-[15px] text-[var(--adm-muted,#5b6a52)]">How this admin looks for both of you. Guests never see it.</p>
       </header>
       )}

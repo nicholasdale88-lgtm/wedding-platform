@@ -94,7 +94,7 @@ export function Dietary() {
     <div className="flex flex-col gap-7">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>{section} · Dietary</Eyebrow>
+          <Eyebrow>{section} · Meals &amp; allergies</Eyebrow>
           <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">For the caterer</h1>
         </div>
         <div className="flex gap-2 flex-wrap">

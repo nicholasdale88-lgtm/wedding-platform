@@ -277,8 +277,8 @@ export function GuestPages() {
     <div className="flex flex-col gap-5">
       <header className="flex justify-between items-end gap-4 flex-wrap">
         <div>
-          <Eyebrow>{ev ? `${ev.name} · Setup` : 'Setup'}</Eyebrow>
-          <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">{ev ? `Set up ${ev.name}` : 'Your invitation'}</h1>
+          <Eyebrow>{ev ? `${ev.name} · Invitation` : 'Invitation'}</Eyebrow>
+          <h1 className="m-0 mt-[6px] font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">Your invitation</h1>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <span role="status" aria-live="polite" className="text-[13px] text-[var(--adm-muted,#5b6a52)]">

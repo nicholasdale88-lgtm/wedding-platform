@@ -11,7 +11,7 @@ export function GuestPlanningBar() {
   const { path } = useAdmin();
   const tabs = [
     { key: 'guests', label: 'Guest list' },
-    { key: 'dietary', label: 'Dietary needs' },
+    { key: 'dietary', label: 'Meals & allergies' },
     { key: 'seating', label: 'Seating' },
   ];
   return (
