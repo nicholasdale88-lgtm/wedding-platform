@@ -125,9 +125,17 @@ for (const [name, path] of [
     await page.addInitScript(() => {
       window.__lcp = 0;
       window.__lcpEl = '';
+      window.__lcpAll = [];
+      document.addEventListener('DOMContentLoaded', () => {
+        window.__poster = !!document.querySelector('[data-demo-poster]');
+      });
+      new PerformanceObserver((l) => {
+        for (const e of l.getEntries()) if (e.name === 'first-contentful-paint') window.__fcp = Math.round(e.startTime);
+      }).observe({ type: 'paint', buffered: true });
       new PerformanceObserver((l) => {
         for (const e of l.getEntries()) {
           window.__lcp = e.startTime;
+          window.__lcpAll.push(`${Math.round(e.startTime)} ${e.element?.tagName ?? e.url}`);
           window.__lcpEl = `${e.element?.tagName ?? ''} ${(e.element?.textContent ?? e.url ?? '').trim().slice(0, 40)}`;
         }
       }).observe({ type: 'largest-contentful-paint', buffered: true });
@@ -138,11 +146,11 @@ for (const [name, path] of [
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
     await page.goto(`${BASE}${path}`, { waitUntil: 'load', timeout: 90_000 });
     await page.waitForTimeout(4000);
-    runs.push(await page.evaluate(() => ({ ms: Math.round(window.__lcp), el: window.__lcpEl })));
+    runs.push(await page.evaluate(() => ({ ms: Math.round(window.__lcp), el: window.__lcpEl, all: window.__lcpAll, poster: window.__poster, fcp: window.__fcp })));
     await ctx.close();
   }
   runs.sort((a, b) => a.ms - b.ms);
-  metrics.lcp[name] = { median: runs[1].ms, element: runs[1].el, runs: runs.map((r) => r.ms) };
+  metrics.lcp[name] = { median: runs[1].ms, element: runs[1].el, runs: runs.map((r) => r.ms), detail: runs[1] };
 }
 
 await browser.close();
