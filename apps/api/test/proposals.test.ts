@@ -106,6 +106,32 @@ describe('fee proposals', () => {
     expect((await json<{ proposals: { status: string }[] }>(call('/a/vendor/proposals', {}, vendor.cookie))).proposals[0]!.status).toBe('accepted');
   });
 
+  it('a vendor added by hand (linked by their email) stays booked when the couple next saves their vendor list; found by the stress run', async () => {
+    const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
+    const couple = await signup('Ava', 'ava@example.com');
+    await t.db.prepare(`UPDATE wedding SET plan = 'essentials' WHERE id = ?`).bind(couple.wid).run();
+    const save = async (list: unknown[]) => {
+      const cur = await json<{ version: number }>(call(`/a/w/${couple.wid}/planner/doc/vendors`, {}, couple.cookie));
+      const r = await call(`/a/w/${couple.wid}/planner/doc/vendors`, { method: 'PUT', headers: { 'If-Match': String(cur.version) }, body: JSON.stringify({ list }) }, couple.cookie);
+      expect(r.status).toBe(200);
+    };
+    // Typed in by the couple, with the vendor's email (no directory link): the vendor sees them.
+    await save([{ id: 'florist-1', name: 'Wildflower Studio', category: 'Florist', status: 'contacted', email: 'Jess@Wildflower.example' }]);
+    type Couples = { couples: { id: string; status: string }[] };
+    expect((await json<Couples>(call('/a/vendor/couples', {}, vendor.cookie))).couples.map((c) => c.id)).toEqual([couple.wid]);
+    const sent = (await (await call('/a/vendor/proposals', { method: 'POST', body: JSON.stringify(proposal({ couple: couple.wid })) }, vendor.cookie)).json()) as { link: string };
+    expect(await json(call(`/directory/proposal/${sent.link.split('/').pop()}/answer`, { method: 'POST', body: JSON.stringify({ answer: 'accept' }) }))).toEqual({ status: 'accepted' });
+    expect((await json<Couples>(call('/a/vendor/couples', {}, vendor.cookie))).couples[0]!.status).toBe('booked');
+    // The couple adds a photographer: the florist is still booked (it went back to "linked").
+    const list = (await vendorsDoc(couple.wid)).list;
+    expect(list.find((x) => x.id === 'florist-1')!.status).toBe('booked');
+    await save([...list, { id: 'photo-1', name: 'J. Ng Photography', category: 'Photographer', status: 'contacted' }]);
+    expect((await json<Couples>(call('/a/vendor/couples', {}, vendor.cookie))).couples[0]!.status).toBe('booked');
+    // Taken off the list: no longer counted as booked.
+    await save([{ id: 'photo-1', name: 'J. Ng Photography', category: 'Photographer', status: 'contacted' }]);
+    expect((await json<Couples>(call('/a/vendor/couples', {}, vendor.cookie))).couples[0]!.status).toBe('linked');
+  });
+
   it('accept tried again after "busy" (the first was saved, its follow-ups weren’t): answered as before, booked, the vendor told once; found by the stress run', async () => {
     const vendor = await joinVendor('Wildflower Studio', 'jess@wildflower.example');
     const couple = await signup('Ava', 'ava@example.com', vendor.slug);
