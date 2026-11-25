@@ -7,7 +7,7 @@ on:
     branches: ['diag/**']
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   booked:
@@ -31,8 +31,18 @@ jobs:
           CF_ACC: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "$CF_ACC" ]; then export CLOUDFLARE_ACCOUNT_ID="$CF_ACC"; fi
+          OUT="$GITHUB_WORKSPACE/diag-out.txt"
           cd apps/api
-          if ! pnpm exec wrangler d1 execute wedding-db --remote --json --command "SELECT d.kind, d.scope, d.version, d.updated_at, d.data FROM planner_doc d JOIN wedding w ON w.id = d.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND d.kind IN ('vendors','budget','checklist','ceremony','party') ORDER BY d.kind" > "$RUNNER_TEMP/docs.json" 2> "$RUNNER_TEMP/err.txt"; then
-            echo "::error title=wrangler::$(tail -c 600 "$RUNNER_TEMP/err.txt" | tr -s '[:space:]' ' ')"; exit 1
-          fi
-          node ../../scripts/diag/booked.mjs < "$RUNNER_TEMP/docs.json"
+          set +e
+          pnpm exec wrangler d1 execute wedding-db --remote --json --command "SELECT d.kind, d.scope, d.version, d.updated_at, d.data FROM planner_doc d JOIN wedding w ON w.id = d.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND d.kind IN ('vendors','budget','checklist','ceremony','party') ORDER BY d.kind" > "$RUNNER_TEMP/docs.json" 2> "$RUNNER_TEMP/err.txt"
+          echo "wrangler exit $?" > "$OUT"
+          grep -iE "error|not found|auth|permission" "$RUNNER_TEMP/err.txt" | grep -viE "sophie|@" | head -5 >> "$OUT"
+          node ../../scripts/diag/booked.mjs < "$RUNNER_TEMP/docs.json" >> "$OUT" 2>&1
+          echo "node exit $?" >> "$OUT"
+      - name: Commit the summary (flags only) back to this branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f diag-out.txt
+          git commit -m "Diagnosis (CI)"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
