@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { contrast, TOKENS as T } from '../src/sales/tokens';
+import { contrast, readableAt, TOKENS as T } from '../src/sales/tokens';
+import { themeOf } from '../src/guest/themeKit';
 
 /** VS-01: the marketing colours meet WCAG AA where they're used (4.5:1 normal text, 3:1 large text and UI). */
 describe('marketing colour tokens', () => {
@@ -19,5 +20,12 @@ describe('marketing colour tokens', () => {
     expect(contrast(T.gold, T.paper)).toBeGreaterThanOrEqual(3);
     expect(contrast(T.gold, T.paper)).toBeLessThan(4.5);
     expect(contrast(T.gold, T.blush)).toBeLessThan(3);
+  });
+  it('the sample’s "Tap to open" reads at AA on its envelope (Sentinel: it was 4.49:1)', () => {
+    const th = themeOf('Cream & Sage');
+    const fixed = readableAt(th.hint ?? '#33402f', th.e1 ?? '#e6dcc4', 5.5);
+    expect(contrast(fixed, th.e1 ?? '#e6dcc4')).toBeGreaterThanOrEqual(5.5);
+    // Already readable colours are left alone.
+    expect(readableAt('#2e2430', '#fbf5f0')).toBe('#2e2430');
   });
 });

@@ -49,3 +49,14 @@ export function contrast(a: string, b: string): number {
   const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
   return (hi! + 0.05) / (lo! + 0.05);
 }
+
+/** `fg` darkened (or, on a dark ground, lightened) in small steps until it reads at `ratio` on `bg`. */
+export function readableAt(fg: string, bg: string, ratio = 4.6): string {
+  if (!/^#[0-9a-f]{6}$/i.test(fg) || !/^#[0-9a-f]{6}$/i.test(bg)) return fg;
+  const toward = contrast('#000000', bg) > contrast('#ffffff', bg) ? 0 : 255;
+  let c = fg;
+  for (let i = 0; i < 40 && contrast(c, bg) < ratio; i++) {
+    c = `#${[1, 3, 5].map((k) => Math.round(parseInt(c.slice(k, k + 2), 16) * 0.94 + toward * 0.06).toString(16).padStart(2, '0')).join('')}`;
+  }
+  return c;
+}

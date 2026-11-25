@@ -4,8 +4,12 @@
  * guest links (/w/…) say "You're invited" with an envelope instead of the front page's pitch. Anything
  * that isn't a page (the API, files) passes straight through.
  */
+import { DEMO_POSTER_HEAD, DEMO_POSTER_ROOT, wantsDemoPoster } from '../poster.js';
+
 interface Element {
   setAttribute(name: string, value: string): void;
+  append(content: string, options: { html: boolean }): void;
+  prepend(content: string, options: { html: boolean }): void;
 }
 declare class HTMLRewriter {
   on(selector: string, handlers: { element(e: Element): void }): HTMLRewriter;
@@ -31,5 +35,8 @@ export const onRequest = async (ctx: { request: Request; next: () => Promise<Res
       .on('meta[property="og:description"]', set(INVITED.description))
       .on('meta[name="twitter:description"]', set(INVITED.description))
       .on('meta[name="description"]', set(INVITED.description));
+  // The sample invitation on a phone: its closed envelope as a still in the HTML, the first and largest paint.
+  if (wantsDemoPoster(ctx.request.url))
+    r = r.on('head', { element: (e) => e.append(DEMO_POSTER_HEAD, { html: true }) }).on('#root', { element: (e) => e.prepend(DEMO_POSTER_ROOT, { html: true }) });
   return r.transform(res);
 };
