@@ -47,7 +47,12 @@ jobs:
       - name: Photograph and measure
         run: |
           LABEL="${GITHUB_REF_NAME#screens/}"
-          cd apps/e2e && BASE=http://localhost:5173 LABEL="$LABEL" OUT=../../docs/screens/vs-phase1 node screens/capture.mjs
+          cd apps/e2e
+          # screens/simplify-<label>: the launch simplification batch (admin, vendor portal, pricing).
+          case "$LABEL" in
+            simplify-*) BASE=http://localhost:5173 LABEL="${LABEL#simplify-}" OUT=../../docs/screens/simplify-01 node screens/simplify.mjs ;;
+            *) BASE=http://localhost:5173 LABEL="$LABEL" OUT=../../docs/screens/vs-phase1 node screens/capture.mjs ;;
+          esac
       - name: Commit the screens
         run: |
           git config user.name "github-actions[bot]"
