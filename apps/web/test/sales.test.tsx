@@ -56,9 +56,10 @@ describe('front page', () => {
     expect(within(card).getByText('As many guests as you like')).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: 'Get started' })).toHaveAttribute('href', '#start');
     expect(screen.queryByRole('table')).toBeNull();
-    const text = container.textContent ?? '';
-    expect(text).not.toMatch(/Essentials|Deluxe|Most popular|\$88|\$98|\$50\b|\$80\b/);
-    expect(text).toContain(EVENT_ADDON.price);
+    const pricing = container.querySelector('#pricing')!.textContent ?? '';
+    expect(pricing).not.toMatch(/Essentials|Deluxe|Most popular|\$88|\$98|\$50\b|\$80\b/);
+    expect(pricing).toContain(EVENT_ADDON.price);
+    expect(container.textContent).not.toMatch(/Essentials|Deluxe|\$88|\$98/);
   });
 
   it('keeps the questions short', () => {
@@ -100,7 +101,7 @@ describe('front page', () => {
     page();
     const steps = screen.getByRole('heading', { name: 'From your guest list to their yes.' }).closest('section')!;
     expect(within(steps).getAllByRole('listitem')).toHaveLength(6);
-    expect(within(steps).getByText(/not included in any plan/)).toBeInTheDocument();
+    expect(within(steps).getByText(/not included in the plan: at cost/)).toBeInTheDocument();
     expect(within(steps).getByText(/Free from your own phone/)).toBeInTheDocument();
   });
 

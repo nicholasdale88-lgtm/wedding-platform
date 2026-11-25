@@ -1,10 +1,9 @@
-import { allows } from '@wp/shared';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
 import { digestFor } from '../lib/digest';
 import { buttonEmail, emailReady, plainHtml, sendEmail } from '../lib/email';
-import { weddingPlan } from '../lib/plan';
+import { hasFeature } from '../lib/plan';
 import { allow } from '../lib/rateLimit';
 import { readJson } from '../lib/security';
 import { ensureAddress, senderOf } from '../lib/weddingMail';
@@ -131,7 +130,7 @@ export function testSendRoutes(deps: (env: Env) => EngineDeps) {
     }
     const mobile = w.adminMobile;
     if (!mobile) return out('preview', 'Add your mobile in Settings → Texting (Your numbers) to text yourself a test. Here’s exactly what they’d get.');
-    const texts = channel === 'text' && !!w.sender && !w.paused && allows(await weddingPlan(c.env.DB, w.id), 'texts');
+    const texts = channel === 'text' && !!w.sender && !w.paused && (await hasFeature(c.env.DB, w.id, 'texts'));
     if (texts) {
       const res = await sendTest(d, w.id, mobile, preview.text).catch(() => null);
       if (res?.sent) return out('sent', `Test sent to ${masked(mobile)}.`, { to: masked(mobile) });

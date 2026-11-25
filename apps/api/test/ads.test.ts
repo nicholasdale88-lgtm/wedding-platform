@@ -56,7 +56,7 @@ describe('ads bot', () => {
     t.dispose();
   });
 
-  const draft = (id: string, primary = 'Your guests reply by text and the list fills itself in. From $50, paid once.') => ({ id, name: `Ad ${id}`, primary, headline: 'RSVPs, sorted by text', image: 'text-feed', cta: 'SIGN_UP' });
+  const draft = (id: string, primary = 'Your guests reply by text and the list fills itself in. $87, paid once.') => ({ id, name: `Ad ${id}`, primary, headline: 'RSVPs, sorted by text', image: 'text-feed', cta: 'SIGN_UP' });
   const bearer = (key: string) => ({ authorization: `Bearer ${key}` });
 
   it('bots draft and pause but never spend; a person with Money approves; Stop all works for anyone', async () => {

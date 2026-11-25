@@ -174,7 +174,7 @@ const VS_USUAL: { what: string; usual: string; ours: string }[] = [
   { what: 'Ready', usual: 'A day or more, while someone builds it for you', ours: 'The minute you are. Make it yourself and see every change as you go.' },
   { what: 'Changes after sending', usual: 'Often one free change, then a fee', ours: 'Free, as often as you like. Every guest sees the change straight away.' },
   { what: 'The link', usual: 'One link for everyone, and guests type their names', ours: 'Each guest gets their own, with their names on the envelope. Nobody uninvited can reply.' },
-  { what: 'More than one event', usual: 'Often a second invitation, paid again', ours: `Welcome drinks or a recovery brunch on the same invitation: two events on Deluxe, or add one for ${EVENT_ADDON.price}.` },
+  { what: 'More than one event', usual: 'Often a second invitation, paid again', ours: `Welcome drinks or a recovery brunch on the same invitation: two events included, or add another for ${EVENT_ADDON.price}.` },
   { what: 'After the replies', usual: 'A list of who’s coming', ours: 'Reminders, a dietary list for your caterer, the seating plan and the whole wedding plan.' },
 ];
 

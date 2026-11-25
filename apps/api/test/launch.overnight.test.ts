@@ -195,7 +195,8 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
   const figuresMatch = async (w: Wd) => {
     const ov = await json<Overview>(await admin(w, '/overview'));
     expect(ov.total, w.tag).toBe(w.invs.length);
-    expect(ov.wedding.plan, w.tag).toBe(w.plan);
+    // One plan: every paid wedding (old Basic and Essentials too) reads as everything.
+    expect(ov.wedding.plan, w.tag).toBe('complete');
     for (const k of w.keys) {
       const inv = w.invs.filter((g) => g.invited.includes(k));
       const yes = inv.filter((g) => g.rsvp[k]?.attending === true).length;

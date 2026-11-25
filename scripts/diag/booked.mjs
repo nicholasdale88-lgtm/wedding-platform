@@ -8,7 +8,7 @@ try {
   // wrangler may print a line or two before the JSON.
   rows = JSON.parse(text.slice(text.indexOf('['))).flatMap((x) => x.results ?? []);
 } catch (e) {
-  console.log(`::error title=diag parse::${String(e).slice(0, 200)} (output ${text.length} chars, starts ${JSON.stringify(text.slice(0, 40).replace(/[^\[\]{}a-z :",0-9]/gi, ''))})`);
+  console.log(`::error title=diag parse::${String(e).slice(0, 200)} (output ${text.length} chars, starts ${JSON.stringify(text.slice(0, 40).replace(/[^[\]{}a-z :",0-9]/gi, ''))})`);
   process.exit(1);
 }
 if (!rows.length) console.log('::notice title=diag::no planner documents found for that wedding');
