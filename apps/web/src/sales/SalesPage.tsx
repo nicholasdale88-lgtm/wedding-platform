@@ -26,6 +26,7 @@ import { PhoneFan, ShowcaseStyles } from './Showcase';
 import { PaperVsPhone } from './PaperVsPhone';
 import { MobileMenu } from './MobileMenu';
 import { TOKENS } from './tokens';
+import { BRAND } from './brand';
 
 /**
  * The front page (/). Calm on purpose: one idea a section, few words, lots of room. The hero is the real
@@ -33,7 +34,7 @@ import { TOKENS } from './tokens';
  * few questions. The name is in one place (BRAND) so it can change with the domain; the prices come from the
  * shared plans (PLAN_INFO) and the text price from the shared rate (TEXT_RATE), the same ones the app charges.
  */
-export const BRAND = 'The Yes List';
+export { BRAND } from './brand';
 
 type PlanKey = 'free' | 'essentials' | 'complete';
 
@@ -722,29 +723,29 @@ export function SalesPage() {
         <span>
           © {new Date().getFullYear()} {BRAND}. All rights reserved: our designs, templates and software are protected by copyright. Australian owned and operated.
         </span>
-        <Link to="/admin" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+        <Link to="/admin" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Sign in
         </Link>
-        <Link to="/vendors" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+        <Link to="/vendors" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Vendor directory
         </Link>
-        <Link to="/vendors/join" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+        <Link to="/vendors/join" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Wedding vendor? List your business free
         </Link>
-        <Link to="/privacy" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+        <Link to="/privacy" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Privacy
         </Link>
-        <Link to="/terms" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+        <Link to="/terms" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Terms
         </Link>
-        <Link to="/contact" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+        <Link to="/contact" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Contact
         </Link>
         {site &&
           (Object.entries(site.social) as [string, string][])
             .filter(([, u]) => /^https:\/\//.test(u))
             .map(([k, u]) => (
-              <a key={k} href={u} target="_blank" rel="noopener noreferrer" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+              <a key={k} href={u} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
                 {k === 'tiktok' ? 'TikTok' : k === 'youtube' ? 'YouTube' : k.charAt(0).toUpperCase() + k.slice(1)}
               </a>
             ))}

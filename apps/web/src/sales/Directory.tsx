@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ProfileSwitch } from '../lib/ProfileSwitch';
 import { api, ApiError, directoryApi, proposalsApi, vendorCouplesApi, type MyListing, type VendorCouple } from '../lib/api';
 import { EnquiryPipeline, VendorCalendar, VendorOverview } from './VendorDesk';
-import { BRAND } from './SalesPage';
+import { BRAND } from './brand';
 import { VendorCouples } from './VendorCouples';
 import { VendorQuotes } from './VendorQuotes';
 import { isVendorDemo } from '../try/vendorDemo';

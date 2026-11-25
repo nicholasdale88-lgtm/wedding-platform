@@ -6,7 +6,7 @@ import { LOOK_LABEL, lookOf, MOOD_OF, MOODS, SIGNATURE, SIGNATURE_NAMES, THEME_N
 import { CoverImage, EnvelopePortrait } from '../guest/CoverImage';
 import { Wordmark } from './Art';
 import { HeroInvite } from './HeroInvite';
-import { BRAND } from './SalesPage';
+import { BRAND } from './brand';
 import { TOKENS } from './tokens';
 
 const INK = TOKENS.sage;

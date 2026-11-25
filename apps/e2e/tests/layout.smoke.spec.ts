@@ -408,3 +408,25 @@ test('VS-04: the designs are 3:4 portraits with ink names, the filter chips are 
   expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
   expect(problems).toEqual([]);
 });
+
+test('Sentinel residuals: footer Home and Terms and the /try Terms are 44x44 at 375, 390 and 1440; the sample FAQ names who to contact', async ({ page }) => {
+  for (const width of [375, 390, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const [path, name, where] of [
+      ['/', 'Terms', 'footer'],
+      ['/terms', 'Home', 'footer'],
+      ['/terms', 'Terms', 'footer'],
+      ['/try', 'Terms', 'form'],
+    ] as const) {
+      await page.goto(path);
+      const link = page.locator(where).getByRole('link', { name, exact: true }).first();
+      await link.scrollIntoViewIfNeeded();
+      const box = (await link.boundingBox())!;
+      expect(box.width, `${path} ${name} width at ${width}`).toBeGreaterThanOrEqual(44);
+      expect(box.height, `${path} ${name} height at ${width}`).toBeGreaterThanOrEqual(44);
+    }
+  }
+  await page.goto('/demo');
+  await page.getByRole('button', { name: 'Open invitation' }).click();
+  await expect(page.locator('#inv-scroll').getByText('Call or text Harriet & Theo on', { exact: false }).first()).toBeAttached({ timeout: 20_000 });
+});

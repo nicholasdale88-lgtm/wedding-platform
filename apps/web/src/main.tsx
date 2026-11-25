@@ -12,6 +12,9 @@ import '@fontsource/great-vibes';
 import '@fontsource/parisienne';
 import '@fontsource/playfair-display/400.css';
 import dmSans from '@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2?url';
+import cgItalic from '@fontsource/cormorant-garamond/files/cormorant-garamond-latin-500-italic.woff2?url';
+import cgRegular from '@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2?url';
+import cgSemi from '@fontsource/cormorant-garamond/files/cormorant-garamond-latin-600-normal.woff2?url';
 import './styles/index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -25,6 +28,14 @@ if (typeof FontFace !== 'undefined' && document.fonts) {
     .load()
     .then((f) => document.fonts.add(f))
     .catch(() => undefined);
+}
+
+// The serif every page opens with (headings, the invitation's names and its wax seal's initials): fetched now, as
+// the app starts, rather than once the page has drawn and asked for it (the seal is /demo's largest paint).
+for (const href of [cgItalic, cgRegular, cgSemi]) {
+  const link = document.createElement('link');
+  Object.assign(link, { rel: 'preload', as: 'font', type: 'font/woff2', href, crossOrigin: 'anonymous' });
+  document.head.appendChild(link);
 }
 
 // The right home-screen app for this page (the admin, or the wedding for its guests).

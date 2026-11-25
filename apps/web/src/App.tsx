@@ -46,6 +46,9 @@ const TrialPage = lazy(() => fresh(import('./try/TrialPage')).then((m) => ({ def
 const SalesPage = lazy(() => fresh(import('./sales/SalesPage')).then((m) => ({ default: m.SalesPage })));
 // The front page's sample invitation and its footer pages (privacy, terms, contact).
 const DemoPage = lazy(() => fresh(import('./sales/Demo')).then((m) => ({ default: m.DemoPage })));
+// The sample invitation is a first page people land on (ads, the front page's link): its code starts loading
+// now, alongside the app, not after the app has rendered and asked for it.
+if (typeof window !== 'undefined' && window.location.pathname === '/demo') void import('./sales/Demo').catch(() => undefined);
 const SampleSeatingPage = lazy(() => fresh(import('./sales/SampleSeating')).then((m) => ({ default: m.SampleSeatingPage })));
 const DesignsPage = lazy(() => fresh(import('./sales/Designs')).then((m) => ({ default: m.DesignsPage })));
 const PrivacyPage = lazy(() => fresh(import('./sales/Legal')).then((m) => ({ default: m.PrivacyPage })));

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { gstWords, PLAN_INFO, TEXT_CREDIT_ALL_IN } from '@wp/shared';
 import { useSite } from '../lib/site';
 import { Wordmark } from './Art';
-import { BRAND } from './SalesPage';
+import { BRAND } from './brand';
 
 /** The plans and their prices, from the shared plans: "Basic $50, Essentials $88 and Deluxe $98". */
 const PLANS = Object.values(PLAN_INFO)
@@ -66,16 +66,16 @@ function LegalFooter() {
       <span>
         © {new Date().getFullYear()} {BRAND}. All rights reserved. Australian owned and operated.
       </span>
-      <Link to="/" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+      <Link to="/" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
         Home
       </Link>
-      <Link to="/privacy" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+      <Link to="/privacy" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
         Privacy
       </Link>
-      <Link to="/terms" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+      <Link to="/terms" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
         Terms
       </Link>
-      <Link to="/contact" className="inline-flex items-center min-h-[44px]" style={{ color: SOFT }}>
+      <Link to="/contact" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
         Contact
       </Link>
     </footer>

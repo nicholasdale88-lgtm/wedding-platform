@@ -2,7 +2,7 @@ import { DEFAULT_VENDOR_LOOK, type VendorLook, type VendorMenuKey } from '@wp/sh
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ProfileSwitch } from '../lib/ProfileSwitch';
-import { BRAND } from './SalesPage';
+import { BRAND } from './brand';
 
 /**
  * A vendor's own account, in their colours with their logo: a menu down the side on a computer (grouped: Today,
