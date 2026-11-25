@@ -58,7 +58,8 @@ test('front page header: every link reachable, through a menu on a phone', async
   await page.goto('/');
   const header = page.locator('header').first();
   if (!phone(info.project.name)) {
-    for (const name of ['Pricing', 'Vendor directory', 'Sign in', 'Get started']) await expect(header.getByRole('link', { name, exact: true })).toBeVisible();
+    for (const name of ['Pricing', 'Sign in', 'Get started']) await expect(header.getByRole('link', { name, exact: true })).toBeVisible();
+    await expect(header.getByRole('link', { name: 'Vendor directory' })).toHaveCount(0);
     await expect(header.getByRole('button', { name: 'Menu' })).toBeHidden();
   } else {
     const menu = header.getByRole('button', { name: 'Menu' });
@@ -67,7 +68,7 @@ test('front page header: every link reachable, through a menu on a phone', async
     await menu.click();
     const sheet = page.getByRole('dialog', { name: 'Menu' });
     await expect(sheet).toBeVisible();
-    for (const name of ['Pricing', 'Vendor directory', 'Sign in', 'Get started']) await expect(sheet.getByRole('link', { name, exact: true })).toBeVisible();
+    for (const name of ['Pricing', 'Sign in', 'Get started']) await expect(sheet.getByRole('link', { name, exact: true })).toBeVisible();
     // Focus is inside and stays inside; Escape closes it and puts focus back on Menu.
     expect(await sheet.evaluate((el) => el.contains(document.activeElement))).toBe(true);
     for (let i = 0; i < 7; i++) await page.keyboard.press('Tab');
@@ -77,8 +78,8 @@ test('front page header: every link reachable, through a menu on a phone', async
     await expect(menu).toBeFocused();
     // Choosing a link closes it and goes there.
     await menu.click();
-    await sheet.getByRole('link', { name: 'Vendor directory' }).click();
-    await expect(page).toHaveURL(/\/vendors$/);
+    await sheet.getByRole('link', { name: 'Pricing' }).click();
+    await expect(page).toHaveURL(/#pricing$/);
     await expect(page.getByRole('dialog', { name: 'Menu' })).toHaveCount(0);
   }
   expect(problems).toEqual([]);
@@ -294,9 +295,7 @@ test('Sentinel retest: vendor links, /try and the demo bar are 44px taps; the sa
   };
   await page.goto('/');
   const foot = page.locator('footer').last();
-  await tall(foot.getByRole('link', { name: 'Vendor directory', exact: true }), 'footer Vendor directory');
   await tall(foot.getByRole('link', { name: 'Wedding vendor? List your business free' }), 'footer List your business');
-  if (!phone(info.project.name)) await tall(page.locator('header').first().getByRole('link', { name: 'Vendor directory', exact: true }), 'header Vendor directory');
   await page.goto('/vendors/join');
   await tall(page.locator('summary', { hasText: 'Also travel to' }), 'Also travel to');
   await page.locator('summary', { hasText: 'Also travel to' }).click();

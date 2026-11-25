@@ -28,7 +28,8 @@ describe('front page', () => {
     expect(screen.getByRole('heading', { name: /Every bit as beautiful/ })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: /letterpress invitation/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open the sample invitation' })).toHaveAttribute('href', '/demo');
-    expect(screen.getAllByRole('link', { name: 'Vendor directory' }).length).toBeGreaterThan(0);
+    // No vendors on the front page (launch simplification): only the way for a vendor to list themselves.
+    expect(screen.queryAllByRole('link', { name: 'Vendor directory' })).toHaveLength(0);
   });
 
   it('never offers a free plan or says texts are included', () => {

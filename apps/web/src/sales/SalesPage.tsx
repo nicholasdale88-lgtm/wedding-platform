@@ -268,9 +268,6 @@ export function SalesPage() {
           <a href="#pricing" className="no-underline hidden sm:inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             Pricing
           </a>
-          <Link to="/vendors" className="no-underline hidden sm:inline-flex items-center min-h-[44px]" style={{ color: INK }}>
-            Vendor directory
-          </Link>
           <Link to="/admin" className="no-underline hidden sm:inline-flex items-center min-h-[44px]" style={{ color: INK }}>
             Sign in
           </Link>
@@ -284,7 +281,6 @@ export function SalesPage() {
             title={<Wordmark size={18} />}
             links={[
               { label: 'Pricing', to: '#pricing' },
-              { label: 'Vendor directory', to: '/vendors' },
               { label: 'Sign in', to: '/admin' },
               { label: 'Get started', to: '#start', primary: true },
             ]}
@@ -597,9 +593,6 @@ export function SalesPage() {
         </span>
         <Link to="/admin" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Sign in
-        </Link>
-        <Link to="/vendors" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
-          Vendor directory
         </Link>
         <Link to="/vendors/join" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Wedding vendor? List your business free
