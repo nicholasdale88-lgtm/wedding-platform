@@ -623,6 +623,11 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         {/* A printed invitation: their postal address (one per household), and whether they get a digital one too. */}
         <fieldset className="flex flex-col gap-2 m-0 p-3 rounded-[12px] border border-[var(--adm-line,#e2d7bc)]">
           <legend className="px-1 text-[13px] text-[var(--adm-muted,#5b6a52)]">Invitation by</legend>
+          {!printed(g.delivery) && (
+            <button type="button" onClick={() => void patch({ delivery: 'both' })} className="self-start inline-flex items-center min-h-[44px] px-4 rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f0)] text-[14px] font-medium cursor-pointer">
+              Print one invitation for them
+            </button>
+          )}
           <select aria-label="Invitation by" value={g.delivery ?? 'digital'} onChange={(e) => void patch({ delivery: e.target.value as Delivery })} className={inputCls}>
             {DELIVERY.map((k) => (
               <option key={k} value={k}>

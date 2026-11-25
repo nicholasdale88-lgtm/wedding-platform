@@ -1,6 +1,7 @@
 import type { DayoutGuide, GuideContent, InvitationContent, ReceptionGuide } from '@wp/shared';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ALL_TOOLS_ON } from '@wp/shared';
 import { ThemeGallery } from './ThemeGallery';
 import { DesignBuilder } from './DesignBuilder';
 import { SealPicker } from './SealPicker';
@@ -34,8 +35,11 @@ type PageKey = 'invitation' | 'photos' | 'thanks' | 'details' | 'timeline' | `gu
 const SAVE_AFTER_MS = 700;
 
 export function GuestPages() {
-  const { wid, event: chosen, reload: reloadOverview } = useAdmin();
+  const { wid, event: chosen, reload: reloadOverview, overview, path } = useAdmin();
   const toast = useToast();
+  const nav = useNavigate();
+  // Optional tools (Settings → What you're using): the extra pages show once they're switched on.
+  const tools = overview?.tools?.on ?? ALL_TOOLS_ON;
   const [params, setParams] = useSearchParams();
   const wide = useMedia('(min-width: 1100px)');
   const [data, setData] = useState<PagesData | null>(null);
@@ -152,7 +156,8 @@ export function GuestPages() {
   const pages = useMemo(() => {
     if (!data) return [];
     // The sample: its invitation and its night-before guide, both changed for real in this tab.
-    if (demo) return [{ key: 'invitation', label: 'Invitation' }, { key: 'guide:wedding', label: 'Night-before page' }, { key: 'thanks', label: 'Thank-you page' }] as { key: PageKey; label: string }[];
+    // The extra pages show once switched on (Settings → What you're using); the sample has them off, as a new wedding does.
+    if (demo) return [{ key: 'invitation', label: 'Invitation' }, ...(tools.nightBefore ? [{ key: 'guide:wedding', label: 'Night-before page' }] : []), ...(tools.thankYou ? [{ key: 'thanks', label: 'Thank-you page' }] : [])] as { key: PageKey; label: string }[];
     // Each event's own pages. The invitation lives with the first event (the other events have their
     // section and timeline in it); every event has its own photo page.
     const ev = data.events.find((e) => e.key === chosen) ?? data.events[0];
@@ -160,12 +165,12 @@ export function GuestPages() {
     const list: { key: PageKey; label: string }[] = [];
     if (data.events.indexOf(ev) === 0) list.push({ key: 'invitation', label: 'Invitation' });
     list.push({ key: 'details', label: 'Details' }, { key: 'timeline', label: 'Timeline' });
-    if (doc?.guides[ev.key]) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
-    list.push({ key: 'photos', label: 'Photo page' });
+    if (doc?.guides[ev.key] && tools.nightBefore) list.push({ key: `guide:${ev.key}`, label: 'Night-before page' });
+    if (tools.photos) list.push({ key: 'photos', label: 'Photo page' });
     // After the day: the thank-you page (with the photos once they're ready), with the first event.
-    if (data.events.indexOf(ev) === 0) list.push({ key: 'thanks', label: 'Thank-you page' });
+    if (data.events.indexOf(ev) === 0 && tools.thankYou) list.push({ key: 'thanks', label: 'Thank-you page' });
     return list;
-  }, [data, doc, chosen, demo]);
+  }, [data, doc, chosen, demo, tools.nightBefore, tools.photos, tools.thankYou]);
   const page = (pages.find((p) => p.key === params.get('page'))?.key ?? pages[0]?.key ?? 'invitation') as PageKey;
   const eventKey = page.startsWith('guide:') ? page.slice(6) : null;
   const ev = data?.events.find((e) => e.key === chosen) ?? data?.events[0];
@@ -298,6 +303,24 @@ export function GuestPages() {
       )}
 
       {!demo && <SaveToPhone url={`${window.location.origin}/admin/${encodeURIComponent(wid)}`} />}
+
+      {/* Print one invitation (Job 7): for a guest who'd rather have paper; marked on the guest, printed with their address label. */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        <Pill
+          className="min-h-[44px] w-full sm:w-auto"
+          onClick={() => {
+            nav(path('guests?show=all'));
+            toast('Tap the guest, then “Print one invitation”.');
+          }}
+        >
+          Print one invitation · for a guest who’d rather have paper
+        </Pill>
+        {!demo && (!tools.nightBefore || !tools.thankYou) && (
+          <a href={`${path('settings', 'all')}?view=tools`} className="inline-flex items-center min-h-[44px] text-[13px] underline !text-[var(--adm-muted,#5b6a52)]">
+            Add a night-before or thank-you page
+          </a>
+        )}
+      </div>
 
       <div className="flex gap-2 flex-wrap items-center">
         <nav aria-label="Setup" className={subNavCls}>

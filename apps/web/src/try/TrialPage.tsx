@@ -81,7 +81,7 @@ export function TrialPage() {
             </p>
             <ul className="m-0 p-0 list-none flex flex-col gap-2 text-[15px]" style={{ color: '#ecd9d6' }}>
               <li>✓ Opens straight away, on your phone or computer</li>
-              <li>✓ Try every plan, side by side</li>
+              <li>✓ Everything in one sample wedding</li>
               <li>✓ Australian owned and operated</li>
             </ul>
           </div>
@@ -102,7 +102,10 @@ export function TrialPage() {
             </label>
             <label className="flex flex-col gap-1 text-[14px] font-semibold">
               Wedding date <span className="font-normal" style={{ color: SOFT }}>(if you know it)</span>
-              <input className={field} type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+              <input className={field} type="date" lang="en-AU" aria-describedby="trial-date-hint" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+              <span id="trial-date-hint" className="text-[12px] font-normal" style={{ color: SOFT }}>
+                Day / month / year
+              </span>
             </label>
             {/* For robots only. */}
             <input type="text" tabIndex={-1} autoComplete="off" aria-hidden value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} className="absolute left-[-9999px] w-px h-px opacity-0" />
