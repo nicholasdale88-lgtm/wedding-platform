@@ -106,8 +106,8 @@ export function TrialPage() {
             </label>
             {/* For robots only. */}
             <input type="text" tabIndex={-1} autoComplete="off" aria-hidden value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} className="absolute left-[-9999px] w-px h-px opacity-0" />
-            <label className="flex gap-3 items-start text-[14px] cursor-pointer" style={{ color: SOFT }}>
-              <input type="checkbox" checked={f.news} onChange={(e) => setF({ ...f, news: e.target.checked })} className="mt-1 w-[18px] h-[18px] accent-[#3a2532]" />
+            <label className="flex gap-3 items-center min-h-[48px] py-1 text-[14px] cursor-pointer" style={{ color: SOFT }}>
+              <input type="checkbox" checked={f.news} onChange={(e) => setF({ ...f, news: e.target.checked })} className="flex-none w-[18px] h-[18px] accent-[#3a2532]" />
               Send me ideas and offers for our wedding now and then (unsubscribe any time).
             </label>
             {problem && (

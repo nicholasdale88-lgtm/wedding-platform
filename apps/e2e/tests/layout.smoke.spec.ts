@@ -466,3 +466,17 @@ test('Sentinel residuals: footer Home and Terms and the /try Terms are 44x44 at 
   await page.getByRole('button', { name: 'Open invitation' }).click();
   await expect(page.locator('#inv-scroll').getByText('Call or text Harriet & Theo on', { exact: false }).first()).toBeAttached({ timeout: 20_000 });
 });
+
+test('Sentinel phase 1: the closed sample is no wider than the screen, and the /try newsletter choice is a 44px tap', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.getByRole('button', { name: 'Open invitation' })).toBeVisible({ timeout: 20_000 });
+  await page.waitForTimeout(1500);
+  const closed = await page.evaluate(() => {
+    const r = document.querySelector('[aria-label="Open invitation"]')!;
+    return [r.scrollWidth, r.clientWidth];
+  });
+  expect(closed[0], 'the closed invitation never widens').toBe(closed[1]);
+  await page.goto('/try');
+  const news = page.locator('form label').filter({ has: page.locator('input[type="checkbox"]') }).first();
+  expect((await news.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+});

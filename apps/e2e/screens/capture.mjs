@@ -6,6 +6,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DEMO_POSTER_HEAD, DEMO_POSTER_ROOT, wantsDemoPoster } from '../../web/poster.js';
 
 const BASE = process.env.BASE ?? 'http://localhost:5173';
 const LABEL = process.env.LABEL ?? 'shot';
@@ -16,6 +17,17 @@ const metrics = { label: LABEL, at: new Date().toISOString(), lcp: {}, overflow:
 const PHONE = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true, reducedMotion: 'no-preference' };
 const DESK = { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1, reducedMotion: 'no-preference' };
 const file = (name) => join(OUT, `${LABEL}-${name}.png`);
+
+/** What the live site's middleware adds to /demo's HTML (vite preview doesn't run Pages Functions). */
+async function likeTheLiveSite(ctx) {
+  await ctx.route('**/demo*', async (route) => {
+    const req = route.request();
+    if (req.resourceType() !== 'document' || !wantsDemoPoster(req.url())) return route.continue();
+    const res = await route.fetch();
+    const html = (await res.text()).replace('</head>', `${DEMO_POSTER_HEAD}</head>`).replace('<div id="root">', `<div id="root">${DEMO_POSTER_ROOT}`);
+    await route.fulfill({ response: res, body: html });
+  });
+}
 
 async function settle(page, ms = 2500) {
   await page.evaluate(() => document.fonts.ready);
@@ -108,6 +120,7 @@ for (const [name, path] of [
   const runs = [];
   for (let i = 0; i < 3; i++) {
     const ctx = await browser.newContext(PHONE);
+    await likeTheLiveSite(ctx);
     const page = await ctx.newPage();
     await page.addInitScript(() => {
       window.__lcp = 0;

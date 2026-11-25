@@ -14,6 +14,7 @@ import './sample.css';
 import { MotionPortal } from '../guest/invitation/Motion';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
 import { BRAND } from './brand';
+import { readableAt } from './tokens';
 import { readDemoPages } from '../try/demoMode';
 
 /**
@@ -123,7 +124,9 @@ export function SampleInvitation({
     const ev = eventOfSection(data, label);
     return ev ? calendarControl(data, ev, undefined, true) : undefined;
   };
-  const v = { ...core, after, ...(scene === 'none' ? (cover ? { hintOp: 0 } : {}) : { envOp: 0, hintOp: 0 }) };
+  // The hidden card waits at its own size until the tap (it was 1.12x, a 413px-wide box in a 390px screen):
+  // it grows to 1.12 out of sight while the envelope opens, then settles exactly as before.
+  const v = { ...core, after, cardScale: phase === 0 ? 'none' : core.cardScale, ...(scene === 'none' ? (cover ? { hintOp: 0 } : {}) : { envOp: 0, hintOp: 0 }) };
   // A cover shows the sample couple, the same as its seal (H&T); the live sample is addressed to its guests.
   const addressee = cover ? SAMPLE.couple : SAMPLE.guests;
   const th = themeOf(data.wedding.theme, data.content.custom);
@@ -159,9 +162,11 @@ export function SampleInvitation({
     return () => window.clearTimeout(id);
   }, [chrome, phase]);
   const music: Music | null = core.hasAudio ? { on: core.musicIcon === t('inv.dyn.musicOn'), label: core.musicIcon, toggle: (e) => core.toggleMusic(e) } : null;
+  // "Tap to open" on the sample reads at AA on its envelope (Sentinel: 4.49:1); real invitations are untouched.
+  const hint = readableAt(th.hint ?? '#33402f', paperHex(data.content.envelope?.paper) ?? th.e1 ?? '#e6dcc4', 5.5);
   const body = (
     <>
-      <div className={`dz yl-look-${lookOf(data.wedding.theme, data.content.custom)}`}>
+      <div className={`dz yl-look-${lookOf(data.wedding.theme, data.content.custom)}`} style={{ ['--hint' as string]: hint }}>
         <InvitationView v={v} t={t} />
       </div>
       <MotionPortal motion={data.content.motion} look={lookOf(data.wedding.theme, data.content.custom)} />
