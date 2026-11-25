@@ -5,65 +5,64 @@ import { confirmLeave } from '../leave';
 import { PageHeader, Tabs } from '../ui';
 import { ChangeEmail, PlanAndBilling, TheWedding, YourDetails } from './Account';
 import { Privacy } from './Privacy';
-import { Backup, Passcode, SmsSetup } from './SmsSetup';
-import { SendVia } from '../texts/OwnPhone';
+import { Backup, Passcode } from './SmsSetup';
 import { SystemCheck } from './SystemCheck';
-
-const VIEWS = [
-  { key: 'details', label: 'Your details' },
-  { key: 'people', label: 'People and privacy' },
-  { key: 'plan', label: 'Your plan' },
-  { key: 'texting', label: 'Texting' },
-  { key: 'backup', label: 'Backup and checks' },
-  { key: 'look', label: 'Admin look' },
-] as const;
-/** Tabs that were merged into another: their old links still land in the right place. */
-const MOVED: Record<string, (typeof VIEWS)[number]['key']> = { privacy: 'people', signin: 'details', check: 'backup' };
-type View = (typeof VIEWS)[number]['key'];
+import { CreditsSection } from './Credits';
+import { ToolsSection } from './Tools';
 
 /**
- * Account → Settings: your account as a customer and everything set once, in six tabs. Your details (with
- * sign-in: email and passcode), the people who run it and who can open your pages, your plan, texting
- * (number, hours, costs, automatic replies), backups with the system check, and the admin's look.
+ * Settings: the one menu item for everything set once (launch simplification, Job 3), in five sections, in
+ * this order: Profile (your details and sign-in, with privacy, backup and checks, and the admin's colours as
+ * parts of it), Plan & billing (the one plan), Text credits (always here: balance, buy or top up at cost, the
+ * history), Partner access (who can sign in), and What you're using (the optional tools' switches).
  */
+const VIEWS = [
+  { key: 'profile', label: 'Profile' },
+  { key: 'plan', label: 'Plan & billing' },
+  { key: 'credits', label: 'Text credits' },
+  { key: 'people', label: 'Partner access' },
+  { key: 'tools', label: 'What you’re using' },
+] as const;
+/** Older links (and the tabs that were merged) still land in the right place. */
+const MOVED: Record<string, (typeof VIEWS)[number]['key']> = { details: 'profile', signin: 'profile', privacy: 'profile', backup: 'profile', check: 'profile', look: 'profile', texting: 'credits' };
+type View = (typeof VIEWS)[number]['key'];
+
 export function Settings() {
   const [params, setParams] = useSearchParams();
   const asked = params.get('view') ?? '';
-  const view = (VIEWS.find((v) => v.key === (MOVED[asked] ?? asked))?.key ?? 'details') as View;
+  const view = (VIEWS.find((v) => v.key === (MOVED[asked] ?? asked))?.key ?? 'profile') as View;
   const choose = (v: View) => {
     if (v === view || !confirmLeave()) return; // unsaved texting edits ask first
-    setParams(v === 'details' ? {} : { view: v }, { replace: true });
+    setParams(v === 'profile' ? {} : { view: v }, { replace: true });
   };
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader eyebrow="Account" title="Settings" />
+      <PageHeader eyebrow="Your wedding" title="Settings" />
       <Tabs label="Settings" items={VIEWS} value={view} onChange={choose} />
-      {view === 'details' ? (
+      {view === 'profile' ? (
         <div className="flex flex-col gap-10">
           <AtAGlance />
           <YourDetails />
           <ChangeEmail />
           <Passcode />
-        </div>
-      ) : view === 'people' ? (
-        <div className="flex flex-col gap-8">
-          <TheWedding />
           <Privacy />
+          <section aria-label="Backup and checks" className="flex flex-col gap-6">
+            <Backup />
+            <SystemCheck />
+          </section>
+          <section aria-label="Colours" className="flex flex-col gap-3">
+            <h2 className="m-0 font-display font-medium text-[26px]">Colours</h2>
+            <AdminLook embedded />
+          </section>
         </div>
       ) : view === 'plan' ? (
         <PlanAndBilling />
-      ) : view === 'texting' ? (
-        <div className="flex flex-col gap-7">
-          <SendVia />
-          <SmsSetup />
-        </div>
-      ) : view === 'backup' ? (
-        <div className="flex flex-col gap-10">
-          <Backup />
-          <SystemCheck />
-        </div>
+      ) : view === 'credits' ? (
+        <CreditsSection />
+      ) : view === 'people' ? (
+        <TheWedding />
       ) : (
-        <AdminLook embedded />
+        <ToolsSection onBuyTexts={() => setParams({ view: 'credits' }, { replace: true })} />
       )}
     </div>
   );

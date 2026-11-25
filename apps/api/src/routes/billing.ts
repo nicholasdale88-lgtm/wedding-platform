@@ -290,7 +290,12 @@ export async function applyTexts(db: D1Database, wid: string, credits: number, s
   const at = new Date().toISOString();
   const fresh = `NOT EXISTS (SELECT 1 FROM audit WHERE action = 'texts.paid' AND target = ?1)`;
   await db.batch([
-    db.prepare(`UPDATE wedding SET wallet_credits = COALESCE(wallet_credits, 0) + ?2, updated_at = ?3 WHERE id = ?4 AND ${fresh}`).bind(sessionId, credits, at, wid),
+    // Credits added, and text messages switched on straight away (Settings → What you're using).
+    db.prepare(
+      `UPDATE wedding SET wallet_credits = COALESCE(wallet_credits, 0) + ?2,
+              content = CASE WHEN json_valid(content) AND json_type(content, '$.tools') = 'object' THEN json_set(content, '$.tools.texts', json('true')) ELSE content END,
+              updated_at = ?3 WHERE id = ?4 AND ${fresh}`,
+    ).bind(sessionId, credits, at, wid),
     db.prepare(
       `INSERT INTO audit (id, wedding_id, user_id, action, target, detail, at)
        SELECT ?2, ?3, NULL, 'texts.paid', ?1, ?4, ?5 WHERE ${fresh}`,

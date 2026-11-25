@@ -101,7 +101,7 @@ export function SmsMessages() {
           {!data.live && (
             <div className="mt-1 text-[14px] text-[#7a4a37]">
               Texts won’t send by themselves until you choose how they go: free from your own phone or by email, or a texting number.{' '}
-              <button type="button" onClick={() => go(`${path('settings', ALL_EVENTS)}?view=texting`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#7a4a37] text-[14px]">
+              <button type="button" onClick={() => go(`${path('settings', ALL_EVENTS)}?view=credits`)} className="p-0 border-0 bg-transparent underline cursor-pointer text-[#7a4a37] text-[14px]">
                 Set up texting →
               </button>
             </div>

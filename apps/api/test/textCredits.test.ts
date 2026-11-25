@@ -108,4 +108,30 @@ describe('text credits', () => {
     expect(s).toMatchObject({ credits: 720, connected: true, canBuy: true });
     expect(s.costNote).toMatch(/not included in any plan/);
   });
+
+  it('Settings: tools start off on a new wedding; buying credits switches texts on at once, and each top-up is in the history', async () => {
+    const { cookie, wid } = await signup();
+    type Ov = { tools: { chosen: Record<string, boolean>; on: Record<string, boolean>; textsBought: boolean; credits: number | null } };
+    const ov = async () => ((await (await call(`/a/w/${wid}/overview`, {}, cookie)).json()) as Ov).tools;
+    expect(Object.values((await ov()).on).every((v) => !v)).toBe(true);
+    // Switching a tool on shows it; texts switched on stay hidden until credits are bought.
+    expect((await call(`/a/w/${wid}/tools`, { method: 'PUT', body: JSON.stringify({ seating: true, texts: true }) }, cookie)).status).toBe(200);
+    expect((await call(`/a/w/${wid}/tools`, { method: 'PUT', body: JSON.stringify({ wallet: true }) }, cookie)).status).toBe(400);
+    let tools = await ov();
+    expect(tools.on).toMatchObject({ seating: true, texts: false, photos: false });
+    expect(tools.chosen.texts).toBe(true);
+    // Switched back off: hidden, and switched texts off; then a purchase turns texts on by itself.
+    await call(`/a/w/${wid}/tools`, { method: 'PUT', body: JSON.stringify({ texts: false }) }, cookie);
+    const first = paid('cs_t1', wid, 100);
+    expect((await hook(first)).status).toBe(200);
+    tools = await ov();
+    expect(tools).toMatchObject({ textsBought: true, credits: 100 });
+    expect(tools.on.texts).toBe(true);
+    // A top-up adds to the balance and a second row of history.
+    expect((await hook(paid('cs_t2', wid, 63))).status).toBe(200);
+    expect((await ov()).credits).toBe(163);
+    const h = (await (await call(`/a/w/${wid}/texts/purchases`, {}, cookie)).json()) as { purchases: { credits: number; cents: number | null }[] };
+    expect(h.purchases.map((x) => x.credits).sort((a, b) => a - b)).toEqual([63, 100]);
+    expect(h.purchases.find((x) => x.credits === 100)!.cents).toBe(textCreditsCents(100));
+  });
 });

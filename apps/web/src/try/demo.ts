@@ -1,4 +1,4 @@
-import { countGuests, PLANNER_DOCS, type AssistantAction } from '@wp/shared';
+import { ALL_TOOLS_OFF, countGuests, PLANNER_DOCS, type AssistantAction } from '@wp/shared';
 import { ApiError, type EventFull, type EventInfo, type Guest, type GuestDetail, type GuestPatch, type Overview, type RsvpPut, type SeatingData, type SeatTable } from '../lib/api';
 import { coupleVendorDemo } from './vendorDemo';
 import { DEMO_PAGES_KEY, DEMO_WID, readDemoPages, type DemoPagesDoc } from './demoMode';
@@ -100,10 +100,13 @@ function build() {
 }
 
 /** The sample's overview: of the one event when the admin asks for it (its section), or of everything. */
+const SAMPLE_TOOLS = { ...ALL_TOOLS_OFF, seating: true };
 function overview(focus: string | null = null): Overview {
   const coming = guests.filter((g) => g.rsvp.wedding?.attending);
   const people = guests.flatMap((g) => g.people);
   return {
+    // The sample's tools: a seating plan (it has one); the rest switched off, as a new wedding starts.
+    tools: { chosen: SAMPLE_TOOLS, on: SAMPLE_TOOLS, textsBought: false, credits: 0 },
     wedding: { id: DEMO_WID, slug: 'harriet-and-theo-sample', name1: 'Harriet Lane', name2: 'Theo Marsh', monogram: 'H&T', theme: 'Cream & Sage', timezone: TZ, adminName: '', plan },
     total: guests.length,
     replied: guests.filter((g) => g.repliedAt).length,

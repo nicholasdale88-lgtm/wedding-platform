@@ -584,7 +584,7 @@ export function GuestDrawer({ wid, id, tz, isNew = false, onClose, onChanged, ci
         {g.phone && (g.channel ?? '') !== 'email' && (g.channel ?? '') !== 'phone' && (
           <span className="-mt-1 text-[12px] text-[var(--adm-muted,#5b6a52)]">
             Texts use text credits ({TEXT_CREDIT_ALL_IN}c each, all-in).{' '}
-            <a href={`/admin/${encodeURIComponent(wid)}/settings?view=texting`} className="underline text-[var(--adm-ink,#33402f)]">
+            <a href={`/admin/${encodeURIComponent(wid)}/settings?view=credits`} className="underline text-[var(--adm-ink,#33402f)]">
               Buy text credits
             </a>
           </span>

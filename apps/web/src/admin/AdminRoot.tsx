@@ -4,6 +4,8 @@ import { trialBooked } from '../try/TrialPage';
 import { DemoFeature, DEMO_HANDS_ON } from '../try/DemoFeature';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
+import { TOOL_OF_TAB } from '@wp/shared';
+import { ToolOff } from './settings/Tools';
 import { GuestPlanningBar } from './GuestPlanning';
 import { Guests } from './Guests';
 import { Join } from './Join';
@@ -181,8 +183,8 @@ function SectionBody({ section, tab }: { section: string; tab: string }) {
   const { wid, overview: o, path } = useAdmin();
   const { search } = useLocation();
   // Account's texting setup and admin look are views of Settings now.
-  if (tab === 'look') return <Navigate to={`${path('settings', ALL_EVENTS)}?view=look`} replace />;
-  if (tab === 'texts' && section === ACCOUNT) return <Navigate to={`${path('settings', ALL_EVENTS)}?view=texting`} replace />;
+  if (tab === 'look') return <Navigate to={`${path('settings', ALL_EVENTS)}?view=profile`} replace />;
+  if (tab === 'texts' && section === ACCOUNT) return <Navigate to={`${path('settings', ALL_EVENTS)}?view=credits`} replace />;
   // Wedding party sign-ins moved from Setup into the Wedding party page.
   if (tab === 'pages' && new URLSearchParams(search).get('page') === 'party') return <Navigate to={`${path('party')}?view=access`} replace />;
   if (tab === 'events') return <Navigate to={path('overview', ALL_EVENTS)} replace />;
@@ -216,6 +218,9 @@ function SectionBody({ section, tab }: { section: string; tab: string }) {
   }
   // Try the app: the parts the sample doesn't run say what they do instead (guests, dietary and seating are hands-on).
   if (wid === DEMO_WID && !DEMO_HANDS_ON.has(tab)) return <DemoFeature tab={tab} />;
+  // A tool switched off (Settings → What you're using): its page offers to switch it on; nothing was deleted.
+  const tool = TOOL_OF_TAB[tab];
+  if (tool && o?.tools && !o.tools.on[tool]) return <ToolOff tool={tool} />;
   switch (tab) {
     case 'overview':
       return <Overview />;

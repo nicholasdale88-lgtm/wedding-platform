@@ -14,7 +14,7 @@ import { inputCls, Label, Pill, Rollup, SaveBar, useToast } from '../ui';
 const hourLabel = (h: number) => `${h % 12 || 12}${h < 12 ? 'am' : 'pm'}`;
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
-export function SmsSetup() {
+export function SmsSetup({ credits: showCredits = true }: { credits?: boolean } = {}) {
   const { wid, reload: reloadOverview } = useAdmin();
   const toast = useToast();
   const [s, setS] = useState<SettingsData | null>(null);
@@ -65,7 +65,7 @@ export function SmsSetup() {
         Automatic texts, sent for you through {s.provider}, an Australian provider. Guests can text YES or NO straight back.
       </p>
 
-      <TextCredits s={s} wid={wid} />
+      {showCredits && <TextCredits s={s} wid={wid} />}
 
       <section className="flex items-center justify-between gap-4 flex-wrap p-5 rounded-[14px]" style={{ background: s.paused ? '#f1e1d6' : '#dfe5cc' }}>
         <div>
@@ -317,7 +317,7 @@ export function Passcode() {
  * counted exactly), the price at the rate is shown, and they pay by card for exactly that (Stripe Checkout).
  * Nothing to sign up to and no keys: the credits are added once paid.
  */
-function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
+export function TextCredits({ s, wid, unlimited = false }: { s: SettingsData; wid: string; unlimited?: boolean }) {
   const toast = useToast();
   const rate = s.rate ?? { centsPerCredit: 8, serviceFeePct: 0, minCredits: 63, maxCredits: 20000, sendCreditsPerGuest: 13, replyCreditsPerGuest: 4, creditsPerGuest: 17 };
   const credits = s.credits ?? 0;
@@ -345,7 +345,13 @@ function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <h2 className="m-0 font-display text-[22px] font-normal">Text credits</h2>
         <span className="text-[15px]">
-          <strong>{credits.toLocaleString('en-AU')}</strong> {credits === 1 ? 'credit' : 'credits'} left
+          {unlimited ? (
+            <strong>Unlimited</strong>
+          ) : (
+            <>
+              <strong>{credits.toLocaleString('en-AU')}</strong> {credits === 1 ? 'credit' : 'credits'} left
+            </>
+          )}
         </span>
       </div>
       <p role="note" className="m-0 p-3 rounded-[10px] bg-white border border-[#ecd9ae] text-[14px] leading-snug">
@@ -364,12 +370,12 @@ function TextCredits({ s, wid }: { s: SettingsData; wid: string }) {
           )}
           <div>
             <Pill kind="primary" disabled={busy || need <= 0} onClick={() => void buy()}>
-              {busy ? 'Opening the payment page…' : need > 0 ? `Buy ${need.toLocaleString('en-AU')} credits · ${money(sub + fee)}` : 'Type how many guests'}
+              {busy ? 'Opening the payment page…' : need > 0 ? `${credits > 0 ? 'Top up' : 'Buy'} ${need.toLocaleString('en-AU')} credits · ${money(sub + fee)}` : 'Type how many guests'}
             </Pill>
           </div>
         </div>
       ) : (
-        <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Buying texts isn’t available on this site yet. Send free from your own phone or by email meanwhile.</p>
+        <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Card payments for text credits aren’t switched on yet. Send free from your own phone or by email meanwhile.</p>
       )}
       <p className="m-0 text-[13px] text-[var(--adm-muted,#5b6a52)]">
         One credit per text of up to 160 characters (a longer one, with a link, usually uses 2). Credits never expire. When they run out, automatic texts stop until you buy more: nothing is ever charged without you choosing to.

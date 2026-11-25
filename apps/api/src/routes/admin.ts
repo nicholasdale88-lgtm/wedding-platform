@@ -1,7 +1,7 @@
-import { allows, DELIVERY, GUEST_SIDES, InvitationContent,joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164, contactGaps } from '@wp/shared';
+import { chosenTools, toolPatch, toolsShown, DELIVERY, GUEST_SIDES, InvitationContent,joinCircles, MAX_CIRCLES, parseCircles, parseRelation, parseSide, PartySetup, randomToken, RELATION_KEYS, splitCircles, splitDiet, toE164, contactGaps } from '@wp/shared';
 import { clearDietIfDeclinedAll, clearMealsIfDeclined, releaseShuttlesIfDeclined, unseatIfNotComing } from '../lib/seatingRules';
 import { afterCommit, isBusy, MAX_IMPORT, readJson } from '../lib/security';
-import { needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
+import { hasFeature, needsUpgrade, roomFor, weddingPlan } from '../lib/plan';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { loadWedding } from '../admin/data';
@@ -193,7 +193,23 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     } catch {
       /* the defaults */
     }
+    // The tools they've switched on (Settings → What you're using), and text credits: texts show once bought.
+    const money = await c.env.DB.prepare(
+      `SELECT plan, wallet_credits AS credits, EXISTS (SELECT 1 FROM audit a WHERE a.wedding_id = wedding.id AND a.action = 'texts.paid') AS bought FROM wedding WHERE id = ?`,
+    )
+      .bind(w.id)
+      .first<{ plan: string; credits: number | null; bought: number }>();
+    const founders = money?.plan === 'trial';
+    const textsBought = !!money?.bought || (money?.credits ?? 0) > 0;
+    const chosen = chosenTools(w.content);
     return c.json({
+      tools: {
+        chosen,
+        on: toolsShown(chosen, { founders, textsBought }),
+        textsBought,
+        // Founders' weddings were never charged for texts: their balance reads as unlimited (null).
+        credits: founders && money?.credits == null ? null : Math.max(0, money?.credits ?? 0),
+      },
       wedding: {
         id: w.id,
         slug: w.slug,
@@ -214,6 +230,44 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
       },
       ...ov,
       partySides: { p1: setup.p1, p2: setup.p2 },
+    });
+  });
+
+  /**
+   * Settings → What you're using: switch a tool on or off for this wedding. Off only hides it; nothing is
+   * deleted. A wedding from before the switches gets them all written down, as on, before the change.
+   */
+  app.put('/tools', writer, async (c) => {
+    const patch = toolPatch(await readJson(c.req.raw));
+    if (!patch) return err(c, 400, 'invalid', 'Choose a tool to switch on or off.');
+    const row = await c.env.DB.prepare(`SELECT content FROM wedding WHERE id = ?`).bind(wid(c)).first<{ content: string }>();
+    let content: Record<string, unknown> = {};
+    try {
+      content = JSON.parse(row?.content ?? '{}') as Record<string, unknown>;
+    } catch {
+      /* an empty start */
+    }
+    const next = { ...chosenTools(content), ...patch };
+    await c.env.DB.prepare(`UPDATE wedding SET content = json_set(content, '$.tools', json(?)), updated_at = ? WHERE id = ? AND json_valid(content)`)
+      .bind(JSON.stringify(next), new Date().toISOString(), wid(c))
+      .run();
+    await audit(c, 'tools.set', wid(c), patch).run();
+    return c.json({ chosen: next });
+  });
+
+  /** Settings → Text credits: every purchase, newest first (date, credits, what was paid). */
+  app.get('/texts/purchases', async (c) => {
+    const { results } = await c.env.DB.prepare(`SELECT at, detail FROM audit WHERE wedding_id = ? AND action = 'texts.paid' ORDER BY at DESC LIMIT 100`).bind(wid(c)).all<{ at: string; detail: string }>();
+    return c.json({
+      purchases: results.map((r) => {
+        let d: { credits?: number; amount?: number | null } = {};
+        try {
+          d = JSON.parse(r.detail) as typeof d;
+        } catch {
+          /* kept as it was */
+        }
+        return { at: r.at, credits: Number(d.credits ?? 0), cents: d.amount == null ? null : Number(d.amount) };
+      }),
     });
   });
 
@@ -739,7 +793,7 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
   app.post('/guests/:id/send', writer, async (c) => {
     const body = z.object({ campaignId: z.string() }).safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Choose a message.');
-    if (!c.req.query('dry') && !allows(await weddingPlan(c.env.DB, wid(c)), 'texts')) return needsUpgrade(c, 'texts');
+    if (!c.req.query('dry') && !(await hasFeature(c.env.DB, wid(c), 'texts'))) return needsUpgrade(c, 'texts');
     const d = deps(c.env);
     const invId = c.req.param('id');
     try {

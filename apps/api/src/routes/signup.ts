@@ -1,4 +1,4 @@
-import { cleanRef, zonedToUtc } from '@wp/shared';
+import { ALL_TOOLS_OFF, cleanRef, zonedToUtc } from '@wp/shared';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { hashPasscode, passcodeProblem, verifyPasscode } from '../lib/auth';
@@ -90,7 +90,8 @@ export function signupRoutes() {
       // Their own email address from the start (alex-and-sam@<INBOX_DOMAIN>), when the site has a domain for it.
       const domain = inboxDomain(c.env);
       const inbox = domain && (await addressFree(db, `${slug}@${domain}`, weddingId)) ? { inbox: { address: `${slug}@${domain}` } } : {};
-      const content = JSON.stringify({ private: true, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...inbox, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
+      // Optional tools start switched off (Settings → What you're using): the admin starts simple.
+      const content = JSON.stringify({ private: true, tools: ALL_TOOLS_OFF, planChosen: b.plan, planChosenAt: now, mainAccount: userId, invitation: { hidden: { '08 Accommodation': true } }, ...inbox, ...(b.guests ? { expectedGuests: b.guests } : {}), ...(b.date ? {} : { dateToBeSet: true }), ...(cleanRef(b.ref) ? { ref: cleanRef(b.ref) } : {}) });
       const stmts: D1PreparedStatement[] = [
         ...(existing
           ? []

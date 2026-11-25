@@ -1,4 +1,4 @@
-import type { VendorLook, AdDraft, AdsSettings, AdsState, GuestCounts } from '@wp/shared';
+import type { VendorLook, AdDraft, AdsSettings, AdsState, GuestCounts, Tools } from '@wp/shared';
 import type { AssistantAction, CompanyHelpPack, DayChecklist, Enquiry, FeeProposal, FeeProposalRevision, ProposalSummary, ProposalView, GuideContent, InvitationContent, Listing, ListingCard, ListingFields, PartyRunsheet, PartySetup, PlannerKind, SeatChanges, SeatStage, Side, TableShape, TaskTotals, ContactGap } from '@wp/shared';
 import { isDemo } from '../try/demoMode';
 import { isVendorDemo, vendorDemo } from '../try/vendorDemo';
@@ -167,6 +167,8 @@ export interface GuestDetail {
 }
 
 export interface Overview {
+  /** The optional tools: what the couple switched on, and what shows (texts only once credits are bought). */
+  tools?: { chosen: Tools; on: Tools; textsBought: boolean; credits: number | null };
   wedding: { id: string; slug: string; name1: string; name2: string; monogram?: string; theme?: string; timezone: string; adminName: string; adminLook?: { palette?: string; eventColours?: boolean; large?: boolean }; plan?: 'free' | 'basic' | 'essentials' | 'complete'; planRequested?: string; private?: boolean; seal?: { colour: NonNullable<InvitationContent['seal']>; design: NonNullable<InvitationContent['sealDesign']> } };
   total: number;
   replied: number;
@@ -267,6 +269,8 @@ export const api = {
   bulkGuests: (wid: string, b: { ids: string[] } & BulkSet) => send<{ updated: number; flagged?: { name: string; gaps: ContactGap[] }[] }>('POST', `${w(wid)}/guests/bulk`, b),
   importGuests: (wid: string, rows: unknown[], dry: boolean) => send<ImportResult>('POST', `${w(wid)}/guests/import${dry ? '?dry=1' : ''}`, { rows }),
   setAdminLook: (wid: string, look: { palette: string; eventColours: boolean; large: boolean }) => send<{ ok: true }>('PUT', `${w(wid)}/look`, look),
+  setTools: (wid: string, patch: Partial<Tools>) => send<{ chosen: Tools }>('PUT', `${w(wid)}/tools`, patch),
+  textPurchases: (wid: string) => request<{ purchases: { at: string; credits: number; cents: number | null }[] }>(`${w(wid)}/texts/purchases`),
   setAdminName: (wid: string, name: string) => send<{ ok: true; name: string }>('PUT', `${w(wid)}/admin-name`, { name }),
   /** A person's meal at an event: a special menu (id, '' the set menu) and courses changed just for them. */
   setMeal: (wid: string, personId: string, meal: { event?: string; menu?: string; entree: string; main: string; dessert: string }) => send<{ ok: true }>('PUT', `${w(wid)}/people/${personId}/meal`, meal),
