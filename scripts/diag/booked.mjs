@@ -43,4 +43,4 @@ for (const r of rows) {
   if (r.kind === 'ceremony') out.push(`ceremony celebrantNameSet=${!!(d.celebrant?.name ?? '').trim()}`);
   if (r.kind === 'party') out.push(`party celebrantRoles=${(d.members ?? d.list ?? []).filter((m) => /celebrant|officiant/i.test(m.role ?? '')).length}`);
 }
-for (let i = 0; i < out.length; i += 20) console.log(`::notice title=diag ${i / 20}::${out.slice(i, i + 20).join(' | ')}`);
+for (const line of out) console.log(line);
