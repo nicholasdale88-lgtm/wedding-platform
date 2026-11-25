@@ -108,7 +108,7 @@ export function MenusPanel({ menus, set }: { menus: Menus; set: (m: Menus, now?:
           + A special menu
         </Pill>
         {unused.slice(0, 4).map(([name, suits]) => (
-          <button key={name} type="button" onClick={() => set({ ...menus, special: [...menus.special, { ...BLANK_MENU, id: newId(), name, suits }] }, true)} className="py-[5px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[13px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">
+          <button key={name} type="button" onClick={() => set({ ...menus, special: [...menus.special, { ...BLANK_MENU, id: newId(), name, suits }] }, true)} className="relative py-[5px] px-3 rounded-full border border-[var(--adm-line,#c6b794)] bg-transparent text-[13px] cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)] before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[7px]">
             + {name}
           </button>
         ))}

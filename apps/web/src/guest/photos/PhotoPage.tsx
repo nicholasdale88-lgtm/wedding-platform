@@ -173,6 +173,10 @@ export function PhotoPage({ sample = false }: { sample?: boolean } = {}) {
     if (fileRef.current) fileRef.current.accept = 'image/*,video/*';
   });
   useEffect(() => setFilter(filters[1] ?? 'none'), [info?.title]); // eslint-disable-line
+  // The browser tab (and a saved home-screen shortcut) names whose photos these are, like the message board.
+  useEffect(() => {
+    if (page) document.title = `${first(page.wedding.name1)} & ${first(page.wedding.name2)} · photos`;
+  }, [page]);
 
   // The page's top line names the couple and the wedding day; another event's page names that event instead.
   const t = useCallback(

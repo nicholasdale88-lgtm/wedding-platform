@@ -149,6 +149,11 @@ test('the sample night-before forecast reads "0% rain", never "0%% rain"', async
   await expect(page.getByText(/%%/)).toHaveCount(0);
 });
 
+test('the sample photo page names the couple in the browser tab (it was blank)', async ({ page }) => {
+  await page.goto('/demo/photos');
+  await expect(page).toHaveTitle(/ & .+ · photos$/, { timeout: 20_000 });
+});
+
 test('the sample vendor account: See your page and Sign out are easy taps (44px or more)', async ({ page }, info) => {
   await page.goto('/vendors/me?sample=1');
   // On a phone they're under More.
@@ -407,4 +412,35 @@ test('VS-04: the designs are 3:4 portraits with ink names, the filter chips are 
   }
   expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
   expect(problems).toEqual([]);
+});
+
+test('the sample app on a phone: Help, Preview, Group by side and the dietary + chips are 44px taps', async ({ page }, info) => {
+  test.skip(!phone(info.project.name), 'phone only');
+  await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));
+  // A tap 21px above or below the middle (a 44px finger) still lands on it.
+  const tall = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    return [y - 21, y + 21].map((yy) => {
+      const hit = document.elementFromPoint(x, yy);
+      return !!hit && (hit === el || el.contains(hit));
+    });
+  };
+  await page.goto('/admin/demo/wedding/guests');
+  const targets = [
+    page.getByRole('link', { name: 'Help', exact: true }).first(),
+    page.getByRole('link', { name: /^Preview .+’s invitation$/ }).first(),
+    page.getByRole('button', { name: /^Group(ed)? by side/ }).first(),
+  ];
+  for (const t of targets) {
+    await expect(t).toBeVisible({ timeout: 20_000 });
+    await t.scrollIntoViewIfNeeded();
+    expect(await t.evaluate(tall), await t.evaluate((el) => el.textContent ?? '')).toEqual([true, true]);
+  }
+  await page.goto('/admin/demo/wedding/dietary');
+  const chip = page.getByRole('button', { name: /^\+ (Vegetarian|Vegan|Gluten free|Dairy free)$/ }).first();
+  await expect(chip).toBeVisible({ timeout: 20_000 });
+  await chip.scrollIntoViewIfNeeded();
+  expect(await chip.evaluate(tall)).toEqual([true, true]);
 });
