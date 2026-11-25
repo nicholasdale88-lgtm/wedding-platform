@@ -1,11 +1,12 @@
+import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fmtDay, fmtWhen } from '../lib/format';
-import { AccountHome, NeedsYou, RehearseCard } from './AccountHome';
-import { Card, Hub, Kpis } from './hub/Hub';
+import { AccountHome } from './AccountHome';
+import { Card, Kpis } from './hub/Hub';
 import { PortalPreviews } from './PortalPreviews';
 import { C, Donut } from './hub/charts';
 import { useAdmin, useSectionOverview } from './Shell';
-import { ErrorState, Eyebrow, H2, Loading, useToast } from './ui';
+import { ErrorState, Eyebrow, H2, Loading } from './ui';
 import { envelopeClose } from '../sales/Stills';
 
 /** The overview's cover picture, drawn once per couple (it's a few milliseconds, but no need to redo it). */
@@ -89,114 +90,190 @@ export function Overview() {
 
       <Kpis label="Replies at a glance" items={figures} />
 
-      {/* Quick actions belong to an event: its guests, its messages, its texts. */}
-      <Today o={o} to={to} event={o.focus} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card title="Replies" action={['Guest list', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
-          <Donut
-            label="Guests"
-            centre={`${n.guests ? Math.round(((n.guests - n.awaiting) / n.guests) * 100) : 0}%`}
-            sub="replied"
-            slices={[
-              { label: 'Coming', value: n.coming, colour: C.accent },
-              { label: 'Can’t come', value: n.cantCome, colour: C.gold },
-              { label: 'Still to reply', value: n.awaiting, colour: C.sand },
-            ]}
-          />
-        </Card>
-
-        <NeedsYou o={o} to={to} />
-
-        {/* Every portal as its person sees it: the wedding party, vendors, the coordinator, helpers. */}
-        {isWedding && <PortalPreviews to={to} />}
-
-        <Card title="Latest replies" action={['Everyone', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
-          <div className="flex flex-col">
-            {o.latest.map((r) => (
-              <button key={r.id} onClick={() => to(`guests?${all}g=${r.id}`, home)} className="flex flex-col gap-[2px] py-[10px] border-0 border-t border-[var(--adm-line,#ece3cc)] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
-                <span className="flex justify-between gap-[10px] w-full">
-                  <strong className="font-semibold">{r.name}</strong>
-                  <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{fmtWhen(r.at, tz)}</span>
-                </span>
-                <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{r.summary}</span>
-                {r.message && <span className="font-display italic text-[17px]">{r.message}</span>}
-              </button>
-            ))}
-            {o.latest.length === 0 && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">No replies yet. They show here as they come in.</p>}
-          </div>
-        </Card>
-
-        <Card title="Coming up" action={['All texts', () => to('texts', home)]}>
-          <div className="flex flex-col">
-            {o.nextUp.map((u) => (
-              <button key={u.campaignId} onClick={() => to('texts', home)} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 items-baseline py-[10px] border-0 border-t border-[var(--adm-line,#ece3cc)] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
-                <span className="font-display text-[20px] italic">{fmtDay(u.sendAt, tz)}</span>
-                <span className="font-medium min-w-0">{u.name}</span>
-              </button>
-            ))}
-            {o.nextUp.length === 0 && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">No dated texts scheduled.</p>}
-          </div>
-        </Card>
+      {/* The first screen (launch simplification, Jobs 2 and 5): the next three things to do, and what's coming up. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <NextThree o={o} to={to} />
+        <ComingUp o={o} to={to} />
       </div>
 
-      {/* The planning dashboard (tasks, payments, budget) is the wedding's: it sits in the wedding's overview. */}
-      {isWedding && (
-        <section aria-label="Planning dashboard" className="flex flex-col gap-4">
-          <H2>Planning dashboard</H2>
-          <Hub wid={wid} o={o} to={to} />
-        </section>
-      )}
+      {/* Everything else on Home, folded (remembered on this device). */}
+      <MoreOnHome wid={wid}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Card title="Replies" action={['Guest list', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
+            <Donut
+              label="Guests"
+              centre={`${n.guests ? Math.round(((n.guests - n.awaiting) / n.guests) * 100) : 0}%`}
+              sub="replied"
+              slices={[
+                { label: 'Coming', value: n.coming, colour: C.accent },
+                { label: 'Can’t come', value: n.cantCome, colour: C.gold },
+                { label: 'Still to reply', value: n.awaiting, colour: C.sand },
+              ]}
+            />
+          </Card>
 
-      <RehearseCard to={to} />
+          <Card title="Latest replies" action={['Everyone', () => to(`guests?${all}`.replace(/[?&]$/, ''), home)]}>
+            <div className="flex flex-col">
+              {o.latest.map((r) => (
+                <button key={r.id} onClick={() => to(`guests?${all}g=${r.id}`, home)} className="flex flex-col gap-[2px] py-[10px] border-0 border-t border-[var(--adm-line,#ece3cc)] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
+                  <span className="flex justify-between gap-[10px] w-full">
+                    <strong className="font-semibold">{r.name}</strong>
+                    <span className="text-[12px] text-[var(--adm-muted,#5b6a52)] whitespace-nowrap">{fmtWhen(r.at, tz)}</span>
+                  </span>
+                  <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{r.summary}</span>
+                  {r.message && <span className="font-display italic text-[17px]">{r.message}</span>}
+                </button>
+              ))}
+              {o.latest.length === 0 && <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">No replies yet. They show here as they come in.</p>}
+            </div>
+          </Card>
+
+          {/* Every portal as its person sees it: the wedding party, vendors, the coordinator, helpers. */}
+          {isWedding && <PortalPreviews to={to} />}
+        </div>
+      </MoreOnHome>
     </div>
   );
 }
 
-/**
- * Account → Overview: the things you do most, one tap each. Add a guest, answer messages, send a text,
- * share the invitation (the phone's share sheet, or copy the link).
- */
-function Today({ o, to, event }: { o: NonNullable<ReturnType<typeof useAdmin>['overview']>; to: (link: string, event?: string) => void; event: string }) {
-  const toast = useToast();
-  const unread = o.nav.messages ?? 0;
-  const share = async () => {
-    // A private wedding's page opens only with each guest's own link: the shared address would say "private".
-    if (o.wedding.private) {
-      toast('Your invitation is private, so each guest needs their own link: tap a guest in the Guest list to share theirs.');
-      to('guests', event);
-      return;
-    }
-    const url = `${window.location.origin}/w/${o.wedding.slug}/`;
+/** Folded parts of Home, open or shut as last left on this device. */
+function MoreOnHome({ wid, children }: { wid: string; children: ReactNode }) {
+  const key = `wp.admin.home.${wid}`;
+  const [open, setOpen] = useState(() => {
     try {
-      if (navigator.share) await navigator.share({ title: 'Our wedding', url });
-      else {
-        await navigator.clipboard.writeText(url);
-        toast('Invitation link copied');
-      }
+      return localStorage.getItem(key) === 'open';
     } catch {
-      /* closed the share sheet */
+      return false;
     }
-  };
-  const actions: { label: string; run: () => void; badge?: number }[] = [
-    { label: '+ Add a guest', run: () => to('guests?add=1', event) },
-    { label: unread ? 'Reply to messages' : 'Messages', run: () => to('messages', event), badge: unread },
-    { label: 'Send a text', run: () => to('texts', o.nav.smsLive ? event : 'all') },
-    { label: 'Share the invitation', run: () => void share() },
-  ];
+  });
   return (
-    <section aria-label="Quick actions" className="grid grid-cols-2 gap-2 min-[760px]:flex min-[760px]:flex-wrap">
-      {actions.map((a) => (
-        <button
-          key={a.label}
-          type="button"
-          onClick={a.run}
-          className="min-w-0 flex-none flex items-center justify-center text-center gap-2 py-[9px] px-3 min-[760px]:px-4 min-h-[44px] rounded-full border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[14px] leading-tight font-medium cursor-pointer min-[760px]:whitespace-nowrap hover:bg-[var(--adm-tint,#efe7d3)]"
-        >
-          {a.label}
-          {!!a.badge && <span className="min-w-[20px] h-[20px] px-1 rounded-full bg-[#a4553c] text-[#fbf8f2] text-[12px] leading-[20px] text-center">{a.badge}</span>}
+    <details
+      open={open}
+      onToggle={(e) => {
+        const now = (e.currentTarget as HTMLDetailsElement).open;
+        setOpen(now);
+        try {
+          localStorage.setItem(key, now ? 'open' : 'shut');
+        } catch {
+          /* this visit only */
+        }
+      }}
+      className="flex flex-col gap-4"
+    >
+      <summary className="inline-flex items-center min-h-[44px] cursor-pointer text-[14px] font-medium text-[var(--adm-muted,#5b6a52)]">More on Home: the replies, the latest messages and what everyone else sees</summary>
+      <div className="pt-3">{children}</div>
+    </details>
+  );
+}
+
+type O = NonNullable<ReturnType<typeof useAdmin>['overview']>;
+
+/**
+ * "Next 3 things" (Job 2): exactly three, from where the couple actually are: the look, their names and the
+ * reply-by date, the first guests, sharing it, their messages. Texts only once they're switched on.
+ */
+function NextThree({ o, to }: { o: O; to: (link: string, event?: string) => void }) {
+  const ev = o.focus ?? o.events[0]?.key;
+  const first = o.events[0]?.key;
+  const textsOn = o.tools ? o.tools.on.texts : true;
+  const unread = o.nav.messages ?? 0;
+  const all: { done: boolean; title: string; line: string; cta: string; run: () => void }[] = [
+    { done: !!o.wedding.theme, title: 'Choose your look', line: 'A design, the envelope and your wax seal.', cta: 'Choose', run: () => to('pages?page=invitation', first) },
+    { done: !!o.wedding.rsvpClose, title: 'Your names and reply-by date', line: 'As your invitation shows them, and when replies close.', cta: 'Add', run: () => to('pages?page=invitation', first) },
+    { done: o.nav.guests > 0, title: 'Add your first guests', line: 'From your phone’s contacts, a spreadsheet, or one by one.', cta: 'Add guests', run: () => to('guests?add=1', ev) },
+    { done: o.replied > 0 || o.nav.guests === 0, title: 'Share your invitation', line: 'Each guest gets their own link, from your phone or by email.', cta: 'Share', run: () => to('guests', ev) },
+    { done: unread === 0, title: 'Reply to messages', line: `${unread} waiting for you.`, cta: 'Open', run: () => to('messages', ev) },
+    ...o.needsYou.map((x) => ({ done: false, title: x.title, line: x.detail, cta: x.cta, run: () => to(x.link, x.event ?? ev) })),
+    ...(textsOn ? [{ done: o.nav.smsLive, title: 'Send a text', line: 'Your invitation by text, with reminders.', cta: 'Texts', run: () => to('texts', ev) }] : []),
+  ];
+  const three = all.filter((x) => !x.done && (textsOn || !/text/i.test(x.title))).slice(0, 3);
+  return (
+    <section aria-label="Next 3 things" className="flex flex-col gap-2 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+      <div className="flex flex-col">
+        <H2>Next 3 things</H2>
+        <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">For this week</span>
+      </div>
+      {three.length ? (
+        <ul className="m-0 p-0 list-none flex flex-col">
+          {three.map((x) => (
+            <li key={x.title} className="flex items-center gap-3 py-3 border-t border-[var(--adm-line,#ece3cc)] first:border-t-0">
+              <span aria-hidden className="flex-none w-[18px] h-[18px] rounded-full border-2 border-[var(--adm-accent,#5d6b47)]" />
+              <span className="flex-1 min-w-0 flex flex-col">
+                <strong className="text-[15px] font-semibold">{x.title}</strong>
+                <span className="text-[13px] text-[var(--adm-muted,#5b6a52)]">{x.line}</span>
+              </span>
+              <button type="button" onClick={x.run} className="flex-none inline-flex items-center min-h-[44px] px-4 rounded-full border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-bg,#f6f0e2)] text-[14px] font-medium cursor-pointer hover:bg-[var(--adm-tint,#efe7d3)]">
+                {x.cta}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="m-0 text-[14px] text-[#3d4a2f]">You’re up to date ✓</p>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Coming up (Job 5): a real calendar, real dates in a 64px date column: replies closing, the wedding day (and
+ * each event), and dated texts once texts are on. Expanded unless folded (remembered on this device).
+ */
+function ComingUp({ o, to }: { o: O; to: (link: string, event?: string) => void }) {
+  const tz = o.wedding.timezone;
+  const ev = o.focus ?? o.events[0]?.key;
+  const textsOn = o.tools ? o.tools.on.texts : true;
+  const key = `wp.admin.coming.${o.wedding.id}`;
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(key) !== 'shut';
+    } catch {
+      return true;
+    }
+  });
+  const flip = () => {
+    setOpen((x) => {
+      try {
+        localStorage.setItem(key, x ? 'shut' : 'open');
+      } catch {
+        /* this visit only */
+      }
+      return !x;
+    });
+  };
+  const today = new Date().toISOString();
+  const rows: { at: string; name: string; go: () => void }[] = [
+    ...(o.wedding.rsvpClose ? [{ at: `${o.wedding.rsvpClose}T07:00:00.000Z`, name: 'Replies close', go: () => to('pages?page=invitation', o.events[0]?.key) }] : []),
+    ...o.events.map((e) => ({ at: e.startsAt, name: e.name.replace(/^the\s+/i, 'The '), go: () => to('overview', e.key) })),
+    ...(textsOn ? o.nextUp.map((u) => ({ at: u.sendAt, name: u.name, go: () => to('texts', ev) })) : []),
+  ]
+    .filter((r) => r.at && r.at >= today.slice(0, 10))
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .slice(0, 6);
+  return (
+    <section aria-label="Coming up" className="flex flex-col gap-2 p-5 rounded-[16px] border border-[var(--adm-line,#e2d7bc)] bg-[var(--adm-card,#fbf8f0)]">
+      <div className="flex justify-between items-center gap-3">
+        <button type="button" aria-expanded={open} onClick={flip} className="inline-flex items-center gap-2 min-h-[44px] p-0 border-0 bg-transparent cursor-pointer text-[var(--adm-ink,#33402f)]">
+          <H2>Coming up</H2>
+          <span aria-hidden className={`transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
         </button>
-      ))}
+        <button type="button" onClick={() => to('planner?view=checklist', o.events[0]?.key)} className="inline-flex items-center min-h-[44px] p-0 border-0 bg-transparent underline cursor-pointer text-[13px] text-[var(--adm-ink,#33402f)]">
+          All dates
+        </button>
+      </div>
+      {open &&
+        (rows.length ? (
+          <div className="flex flex-col">
+            {rows.map((r) => (
+              <button key={`${r.at}-${r.name}`} onClick={r.go} className="grid grid-cols-[64px_minmax(0,1fr)] gap-3 items-baseline min-h-[44px] py-[10px] border-0 border-t border-[var(--adm-line,#ece3cc)] first:border-t-0 bg-transparent text-left cursor-pointer hover:bg-[var(--adm-tint,#f3ecd6)]">
+                <span className="font-display text-[20px] italic">{fmtDay(r.at, tz)}</span>
+                <span className="font-medium min-w-0">{r.name}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="m-0 text-[14px] text-[var(--adm-muted,#5b6a52)]">Set your date in Invitation and it shows here, with the day replies close.</p>
+        ))}
     </section>
   );
 }

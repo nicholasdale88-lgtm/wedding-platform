@@ -321,9 +321,11 @@ test('Sentinel retest: vendor links, /try and the demo bar are 44px taps; the sa
   await tall(bar.getByRole('link', { name: /Start/ }), 'Start yours');
   if (phone(info.project.name)) {
     await expect(bar.getByText('Sample, nothing is sent')).toBeVisible();
-    const share = page.getByRole('button', { name: 'Share the invitation' });
-    const box = (await share.boundingBox())!;
-    expect(box.x + box.width, 'Share the invitation fits').toBeLessThanOrEqual(page.viewportSize()!.width);
+    // Home's Next 3 things (the quick actions' place): every button fits the screen.
+    for (const b of await page.getByRole('region', { name: 'Next 3 things' }).getByRole('button').all()) {
+      const box = (await b.boundingBox())!;
+      expect(box.x + box.width, 'a Next 3 things button fits').toBeLessThanOrEqual(page.viewportSize()!.width);
+    }
   }
   // No [placeholder] in what a guest reads on the sample invitation.
   await page.goto('/demo');

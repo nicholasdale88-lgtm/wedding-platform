@@ -225,6 +225,8 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
         planRequested: (w.content.planRequested as string | undefined) ?? '',
         // Private: its pages open only with each guest's own link.
         private: w.content.private === true,
+        // The reply-by date (Invitation → the RSVP), for Home's Coming up.
+        rsvpClose: ((w.content.invitation as { rsvpClose?: unknown } | undefined)?.rsvpClose as string | undefined) ?? '',
         // Their wax seal as chosen in Setup → Invitation (the admin's header wears it).
         seal: sealOf(w.content.invitation),
       },

@@ -1,6 +1,7 @@
 import { allPayments, bookedInBudget, bookingTimeline, dateIn, moneyOf, withSchedules, daysUntil, type Budget as BudgetDoc, type PlanChecklist, type Vendors as VendorsDoc } from '@wp/shared';
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Hub } from '../hub/Hub';
 import { plannerApi } from '../../lib/api';
 import { confirmLeave } from '../leave';
 import { InstallApp } from '../../lib/InstallApp';
@@ -119,7 +120,12 @@ function Planner() {
           ))}
         </nav>
       )}
-      {view === 'glance' ? <Glance go={go} /> : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'ceremony' ? <Ceremony /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
+      {view === 'glance' ? (
+        <>
+          <Glance go={go} />
+          <PlanDashboard />
+        </>
+      ) : view === 'ideas' ? <IdeasBoard /> : view === 'checklist' ? <Checklist /> : view === 'ceremony' ? <Ceremony /> : view === 'budget' ? <Budget /> : view === 'payments' ? <Payments /> : view === 'vendors' ? <Vendors /> : view === 'transport' ? <Transport /> : view === 'music' ? <Music /> : view === 'photos' ? <ShotList /> : view === 'print' ? <Print /> : view === 'gifts' ? <Gifts /> : <Assistant />}
     </div>
   );
 }
@@ -326,5 +332,27 @@ function Glance({ go }: { go: (v: View) => void }) {
         </button>
       </section>
     </div>
+  );
+}
+
+/**
+ * The planning dashboard (tasks, payments, budget), moved from Home to Plan (launch simplification, Job 5),
+ * with the link to rehearse the day.
+ */
+function PlanDashboard() {
+  const { wid, overview: o, path } = useAdmin();
+  const nav = useNavigate();
+  if (!o) return null;
+  const to = (link: string, event?: string) => nav(path(link, event));
+  return (
+    <section aria-label="Planning dashboard" className="flex flex-col gap-4 mt-6">
+      <div className="flex justify-between items-baseline gap-3 flex-wrap">
+        <H2>Planning dashboard</H2>
+        <button type="button" onClick={() => to('rehearsal', o.events[0]?.key)} className="inline-flex items-center min-h-[44px] p-0 border-0 bg-transparent underline cursor-pointer text-[14px] text-[var(--adm-ink,#33402f)]">
+          Rehearse your day
+        </button>
+      </div>
+      <Hub wid={wid} o={o} to={to} />
+    </section>
   );
 }

@@ -277,7 +277,7 @@ describe('admin name', () => {
 });
 
 describe('Overview', () => {
-  it("the wedding's overview has the planning dashboard: tasks, who has them, payments and budget, each with its chart", async () => {
+  it('Plan has the planning dashboard (moved from Home): tasks, who has them, payments and budget, each with its chart', async () => {
     const doc = (data: unknown) => () => json(200, { data, version: 1 });
     mockApi({
       '/api/a/w/w1/planner/doc/checklist': doc({
@@ -291,8 +291,7 @@ describe('Overview', () => {
       '/api/a/w/w1/planner/doc/vendors': doc({ list: [] }),
       '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }),
     });
-    renderAt('/admin/w1/wedding/overview');
-    // The dashboard is always open in the wedding's overview.
+    renderAt('/admin/w1/wedding/planner');
     expect(await screen.findByRole('region', { name: 'Planning dashboard' })).toBeInTheDocument();
     const tasks = await screen.findByRole('region', { name: 'Planning tasks' });
     expect(within(tasks).getByText('33%')).toBeInTheDocument();
@@ -305,29 +304,32 @@ describe('Overview', () => {
     expect(screen.getByRole('region', { name: 'Budget' })).toHaveTextContent('$5,000 paid · $12,000 committed · $30,000 budget');
   });
 
-  it('overview cards minimise and expand (remembered); the figures and Needs you always stay open', async () => {
+  it('Home: the first screen is Next 3 things and Coming up; the rest is folded under More on Home (remembered)', async () => {
     localStorage.clear();
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/overview');
-    const latest = await screen.findByRole('region', { name: 'Latest replies' });
-    expect(within(latest).getByText('Casey Lund')).toBeInTheDocument();
-    await userEvent.click(within(latest).getByRole('button', { name: /Latest replies/, expanded: true }));
-    expect(within(latest).queryByText('Casey Lund')).toBeNull();
-    expect(localStorage.getItem('wp.overview.fold.Latest replies')).toBe('1');
-    // The major items have no minimise button.
-    expect(within(screen.getByRole('region', { name: 'Needs you' })).queryByRole('button', { expanded: true })).toBeNull();
-    await userEvent.click(within(latest).getByRole('button', { name: /Latest replies/, expanded: false }));
-    expect(within(latest).getByText('Casey Lund')).toBeInTheDocument();
+    const next = await screen.findByRole('region', { name: 'Next 3 things' });
+    expect(within(next).getAllByRole('listitem').length).toBeLessThanOrEqual(3);
+    for (const b of within(next).getAllByRole('button')) expect(b.className).toMatch(/min-h-\[44px\]/);
+    expect(within(screen.getByRole('region', { name: 'Coming up' })).getByText('The wedding')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Planning dashboard' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Quick actions' })).toBeNull();
+    const more = screen.getByText(/^More on Home/).closest('details')!;
+    expect(more.open).toBe(false);
+    await userEvent.click(screen.getByText(/^More on Home/));
+    await waitFor(() => expect(localStorage.getItem('wp.admin.home.w1')).toBe('open'));
   });
 
   it('every other page has a way back to its overview', async () => {
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/texts');
-    const back = await screen.findByRole('link', { name: 'The wedding overview' });
-    expect(back).toHaveAttribute('href', '/admin/w1/wedding/overview');
+    // "← Home" (and the menu's Home) both go to the wedding's overview.
+    const homes = await screen.findAllByRole('link', { name: 'Home' });
+    expect(homes.length).toBeGreaterThanOrEqual(2);
+    for (const h of homes) expect(h).toHaveAttribute('href', '/admin/w1/wedding/overview');
   });
 
-  it("an event's overview: replies, its figures, Needs you and latest replies", async () => {
+  it("an event's overview: replies, its figures, Next 3 things and latest replies", async () => {
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/overview');
     // Counted in guests, as the guest list counts them (coming + can't come + still to reply = everyone).
@@ -340,10 +342,8 @@ describe('Overview', () => {
     expect(screen.getByRole('region', { name: 'Replies' })).toHaveTextContent('75%');
     // The overview is the main page: no way "back" from it.
     expect(screen.queryByRole('link', { name: 'The wedding overview' })).toBeNull();
-    const needs = screen.getByRole('region', { name: 'Needs you' });
-    expect(within(needs).getByText('2 things to do')).toBeInTheDocument();
-    expect(within(needs).getByText('1 invitation has no mobile')).toBeInTheDocument();
-    expect(screen.getByText('Casey Lund')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Next 3 things' })).toBeInTheDocument();
+    expect(screen.getByText('Casey Lund')).toBeInTheDocument(); // in More on Home
     // Every portal a tap away, as its person sees it.
     expect(await screen.findByText('See what everyone else sees')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /The invitation.*Preview/ })).toHaveAttribute('href', '/w/alex-and-blair/?preview=1');
@@ -538,7 +538,7 @@ describe('guest pages tab', () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
     renderAt('/admin/w1/wedding/pages');
     expect(await screen.findByRole('heading', { name: 'Your invitation' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'The wedding' })).toHaveAttribute('aria-current', 'true'));
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Event' })).toHaveValue('wedding'));
     for (const name of ['Invitation', 'Details', 'Timeline', 'Night-before page', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
     // On a phone (and in tests) the preview opens full screen from its own button.
     await userEvent.click(screen.getByRole('button', { name: /^Preview/ }));
