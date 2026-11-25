@@ -35,7 +35,7 @@ type PageKey = 'invitation' | 'photos' | 'thanks' | 'details' | 'timeline' | `gu
 const SAVE_AFTER_MS = 700;
 
 export function GuestPages() {
-  const { wid, event: chosen, reload: reloadOverview, overview, path } = useAdmin();
+  const { wid, event: chosen, reload: reloadOverview, overview, path: adminPath } = useAdmin();
   const toast = useToast();
   const nav = useNavigate();
   // Optional tools (Settings → What you're using): the extra pages show once they're switched on.
@@ -309,14 +309,14 @@ export function GuestPages() {
         <Pill
           className="min-h-[44px] w-full sm:w-auto"
           onClick={() => {
-            nav(path('guests?show=all'));
+            nav(adminPath('guests?show=all'));
             toast('Tap the guest, then “Print one invitation”.');
           }}
         >
           Print one invitation · for a guest who’d rather have paper
         </Pill>
         {!demo && (!tools.nightBefore || !tools.thankYou) && (
-          <a href={`${path('settings', 'all')}?view=tools`} className="inline-flex items-center min-h-[44px] text-[13px] underline !text-[var(--adm-muted,#5b6a52)]">
+          <a href={`${adminPath('settings', 'all')}?view=tools`} className="inline-flex items-center min-h-[44px] text-[13px] underline !text-[var(--adm-muted,#5b6a52)]">
             Add a night-before or thank-you page
           </a>
         )}
