@@ -32,5 +32,8 @@ jobs:
         run: |
           if [ -n "$CF_ACC" ]; then export CLOUDFLARE_ACCOUNT_ID="$CF_ACC"; fi
           cd apps/api
-          pnpm exec wrangler d1 execute wedding-db --remote --json --command "SELECT d.kind, d.scope, d.version, d.updated_at, d.data FROM planner_doc d JOIN wedding w ON w.id = d.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND d.kind IN ('vendors','budget','checklist','ceremony','party') ORDER BY d.kind" > "$RUNNER_TEMP/docs.json"
+          if ! pnpm exec wrangler d1 execute wedding-db --remote --json --command "SELECT d.kind, d.scope, d.version, d.updated_at, d.data FROM planner_doc d JOIN wedding w ON w.id = d.wedding_id WHERE w.slug = 'sophie-and-nicholas' AND d.kind IN ('vendors','budget','checklist','ceremony','party') ORDER BY d.kind" > "$RUNNER_TEMP/docs.json" 2> "$RUNNER_TEMP/err.txt"; then
+            echo "::error title=wrangler::$(tail -c 600 "$RUNNER_TEMP/err.txt" | tr '
+' ' ')"; exit 1
+          fi
           node ../../scripts/diag/booked.mjs < "$RUNNER_TEMP/docs.json"
