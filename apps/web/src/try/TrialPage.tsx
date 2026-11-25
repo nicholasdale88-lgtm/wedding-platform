@@ -120,11 +120,11 @@ export function TrialPage() {
             </button>
             <span className="text-[12px] text-center" style={{ color: SOFT }}>
               We keep your details private and never sell them.{' '}
-              <Link to="/privacy" className="inline-flex items-center min-h-[44px] px-1" style={{ color: SOFT }}>
+              <Link to="/privacy" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-1" style={{ color: SOFT }}>
                 Privacy
               </Link>
               {' · '}
-              <Link to="/terms" className="inline-flex items-center min-h-[44px] px-1" style={{ color: SOFT }}>
+              <Link to="/terms" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] px-1" style={{ color: SOFT }}>
                 Terms
               </Link>
             </span>

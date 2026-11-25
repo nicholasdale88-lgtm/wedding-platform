@@ -13,7 +13,7 @@ import '../guest/looks.css';
 import './sample.css';
 import { MotionPortal } from '../guest/invitation/Motion';
 import { SAMPLE, SAMPLE_INVITE } from './sample';
-import { BRAND } from './SalesPage';
+import { BRAND } from './brand';
 import { readDemoPages } from '../try/demoMode';
 
 /**

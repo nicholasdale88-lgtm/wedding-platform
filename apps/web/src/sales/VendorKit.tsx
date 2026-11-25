@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { QrSvg } from '../lib/SaveToPhone';
-import { BRAND } from './SalesPage';
+import { BRAND } from './brand';
 
 const INK = '#33402f';
 const SOFT = '#5b6a52';
