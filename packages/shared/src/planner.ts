@@ -892,26 +892,43 @@ export function commitmentOf(v: Vendor): { amount: number; deposit: number } {
   return { amount: q?.amount ?? v.quote, deposit: q?.deposit ?? v.deposit };
 }
 /**
- * When couples usually book each supplier (months before the day). Listed in matching order: a supplier
- * goes to the first whose words match its "what they do" (then its name), so "hair stylist" is hair, not styling.
+ * When couples usually book each supplier (months before the day), and the words that say a supplier is one.
+ * A supplier can be more than one kind ("Celebrant and MC" is the celebrant and the entertainment): every kind
+ * its words name counts. `weak` words only count when nothing else matches ("hair stylist" is hair, not
+ * styling; a "Ceremony" category alone is the celebrant, but "ceremony music" is music).
  */
-export const BOOKING_TIMELINE: { what: string; months: number; match: RegExp }[] = [
-  { what: 'Venue', months: 15, match: /venue|reception|estate|winery/i },
-  { what: 'Band or DJ', months: 9, match: /\bband\b|\bdj\b|music|singer|string|entertain|photo ?booth/i },
-  { what: 'Photographer', months: 12, match: /photog|\bphotos?\b/i },
+export const BOOKING_TIMELINE: { what: string; months: number; match: RegExp; weak?: RegExp }[] = [
+  { what: 'Venue', months: 15, match: /venue|reception|estate|winery|homestead|ballroom|function (?:centre|room)|\bchapel\b|\bchurch\b/i },
+  { what: 'Band or DJ', months: 9, match: /\bband\b|\bdj\b|music|singer|string|entertain|photo ?booth|musician|quartet|\btrio\b|ensemble|\bharp|violin|cellist|guitar|acoustic|\bmc\b|master of ceremonies/i },
+  { what: 'Photographer', months: 12, match: /photog|\bphotos?\b(?!\s*booth)/i },
   { what: 'Videographer', months: 10, match: /video|film/i },
-  { what: 'Celebrant', months: 10, match: /celebrant|officiant|minister|priest|\bvicar\b|\brabbi\b|\bimam\b|married by|marriage (?:cert|fee|licen)|registry office/i },
-  { what: 'Catering', months: 10, match: /cater/i },
-  { what: 'Hair and makeup', months: 6, match: /\bhair|make-?up|beauty/i },
-  { what: 'Attire', months: 9, match: /dress|gown|bridal(?! suite)|\bsuits?\b|tailor|attire/i },
-  { what: 'Florist', months: 8, match: /flor|flower/i },
-  { what: 'Accommodation', months: 8, match: /accommodation|hotel|motel|lodg|suite/i },
-  { what: 'Transport', months: 5, match: /transport|\bcars?\b|\bbus(es)?\b|coach|limo|shuttle/i },
-  { what: 'Styling and hire', months: 7, match: /styl|hire|decor|marquee/i },
-  { what: 'Stationery', months: 6, match: /station|invit|print/i },
-  { what: 'Cake', months: 5, match: /cake|dessert|patisserie/i },
+  {
+    what: 'Celebrant',
+    months: 10,
+    match: /celebrant|officiant|officiat|minister|priest|\bvicar\b|\brabbi\b|\bimam\b|pastor|reverend|\brev\b|chaplain|clergy|\bjp\b|justice of the peace|married by|marriage (?:cert|fee|licen)|registry office|\bnoim?\b/i,
+    weak: /\bceremony\b|marriage|wedding vows/i,
+  },
+  { what: 'Catering', months: 10, match: /cater|\bfood\b|\bchef\b|canap|grazing|\bbbq\b|banquet|\bdinner\b/i },
+  { what: 'Hair and makeup', months: 6, match: /\bhair|make-?up|beauty|\bhmu\b|\bmua\b/i },
+  { what: 'Attire', months: 9, match: /dress|gown|bridal(?! suite)|\bsuits?\b|tailor|attire|tux|menswear|\bveil\b/i },
+  { what: 'Florist', months: 8, match: /flor|flower|bouquet|bloom/i },
+  { what: 'Accommodation', months: 8, match: /accommodation|hotel|motel|lodg|suite|\bairbnb\b|cottage|\bstay\b/i },
+  { what: 'Transport', months: 5, match: /transport|\bcars?\b|\bbus(es)?\b|coach|limo|shuttle|transfer|chauffeur|\bdriver\b/i },
+  { what: 'Styling and hire', months: 7, match: /decor|marquee|\bfurniture\b|lighting/i, weak: /styl|hire/i },
+  { what: 'Stationery', months: 6, match: /station|invit/i, weak: /print/i },
+  { what: 'Cake', months: 5, match: /cake|dessert|patisserie|cupcake|sweets/i },
   { what: 'Rings', months: 3, match: /\brings?\b|jewel/i },
 ];
+
+/** Every kind of supplier some words name (the strong words first; the weak ones only if nothing else). */
+export function kindsOf(text: string): string[] {
+  const t = text ?? '';
+  const strong = BOOKING_TIMELINE.filter((b) => b.match.test(t)).map((b) => b.what);
+  if (strong.length) return strong;
+  return BOOKING_TIMELINE.filter((b) => b.weak?.test(t)).map((b) => b.what);
+}
+/** Every kind a supplier is: from what they do, and from their name ("Married by…" is a celebrant). */
+export const kindsOfVendor = (v: { category: string; name: string }) => [...new Set([...kindsOf(v.category), ...kindsOf(v.name)])];
 export type BookingRow = { what: string; months: number; bookBy: string; state: 'booked' | 'looking' | 'none'; vendor: string; late: boolean };
 /** Something booked outside the vendors list: what it is (a budget line's category and item) and who with. */
 export type BookedElsewhere = { what: string; name: string };
@@ -930,17 +947,15 @@ export const bookedInBudget = (lines: BudgetLine[]): BookedElsewhere[] =>
  * (counts as booked without a supplier for it).
  */
 export function bookingTimeline(list: Vendor[], day: number, now: number, venueSet = false, alsoBooked: BookedElsewhere[] = []): BookingRow[] {
+  // A supplier counts for every kind its words name: a celebrant filed as "Celebrant and MC", or named
+  // "Married by…" under "Ceremony music", is the celebrant (it was only ever the first match: the celebrant
+  // stayed "to book").
   const found = new Map<string, Vendor[]>();
-  for (const v of list) {
-    const hit = BOOKING_TIMELINE.find((b) => b.match.test(v.category)) ?? BOOKING_TIMELINE.find((b) => b.match.test(v.name));
-    if (hit) found.set(hit.what, [...(found.get(hit.what) ?? []), v]);
-  }
-  // Booked but not on the vendors list: a budget line with who it's with, the celebrant in the wedding party…
+  for (const v of list) for (const k of kindsOfVendor(v)) found.set(k, [...(found.get(k) ?? []), v]);
+  // Booked but not on the vendors list: a budget line with who it's with, the celebrant in the wedding party
+  // or on the Ceremony page…
   const elsewhere = new Map<string, string>();
-  for (const a of alsoBooked) {
-    const hit = BOOKING_TIMELINE.find((b) => b.match.test(a.what)) ?? BOOKING_TIMELINE.find((b) => b.match.test(a.name));
-    if (hit && !elsewhere.has(hit.what)) elsewhere.set(hit.what, a.name);
-  }
+  for (const a of alsoBooked) for (const k of new Set([...kindsOf(a.what), ...kindsOf(a.name)])) if (!elsewhere.has(k)) elsewhere.set(k, a.name);
   return BOOKING_TIMELINE.map((b) => {
     const vs = found.get(b.what) ?? [];
     const booked = vs.find((v) => v.status === 'booked') ?? (elsewhere.has(b.what) ? ({ name: elsewhere.get(b.what)! } as Vendor) : undefined);
@@ -953,8 +968,23 @@ export function bookingTimeline(list: Vendor[], day: number, now: number, venueS
   }).sort((a, b) => b.months - a.months);
 }
 
-/** The kind of supplier a vendor is (a BOOKING_TIMELINE "what"), from what they do, then their name. */
-export const vendorKind = (v: Pick<Vendor, 'category' | 'name'>) => (BOOKING_TIMELINE.find((b) => b.match.test(v.category)) ?? BOOKING_TIMELINE.find((b) => b.match.test(v.name)))?.what;
+/** The main kind of supplier a vendor is (a BOOKING_TIMELINE "what"), from what they do, then their name. */
+export const vendorKind = (v: Pick<Vendor, 'category' | 'name'>): string | undefined => kindsOf(v.category)[0] ?? kindsOf(v.name)[0];
+
+/**
+ * Which "Book the…" checklist items a booking has done for the couple: an item whose words name kinds of
+ * supplier ("Book the photographer and videographer") is covered once every one of them is booked. Trials,
+ * tastings and fittings are their own jobs and never covered.
+ */
+export function coveredByBooking(text: string, booked: ReadonlySet<string>): boolean {
+  // An aside in brackets is only advice ("(with a trial)", "(if the venue doesn't cater)").
+  const t = text.replace(/\([^)]*\)/g, ' ');
+  if (!/^\s*(?:choose and |find and )?book\b/i.test(t) || /trial|tasting|fitting|rehears|\btest/i.test(t)) return false;
+  const kinds = BOOKING_TIMELINE.filter((b) => b.match.test(t) || b.weak?.test(t)).map((b) => b.what);
+  return kinds.length > 0 && kinds.every((k) => booked.has(k));
+}
+/** The kinds of supplier booked (the "booked" rows of bookingTimeline), as a set. */
+export const bookedKinds = (rows: BookingRow[]) => new Set(rows.filter((r) => r.state === 'booked').map((r) => r.what));
 
 /**
  * The usual things to do with each kind of booked vendor, and how many weeks before the day (a negative
