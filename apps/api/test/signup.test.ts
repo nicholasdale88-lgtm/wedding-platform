@@ -209,11 +209,12 @@ describe('sign-up and plans', () => {
     expect((await page('/calendar/wedding.ics')).status).toBe(200);
   });
 
-  it('another event is an add-on: refused (402) until the platform owner grants it', async () => {
+  it('a third event is an add-on: refused (402) until the platform owner grants it (two are in the plan)', async () => {
     const res = await signup({ email: 'events@example.com' }, '7.7.7.7');
     const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     const { weddingId: wid } = (await res.json()) as { weddingId: string };
     const add = () => call(`/a/w/${wid}/events`, { method: 'POST', body: JSON.stringify({ name: 'Recovery brunch', startsAt: '2027-03-15T00:00:00.000Z' }) }, cookie);
+    expect((await add()).status).toBe(201); // the second event is in the plan
     const no = await add();
     expect(no.status).toBe(402);
     expect(((await no.json()) as { error: { feature: string } }).error.feature).toBe('extraEvent');
