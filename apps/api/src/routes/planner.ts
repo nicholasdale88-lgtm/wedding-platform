@@ -1,4 +1,4 @@
-import { ASSISTANT_ACTIONS_HELP, ASSISTANT_SCREENS, assistantActions, hasContract, keepPrivateVows, noimStatus, questionnaireProgress, vowsFor, type Ceremony, PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
+import { bookedInBudget, bookedKinds, bookingTimeline, coveredByBooking, ASSISTANT_ACTIONS_HELP, ASSISTANT_SCREENS, assistantActions, hasContract, keepPrivateVows, noimStatus, questionnaireProgress, vowsFor, type Ceremony, PlanTask, randomToken, toE164, allPayments, searchHelp, quoteStatus, PARTY_PERMS, type PartyPerm, commitmentOf, dateIn, guidesOf, isToken, itemsFor, PARTY_ROLES, PartySide, PLANNER_DOCS, sideDoc, sideOf, VENDOR_SEARCH, type PlannerKind, type Vendor, type Vendors } from '@wp/shared';
 import { Hono, type Context, type MiddlewareHandler } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
@@ -84,6 +84,49 @@ export async function absorbDayLists(db: D1Database, weddingId: string) {
       d.p2 = [];
       d.both = [];
     });
+}
+
+/**
+ * Everyone the couple has booked, from everywhere they record it: the vendors list, the budget (a line with who
+ * it's with, or money paid), the celebrant in the wedding party, on the Ceremony page or signed in as the
+ * celebrant, and the venue on the first event. Each as a kind of supplier (Celebrant, Florist, …).
+ */
+export async function bookedSuppliers(db: D1Database, weddingId: string): Promise<Set<string>> {
+  const [vendors, budget, ceremony, party, helpers, first] = await Promise.all([
+    readDoc(db, weddingId, 'vendors', ''),
+    readDoc(db, weddingId, 'budget', ''),
+    readDoc(db, weddingId, 'ceremony', ''),
+    members(db, weddingId),
+    db.prepare(`SELECT COALESCE(NULLIF(u.name, ''), u.first_name, 'Celebrant') AS name FROM membership m JOIN user u ON u.id = m.user_id WHERE m.wedding_id = ? AND m.relation = 'celebrant'`).bind(weddingId).all<{ name: string }>(),
+    db.prepare(`SELECT venue FROM event WHERE wedding_id = ? AND deleted_at IS NULL ORDER BY sort LIMIT 1`).bind(weddingId).first<{ venue: string | null }>(),
+  ]);
+  const celebrants = [
+    ...party.filter((m) => /celebrant|officiant/i.test(m.role)).map((m) => m.name),
+    ...(ceremony.data.celebrant?.name?.trim() ? [ceremony.data.celebrant.name.trim()] : []),
+    ...helpers.results.map((h) => h.name),
+  ];
+  const rows = bookingTimeline(vendors.data.list, Date.now(), Date.now(), !!first?.venue?.trim(), [...bookedInBudget(budget.data.lines), ...celebrants.map((name) => ({ what: 'Celebrant', name }))]);
+  return bookedKinds(rows);
+}
+
+/**
+ * Tick the checklist's "Book the…" items that a booking has already done ("Book the celebrant" once the
+ * celebrant is booked, however the couple recorded it). Only ever ticks, never unticks; each keeps the day it
+ * was done. Best effort: a busy moment just leaves it for the next read.
+ */
+export async function tickBookedTasks(db: D1Database, weddingId: string) {
+  const booked = await bookedSuppliers(db, weddingId);
+  if (!booked.size) return;
+  const today = new Date().toISOString().slice(0, 10);
+  await changeDoc(db, weddingId, 'checklist', '', (d) => {
+    let changed = false;
+    for (const t of d.tasks) {
+      if (t.done || !coveredByBooking(t.text, booked)) continue;
+      Object.assign(t, { done: true, status: 'done', doneOn: t.doneOn || today });
+      changed = true;
+    }
+    return changed ? undefined : false;
+  });
 }
 
 export async function members(db: D1Database, weddingId: string) {
@@ -654,6 +697,8 @@ export function plannerRoutes() {
     const kind = c.req.param('kind');
     if (!isKind(kind)) return err(c, 404, 'not_found', 'Unknown document.');
     if (kind === 'checklist') await absorbDayLists(c.env.DB, wid(c)).catch((e) => console.error('absorb day lists', e));
+    // "Book the celebrant" and the like, already done by a booking (also catches up checklists from before).
+    if (kind === 'checklist' && !c.req.param('scope')) await tickBookedTasks(c.env.DB, wid(c)).catch((e) => console.error('tick booked', e));
     const doc = await readDoc(c.env.DB, wid(c), kind, c.req.param('scope') ?? '');
     // Helpers' private list keys are for the people who send them, not viewers.
     if (kind === 'checklist' && c.get('role') === 'viewer') {
@@ -714,6 +759,8 @@ export function plannerRoutes() {
       return c.json({ error: { code: 'conflict', message: 'Changed elsewhere, so this has been reloaded. Make your change again.' }, current: shown(c, kind, cur) }, 409);
     }
     await audit(c, `planner.${kind}`, scope).run();
+    // A booking ticks its "Book the…" item on the checklist straight away.
+    if (!scope && (kind === 'vendors' || kind === 'budget' || kind === 'ceremony')) await tickBookedTasks(c.env.DB, wid(c)).catch((e) => console.error('tick booked', e));
     if (kind === 'vendors') {
       // The shared directory learns which of its vendors couples add and book (and what they paid); never stops the save.
       try {

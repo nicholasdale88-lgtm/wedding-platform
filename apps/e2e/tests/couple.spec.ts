@@ -249,3 +249,18 @@ test('vendor meals on the day: plus and minus, and typing a new number never sna
   await page.getByRole('button', { name: /Lock in/ }).first().click();
   await expect(page.getByLabel('Meals for Feast Co’s team')).toHaveValue('6');
 });
+
+test('a booked supplier is never "still to book": the celebrant filed under music clears Celebrant and ticks its checklist item', async ({ page }) => {
+  const cl = (await (await page.request.get(`/api/a/w/${wid}/planner/doc/checklist`)).json()) as { version: number; data: Record<string, unknown> };
+  const saved = await page.request.put(`/api/a/w/${wid}/planner/doc/checklist`, { headers: { 'If-Match': String(cl.version) }, data: { ...cl.data, tasks: [{ id: 'c1', text: 'Book the celebrant', before: 400 }] } });
+  expect(saved.status(), await saved.text()).toBe(200);
+  const booked = await page.request.put(`/api/a/w/${wid}/planner/doc/vendors`, { headers: { 'If-Match': '0' }, data: { list: [{ id: 'mbtb', name: 'Married by the Beard', category: 'Ceremony music', status: 'booked' }] } });
+  expect(booked.status(), await booked.text()).toBe(200);
+  await page.goto(`/admin/${wid}/wedding/planner`);
+  const still = page.getByRole('region', { name: 'Still to book' });
+  await expect(still).toBeVisible({ timeout: 15_000 });
+  await expect(still).not.toContainText('Celebrant');
+  // The checklist has it done.
+  const after = (await (await page.request.get(`/api/a/w/${wid}/planner/doc/checklist`)).json()) as { data: { tasks: { id: string; done: boolean }[] } };
+  expect(after.data.tasks.find((t) => t.id === 'c1')!.done).toBe(true);
+});

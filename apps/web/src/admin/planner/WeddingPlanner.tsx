@@ -134,8 +134,16 @@ function Glance({ go }: { go: (v: View) => void }) {
   useEffect(() => {
     plannerApi
       .party(wid)
-      .then((r) => setCelebrants(r.members.filter((m) => /celebrant/i.test(m.role)).map((m) => m.name)))
-      .catch(() => setCelebrants([]));
+      .then((r) => setCelebrants((c) => [...c, ...r.members.filter((m) => /celebrant|officiant/i.test(m.role)).map((m) => m.name)]))
+      .catch(() => undefined);
+    // …and so does the celebrant named on the Ceremony page.
+    plannerApi
+      .doc<{ celebrant?: { name?: string } }>(wid, 'ceremony')
+      .then((r) => {
+        const name = r.data.celebrant?.name?.trim();
+        if (name) setCelebrants((c) => [...c, name]);
+      })
+      .catch(() => undefined);
     plannerApi
       .doc<PlanChecklist>(wid, 'checklist')
       .then((r) => setPlan(r.data.tasks))

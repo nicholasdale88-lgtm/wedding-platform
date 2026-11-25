@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mealWarning, menuFit, servedMeal } from '../src/planner';
-import { bookedInBudget, budgetFit, linkToBudget, suggestedTasks, vendorKind, negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
+import { BOOKING_TIMELINE, bookedKinds, coveredByBooking, kindsOfVendor, bookedInBudget, budgetFit, linkToBudget, suggestedTasks, vendorKind, negotiationPlan, awaitingReply, nextFollowUp, beforeOf, negotiationPoints, rfqStage, allPayments, compareRfq, tenderAnalysis, tenderRows, savingsPlan, Rfq, rfqDraft, searchKeyOf, BUDGET_SPLIT, BUDGET_TEMPLATE, standardLines, quoteStatus, PlanChecklist, taskTotals, withStatus, bookingTimeline, vendorActions, BudgetLine, CHECK_TEMPLATE, moneyOf, scheduleOf, withSchedules, clockMinutes, clockText, commitmentOf, glamSchedule, itemsFor, PACK_TEMPLATE, PARTY_CHECK_TEMPLATE, PARTY_TEMPLATE, PLAN_TEMPLATE, PLANNER_DOCS, SIDE_TEMPLATE, sideOf, suggestMenu, Vendor } from '../src/planner';
 
 describe('wedding party', () => {
   it('roles sit on the usual side; unknown roles help from neither', () => {
@@ -212,6 +212,68 @@ describe('when to book', () => {
     expect(bookingTimeline([], day, day, false, [{ what: 'Celebrant', name: 'Jo Lee' }]).find((r) => r.what === 'Celebrant')!.state).toBe('booked');
     // A vendor whose only clue is their name: "Married by…" is a celebrant.
     expect(vendorKind({ category: '', name: 'Married by the Beard' })).toBe('Celebrant');
+  });
+});
+
+describe('a booked supplier always clears its "still to book" (the live celebrant bug)', () => {
+  const v = (name: string, category: string, status: 'idea' | 'booked' = 'booked') => Vendor.parse({ id: name, name, category, status });
+  const day = Date.parse('2027-11-18T05:00:00Z');
+  const state = (rows: ReturnType<typeof bookingTimeline>, what: string) => rows.find((r) => r.what === what)!.state;
+  it('a celebrant whose category also names music is still the celebrant (it was filed as Band or DJ only)', () => {
+    for (const category of ['Celebrant & MC', 'Celebrant and music', 'Ceremony music', 'Entertainment', 'Ceremony', '']) {
+      const rows = bookingTimeline([v('Married by the Beard', category)], day, day);
+      expect(state(rows, 'Celebrant'), category).toBe('booked');
+    }
+    // And from the budget alone: the music line paid to them.
+    const budget = bookedInBudget([{ category: 'Music', item: 'Ceremony', estimate: 900, quote: 0, paid: 300, due: '', vendor: 'Married by the Beard', note: '', payer: '', perHead: 0 }]);
+    expect(state(bookingTimeline([], day, day, false, budget), 'Celebrant')).toBe('booked');
+    // A celebrant with no clue in the words at all, named on the Ceremony page or in the party, counts too.
+    expect(state(bookingTimeline([], day, day, false, [{ what: 'Celebrant', name: 'Jo Lee' }]), 'Celebrant')).toBe('booked');
+  });
+  it('every kind of supplier is cleared by a booking under any of its usual names', () => {
+    const names: Record<string, string[]> = {
+      Venue: ['Venue', 'Reception venue', 'Winery', 'Homestead', 'The chapel'],
+      'Band or DJ': ['DJ', 'Band', 'String quartet', 'Acoustic guitarist', 'MC', 'Entertainment', 'Photo booth'],
+      Photographer: ['Photographer', 'Photos', 'Photography'],
+      Videographer: ['Videographer', 'Film', 'Videography'],
+      Celebrant: ['Celebrant', 'Officiant', 'JP', 'Justice of the Peace', 'Minister', 'Priest', 'Reverend', 'Ceremony'],
+      Catering: ['Catering', 'Caterer', 'Food', 'Grazing table', 'Chef'],
+      'Hair and makeup': ['Hair and makeup', 'Hair stylist', 'Makeup artist', 'MUA', 'HMU'],
+      Attire: ['Wedding dress', 'Bridal gown', 'Suits', 'Tailor'],
+      Florist: ['Florist', 'Flowers', 'Bouquets', 'Floral design'],
+      Accommodation: ['Accommodation', 'Hotel', 'Bridal suite', 'Cottage stay'],
+      Transport: ['Transport', 'Wedding cars', 'Bus', 'Shuttle', 'Chauffeur'],
+      'Styling and hire': ['Styling', 'Chair hire', 'Decor', 'Marquee', 'Lighting'],
+      Stationery: ['Stationery', 'Invitations', 'Printing'],
+      Cake: ['Cake', 'Wedding cake', 'Desserts', 'Cupcakes'],
+      Rings: ['Rings', 'Jeweller'],
+    };
+    expect(Object.keys(names).sort()).toEqual(BOOKING_TIMELINE.map((b) => b.what).sort());
+    for (const [what, list] of Object.entries(names))
+      for (const category of list) {
+        expect(state(bookingTimeline([v('Someone', category)], day, day), what), `${category} → ${what}`).toBe('booked');
+        // A supplier on the list but not booked yet is "looking", never booked.
+        expect(state(bookingTimeline([v('Someone', category, 'idea')], day, day), what), `${category} (idea)`).toBe('looking');
+      }
+    // The usual ambiguities still land right: a hair stylist isn't styling, car hire is transport.
+    expect(kindsOfVendor({ category: 'Hair stylist', name: '' })).toEqual(['Hair and makeup']);
+    expect(kindsOfVendor({ category: 'Car hire', name: '' })).toEqual(['Transport']);
+    expect(kindsOfVendor({ category: 'Photo booth', name: '' })).toEqual(['Band or DJ']);
+  });
+  it('"Book the…" checklist items are done by the booking; trials and tastings are not', () => {
+    const booked = bookedKinds(bookingTimeline([v('Married by the Beard', 'Celebrant & MC'), v('Snaps', 'Photographer')], day, day));
+    expect(coveredByBooking('Book the celebrant', booked)).toBe(true);
+    expect(coveredByBooking('Book the photographer and videographer', booked)).toBe(false); // the videographer isn't
+    expect(coveredByBooking('Book the band or DJ and the florist', booked)).toBe(false);
+    expect(coveredByBooking('Book a hair and makeup trial', new Set(['Hair and makeup']))).toBe(false);
+    expect(coveredByBooking('Write your vows', booked)).toBe(false);
+    // Every template "Book the…" item naming a supplier is covered once it's booked (the honeymoon isn't one).
+    const all = new Set(BOOKING_TIMELINE.map((b) => b.what));
+    const books = PLAN_TEMPLATE.filter((x) => /^book\b/i.test(x.text) && !/honeymoon/i.test(x.text));
+    expect(books.length).toBeGreaterThanOrEqual(7);
+    for (const t of books) expect(coveredByBooking(t.text, all), t.text).toBe(true);
+    expect(coveredByBooking('Book the caterer (if the venue doesn’t cater)', new Set(['Catering']))).toBe(true);
+    expect(coveredByBooking('Book hair and makeup (with a trial)', new Set(['Hair and makeup']))).toBe(true);
   });
 });
 
