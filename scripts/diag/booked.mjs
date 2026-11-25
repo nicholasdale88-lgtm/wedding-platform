@@ -2,7 +2,16 @@
 // Read-only: how one wedding's planner records its suppliers, without names, emails or phone numbers, to see
 // why a booked supplier still shows as "to book". Reads the JSON from `wrangler d1 execute --json` on stdin.
 import { readFileSync } from 'node:fs';
-const rows = JSON.parse(readFileSync(0, 'utf8'))[0].results;
+const text = readFileSync(0, 'utf8');
+let rows;
+try {
+  // wrangler may print a line or two before the JSON.
+  rows = JSON.parse(text.slice(text.indexOf('['))).flatMap((x) => x.results ?? []);
+} catch (e) {
+  console.log(`::error title=diag parse::${String(e).slice(0, 200)} (output ${text.length} chars, starts ${JSON.stringify(text.slice(0, 40).replace(/[^\[\]{}a-z :",0-9]/gi, ''))})`);
+  process.exit(1);
+}
+if (!rows.length) console.log('::notice title=diag::no planner documents found for that wedding');
 const KINDS = [
   ['Venue', /venue|reception|estate|winery/i],
   ['Band or DJ', /\bband\b|\bdj\b|music|singer|string|entertain|photo ?booth/i],
