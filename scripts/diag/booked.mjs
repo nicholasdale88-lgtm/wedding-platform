@@ -21,15 +21,17 @@ const KINDS = [
   ['Rings', /\brings?\b|jewel/i],
 ];
 const kind = (s) => KINDS.find(([, re]) => re.test(s ?? ''))?.[0] ?? '-';
+// Only derived flags are printed (the run's output is public): no names and no free text the couple typed, except
+// our own template wording.
+const TEMPLATE = new Set(['Book the venue and lock in the date', 'Book the celebrant', 'Book the photographer and videographer', 'Book the caterer (if the venue doesn’t cater)', 'Book the band or DJ and the florist']);
+const out = [];
 for (const r of rows) {
   const d = JSON.parse(r.data || '{}');
-  console.log(`--- ${r.kind}${r.scope ? ` (${r.scope})` : ''} v${r.version} updated ${r.updated_at}`);
-  if (r.kind === 'vendors')
-    for (const v of d.list ?? []) console.log(`vendor: category="${v.category}" status=${v.status} kindByCategory=${kind(v.category)} kindByName=${kind(v.name)} nameLooksLikeCelebrant=${/celebrant|married by|officiant/i.test(v.name)}`);
-  if (r.kind === 'budget')
-    for (const l of d.lines ?? []) console.log(`budget: category="${l.category}" item="${l.item}" hasVendor=${!!(l.vendor ?? '').trim()} paid>0=${l.paid > 0} kind=${kind(`${l.category} ${l.item}`)} vendorKind=${kind(l.vendor)}`);
-  if (r.kind === 'checklist')
-    for (const t of d.tasks ?? []) if (/book|celebrant|vendor|photog|florist|cater|band|dj|venue/i.test(t.text)) console.log(`task: "${t.text}" done=${t.done} status=${t.status ?? ''}`);
-  if (r.kind === 'ceremony') console.log(`ceremony: celebrant name set=${!!d.celebrant?.name} email set=${!!d.celebrant?.email} keys=${Object.keys(d.celebrant ?? {}).join(',')}`);
-  if (r.kind === 'party') for (const m of d.members ?? d.list ?? []) console.log(`party: role="${m.role}"`);
+  out.push(`${r.kind} v${r.version}`);
+  if (r.kind === 'vendors') for (const v of d.list ?? []) out.push(`vendor status=${v.status} byCategory=${kind(v.category)} byName=${kind(v.name)} categoryEmpty=${!(v.category ?? '').trim()}`);
+  if (r.kind === 'budget') for (const l of d.lines ?? []) if ((l.vendor ?? '').trim() || l.paid > 0) out.push(`budget line kind=${kind(`${l.category} ${l.item}`)} vendorKind=${kind(l.vendor)} paid=${l.paid > 0}`);
+  if (r.kind === 'checklist') for (const t of d.tasks ?? []) if (TEMPLATE.has(t.text) || /celebrant/i.test(t.text)) out.push(`task ${TEMPLATE.has(t.text) ? `"${t.text}"` : '(own wording, mentions celebrant)'} done=${t.done} status=${t.status ?? ''}`);
+  if (r.kind === 'ceremony') out.push(`ceremony celebrantNameSet=${!!(d.celebrant?.name ?? '').trim()}`);
+  if (r.kind === 'party') out.push(`party celebrantRoles=${(d.members ?? d.list ?? []).filter((m) => /celebrant|officiant/i.test(m.role ?? '')).length}`);
 }
+for (let i = 0; i < out.length; i += 20) console.log(`::notice title=diag ${i / 20}::${out.slice(i, i + 20).join(' | ')}`);
