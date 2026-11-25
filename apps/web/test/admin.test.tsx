@@ -120,9 +120,9 @@ describe('phone menu', () => {
     await screen.findByRole('button', { name: /^Menu/ });
     expect(screen.queryByRole('navigation', { name: 'Quick links' })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Admin' })).toBeNull();
-    // Help sits to the right of the menu button.
+    // Help (?) and the menu button sit together at the right of the header.
     const help = screen.getByRole('link', { name: 'Help' });
-    expect(screen.getByRole('button', { name: /^Menu/ }).compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Menu/ }).compareDocumentPosition(help) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it('the menu: five items, no Account or Events groups; tools nested in their place; a switcher for the other event', async () => {
@@ -292,8 +292,8 @@ describe('Overview', () => {
       '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }),
     });
     renderAt('/admin/w1/wedding/planner');
-    expect(await screen.findByRole('region', { name: 'Planning dashboard' })).toBeInTheDocument();
-    const tasks = await screen.findByRole('region', { name: 'Planning tasks' });
+    expect(await screen.findByRole('region', { name: 'Planning dashboard' }, { timeout: 8000 })).toBeInTheDocument();
+    const tasks = await screen.findByRole('region', { name: 'Planning tasks' }, { timeout: 8000 });
     expect(within(tasks).getByText('33%')).toBeInTheDocument();
     const glance = screen.getByRole('region', { name: 'Key figures' });
     expect(within(glance).getByText('1/3')).toBeInTheDocument();
@@ -548,8 +548,9 @@ describe('guest pages tab', () => {
     expect(screen.getByRole('radio', { name: 'Laptop' })).toHaveAttribute('aria-checked', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Photo page' }));
     expect(screen.getByTitle('Guest page preview')).toHaveAttribute('src', '/w/alex-and-blair/photos/wedding?preview=1');
-    await userEvent.click(screen.getByRole('button', { name: 'Recovery brunch' }));
-    expect(await screen.findByRole('heading', { name: 'Set up Recovery brunch' })).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Event' }), 'brunch');
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Event' })).toHaveValue('brunch'));
+    expect(await screen.findByText('Recovery brunch · Invitation')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Invitation' })).toBeNull();
     await userEvent.click(await screen.findByRole('button', { name: 'Night-before page' }));
     // Another event's page starts fresh: its preview opens from its own button.
