@@ -388,7 +388,7 @@ export function Shell({ children, onSignOut }: { children: ReactNode; onSignOut:
           <Link
             to={path('help', ALL_EVENTS)}
             aria-label="Help"
-            className="relative flex-none w-10 h-10 rounded-full border border-[rgba(243,236,214,.35)] before:content-[''] before:absolute before:-inset-[3px] flex items-center justify-center text-[16px] font-semibold no-underline !text-[#f3ecd6]"
+            className="relative flex-none w-10 h-10 rounded-full border border-[rgba(243,236,214,.35)] before:content-[''] before:absolute before:-inset-[4px] flex items-center justify-center text-[16px] font-semibold no-underline !text-[#f3ecd6]"
           >
             ?
           </Link>

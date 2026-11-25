@@ -140,7 +140,7 @@ export function Guests() {
         rel="noopener"
         onClick={(e) => e.stopPropagation()}
         aria-label={`Preview ${householdName(g.people.map((p) => p.name))}’s invitation`}
-        className={`${cls} before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[9px] items-center gap-1 py-[3px] px-[10px] rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f2)] text-[12px] font-semibold no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]`}
+        className={`${cls} before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[10px] items-center gap-1 py-[3px] px-[10px] rounded-full border border-[var(--adm-line,#c6b794)] bg-[var(--adm-card,#fbf8f2)] text-[12px] font-semibold no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]`}
       >
         <span aria-hidden>👁</span> Preview
       </a>
@@ -437,7 +437,7 @@ export function Guests() {
           type="button"
           aria-pressed={state.sort === 'side'}
           onClick={() => set({ sort: state.sort === 'side' ? '' : 'side' })}
-          className={`relative py-[6px] px-3 rounded-full border text-[12px] cursor-pointer before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[6px] ${state.sort === 'side' ? 'border-[#33402f] bg-[#33402f] text-[#f3ecd6]' : 'border-[var(--adm-line,#c6b794)] bg-transparent text-[var(--adm-ink,#33402f)]'}`}
+          className={`relative py-[6px] px-3 rounded-full border text-[12px] cursor-pointer before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[7px] ${state.sort === 'side' ? 'border-[#33402f] bg-[#33402f] text-[#f3ecd6]' : 'border-[var(--adm-line,#c6b794)] bg-transparent text-[var(--adm-ink,#33402f)]'}`}
         >
           {state.sort === 'side' ? 'Grouped by side ✓' : 'Group by side'}
         </button>
