@@ -480,3 +480,36 @@ test('Sentinel phase 1: the closed sample is no wider than the screen, and the /
   const news = page.locator('form label').filter({ has: page.locator('input[type="checkbox"]') }).first();
   expect((await news.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
+
+test('Simplify Job 1: a signed-in couple sees five menu items (Home, Guests, Invitation, Plan, Settings), nothing sideways', async ({ page }, info) => {
+  const n = Date.now() % 1_000_000;
+  const res = await page.request.post('/api/a/signup', {
+    headers: { 'CF-Connecting-IP': `10.77.${n % 250}.${(n >> 8) % 250}` },
+    data: { firstName: 'Harriet', partnerName: 'Theo', email: `menu-${n}@example.com`, passcode: 'menu-passcode-1', date: '2027-03-20', guests: 80 },
+  });
+  expect(res.status(), await res.text()).toBe(200);
+  const wid = ((await res.json()) as { weddingId: string }).weddingId;
+  for (const width of phone(info.project.name) ? [375, 390] : [1280]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/admin/${wid}`);
+    // Home is the wedding's own overview.
+    await expect(page).toHaveURL(new RegExp(`/admin/${wid}/wedding/overview`), { timeout: 20_000 });
+    let nav;
+    if (phone(info.project.name)) {
+      await page.getByRole('button', { name: /^Menu/ }).click();
+      nav = page.getByRole('dialog', { name: 'Menu' }).getByRole('navigation', { name: 'Admin' });
+      const rows = nav.locator(':scope > div > button:first-child');
+      await expect(rows).toHaveCount(5);
+      for (const r of await rows.all()) expect((await r.boundingBox())!.height, `row at ${width}`).toBeGreaterThanOrEqual(56);
+    } else {
+      nav = page.getByRole('navigation', { name: 'Admin' });
+      await expect(nav.locator(':scope > div > a:first-child')).toHaveCount(5);
+    }
+    for (const name of [/^Home/, /^Guests/, /^Invitation/, /^Plan/, /^Settings/]) await expect(nav.getByRole(phone(info.project.name) ? 'button' : 'link', { name }).first()).toBeVisible();
+    // A new wedding starts with its optional tools off: none of them in the menu.
+    for (const name of ['Texts', 'Photos', 'Wedding party']) await expect(nav.getByRole(phone(info.project.name) ? 'button' : 'link', { name, exact: true })).toHaveCount(0);
+    await expect(page.getByText('RSVP admin')).toHaveCount(0);
+    expect(await sideways(page), `sideways at ${width}`).toBeLessThanOrEqual(1);
+    if (phone(info.project.name)) await page.getByRole('button', { name: 'Close menu' }).click();
+  }
+});

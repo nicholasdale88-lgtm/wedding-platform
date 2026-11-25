@@ -1,4 +1,5 @@
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ALL_EVENTS, useAdmin } from '../Shell';
 import { AdminLook } from '../AdminLook';
 import { AtAGlance } from './AtAGlance';
 import { confirmLeave } from '../leave';
@@ -28,6 +29,7 @@ const MOVED: Record<string, (typeof VIEWS)[number]['key']> = { details: 'profile
 type View = (typeof VIEWS)[number]['key'];
 
 export function Settings() {
+  const { path } = useAdmin();
   const [params, setParams] = useSearchParams();
   const asked = params.get('view') ?? '';
   const view = (VIEWS.find((v) => v.key === (MOVED[asked] ?? asked))?.key ?? 'profile') as View;
@@ -42,6 +44,9 @@ export function Settings() {
       {view === 'profile' ? (
         <div className="flex flex-col gap-10">
           <AtAGlance />
+          <Link to={`${path('overview', ALL_EVENTS)}?all=1`} className="self-start inline-flex items-center min-h-[44px] text-[14px] underline !text-[var(--adm-ink,#33402f)]">
+            Your wedding admin: every event, setting up and status at a glance
+          </Link>
           <YourDetails />
           <ChangeEmail />
           <Passcode />

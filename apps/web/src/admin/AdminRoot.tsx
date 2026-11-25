@@ -188,6 +188,12 @@ function SectionBody({ section, tab }: { section: string; tab: string }) {
   // Wedding party sign-ins moved from Setup into the Wedding party page.
   if (tab === 'pages' && new URLSearchParams(search).get('page') === 'party') return <Navigate to={`${path('party')}?view=access`} replace />;
   if (tab === 'events') return <Navigate to={path('overview', ALL_EVENTS)} replace />;
+  // One Home (launch simplification, Job 2): the wedding's overview. Account's dashboard ("Your wedding admin")
+  // stays, behind its link in Settings (?all=1); arriving there otherwise goes Home.
+  if (section === ACCOUNT && tab === 'overview' && wid !== DEMO_WID && !new URLSearchParams(search).has('all')) {
+    if (!o) return <Loading />;
+    if (o.events[0]) return <Navigate to={path('overview', o.events[0].key)} replace />;
+  }
   if (PLANNER_VIEWS.has(tab) || (tab === 'planner' && o && o.events[0] && section !== o.events[0].key)) {
     // The Wedding planner lives in the first event's section only.
     if (!o) return <Loading />;

@@ -60,12 +60,13 @@ describe('admin shell', () => {
     renderAt('/admin');
     expect(await screen.findByText('Alex & Blair')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin' });
-    // Account: what's shared by every event (overview, messages, the SMS provider setup). The invitation is in the first event.
-    for (const name of [/^Overview/, /^Messages/, /^Settings\s*Texts off/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
-    expect(within(nav).queryByRole('link', { name: /^Invitation/ })).toBeNull();
-    expect(screen.getAllByText('Recovery brunch').length).toBeGreaterThan(0);
+    // One menu of five (launch simplification): Home is the wedding's own overview, not Account's.
+    for (const name of [/^Home/, /^Guests/, /^Invitation/, /^Plan/, /^Settings/]) expect(within(nav).getByRole('link', { name })).toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: /^Overview/ })).toBeNull();
+    expect(screen.queryByText('RSVP admin')).toBeNull();
+    expect(screen.getAllByText('Recovery brunch').length).toBeGreaterThan(0); // the event switcher
     expect(screen.getByText('138 days to go')).toBeInTheDocument();
-    expect(location).toBe('/admin/w1/account/overview');
+    await waitFor(() => expect(location).toBe('/admin/w1/wedding/overview'));
   });
 
   it('the wax seal beside the names is theirs and opens where it is chosen', async () => {
@@ -85,22 +86,22 @@ describe('addresses', () => {
     expect(location).toBe('/admin/w1/wedding/guests?show=all');
   });
 
-  it('a removed event (an old link) lands in Account', async () => {
+  it('a removed event (an old link) lands Home', async () => {
     mockApi();
     renderAt('/admin/w1/gone/overview');
-    await waitFor(() => expect(location).toBe('/admin/w1/account/overview'));
+    await waitFor(() => expect(location).toBe('/admin/w1/wedding/overview'));
   });
 
   it('switching section is in the address, so Back returns to the section you were in', async () => {
     mockApi();
     const router = renderAt('/admin/w1/wedding/guests?show=all');
     await screen.findByText('Robin Hart');
-    await userEvent.click(screen.getByRole('button', { name: 'Recovery brunch' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Event' }), 'brunch');
     await waitFor(() => expect(location).toBe('/admin/w1/brunch/guests'));
-    expect(screen.getByRole('button', { name: 'Recovery brunch' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('combobox', { name: 'Event' })).toHaveValue('brunch');
     await act(() => router.navigate(-1));
     await waitFor(() => expect(location).toBe('/admin/w1/wedding/guests?show=all'));
-    expect(screen.getByRole('button', { name: 'The wedding' })).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('combobox', { name: 'Event' })).toHaveValue('wedding');
     expect(localStorage.getItem('wp.admin.event.w1')).toBe('wedding'); // only for /admin/w1
   });
 });
@@ -115,8 +116,8 @@ describe('phone menu', () => {
   it('one menu, at the top: no bar at the bottom and no page strip', async () => {
     phone();
     mockApi();
-    renderAt('/admin/w1/account/overview');
-    await screen.findByRole('button', { name: /^Menu: Account/ });
+    renderAt('/admin/w1/wedding/overview');
+    await screen.findByRole('button', { name: /^Menu/ });
     expect(screen.queryByRole('navigation', { name: 'Quick links' })).toBeNull();
     expect(screen.queryByRole('navigation', { name: 'Admin' })).toBeNull();
     // Help sits to the right of the menu button.
@@ -124,39 +125,46 @@ describe('phone menu', () => {
     expect(screen.getByRole('button', { name: /^Menu/ }).compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('the menu: Account on its own, then Events; tapping one shows only its pages, each once', async () => {
+  it('the menu: five items, no Account or Events groups; tools nested in their place; a switcher for the other event', async () => {
     phone();
     mockApi();
-    renderAt('/admin/w1/account/overview');
+    renderAt('/admin/w1/wedding/overview');
     const menu = await openMenu();
-    expect(within(menu).getByRole('group', { name: 'Account' })).toBeInTheDocument();
-    expect(within(within(menu).getByRole('group', { name: 'Events' })).getAllByRole('button').map((b) => b.textContent)).toEqual(['The wedding', 'Recovery brunch']);
-    // Account: its own pages.
-    for (const name of ['Overview', 'Messages', 'Settings', 'Help']) expect(within(menu).getAllByRole('button', { name })).toHaveLength(1);
-    expect(within(menu).queryByRole('button', { name: 'Photos' })).toBeNull();
-    // The second event: its own pages only.
-    await userEvent.click(within(menu).getByRole('button', { name: 'Recovery brunch' }));
-    expect(screen.getByRole('dialog', { name: 'Menu' })).toBeInTheDocument(); // stays open
-    expect(within(menu).getByRole('button', { name: 'Party checklist' })).toBeInTheDocument();
-    expect(within(menu).queryByRole('button', { name: 'Wedding planner' })).toBeNull();
-    expect(within(menu).queryByRole('button', { name: 'Settings' })).toBeNull();
-    // The wedding: its pages, the planner once.
-    await userEvent.click(within(menu).getByRole('button', { name: 'The wedding' }));
-    expect(within(menu).getAllByText(/planner/i)).toHaveLength(1);
-    expect(within(menu).getByRole('button', { name: 'Wedding party' })).toBeInTheDocument();
-    await userEvent.click(within(menu).getByRole('button', { name: 'Texts' }));
+    const nav = within(menu).getByRole('navigation', { name: 'Admin' });
+    for (const name of [/^Home/, /^Guests/, /^Invitation/, /^Plan/, /^Settings/]) expect(within(nav).getAllByRole('button', { name })).toHaveLength(1);
+    expect(within(menu).queryByRole('group', { name: 'Account' })).toBeNull();
+    expect(within(menu).queryByRole('group', { name: 'Events' })).toBeNull();
+    expect(within(nav).queryByRole('button', { name: /planner/i })).toBeNull();
+    // Switched-on tools sit inside their place (this wedding is from before the switches: everything on).
+    expect(within(nav).getByRole('button', { name: 'Wedding party' })).toBeInTheDocument();
+    for (const b of within(nav).getAllByRole('button')) expect(b.className).toMatch(/min-h-\[(44|56)px\]/);
+    await userEvent.click(within(nav).getByRole('button', { name: 'Texts' }));
     expect(location).toBe('/admin/w1/wedding/texts');
     expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
-    expect(screen.getByRole('button', { name: /^Menu: The wedding/ })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Event' })).toHaveValue('wedding');
+  });
+
+  it('a tool switched off is not in the menu, and its page offers to switch it on', async () => {
+    phone();
+    const off = { texts: false, photos: false, party: false, seating: false, extraEvent: false, nightBefore: false, thankYou: false };
+    mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, tools: { chosen: off, on: off, textsBought: false, credits: 0 } }) });
+    renderAt('/admin/w1/wedding/photos');
+    expect(await screen.findByRole('region', { name: 'Photos and the live wall is switched off' })).toBeInTheDocument();
+    const menu = await openMenu();
+    const nav = within(menu).getByRole('navigation', { name: 'Admin' });
+    for (const name of ['Texts', 'Photos', 'Wedding party']) expect(within(nav).queryByRole('button', { name })).toBeNull();
+    expect(within(nav).getByRole('button', { name: /^Messages/ })).toBeInTheDocument();
   });
 });
 
 describe('the planner in the menus', () => {
-  it('a computer: the sidebar lists "Wedding planner" once', async () => {
+  it('a computer: the sidebar lists "Plan" once, among five', async () => {
     mockApi({ '/api/a/w/w1/overview': () => json(200, { ...overviewFixture, focus: 'wedding' }) });
     renderAt('/admin/w1/wedding/overview');
     const nav = await screen.findByRole('navigation', { name: 'Admin' });
-    await waitFor(() => expect(within(nav).getAllByText('Wedding planner')).toHaveLength(1));
+    await waitFor(() => expect(within(nav).getAllByText('Plan')).toHaveLength(1));
+    for (const name of ['Home', 'Invitation', 'Settings']) expect(within(nav).getAllByText(name)).toHaveLength(1);
+    expect(within(nav).queryByText('Wedding planner')).toBeNull();
   });
 });
 
@@ -231,7 +239,7 @@ describe('your account', () => {
     await userEvent.type(screen.getByPlaceholderText(/Choose a passcode/), 'partner-pass-1');
     await userEvent.click(screen.getByRole('button', { name: 'Create my sign-in' }));
     await waitFor(() => expect(accepted).toEqual({ passcode: 'partner-pass-1', firstName: 'Sam', lastName: '', marketingOptIn: false }));
-    await waitFor(() => expect(location).toBe('/admin/w1/account/overview'));
+    await waitFor(() => expect(location).toBe('/admin/w1/wedding/overview')); // Home: the wedding's own overview
   });
 });
 
@@ -239,7 +247,7 @@ describe('add your partner', () => {
   it('while only you can sign in, Account → Setting up opens the invite with the email box ready', async () => {
     const members = { you: { id: 'u1', role: 'owner' }, members: [{ id: 'u1', email: 'owner@example.com', name: 'Alex Smith', role: 'owner', lastLoginAt: null }], invites: [] };
     mockApi({ '/api/a/w/w1/members': () => json(200, members) });
-    renderAt('/admin/w1/account/overview');
+    renderAt('/admin/w1/account/overview?all=1');
     const step = (await screen.findByText('Add your partner or a helper')).closest('li')!;
     await waitFor(() => expect(within(step).getByLabelText('To do')).toBeInTheDocument());
     await userEvent.click(within(step).getByRole('button', { name: 'Set up' }));
@@ -343,7 +351,7 @@ describe('Overview', () => {
 
   it('Account → Overview is the setup home: what to set up, plan, who signs in, backups, and each event as a card', async () => {
     mockApi();
-    renderAt('/admin/w1/account/overview');
+    renderAt('/admin/w1/account/overview?all=1');
     expect(await screen.findByRole('heading', { name: 'Your wedding admin' })).toBeInTheDocument();
     const setup = screen.getByRole('region', { name: 'Setting up' });
     for (const t of ['Your names and the date', 'Your guests', 'Texting', 'Add your partner or a helper', 'Keep it private']) expect(within(setup).getByText(t)).toBeInTheDocument();
@@ -361,7 +369,7 @@ describe('Overview', () => {
           ? json(402, { error: { code: 'upgrade', feature: 'extraEvent', message: 'Your plan includes 2 events.' } })
           : json(200, { timezone: 'Australia/Sydney', events: [] }),
     });
-    renderAt('/admin/w1/account/overview');
+    renderAt('/admin/w1/account/overview?all=1');
     await userEvent.click(await screen.findByRole('button', { name: '+ Add an event' }));
     await userEvent.type(await screen.findByPlaceholderText('Recovery brunch'), 'Welcome drinks');
     await userEvent.click(screen.getByRole('button', { name: 'Add event' }));
@@ -371,7 +379,7 @@ describe('Overview', () => {
 
   it('Needs you buttons go straight to the fix', async () => {
     mockApi();
-    renderAt('/admin/w1/account/overview');
+    renderAt('/admin/w1/account/overview?all=1');
     await userEvent.click(await screen.findByRole('button', { name: 'See who' }));
     expect(location).toBe('/admin/w1/wedding/guests?filter=awaiting');
     expect(await screen.findByText('Jo Banks')).toBeInTheDocument();
@@ -529,7 +537,7 @@ describe('guest pages tab', () => {
   it('Setup: the invitation lives in the first event; every event has its details, timeline, night-before and photo pages', async () => {
     mockApi({ '/api/a/w/w1/pages': () => json(200, pages) });
     renderAt('/admin/w1/wedding/pages');
-    expect(await screen.findByRole('heading', { name: 'Set up The wedding' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Your invitation' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: 'The wedding' })).toHaveAttribute('aria-current', 'true'));
     for (const name of ['Invitation', 'Details', 'Timeline', 'Night-before page', 'Photo page']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
     // On a phone (and in tests) the preview opens full screen from its own button.
