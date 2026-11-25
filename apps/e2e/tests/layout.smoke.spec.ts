@@ -418,7 +418,9 @@ test('the sample app on a phone: Help, Preview, Group by side and the dietary + 
   test.skip(!phone(info.project.name), 'phone only');
   await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));
   // A tap 21px above or below the middle (a 44px finger) still lands on it.
+  // (In the middle of the screen: the sample's bar along the bottom would cover it otherwise.)
   const tall = (el: Element) => {
+    el.scrollIntoView({ block: 'center' });
     const r = el.getBoundingClientRect();
     const x = r.left + r.width / 2;
     const y = r.top + r.height / 2;
@@ -435,12 +437,10 @@ test('the sample app on a phone: Help, Preview, Group by side and the dietary + 
   ];
   for (const t of targets) {
     await expect(t).toBeVisible({ timeout: 20_000 });
-    await t.scrollIntoViewIfNeeded();
     expect(await t.evaluate(tall), await t.evaluate((el) => el.textContent ?? '')).toEqual([true, true]);
   }
   await page.goto('/admin/demo/wedding/dietary');
   const chip = page.getByRole('button', { name: /^\+ (Vegetarian|Vegan|Gluten free|Dairy free)$/ }).first();
   await expect(chip).toBeVisible({ timeout: 20_000 });
-  await chip.scrollIntoViewIfNeeded();
   expect(await chip.evaluate(tall)).toEqual([true, true]);
 });
