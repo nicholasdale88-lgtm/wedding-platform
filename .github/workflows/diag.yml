@@ -24,7 +24,7 @@ jobs:
           npm install -g corepack@latest
           corepack enable
       - name: Install
-        run: pnpm install --no-frozen-lockfile --filter api...
+        run: pnpm install --no-frozen-lockfile
       - name: How the owner's wedding records its suppliers (read-only)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
