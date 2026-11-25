@@ -5,8 +5,9 @@ const words = (primary: string, headline = 'Wedding RSVPs by text') => ({ name: 
 
 describe('ad copy rules', () => {
   it('passes plain, true copy at today’s prices', () => {
-    expect(adCopyProblems(words('Your guests reply by text and the list fills itself in. From $50, paid once.'))).toEqual([]);
-    expect(adCopyProblems(words('Everything for the wedding, A$88 once. Not a subscription.'))).toEqual([]);
+    expect(adCopyProblems(words('Your guests reply by text and the list fills itself in. $87, paid once.'))).toEqual([]);
+    expect(adCopyProblems(words('Everything for the wedding, A$87 once. Not a subscription.'))).toEqual([]);
+    expect(adCopyProblems(words('Everything for the wedding, A$88 once.'))).toHaveLength(1);
   });
   it('refuses personal attributes, rival names, unprovable claims, free, wrong prices and emoji', () => {
     expect(adCopyProblems(words('Just engaged? Send invitations your guests answer by text.'))[0]).toMatch(/Meta/);

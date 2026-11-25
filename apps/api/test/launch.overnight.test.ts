@@ -301,10 +301,14 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
       w.tag = `#${n} (${plan})`;
       if (w.tz !== TZ) await t.db.prepare(`UPDATE wedding SET timezone = ? WHERE id = ?`).bind(w.tz, w.id).run();
       weddings.push(w);
-      // Basic (paid, so guests' pages are live): a second event is an add-on.
+      // An old Basic wedding (paid, so guests' pages are live): one plan now, so it has everything, two events too.
       if (plan === 'free') {
         await t.db.prepare(`UPDATE wedding SET plan = 'basic' WHERE id = ?`).bind(w.id).run();
-        if (n % 4 === 0) expect((await post(w, '/events', { name: 'Welcome drinks', startsAt: `${day(89 + (n % 300))}T08:00:00.000Z` })).status, w.tag).toBe(402);
+        if (n % 4 === 0) {
+          const ev = await post(w, '/events', { name: 'Welcome drinks', startsAt: `${day(89 + (n % 300))}T08:00:00.000Z` });
+          expect(ev.status, w.tag).toBe(201);
+          w.keys.push((await json<{ added: string }>(ev)).added);
+        }
         continue;
       }
       const how = n % 4;
@@ -316,13 +320,10 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
         expect(co.status, `${w.tag} ${await co.clone().text()}`).toBe(200);
         payments.push({ wid: w.id, cents: 0 });
       } else if (how === 2) {
-        if (plan === 'complete' && r() < 0.5) {
-          // Essentials first, then Deluxe for the difference.
-          await paidByCard(w, 'essentials', PRICE_CENTS.essentials);
-          await paidByCard(w, 'complete', PRICE_CENTS.complete - PRICE_CENTS.essentials);
-        } else await paidByCard(w, plan, r() < 0.3 ? PRICE_CENTS[plan] / 2 : PRICE_CENTS[plan], r() < 0.3 ? 'HALF' : '');
-        // Bought already: there's nothing more to buy at that plan.
+        await paidByCard(w, plan, r() < 0.3 ? PRICE_CENTS[plan] / 2 : PRICE_CENTS[plan], r() < 0.3 ? 'HALF' : '');
+        // Paid already: nothing more to buy, under any of the old names.
         expect((await post(w, '/plan/checkout', { what: plan })).status, w.tag).toBe(409);
+        expect((await post(w, '/plan/checkout', { what: 'complete' })).status, w.tag).toBe(409);
       } else {
         expect((await post(w, '/plan/request', { plan })).status, w.tag).toBe(200);
         expect((await company(`/weddings/${w.slug}/paid`, { method: 'POST', body: JSON.stringify({ what: plan, cents: PRICE_CENTS[plan] }) })).status, w.tag).toBe(200);
@@ -330,8 +331,8 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
         w.paidCents += PRICE_CENTS[plan];
       }
       w.plan = plan;
-      // Events: Essentials includes one, Deluxe two; another is bought by card.
-      const included = plan === 'complete' ? 2 : 1;
+      // Events: the plan includes two; another is bought by card.
+      const included = 2;
       const want = plan === 'complete' ? 2 + (r() < 0.4 ? 1 : 0) : 1 + (r() < 0.4 ? 1 : 0);
       for (let e = 1; e < want; e++) {
         const name = ['', 'Welcome drinks', 'Recovery brunch'][e]!;
@@ -345,7 +346,6 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
         w.keys.push((await json<{ added: string }>(ev)).added);
       }
     }
-    for (const w of weddings.filter((x) => x.plan === 'free')) expect(w.keys, w.tag).toEqual(['wedding']);
 
     // The company's figures: every wedding, every plan, every payment exactly once.
     const st = await json<Stats>(await company('/stats'));
@@ -397,11 +397,6 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
         const bad = await post(w, '/guests/import', { rows: [...rows.slice(0, 3), { people: ['Bad Email'], email: 'not-an-email' }] });
         expect(bad.status, w.tag).toBe(400);
       }
-      if (free && w.n % 2 === 0) {
-        // Free: more than 50 people is refused whole (402), nothing added.
-        const over = await post(w, '/guests/import', { rows: Array.from({ length: 26 }, (_, i) => ({ people: [`Over${i} Limit`, `Plus${i} Limit`] })) });
-        expect(over.status, w.tag).toBe(402);
-      }
       const res = await post(w, '/guests/import', { rows: [...rows, ...dupes] });
       const body = await json<{ added: number; skipped: unknown[]; problems: unknown[] }>(res);
       expect(res.status, `${w.tag} ${JSON.stringify(body).slice(0, 300)}`).toBe(200);
@@ -446,10 +441,6 @@ describe(`overnight: ${WEDDINGS} sample weddings, phase by phase`, () => {
   it('3. a concept seating plan before any invitation: everyone pencilled in by auto-seat, no table over its seats', { timeout: PHASE_MS }, async () => {
     for (const w of weddings) {
       const s0 = await json<SeatView>(await admin(w, '/seating'));
-      if (w.plan === 'free') {
-        expect((await put(w, '/seating', s0.version, { event: 'wedding', aspect: '4 / 3', tables: [], areas: [], seats: {} })).status, w.tag).toBe(402);
-        continue;
-      }
       expect(s0.stage.auto, w.tag).toBe('draft');
       const everyone = s0.people.length;
       expect(everyone, w.tag).toBe(w.invs.filter((g) => g.invited.includes('wedding')).reduce((a, g) => a + g.people.length, 0));

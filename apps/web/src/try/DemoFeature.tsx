@@ -60,7 +60,7 @@ export function DemoFeature({ tab }: { tab: string }) {
     <section aria-label={`${f.title} in the sample`} className="flex flex-col gap-4 max-w-[620px]">
       <h1 className="m-0 font-display font-medium text-[clamp(30px,8vw,40px)] leading-[1.08]">{f.title}</h1>
       <span className="self-start py-1 px-3 rounded-full text-[12px] font-semibold tracking-[.06em] bg-[#f3ecd9] text-[#6b5320]">
-        {f.plan === 'free' ? 'On every plan' : `${PLAN_INFO[f.plan].name}${f.plan === 'essentials' ? ' and Deluxe' : ''}`}
+        Included in {PLAN_INFO.complete.name}
       </span>
       <ul className="m-0 pl-5 flex flex-col gap-2 text-[16px] leading-[1.5]">
         {f.points.map((p) => (

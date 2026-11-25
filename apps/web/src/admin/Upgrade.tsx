@@ -261,17 +261,14 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
     }
     setBusy('');
   };
-  const plans = [
-    ['basic', PLAN_INFO.free, 'Your invitation, replies and guest list, up to 50 guests'],
-    ['essentials', PLAN_INFO.essentials, 'Plus seating, the planner, unlimited guests and automatic texts (credits extra)'],
-    ['complete', PLAN_INFO.complete, 'Everything: photos by QR, wedding party sign-ins, backups, two events'],
-  ] as const;
+  // One plan, everything included (stored as 'complete').
+  const plans = [['complete', PLAN_INFO.complete, 'Everything included: as many guests as you like, seating, the planner, photos, a second event']] as const;
   return (
     <section aria-label="Go live" className={`flex flex-col gap-3 ${compact ? 'p-4' : 'p-5'} rounded-[16px] border border-[#33402f] bg-[var(--adm-card,#fbf8f0)]`}>
       <strong className="text-[17px]">Your invitations aren’t live yet</strong>
-      <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">Set everything up and preview it as much as you like. Choose a plan, paid once, when you’re ready for guests to open their invitations. No subscription.</span>
+      <span className="text-[14px] text-[var(--adm-muted,#5b6a52)]">Set everything up and preview it as much as you like. Pay once, when you’re ready for guests to open their invitations. No subscription.</span>
       <TextsNotIncluded ok={textsOk} onOk={setTextsOk} />
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 gap-2 max-w-[420px]">
         {plans.map(([k, info, what]) => (
           <button
             key={k}
@@ -279,13 +276,13 @@ export function GoLive({ compact = false }: { compact?: boolean }) {
             disabled={!!busy || !textsOk}
             title={textsOk ? undefined : 'Tick the box above first'}
             onClick={() => void choose(k)}
-            className="flex flex-col gap-1 p-3 rounded-[12px] border border-[var(--adm-line,#c6b794)] bg-white text-left cursor-pointer disabled:opacity-60 hover:border-[#33402f]"
+            className="flex flex-col gap-1 min-h-[44px] p-3 rounded-[12px] border border-[var(--adm-line,#c6b794)] bg-white text-left cursor-pointer disabled:opacity-60 hover:border-[#33402f]"
           >
             <span className="font-semibold">
               {info.name} · {info.price}
             </span>
             <span className="text-[12px] text-[var(--adm-muted,#5b6a52)]">{what}</span>
-            <span className="text-[12px] underline">{busy === k ? 'Opening…' : card ? `Pay $${PRICE_CENTS[k === 'basic' ? 'free' : k] / 100}` : 'Ask for a payment link'}</span>
+            <span className="text-[12px] underline">{busy === k ? 'Opening…' : card ? `Pay ${dollars(PRICE_CENTS.complete)}` : 'Ask for a payment link'}</span>
           </button>
         ))}
       </div>
@@ -301,9 +298,9 @@ export function TextsNotIncluded({ ok, onOk }: { ok: boolean; onOk: (ok: boolean
   const perGuest = (TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN) / 100;
   return (
     <div role="group" aria-label="Text messages are not included" className="flex flex-col gap-2 p-4 rounded-[14px] border-2 border-[#c98a3e] bg-[#fdf3e2]">
-      <strong className="text-[16px] text-[#6b3f12]">Text messages are not included in any plan</strong>
+      <strong className="text-[16px] text-[#6b3f12]">Text messages are not included in the plan</strong>
       <span className="text-[14px] text-[#5b4a2f]">
-        Sending invitations and reminders from your own phone or by email is free. If you’d like us to text your guests, you buy text credits separately:{' '}
+        Sending invitations and reminders from your own phone or by email is free. If you’d like us to text your guests, you buy text credits separately, at cost:{' '}
         <strong>
           {TEXT_CREDIT_ALL_IN}c a credit, about ${perGuest.toFixed(2)} a guest
         </strong>{' '}

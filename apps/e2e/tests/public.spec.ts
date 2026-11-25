@@ -65,8 +65,8 @@ test('try the app: book a free trial, then the sample admin opens, switches plan
   await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveCount(0);
   const bar = page.getByRole('region', { name: 'Sample wedding' });
   await expect(bar).toBeVisible();
-  await bar.getByRole('radio', { name: 'Deluxe' }).click();
-  await expect(bar.getByRole('radio', { name: 'Deluxe' })).toHaveAttribute('aria-checked', 'true');
+  // One plan: no plan to pick in the sample's bar.
+  await expect(bar.getByRole('radio')).toHaveCount(0);
   // The guest list, and a guest's details: a choice shows at once.
   await page.goto('/admin/demo/wedding/guests?show=all');
   await expect(page.getByText('Charlotte Hale').first()).toBeVisible();

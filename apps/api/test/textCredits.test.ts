@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TEXT_COST_NOTE, TEXT_CREDIT_ALL_IN, textCreditsCents, textCreditsForGuests, textServiceFee } from '@wp/shared';
+import { TEXT_COST_NOTE, TEXT_CREDIT_ALL_IN, TEXT_RATE, textCreditsCents, textCreditsForGuests, textServiceFee } from '@wp/shared';
 import type { Env } from '../src/env';
 import { engineDeps } from '../src/env';
 import { createApp } from '../src/index';
@@ -60,20 +60,22 @@ describe('text credits', () => {
     expect(textServiceFee(720)).toBe(0);
     expect(textCreditsCents(720)).toBe(5760);
     expect(textCreditsForGuests(120)).toBe(2040); // 13 sent + 4 back-and-forth, a guest
-    expect(textCreditsForGuests(3)).toBe(100); // the smallest purchase
+    expect(textCreditsForGuests(3)).toBe(63); // the smallest purchase: A$5 at the rate
+    expect(textCreditsCents(TEXT_RATE.minCredits)).toBeGreaterThanOrEqual(TEXT_RATE.minTopUpCents);
     expect(textCreditsForGuests(7)).toBe(120); // 119, rounded up to the next 10
     expect(textCreditsForGuests(101)).toBe(1720); // 1717, rounded up to the next 10
     expect(TEXT_COST_NOTE).toMatch(/back-and-forth/);
-    expect(TEXT_COST_NOTE).toMatch(/not included in any plan/);
+    expect(TEXT_COST_NOTE).toMatch(/not included in the plan/);
+    expect(TEXT_COST_NOTE).toMatch(/at cost/);
     expect(TEXT_COST_NOTE).toMatch(/8c a credit, all-in/);
     expect(TEXT_COST_NOTE).toMatch(/no other fees/);
   });
 
   it('bought by card for exactly the credits needed; the webhook adds them once; then texts can go', async () => {
     const { cookie, wid } = await signup();
-    // Free: no automatic texts, so nothing to buy.
+    // Credits can be bought on any plan, before it's paid too (the plan gate on buying them is gone).
     await t.db.prepare(`UPDATE wedding SET plan = 'free'`).run();
-    expect((await call(`/a/w/${wid}/texts/checkout`, { method: 'POST', body: JSON.stringify({ credits: 720 }) }, cookie)).status).toBe(400);
+    expect((await call(`/a/w/${wid}/texts/checkout`, { method: 'POST', body: JSON.stringify({ credits: 720 }) }, cookie)).status).not.toBe(400);
     await t.db.prepare(`UPDATE wedding SET plan = 'essentials'`).run();
     // Out of range.
     expect((await call(`/a/w/${wid}/texts/checkout`, { method: 'POST', body: JSON.stringify({ credits: 5 }) }, cookie)).status).toBe(400);

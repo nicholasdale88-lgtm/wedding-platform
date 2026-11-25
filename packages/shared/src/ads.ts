@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { EVENT_ADDON_CENTS, PLAN_PRICE_CENTS } from './plan';
 
 /**
  * The Ads bot (Company portal → Promote → Ads): Facebook and Instagram ads run through Meta's Marketing API.
@@ -97,7 +98,7 @@ export const adRef = (id: string) => `meta-${id}`;
 export const adLink = (base: string, id: string) => `${base.replace(/\/$/, '')}/?ref=${adRef(id)}&utm_source=meta&utm_campaign=ads-bot&utm_content=${id}`;
 
 /** Prices we sell at today (dollars). An ad may only show these. */
-export const AD_PRICES = [50, 88, 98, 39];
+export const AD_PRICES = [PLAN_PRICE_CENTS / 100, EVENT_ADDON_CENTS / 100];
 
 /**
  * What's wrong with an ad's words, if anything: Meta's personal-attribute rule, no competitor names, no
@@ -109,9 +110,9 @@ export function adCopyProblems(d: Pick<AdDraft, 'primary' | 'headline' | 'descri
   if (/\b(are you|just|newly|recently|now|you'?re|you are|getting)\s+engaged\b|\byour engagement\b|congrat/i.test(text)) out.push('Meta doesn’t allow ads that say what someone is (“just engaged”, “your engagement”). Say “couples planning a wedding”.');
   if (/wooow|zola|the knot|minted|paperless post|evite|greenvelope|canva|withjoy|\bjoy app\b|riley ?& ?grey|squarespace|wix/i.test(text)) out.push('No other company’s name in an ad.');
   if (/#\s?1\b|number one|\bbest\b|guarantee|cheapest|lowest price|\breviews?\b|rated|★|⭐|award/i.test(text)) out.push('No claims we can’t prove (best, number one, guaranteed, reviews, ratings).');
-  if (/\bfree\b/i.test(text)) out.push('There’s no free plan now: say “from $50”.');
+  if (/\bfree\b/i.test(text)) out.push(`There’s no free plan now: say “$${PLAN_PRICE_CENTS / 100} once”.`);
   for (const m of text.matchAll(/(?:A?\$)\s?(\d+(?:\.\d+)?)/gi)) {
-    if (!AD_PRICES.includes(Number(m[1]))) out.push(`$${m[1]} isn’t one of our prices ($50, $88, $98, $39 an extra event).`);
+    if (!AD_PRICES.includes(Number(m[1]))) out.push(`$${m[1]} isn’t one of our prices ($${PLAN_PRICE_CENTS / 100} once, $${EVENT_ADDON_CENTS / 100} an extra event).`);
   }
   if (/\p{Extended_Pictographic}/u.test(text)) out.push('No emoji.');
   return out;

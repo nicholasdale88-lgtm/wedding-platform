@@ -210,12 +210,12 @@ describe('a hundred weddings, generated', () => {
     if (plan !== 'free') await upgrade(w, plan);
     else await t.db.prepare(`UPDATE wedding SET plan = 'basic' WHERE id = ?`).bind(w.id).run(); // Basic, paid: guests' pages are live
 
-    // A second event for some (Free can't add one: it asks for the add-on).
+    // A second event for some.
     const keys = ['wedding'];
     if (n % 4 === 0) {
       const ev = await post(w, '/events', { name: 'Recovery brunch', startsAt: `${day(61 + (n % 200))}T00:00:00.000Z` });
-      if (plan === 'free') expect(ev.status, tag).toBe(402);
-      else {
+      // One plan: every wedding has two events (the old Basic ones too).
+      {
         expect(ev.status, tag).toBe(201);
         keys.push((await read<{ added: string }>(ev)).added);
       }
@@ -260,12 +260,11 @@ describe('a hundred weddings, generated', () => {
     expect(ov.perEvent.find((e) => e.key === 'wedding'), tag).toMatchObject({ invited: atWedding.length, yes: yesW.length, no: noW.length, awaiting: atWedding.length - yesW.length - noW.length, coming: comingW });
     expect(ov.total, tag).toBe(households);
 
-    // Seating: Free asks to upgrade; the others seat everyone coming, then a no takes a seat away.
+    // Seating: everyone coming is seated, then a no takes a seat away.
     const s0 = await seating(w);
     const coming = s0.people.filter((p) => p.coming);
-    if (plan === 'free') {
-      expect((await put(w, '/seating', s0.version, { event: 'wedding', aspect: '4 / 3', tables: [], areas: [], seats: {} })).status, tag).toBe(402);
-    } else {
+    // One plan: every wedding seats its guests (nothing is behind a plan).
+    {
       const tables = Array.from({ length: Math.max(1, Math.ceil(coming.length / 10)) + 1 }, (_, i) => table(String(i + 1), i));
       const seats = Object.fromEntries(coming.map((p, k) => [p.id, tables[k % tables.length]!.id]));
       const saved = await put(w, '/seating', s0.version, { event: 'wedding', aspect: '4 / 3', tables, areas: [], seats });

@@ -111,9 +111,9 @@ describe('card payments', () => {
     const f = sentForm();
     expect(f.get('mode')).toBe('payment');
     expect(f.get('line_items[0][price_data][currency]')).toBe('aud');
-    expect(f.get('line_items[0][price_data][unit_amount]')).toBe('8800');
+    expect(f.get('line_items[0][price_data][unit_amount]')).toBe('8700');
     expect(f.get('line_items[0][quantity]')).toBe('1');
-    expect(f.get('line_items[0][price_data][product_data][name]')).toBe('The Yes List: Essentials for Alex & Sam');
+    expect(f.get('line_items[0][price_data][product_data][name]')).toBe('The Yes List for Alex & Sam');
     expect(f.get('metadata[wedding]')).toBe(wid);
     expect(f.get('metadata[what]')).toBe('essentials');
     expect(f.get('client_reference_id')).toBe(wid);
@@ -121,29 +121,28 @@ describe('card payments', () => {
     expect(f.get('success_url')).toBe(`https://example.com/admin/${wid}/settings?view=plan&paid=1&bought=essentials`);
     expect(f.get('cancel_url')).toBe(`https://example.com/admin/${wid}/settings?view=plan&paid=0`);
 
-    // Deluxe from Free is the full price; another event is the add-on's.
+    // One plan: whichever old name is asked for, it's the one price; another event is the add-on's.
     await checkout(wid, 'complete', cookie);
-    expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('9800');
+    expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('8700');
     await checkout(wid, 'event', cookie);
     expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('3900');
     expect(sentForm().get('metadata[what]')).toBe('event');
   });
 
-  it("Essentials to Deluxe charges only the difference; a plan they already have can't be bought", async () => {
+  it('a wedding already paid (on any of the old plans) is never charged again; another event can still be bought', async () => {
     stubStripe();
     const { cookie, wid } = await signup();
     await t.db.prepare(`UPDATE wedding SET plan = 'essentials' WHERE id = ?`).bind(wid).run();
-    const res = await checkout(wid, 'complete', cookie);
-    expect(res.status).toBe(200);
-    expect(sentForm().get('line_items[0][price_data][unit_amount]')).toBe('1000');
-    expect(sentForm().get('line_items[0][price_data][product_data][name]')).toBe('The Yes List: Deluxe (upgrade from Essentials) for Alex & Sam');
     const n = stripeCalls.length;
+    expect((await checkout(wid, 'complete', cookie)).status).toBe(409);
     expect((await checkout(wid, 'essentials', cookie)).status).toBe(409);
+    await t.db.prepare(`UPDATE wedding SET plan = 'basic' WHERE id = ?`).bind(wid).run();
+    expect((await checkout(wid, 'complete', cookie)).status).toBe(409);
     await t.db.prepare(`UPDATE wedding SET plan = 'complete' WHERE id = ?`).bind(wid).run();
     expect((await checkout(wid, 'complete', cookie)).status).toBe(409);
     expect((await checkout(wid, 'essentials', cookie)).status).toBe(409);
     expect(stripeCalls).toHaveLength(n);
-    // Another event can still be bought on Deluxe.
+    // Another event can still be bought.
     expect((await checkout(wid, 'event', cookie)).status).toBe(200);
   });
 
@@ -217,6 +216,8 @@ describe('card payments', () => {
   it("'event' raises the extra events allowance by one per payment, and lets them add the event", async () => {
     const { cookie, wid } = await signup();
     const add = () => call(`/a/w/${wid}/events`, { method: 'POST', body: JSON.stringify({ name: 'Recovery brunch', startsAt: '2027-03-15T00:00:00.000Z' }) }, cookie);
+    // The plan includes two events: the second is free to add, the third is the add-on.
+    expect((await add()).status).toBe(201);
     expect((await add()).status).toBe(402);
     const raw = paidEvent('cs_event_1', wid, 'event');
     expect((await hook(raw, await sign(raw))).status).toBe(200);

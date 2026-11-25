@@ -12,13 +12,10 @@ export { DEMO_WID, isDemo, DEMO_PAGES_KEY, readDemoPages, type DemoPagesDoc } fr
 export type DemoPlan = 'free' | 'essentials' | 'complete';
 
 const PLAN_KEY = 'yl-try-plan';
+/** One plan now: the sample shows it (everything included). */
 export function demoPlan(): DemoPlan {
-  try {
-    const p = sessionStorage.getItem(PLAN_KEY);
-    return p === 'free' || p === 'complete' ? p : 'essentials';
-  } catch {
-    return 'essentials';
-  }
+  void PLAN_KEY;
+  return 'complete';
 }
 export function setDemoPlan(p: DemoPlan) {
   try {
@@ -28,7 +25,7 @@ export function setDemoPlan(p: DemoPlan) {
   }
   plan = p;
 }
-let plan: DemoPlan = 'essentials';
+let plan: DemoPlan = 'complete';
 
 
 // ---------------------------------------------------------------- the sample wedding (all made up)

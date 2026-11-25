@@ -38,31 +38,27 @@ describe('front page', () => {
     expect(text).not.toMatch(/texts? (are )?included/i);
     // The free things that are still true stay.
     expect(screen.getByText('Wedding vendor? List your business free')).toBeInTheDocument();
-    expect(screen.getByText(/Send each guest their own link from your own phone or by email/)).toBeInTheDocument();
+    expect(screen.getByText('Send from your own phone or email, free')).toBeInTheDocument();
   });
 
-  it('shows texts at the all-in price first, never inside a plan', () => {
-    page();
+  it('shows texts at cost, never inside the plan', () => {
+    const { container } = page();
     expect(TEXT_CREDIT_ALL_IN).toBe(8);
-    expect(screen.getByText('8c a credit, all-in')).toBeInTheDocument();
-    expect(screen.getByText(TEXT_COST_NOTE)).toBeInTheDocument();
-    expect(screen.getByText(/Not included in any plan: text credits are bought separately/)).toBeInTheDocument();
+    expect(screen.getByText('Text messages, if you want them, at cost.')).toBeInTheDocument();
+    expect(container.textContent).toContain(TEXT_COST_NOTE);
   });
 
-  it('shows the same prices the app charges, the add-on, and a comparison that matches each plan', () => {
-    page();
-    for (const p of Object.values(PLAN_INFO)) expect(screen.getAllByText(p.price).length).toBeGreaterThan(0);
-    expect(screen.getByText(EVENT_ADDON.price)).toBeInTheDocument();
-    const table = screen.getByRole('table');
-    const photos = within(table).getByText('Guests’ photos by QR code on each table').closest('tr')!;
-    expect(within(photos).getByLabelText(`${PLAN_INFO.free.name}: not included`)).toBeInTheDocument();
-    expect(within(photos).getByLabelText(`${PLAN_INFO.essentials.name}: not included`)).toBeInTheDocument();
-    expect(within(photos).getByLabelText(`${PLAN_INFO.complete.name}: included`)).toBeInTheDocument();
-    // Automatic texting comes with Essentials and Deluxe, and the row says the credits are extra.
-    const texts = within(table).getByText('Automatic text invitations and reminders (text credits extra)').closest('tr')!;
-    expect(within(texts).getByLabelText(`${PLAN_INFO.free.name}: not included`)).toBeInTheDocument();
-    expect(within(texts).getByLabelText(`${PLAN_INFO.essentials.name}: included`)).toBeInTheDocument();
-    expect(within(table).queryByText('Invitations and reminders by text')).toBeNull();
+  it('one plan, one price (the app’s own), one button: no tiers, no comparison table, no urgency', () => {
+    const { container } = page();
+    const card = screen.getByRole('article', { name: `${PLAN_INFO.complete.name}, ${PLAN_INFO.complete.price} once` });
+    expect(PLAN_INFO.complete.price).toBe('$87');
+    expect(within(card).getByText('$87')).toBeInTheDocument();
+    expect(within(card).getByText('As many guests as you like')).toBeInTheDocument();
+    expect(within(card).getByRole('link', { name: 'Get started' })).toHaveAttribute('href', '#start');
+    expect(screen.queryByRole('table')).toBeNull();
+    const text = container.textContent ?? '';
+    expect(text).not.toMatch(/Essentials|Deluxe|Most popular|\$88|\$98|\$50\b|\$80\b/);
+    expect(text).toContain(EVENT_ADDON.price);
   });
 
   it('keeps the questions short', () => {

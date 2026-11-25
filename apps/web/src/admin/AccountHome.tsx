@@ -85,7 +85,7 @@ export function AccountHome({ o, to }: { o: Overview; to: To }) {
       <ExpectedGuests o={o} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Status label="Your plan" value={PLAN_INFO[plan].name} sub={plan === 'complete' ? 'Everything included' : 'See what upgrading adds'} go={() => settings('plan')} />
+        <Status label="Your plan" value={PLAN_INFO[plan].name} sub={plan === 'free' ? `Not paid yet: ${PLAN_INFO.complete.price} once` : 'Everything included'} go={() => settings('plan')} />
         <Status
           label="Who can sign in"
           value={members ? `${owners} ${owners === 1 ? 'person' : 'people'}` : '…'}

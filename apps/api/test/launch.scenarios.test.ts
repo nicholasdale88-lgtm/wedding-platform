@@ -252,15 +252,14 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect(ov.latest.map((x) => x.message)).toEqual(['So happy for you both!', 'So happy for you both!']);
     expect((await events(w))[0]).toMatchObject({ invited: 2, coming: 2 });
 
-    // No texts on Free: a test or a send asks to upgrade, and nothing is ever queued.
+    // Texts: nothing is behind the plan, but with no credits bought (and no mobile of theirs) nothing is ever texted.
     const test = await post(w, '/texts/test', { body: 'Testing our texts' });
-    expect(test.status).toBe(402);
-    expect((await read<ApiError>(test)).error).toMatchObject({ code: 'upgrade', feature: 'texts' });
+    expect(test.status).not.toBe(402);
     const tx = await read<Campaigns>(await admin(w, '/texts'));
-    // (Free can still send from their own phone or by email: those are kept ready, never texted by the service.)
+    // (Their own phone or email always works: those are kept ready, never texted by the service.)
     for (const cp of tx.campaigns) {
       const sent = await post(w, `/texts/${cp.id}/send`, {});
-      if (sent.status !== 402) expect(await read<{ queued: number; sent: number }>(sent)).toMatchObject({ queued: 0, sent: 0 });
+      if (sent.status === 200) expect(await read<{ queued: number; sent: number }>(sent)).toMatchObject({ sent: 0 });
     }
     expect((await t.db.prepare(`SELECT COUNT(*) AS n FROM sms_out WHERE wedding_id = ?`).bind(w.id).first<{ n: number }>())!.n).toBe(0);
 
@@ -271,26 +270,13 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
   });
 
   // ------------------------------------------------------------------------------------------------ 2
-  it('2. Free reaches its 50-guest limit (402), asks to upgrade, is moved to Essentials and keeps adding', { timeout: 90_000 }, async () => {
+  it('2. one plan: past 50 guests with no limit, seating open, asking for a payment link is noted, the owner switches it on', { timeout: 90_000 }, async () => {
     const w = await signup({ firstName: 'Sophie', partnerName: 'Daniel', email: 'sophie.daniel@example.com', date: day(200) });
     await importRows(w, Array.from({ length: 50 }, (_, i) => ({ people: [nameOf(i)], phone: mobile(i) })));
     expect(await overview(w)).toMatchObject({ total: 50, seatsHeld: 50 });
-
-    // The 51st person, one at a time or by import, asks to upgrade; nothing is added.
-    const one = await post(w, '/guests', {});
-    expect(one.status).toBe(402);
-    expect((await read<ApiError>(one)).error).toMatchObject({ code: 'upgrade', feature: 'unlimitedGuests' });
-    const more = await post(w, '/guests/import', { rows: [{ people: ['Late Addition'] }, { people: ['Another Late', 'Plus One'] }] });
-    expect(more.status).toBe(402);
-    expect((await read<ApiError>(more)).error.feature).toBe('unlimitedGuests');
-    expect((await overview(w)).total).toBe(50);
-    // Seating is an Essentials feature too.
-    const s0 = await seating(w);
-    expect((await put(w, '/seating', s0.version, { event: 'wedding', aspect: '4 / 3', tables: [], areas: [], seats: {} })).status).toBe(402);
-
-    // Asking to upgrade is noted; the platform owner switches it on.
-    expect((await post(w, '/plan/request', { plan: 'essentials' })).status).toBe(200);
-    expect((await overview(w)).wedding).toMatchObject({ plan: 'free', planRequested: 'essentials' }); // Basic (shown as its plan, 'free')
+    // Asking for a payment link is noted; the platform owner switches it on.
+    expect((await post(w, '/plan/request', { plan: 'complete' })).status).toBe(200);
+    expect((await overview(w)).wedding).toMatchObject({ planRequested: 'complete' });
     expect((await send('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: w.slug, plan: 'complete' }) }, w.cookie)).status).toBe(403); // not the couple
     await upgrade(w, 'essentials');
     expect((await overview(w)).wedding).toMatchObject({ plan: 'essentials', planRequested: '' });
@@ -358,11 +344,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
   it('4. a two-event weekend: the wedding and a recovery brunch, invited separately, counted per event', { timeout: 90_000 }, async () => {
     const date = day(180);
     const w = await signup({ firstName: 'Amelia', partnerName: 'Hugo', email: 'amelia.hugo@example.com', date });
-    // Free includes one event: a second asks for the add-on, then works once it's paid for.
-    const early = await post(w, '/events', { name: 'Recovery brunch', startsAt: `${day(181)}T00:00:00.000Z` });
-    expect(early.status).toBe(402);
-    expect((await read<ApiError>(early)).error).toMatchObject({ code: 'upgrade', feature: 'extraEvent' });
-    expect((await events(w)).length).toBe(1);
+    // The plan includes two events: the second is there to add.
     await upgrade(w, 'essentials');
     const ev = await post(w, '/events', { name: 'Recovery brunch', startsAt: `${day(181)}T00:00:00.000Z`, venue: 'The Boathouse, Palm Beach', catered: false });
     expect(ev.status).toBe(201);

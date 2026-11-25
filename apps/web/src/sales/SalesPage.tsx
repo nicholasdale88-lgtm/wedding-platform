@@ -3,19 +3,15 @@ import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  allows,
   EVENT_ADDON,
-  EVENTS_INCLUDED,
-  FEATURE_LABEL,
-  FREE_GUEST_LIMIT,
-  PLAN_INFO,
+  PLAN_NAME,
+  PLAN_PRICE,
   gstWords,
   textCostNote,
   TEXT_CREDIT_ALL_IN,
   TEXT_RATE,
   textCreditsCents,
   textCreditsForGuests,
-  type Feature,
 } from '@wp/shared';
 import { rememberRef, savedCode, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
@@ -36,7 +32,6 @@ import { BRAND } from './brand';
  */
 export { BRAND } from './brand';
 
-type PlanKey = 'free' | 'essentials' | 'complete';
 
 // Warm ivory and blush, champagne gold, and a deep plum ink: the colours of the day itself, not of an office.
 // From the shared tokens (./tokens, VS-01): display gold is for large script only; small gold type is GOLD_INK.
@@ -52,10 +47,8 @@ const serif = "'Cormorant Garamond', Georgia, serif"; // our headings: light and
 const script = "'Great Vibes', 'Pinyon Script', cursive"; // one word at a time, in gold
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 
-/** "$50" → 50 (NaN when it isn't a price). */
-const dollars = (price: string) => Number(price.replace(/[^0-9.]/g, ''));
-/** The cheapest plan's price, from the shared plans (so it can't drift). */
-const fromPrice = Object.values(PLAN_INFO).reduce((a, p) => (dollars(p.price) < dollars(a.price) ? p : a)).price;
+/** The one plan's price, from the shared config (so it can't drift). */
+const fromPrice = PLAN_PRICE;
 
 /** The text price, all-in first (the service fee included), as it must be shown. */
 const TEXT_ALL_IN = `${TEXT_CREDIT_ALL_IN}c a credit, all-in`;
@@ -63,8 +56,6 @@ const TEXT_ALL_IN = `${TEXT_CREDIT_ALL_IN}c a credit, all-in`;
 const TYPICAL_GUESTS = 120;
 const typicalTexts = `$${(textCreditsCents(textCreditsForGuests(TYPICAL_GUESTS)) / 100).toFixed(2)}`;
 
-const guestsLine = (k: PlanKey) => (allows(k, 'unlimitedGuests') ? 'As many guests as you like' : `Up to ${FREE_GUEST_LIMIT} guests`);
-const TEXTS_LINE = 'Automatic text invitations and reminders (text credits extra)';
 /** Texts are never part of a plan: what to budget per guest's mobile, all-in (17 credits at 8c: every text sent, plus replies). */
 const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN);
 /** How sending invitations works, start to finish, with the one cost that isn't in a plan (text credits). */
@@ -150,12 +141,12 @@ function Bubble({ from, children, className = '' }: { from: 'us' | 'them' | 'not
 }
 
 /** Under the sending steps: what texting from us costs, replies and back-and-forth included. */
-const SEND_CREDITS_NOTE = `texting from us is bought separately and not included in any plan: ${TEXT_CREDIT_ALL_IN}c a credit, all-in. Budget about ${typicalTexts} for ${TYPICAL_GUESTS} guests: every text from the invitation to the thank-you, plus the back-and-forth when guests text you back. You see the total before you pay.`;
+const SEND_CREDITS_NOTE = `texting from us is bought separately and not included in the plan: at cost, ${TEXT_CREDIT_ALL_IN}c a credit, all-in. Budget about ${typicalTexts} for ${TYPICAL_GUESTS} guests: every text from the invitation to the thank-you, plus the back-and-forth when guests text you back. You see the total before you pay.`;
 
 const SEND_STEPS: { title: string; text: string }[] = [
   { title: 'Add your guests', text: 'Bring them in from your phone’s contacts or a spreadsheet, or type them in. Each household gets its own private invitation link.' },
   { title: 'Make the invitation yours', text: 'Choose a design and the opening, then your words, photos and music. Preview it exactly as a guest will see it.' },
-  { title: 'Pay for your plan, once', text: `From ${fromPrice}, when you’re ready to send. No subscription.` },
+  { title: 'Pay for your plan, once', text: `${fromPrice}, when you’re ready to send. No subscription.` },
   {
     title: 'Choose how it goes out',
     text: 'Free from your own phone (we open a ready-written message for each guest) or by email. Or let us text everyone for you, with reminders sent automatically.',
@@ -164,43 +155,16 @@ const SEND_STEPS: { title: string; text: string }[] = [
   { title: 'Replies sort themselves', text: 'Every reply fills your guest list, dietary list and seating plan as it comes in.' },
 ];
 
-const TEXTS_PRICE_LINE = `Texts not included: about ${TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest, all-in, every text and the replies`;
 
-const PLANS: { key: PlanKey; note: string; items: string[]; pick?: boolean }[] = [
-  {
-    key: 'free',
-    note: 'The invitation and the replies',
-    items: ['Your invitation and RSVP page', guestsLine('free'), 'Replies, numbers and dietary needs in one list', 'Send it from your own email or phone, free'],
-  },
-  {
-    key: 'essentials',
-    note: 'The whole plan',
-    pick: true,
-    items: [`Everything in ${PLAN_INFO.free.name}`, guestsLine('essentials'), 'The seating plan', 'Budget, payments, checklist and vendors', TEXTS_LINE, TEXTS_PRICE_LINE],
-  },
-  {
-    key: 'complete',
-    note: 'Every event, every photo',
-    items: [
-      `Everything in ${PLAN_INFO.essentials.name}`,
-      `${EVENTS_INCLUDED.complete} events, like a welcome drinks`,
-      'Guests’ photos and videos by QR code, and a live photo wall',
-      'Photos and backups save to your own Google Drive or Dropbox',
-      'Wedding party sign-ins',
-      TEXTS_PRICE_LINE,
-    ],
-  },
+/** What the one plan includes (no tiers: everything is in it). */
+const PLAN_TICKS = [
+  'Your invitation and RSVP page',
+  'As many guests as you like',
+  'Seating, meals, budget, checklist and vendors',
+  'Guests’ photos to your own Google Drive or Dropbox',
+  'A second event, if you want one',
+  'Send from your own phone or email, free',
 ];
-
-/** Which plans can text guests automatically (from the shared plans): "Essentials and Deluxe". */
-const textingPlans = PLANS.filter((p) => allows(p.key, 'texts'))
-  .map((p) => PLAN_INFO[p.key].name)
-  .join(' and ');
-
-/** Every feature that differs between plans, for the comparison table (what the server checks, so it can't drift). */
-const COMPARE: Feature[] = ['unlimitedGuests', 'texts', 'seating', 'planner', 'extraEvent', 'photoQr', 'partySignIns', 'dailyBackups'];
-/** The table's own wording where the shared label could be misread (texts are never part of a plan). */
-const ROW_LABEL: Partial<Record<Feature, string>> = { texts: TEXTS_LINE };
 
 /**
  * How we compare with the usual made-for-you digital invitation: no one named, only what is common in the
@@ -216,10 +180,10 @@ const VS_USUAL: { what: string; usual: string; ours: string }[] = [
 
 /** Our questions; `gst` is whether the business is GST registered (only then may prices say GST is included). */
 const faq = (gst: boolean): [string, string][] => [
-  ['Is it a subscription?', 'No. Set everything up first, then pay once for your wedding when you’re ready to send your invitations. Nothing renews. Move to a bigger plan any time: everything stays, and you only pay the difference.'],
+  ['Is it a subscription?', `No. Set everything up first, then pay ${PLAN_PRICE} once for your wedding when you’re ready to send your invitations. Nothing renews, and everything is included.`],
   [
     'Are text messages included?',
-    `No, texts aren’t included in any plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (${gstWords(gst)}, no other fees), and you see the total before you pay.`,
+    `No, texts aren’t included in the plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (${gstWords(gst)}, no other fees), and you see the total before you pay.`,
   ],
   [
     'Where are our photos kept?',
@@ -267,7 +231,6 @@ function RecommendedBy() {
 }
 
 export function SalesPage() {
-  const [plan, setPlan] = useState<PlanKey>('essentials');
   // Less motion asked for: the hero's envelope stays closed until it's tapped.
   const [calm] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
   const site = useSite();
@@ -281,10 +244,6 @@ export function SalesPage() {
     const id = window.location.hash.slice(1);
     if (id) document.getElementById(id)?.scrollIntoView({ block: 'start' });
   }, []);
-  const choose = (k: PlanKey) => {
-    setPlan(k);
-    document.getElementById('start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
   return (
     <div className="min-h-screen" style={{ background: CREAM, color: INK, fontFamily: sans }}>
       <ShowcaseStyles />
@@ -392,7 +351,7 @@ export function SalesPage() {
                 </a>
               </div>
               <ul className="order-6 md:order-none m-0 p-0 list-none flex flex-wrap justify-center md:justify-start gap-x-5 gap-y-2 text-[14px]" style={{ color: SOFT }}>
-                <li>✓ From {fromPrice}, paid once</li>
+                <li>✓ {fromPrice}, paid once</li>
                 <li>✓ No subscription</li>
                 <li>✓ Set up in an evening</li>
               </ul>
@@ -461,7 +420,7 @@ export function SalesPage() {
                 Book your free trial
               </a>
               <span className="text-[14px]" style={{ color: SOFT }}>
-                Step inside a sample wedding: switch between Basic, Essentials and Deluxe. Free, and nothing to pay.
+                Step inside a sample wedding with everything in it. Free, and nothing to pay.
               </span>
             </div>
             <Tiles />
@@ -559,127 +518,40 @@ export function SalesPage() {
                 Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, {gstWords(gst)}.
               </p>
             </div>
-            <div className="grid gap-5 md:grid-cols-3 items-stretch">
-              {PLANS.map((p) => (
-                <article
-                  key={p.key}
-                  className="flex flex-col gap-5 p-7 rounded-[24px] bg-white"
-                  style={{ border: `${p.pick ? 2 : 1}px solid ${p.pick ? INK : '#ecdcd3'}` }}
-                >
-                  <div className="flex flex-col gap-1">
-                    <h3 className="m-0 text-[20px] font-semibold">{PLAN_INFO[p.key].name}</h3>
-                    <span className="text-[14px]" style={{ color: SOFT }}>
-                      {p.note}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[52px] leading-none" style={{ fontFamily: serif }}>
-                      {PLAN_INFO[p.key].price}
-                    </span>
-                    <span className="text-[14px]" style={{ color: SOFT }}>
-                      once
-                    </span>
-                  </div>
-                  <ul className="m-0 p-0 list-none flex flex-col gap-2 text-[15px] leading-[1.45] flex-1">
-                    {p.items.map((i) => (
-                      <li key={i} className="flex gap-2">
-                        <span aria-hidden style={{ color: GOLD_INK }}>
-                          ✓
-                        </span>
-                        {i}
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    onClick={() => choose(p.key)}
-                    className="py-3 rounded-full text-[15px] font-medium cursor-pointer"
-                    style={p.pick ? { background: INK, color: PAPER, border: 0 } : { background: 'transparent', color: INK, border: `1px solid ${INK}` }}
-                  >
-                    Choose {PLAN_INFO[p.key].name}
-                  </button>
-                </article>
-              ))}
-            </div>
-
-            <p className="m-0 text-center text-[15px]" style={{ color: SOFT }}>
-              Another event beyond your plan, like a rehearsal dinner or a recovery brunch: {EVENT_ADDON.name}, <strong className="font-semibold" style={{ color: INK }}>{EVENT_ADDON.price}</strong> each.
-            </p>
-
-            <div className="grid gap-5 md:grid-cols-2 max-w-[900px] w-full mx-auto">
-              <h3 className="sr-only">
-                Sending your invitations
-              </h3>
-              <div className="flex flex-col gap-2 p-7 rounded-[24px]" style={{ background: CREAM }}>
-                <span className="text-[14px] font-semibold">Send it yourself</span>
-                <span className="text-[34px] leading-none" style={{ fontFamily: serif }}>
-                  Free
+            <article aria-label={`${PLAN_NAME}, ${PLAN_PRICE} once`} className="w-full max-w-[460px] mx-auto flex flex-col gap-5 p-7 rounded-[24px] bg-white" style={{ border: `2px solid ${INK}` }}>
+              <div className="flex items-baseline justify-center gap-2">
+                <span className="text-[56px] leading-none" style={{ fontFamily: serif }}>
+                  {PLAN_PRICE}
                 </span>
-                <p className="m-0 text-[15px] leading-[1.55]" style={{ color: SOFT }}>
-                  Send each guest their own link from your own phone or by email, on any plan.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 p-7 rounded-[24px]" style={{ background: CREAM }}>
-                <span className="text-[14px] font-semibold">Or we text it for you</span>
-                <span className="text-[34px] leading-none" style={{ fontFamily: serif }}>
-                  {TEXT_ALL_IN}
+                <span className="text-[15px]" style={{ color: SOFT }}>
+                  once
                 </span>
-                <p className="m-0 text-[15px] leading-[1.55]" style={{ color: SOFT }}>
-                  Not included in any plan: text credits are bought separately, on {textingPlans}. About {typicalTexts} for {TYPICAL_GUESTS} guests, invitations to thank-yous and the replies back and forth.
-                </p>
               </div>
-            </div>
-            <p role="note" className="m-0 max-w-[900px] mx-auto text-[13px] leading-[1.6] text-center" style={{ color: SOFT }}>
-              {textCostNote(gst)}
+              <ul className="m-0 p-0 list-none flex flex-col gap-2 text-[15px] leading-[1.45]">
+                {PLAN_TICKS.map((i) => (
+                  <li key={i} className="flex gap-2">
+                    <span aria-hidden style={{ color: GOLD_INK }}>
+                      ✓
+                    </span>
+                    {i}
+                  </li>
+                ))}
+              </ul>
+              <span className="text-[14px] text-center" style={{ color: SOFT }}>
+                Text messages, if you want them, at cost.
+              </span>
+              <a href="#start" className="inline-flex items-center justify-center min-h-[48px] rounded-full no-underline text-[16px] font-semibold" style={{ background: INK, color: PAPER }}>
+                Get started
+              </a>
+            </article>
+            <p role="note" className="m-0 max-w-[760px] mx-auto text-[13px] leading-[1.6] text-center" style={{ color: SOFT }}>
+              {textCostNote(gst)} A third event, like a recovery brunch, is {EVENT_ADDON.price}.
             </p>
-
-            <details className="max-w-[900px] w-full mx-auto rounded-[20px] border border-[#ecdcd3] bg-white">
-              <summary className="cursor-pointer py-4 px-6 text-[15px] font-semibold">Compare every feature</summary>
-              <div className="overflow-x-auto px-6 pb-6">
-                <table className="w-full text-[14px] border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="text-left py-2 pr-3 font-semibold">Feature</th>
-                      {PLANS.map((p) => (
-                        <th key={p.key} className="py-2 px-2 font-semibold text-center whitespace-nowrap">
-                          {PLAN_INFO[p.key].name}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t border-[#f0e2da]">
-                      <td className="py-2 pr-3">Your invitation, RSVP page and guest list</td>
-                      {PLANS.map((p) => (
-                        <td key={p.key} className="py-2 px-2 text-center" aria-label={`${PLAN_INFO[p.key].name}: included`}>
-                          ✓
-                        </td>
-                      ))}
-                    </tr>
-                    {COMPARE.map((f) => (
-                      <tr key={f} className="border-t border-[#f0e2da]">
-                        <td className="py-2 pr-3">{ROW_LABEL[f] ?? FEATURE_LABEL[f]}</td>
-                        {PLANS.map((p) => (
-                          <td
-                            key={p.key}
-                            className="py-2 px-2 text-center"
-                            aria-label={`${PLAN_INFO[p.key].name}: ${allows(p.key, f) ? 'included' : 'not included'}`}
-                            style={{ color: allows(p.key, f) ? INK : '#c9b3a8' }}
-                          >
-                            {allows(p.key, f) ? '✓' : '–'}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </details>
           </div>
         </section>
 
         <section id="start" className="py-16 md:py-20 px-4">
-          <SignUp plan={plan} setPlan={setPlan} />
+          <SignUp />
         </section>
 
         <section aria-labelledby="questions" className="py-16 md:py-20 px-4" style={{ background: PAPER }}>
@@ -754,8 +626,8 @@ export function SalesPage() {
   );
 }
 
-/** Sign up: the two names, an email and passcode, the date if they have it, and the plan. */
-function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => void }) {
+/** Sign up: the two names, an email and passcode, the date if they have it (the one plan, paid later). */
+function SignUp() {
   const [f, setF] = useState({ firstName: '', partnerName: '', email: '', passcode: '', date: '', guests: '', marketing: false, website: '' });
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
@@ -768,7 +640,7 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
     try {
       // The full app's client (60 KB+) loads only when someone signs up, not with the front page.
       const { api } = await import('../lib/api');
-      const r = await api.signup({ ...f, guests: Math.max(0, Math.min(3000, Math.round(Number(f.guests) || 0))), plan, ref: savedRef() });
+      const r = await api.signup({ ...f, guests: Math.max(0, Math.min(3000, Math.round(Number(f.guests) || 0))), plan: 'complete', ref: savedRef() });
       // Their own invitation first (with their names), then "Make it yours" takes them into the admin.
       const slug = r.weddings.find((x) => x.id === r.weddingId)?.slug;
       window.location.assign(slug ? `/w/${encodeURIComponent(slug)}/?preview=1&welcome=1` : `/admin/${encodeURIComponent(r.weddingId)}`);
@@ -838,45 +710,24 @@ function SignUp({ plan, setPlan }: { plan: PlanKey; setPlan: (p: PlanKey) => voi
           </label>
         </div>
         {step('4', 'Your plan')}
-        <fieldset className="m-0 p-0 border-0 flex flex-col gap-3 min-w-0">
-          <legend className="sr-only">Plan</legend>
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
-            {PLANS.map((p) => {
-              const on = plan === p.key;
-              return (
-                <label
-                  key={p.key}
-                  className="relative flex sm:flex-col gap-3 sm:gap-1 items-center sm:items-start p-4 rounded-[18px] border-2 cursor-pointer transition-[border-color,box-shadow] duration-150"
-                  style={{ borderColor: on ? INK : '#ecdcd3', background: on ? '#fffdf8' : 'rgba(255,253,248,.6)', boxShadow: on ? '0 10px 24px rgba(70,40,48,.12)' : undefined }}
-                >
-                  {p.pick && (
-                    <span className="absolute -top-[11px] right-3 py-[2px] px-[10px] rounded-full text-[11px] font-semibold tracking-[.06em]" style={{ background: GOLD_INK, color: '#fff' }}>
-                      Most popular
-                    </span>
-                  )}
-                  <input type="radio" name="plan" checked={on} onChange={() => setPlan(p.key)} className="w-[18px] h-[18px] flex-none accent-[#2e2430]" />
-                  <span className="flex flex-col min-w-0">
-                    <span className="text-[17px]" style={{ fontFamily: serif, fontWeight: 600 }}>
-                      {PLAN_INFO[p.key].name}
-                    </span>
-                    <span className="text-[12px]" style={{ color: SOFT }}>
-                      {p.note}
-                    </span>
-                  </span>
-                  <span className="ml-auto sm:ml-0 sm:mt-1 text-[26px] leading-none" style={{ fontFamily: serif, color: INK }}>
-                    {PLAN_INFO[p.key].price}
-                  </span>
-                </label>
-              );
-            })}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3 p-4 rounded-[18px] border-2" style={{ borderColor: INK, background: '#fffdf8' }}>
+            <span className="flex flex-col min-w-0">
+              <span className="text-[17px]" style={{ fontFamily: serif, fontWeight: 600 }}>
+                {PLAN_NAME}
+              </span>
+              <span className="text-[12px]" style={{ color: SOFT }}>
+                Everything included. Paid once, when you’re ready to send.
+              </span>
+            </span>
+            <span className="text-[26px] leading-none" style={{ fontFamily: serif, color: INK }}>
+              {PLAN_PRICE}
+            </span>
           </div>
-          <span className="text-[13px] text-center" style={{ color: SOFT }}>
-            Paid once, when you’re ready to send. Change plan any time before then.
-          </span>
           <span className="text-[13px] text-center p-3 rounded-[12px] bg-[#f8ece6]" style={{ color: INK }}>
-            Texting your guests is optional: <strong>{TEXT_CREDIT_ALL_IN}c a text credit</strong>, about <strong>{TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest</strong> for every text (invitation, reminders, thank-yous) and the back-and-forth when guests reply. From your own phone or by email it’s free.
+            Texting your guests is optional, at cost: <strong>{TEXT_CREDIT_ALL_IN}c a text credit</strong>, about <strong>{TEXT_PER_GUEST >= 100 ? `$${(TEXT_PER_GUEST / 100).toFixed(2)}` : `${TEXT_PER_GUEST}c`} a guest</strong> for every text (invitation, reminders, thank-yous) and the back-and-forth when guests reply. From your own phone or by email it’s free.
           </span>
-        </fieldset>
+        </div>
         {/* Left empty by people (hidden); bots fill it in. */}
         <input tabIndex={-1} aria-hidden="true" autoComplete="off" value={f.website} onChange={set('website')} name="website" className="absolute left-[-9999px] w-px h-px opacity-0" />
         <label className="flex items-start gap-3 text-[14px] cursor-pointer pt-1" style={{ color: SOFT }}>

@@ -31,3 +31,9 @@ Every intentional difference from `design/` is listed here. Nothing else may dif
   --yl-l1/2), turning over as they fall (transform only), replacing rounded blobs.
 - **Textures**: a wax mottle tiled over every seal (public/textures/wax.svg, 96 px) and brushed streaks on the
   gold-foil liner (public/textures/foil.svg, 120 px). The envelope's timings and flap are unchanged.
+
+## 26 Nov 2026: launch simplification (send-09, Iris's build-specs-01, approved by Nick)
+
+| # | Screen | What differs | Why | Status |
+|---|---|---|---|---|
+| S6 | Pricing (/ #pricing, sign-up, Settings → Plan & billing, Terms, the sample's bar) | One plan, The Yes List, A$87 once (config: PLAN_PRICE_CENTS). One centred card with ticks, a muted "Text messages, if you want them, at cost." line and one "Get started" button. No Basic / Essentials / Deluxe cards, no comparison table, no "Most popular", no plan pills in the sample. Nothing is behind a plan; texting waits until the plan is paid and credits are bought. Stored plan values are kept, so older rows work and nobody is charged twice. | Launch simplification (Job 6; price set by Nick at A$87). | Awaiting sign-off |

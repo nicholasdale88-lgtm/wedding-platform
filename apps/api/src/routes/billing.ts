@@ -33,7 +33,7 @@ type Price = { ok: false; error: string; promo: boolean } | { ok: true; cents: n
 async function priceFor(db: D1Database, plan: string, what: Purchase, code: string): Promise<Price> {
   const current = planOf(plan);
   const cents = chargeCents(current, what, plan === 'basic');
-  if (cents === null) return { ok: false, error: `Your wedding already has ${PLAN_INFO[current].name}.`, promo: false };
+  if (cents === null) return { ok: false, error: 'Your wedding is already paid for.', promo: false };
   if (!code) return { ok: true, cents, off: 0, code: '', current };
   const { promo, used } = await findPromo(db, code);
   const p = promoPrice(cents, promo, what, dateIn('Australia/Sydney'), used);
@@ -93,14 +93,8 @@ export function billingRoutes() {
     }
     if (!key || !c.env.STRIPE_WEBHOOK_SECRET) return err(404, 'card_off', "Paying by card isn't switched on yet. Ask for a payment link instead.");
 
-    const label =
-      what === 'event'
-        ? EVENT_ADDON.name
-        : what === 'basic'
-          ? PLAN_INFO.free.name
-          : current !== 'free' || w.plan === 'basic'
-            ? `${PLAN_INFO[what].name} (upgrade from ${PLAN_INFO[current].name})`
-            : PLAN_INFO[what].name;
+    void current;
+    const label = what === 'event' ? EVENT_ADDON.name : PLAN_INFO.complete.name;
     // Back to Settings → Your plan (above): an address with a page in it keeps ?paid=1 through the admin's
     // redirects (a bare /admin/:wid drops the query on its way to the last section used).
     const form = new URLSearchParams({
@@ -110,7 +104,7 @@ export function billingRoutes() {
       'line_items[0][quantity]': '1',
       'line_items[0][price_data][currency]': 'aud',
       'line_items[0][price_data][unit_amount]': String(cents),
-      'line_items[0][price_data][product_data][name]': `The Yes List: ${label} for ${w.name1} & ${w.name2}`,
+      'line_items[0][price_data][product_data][name]': what === 'event' ? `The Yes List: ${label} for ${w.name1} & ${w.name2}` : `${label} for ${w.name1} & ${w.name2}`,
       'metadata[wedding]': wid,
       'metadata[what]': what,
       'metadata[texts_not_included_ack]': b.data.textsAck ? 'yes' : 'no',
@@ -158,10 +152,8 @@ export function billingRoutes() {
     if (!c.env.STRIPE_SECRET_KEY || !c.env.STRIPE_WEBHOOK_SECRET) return err(404, 'card_off', 'Paying by card isn’t switched on yet. Send from your own phone or by email meanwhile (free).');
     const w = await c.env.DB.prepare(`SELECT name1, name2, plan FROM wedding WHERE id = ? AND deleted_at IS NULL`).bind(wid).first<{ name1: string; name2: string; plan: string }>();
     if (!w) return err(404, 'not_found', 'Wedding not found.');
-    // Free sends from your own phone or by email only: credits would sit unused.
-    if (planOf(w.plan) === 'free') return err(400, 'plan', `Automatic texts come with ${PLAN_INFO.essentials.name} (${PLAN_INFO.essentials.price} once). On Free, send from your own phone or by email, free.`);
     if (!(await allow(c.env.DB, `checkout:${wid}`, 20, 3_600_000))) return err(429, 'slow_down', 'Too many tries at paying. Please wait a little and try again.');
-    const back = `${c.env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/admin/${encodeURIComponent(wid)}/settings?view=texting`;
+    const back = `${c.env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/admin/${encodeURIComponent(wid)}/settings?view=credits`;
     const form = new URLSearchParams({
       mode: 'payment',
       'payment_method_types[0]': 'card',

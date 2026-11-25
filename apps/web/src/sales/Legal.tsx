@@ -6,11 +6,8 @@ import { useSite } from '../lib/site';
 import { Wordmark } from './Art';
 import { BRAND } from './brand';
 
-/** The plans and their prices, from the shared plans: "Basic $50, Essentials $88 and Deluxe $98". */
-const PLANS = Object.values(PLAN_INFO)
-  .map((p) => `${p.name} ${p.price}`)
-  .join(', ')
-  .replace(/, ([^,]*)$/, ' and $1');
+/** The one plan and its price, from the shared config: "The Yes List, $87". */
+const PLANS = `${PLAN_INFO.complete.name}, ${PLAN_INFO.complete.price}`;
 
 /**
  * /privacy, /terms and /contact: plain-English starter pages for the front page's footer.
@@ -201,7 +198,7 @@ export function TermsPage() {
       <H2>Paying</H2>
       <List
         items={[
-          `Every plan (${PLANS}) is a one-off payment per wedding, in Australian dollars, ${gstWords(gst)}. You can set everything up before you pay, and pay once when you’re ready to send your invitations. There is no free plan, no subscription and nothing renews.`,
+          `The plan (${PLANS}) is a one-off payment per wedding, in Australian dollars, ${gstWords(gst)}. You can set everything up before you pay, and pay once when you’re ready to send your invitations. There is no free plan, no subscription and nothing renews.`,
           `Text messages (SMS) are not included in any plan. If you choose to send texts, you buy text credits separately. The price is ${TEXT_CREDIT_ALL_IN}c a credit, all-in (${gstWords(gst)}), with no other fees (no card surcharge). The total you will pay is shown before you pay. Each text of up to 160 characters uses one credit; a longer one uses more. Credits don’t expire, and when they run out nothing more is texted until you buy more. Sending from your own phone or by email is free.`,
           'Prices can change for new purchases, but never for a plan you’ve already paid for.',
         ]}

@@ -1123,9 +1123,8 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
     });
     const body = { total: rng.int(0, 120_000), guests: 0, lines, split: {} };
     const saved = await admin('/planner/doc/:kind', 'PUT', '/planner/doc/budget', body, { 'If-Match': String(bud.version) });
-    if (w.plan === 'basic') {
-      check(saved.status >= 400 && saved.status < 500 && saved.json<{ error?: { code: string } }>().error?.code === 'upgrade', 'a free plan can’t save the budget (asked to upgrade, not a crash)', () => `${saved.status} ${saved.text.slice(0, 120)}`);
-    } else {
+    // One plan: every wedding saves its budget (nothing is behind a plan).
+    {
       check(saved.status === 200, 'the budget saves', () => `${saved.status} ${saved.text.slice(0, 160)}`);
       const back = (await must(admin('/planner/doc/:kind', 'GET', '/planner/doc/budget'), 200, 'budget')).json<Doc<{ total: number; lines: typeof lines }>>();
       const sum = (xs: typeof lines, k: 'estimate' | 'paid') => Math.round(xs.reduce((a, l) => a + l[k], 0) * 100);

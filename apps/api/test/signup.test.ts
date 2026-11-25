@@ -129,67 +129,49 @@ describe('sign-up and plans', () => {
     expect((await signup({ email: 'n9@example.com' }, '9.9.9.9')).status).toBe(429);
   });
 
-  it('Free: up to 50 guests, no texts or seating; asking to upgrade is noted; the platform owner switches it on', async () => {
+  it('not paid yet (one plan): as many guests as you like and seating save; texting waits for the plan; paying is noted; the platform owner switches it on', async () => {
     const res = await signup();
     const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     const { weddingId: wid } = (await res.json()) as { weddingId: string };
     const a = (path: string, init: RequestInit = {}, ck = cookie) => call(`/a/w/${wid}${path}`, init, ck);
-    // 50 guests fit; the 51st asks to upgrade.
-    const rows = Array.from({ length: 50 }, (_, i) => ({ people: [`Guest ${i}`] }));
+    // No guest cap: 60 fit, and one more.
+    const rows = Array.from({ length: 60 }, (_, i) => ({ people: [`Guest ${i}`] }));
     expect((await a('/guests/import', { method: 'POST', body: JSON.stringify({ rows }) })).status).toBe(200);
-    const more = await a('/guests', { method: 'POST', body: '{}' });
-    expect(more.status).toBe(402);
-    expect(((await more.json()) as { error: { code: string; feature: string } }).error).toMatchObject({ code: 'upgrade', feature: 'unlimitedGuests' });
-    // Texts and seating: Essentials.
+    expect((await a('/guests', { method: 'POST', body: '{}' })).status).toBe(201);
+    // Texting waits until the plan is paid (its invitations aren't live yet).
     const tx = (await (await a('/texts')).json()) as { campaigns: { id: string }[] };
     if (tx.campaigns[0]) expect((await a(`/texts/${tx.campaigns[0].id}/send`, { method: 'POST', body: '{}' })).status).toBe(402);
     expect((await a('/texts/test', { method: 'POST', body: JSON.stringify({ body: 'hi' }) })).status).toBe(402);
+    // Seating saves: nothing is behind a plan.
     const s = (await (await a('/seating')).json()) as { version: number; event: { key: string }; aspect: string };
-    expect((await a('/seating', { method: 'PUT', headers: { 'If-Match': String(s.version) }, body: JSON.stringify({ event: s.event.key, aspect: s.aspect, tables: [], areas: [], seats: {} }) })).status).toBe(402);
-    // Asking to upgrade.
-    expect((await a('/plan/request', { method: 'POST', body: JSON.stringify({ plan: 'essentials' }) })).status).toBe(200);
-    expect(((await (await a('/overview')).json()) as { wedding: { planRequested: string } }).wedding.planRequested).toBe('essentials');
+    expect((await a('/seating', { method: 'PUT', headers: { 'If-Match': String(s.version) }, body: JSON.stringify({ event: s.event.key, aspect: s.aspect, tables: [], areas: [], seats: {} }) })).status).toBe(200);
+    // Asking for a payment link.
+    expect((await a('/plan/request', { method: 'POST', body: JSON.stringify({ plan: 'complete' }) })).status).toBe(200);
+    expect(((await (await a('/overview')).json()) as { wedding: { planRequested: string } }).wedding.planRequested).toBe('complete');
     // Only the platform owner sets a plan.
-    expect((await call('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: 'alex-and-sam', plan: 'essentials' }) }, cookie)).status).toBe(403);
+    expect((await call('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: 'alex-and-sam', plan: 'complete' }) }, cookie)).status).toBe(403);
     const owner = await app.request('/api/a/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'owner@example.com', passcode: 'valley-2027' }) }, env, ctx);
     const ownerCookie = (owner.headers.get('set-cookie') ?? '').split(';')[0]!;
-    expect((await call('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: 'alex-and-sam', plan: 'essentials' }) }, ownerCookie)).status).toBe(200);
-    expect((await a('/guests', { method: 'POST', body: '{}' })).status).toBe(201);
+    expect((await call('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: 'alex-and-sam', plan: 'complete' }) }, ownerCookie)).status).toBe(200);
     expect((await a('/texts/test', { method: 'POST', body: JSON.stringify({ body: 'hi' }) })).status).not.toBe(402);
   });
 
-  it('Free: the planner and seating can be opened but not saved (402, with the Upgrade wording); helpers stay free; Essentials saves', async () => {
+  it('not paid yet: the planner and seating save (nothing locked); an old Basic or Essentials wedding has everything', async () => {
     const res = await signup({}, '8.8.8.8');
     const cookie = (res.headers.get('set-cookie') ?? '').split(';')[0]!;
     const { weddingId: wid } = (await res.json()) as { weddingId: string };
     const a = (path: string, init: RequestInit = {}) => call(`/a/w/${wid}${path}`, init, cookie);
     const put = (path: string, version: number, body: unknown) => a(path, { method: 'PUT', headers: { 'If-Match': String(version) }, body: JSON.stringify(body) });
-    // Reading is open: they can see what they'd get.
-    expect((await a('/planner/doc/budget')).status).toBe(200);
-    expect((await a('/seating')).status).toBe(200);
-    const budget = await put('/planner/doc/budget', 0, { total: 30000, guests: 80, lines: [], split: {} });
-    expect(budget.status).toBe(402);
-    const e = ((await budget.json()) as { error: { code: string; feature: string; message: string } }).error;
-    expect(e).toMatchObject({ code: 'upgrade', feature: 'planner' });
-    expect(e.message).toMatch(/comes with Essentials, \$88 once\. Upgrade to save it\.$/);
-    expect((await put('/planner/doc/vendors', 0, { list: [] })).status).toBe(402);
-    expect((await put('/planner/doc/checklist', 0, { tasks: [{ id: 't1', text: 'Book the venue', before: 300 }], helpers: [] })).status).toBe(402);
-    // The people helping (for the free day checklists) can still be added.
-    expect((await put('/planner/doc/checklist', 0, { tasks: [], helpers: [{ id: 'h1', name: 'Mum', key: 'k'.repeat(24) }] })).status).toBe(200);
-    const s = (await (await a('/seating')).json()) as { version: number; event: { key: string } };
-    const seat = await a('/seating/versions', { method: 'POST', body: JSON.stringify({ event: s.event.key, name: 'Draft' }) });
-    expect(seat.status).toBe(402);
-    expect(((await seat.json()) as { error: { message: string } }).error.message).toBe('The seating plan comes with Essentials, $88 once. Upgrade to save it.');
-    expect((await a('/seating/publish', { method: 'POST', headers: { 'If-Match': String(s.version) }, body: JSON.stringify({ event: s.event.key }) })).status).toBe(402);
-    // Ceremony and the wedding party aren't locked.
-    expect((await put('/planner/doc/party-p1', 0, { people: {}, tasks: [] })).status).not.toBe(402);
-    // Essentials: saved.
-    await t.db.prepare(`UPDATE wedding SET plan = 'essentials' WHERE id = ?`).bind(wid).run();
     expect((await put('/planner/doc/budget', 0, { total: 30000, guests: 80, lines: [], split: {} })).status).toBe(200);
-    expect((await a('/seating/versions', { method: 'POST', body: JSON.stringify({ event: s.event.key, name: 'Draft' }) })).status).not.toBe(402);
-    // Founders' weddings (from before plans) keep everything.
-    await t.db.prepare(`UPDATE wedding SET plan = 'trial' WHERE id = ?`).bind(wid).run();
     expect((await put('/planner/doc/vendors', 0, { list: [] })).status).toBe(200);
+    expect((await put('/planner/doc/checklist', 0, { tasks: [{ id: 't1', text: 'Book the venue', before: 300 }], helpers: [] })).status).toBe(200);
+    const s = (await (await a('/seating')).json()) as { version: number; event: { key: string } };
+    expect((await a('/seating/versions', { method: 'POST', body: JSON.stringify({ event: s.event.key, name: 'Draft' }) })).status).not.toBe(402);
+    for (const plan of ['basic', 'essentials', 'trial']) {
+      await t.db.prepare(`UPDATE wedding SET plan = ? WHERE id = ?`).bind(plan, wid).run();
+      const v = (await (await a('/planner/doc/vendors')).json()) as { version: number };
+      expect((await put('/planner/doc/vendors', v.version, { list: [] })).status, plan).toBe(200);
+    }
   });
 
   it("the platform's own wedding and weddings from before plans keep everything", async () => {
