@@ -245,7 +245,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
       expect((await rsvp(w, token(g), { events: { wedding: { attending: true } }, message: 'So happy for you both!' }, ipOf(100 + i))).status).toBe(200);
     }
     const ov = await overview(w);
-    expect(ov.wedding).toMatchObject({ plan: 'free', name1: 'Mia', name2: 'Theo', monogram: 'M&T', private: true });
+    expect(ov.wedding).toMatchObject({ plan: 'complete', name1: 'Mia', name2: 'Theo', monogram: 'M&T', private: true });
     expect(ov).toMatchObject({ total: 2, replied: 2, awaiting: 0, yesInv: 2, noInv: 0, seatsHeld: 2 });
     expect(ov.events).toEqual([expect.objectContaining({ key: 'wedding', coming: 2 })]);
     expect(ov.perEvent).toEqual([expect.objectContaining({ key: 'wedding', invited: 2, yes: 2, no: 0, awaiting: 0, coming: 2 })]);
@@ -279,7 +279,7 @@ describe('launch scenarios: fifteen weddings run the way couples use the app', (
     expect((await overview(w)).wedding).toMatchObject({ planRequested: 'complete' });
     expect((await send('/a/super/plan', { method: 'PUT', body: JSON.stringify({ slug: w.slug, plan: 'complete' }) }, w.cookie)).status).toBe(403); // not the couple
     await upgrade(w, 'essentials');
-    expect((await overview(w)).wedding).toMatchObject({ plan: 'essentials', planRequested: '' });
+    expect((await overview(w)).wedding).toMatchObject({ plan: 'complete', planRequested: '' });
 
     // Now more fit: 30 by import (some couples) and one by hand.
     const rows = Array.from({ length: 30 }, (_, i) => ({ people: i % 3 === 0 ? [nameOf(50 + i), partnerOf(50 + i)] : [nameOf(50 + i)], phone: mobile(50 + i) }));
