@@ -132,7 +132,7 @@ jobs:
         if: always()
         run: node tests/stress/report.mjs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: stress-report-${{ matrix.shard }}
@@ -204,7 +204,7 @@ jobs:
           grep -iE 'error|exception|fail' "$RUNNER_TEMP/api.log" | tail -15 | while IFS= read -r l; do echo "::warning title=API log::${l:0:400}"; done || true
           grep -iE 'error|fail' "$RUNNER_TEMP/web.log" | tail -5 | while IFS= read -r l; do echo "::warning title=Web log::${l:0:400}"; done || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: e2e-report
@@ -363,7 +363,7 @@ jobs:
           curl -sf http://localhost:5173/api/site || { echo "::error::The app didn't start"; tail -50 "$RUNNER_TEMP/api.log"; tail -50 "$RUNNER_TEMP/web.log"; exit 1; }
       - name: Envelope, reply, calendar, dashboard, vendor portal, Photos connect
         run: pnpm --filter e2e e2e --project=smoke-phone --project=smoke-desktop
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: smoke-report
