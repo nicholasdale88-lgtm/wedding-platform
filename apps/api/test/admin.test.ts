@@ -147,6 +147,42 @@ describe('admin API', () => {
     expect((await call(`/guests/${g.id}`, { method: 'DELETE' })).status).toBe(404);
   });
 
+  it('busy reported after a put-back saved (or while noting it): the guest is back, first time (never 503, then "Nothing to restore"); found by the stress run', async () => {
+    for (const lose of [/^\s*UPDATE invitation SET deleted_at = NULL/, /^\s*INSERT INTO audit/]) {
+      const g = await guestNamed('Ella Thompson');
+      expect((await call(`/guests/${g.id}`, { method: 'DELETE' })).status).toBe(200);
+      const real = env.DB;
+      let failed = false;
+      env.DB = new Proxy(real, {
+        get(target, prop) {
+          if (prop === 'prepare')
+            return (sql: string) => {
+              const st = target.prepare(sql);
+              if (failed || !lose.test(sql)) return st;
+              return {
+                bind: (...args: unknown[]) => ({
+                  run: async () => {
+                    await st.bind(...args).run(); // it saves...
+                    failed = true;
+                    throw new Error('D1_ERROR: Network connection lost.'); // ...but the answer is lost
+                  },
+                }),
+              } as unknown as D1PreparedStatement;
+            };
+          const v = Reflect.get(target, prop) as unknown;
+          return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+        },
+      });
+      const res = await call(`/guests/${g.id}/restore`, { method: 'POST', body: '{}' });
+      env.DB = real;
+      expect(failed, String(lose)).toBe(true);
+      expect(res.status, String(lose)).toBe(200);
+      expect(((await json<{ guests: { id: string }[] }>(await call('/guests'))).guests.map((x) => x.id)).toContain(g.id);
+      // Back once; putting back again is a clean not-found.
+      expect((await call(`/guests/${g.id}/restore`, { method: 'POST', body: '{}' })).status).toBe(404);
+    }
+  });
+
   it('overview: counts, per-event figures and Needs you from the real seed', async () => {
     const o = await json<ReturnType<typeof buildOverview>>(await call('/overview'));
     expect(o.total).toBe(22);

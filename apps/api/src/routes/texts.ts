@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import type { Env } from '../env';
-import { readJson, safeJson } from '../lib/security';
+import { isBusy, readJson, safeJson } from '../lib/security';
 import { hasFeature, needsUpgrade } from '../lib/plan';
 import { estimate, preflight, sendNow, sendTest, type EngineDeps } from '../sms/engine';
 import { recipientsFor } from '../sms/audience';
@@ -259,6 +259,9 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
         ...(email.capped ? { emailNote: `Today’s emails are used up: the other ${email.waiting} go tomorrow morning.` } : {}),
       });
     } catch (e) {
+      // The database busy for a moment: "busy, try again" (503), never a failed send. The retry is the same send
+      // (each guest's text and email has one key per two minutes), so nobody gets it twice.
+      if (isBusy(e)) throw e;
       return err(c, 400, 'send_failed', (e as Error).message);
     }
   });

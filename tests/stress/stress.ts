@@ -925,6 +925,7 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
         check(back.status === 200, 'a removed guest is put back', () => `${back.status} ${back.text.slice(0, 120)}`);
         if (back.status === 200) {
           h.version = back.json<{ guest: { version: number } }>().guest.version;
+          check((await admin('/guests/:id/restore', 'POST', `/guests/${h.id}/restore`, {})).status === 404, 'putting back twice is a clean not-found');
           continue;
         }
       }

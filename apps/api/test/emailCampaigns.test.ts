@@ -112,6 +112,43 @@ describe('the texts’ messages by email', () => {
     expect(guide!.text).toContain('/w/sophie-and-nicholas/tomorrow?g=');
   });
 
+  it('"Send now" with the database busy for a moment says try again (503), never "send failed"; the retry sends once; found by the stress run', async () => {
+    const now = new Date().toISOString();
+    await t.db.prepare(`INSERT INTO user (id, email, name, pass_hash, created_at) VALUES ('u1', 'owner@example.com', 'Owner', ?, ?)`).bind(await hashPasscode('valley-2027'), now).run();
+    await t.db.prepare(`INSERT INTO membership (wedding_id, user_id, role) VALUES ('w1', 'u1', 'owner')`).run();
+    await replyD1(t.db, 'i1', 'e1', true, clock.now());
+    const app = createApp(deps);
+    const ctx = { waitUntil: () => {}, passThroughOnException: () => {}, props: {} } as unknown as ExecutionContext;
+    const login = await app.request('/api/a/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'owner@example.com', passcode: 'valley-2027' }) }, env, ctx);
+    const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0]!;
+    const real = env.DB;
+    let failed = false;
+    env.DB = new Proxy(real, {
+      get(target, prop) {
+        if (prop === 'prepare')
+          return (sql: string) => {
+            if (failed || !/^\s*SELECT \* FROM campaign\b/.test(sql)) return target.prepare(sql);
+            failed = true;
+            const boom = async () => {
+              throw new Error('D1_ERROR: Network connection lost.');
+            };
+            return { bind: () => ({ all: boom, first: boom, run: boom }), all: boom, first: boom, run: boom } as unknown as D1PreparedStatement;
+          };
+        const v = Reflect.get(target, prop) as unknown;
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const send = () => app.request('/api/a/w/w1/texts/c-rain/send', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json', cookie } }, env, ctx);
+    const busy = await send();
+    expect(failed).toBe(true);
+    expect(busy.status).toBe(503);
+    expect(((await busy.json()) as { error: { code: string } }).error.code).toBe('busy');
+    env.DB = real;
+    const again = await send();
+    expect(again.status).toBe(200);
+    expect(to()).toEqual(['g1@example.com']); // sent once
+  });
+
   it('"Send now" emails its audience too, and a plan without texts still emails (free)', async () => {
     const now = new Date().toISOString();
     await t.db.prepare(`INSERT INTO user (id, email, name, pass_hash, created_at) VALUES ('u1', 'owner@example.com', 'Owner', ?, ?)`).bind(await hashPasscode('valley-2027'), now).run();

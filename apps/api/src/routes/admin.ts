@@ -761,11 +761,19 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     const invId = c.req.param('id');
     const people = await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM person p JOIN invitation i ON i.id = p.invitation_id WHERE i.id = ? AND i.wedding_id = ? AND p.deleted_at IS NULL`).bind(invId, wid(c)).first<{ n: number }>();
     if ((people?.n ?? 0) > 0 && !(await roomFor(c.env.DB, wid(c), people!.n))) return needsUpgrade(c, 'unlimitedGuests');
-    const r = await c.env.DB.prepare(`UPDATE invitation SET deleted_at = NULL, version = version + 1 WHERE id = ? AND wedding_id = ? AND deleted_at IS NOT NULL`)
-      .bind(invId, wid(c))
-      .run();
-    if (!r.meta.changes) return err(c, 404, 'not_found', 'Nothing to restore.');
-    await audit(c, 'guest.restore', invId).run();
+    const restore = () => c.env.DB.prepare(`UPDATE invitation SET deleted_at = NULL, version = version + 1 WHERE id = ? AND wedding_id = ? AND deleted_at IS NOT NULL`).bind(invId, wid(c)).run();
+    let restored: boolean;
+    try {
+      restored = !!(await restore()).meta.changes;
+    } catch (e) {
+      if (!isBusy(e)) throw e;
+      // "Busy" can come back after it saved: back on the list means put back. (A 503 here made the page's retry say
+      // "Nothing to restore" while the guest was in fact back, found by the stress run.)
+      const row = await afterCommit(() => c.env.DB.prepare(`SELECT deleted_at FROM invitation WHERE id = ? AND wedding_id = ?`).bind(invId, wid(c)).first<{ deleted_at: string | null }>());
+      restored = (!!row && row.deleted_at === null) || !!(await afterCommit(restore)).meta.changes;
+    }
+    if (!restored) return err(c, 404, 'not_found', 'Nothing to restore.');
+    await afterCommit(() => audit(c, 'guest.restore', invId).run());
     return c.json(await afterCommit(() => guestJson(c, invId)));
   });
 
@@ -826,9 +834,10 @@ export function adminRoutes(deps: (env: Env) => EngineDeps) {
     try {
       if (c.req.query('dry')) return c.json(await estimate(d, wid(c), body.data.campaignId, [invId]));
       const res = await sendNow(d, wid(c), body.data.campaignId, [invId]);
-      await audit(c, 'sms.send-one', invId, { campaignId: body.data.campaignId, sent: res.sent }).run();
+      await afterCommit(() => audit(c, 'sms.send-one', invId, { campaignId: body.data.campaignId, sent: res.sent }).run());
       return c.json(res);
     } catch (e) {
+      if (isBusy(e)) throw e; // busy for a moment: try again (the same text, never sent twice)
       return err(c, 400, 'send_failed', (e as Error).message);
     }
   });
