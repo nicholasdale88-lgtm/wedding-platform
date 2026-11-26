@@ -49,6 +49,9 @@ async function couple(page: Page, guests: { people: string[] }[] = []) {
   const wid = b.weddingId;
   const slug = b.weddings.find((w) => w.id === wid)!.slug;
   execSync(`pnpm exec wrangler d1 execute DB --local --command "UPDATE wedding SET plan = 'essentials' WHERE id = '${wid}'"`, { cwd: API_DIR, stdio: 'pipe' });
+  // A new wedding starts with the optional tools off (Settings → What you’re using): these tests use them.
+  const tools = await page.request.put(`/api/a/w/${wid}/tools`, { data: { photos: true, party: true, seating: true, extraEvent: true, nightBefore: true, thankYou: true } });
+  expect(tools.status(), await tools.text()).toBe(200);
   let links: Record<string, string> = {};
   if (guests.length) {
     const imp = await page.request.post(`/api/a/w/${wid}/guests/import`, { data: { rows: guests } });

@@ -23,6 +23,9 @@ async function signUp(page: Page) {
   wid = ((await res.json()) as { weddingId: string }).weddingId;
   // Seating is on Essentials: give this throwaway wedding that plan in the local database.
   execSync(`pnpm exec wrangler d1 execute DB --local --command "UPDATE wedding SET plan = 'essentials' WHERE id = '${wid}'"`, { cwd: API_DIR, stdio: 'pipe' });
+  // A new wedding starts with the optional tools off (Settings → What you’re using): these tests use them.
+  const tools = await page.request.put(`/api/a/w/${wid}/tools`, { data: { photos: true, party: true, seating: true, extraEvent: true, nightBefore: true, thankYou: true } });
+  expect(tools.status(), await tools.text()).toBe(200);
 }
 
 test.beforeEach(async ({ page }) => {

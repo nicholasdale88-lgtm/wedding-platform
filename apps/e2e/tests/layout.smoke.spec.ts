@@ -141,7 +141,7 @@ test('visitor pages only promise the photo storage that works', async ({ page })
     expect(text, path).not.toMatch(/one\s?drive/i);
   }
   await page.goto('/');
-  await expect(page.getByText('Photos and backups save to your own Google Drive or Dropbox').first()).toBeAttached();
+  await expect(page.getByText('Guests’ photos to your own Google Drive or Dropbox').first()).toBeAttached();
 });
 
 test('the sample night-before forecast reads "0% rain", never "0%% rain"', async ({ page }) => {
@@ -201,7 +201,7 @@ test('front page questions: each whole row opens its answer (44px or more), not 
   await q.scrollIntoViewIfNeeded();
   expect((await q.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await q.click({ position: { x: 4, y: 4 } });
-  await expect(page.getByText('Nothing renews.', { exact: false }).first()).toBeVisible();
+  await expect(page.getByText('Nothing renews', { exact: false }).first()).toBeVisible();
 });
 
 test('front page sign-up: "Already have one? Sign in" is a 44px tap', async ({ page }) => {
@@ -236,19 +236,16 @@ test('the sample message board: a tap just above or below Reply still hits it (a
   expect(hits).toEqual([true, true]);
 });
 
-test('the sample app overview: "Add them" and "Set it up" take a tap just above or below the words', async ({ page }) => {
+test('the sample app overview: at most three next things, each a 44px button', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('yl.trial', '1'));
   await page.goto('/admin/demo/wedding/overview');
-  for (const name of ['Add them', 'Set it up']) {
-    const b = page.getByRole('button', { name, exact: true }).first();
-    await expect(b).toBeVisible({ timeout: 20_000 });
+  const next = page.getByRole('region', { name: 'Next 3 things' });
+  await expect(next).toBeVisible({ timeout: 20_000 });
+  const buttons = await next.getByRole('button').all();
+  expect(buttons.length).toBeLessThanOrEqual(3);
+  for (const b of buttons) {
     await b.scrollIntoViewIfNeeded();
-    const hits = await b.evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      const x = r.left + r.width / 2;
-      return [r.top - 9, r.bottom + 9].map((y) => document.elementFromPoint(x, y)?.closest('button') === el);
-    });
-    expect(hits, name).toEqual([true, true]);
+    expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(43.5);
   }
 });
 
