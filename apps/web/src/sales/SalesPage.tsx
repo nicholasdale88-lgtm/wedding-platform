@@ -3,9 +3,8 @@ import '@fontsource/cormorant-garamond/400-italic.css';
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  EVENT_ADDON,
   PLAN_NAME,
-  PLAN_PRICE,
+  PLAN_PRICE_AUD,
   gstWords,
   textCostNote,
   TEXT_CREDIT_ALL_IN,
@@ -17,6 +16,7 @@ import { rememberRef, savedCode, savedRef, useSite } from '../lib/site';
 import { LogoMark, Wordmark } from './Art';
 import { RealEnvelope } from './RealEnvelope';
 import { HeroInvite } from './HeroInvite';
+import { ClosedStill, PHONE_SHADOW, PhoneFrame } from './PhoneFrame';
 import { THEME_NAMES } from '../guest/themeKit';
 import { PhoneFan, ShowcaseStyles } from './Showcase';
 import { PaperVsPhone } from './PaperVsPhone';
@@ -48,7 +48,8 @@ const script = "'Great Vibes', 'Pinyon Script', cursive"; // one word at a time,
 const sans = "'DM Sans Variable', 'DM Sans', system-ui, sans-serif";
 
 /** The one plan's price, from the shared config (so it can't drift). */
-const fromPrice = PLAN_PRICE;
+/** The one plan's price, from the price config (A$87): the only price on the marketing pages. */
+const fromPrice = PLAN_PRICE_AUD;
 
 /** The text price, all-in first (the service fee included), as it must be shown. */
 const TEXT_ALL_IN = `${TEXT_CREDIT_ALL_IN}c a credit, all-in`;
@@ -67,7 +68,7 @@ const TEXT_PER_GUEST = Math.round(TEXT_RATE.creditsPerGuest * TEXT_CREDIT_ALL_IN
  */
 function Tiles() {
   const picture = (art: ReactNode, title: string, sub: string, span = '') => (
-    <article className={`relative min-h-[300px] rounded-[26px] overflow-hidden shadow-[0_24px_50px_rgba(70,40,40,.14)] ${span}`}>
+    <article className={`relative min-h-[300px] rounded-[26px] overflow-hidden ${span}`} style={{ boxShadow: PHONE_SHADOW }}>
       {art}
       {/* A scrim deep enough under the words that cream type reads at AA on the palest paper (VS-01). */}
       <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(40,26,32,.9) 0%, rgba(40,26,32,.8) 50%, rgba(40,26,32,0) 85%)' }} />
@@ -120,25 +121,17 @@ function Tiles() {
   );
 }
 
-/** The envelope section's picture: the envelope every guest opens first, exactly as it is. */
+/** The envelope section's picture: the envelope every guest opens first, in the one phone every preview uses. */
 function EnvelopeStill() {
-  return <RealEnvelope className="w-full aspect-square rounded-[30px] shadow-[0_34px_70px_rgba(70,40,40,.2)]" />;
-}
-
-/** A text message beside the hero's phone: the invitation going out, the reply coming back, the list updating. */
-function Bubble({ from, children, className = '' }: { from: 'us' | 'them' | 'note'; children: ReactNode; className?: string }) {
-  const look =
-    from === 'us'
-      ? { background: '#ffffff', color: INK, borderRadius: '20px 20px 20px 6px' }
-      : from === 'them'
-        ? { background: 'linear-gradient(135deg,#c9a46a,#a8834a)', color: '#fffaf2', borderRadius: '20px 20px 6px 20px' }
-        : { background: INK, color: '#fbf1e8', borderRadius: 999 };
   return (
-    <span className={`absolute z-30 max-w-[230px] py-3 px-4 text-[13.5px] leading-[1.4] shadow-[0_18px_40px_rgba(70,40,40,.18)] ${className}`} style={look}>
-      {children}
-    </span>
+    <div className="flex justify-center">
+      <PhoneFrame>
+        <ClosedStill />
+      </PhoneFrame>
+    </div>
   );
 }
+
 
 /** Under the sending steps: what texting from us costs, replies and back-and-forth included. */
 const SEND_CREDITS_NOTE = `texting from us is bought separately and not included in the plan: at cost, ${TEXT_CREDIT_ALL_IN}c a credit, all-in. Budget about ${typicalTexts} for ${TYPICAL_GUESTS} guests: every text from the invitation to the thank-you, plus the back-and-forth when guests text you back. You see the total before you pay.`;
@@ -160,7 +153,7 @@ const SEND_STEPS: { title: string; text: string }[] = [
 const PLAN_TICKS = [
   'Your invitation and RSVP page',
   'As many guests as you like',
-  'Seating, meals, budget, checklist and vendors',
+  'Seating, meals, budget and checklist',
   'Guests’ photos to your own Google Drive or Dropbox',
   'A second event, if you want one',
   'Send from your own phone or email, free',
@@ -174,13 +167,13 @@ const VS_USUAL: { what: string; usual: string; ours: string }[] = [
   { what: 'Ready', usual: 'A day or more, while someone builds it for you', ours: 'The minute you are. Make it yourself and see every change as you go.' },
   { what: 'Changes after sending', usual: 'Often one free change, then a fee', ours: 'Free, as often as you like. Every guest sees the change straight away.' },
   { what: 'The link', usual: 'One link for everyone, and guests type their names', ours: 'Each guest gets their own, with their names on the envelope. Nobody uninvited can reply.' },
-  { what: 'More than one event', usual: 'Often a second invitation, paid again', ours: `Welcome drinks or a recovery brunch on the same invitation: two events included, or add another for ${EVENT_ADDON.price}.` },
+  { what: 'More than one event', usual: 'Often a second invitation, paid again', ours: 'Welcome drinks or a recovery brunch on the same invitation: two events included.' },
   { what: 'After the replies', usual: 'A list of who’s coming', ours: 'Reminders, a dietary list for your caterer, the seating plan and the whole wedding plan.' },
 ];
 
 /** Our questions; `gst` is whether the business is GST registered (only then may prices say GST is included). */
 const faq = (gst: boolean): [string, string][] => [
-  ['Is it a subscription?', `No. Set everything up first, then pay ${PLAN_PRICE} once for your wedding when you’re ready to send your invitations. Nothing renews, and everything is included.`],
+  ['Is it a subscription?', `No. Set everything up first, then pay ${PLAN_PRICE_AUD} once for your wedding when you’re ready to send your invitations. Nothing renews, and everything is included.`],
   [
     'Are text messages included?',
     `No, texts aren’t included in the plan. Sending from your own phone or by email is always free. If you’d like us to text your guests, you buy text credits separately at ${TEXT_ALL_IN} (${gstWords(gst)}, no other fees), and you see the total before you pay.`,
@@ -231,8 +224,7 @@ function RecommendedBy() {
 }
 
 export function SalesPage() {
-  // Less motion asked for: the hero's envelope stays closed until it's tapped.
-  const [calm] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  // The hero's envelope never opens by itself (send-10): it waits for a tap, motion or not.
   const site = useSite();
   // Prices name GST only once the business is registered for it (company portal → Money).
   const gst = !!site?.gst;
@@ -360,17 +352,8 @@ export function SalesPage() {
                   guest who asks for less motion: it waits for a tap). The cover paints first; the live
                   invitation loads after the page has. */}
               <span className="relative z-10">
-                <HeroInvite src={calm ? '/demo?embed=1' : '/demo?embed=1&play=1'} caption={false} defer cover={<RealEnvelope paper="cream" wax="Sandstone" className="absolute inset-0" />} />
+                <HeroInvite src="/demo?embed=1&sales=1" caption={false} defer cover={<ClosedStill priority />} />
               </span>
-              <Bubble from="us" className="top-[6%] left-0 md:-left-6 hidden sm:block">
-                Harriet &amp; Theo would love you to celebrate with them. Your invitation and RSVP: <u>tap here</u>
-              </Bubble>
-              <Bubble from="them" className="top-[46%] right-0 md:-right-4 hidden sm:block">
-                Yes! Both of us, can’t wait 🥂
-              </Bubble>
-              <Bubble from="note" className="bottom-[4%] left-[2%] md:-left-2 py-2 text-[13px]">
-                ✓ Emma &amp; Tom are coming · guest list updated
-              </Bubble>
             </div>
           </div>
         </section>
@@ -407,7 +390,7 @@ export function SalesPage() {
                 And everything after the yes.
               </h2>
               <p className="m-0 text-[18px] leading-[1.55] max-w-[620px] mx-auto" style={{ color: SOFT }}>
-                Every reply lands in your guest list as it happens. The seating, the budget and the vendors are right there with it.
+                Every reply lands in your guest list as it happens. The seating and the budget are right there with it.
               </p>
             </div>
             <PhoneFan />
@@ -514,10 +497,10 @@ export function SalesPage() {
                 Set everything up first. Pay once, when you’re ready to send your invitations. Australian dollars, {gstWords(gst)}.
               </p>
             </div>
-            <article aria-label={`${PLAN_NAME}, ${PLAN_PRICE} once`} className="w-full max-w-[460px] mx-auto flex flex-col gap-5 p-7 rounded-[24px] bg-white" style={{ border: `2px solid ${INK}` }}>
+            <article aria-label={`${PLAN_NAME}, ${PLAN_PRICE_AUD} once`} className="w-full max-w-[460px] mx-auto flex flex-col gap-5 p-7 rounded-[24px] bg-white" style={{ border: `2px solid ${INK}` }}>
               <div className="flex items-baseline justify-center gap-2">
                 <span className="text-[56px] leading-none" style={{ fontFamily: serif }}>
-                  {PLAN_PRICE}
+                  {PLAN_PRICE_AUD}
                 </span>
                 <span className="text-[15px]" style={{ color: SOFT }}>
                   once
@@ -541,7 +524,7 @@ export function SalesPage() {
               </a>
             </article>
             <p role="note" className="m-0 max-w-[760px] mx-auto text-[13px] leading-[1.6] text-center" style={{ color: SOFT }}>
-              {textCostNote(gst)} A third event, like a recovery brunch, is {EVENT_ADDON.price}.
+              {textCostNote(gst)}
             </p>
           </div>
         </section>
@@ -593,9 +576,6 @@ export function SalesPage() {
         </span>
         <Link to="/admin" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Sign in
-        </Link>
-        <Link to="/vendors/join" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
-          Wedding vendor? List your business free
         </Link>
         <Link to="/privacy" className="inline-flex items-center justify-center min-h-[44px] min-w-[44px]" style={{ color: SOFT }}>
           Privacy
@@ -714,7 +694,7 @@ function SignUp() {
               </span>
             </span>
             <span className="text-[26px] leading-none" style={{ fontFamily: serif, color: INK }}>
-              {PLAN_PRICE}
+              {PLAN_PRICE_AUD}
             </span>
           </div>
           <span className="text-[13px] text-center p-3 rounded-[12px] bg-[#f8ece6]" style={{ color: INK }}>

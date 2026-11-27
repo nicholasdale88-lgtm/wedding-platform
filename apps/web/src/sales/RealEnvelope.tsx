@@ -23,7 +23,7 @@ export function RealEnvelope({
   className = '',
   compact = false,
   bare = false,
-  names = 'Emma & Tom',
+  names = 'Harriet & Theo',
   initials = 'H & T',
   caption = 'Tap to open',
 }: {
@@ -37,7 +37,7 @@ export function RealEnvelope({
   compact?: boolean;
   /** Just the envelope and seal, without "Tap to open" and the names (when a caption sits over it). */
   bare?: boolean;
-  /** Who it's for (on the front, after "for"); the sample guests unless given. */
+  /** The names on the front; the sample couple's (as its H&T seal) unless given. */
   names?: string;
   /** What's pressed into the seal; the sample couple's unless given. */
   initials?: string;

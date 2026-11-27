@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { tableTop } from './Stills';
-import { RealEnvelope } from './RealEnvelope';
+import { ClosedStill, PhoneFrame } from './PhoneFrame';
 
 /**
  * Paper or phone: one invitation two ways, side by side on a tabletop. On the left, a letterpress card on
@@ -123,7 +123,7 @@ function sprig(x: number, y: number, s: number): string {
 }
 
 /** The letterpress card leaning on its kraft envelope. */
-function paperArt(names: [string, string], place: string): string {
+function paperArt(names: [string, string], place: [string, string]): string {
   const W = 330;
   const H = 460;
   const [pressed, foil] = leafBorder(W, H, 24);
@@ -150,9 +150,10 @@ function paperArt(names: [string, string], place: string): string {
       <path d='M${cx - 62} 205 H${cx - 18} M${cx + 18} 205 H${cx + 62}' stroke='#b8955a' stroke-width='1'/>
       <text x='${cx}' y='306' font-size='9.5' ${caps}>INVITE YOU TO CELEBRATE</text>
       <text x='${cx}' y='321' font-size='9.5' ${caps}>THEIR WEDDING</text>
-      <path d='M${cx - 46} 344 H${cx + 46}' stroke='#b8955a' stroke-width='.9'/>
-      <g fill='#fcf5e8' filter='url(#pvEmboss)'>${sprig(cx, 368, 1.1).replace(/stroke='#000'/g, "stroke='#fcf5e8'")}</g>
-      <text x='${cx}' y='404' font-size='9.5' ${caps}>${place}</text>
+      <path d='M${cx - 46} 340 H${cx + 46}' stroke='#b8955a' stroke-width='.9'/>
+      <g fill='#fcf5e8' filter='url(#pvEmboss)'>${sprig(cx, 362, 1.1).replace(/stroke='#000'/g, "stroke='#fcf5e8'")}</g>
+      <text x='${cx}' y='396' font-size='9.5' ${caps}>${place[0]}</text>
+      <text x='${cx}' y='410' font-size='9.5' ${caps}>${place[1]}</text>
       <rect width='${W}' height='${H}' fill='url(#pvLight)'/>
     </g>
   </svg>`;
@@ -165,7 +166,7 @@ const OURS_LIST = ['Replies land in your guest list', 'Change anything, any time
 
 export function PaperVsPhone({ ink, soft, gold, goldInk, serif, script, fromPrice }: { ink: string; soft: string; gold: string; goldInk: string; serif: string; script: string; fromPrice: string }) {
   const backdrop = useMemo(() => tableTop(), []);
-  const paper = useMemo(() => paperArt(['Harriet', 'Theo'], 'LARKWOOD ESTATE · HUNTER VALLEY'), []);
+  const paper = useMemo(() => paperArt(['Harriet', 'Theo'], ['LARKWOOD ESTATE', 'HUNTER VALLEY, NSW']), []);
   const pill = (label: string, on: boolean) => (
     <span
       className="self-center py-[7px] px-5 rounded-[8px] text-[13px] font-semibold tracking-[.18em] uppercase shadow-[0_6px_14px_rgba(70,40,40,.12)]"
@@ -231,15 +232,11 @@ export function PaperVsPhone({ ink, soft, gold, goldInk, serif, script, fromPric
           <span aria-hidden className="hidden md:block w-px" style={{ background: `linear-gradient(180deg, transparent, ${gold} 15%, ${gold} 85%, transparent)` }} />
           <div className="flex flex-col gap-7">
             {pill('The Yes List', true)}
-            <a href="/demo" aria-label="Open the sample invitation" className="block mx-auto my-auto w-[230px] sm:w-[250px] no-underline">
-              <span className="relative block p-[10px] rounded-[46px] shadow-[0_40px_70px_rgba(46,30,36,.32),0_10px_20px_rgba(46,30,36,.18)]" style={{ background: 'linear-gradient(145deg,#3a3a3d,#0f0f10 40%,#26262a)' }}>
-                <span className="relative block rounded-[37px] overflow-hidden [clip-path:inset(0_round_37px)] aspect-[300/640] ring-1 ring-black/60">
-                  {/* The envelope every guest actually receives, from the invitation's own parts. */}
-                  <RealEnvelope compact className="absolute inset-0" label="The invitation on a phone: a sealed envelope with a gold wax seal pressed with H & T, ready to tap open" />
-                  <span aria-hidden className="absolute top-[10px] left-1/2 -translate-x-1/2 w-[34%] h-[22px] rounded-full bg-black" />
-                  <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(125deg, rgba(255,255,255,.18), rgba(255,255,255,0) 32%)' }} />
-                </span>
-              </span>
+            <a href="/demo" aria-label="Open the sample invitation" className="flex justify-center mx-auto my-auto no-underline">
+              {/* The envelope every guest actually receives: the sample's closed still, in the one phone frame. */}
+              <PhoneFrame>
+                <ClosedStill />
+              </PhoneFrame>
             </a>
             {list(OURS_LIST, true)}
           </div>
@@ -248,7 +245,7 @@ export function PaperVsPhone({ ink, soft, gold, goldInk, serif, script, fromPric
         <div className="flex flex-col items-center gap-4 text-center">
           <span aria-hidden className="w-full max-w-[760px] h-px" style={{ background: `linear-gradient(90deg, transparent, ${gold}, transparent)` }} />
           <p className="m-0 text-[clamp(26px,4vw,40px)] leading-[1.1]" style={{ fontFamily: serif, color: ink }}>
-            From <span style={{ color: goldInk }}>{fromPrice}</span>, paid once.
+            <span style={{ color: goldInk }}>{fromPrice}</span>, paid once.
           </p>
           <p className="m-0 text-[15px]" style={{ color: soft }}>
             No subscription · No printing · No postage · Australian owned

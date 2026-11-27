@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Wordmark } from '../sales/Art';
 import { api } from '../lib/api';
+import { dmyToIso } from './dmy';
 
 /**
  * /try: book a free trial before the sample app opens. Names, email and (if known) the date are kept for the
@@ -27,6 +28,8 @@ const markBooked = () => {
 const NO_NAME = 'Please add your first name.';
 const BAD_EMAIL = 'Please check your email address.';
 const EMAIL = /^\S+@\S+\.\S+$/;
+const BAD_DATE = 'Please type the date as day / month / year, like 20/03/2027 (or leave it empty).';
+
 const INK = '#3a2532';
 const SOFT = '#6e6068';
 const field = 'w-full py-3 px-4 rounded-[12px] border border-[#e3cfc6] bg-white text-[16px] text-[#3a2532] outline-none focus:border-[#3a2532]';
@@ -44,10 +47,12 @@ export function TrialPage() {
     e.preventDefault();
     if (!f.name1.trim()) return setProblem(NO_NAME);
     if (!EMAIL.test(f.email.trim())) return setProblem(BAD_EMAIL);
+    const date = dmyToIso(f.date);
+    if (date === null) return setProblem(BAD_DATE);
     setBusy(true);
     setProblem('');
     try {
-      await api.bookTrial({ ...f, name1: f.name1.trim(), name2: f.name2.trim(), email: f.email.trim() });
+      await api.bookTrial({ ...f, date, name1: f.name1.trim(), name2: f.name2.trim(), email: f.email.trim() });
       markBooked();
       go('/admin/demo', { replace: true });
     } catch (err) {
@@ -102,9 +107,9 @@ export function TrialPage() {
             </label>
             <label className="flex flex-col gap-1 text-[14px] font-semibold">
               Wedding date <span className="font-normal" style={{ color: SOFT }}>(if you know it)</span>
-              <input className={field} type="date" lang="en-AU" aria-describedby="trial-date-hint" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+              <input className={field} type="text" inputMode="numeric" autoComplete="off" placeholder="dd/mm/yyyy" maxLength={10} aria-describedby="trial-date-hint" value={f.date} onChange={(e) => { setF({ ...f, date: e.target.value }); if (problem === BAD_DATE) setProblem(''); }} />
               <span id="trial-date-hint" className="text-[12px] font-normal" style={{ color: SOFT }}>
-                Day / month / year
+                Day / month / year, like 20/03/2027
               </span>
             </label>
             {/* For robots only. */}

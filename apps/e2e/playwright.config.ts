@@ -23,8 +23,9 @@ export default defineConfig({
     // iPhone size and touch, in Chromium (WebKit won't keep a secure cookie on plain http://localhost).
     { name: 'iphone', testIgnore: /smoke\.spec\.ts/, use: { ...devices['iPhone 13'], browserName: 'chromium' } },
     { name: 'desktop', testIgnore: /smoke\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
-    // The release gate's smoke tests: a 375px phone and a computer.
+    // The release gate's smoke tests: a 375px phone, a 390px phone (an iPhone 13/14/15) and a computer.
     { name: 'smoke-phone', testMatch: /smoke\.spec\.ts/, use: { ...devices['iPhone SE'], viewport: { width: 375, height: 812 }, browserName: 'chromium' } },
+    { name: 'smoke-390', testMatch: /smoke\.spec\.ts/, use: { ...devices['iPhone 13'], viewport: { width: 390, height: 844 }, browserName: 'chromium' } },
     { name: 'smoke-desktop', testMatch: /smoke\.spec\.ts/, use: { ...devices['Desktop Chrome'] } },
   ],
 });

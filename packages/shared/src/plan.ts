@@ -44,6 +44,8 @@ export const PLAN_PRICE_CENTS = 8700;
 export const PLAN_NAME = 'The Yes List';
 /** The price as shown: "$87". */
 export const PLAN_PRICE = `$${PLAN_PRICE_CENTS % 100 ? (PLAN_PRICE_CENTS / 100).toFixed(2) : PLAN_PRICE_CENTS / 100}`;
+/** The price on the marketing pages, in Australian dollars: "A$87" (from PLAN_PRICE_CENTS). */
+export const PLAN_PRICE_AUD = `A${PLAN_PRICE}`;
 
 /** Every stored plan is the one plan now (kept by key so older code and rows keep working). */
 export const PLAN_INFO: Record<Plan, { name: string; price: string }> = {

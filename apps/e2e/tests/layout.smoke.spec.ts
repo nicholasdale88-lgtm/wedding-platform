@@ -19,7 +19,7 @@ async function watch(page: Page) {
   });
   return problems;
 }
-const phone = (name: string) => name === 'smoke-phone';
+const phone = (name: string) => name === 'smoke-phone' || name === 'smoke-390';
 async function sideways(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 }
@@ -294,9 +294,9 @@ test('Sentinel retest: vendor links, /try and the demo bar are 44px taps; the sa
     await loc.scrollIntoViewIfNeeded();
     expect((await loc.boundingBox())!.height, what).toBeGreaterThanOrEqual(43.5);
   };
+  // The sales page links no vendor pages (send-10); /vendors/join is still its own page.
   await page.goto('/');
-  const foot = page.locator('footer').last();
-  await tall(foot.getByRole('link', { name: 'Wedding vendor? List your business free' }), 'footer List your business');
+  await expect(page.locator('footer').last().getByRole('link', { name: /List your business/ })).toHaveCount(0);
   await page.goto('/vendors/join');
   await tall(page.locator('summary', { hasText: 'Also travel to' }), 'Also travel to');
   await page.locator('summary', { hasText: 'Also travel to' }).click();
@@ -514,4 +514,49 @@ test('Simplify Job 1: a signed-in couple sees five menu items (Home, Guests, Inv
     expect(await sideways(page), `sideways at ${width}`).toBeLessThanOrEqual(1);
     if (phone(info.project.name)) await page.getByRole('button', { name: 'Close menu' }).click();
   }
+});
+
+test('sales page previews (send-10): no vendor links, A$87 only, Harriet & Theo, one phone style, the hero closed and uncovered', async ({ page }) => {
+  for (const path of ['/', '/try']) {
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    expect(await page.locator('a[href*="vendor"]').count(), `${path}: vendor links`).toBe(0);
+    const text = await page.locator('body').innerText();
+    expect(text, `${path}: vendor wording`).not.toMatch(/Vendor directory|List your business/);
+    expect(text, `${path}: the sample guests' names`).not.toMatch(/Emma/);
+    expect(text, `${path}: old prices`).not.toMatch(/From \$|\$50\b|\$88|\$98|\$39/);
+  }
+  await page.goto('/');
+  expect(await page.locator('body').innerText()).toContain('A$87');
+  // The hero: the sample in sales mode, still closed (Tap to open, the couple's names) after a wait.
+  const hero = page.locator('iframe[title^="Sample invitation"]').first();
+  await expect(hero).toHaveAttribute('src', '/demo?embed=1&sales=1');
+  await page.waitForTimeout(4500);
+  const inside = page.frameLocator('iframe[title^="Sample invitation"]').first();
+  await expect(inside.getByText(/Tap to open/i).first()).toBeVisible();
+  await expect(inside.getByText('Harriet & Theo').first()).toBeVisible();
+  // Nothing over the hero's phone: every point of it belongs to it.
+  const frame = page.locator('[data-phone-frame]').first();
+  await frame.scrollIntoViewIfNeeded();
+  const covered = await frame.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const pts = [[0.5, 0.5], [0.15, 0.1], [0.85, 0.1], [0.15, 0.9], [0.85, 0.9], [0.5, 0.95]];
+    return pts.filter(([x, y]) => {
+      const hit = document.elementFromPoint(r.left + r.width * x!, r.top + r.height * y!);
+      return !hit || !el.contains(hit);
+    }).length;
+  });
+  expect(covered, 'points of the hero phone covered').toBe(0);
+  // One preview style: every phone on the page has the same shadow and the same width.
+  const looks = await page.locator('[data-phone-frame]').evaluateAll((els) =>
+    els.filter((e) => (e as HTMLElement).offsetParent).map((e) => ({ shadow: getComputedStyle(e).boxShadow, w: Math.round(e.getBoundingClientRect().width) })),
+  );
+  expect(looks.length).toBeGreaterThanOrEqual(3);
+  expect(new Set(looks.map((l) => l.shadow)).size).toBe(1);
+  expect(new Set(looks.map((l) => l.w)).size).toBe(1);
+  // /try: the date in day / month / year.
+  await page.goto('/try');
+  const date = page.getByPlaceholder('dd/mm/yyyy');
+  await expect(date).toBeVisible();
+  await expect(page.getByText(/Day \/ month \/ year/)).toBeVisible();
 });

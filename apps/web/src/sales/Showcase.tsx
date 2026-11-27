@@ -1,5 +1,8 @@
+import type { ReactNode } from 'react';
+import { PhoneFrame } from './PhoneFrame';
+
 /**
- * The front page's product pictures, drawn (no screenshots to go stale): a fan of three phones (the guest
+ * The front page's product pictures, drawn (no screenshots to go stale): a row of three phones (the guest
  * list filling itself in, the seating plan, the budget). All made-up
  * details for the sample couple, Harriet & Theo.
  */
@@ -38,7 +41,7 @@ function Bar({ title, sub }: { title: string; sub: string }) {
 }
 
 const GUESTS: [string, string, string][] = [
-  ['Emma & Tom', 'Coming · 2', 'Vegetarian'],
+  ['Grace & Oliver', 'Coming · 2', 'Vegetarian'],
   ['The Nguyens', 'Coming · 4', '1 coeliac'],
   ['Priya', 'Coming · 1', ''],
   ['Lucy & Ben', 'Can’t make it', ''],
@@ -160,25 +163,15 @@ function Budget() {
   );
 }
 
-/** Three phones, fanned: the guest list in the middle, seating and budget either side. */
+/** Three phones in a row: the guest list in the middle, seating and budget either side (computers only). */
 export function PhoneFan() {
+  // The one phone frame every preview uses (./PhoneFrame): side by side, never tilted. A phone shows the guest list.
+  const screen = (child: ReactNode) => <div className="absolute inset-0 flex flex-col overflow-hidden bg-[#fbf8f2]">{child}</div>;
   return (
-    <div className="sc-fan" role="img" aria-label="The app on three phones: the guest list filling in with replies, the seating plan, and the budget">
-      <div className="sc-ph sc-l">
-        <div>
-          <Seating />
-        </div>
-      </div>
-      <div className="sc-ph sc-m">
-        <div>
-          <GuestList />
-        </div>
-      </div>
-      <div className="sc-ph sc-r">
-        <div>
-          <Budget />
-        </div>
-      </div>
+    <div className="flex justify-center items-start gap-6" role="img" aria-label="The app on three phones: the guest list filling in with replies, the seating plan, and the budget">
+      <PhoneFrame className="hidden lg:block">{screen(<Seating />)}</PhoneFrame>
+      <PhoneFrame>{screen(<GuestList />)}</PhoneFrame>
+      <PhoneFrame className="hidden lg:block">{screen(<Budget />)}</PhoneFrame>
     </div>
   );
 }

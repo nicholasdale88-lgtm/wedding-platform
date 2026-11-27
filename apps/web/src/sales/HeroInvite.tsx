@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SAMPLE } from './sample';
+import { PhoneFrame } from './PhoneFrame';
 
 /** The phone the invitation is laid out for (an iPhone's screen, in CSS pixels). */
 const PHONE_W = 390;
@@ -11,7 +12,7 @@ const PHONE_H = 844;
  * The invitation is laid out at a real phone's size and shrunk to the frame, so it looks exactly as it does
  * on a guest's phone instead of being squeezed into a narrower screen.
  */
-export function HeroInvite({ src = '/demo?embed=1', caption = true, poster, cover, defer = false }: { src?: string; caption?: boolean; poster?: string; cover?: ReactNode; defer?: boolean } = {}) {
+export function HeroInvite({ src = '/demo?embed=1&sales=1', caption = true, poster, cover, defer = false }: { src?: string; caption?: boolean; poster?: string; cover?: ReactNode; defer?: boolean } = {}) {
   // defer: the live invitation starts loading only once the page itself has (the cover is the first paint and
   // the largest one), so it never holds back the page's first view (VS-03).
   const [mount, setMount] = useState(!defer);
@@ -50,13 +51,9 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true, poster, cove
   }, []);
   return (
     <figure className="m-0 flex flex-col items-center gap-4">
-      {/* The frame keeps a phone's proportions at any width. */}
-      <div
-        className="relative rounded-[44px] p-[10px] bg-[#1c1719] shadow-[0_40px_80px_rgba(70,40,40,.3),inset_0_0_0_2px_#3a3036]"
-        style={{ width: 'var(--hero-phone, min(300px, 82vw))' }}
-      >
-        <span aria-hidden className="absolute z-10 top-[18px] left-1/2 w-[78px] h-[20px] -ml-[39px] rounded-full bg-[#1c1719]" />
-        <div ref={screen} className="relative w-full overflow-hidden rounded-[34px] bg-[#f6f0e2] [clip-path:inset(0_round_34px)]" style={{ aspectRatio: `${PHONE_W} / ${PHONE_H}` }}>
+      {/* The one phone frame every preview uses (./PhoneFrame). */}
+      <PhoneFrame>
+        <div ref={screen} className="absolute inset-0">
           {mount && (
           <iframe
             key={`${src}#${run}`}
@@ -75,7 +72,7 @@ export function HeroInvite({ src = '/demo?embed=1', caption = true, poster, cove
           )}
           {poster && <img aria-hidden alt="" src={poster} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ opacity: ready ? 0 : 1, transition: 'opacity .6s ease' }} />}
         </div>
-      </div>
+      </PhoneFrame>
       {caption && (
         <figcaption className="flex flex-col items-center gap-1 text-[14px] text-center" style={{ color: '#6e6068' }}>
           <span>Tap the seal. This is the real invitation, with sample names.</span>

@@ -31,6 +31,9 @@ export function DemoPage() {
   const theme = THEME_NAMES.includes(asked) ? asked : undefined;
   // ?cover=1: the closed envelope as a design's cover still (tools/covers): the couple's names, no "tap" hint.
   const cover = params.get('cover') === '1';
+  // ?sales=1: the front page's and the designs page's phone. The envelope names the sample couple (never the
+  // sample guests), and it waits for a tap.
+  const sales = params.get('sales') === '1';
   useEffect(() => {
     if (cover) document.documentElement.dataset.themes = JSON.stringify(THEME_NAMES);
   }, [cover]);
@@ -39,11 +42,11 @@ export function DemoPage() {
     // From a vendor's link (?ref=, ?code=): kept for sign-up and their code for upgrading.
     rememberRef();
   }, []);
-  const props = { theme, play: params.get('play') === '1', mine: params.get('mine') === '1', cover };
+  const props = { theme, play: !sales && params.get('play') === '1', mine: params.get('mine') === '1', cover, sales };
   // The front page's phone and the cover stills: the invitation alone (no bar), and no Music pill in the hero.
   if (embed || cover)
     return (
-      <div className="yl-sample-embed contents">
+      <div className={`yl-sample-embed contents${sales ? ' yl-sample-sales' : ''}`}>
         <SampleInvitation key={theme ?? ''} {...props} />
       </div>
     );
@@ -102,8 +105,9 @@ export function SampleInvitation({
   play = false,
   mine = false,
   cover = false,
+  sales = false,
   chrome,
-}: { theme?: string; play?: boolean; mine?: boolean; cover?: boolean; chrome?: (music: Music | null) => ReactNode } = {}) {
+}: { theme?: string; play?: boolean; mine?: boolean; cover?: boolean; sales?: boolean; chrome?: (music: Music | null) => ReactNode } = {}) {
   // ?mine=1: the sample as changed in the sample app's Setup (kept in this tab), for its preview.
   const own = mine ? readDemoPages() : null;
   const base = own
@@ -127,8 +131,9 @@ export function SampleInvitation({
   // The hidden card waits at its own size until the tap (it was 1.12x, a 413px-wide box in a 390px screen):
   // it grows to 1.12 out of sight while the envelope opens, then settles exactly as before.
   const v = { ...core, after, cardScale: phase === 0 ? 'none' : core.cardScale, ...(scene === 'none' ? (cover ? { hintOp: 0 } : {}) : { envOp: 0, hintOp: 0 }) };
-  // A cover shows the sample couple, the same as its seal (H&T); the live sample is addressed to its guests.
-  const addressee = cover ? SAMPLE.couple : SAMPLE.guests;
+  // A cover and the marketing pages' phone show the sample couple, the same as its seal (H&T); the live sample
+  // (/demo) is addressed to its guests.
+  const addressee = cover || sales ? SAMPLE.couple : SAMPLE.guests;
   const th = themeOf(data.wedding.theme, data.content.custom);
   // With the bar (/demo): the whole invitation sits in the space below it. The transform makes this box the
   // frame for the invitation's fixed layers (the card, the envelope, the seal), so they fill it, not the screen.

@@ -3,7 +3,8 @@ import { SAMPLE_INVITE } from '../src/sales/sample';
 import { MUSIC_BOX } from '../src/guest/musicBox';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { EVENT_ADDON, PLAN_INFO, TEXT_COST_NOTE, TEXT_CREDIT_ALL_IN } from '@wp/shared';
+import { PLAN_INFO, PLAN_NAME, PLAN_PRICE_AUD, TEXT_COST_NOTE, TEXT_CREDIT_ALL_IN } from '@wp/shared';
+import { CLOSED_STILL } from '../src/sales/PhoneFrame';
 import { SalesPage } from '../src/sales/SalesPage';
 import { DemoPage } from '../src/sales/Demo';
 
@@ -18,7 +19,8 @@ describe('front page', () => {
   it('leads with one line and one call to action, then the invitations opening (no second phone)', () => {
     page();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('The invitation they’ll never forget.');
-    expect(screen.getByText(/guest list updated/)).toBeInTheDocument();
+    // Nothing over the hero's phone (send-10): no "guest list updated" note, no text bubbles.
+    expect(screen.queryByText(/guest list updated/)).toBeNull();
     expect(screen.getByRole('link', { name: 'Start your wedding' })).toHaveAttribute('href', '#start');
     expect(screen.getByRole('heading', { name: 'Opened like a gift.' })).toBeInTheDocument();
     // Condensed: the founders' section is folded into the comparison.
@@ -37,8 +39,10 @@ describe('front page', () => {
     const text = container.textContent ?? '';
     expect(text).not.toMatch(/start free|free plan|free to start/i);
     expect(text).not.toMatch(/texts? (are )?included/i);
+    // No vendor links on the sales page (send-10): the directory and "List your business" are gone from it.
+    expect(screen.queryByText(/List your business/)).toBeNull();
+    expect(container.querySelector('a[href*="vendor"]')).toBeNull();
     // The free things that are still true stay.
-    expect(screen.getByText('Wedding vendor? List your business free')).toBeInTheDocument();
     expect(screen.getByText('Send from your own phone or email, free')).toBeInTheDocument();
   });
 
@@ -51,16 +55,19 @@ describe('front page', () => {
 
   it('one plan, one price (the app’s own), one button: no tiers, no comparison table, no urgency', () => {
     const { container } = page();
-    const card = screen.getByRole('article', { name: `${PLAN_INFO.complete.name}, ${PLAN_INFO.complete.price} once` });
+    const card = screen.getByRole('article', { name: `${PLAN_NAME}, ${PLAN_PRICE_AUD} once` });
     expect(PLAN_INFO.complete.price).toBe('$87');
-    expect(within(card).getByText('$87')).toBeInTheDocument();
+    expect(PLAN_PRICE_AUD).toBe('A$87');
+    expect(within(card).getByText('A$87')).toBeInTheDocument();
     expect(within(card).getByText('As many guests as you like')).toBeInTheDocument();
     expect(within(card).getByRole('link', { name: 'Get started' })).toHaveAttribute('href', '#start');
     expect(screen.queryByRole('table')).toBeNull();
     const pricing = container.querySelector('#pricing')!.textContent ?? '';
     expect(pricing).not.toMatch(/Essentials|Deluxe|Most popular|\$88|\$98|\$50\b|\$80\b/);
-    expect(pricing).toContain(EVENT_ADDON.price);
-    expect(container.textContent).not.toMatch(/Essentials|Deluxe|\$88|\$98/);
+    // One price everywhere, from the price config: no "From $50", no plan cards, no extra-event price.
+    expect(container.textContent).not.toMatch(/Essentials|Deluxe|\$88|\$98|\$50\b|\$39|From \$|From A\$/);
+    expect((container.textContent ?? '').match(/A\$87/g)!.length).toBeGreaterThanOrEqual(4);
+    expect(container.textContent).not.toMatch(/(^|[^A])\$87/);
   });
 
   it('keeps the questions short', () => {
@@ -81,18 +88,24 @@ describe('front page', () => {
     expect(within(list).getByText(/Free, as often as you like/)).toBeInTheDocument();
   });
 
-  it('leads with the real envelope and wax seal, opening by itself in the phone', async () => {
-    page();
-    // The live invitation loads just after the page (its cover paints first).
+  it('leads with the real envelope and wax seal, closed until a tap, in the one phone frame', async () => {
+    const { container } = page();
+    // The live invitation loads just after the page (its cover paints first): sales mode, never opening by itself.
     const phone = await screen.findByTitle(/^Sample invitation for/);
     expect(phone.tagName).toBe('IFRAME');
-    expect(phone).toHaveAttribute('src', '/demo?embed=1&play=1');
-    // Every envelope pictured is the one guests get: the invitation's own wax seal and envelope papers.
+    expect(phone).toHaveAttribute('src', '/demo?embed=1&sales=1');
+    // Every closed-envelope preview is the same still of the sample (H&T, Harriet & Theo), in the same frame.
+    const stills = screen.getAllByRole('img', { name: /^The sample invitation, closed/ });
+    expect(stills.length).toBeGreaterThanOrEqual(2);
+    for (const s of stills) expect(s).toHaveAttribute('src', CLOSED_STILL);
+    const frames = [...container.querySelectorAll<HTMLElement>('[data-phone-frame]')];
+    expect(frames.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(frames.map((f) => f.style.boxShadow)).size).toBe(1);
+    // The colour tiles: the invitation's own wax seal and envelope papers.
     const envelopes = screen.getAllByRole('img', { name: /sealed envelope/ });
-    expect(envelopes.length).toBeGreaterThanOrEqual(3);
-    // Each has its wax seal; under a caption it leaves out its own words, so the two never overlap.
     for (const e of envelopes) expect(e).toHaveTextContent('H&T');
-    expect(envelopes.some((e) => /Tap to open/.test(e.textContent ?? ''))).toBe(true);
+    // The sample guests' names are never on the sales page (they're inside the opened card only).
+    expect(container.textContent).not.toMatch(/Emma/);
     // No paper still lifes (ribbons, eucalyptus) we don't provide.
     expect(screen.queryByRole('img', { name: /ribbon|eucalyptus/i })).toBeNull();
     expect(screen.getByRole('link', { name: 'See every design' })).toHaveAttribute('href', '/designs');

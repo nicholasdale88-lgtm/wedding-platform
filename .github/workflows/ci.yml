@@ -319,9 +319,9 @@ jobs:
         run: tail -80 "$RUNNER_TEMP/api.log"
 
   smoke:
-    name: Smoke (375px phone and computer)
+    name: Smoke (375px and 390px phones and computer)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -362,7 +362,7 @@ jobs:
           done
           curl -sf http://localhost:5173/api/site || { echo "::error::The app didn't start"; tail -50 "$RUNNER_TEMP/api.log"; tail -50 "$RUNNER_TEMP/web.log"; exit 1; }
       - name: Envelope, reply, calendar, dashboard, vendor portal, Photos connect
-        run: pnpm --filter e2e e2e --project=smoke-phone --project=smoke-desktop
+        run: pnpm --filter e2e e2e --project=smoke-phone --project=smoke-390 --project=smoke-desktop
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

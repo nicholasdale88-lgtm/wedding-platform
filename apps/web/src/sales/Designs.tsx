@@ -32,7 +32,7 @@ export function DesignsPage() {
   // The Signature designs first: each opens with its own scene.
   const ordered = [...SIGNATURE_NAMES, ...THEME_NAMES.filter((n) => !SIGNATURE[n])];
   const shown = ordered.filter((n) => mood === 'All' || (mood === 'Signature' ? !!SIGNATURE[n] : MOOD_OF[n] === mood));
-  const src = `/demo?embed=1&theme=${encodeURIComponent(theme)}`;
+  const src = `/demo?embed=1&sales=1&theme=${encodeURIComponent(theme)}`;
   return (
     <div className="min-h-screen" style={{ background: PAPER, color: INK, fontFamily: "'DM Sans Variable', 'DM Sans', system-ui, sans-serif" }}>
       <header className="max-w-[1100px] mx-auto px-4 py-5 flex justify-between items-center gap-3">
