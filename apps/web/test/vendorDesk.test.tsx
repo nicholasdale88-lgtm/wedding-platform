@@ -29,6 +29,16 @@ describe('the vendor’s desk', () => {
     fireEvent.click(within(needs).getByText('New enquiry from Grace Wu'));
     expect(go).toHaveBeenCalledWith('enquiries');
     expect(listingStrength(data.listing).score).toBeLessThan(50);
+    // All requests counts the one new enquiry: not the message, the date clash or the listing tip.
+    expect(within(needs).getByRole('button', { name: 'All requests (1)' })).toBeInTheDocument();
+  });
+
+  it('Overview: no requests waiting, no "All requests" (the listing tip is not a request)', () => {
+    const quiet: MyListing = { ...data, enquiries: data.enquiries.map((e) => ({ ...e, read: true, stage: 'quoted' })) };
+    render(<VendorOverview data={quiet} couples={[]} unread={0} quotesOpen={0} go={vi.fn()} />);
+    const needs = screen.getByRole('region', { name: 'Next 3 things' });
+    expect(within(needs).getByText(/Your listing is \d+% complete/)).toBeInTheDocument();
+    expect(within(needs).queryByRole('button', { name: /All requests/ })).toBeNull();
   });
 
   it('Enquiries: filtered by stage, with a clash warning and a first reply written for them', () => {

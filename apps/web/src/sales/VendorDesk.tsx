@@ -99,19 +99,22 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
   const hello = `${hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'}${l.contactName ? `, ${first(l.contactName)}` : ''}`;
 
   // What needs them, most pressing first.
-  const needs: { text: string; detail: string; to: DeskGo; urgent?: boolean }[] = [];
+  const needs: { text: string; detail: string; to: DeskGo; urgent?: boolean; request?: boolean }[] = [];
   for (const c of couples.filter((x) => x.unread)) needs.push({ text: `${c.couple} wrote to you`, detail: c.last?.body ?? '', to: 'couples', urgent: true });
-  for (const p of changes) needs.push({ text: `${p.to} asked for changes`, detail: `${p.title}: ${p.message}`.slice(0, 160), to: 'proposals', urgent: true });
-  for (const e of newEnq) needs.push({ text: `New enquiry from ${e.name}`, detail: [e.date && longDate(e.date), e.guests ? `${e.guests} guests` : ''].filter(Boolean).join(' · '), to: 'enquiries', urgent: true });
+  for (const p of changes) needs.push({ text: `${p.to} asked for changes`, detail: `${p.title}: ${p.message}`.slice(0, 160), to: 'proposals', urgent: true, request: true });
+  for (const e of newEnq) needs.push({ text: `New enquiry from ${e.name}`, detail: [e.date && longDate(e.date), e.guests ? `${e.guests} guests` : ''].filter(Boolean).join(' · '), to: 'enquiries', urgent: true, request: true });
   for (const c of couples)
     for (const q of c.quotes ?? [])
-      if (!q.answered && !q.declined && !q.closed) needs.push({ text: `Price ${c.couple}’s quote request`, detail: `${q.title}${q.due ? ` · due ${inDays(daysTo(q.due))}` : ''}`, to: 'quotes', urgent: !!q.due && daysTo(q.due) <= 7 });
+      if (!q.answered && !q.declined && !q.closed) needs.push({ text: `Price ${c.couple}’s quote request`, detail: `${q.title}${q.due ? ` · due ${inDays(daysTo(q.due))}` : ''}`, to: 'quotes', urgent: !!q.due && daysTo(q.due) <= 7, request: true });
   for (const e of openEnq) {
     const clash = clashOn(e.date, couples, data.busy);
     if (clash) needs.push({ text: `${e.name}’s date clashes`, detail: clash, to: 'enquiries' });
   }
   for (const c of ahead.filter((x) => daysTo(x.date) <= 14)) needs.push({ text: `${c.couple}’s wedding is ${inDays(daysTo(c.date))}`, detail: 'Check their timeline, numbers and dietary needs', to: 'couples' });
   if (strength.score < 100) needs.push({ text: `Your listing is ${strength.score}% complete`, detail: strength.todo[0] ?? '', to: 'listing' });
+  // Requests waiting: new enquiries, unpriced quote requests and proposals sent back for changes, one each
+  // (not messages, wedding dates, date clashes or the listing tip).
+  const requests = needs.filter((n) => n.request).length;
 
   // The next twelve months: weddings booked, and enquiries pencilled, per month.
   const months = deskMonths().map(({ key, label }) => ({
@@ -181,9 +184,9 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
               </span>
             </button>
           ))}
-          {needs.length > 0 && (
+          {requests > 0 && (
             <button type="button" onClick={() => go('enquiries')} className="self-start inline-flex items-center min-h-[44px] p-0 border-0 bg-transparent underline cursor-pointer text-[14px]" style={{ color: INK }}>
-              All requests ({needs.length})
+              All requests ({requests})
             </button>
           )}
         </section>
