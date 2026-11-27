@@ -288,14 +288,14 @@ export function SalesPage() {
           className="relative overflow-hidden px-4 pt-6 pb-20 md:pt-16 md:pb-24 [--wash:85%_78%] md:[--wash:85%_15%]"
           style={{ background: `radial-gradient(70% 60% at var(--wash), #f6dcd6 0%, rgba(246,220,214,0) 70%), radial-gradient(60% 55% at 5% 95%, #f1e3cc 0%, rgba(241,227,204,0) 70%), ${CREAM}` }}
         >
-          {/* Fine gold botanical line work in the corners, our own. */}
-          <svg aria-hidden className="absolute -top-6 -left-10 w-[340px] opacity-[.35] pointer-events-none" viewBox="0 0 200 200" fill="none" stroke={GOLD} strokeWidth="1">
+          {/* Fine gold botanical line work in the corners, our own: on a computer only (on a phone it crossed the words; send-10b). */}
+          <svg aria-hidden className="hidden md:block absolute -top-6 -left-10 w-[340px] opacity-[.35] pointer-events-none" viewBox="0 0 200 200" fill="none" stroke={GOLD} strokeWidth="1">
             <path d="M10 190 C40 140 60 100 120 60 S180 20 196 6" />
             {[30, 55, 80, 105, 130, 155].map((t, i) => (
               <ellipse key={t} cx={20 + t * 0.9} cy={180 - t * 0.85} rx="10" ry="4" transform={`rotate(${i % 2 ? -50 : 40} ${20 + t * 0.9} ${180 - t * 0.85})`} />
             ))}
           </svg>
-          <svg aria-hidden className="absolute -bottom-10 -right-6 w-[300px] opacity-[.3] pointer-events-none rotate-180" viewBox="0 0 200 200" fill="none" stroke={GOLD} strokeWidth="1">
+          <svg aria-hidden className="hidden md:block absolute -bottom-10 -right-6 w-[300px] opacity-[.3] pointer-events-none rotate-180" viewBox="0 0 200 200" fill="none" stroke={GOLD} strokeWidth="1">
             <path d="M10 190 C40 140 60 100 120 60 S180 20 196 6" />
             {[30, 55, 80, 105, 130, 155].map((t, i) => (
               <ellipse key={t} cx={20 + t * 0.9} cy={180 - t * 0.85} rx="10" ry="4" transform={`rotate(${i % 2 ? -50 : 40} ${20 + t * 0.9} ${180 - t * 0.85})`} />
@@ -327,7 +327,7 @@ export function SalesPage() {
                 </span>{' '}
                 forget.
               </h1>
-              <p className="order-5 md:order-none m-0 text-[clamp(17px,2.1vw,20px)] leading-[1.6] max-w-[520px]" style={{ color: SOFT }}>
+              <p className="order-6 md:order-none m-0 text-[clamp(17px,2.1vw,20px)] leading-[1.6] max-w-[520px]" style={{ color: SOFT }}>
                 Opened like a gift on every guest’s phone. They reply in seconds, by text or a tap, and your guest list, dietary list and seating plan fill themselves in.
               </p>
               <div className="order-3 md:order-none flex flex-wrap justify-center md:justify-start gap-3 md:pt-1">
@@ -338,16 +338,16 @@ export function SalesPage() {
                   Book a free trial
                 </a>
               </div>
-              <ul className="order-6 md:order-none m-0 p-0 list-none flex flex-wrap justify-center md:justify-start gap-x-5 gap-y-2 text-[14px]" style={{ color: SOFT }}>
+              <ul className="order-4 md:order-none m-0 p-0 list-none flex flex-wrap justify-center md:justify-start gap-x-4 gap-y-1 text-[14px]" style={{ color: SOFT }}>
                 <li>✓ {fromPrice}, paid once</li>
                 <li>✓ No subscription</li>
                 <li>✓ Set up in an evening</li>
               </ul>
-              <span className="order-7 md:order-none text-[13px]" style={{ color: SOFT }}>
+              <span className="order-4 md:order-none -mt-1 md:mt-0 text-[13px] text-center md:text-left" style={{ color: SOFT }}>
                 Texts to guests are extra ({TEXT_CREDIT_ALL_IN}c a credit) or free from your own phone. Australian dollars, {gstWords(gst)}.
               </span>
             </div>
-            <div className="order-4 md:order-none relative flex justify-center py-1 md:py-6 [--hero-phone:min(264px,70vw)] md:[--hero-phone:min(300px,82vw)]">
+            <div className="order-5 md:order-none relative flex justify-center py-1 md:py-6">
               {/* The real invitation: the envelope and its wax seal, which breaks and opens by itself (not for a
                   guest who asks for less motion: it waits for a tap). The cover paints first; the live
                   invitation loads after the page has. */}

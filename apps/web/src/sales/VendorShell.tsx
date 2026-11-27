@@ -167,6 +167,15 @@ export function VendorShell({
   onSignOut: () => void;
   children: ReactNode;
 }) {
+  // Scrolled into view (a tab, a link to a part of the page) lands above the phone's tab bar, not under it.
+  useEffect(() => {
+    const root = document.documentElement;
+    const was = root.style.scrollPaddingBottom;
+    root.style.scrollPaddingBottom = 'calc(59px + env(safe-area-inset-bottom) + 16px)';
+    return () => {
+      root.style.scrollPaddingBottom = was;
+    };
+  }, []);
   const [more, setMore] = useState(false);
   const c = coloursOf(look);
   const dark = look.side === 'dark';
@@ -289,7 +298,9 @@ export function VendorShell({
           </button>
         </header>
 
-        <main className="w-full max-w-[1120px] mx-auto px-4 lg:px-10 pt-5 lg:pt-9 pb-28 lg:pb-16 min-w-0">
+        {/* On a phone the page ends clear of the tab bar: its height (58px and its border) plus the safe area, and
+            room to breathe; anything scrolled into view stops above it too (the scroll padding, below; send-10b). */}
+        <main className="w-full max-w-[1120px] mx-auto px-4 lg:px-10 pt-5 lg:pt-9 pb-[calc(59px+env(safe-area-inset-bottom)+40px)] lg:pb-16 min-w-0">
           <div className="flex flex-col gap-1 pb-4">
             <span className="text-[12px] tracking-[.16em] uppercase font-semibold" style={{ color: c.accent }}>
               {here.label}

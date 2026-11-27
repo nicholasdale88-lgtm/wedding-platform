@@ -12,10 +12,15 @@ const LABEL = process.env.LABEL ?? 'shot';
 const OUT = process.env.OUT ?? 'screens-out';
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
-const SIZES = [
+const ALL_SIZES = [
+  [375, { viewport: { width: 375, height: 812 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true }],
   [390, { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true }],
   [1280, { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 }],
 ];
+// WIDTHS=375,390,1280 (simplify-02); 390 and 1280 unless asked.
+const WIDTHS = (process.env.WIDTHS ?? '390,1280').split(',').map(Number);
+const SIZES = ALL_SIZES.filter(([w]) => WIDTHS.includes(w));
+const EXTRA = process.env.EXTRA === '1';
 const shot = (page, name, w) => page.screenshot({ path: join(OUT, `${LABEL}-${name}-${w}.png`) });
 const settle = async (page, ms = 1800) => {
   await page.waitForLoadState('networkidle').catch(() => undefined);
@@ -69,6 +74,24 @@ for (const [w, opts] of SIZES) {
   await p2.goto('/try');
   await settle(p2);
   await shot(p2, 'try', w);
+  if (EXTRA) {
+    // send-10b: the sign-in screen, the sample couple's admin (no trial booked), the sample vendor and its Requests.
+    await p2.goto('/admin');
+    await settle(p2);
+    await shot(p2, 'sign-in', w);
+    await p2.goto('/admin/demo/wedding/overview');
+    await settle(p2, 2500);
+    await shot(p2, 'sample-admin', w);
+    await p2.goto('/vendors/me?sample=1');
+    await settle(p2, 2500);
+    await shot(p2, 'vendor-sample', w);
+    const req = p2.getByRole('navigation', { name: w < 1024 ? 'Quick menu' : 'Your vendor account' }).getByRole('button', { name: /Requests/ });
+    if (await req.count()) {
+      await req.first().click();
+      await settle(p2, 800);
+      await shot(p2, 'vendor-sample-requests', w);
+    }
+  }
   await pub.close();
 
   // A vendor.

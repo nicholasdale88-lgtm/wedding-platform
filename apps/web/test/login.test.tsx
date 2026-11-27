@@ -30,7 +30,7 @@ describe('admin sign-in', () => {
     mockApi({ '/api/a/me': () => json(401, { error: { code: 'signed_out', message: 'Please sign in.' } }) });
     renderAdmin();
     expect(await screen.findByRole('heading', { name: 'Welcome back' })).toBeInTheDocument();
-    expect(screen.getByText('RSVP admin · private')).toBeInTheDocument();
+    expect(screen.getByText('Your wedding admin · private')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open admin' })).toBeInTheDocument();
     expect(screen.getByLabelText('Passcode')).toHaveAttribute('type', 'password');
   });

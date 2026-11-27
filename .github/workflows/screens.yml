@@ -50,6 +50,7 @@ jobs:
           cd apps/e2e
           # screens/simplify-<label>: the launch simplification batch (admin, vendor portal, pricing).
           case "$LABEL" in
+            simplify2-*) BASE=http://localhost:5173 LABEL="${LABEL#simplify2-}" OUT=../../docs/screens/simplify-02 WIDTHS=375,390,1280 EXTRA=1 node screens/simplify.mjs ;;
             simplify-*) BASE=http://localhost:5173 LABEL="${LABEL#simplify-}" OUT=../../docs/screens/simplify-01 node screens/simplify.mjs ;;
             marketing-*) BASE=http://localhost:5173 LABEL="${LABEL#marketing-}" OUT=../../docs/screens/marketing-01 node screens/marketing.mjs ;;
             *) BASE=http://localhost:5173 LABEL="$LABEL" OUT=../../docs/screens/vs-phase1 node screens/capture.mjs ;;

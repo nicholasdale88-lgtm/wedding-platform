@@ -807,7 +807,7 @@ export function VendorHomePage() {
       )}
       {l.pending ? (
         <p role="status" className="mb-4 p-4 rounded-[12px] bg-[#f3ecd6] text-[15px]">
-          Your listing is under review. We check every new listing before couples can find it in the directory, usually within a day. Meanwhile, add a few photos and your prices: your couples, messages and enquiries all work already.
+          Your listing is under review. We check every new listing before couples can find it in the directory, within 2 business days. Meanwhile, add a few photos and your prices: your couples, messages and enquiries all work already.
         </p>
       ) : (
         params.get('joined') && <p className="mb-4 p-4 rounded-[12px] bg-[#e7eedb] text-[15px]">You’re listed. Couples can find you now. Add a few photos and your prices to stand out.</p>

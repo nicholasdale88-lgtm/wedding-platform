@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { DEMO_WID } from '../try/demoMode';
-import { trialBooked } from '../try/TrialPage';
 import { DemoFeature, DEMO_HANDS_ON } from '../try/DemoFeature';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, type Me } from '../lib/api';
@@ -76,8 +75,6 @@ export function AdminRoot() {
   useEffect(() => {
     document.title = 'Admin';
   }, []);
-  // Try the app opens once a free trial is booked (/try).
-  const demoLocked = pathname.startsWith(`/admin/${DEMO_WID}`) && !trialBooked();
 
   useEffect(() => {
     api
@@ -93,7 +90,8 @@ export function AdminRoot() {
     setState({ kind: 'signed-out' });
   }, []);
 
-  if (demoLocked) return <Navigate to="/try" replace />;
+  // The sample couple's admin (/admin/demo) opens straight away, booked trial or not (send-10b): it runs in the
+  // browser (try/demo), read-only, and never reaches the server.
   // An invitation to help run a wedding opens its own page, signed in or not.
   if (pathname.replace(/\/+$/, '') === '/admin/join') {
     return (

@@ -564,3 +564,61 @@ test('sales page previews (send-10): no vendor links, A$87 only, Harriet & Theo,
   await expect(date).toBeVisible();
   await expect(page.getByText(/Day \/ month \/ year/)).toBeVisible();
 });
+
+test('send-10b: the sample couple admin opens without booking a trial, and never asks the server who is signed in', async ({ page }) => {
+  const refused: string[] = [];
+  page.on('response', (r) => {
+    if (r.url().includes('/api/') && r.status() === 401) refused.push(r.url());
+  });
+  await page.goto('/admin/demo/wedding/overview');
+  await expect(page.getByRole('region', { name: 'Next 3 things' })).toBeVisible({ timeout: 20_000 });
+  expect(page.url()).toContain('/admin/demo/');
+  expect(refused).toEqual([]);
+});
+
+test('send-10b: on a phone the price line and Start your wedding are in the first screen', async ({ page }, info) => {
+  test.skip(!phone(info.project.name), 'phones only');
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20_000 });
+  const h = page.viewportSize()!.height;
+  for (const [what, loc] of [
+    ['Start your wedding', page.getByRole('link', { name: 'Start your wedding' }).first()],
+    ['A$87, paid once', page.getByText(/A\$87, paid once/).first()],
+    ['texts line', page.getByText(/Texts to guests are extra/).first()],
+  ] as const) {
+    const b = (await loc.boundingBox())!;
+    expect(b.y + b.height, `${what} above the fold`).toBeLessThanOrEqual(h);
+  }
+});
+
+test('send-10b: the sample vendor on a phone: Next 3 things and All requests clear of the tab bar; the stage chips wrap', async ({ page }, info) => {
+  test.skip(!phone(info.project.name), 'phones only');
+  await page.goto('/vendors/me?sample=1');
+  const next = page.getByRole('region', { name: 'Next 3 things' });
+  await expect(next).toBeVisible({ timeout: 20_000 });
+  const bar = page.getByRole('navigation', { name: 'Quick menu' });
+  const barTop = (await bar.boundingBox())!.y;
+  // In the first screen, above the bar: every one of the three and "All requests".
+  for (const b of await next.getByRole('button').all()) {
+    const r = (await b.boundingBox())!;
+    expect(r.y + r.height, `${await b.textContent()} above the tab bar`).toBeLessThanOrEqual(barTop + 0.5);
+  }
+  // The bottom of the page ends clear of the bar.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForTimeout(300);
+  const lastBottom = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('main > *')];
+    return Math.max(...els.map((e) => e.getBoundingClientRect().bottom));
+  });
+  expect(lastBottom).toBeLessThanOrEqual((await bar.boundingBox())!.y + 0.5);
+  // Requests: the stage chips wrap, none cut off ("Quoted" was).
+  await bar.getByRole('button', { name: /Requests/ }).click();
+  const chips = page.getByRole('tablist', { name: 'Show enquiries' }).getByRole('tab');
+  await expect(chips.first()).toBeVisible();
+  const vw = page.viewportSize()!.width;
+  for (const c of await chips.all()) {
+    const fits = await c.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+    const r = (await c.boundingBox())!;
+    expect(fits && r.x >= 0 && r.x + r.width <= vw, `${await c.textContent()} whole on screen`).toBe(true);
+  }
+});

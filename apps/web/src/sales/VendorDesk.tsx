@@ -134,7 +134,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
+      <div className="order-1 lg:order-none">
         <h2 className="m-0 text-[30px] font-normal" style={{ fontFamily: serif, color: INK }}>
           {hello}
         </h2>
@@ -144,7 +144,9 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
         </p>
       </div>
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      {/* On a phone the four figures come after Next 3 things, so all three and "All requests" are on the first
+          screen above the tab bar (send-10b); a computer keeps them first. */}
+      <div className="order-3 lg:order-none grid gap-3 grid-cols-2 lg:grid-cols-4">
         {stats.map(([k, v, to, sub]) => (
           <button key={k} type="button" onClick={() => go(to)} className="flex flex-col items-start gap-1 p-4 rounded-[16px] border border-[#e2d7bc] bg-[#fbf8f0] text-left cursor-pointer hover:shadow-[0_6px_16px_rgba(51,64,47,.08)]">
             <span className="text-[11px] font-semibold tracking-[.14em] uppercase" style={{ color: SOFT }}>
@@ -160,7 +162,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
         ))}
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start">
+      <div className="order-2 lg:order-none grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start">
         <section aria-label="Next 3 things" className={card}>
           <h3 className={h} style={{ color: SOFT }}>
             Next 3 things
@@ -218,7 +220,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
       </div>
 
       {/* Folded: the twelve-month chart and the listing's strength (not on the first screen). */}
-      <details className="flex flex-col gap-4">
+      <details className="order-4 lg:order-none flex flex-col gap-4">
         <summary className="inline-flex items-center min-h-[44px] cursor-pointer text-[14px] font-medium" style={{ color: SOFT }}>
           More: your season and your listing
         </summary>
@@ -496,7 +498,7 @@ export function EnquiryPipeline({ data, couples, onChanged }: { data: MyListing;
           </span>
         )}
       </div>
-      <div role="tablist" aria-label="Show enquiries" className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+      <div role="tablist" aria-label="Show enquiries" className="flex flex-wrap gap-2 pb-1">
         {chips.map(([k, t, n]) => (
           <button
             key={k}
@@ -504,7 +506,7 @@ export function EnquiryPipeline({ data, couples, onChanged }: { data: MyListing;
             role="tab"
             aria-selected={filter === k}
             onClick={() => setFilter(k)}
-            className={`flex-none py-2 px-4 min-h-[40px] rounded-full border text-[14px] cursor-pointer ${filter === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
+            className={`flex-none py-2 px-4 min-h-[44px] whitespace-nowrap rounded-full border text-[14px] cursor-pointer ${filter === k ? 'bg-[#33402f] text-[#f3ecd6] border-[#33402f]' : 'bg-white border-[#c6b794]'}`}
             style={filter === k ? undefined : { color: INK }}
           >
             {t} · {n}

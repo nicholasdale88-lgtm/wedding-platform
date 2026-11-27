@@ -120,7 +120,7 @@ export function Login({ onSignedIn, tone = 'wedding' }: { onSignedIn: (me: Me) =
         ) : (
           <>
             <h1 className="m-0 font-script font-normal text-[40px] leading-[1.15]">{last?.name || 'Welcome back'}</h1>
-            <p className="m-0 text-[11px] font-semibold tracking-[.24em] uppercase text-[var(--adm-muted,#5b6a52)]">RSVP admin · private</p>
+            <p className="m-0 text-[11px] font-semibold tracking-[.24em] uppercase text-[var(--adm-muted,#5b6a52)]">Your wedding admin · private</p>
           </>
         )}
         <label className="sr-only" htmlFor="email">Email</label>
