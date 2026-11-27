@@ -51,6 +51,7 @@ jobs:
           # screens/simplify-<label>: the launch simplification batch (admin, vendor portal, pricing).
           case "$LABEL" in
             simplify-*) BASE=http://localhost:5173 LABEL="${LABEL#simplify-}" OUT=../../docs/screens/simplify-01 node screens/simplify.mjs ;;
+            marketing-*) BASE=http://localhost:5173 LABEL="${LABEL#marketing-}" OUT=../../docs/screens/marketing-01 node screens/marketing.mjs ;;
             *) BASE=http://localhost:5173 LABEL="$LABEL" OUT=../../docs/screens/vs-phase1 node screens/capture.mjs ;;
           esac
       - name: Commit the screens
