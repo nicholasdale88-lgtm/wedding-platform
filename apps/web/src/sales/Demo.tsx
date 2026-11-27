@@ -130,7 +130,8 @@ export function SampleInvitation({
   };
   // The hidden card waits at its own size until the tap (it was 1.12x, a 413px-wide box in a 390px screen):
   // it grows to 1.12 out of sight while the envelope opens, then settles exactly as before.
-  const v = { ...core, after, cardScale: phase === 0 ? 'none' : core.cardScale, ...(scene === 'none' ? (cover ? { hintOp: 0 } : {}) : { envOp: 0, hintOp: 0 }) };
+  // In sales mode the sample sits in a phone (even on a computer): it always says "Tap to open", as the still does.
+  const v = { ...core, after, cardScale: phase === 0 ? 'none' : core.cardScale, ...(sales ? { hint: t('inv.dyn.hintTap') } : {}), ...(scene === 'none' ? (cover ? { hintOp: 0 } : {}) : { envOp: 0, hintOp: 0 }) };
   // A cover and the marketing pages' phone show the sample couple, the same as its seal (H&T); the live sample
   // (/demo) is addressed to its guests.
   const addressee = cover || sales ? SAMPLE.couple : SAMPLE.guests;
