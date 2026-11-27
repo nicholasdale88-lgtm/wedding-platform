@@ -43,7 +43,7 @@ for (const [w, opts] of SIZES) {
   await page.goto(`/admin/${wid}`);
   await settle(page);
   await shot(page, 'admin-home', w);
-  if (w === 390) {
+  if (w < 1024) {
     const menu = page.getByRole('button', { name: /menu/i }).first();
     if (await menu.count()) {
       await menu.click().catch(() => undefined);

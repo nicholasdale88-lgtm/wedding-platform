@@ -15,7 +15,7 @@ export function DemoBar({ beside = false }: { beside?: boolean }) {
         </span>
         <strong className="sm:hidden text-[12px] font-semibold">Sample, nothing is sent</strong>
         <a href="/#start" className="ml-auto inline-flex items-center min-h-[44px] py-[7px] px-3 sm:px-4 rounded-full no-underline font-semibold whitespace-nowrap !text-[#2a1c26] bg-[#d6b780]">
-          Start <span className="hidden sm:inline">your wedding</span>
+          Start&nbsp;<span className="hidden sm:inline">your wedding</span>
           <span className="sm:hidden">yours</span>
         </a>
       </div>
