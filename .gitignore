@@ -13,3 +13,4 @@ tests/stress/stress-report/
 
 # Local-only secrets (QA test accounts and the like): never committed.
 *.local.json
+__pycache__/
