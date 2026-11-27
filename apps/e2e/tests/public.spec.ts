@@ -50,9 +50,9 @@ test('sample seating PDF: branded, the room, each table with numbered seats, the
 
 test('try the app: book a free trial, then the sample admin opens, switches plans, edits a guest, and leads back', async ({ page }) => {
   await page.goto('/');
-  // The sample app opens only after booking a free trial.
+  // The sample app opens straight away (send-10b); booking a free trial from the front page still leads into it.
   await page.goto('/admin/demo');
-  await expect(page).toHaveURL(/\/try$/);
+  await expect(page).toHaveURL(/\/admin\/demo\//);
   await page.goto('/');
   await page.getByRole('link', { name: 'Book your free trial' }).click();
   await expect(page).toHaveURL(/\/try$/);

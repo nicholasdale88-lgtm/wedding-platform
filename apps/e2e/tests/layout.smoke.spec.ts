@@ -538,7 +538,8 @@ test('sales page previews (send-10): no vendor links, A$87 only, Harriet & Theo,
   await page.waitForTimeout(4500);
   const inside = page.frameLocator('iframe[title^="Sample invitation"]').first();
   await expect(inside.getByText(/Tap to open/i).first()).toBeVisible();
-  await expect(inside.getByText('Harriet & Theo').first()).toBeVisible();
+  // The envelope's own names (the opened card's hidden text also has them).
+  await expect(inside.locator('text="Harriet & Theo" >> visible=true').first()).toBeVisible();
   // Nothing over the hero's phone: every point of it belongs to it.
   const frame = page.locator('[data-phone-frame]').first();
   await frame.scrollIntoViewIfNeeded();
