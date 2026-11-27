@@ -1,4 +1,4 @@
-/* global process, console, document */
+/* global process, console, document, window */
 // Before/after screenshots of the marketing pages (send-10: marketing images and the sales-page fixes), at 390
 // and 1280: the front page's hero, each preview section, pricing, the footer and the phone menu, /try and
 // /designs. LABEL=after also photographs the sample's closed envelope in sales mode (/demo?embed=1&sales=1) at

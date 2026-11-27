@@ -102,7 +102,7 @@ describe('front page', () => {
     expect(frames.length).toBeGreaterThanOrEqual(4);
     expect(new Set(frames.map((f) => f.style.boxShadow)).size).toBe(1);
     // The colour tiles: the invitation's own wax seal and envelope papers.
-    const envelopes = screen.getAllByRole('img', { name: /sealed envelope/ });
+    const envelopes = screen.getAllByRole('img', { name: /^A sealed envelope/ });
     for (const e of envelopes) expect(e).toHaveTextContent('H&T');
     // The sample guests' names are never on the sales page (they're inside the opened card only).
     expect(container.textContent).not.toMatch(/Emma/);
