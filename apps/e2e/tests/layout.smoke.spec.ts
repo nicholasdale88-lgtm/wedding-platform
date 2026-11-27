@@ -519,7 +519,10 @@ test('Simplify Job 1: a signed-in couple sees five menu items (Home, Guests, Inv
 test('sales page previews (send-10): no vendor links, A$87 only, Harriet & Theo, one phone style, the hero closed and uncovered', async ({ page }) => {
   for (const path of ['/', '/try']) {
     await page.goto(path);
+    // The page drawn first (an empty page would pass every "not" below).
+    await expect(path === '/' ? page.getByRole('heading', { level: 1 }) : page.getByRole('form', { name: 'Book your free trial' })).toBeVisible({ timeout: 20_000 });
     await page.waitForLoadState('networkidle');
+    expect((await page.locator('body').innerText()).length, `${path}: drawn`).toBeGreaterThan(200);
     expect(await page.locator('a[href*="vendor"]').count(), `${path}: vendor links`).toBe(0);
     const text = await page.locator('body').innerText();
     expect(text, `${path}: vendor wording`).not.toMatch(/Vendor directory|List your business/);
@@ -527,6 +530,7 @@ test('sales page previews (send-10): no vendor links, A$87 only, Harriet & Theo,
     expect(text, `${path}: old prices`).not.toMatch(/From \$|\$50\b|\$88|\$98|\$39/);
   }
   await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20_000 });
   expect(await page.locator('body').innerText()).toContain('A$87');
   // The hero: the sample in sales mode, still closed (Tap to open, the couple's names) after a wait.
   const hero = page.locator('iframe[title^="Sample invitation"]').first();
