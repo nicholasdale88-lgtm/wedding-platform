@@ -443,7 +443,7 @@ function BackBar() {
       onClick={(e) => {
         if (!confirmLeave()) e.preventDefault();
       }}
-      className="self-start inline-flex items-center gap-2 mb-4 py-[7px] pl-3 pr-4 min-h-[40px] rounded-full border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[14px] font-medium no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]"
+      className="relative self-start inline-flex items-center gap-2 mb-4 py-[7px] pl-3 pr-4 min-h-[40px] rounded-full before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[3px] border border-[var(--adm-line,#d3c6a4)] bg-[var(--adm-card,#fbf8f0)] text-[14px] font-medium no-underline !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-tint,#efe7d3)]"
     >
       <span aria-hidden>←</span>
       Home

@@ -445,6 +445,48 @@ test('the sample app on a phone: Help, Preview, Group by side and the dietary + 
   const chip = page.getByRole('button', { name: /^\+ (Vegetarian|Vegan|Gluten free|Dairy free)$/ }).first();
   await expect(chip).toBeVisible({ timeout: 20_000 });
   expect(await chip.evaluate(tall)).toEqual([true, true]);
+  // Every page's ← Home and its own menu's pills (Guest list · Meals & allergies · Seating).
+  for (const t of [page.locator('a:visible', { hasText: /←\s*Home/ }).first(), page.getByRole('navigation', { name: 'Guest planning' }).getByRole('link', { name: 'Seating' })]) {
+    await expect(t).toBeVisible();
+    expect(await t.evaluate(tall), await t.evaluate((el) => el.textContent ?? '')).toEqual([true, true]);
+  }
+  // The overview's figures say all of it: "guests · 23 invitations said yes" is never cut off.
+  await page.goto('/admin/demo/wedding/overview');
+  const figures = page.getByRole('region', { name: 'Replies at a glance' }).getByRole('button');
+  await expect(figures.first()).toBeVisible({ timeout: 20_000 });
+  for (const f of await figures.all()) {
+    const cut = await f.evaluate((el) => [...el.querySelectorAll('span')].some((s) => s.scrollWidth > s.clientWidth + 1 && getComputedStyle(s).overflow === 'hidden'));
+    expect(cut, (await f.textContent()) ?? '').toBe(false);
+  }
+});
+
+test('the guest photo page on a phone: every frame and look chip is a 44px tap; the vendor sample's Edit your listing is 44px', async ({ page }, info) => {
+  test.skip(!phone(info.project.name), 'phone only');
+  const tall = (el: Element) => {
+    el.scrollIntoView({ block: 'nearest', inline: 'center' });
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    return [y - 21, y + 21].map((yy) => {
+      const hit = document.elementFromPoint(x, yy);
+      return !!hit && (hit === el || el.contains(hit));
+    });
+  };
+  await page.goto('/demo/photos');
+  const name = page.locator('form input').first();
+  await expect(name).toBeVisible({ timeout: 20_000 });
+  await name.fill('Ava');
+  await name.press('Enter');
+  for (const group of ['Filter', 'Look']) {
+    const chips = page.getByRole('radiogroup', { name: group }).getByRole('radio');
+    await expect(chips.first()).toBeVisible({ timeout: 20_000 });
+    for (const chip of await chips.all()) expect(await chip.evaluate(tall), `${group}: ${await chip.textContent()}`).toEqual([true, true]);
+  }
+  expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
+  await page.goto('/vendors/me?sample=1');
+  const edit = page.getByRole('button', { name: 'Edit your listing' });
+  await expect(edit).toBeVisible({ timeout: 20_000 });
+  expect((await edit.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
 
 test('Sentinel residuals: footer Home and Terms and the /try Terms are 44x44 at 375, 390 and 1440; the sample FAQ names who to contact', async ({ page }) => {

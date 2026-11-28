@@ -367,7 +367,7 @@ export function PhotoPage({ sample = false }: { sample?: boolean } = {}) {
           )}
           {step === 2 && <div className="text-[19px]">2. Pick a frame and a look</div>}
           {step === 2 && (
-          <div role="radiogroup" aria-label="Filter" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none]">
+          <div role="radiogroup" aria-label="Filter" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none] py-[3px] -my-[3px]">
             {filters.map((f) => (
               <button
                 key={f}
@@ -375,7 +375,7 @@ export function PhotoPage({ sample = false }: { sample?: boolean } = {}) {
                 role="radio"
                 aria-checked={f === filter}
                 onClick={() => setFilter(f)}
-                className="flex-none py-[6px] px-4 rounded-full border text-[16px] cursor-pointer"
+                className="relative flex-none py-[6px] px-4 rounded-full border text-[16px] cursor-pointer before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[4px]"
                 style={f === filter ? { background: info.ink, color: '#fbf8f2', borderColor: info.ink } : { background: 'transparent', color: info.ink, borderColor: 'rgba(0,0,0,.18)' }}
               >
                 {FILTER_LABEL[f]}
@@ -384,7 +384,7 @@ export function PhotoPage({ sample = false }: { sample?: boolean } = {}) {
           </div>
           )}
           {step === 2 && (
-          <div role="radiogroup" aria-label="Look" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none]">
+          <div role="radiogroup" aria-label="Look" className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none] py-[5px] -my-[5px]">
             {lookKeys.length > 1 && lookKeys.map((k) => (
               <button
                 key={k}
@@ -392,7 +392,7 @@ export function PhotoPage({ sample = false }: { sample?: boolean } = {}) {
                 role="radio"
                 aria-checked={k === look}
                 onClick={() => setLook(k)}
-                className="flex-none flex items-center gap-2 py-[5px] pl-[5px] pr-3 rounded-full border text-[15px] cursor-pointer"
+                className="relative flex-none flex items-center gap-2 py-[5px] pl-[5px] pr-3 rounded-full border text-[15px] cursor-pointer before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[6px]"
                 style={k === look ? { background: info.ink, color: '#fbf8f2', borderColor: info.ink } : { background: 'transparent', color: info.ink, borderColor: 'rgba(0,0,0,.18)' }}
               >
                 {/* A swatch of the look: a little sunset, graded. */}

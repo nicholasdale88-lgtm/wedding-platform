@@ -266,7 +266,7 @@ export function Kpis({ label, items }: { label: string; items: { label: string; 
           <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-[var(--adm-gold,#b9a07a)] opacity-70" />
           <span className="text-[11px] font-semibold tracking-[.18em] uppercase text-[var(--adm-gold,var(--adm-muted,#5b6a52))]">{k.label}</span>
           <span className={`font-display text-[38px] leading-none truncate ${k.warn ? 'text-[#a4553c]' : ''}`}>{k.value}</span>
-          <span className={`text-[12px] truncate ${k.warn ? 'text-[#a4553c] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>{k.sub}</span>
+          <span className={`text-[12px] leading-snug ${k.warn ? 'text-[#a4553c] font-semibold' : 'text-[var(--adm-muted,#5b6a52)]'}`}>{k.sub}</span>
         </button>
       ))}
     </section>

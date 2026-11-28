@@ -280,7 +280,7 @@ export function VendorOverview({ data, couples, unread, quotesOpen, changes = []
           <span className="text-[13px]" style={{ color: SOFT }}>
             Booked by {l.booked} {l.booked === 1 ? 'couple' : 'couples'} through the app.
           </span>
-          <button type="button" onClick={() => go('listing')} className="self-start py-2 px-4 min-h-[40px] rounded-full border border-[#c6b794] bg-white text-[14px] font-semibold cursor-pointer" style={{ color: INK }}>
+          <button type="button" onClick={() => go('listing')} className="self-start py-2 px-4 min-h-[44px] rounded-full border border-[#c6b794] bg-white text-[14px] font-semibold cursor-pointer" style={{ color: INK }}>
             Edit your listing
           </button>
         </section>

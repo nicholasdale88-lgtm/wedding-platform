@@ -78,7 +78,7 @@ export function Tabs<K extends string>({ label, items, value, onChange }: { labe
  */
 export const subNavCls = 'flex gap-1 overflow-x-auto [scrollbar-width:none] p-1 rounded-[22px] bg-[var(--adm-tint,#efe7d3)] self-start max-w-full min-[760px]:flex-wrap';
 export const tabCls = (on: boolean) =>
-  `flex-none whitespace-nowrap py-[7px] px-4 rounded-full border-0 text-[14px] no-underline cursor-pointer ${
+  `relative flex-none whitespace-nowrap py-[7px] px-4 rounded-full before:content-[''] before:absolute before:inset-x-0 before:-inset-y-[4px] border-0 text-[14px] no-underline cursor-pointer ${
     on ? 'bg-[var(--adm-ink,#33402f)] !text-[#f3ecd6] font-medium' : 'bg-transparent !text-[var(--adm-ink,#33402f)] hover:bg-[var(--adm-line,#e2d7bc)]'
   }`;
 
