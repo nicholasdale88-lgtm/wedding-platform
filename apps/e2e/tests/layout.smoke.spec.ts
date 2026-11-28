@@ -473,10 +473,14 @@ test("the guest photo page on a phone: every frame and look chip is a 44px tap; 
     });
   };
   await page.goto('/demo/photos');
+  // The sample starts at step 2 (a name is already there); a fresh guest page asks for a name first.
   const name = page.locator('form input').first();
-  await expect(name).toBeVisible({ timeout: 20_000 });
-  await name.fill('Ava');
-  await name.press('Enter');
+  const filters = page.getByRole('radiogroup', { name: 'Filter' });
+  await expect(filters.or(name).first()).toBeVisible({ timeout: 20_000 });
+  if (await name.isVisible()) {
+    await name.fill('Ava');
+    await name.press('Enter');
+  }
   for (const group of ['Filter', 'Look']) {
     const chips = page.getByRole('radiogroup', { name: group }).getByRole('radio');
     await expect(chips.first()).toBeVisible({ timeout: 20_000 });
