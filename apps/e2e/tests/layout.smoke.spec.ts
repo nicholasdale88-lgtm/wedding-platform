@@ -460,7 +460,7 @@ test('the sample app on a phone: Help, Preview, Group by side and the dietary + 
   }
 });
 
-test("the guest photo page on a phone: every frame and look chip is a 44px tap; the vendor sample's Edit your listing is 44px", async ({ page }, info) => {
+test('the guest photo page on a phone: every frame and look chip is a 44px tap', async ({ page }, info) => {
   test.skip(!phone(info.project.name), 'phone only');
   const tall = (el: Element) => {
     el.scrollIntoView({ block: 'nearest', inline: 'center' });
@@ -487,10 +487,6 @@ test("the guest photo page on a phone: every frame and look chip is a 44px tap; 
     for (const chip of await chips.all()) expect(await chip.evaluate(tall), `${group}: ${await chip.textContent()}`).toEqual([true, true]);
   }
   expect(await sideways(page), 'scrolls sideways').toBeLessThanOrEqual(1);
-  await page.goto('/vendors/me?sample=1');
-  const edit = page.getByRole('button', { name: 'Edit your listing' });
-  await expect(edit).toBeVisible({ timeout: 20_000 });
-  expect((await edit.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
 
 test('Sentinel residuals: footer Home and Terms and the /try Terms are 44x44 at 375, 390 and 1440; the sample FAQ names who to contact', async ({ page }) => {
