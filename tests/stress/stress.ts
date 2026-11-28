@@ -836,7 +836,10 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
   if (w.plan !== 'basic' && rng.chance(0.4)) {
     const s = (await must(admin('/settings', 'GET', '/settings'), 200, 'settings')).json<{ version: number }>();
     await must(admin('/settings', 'PUT', '/settings', { sender: '0400 000 999', adminMobile: '0412 000 777' }, { 'If-Match': String(s.version) }), 200, 'settings save');
-    const id = (await must(admin('/texts', 'POST', '/texts', { name: 'Stress check', audience: { attending: 'wedding' }, body: 'Hi {first}, see you soon!' }), 200, 'new text')).json<{ id: string }>().id;
+    const id = (await must(admin('/texts', 'POST', '/texts', { name: 'Stress check', audience: { attending: 'wedding' }, body: rng.pick(['Hi {first}, see you soon!', 'Hi {first}, from {couple}: replies close {rsvp_by}.', 'Hi {first}! {partner1} & {partner2}']) }), 200, 'new text')).json<{ id: string }>().id;
+    // A blank that can't be filled for each guest is refused when saved (it would never send).
+    const blank = await admin('/texts', 'POST', '/texts', { name: 'Where', audience: { attending: 'wedding' }, body: `See you at ${rng.pick(['{venue}', '{date}', '{event}', '{arrive_by}', '{Venue}'])}!` });
+    check(blank.status === 400, 'a text with a blank that can’t be filled is refused when saved', () => `${blank.status} ${blank.text.slice(0, 120)}`);
     const sent = await admin('/texts/:cid/send', 'POST', `/texts/${id}/send`, {});
     check(sent.status === 200, 'a text sends', () => `${sent.status} ${sent.text.slice(0, 150)}`);
     const want = w.houses.filter((h) => h.phone && comingN(w, h, 'wedding') > 0).length;
@@ -1162,6 +1165,77 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
       else if (!maybeFlorist) check(!!flo && !flo.done, '“Book the florist” stays to do while no florist is booked', () => JSON.stringify(flo));
       check(after.data.tasks.length === keep.length + 2, 'the checklist keeps every task through the ticking', () => `${after.data.tasks.length} vs ${keep.length + 2}`);
     }
+  }
+
+  // 12g. The message board and song requests, from guests' own links. With "approve first" on, a new post waits:
+  //      other guests don't see it (its writer does, marked waiting) until the couple shows it. Hearts toggle
+  //      (tap again to take back) and the count agrees for the couple. A reply sits under its post. A guest can
+  //      only remove their own post (its replies go with it). A made-up link can't post. With the board off,
+  //      posting is refused and guests see nothing. Songs a guest asks for reach the couple, each with who asked.
+  if (rng.chance(0.5) && w.houses.length >= 2) {
+    type GPost = { id: string; body: string; mine: boolean; pending: boolean; likes: number; liked: boolean; replies: GPost[] };
+    type APost = { id: string; body: string; status: string; likes: number; replies: APost[] };
+    const hs = w.houses.filter((h) => h.token).slice(0, rng.int(2, 6));
+    const approve = rng.chance(0.4);
+    const pub = (label: string, method: string, path: string, body?: unknown) => call(`${method} /p/:slug/${label}`, method, `/p/${w.slug}/${path}`, { ip: b.ip(), ...(body !== undefined ? { body } : {}) });
+    const seenBy = async (h: House) => (await must(pub('board', 'GET', `board?g=${h.token}`), 200, 'board (guest)')).json<{ on: boolean; posts: GPost[] }>();
+    const couple = async () => (await must(admin('/board', 'GET', '/board'), 200, 'board (couple)')).json<{ pending: number; posts: APost[] }>();
+    await must(admin('/board/settings', 'PUT', '/board/settings', { on: true, approve }), 200, 'board settings');
+    const posted: { h: House; body: string }[] = [];
+    for (const h of hs) {
+      const body = `${rng.pick(['Congratulations, you two! 🥂', 'So happy for you both', 'Can’t wait to dance — save us a spot ✨', 'Love you heaps xx'])} (${h.n})`;
+      const r = await pub('board', 'POST', 'board', { token: h.token, body });
+      check(r.status === 200 && r.json<{ pending: boolean }>().pending === approve, 'a guest posts on the board', () => `${r.status} ${r.text.slice(0, 120)}`);
+      if (r.status === 200) posted.push({ h, body });
+    }
+    const [p0, p1] = posted;
+    if (p0 && p1) {
+      const other = await seenBy(p1.h);
+      check(other.posts.some((x) => x.body === p0.body) === !approve, approve ? 'a post waiting for approval is hidden from other guests' : 'a post shows to other guests at once', () => `${other.posts.length} posts`);
+      const own = other.posts.find((x) => x.body === p1.body);
+      check(!!own && own.mine && own.pending === approve, 'a guest always sees their own post (marked waiting when it is)', () => JSON.stringify(own ?? null));
+    }
+    let adm = await couple();
+    check(adm.pending === (approve ? posted.length : 0), 'the couple sees how many posts are waiting', () => `${adm.pending} waiting, ${posted.length} posted`);
+    if (approve) for (const p of adm.posts) await must(admin('/board/:id', 'PATCH', `/board/${p.id}`, { status: 'shown' }), 200, 'show a post');
+    adm = await couple();
+    const target = adm.posts.find((x) => x.body === p0?.body);
+    if (p0 && p1 && target) {
+      // Hearts from every guest here, one taken back again.
+      let n = 0;
+      for (const h of hs) {
+        const r = await pub('board/:id/like', 'POST', `board/${target.id}/like`, { token: h.token });
+        if (r.status === 200 && r.json<{ liked: boolean }>().liked) n++;
+      }
+      const undo = await pub('board/:id/like', 'POST', `board/${target.id}/like`, { token: hs[0]!.token });
+      if (undo.status === 200 && !undo.json<{ liked: boolean }>().liked) n--;
+      check((await couple()).posts.find((x) => x.id === target.id)?.likes === n, 'hearts on a post agree for the couple (a second tap takes one back)', () => `${n} expected`);
+      // A reply under it; then someone else can't remove it, its writer can (and the reply goes with it).
+      const rep = await pub('board', 'POST', 'board', { token: p1.h.token, body: 'Same here!', parent: target.id });
+      check(rep.status === 200, 'a guest replies to a post', () => `${rep.status} ${rep.text.slice(0, 120)}`);
+      const under = (await seenBy(p0.h)).posts.find((x) => x.id === target.id);
+      check(under?.replies.some((r) => r.body === 'Same here!') === true, 'a reply shows under its post', () => JSON.stringify(under ?? null).slice(0, 160));
+      check((await pub('board/:id', 'DELETE', `board/${target.id}`, { token: p1.h.token })).status === 404, 'a guest can’t remove someone else’s post');
+      check((await pub('board/:id', 'DELETE', `board/${target.id}`, { token: p0.h.token })).status === 200, 'a guest removes their own post');
+      check(!(await couple()).posts.some((x) => x.id === target.id), 'a removed post is gone for the couple too, replies and all');
+    }
+    check((await pub('board', 'POST', 'board', { token: 'x'.repeat(24), body: 'Hello' })).status === 404, 'a made-up link can’t post on the board');
+    if (rng.chance(0.3)) {
+      await must(admin('/board/settings', 'PUT', '/board/settings', { on: false, approve }), 200, 'board off');
+      check((await pub('board', 'POST', 'board', { token: hs[0]!.token, body: 'Still here?' })).status === 403, 'with the board off, posting is refused');
+      const off = await seenBy(hs[0]!);
+      check(!off.on && off.posts.length === 0, 'with the board off, guests see no posts', () => `${off.posts.length} posts`);
+    }
+    // Song requests.
+    let asked = 0;
+    for (const h of hs.slice(0, 3)) {
+      const r = await pub('songs', 'POST', 'songs', { token: h.token, title: rng.pick(['Our Song', 'First Dance', 'Golden Hour (slow version)', 'Ünïcode Wälz']), artist: rng.chance(0.5) ? 'The Band' : '' });
+      check(r.status === 200, 'a guest asks for a song', () => `${r.status} ${r.text.slice(0, 120)}`);
+      if (r.status === 200) asked++;
+    }
+    const songs = (await must(admin('/songs', 'GET', '/songs'), 200, 'songs')).json<{ songs: { by: string }[] }>().songs;
+    check(songs.length === asked, 'every song asked for reaches the couple', () => `${songs.length} of ${asked}`);
+    check(songs.every((s) => s.by.trim() !== '' && !/^\s*&|&\s*$|&\s*&/.test(s.by)), 'each song says who asked (no blank names)', () => songs.map((s) => s.by).join(' | '));
   }
 
   // 13. Everything agrees everywhere.

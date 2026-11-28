@@ -32,6 +32,17 @@ export function pending(events: EventInfo[], r: Recipient): string {
   return labels.length ? labels.join(' and ') : 'the celebrations';
 }
 
+/** The blanks a text can use: each is filled in for every guest ({table} only once they're seated). */
+const FILLABLE = new Set(['first', 'pending', 'couple', 'partner1', 'partner2', 'rsvp_by', 'table', 'link', 'photos', 'thanks', 'savethedate', 'guide']);
+/** Blanks in a text's words that can never be filled in for a guest (e.g. {venue}): a text with one is never sent. */
+export function cantFill(template: string): string[] {
+  const out = new Set<string>();
+  for (const [, name] of template.matchAll(/\{([a-z0-9_]+)\}/gi)) if (!FILLABLE.has(name!) && !/^guide_[a-z0-9_]+$/.test(name!)) out.add(name!);
+  return [...out];
+}
+export const cantFillMessage = (names: string[]) =>
+  `{${names.join('}, {')}} can’t be filled in for each guest, so the text would never send. Use the + buttons under the message instead, or write it out.`;
+
 export interface Rendered {
   body: string;
   parts: number;

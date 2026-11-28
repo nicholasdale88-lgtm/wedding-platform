@@ -177,10 +177,24 @@ describe('admin API', () => {
       env.DB = real;
       expect(failed, String(lose)).toBe(true);
       expect(res.status, String(lose)).toBe(200);
-      expect(((await json<{ guests: { id: string }[] }>(await call('/guests'))).guests.map((x) => x.id)).toContain(g.id);
+      expect((await json<{ guests: { id: string }[] }>(await call('/guests'))).guests.map((x) => x.id)).toContain(g.id);
       // Back once; putting back again is a clean not-found.
       expect((await call(`/guests/${g.id}/restore`, { method: 'POST', body: '{}' })).status).toBe(404);
     }
+  });
+
+  it('a text with a blank that can never be filled ({venue}, {date}) is refused when saved, with the reason; the ones the + buttons add save', async () => {
+    const bad = await call('/texts', { method: 'POST', body: JSON.stringify({ name: 'Venue', audience: { all: true }, body: 'Hi {first}, see you at {venue} on {date}!' }) });
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { error: { message: string } }).error.message).toContain('{venue}, {date}');
+    const ok = await call('/texts', { method: 'POST', body: JSON.stringify({ name: 'Fine', audience: { all: true }, body: 'Hi {first} from {couple}: {pending} by {rsvp_by}, {link} {guide} {photos} {thanks} {savethedate} {table}' }) });
+    expect(ok.status).toBe(200);
+    const { id } = (await ok.json()) as { id: string };
+    const list = await json<{ campaigns: { id: string; version: number }[] }>(await call('/texts'));
+    const v = list.campaigns.find((x) => x.id === id)!.version;
+    const edit = await call(`/texts/${id}`, { method: 'PATCH', headers: { 'If-Match': String(v) }, body: JSON.stringify({ body: 'Arrive by {arrive_by}' }) });
+    expect(edit.status).toBe(400);
+    expect(((await edit.json()) as { error: { message: string } }).error.message).toContain('{arrive_by}');
   });
 
   it('overview: counts, per-event figures and Needs you from the real seed', async () => {

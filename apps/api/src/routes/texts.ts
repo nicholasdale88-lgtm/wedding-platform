@@ -5,6 +5,7 @@ import { isBusy, readJson, safeJson } from '../lib/security';
 import { hasFeature, needsUpgrade } from '../lib/plan';
 import { estimate, preflight, sendNow, sendTest, type EngineDeps } from '../sms/engine';
 import { recipientsFor } from '../sms/audience';
+import { cantFill, cantFillMessage } from '../sms/render';
 import { ensureStarterTexts } from '../sms/starter';
 import { Audience } from '../sms/types';
 import { emailable, emailsLeftToday, emailSummary, sendNowEmail } from '../mail/campaigns';
@@ -41,7 +42,10 @@ const audienceKey = (a: Audience) => JSON.stringify(Object.fromEntries(Object.en
 const Patch = z
   .object({
     name: z.string().trim().min(1).max(80),
-    body: z.string().max(1600),
+    body: z.string().max(1600).superRefine((b, ctx) => {
+      const bad = cantFill(b);
+      if (bad.length) ctx.addIssue({ code: 'custom', message: cantFillMessage(bad) });
+    }),
     enabled: z.boolean(),
     audience: Audience,
     excluded: z.array(z.string().max(60)).max(2000),
@@ -147,6 +151,8 @@ export function textRoutes(deps: (env: Env) => EngineDeps) {
       .strict()
       .safeParse(await readJson(c.req.raw));
     if (!body.success) return err(c, 400, 'invalid', 'Give the message a name and choose who it goes to.');
+    const bad = cantFill(body.data.body ?? '');
+    if (bad.length) return err(c, 400, 'invalid', cantFillMessage(bad));
     const id = crypto.randomUUID();
     const now = nowIso();
     const dates = [...new Set(body.data.dates ?? [])].filter((x) => x > now);
