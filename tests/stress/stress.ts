@@ -1213,8 +1213,12 @@ async function runWedding(b: Batch, w: Wed, check: Check) {
       // A reply under it; then someone else can't remove it, its writer can (and the reply goes with it).
       const rep = await pub('board', 'POST', 'board', { token: p1.h.token, body: 'Same here!', parent: target.id });
       check(rep.status === 200, 'a guest replies to a post', () => `${rep.status} ${rep.text.slice(0, 120)}`);
-      const under = (await seenBy(p0.h)).posts.find((x) => x.id === target.id);
-      check(under?.replies.some((r) => r.body === 'Same here!') === true, 'a reply shows under its post', () => JSON.stringify(under ?? null).slice(0, 160));
+      // Its writer sees it under the post (marked waiting when "approve first" is on: a guest's reply waits too);
+      // the others see it once it's shown.
+      const under = (await seenBy(p1.h)).posts.find((x) => x.id === target.id);
+      check(under?.replies.some((r) => r.body === 'Same here!' && r.mine && r.pending === approve) === true, 'a reply shows under its post', () => JSON.stringify(under ?? null).slice(0, 160));
+      const others = (await seenBy(p0.h)).posts.find((x) => x.id === target.id);
+      check(others?.replies.some((r) => r.body === 'Same here!') === !approve, approve ? 'a reply waiting for approval is hidden from others' : 'a reply shows to others at once', () => JSON.stringify(others ?? null).slice(0, 160));
       check((await pub('board/:id', 'DELETE', `board/${target.id}`, { token: p1.h.token })).status === 404, 'a guest can’t remove someone else’s post');
       check((await pub('board/:id', 'DELETE', `board/${target.id}`, { token: p0.h.token })).status === 200, 'a guest removes their own post');
       check(!(await couple()).posts.some((x) => x.id === target.id), 'a removed post is gone for the couple too, replies and all');

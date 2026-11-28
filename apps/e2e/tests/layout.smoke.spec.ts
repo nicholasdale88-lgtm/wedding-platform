@@ -460,7 +460,7 @@ test('the sample app on a phone: Help, Preview, Group by side and the dietary + 
   }
 });
 
-test('the guest photo page on a phone: every frame and look chip is a 44px tap; the vendor sample's Edit your listing is 44px', async ({ page }, info) => {
+test("the guest photo page on a phone: every frame and look chip is a 44px tap; the vendor sample's Edit your listing is 44px", async ({ page }, info) => {
   test.skip(!phone(info.project.name), 'phone only');
   const tall = (el: Element) => {
     el.scrollIntoView({ block: 'nearest', inline: 'center' });
